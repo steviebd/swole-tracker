@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 
-import { auth } from "~/server/auth";
 import { api } from "~/trpc/server";
 import { TemplateForm } from "~/app/_components/template-form";
 
@@ -10,11 +10,11 @@ interface EditTemplatePageProps {
 }
 
 export default async function EditTemplatePage({ params }: EditTemplatePageProps) {
-  const session = await auth();
+  const user = await currentUser();
   const { id } = await params;
 
-  if (!session?.user) {
-    redirect("/");
+  if (!user) {
+    redirect("/sign-in");
   }
 
   const templateId = parseInt(id);

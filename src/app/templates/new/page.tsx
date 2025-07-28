@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 
-import { auth } from "~/server/auth";
 import { TemplateForm } from "~/app/_components/template-form";
 
 export default async function NewTemplatePage() {
-  const session = await auth();
+  const user = await currentUser();
 
-  if (!session?.user) {
-    redirect("/");
+  if (!user) {
+    redirect("/sign-in");
   }
 
   return (

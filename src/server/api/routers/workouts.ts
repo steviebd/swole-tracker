@@ -22,7 +22,7 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
       return ctx.db.query.workoutSessions.findMany({
-        where: eq(workoutSessions.userId, ctx.session.user.id),
+        where: eq(workoutSessions.userId, ctx.user.id),
         orderBy: [desc(workoutSessions.workoutDate)],
         limit: input.limit,
         with: {
@@ -52,7 +52,7 @@ export const workoutsRouter = createTRPCRouter({
         },
       });
 
-      if (!workout || workout.userId !== ctx.session.user.id) {
+      if (!workout || workout.userId !== ctx.user.id) {
         throw new Error("Workout not found");
       }
 
@@ -72,7 +72,7 @@ export const workoutsRouter = createTRPCRouter({
       });
 
       // Filter out exercises where the session doesn't belong to the user
-      if (!lastExercise?.session || lastExercise.session.userId !== ctx.session.user.id) {
+      if (!lastExercise?.session || lastExercise.session.userId !== ctx.user.id) {
         return null;
       }
 
@@ -103,7 +103,7 @@ export const workoutsRouter = createTRPCRouter({
         },
       });
 
-      if (!template || template.userId !== ctx.session.user.id) {
+      if (!template || template.userId !== ctx.user.id) {
         throw new Error("Template not found");
       }
 
@@ -111,7 +111,7 @@ export const workoutsRouter = createTRPCRouter({
       const [session] = await ctx.db
         .insert(workoutSessions)
         .values({
-          userId: ctx.session.user.id,
+          userId: ctx.user.id,
           templateId: input.templateId,
           workoutDate: input.workoutDate,
         })
@@ -141,7 +141,7 @@ export const workoutsRouter = createTRPCRouter({
         where: eq(workoutSessions.id, input.sessionId),
       });
 
-      if (!session || session.userId !== ctx.session.user.id) {
+      if (!session || session.userId !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
 
@@ -181,7 +181,7 @@ export const workoutsRouter = createTRPCRouter({
         where: eq(workoutSessions.id, input.id),
       });
 
-      if (!session || session.userId !== ctx.session.user.id) {
+      if (!session || session.userId !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
 

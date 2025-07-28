@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 
-import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutStarter } from "~/app/_components/workout-starter";
 
@@ -10,11 +10,11 @@ interface StartWorkoutPageProps {
 }
 
 export default async function StartWorkoutPage({ searchParams }: StartWorkoutPageProps) {
-  const session = await auth();
+  const user = await currentUser();
   const { templateId } = await searchParams;
 
-  if (!session?.user) {
-    redirect("/");
+  if (!user) {
+    redirect("/sign-in");
   }
 
   // Prefetch templates

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 
-import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutSession } from "~/app/_components/workout-session";
 
@@ -10,11 +10,11 @@ interface WorkoutSessionPageProps {
 }
 
 export default async function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
-  const session = await auth();
+  const user = await currentUser();
   const { id } = await params;
 
-  if (!session?.user) {
-    redirect("/");
+  if (!user) {
+    redirect("/sign-in");
   }
 
   const sessionId = parseInt(id);

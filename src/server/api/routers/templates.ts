@@ -7,7 +7,7 @@ export const templatesRouter = createTRPCRouter({
   // Get all templates for the current user
   getAll: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.workoutTemplates.findMany({
-      where: eq(workoutTemplates.userId, ctx.session.user.id),
+      where: eq(workoutTemplates.userId, ctx.user.id),
       orderBy: [desc(workoutTemplates.createdAt)],
       with: {
         exercises: {
@@ -30,7 +30,7 @@ export const templatesRouter = createTRPCRouter({
         },
       });
 
-      if (!template || template.userId !== ctx.session.user.id) {
+      if (!template || template.userId !== ctx.user.id) {
         throw new Error("Template not found");
       }
 
@@ -50,7 +50,7 @@ export const templatesRouter = createTRPCRouter({
         .insert(workoutTemplates)
         .values({
           name: input.name,
-          userId: ctx.session.user.id,
+          userId: ctx.user.id,
         })
         .returning();
 
@@ -87,7 +87,7 @@ export const templatesRouter = createTRPCRouter({
         where: eq(workoutTemplates.id, input.id),
       });
 
-      if (!existingTemplate || existingTemplate.userId !== ctx.session.user.id) {
+      if (!existingTemplate || existingTemplate.userId !== ctx.user.id) {
         throw new Error("Template not found");
       }
 
@@ -125,7 +125,7 @@ export const templatesRouter = createTRPCRouter({
         where: eq(workoutTemplates.id, input.id),
       });
 
-      if (!existingTemplate || existingTemplate.userId !== ctx.session.user.id) {
+      if (!existingTemplate || existingTemplate.userId !== ctx.user.id) {
         throw new Error("Template not found");
       }
 

@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { currentUser } from "@clerk/nextjs/server";
+import { UserButton } from "@clerk/nextjs";
 
-import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import { RecentWorkouts } from "~/app/_components/recent-workouts";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
 
 export default async function Home() {
-  const session = await auth();
+  const user = await currentUser();
 
-  if (!session?.user) {
+  if (!user) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center">
         <div className="container flex flex-col items-center justify-center gap-8 px-4 py-16">
@@ -36,14 +37,9 @@ export default async function Home() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold">💪 Swole Tracker</h1>
-              <p className="text-gray-400">Welcome back, {session.user.name}</p>
+              <p className="text-gray-400">Welcome back, {user.firstName ?? user.username}</p>
             </div>
-            <Link
-              href="/api/auth/signout"
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              Sign out
-            </Link>
+            <UserButton />
           </div>
 
           {/* Quick Actions */}

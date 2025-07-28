@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 
-import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import { TemplatesList } from "~/app/_components/templates-list";
 
 export default async function TemplatesPage() {
-  const session = await auth();
+  const user = await currentUser();
 
-  if (!session?.user) {
-    redirect("/");
+  if (!user) {
+    redirect("/sign-in");
   }
 
   // Prefetch templates
