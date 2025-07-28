@@ -229,13 +229,20 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Save Button - only show for new workouts */}
       {!isReadOnly && (
-        <div className="sticky bottom-4 pt-6">
+        <div className="sticky bottom-4 pt-6 space-y-3">
           <button
             onClick={handleSave}
             disabled={saveWorkout.isPending}
             className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors rounded-lg py-3 font-medium text-lg"
           >
             {saveWorkout.isPending ? "Saving..." : "Save Workout"}
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleteWorkout.isPending}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors rounded-lg py-3 font-medium text-lg"
+          >
+            {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
         </div>
       )}
