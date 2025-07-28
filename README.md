@@ -16,13 +16,10 @@ Create a `.env` file in the root directory with the following variables:
 # Database (Supabase PostgreSQL)
 DATABASE_URL="postgresql://username:password@host:port/database"
 
-# NextAuth.js
-NEXTAUTH_SECRET="your-nextauth-secret"
-NEXTAUTH_URL="http://localhost:3000"
+# Clerk Auth
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-public-key
+CLERK_SECRET_KEY=your-clerk-secret-key
 
-# Discord OAuth
-DISCORD_CLIENT_ID="your-discord-client-id" 
-DISCORD_CLIENT_SECRET="your-discord-client-secret"
 ```
 
 ## Setup Steps
@@ -47,17 +44,9 @@ DISCORD_CLIENT_SECRET="your-discord-client-secret"
    pnpm build
    ```
 
-## Discord OAuth Setup
-
-1. Go to https://discord.com/developers/applications
-2. Create a new application
-3. Go to OAuth2 settings
-4. Add redirect URI: `http://localhost:3000/api/auth/callback/discord`
-5. Copy the Client ID and Client Secret to your `.env` file
-
 ## Features
 
-- **User Authentication**: Discord OAuth via NextAuth.js
+- **User Authentication**: Clerk Auth
 - **Workout Templates**: Create and manage workout templates with custom exercises
 - **Workout Sessions**: Start workouts, log exercise data (weight, reps, sets)
 - **Progress Tracking**: Auto-populate previous exercise data for easy logging
@@ -95,9 +84,90 @@ The application uses the following main tables:
 - `session_exercises` - Exercise data logged during sessions
 - `user_preferences` - User settings (weight units, etc.)
 
-## Deployment
+## Production Deployment
 
-This application is ready for deployment on Vercel. Make sure to:
-1. Set up your environment variables in Vercel
-2. Update the NEXTAUTH_URL to your production domain
-3. Update Discord OAuth redirect URI to your production domain
+### Prerequisites
+
+- Vercel account
+- Supabase account
+- Clerk account
+
+### Step 1: Setup Supabase Database
+
+1. Create a new project in [Supabase](https://supabase.com)
+2. Go to Settings → Database and copy your connection string
+3. Update the connection string format:
+   ```
+   postgresql://postgres.reference:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+   ```
+
+### Step 2: Setup Clerk Authentication
+
+1. Create a new application in [Clerk](https://clerk.com)
+2. Go to Developers → API Keys and copy:
+   - Publishable key
+   - Secret key
+3. Configure allowed redirect URLs for your Vercel domain
+
+### Step 3: Deploy to Vercel
+
+1. **Connect Repository:**
+   ```bash
+   # Install Vercel CLI
+   npm i -g vercel
+   
+   # Deploy
+   vercel
+   ```
+
+2. **Environment Variables:**
+   Add these in Vercel Dashboard → Settings → Environment Variables:
+   ```env
+   # Database
+   DATABASE_URL=your-supabase-connection-string
+   
+   # Clerk Auth
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
+   CLERK_SECRET_KEY=sk_test_xxxxx
+   ```
+
+3. **Build Settings:**
+   - Framework Preset: Next.js
+   - Build Command: `pnpm build`
+   - Output Directory: `.next`
+   - Install Command: `pnpm install`
+
+### Step 4: Initialize Database Schema
+
+After deployment, push your schema to Supabase:
+
+```bash
+# Set production DATABASE_URL locally
+export DATABASE_URL="your-supabase-connection-string"
+
+# Push schema to production
+pnpm db:push
+```
+
+### Step 5: Verify Deployment
+
+1. Visit your Vercel domain
+2. Test user registration/login
+3. Create a workout template to verify database connectivity
+4. Check Vercel Function logs for any errors
+
+### Production Checklist
+
+- [ ] Supabase project created and configured
+- [ ] Clerk application created with correct redirect URLs
+- [ ] Environment variables set in Vercel
+- [ ] Database schema pushed to production
+- [ ] SSL certificate configured (automatic with Vercel)
+- [ ] Custom domain configured (optional)
+
+### Monitoring & Maintenance
+
+- Monitor performance in Vercel Analytics
+- Check Supabase logs for database issues
+- Monitor Clerk dashboard for authentication metrics
+- Set up Vercel monitoring alerts for downtime
