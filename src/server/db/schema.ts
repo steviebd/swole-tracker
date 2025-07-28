@@ -35,6 +35,9 @@ export const templateExercises = createTable(
   "template_exercise",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: d
+      .varchar({ length: 255 })
+      .notNull(),
     templateId: d
       .integer()
       .notNull()
@@ -47,6 +50,7 @@ export const templateExercises = createTable(
       .notNull(),
   }),
   (t) => [
+    index("template_exercise_user_id_idx").on(t.userId),
     index("template_exercise_template_id_idx").on(t.templateId),
     index("template_exercise_order_idx").on(t.templateId, t.orderIndex),
   ],
@@ -85,6 +89,9 @@ export const sessionExercises = createTable(
   "session_exercise",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: d
+      .varchar({ length: 255 })
+      .notNull(),
     sessionId: d
       .integer()
       .notNull()
@@ -103,6 +110,7 @@ export const sessionExercises = createTable(
       .notNull(),
   }),
   (t) => [
+    index("session_exercise_user_id_idx").on(t.userId),
     index("session_exercise_session_id_idx").on(t.sessionId),
     index("session_exercise_template_exercise_id_idx").on(t.templateExerciseId),
     index("session_exercise_name_idx").on(t.exerciseName),

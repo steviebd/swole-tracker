@@ -5,7 +5,7 @@ import {
   sessionExercises, 
   workoutTemplates
 } from "~/server/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 const exerciseInputSchema = z.object({
   templateExerciseId: z.number().optional(),
@@ -64,15 +64,14 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ exerciseName: z.string() }))
     .query(async ({ input, ctx }) => {
       const lastExercise = await ctx.db.query.sessionExercises.findFirst({
-        where: eq(sessionExercises.exerciseName, input.exerciseName),
+        where: and(
+          eq(sessionExercises.userId, ctx.user.id),
+          eq(sessionExercises.exerciseName, input.exerciseName)
+        ),
         orderBy: [desc(sessionExercises.createdAt)],
-        with: {
-          session: true,
-        },
       });
 
-      // Filter out exercises where the session doesn't belong to the user
-      if (!lastExercise?.session || lastExercise.session.userId !== ctx.user.id) {
+      if (!lastExercise) {
         return null;
       }
 
@@ -158,6 +157,7 @@ export const workoutsRouter = createTRPCRouter({
       if (exercisesToInsert.length > 0) {
         await ctx.db.insert(sessionExercises).values(
           exercisesToInsert.map((exercise) => ({
+            userId: ctx.user.id,
             sessionId: input.sessionId,
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,

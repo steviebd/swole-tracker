@@ -38,6 +38,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         updatedAt: new Date(),
         exercises: newTemplate.exercises.map((exerciseName, index) => ({
           id: -index - 1,
+          userId: "temp-user",
           templateId: -1,
           exerciseName,
           orderIndex: index,
@@ -85,6 +86,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 updatedAt: new Date(),
                 exercises: updatedTemplate.exercises.map((exerciseName, index) => ({
                   id: template.exercises[index]?.id ?? -index - 1,
+                  userId: template.exercises[index]?.userId ?? "temp-user",
                   templateId: template.id,
                   exerciseName,
                   orderIndex: index,

@@ -62,6 +62,7 @@ export const templatesRouter = createTRPCRouter({
       if (input.exercises.length > 0) {
         await ctx.db.insert(templateExercises).values(
           input.exercises.map((exerciseName, index) => ({
+            userId: ctx.user.id,
             templateId: template.id,
             exerciseName,
             orderIndex: index,
@@ -106,6 +107,7 @@ export const templatesRouter = createTRPCRouter({
       if (input.exercises.length > 0) {
         await ctx.db.insert(templateExercises).values(
           input.exercises.map((exerciseName, index) => ({
+            userId: ctx.user.id,
             templateId: input.id,
             exerciseName,
             orderIndex: index,
