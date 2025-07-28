@@ -28,7 +28,7 @@ export const workoutTemplates = createTable(
     index("template_user_id_idx").on(t.user_id),
     index("template_name_idx").on(t.name),
   ],
-).enableRLS();
+); // RLS disabled - using Clerk auth with application-level security
 
 // Template Exercises
 export const templateExercises = createTable(
@@ -54,7 +54,7 @@ export const templateExercises = createTable(
     index("template_exercise_template_id_idx").on(t.templateId),
     index("template_exercise_order_idx").on(t.templateId, t.orderIndex),
   ],
-).enableRLS();
+); // RLS disabled - using Clerk auth with application-level security
 
 // Workout Sessions
 export const workoutSessions = createTable(
@@ -82,7 +82,7 @@ export const workoutSessions = createTable(
     index("session_template_id_idx").on(t.templateId),
     index("session_workout_date_idx").on(t.workoutDate),
   ],
-).enableRLS();
+); // RLS disabled - using Clerk auth with application-level security
 
 // Session Exercises
 export const sessionExercises = createTable(
@@ -115,7 +115,7 @@ export const sessionExercises = createTable(
     index("session_exercise_template_exercise_id_idx").on(t.templateExerciseId),
     index("session_exercise_name_idx").on(t.exerciseName),
   ],
-).enableRLS();
+); // RLS disabled - using Clerk auth with application-level security
 
 // User Preferences
 export const userPreferences = createTable(
@@ -136,7 +136,7 @@ export const userPreferences = createTable(
   (t) => [
     index("user_preferences_user_id_idx").on(t.user_id),
   ],
-).enableRLS();
+); // RLS disabled - using Clerk auth with application-level security
 
 // Note: With Clerk, we don't need users table as Clerk handles user management
 // Instead, we reference Clerk user IDs directly in our app tables
