@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { analytics } from "~/lib/analytics";
 
 interface WorkoutStarterProps {
   initialTemplateId?: number;
@@ -29,6 +30,11 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   
   const startWorkout = api.workouts.start.useMutation({
     onSuccess: (data) => {
+      const template = templates?.find(t => t.id === selectedTemplateId);
+      analytics.workoutStarted(
+        selectedTemplateId?.toString() ?? "unknown",
+        template?.name ?? "Unknown Template"
+      );
       router.push(`/workout/session/${data.sessionId}`);
     },
   });
@@ -46,6 +52,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       });
     } catch (error) {
       console.error("Error starting workout:", error);
+      analytics.error(error as Error, { 
+        context: "workout_start", 
+        templateId: selectedTemplateId?.toString() 
+      });
       alert("Error starting workout. Please try again.");
     }
   };

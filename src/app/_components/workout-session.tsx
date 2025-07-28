@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { ExerciseInput } from "./exercise-input";
+import { analytics } from "~/lib/analytics";
 
 interface ExerciseData {
   templateExerciseId?: number;
@@ -78,6 +79,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       }
     },
     onSuccess: () => {
+      // Track workout completion
+      const duration = session?.workoutDate ? 
+        Math.round((Date.now() - new Date(session.workoutDate).getTime()) / 1000 / 60) : 0;
+      analytics.workoutCompleted(sessionId.toString(), duration, exercises.length);
+      
       // Navigate immediately since we've already updated the cache optimistically
       router.push("/");
     },
@@ -176,6 +182,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       });
     } catch (error) {
       console.error("Error saving workout:", error);
+      analytics.error(error as Error, { 
+        context: "workout_save", 
+        sessionId: sessionId.toString() 
+      });
       alert("Error saving workout. Please try again.");
     }
   };
@@ -185,6 +195,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       await deleteWorkout.mutateAsync({ id: sessionId });
     } catch (error) {
       console.error("Error deleting workout:", error);
+      analytics.error(error as Error, { 
+        context: "workout_delete", 
+        sessionId: sessionId.toString() 
+      });
       alert("Error deleting workout. Please try again.");
     }
   };

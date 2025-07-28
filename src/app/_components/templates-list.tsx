@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { analytics } from "~/lib/analytics";
 
 export function TemplatesList() {
   const { data: templates, isLoading } = api.templates.getAll.useQuery();
@@ -37,8 +38,13 @@ export function TemplatesList() {
     if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
       try {
         await deleteTemplate.mutateAsync({ id });
+        analytics.templateDeleted(id.toString());
       } catch (error) {
         console.error("Error deleting template:", error);
+        analytics.error(error as Error, { 
+          context: "template_delete", 
+          templateId: id.toString() 
+        });
       }
     }
   };

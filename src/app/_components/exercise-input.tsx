@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "~/trpc/react";
+import { analytics } from "~/lib/analytics";
 
 interface ExerciseData {
   templateExerciseId?: number;
@@ -63,7 +64,18 @@ export function ExerciseInput({ exercise, index, onUpdate, onToggleUnit, readOnl
               type="number"
               step="0.5"
               value={exercise.weight ?? ""}
-              onChange={(e) => onUpdate(index, "weight", e.target.value ? parseFloat(e.target.value) : undefined)}
+              onChange={(e) => {
+              const value = e.target.value ? parseFloat(e.target.value) : undefined;
+              onUpdate(index, "weight", value);
+              if (value && exercise.sets) {
+                analytics.exerciseLogged(
+                  exercise.templateExerciseId?.toString() ?? "custom",
+                  exercise.exerciseName,
+                  exercise.sets,
+                  value
+                );
+              }
+            }}
               placeholder="0"
               disabled={readOnly}
               className={`flex-1 border rounded px-2 py-1 text-sm focus:outline-none ${

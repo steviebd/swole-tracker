@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
+import { analytics } from "~/lib/analytics";
 
 interface TemplateFormProps {
   template?: {
@@ -59,7 +60,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
         utils.templates.getAll.setData(undefined, context.previousTemplates);
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      analytics.templateCreated(data.id.toString(), exercises.filter(ex => ex.trim()).length);
       router.push("/templates");
     },
     onSettled: () => {
@@ -106,6 +108,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     },
     onSuccess: () => {
+      analytics.templateEdited(template!.id.toString(), exercises.filter(ex => ex.trim()).length);
       router.push("/templates");
     },
     onSettled: () => {
@@ -153,6 +156,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     } catch (error) {
       console.error("Error saving template:", error);
+      analytics.error(error as Error, { 
+        context: template ? "template_edit" : "template_create", 
+        templateId: template?.id.toString() 
+      });
       alert("Error saving template. Please try again.");
     }
   };
