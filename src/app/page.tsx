@@ -2,7 +2,6 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 
-import { api, HydrateClient } from "~/trpc/server";
 import { RecentWorkouts } from "~/app/_components/recent-workouts";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
 
@@ -25,56 +24,50 @@ export default async function Home() {
     );
   }
 
-  // Prefetch data for authenticated users
-  void api.templates.getAll.prefetch();
-  void api.workouts.getRecent.prefetch({ limit: 5 });
-
   return (
-    <HydrateClient>
-      <main className="min-h-screen">
-        <div className="container mx-auto px-4 py-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">💪 Swole Tracker</h1>
-              <p className="text-gray-400">Welcome back, {user.firstName ?? user.username}</p>
-            </div>
-            <UserButton />
+    <main className="min-h-screen">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">💪 Swole Tracker</h1>
+            <p className="text-gray-400">Welcome back, {user.firstName ?? user.username}</p>
           </div>
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-            <Link
-              href="/workout/start"
-              className="bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg p-6 text-center"
-            >
-              <h3 className="text-xl font-semibold mb-2">🏋️ Start Workout</h3>
-              <p className="text-purple-100">Begin a new workout session</p>
-            </Link>
-            <Link
-              href="/templates"
-              className="bg-gray-800 hover:bg-gray-700 transition-colors rounded-lg p-6 text-center"
-            >
-              <h3 className="text-xl font-semibold mb-2">📋 Manage Templates</h3>
-              <p className="text-gray-300">Create and edit workout templates</p>
-            </Link>
-          </div>
-
-          {/* Recent Workouts Section */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Recent Workouts</h2>
-              <Link 
-                href="/workouts" 
-                className="text-purple-400 hover:text-purple-300 text-sm"
-              >
-                View all →
-              </Link>
-            </div>
-            <RecentWorkouts />
-          </div>
+          <UserButton />
         </div>
-      </main>
-    </HydrateClient>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <Link
+            href="/workout/start"
+            className="bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg p-6 text-center"
+          >
+            <h3 className="text-xl font-semibold mb-2">🏋️ Start Workout</h3>
+            <p className="text-purple-100">Begin a new workout session</p>
+          </Link>
+          <Link
+            href="/templates"
+            className="bg-gray-800 hover:bg-gray-700 transition-colors rounded-lg p-6 text-center"
+          >
+            <h3 className="text-xl font-semibold mb-2">📋 Manage Templates</h3>
+            <p className="text-gray-300">Create and edit workout templates</p>
+          </Link>
+        </div>
+
+        {/* Recent Workouts Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Recent Workouts</h2>
+            <Link 
+              href="/workouts" 
+              className="text-purple-400 hover:text-purple-300 text-sm"
+            >
+              View all →
+            </Link>
+          </div>
+          <RecentWorkouts />
+        </div>
+      </div>
+    </main>
   );
 }

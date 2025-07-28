@@ -10,22 +10,26 @@ interface WorkoutWithTemplate {
   templateId: number
   workoutDate: string
   createdAt: string
-  template_name: string | null
-  exercise_count: number
+  swole_tracker_workout_template: {
+    name: string
+  } | null
+  exercise_count?: number
 }
 
-export function RecentWorkouts() {
+export function RecentWorkoutsSupabase() {
   const [workouts, setWorkouts] = useState<WorkoutWithTemplate[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { user } = useUser()
   const { session } = useSession()
+
+  // We'll create the client inside the useEffect with the session
 
   useEffect(() => {
     if (!user || !session) return
 
     async function loadWorkouts() {
-      setIsLoading(true)
+      setLoading(true)
       setError(null)
       
       try {
@@ -45,7 +49,7 @@ export function RecentWorkouts() {
 
         // Get template names and exercise counts for each workout session
         const workoutsWithDetails = await Promise.all(
-          (workoutData ?? []).map(async (workout: { id: number; templateId: number; workoutDate: string; createdAt: string }) => {
+          (workoutData || []).map(async (workout: any) => {
             // Get template name
             const { data: templateData } = await client
               .from('swole-tracker_workout_template')
@@ -62,25 +66,25 @@ export function RecentWorkouts() {
 
             return {
               ...workout,
-              template_name: templateData?.name ?? null,
-              exercise_count: count ?? 0
+              swole_tracker_workout_template: templateData,
+              exercise_count: count || 0
             }
           })
         )
 
         setWorkouts(workoutsWithDetails)
-      } catch (err: unknown) {
+      } catch (err: any) {
         console.error('Error loading workouts:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load workouts')
+        setError(err.message || 'Failed to load workouts')
       } finally {
-        setIsLoading(false)
+        setLoading(false)
       }
     }
 
-    void loadWorkouts()
-  }, [user, session]);
+    loadWorkouts()
+  }, [user, session])
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="space-y-3">
         {[...Array(3) as number[]].map((_, i) => (
@@ -116,7 +120,9 @@ export function RecentWorkouts() {
       {workouts.map((workout) => (
         <div key={workout.id} className="bg-gray-800 rounded-lg p-4 relative">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="font-medium">{workout.template_name ?? 'Unknown Template'}</h4>
+            <h4 className="font-medium">
+              {workout.swole_tracker_workout_template?.name || 'Unknown Template'}
+            </h4>
             <div className="text-xs text-gray-400">
               {new Date(workout.workoutDate).toLocaleDateString()}
             </div>
