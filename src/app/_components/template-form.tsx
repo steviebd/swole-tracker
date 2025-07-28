@@ -33,12 +33,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
       const optimisticTemplate = {
         id: -1, // Temporary negative ID
         name: newTemplate.name,
-        user_id: crypto.randomUUID(), // Temporary UUID for optimistic update
+        user_id: "temp-user", // Will be replaced by server
         createdAt: new Date(),
         updatedAt: new Date(),
         exercises: newTemplate.exercises.map((exerciseName, index) => ({
           id: -index - 1,
-          user_id: crypto.randomUUID(),
+          user_id: "temp-user",
           templateId: -1,
           exerciseName,
           orderIndex: index,
@@ -86,7 +86,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 updatedAt: new Date(),
                 exercises: updatedTemplate.exercises.map((exerciseName, index) => ({
                   id: template.exercises[index]?.id ?? -index - 1,
-                  user_id: template.exercises[index]?.user_id ?? crypto.randomUUID(),
+                  user_id: template.exercises[index]?.user_id ?? "temp-user",
                   templateId: template.id,
                   exerciseName,
                   orderIndex: index,
