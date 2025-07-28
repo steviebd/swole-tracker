@@ -2,11 +2,12 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
-import { ClerkProvider } from '@clerk/nextjs'
+import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { ConnectionStatus } from "~/app/_components/connection-status";
 import { SyncIndicator } from "~/app/_components/sync-indicator";
+import { PostHogProvider } from "~/providers/PostHogProvider";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -25,12 +26,14 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={`${geist.variable} dark`}>
-        <body className="bg-gray-900 text-white min-h-screen">
-          <ConnectionStatus />
-          <TRPCReactProvider>
-            <SyncIndicator />
-            {children}
-          </TRPCReactProvider>
+        <body className="min-h-screen bg-gray-900 text-white">
+          <PostHogProvider>
+            <ConnectionStatus />
+            <TRPCReactProvider>
+              <SyncIndicator />
+              {children}
+            </TRPCReactProvider>
+          </PostHogProvider>
         </body>
       </html>
     </ClerkProvider>
