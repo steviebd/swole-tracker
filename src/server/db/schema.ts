@@ -16,7 +16,7 @@ export const workoutTemplates = createTable(
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     name: d.varchar({ length: 256 }).notNull(),
     user_id: d
-      .uuid()
+      .varchar({ length: 256 })
       .notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -36,7 +36,7 @@ export const templateExercises = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .uuid()
+      .varchar({ length: 256 })
       .notNull(),
     templateId: d
       .integer()
@@ -62,7 +62,7 @@ export const workoutSessions = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .uuid()
+      .varchar({ length: 256 })
       .notNull(),
     templateId: d
       .integer()
@@ -90,7 +90,7 @@ export const sessionExercises = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .uuid()
+      .varchar({ length: 256 })
       .notNull(),
     sessionId: d
       .integer()
@@ -123,7 +123,7 @@ export const userPreferences = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .uuid()
+      .varchar({ length: 256 })
       .notNull()
       .unique(),
     defaultWeightUnit: d.varchar({ length: 10 }).notNull().default("kg"),
