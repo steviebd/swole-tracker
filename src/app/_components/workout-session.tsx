@@ -24,6 +24,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const [exercises, setExercises] = useState<ExerciseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: session } = api.workouts.getById.useQuery({ id: sessionId });
   const { data: preferences } = api.preferences.get.useQuery();
@@ -78,6 +79,37 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     },
     onSuccess: () => {
       // Navigate immediately since we've already updated the cache optimistically
+      router.push("/");
+    },
+    onSettled: () => {
+      // Always refetch to ensure we have the latest data
+      void utils.workouts.getRecent.invalidate();
+    },
+  });
+
+  const deleteWorkout = api.workouts.delete.useMutation({
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await utils.workouts.getRecent.cancel();
+      
+      // Snapshot the previous value
+      const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
+      
+      // Optimistically remove from cache
+      utils.workouts.getRecent.setData({ limit: 5 }, (old) => 
+        old ? old.filter((workout) => workout.id !== sessionId) : []
+      );
+      
+      return { previousWorkouts };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousWorkouts) {
+        utils.workouts.getRecent.setData({ limit: 5 }, context.previousWorkouts);
+      }
+    },
+    onSuccess: () => {
+      // Navigate back to home
       router.push("/");
     },
     onSettled: () => {
@@ -148,6 +180,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      await deleteWorkout.mutateAsync({ id: sessionId });
+    } catch (error) {
+      console.error("Error deleting workout:", error);
+      alert("Error deleting workout. Please try again.");
+    }
+  };
+
   if (loading || !session) {
     return (
       <div className="space-y-4">
@@ -209,11 +250,56 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             Repeat This Workout
           </Link>
           <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleteWorkout.isPending}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors rounded-lg py-3 font-medium text-lg"
+          >
+            {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
+          </button>
+          <button
             onClick={() => router.back()}
             className="w-full bg-gray-700 hover:bg-gray-600 transition-colors rounded-lg py-3 font-medium text-lg"
           >
             Back to History
           </button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[9999]"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div 
+            className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold mb-4 text-red-400">⚠️ Delete Workout</h3>
+            <p className="text-gray-300 mb-6 leading-relaxed">
+              Are you sure you want to delete this workout? 
+              <br />
+              <strong className="text-red-400">This action cannot be undone.</strong>
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 transition-colors rounded-lg py-3 font-medium text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  void handleDelete();
+                }}
+                disabled={deleteWorkout.isPending}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-colors rounded-lg py-3 font-medium text-white"
+              >
+                {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
