@@ -16,7 +16,7 @@ export const workoutTemplates = createTable(
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     name: d.varchar({ length: 256 }).notNull(),
     user_id: d
-      .text()
+      .uuid()
       .notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -36,7 +36,7 @@ export const templateExercises = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .text()
+      .uuid()
       .notNull(),
     templateId: d
       .integer()
@@ -62,7 +62,7 @@ export const workoutSessions = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .text()
+      .uuid()
       .notNull(),
     templateId: d
       .integer()
@@ -90,7 +90,7 @@ export const sessionExercises = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .text()
+      .uuid()
       .notNull(),
     sessionId: d
       .integer()
@@ -117,20 +117,25 @@ export const sessionExercises = createTable(
   ],
 ).enableRLS();
 
-// User Preferences  
+// User Preferences
 export const userPreferences = createTable(
   "user_preferences",
   (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d
-      .text()
-      .primaryKey(), // user_id as primary key - one preference set per user
+      .uuid()
+      .notNull()
+      .unique(),
     defaultWeightUnit: d.varchar({ length: 10 }).notNull().default("kg"),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
-  })
+  }),
+  (t) => [
+    index("user_preferences_user_id_idx").on(t.user_id),
+  ],
 ).enableRLS();
 
 // Note: With Clerk, we don't need users table as Clerk handles user management

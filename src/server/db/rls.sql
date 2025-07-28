@@ -7,13 +7,13 @@ ALTER TABLE "swole-tracker_user_preferences" ENABLE ROW LEVEL SECURITY;
 
 -- Create a function to get the current user ID from Clerk JWT
 CREATE OR REPLACE FUNCTION auth.clerk_user_id()
-RETURNS TEXT AS $$
+RETURNS UUID AS $$
 BEGIN
   -- Extract user ID from Clerk JWT token
   -- This assumes the JWT contains the user ID in the 'sub' claim
   RETURN COALESCE(
-    current_setting('request.jwt.claims', true)::json->>'sub',
-    current_setting('request.jwt.claim.sub', true)
+    (current_setting('request.jwt.claims', true)::json->>'sub')::uuid,
+    (current_setting('request.jwt.claim.sub', true))::uuid
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

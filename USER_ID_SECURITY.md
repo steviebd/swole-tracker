@@ -5,27 +5,27 @@ This application uses `user_id` as the primary mechanism for user data isolation
 
 ## Database Schema Security
 
-### Primary Key: `user_id`
-- **Type**: `text` - Stores Clerk user IDs
+### Primary Key: `user_id` Integration
+- **Type**: `uuid` - Stores Clerk user IDs (upgraded from text)
 - **Source**: Clerk authentication service 
-- **Format**: Clerk user ID strings (e.g., "user_2abc123def456")
+- **Format**: UUID format for Clerk user IDs
 
 ### Tables with User Isolation
-All 5 application tables enforce user isolation:
+All 5 application tables enforce user isolation with indexed `user_id` fields:
 
-1. **workoutTemplates** - `user_id` (indexed)
-2. **templateExercises** - `user_id` (indexed)  
-3. **workoutSessions** - `user_id` (indexed)
-4. **sessionExercises** - `user_id` (indexed)
-5. **userPreferences** - `user_id` (unique, indexed)
+1. **workoutTemplates** - `user_id UUID` (indexed) + auto-increment `id` primary key
+2. **templateExercises** - `user_id UUID` (indexed) + auto-increment `id` primary key  
+3. **workoutSessions** - `user_id UUID` (indexed) + auto-increment `id` primary key
+4. **sessionExercises** - `user_id UUID` (indexed) + auto-increment `id` primary key
+5. **userPreferences** - `user_id UUID` (unique indexed) + auto-increment `id` primary key
 
-### Database Indexes
-Each table has a dedicated index on `user_id` for efficient user-scoped queries:
-- `template_user_id_idx`
-- `template_exercise_user_id_idx`
-- `session_user_id_idx`
-- `session_exercise_user_id_idx`
-- `user_preferences_user_id_idx`
+### Database Indexes & Performance
+Each table has dedicated `user_id UUID` indexes for:
+- **Efficient user-scoped queries** with WHERE user_id = clause
+- **Fast user data filtering** at application level  
+- **Optimal UUID query performance** with native PostgreSQL support
+- **Smaller storage footprint** compared to text fields
+- **Consistent data isolation** patterns across all tables
 
 ## Application-Level Security
 

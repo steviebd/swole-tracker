@@ -48,6 +48,17 @@ This security review was conducted on a Next.js (T3 Stack) workout tracking appl
 
 ---
 
+-- Enable Row Level Security on the table
+ALTER TABLE public.swole-tracker_session_exercise ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for authenticated users to manage their own session exercises
+CREATE POLICY "Users can manage their own session exercises" ON public.swole-tracker_session_exercise
+FOR ALL USING (
+    (select auth.uid()) = user_id
+) WITH CHECK (
+    (select auth.uid()) = user_id
+);
+
 ## 3. Rate Limiting
 
 ### ❌ **No Rate Limiting Implemented**
