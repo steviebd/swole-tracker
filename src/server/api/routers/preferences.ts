@@ -7,7 +7,7 @@ export const preferencesRouter = createTRPCRouter({
   // Get user preferences
   get: protectedProcedure.query(async ({ ctx }) => {
     const prefs = await ctx.db.query.userPreferences.findFirst({
-      where: eq(userPreferences.userId, ctx.user.id),
+      where: eq(userPreferences.user_id, ctx.user.id),
     });
 
     return prefs ?? { defaultWeightUnit: "kg" as const };
@@ -23,18 +23,18 @@ export const preferencesRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       // Try to update existing preferences
       const existing = await ctx.db.query.userPreferences.findFirst({
-        where: eq(userPreferences.userId, ctx.user.id),
+        where: eq(userPreferences.user_id, ctx.user.id),
       });
 
       if (existing) {
         await ctx.db
           .update(userPreferences)
           .set({ defaultWeightUnit: input.defaultWeightUnit })
-          .where(eq(userPreferences.userId, ctx.user.id));
+          .where(eq(userPreferences.user_id, ctx.user.id));
       } else {
         // Create new preferences if none exist
         await ctx.db.insert(userPreferences).values({
-          userId: ctx.user.id,
+          user_id: ctx.user.id,
           defaultWeightUnit: input.defaultWeightUnit,
         });
       }

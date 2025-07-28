@@ -42,7 +42,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       if (session?.template) {
         const optimisticWorkout = {
           id: sessionId,
-          userId: session.userId,
+          user_id: session.user_id,
           templateId: session.templateId,
           workoutDate: session.workoutDate,
           createdAt: new Date(),

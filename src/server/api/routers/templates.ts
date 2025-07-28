@@ -7,7 +7,7 @@ export const templatesRouter = createTRPCRouter({
   // Get all templates for the current user
   getAll: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.workoutTemplates.findMany({
-      where: eq(workoutTemplates.userId, ctx.user.id),
+      where: eq(workoutTemplates.user_id, ctx.user.id),
       orderBy: [desc(workoutTemplates.createdAt)],
       with: {
         exercises: {
@@ -30,7 +30,7 @@ export const templatesRouter = createTRPCRouter({
         },
       });
 
-      if (!template || template.userId !== ctx.user.id) {
+      if (!template || template.user_id !== ctx.user.id) {
         throw new Error("Template not found");
       }
 
@@ -50,7 +50,7 @@ export const templatesRouter = createTRPCRouter({
         .insert(workoutTemplates)
         .values({
           name: input.name,
-          userId: ctx.user.id,
+          user_id: ctx.user.id,
         })
         .returning();
 
@@ -62,7 +62,7 @@ export const templatesRouter = createTRPCRouter({
       if (input.exercises.length > 0) {
         await ctx.db.insert(templateExercises).values(
           input.exercises.map((exerciseName, index) => ({
-            userId: ctx.user.id,
+            user_id: ctx.user.id,
             templateId: template.id,
             exerciseName,
             orderIndex: index,
@@ -88,7 +88,7 @@ export const templatesRouter = createTRPCRouter({
         where: eq(workoutTemplates.id, input.id),
       });
 
-      if (!existingTemplate || existingTemplate.userId !== ctx.user.id) {
+      if (!existingTemplate || existingTemplate.user_id !== ctx.user.id) {
         throw new Error("Template not found");
       }
 
@@ -107,7 +107,7 @@ export const templatesRouter = createTRPCRouter({
       if (input.exercises.length > 0) {
         await ctx.db.insert(templateExercises).values(
           input.exercises.map((exerciseName, index) => ({
-            userId: ctx.user.id,
+            user_id: ctx.user.id,
             templateId: input.id,
             exerciseName,
             orderIndex: index,
@@ -127,7 +127,7 @@ export const templatesRouter = createTRPCRouter({
         where: eq(workoutTemplates.id, input.id),
       });
 
-      if (!existingTemplate || existingTemplate.userId !== ctx.user.id) {
+      if (!existingTemplate || existingTemplate.user_id !== ctx.user.id) {
         throw new Error("Template not found");
       }
 
