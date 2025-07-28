@@ -4,7 +4,7 @@ import posthog from "posthog-js";
 
 export const analytics = {
   // Page tracking
-  pageView: (page: string, properties?: Record<string, any>) => {
+  pageView: (page: string, properties?: Record<string, unknown>) => {
     posthog.capture("$pageview", {
       $current_url: window.location.href,
       page,
@@ -73,7 +73,7 @@ export const analytics = {
   },
 
   // Error tracking
-  error: (error: Error, context?: Record<string, any>) => {
+  error: (error: Error, context?: Record<string, unknown>) => {
     posthog.capture("error", {
       error: error.message,
       stack: error.stack,
@@ -83,7 +83,7 @@ export const analytics = {
   },
 
   // Feature usage
-  featureUsed: (feature: string, properties?: Record<string, any>) => {
+  featureUsed: (feature: string, properties?: Record<string, unknown>) => {
     posthog.capture("feature_used", {
       feature,
       ...properties,
