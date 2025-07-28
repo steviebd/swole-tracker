@@ -80,93 +80,126 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Template Selection */}
       <div>
-        <label htmlFor="template" className="block text-sm font-medium mb-2">
-          Select Workout Template
-        </label>
-        <select
-          id="template"
-          value={selectedTemplateId ?? ""}
-          onChange={(e) => setSelectedTemplateId(e.target.value ? parseInt(e.target.value) : null)}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          required
-        >
-          <option value="">Choose a template...</option>
-          {templates.map((template) => (
-            <option key={template.id} value={template.id}>
-              {template.name} ({template.exercises.length} exercises)
-            </option>
+        <h2 className="text-lg font-medium mb-4">Select Workout Template</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+          {templates.slice(0, 6).map((template) => (
+            <button
+              key={template.id}
+              onClick={() => setSelectedTemplateId(template.id)}
+              className={`p-4 rounded-lg border-2 transition-all text-left ${
+                selectedTemplateId === template.id
+                  ? "border-purple-500 bg-purple-600/20"
+                  : "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700"
+              }`}
+            >
+              <h3 className="font-semibold mb-2 truncate">{template.name}</h3>
+              <p className="text-sm text-gray-400">
+                {template.exercises.length} exercise{template.exercises.length !== 1 ? "s" : ""}
+              </p>
+              {template.exercises.length > 0 && (
+                <div className="mt-2 text-xs text-gray-500">
+                  {template.exercises.slice(0, 3).map(ex => ex.exerciseName).join(", ")}
+                  {template.exercises.length > 3 && "..."}
+                </div>
+              )}
+            </button>
           ))}
-        </select>
-      </div>
-
-      {/* Date/Time Selection */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label htmlFor="workoutDate" className="block text-sm font-medium">
-            Workout Date & Time
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              const now = new Date();
-              const year = now.getFullYear();
-              const month = String(now.getMonth() + 1).padStart(2, '0');
-              const day = String(now.getDate()).padStart(2, '0');
-              const hours = String(now.getHours()).padStart(2, '0');
-              const minutes = String(now.getMinutes()).padStart(2, '0');
-              setWorkoutDate(`${year}-${month}-${day}T${hours}:${minutes}`);
-            }}
-            className="text-xs text-purple-400 hover:text-purple-300"
-          >
-            Use Now
-          </button>
         </div>
-        <input
-          type="datetime-local"
-          id="workoutDate"
-          value={workoutDate}
-          onChange={(e) => setWorkoutDate(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          required
-        />
+        
+        {templates.length > 6 && (
+          <div className="mt-4 text-center">
+            <Link
+              href="/templates"
+              className="text-purple-400 hover:text-purple-300 text-sm"
+            >
+              View all {templates.length} templates →
+            </Link>
+          </div>
+        )}
       </div>
 
-      {/* Template Preview */}
+      {/* Selected Template & Actions */}
       {selectedTemplateId && (
-        <div className="bg-gray-800 rounded-lg p-4">
-          <h3 className="font-medium mb-2">Template Preview</h3>
+        <div className="bg-gray-800 rounded-lg p-6 space-y-4">
           {(() => {
             const template = templates.find(t => t.id === selectedTemplateId);
             return template ? (
-              <div className="text-sm text-gray-400">
-                {template.exercises.length === 0 ? (
-                  "No exercises in this template"
-                ) : (
-                  <ul className="space-y-1">
-                    {template.exercises.map((exercise, index) => (
-                      <li key={exercise.id}>
-                        {index + 1}. {exercise.exerciseName}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Selected: {template.name}</h3>
+                  <div className="text-sm text-gray-400">
+                    {template.exercises.length === 0 ? (
+                      "No exercises in this template"
+                    ) : (
+                      <div className="space-y-1">
+                        {template.exercises.map((exercise, index) => (
+                          <div key={exercise.id} className="flex items-center">
+                            <span className="w-6 h-6 bg-purple-600 text-white text-xs rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            {exercise.exerciseName}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Date/Time Selection */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="workoutDate" className="block text-sm font-medium">
+                      Workout Date & Time
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const year = now.getFullYear();
+                        const month = String(now.getMonth() + 1).padStart(2, '0');
+                        const day = String(now.getDate()).padStart(2, '0');
+                        const hours = String(now.getHours()).padStart(2, '0');
+                        const minutes = String(now.getMinutes()).padStart(2, '0');
+                        setWorkoutDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+                      }}
+                      className="text-xs text-purple-400 hover:text-purple-300"
+                    >
+                      Use Now
+                    </button>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    id="workoutDate"
+                    value={workoutDate}
+                    onChange={(e) => setWorkoutDate(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                {/* Start Button */}
+                <button
+                  onClick={handleStart}
+                  disabled={startWorkout.isPending}
+                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-lg py-3 font-medium text-lg"
+                >
+                  {startWorkout.isPending ? "Starting..." : "Start Workout"}
+                </button>
+              </>
             ) : null;
           })()}
         </div>
       )}
 
-      {/* Start Button */}
-      <button
-        onClick={handleStart}
-        disabled={!selectedTemplateId || startWorkout.isPending}
-        className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-lg py-3 font-medium"
-      >
-        {startWorkout.isPending ? "Starting..." : "Start Workout"}
-      </button>
+      {/* No Selection State */}
+      {!selectedTemplateId && (
+        <div className="text-center py-8">
+          <p className="text-gray-400">Select a workout template above to continue</p>
+        </div>
+      )}
     </div>
   );
 }

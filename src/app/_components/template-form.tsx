@@ -19,15 +19,96 @@ export function TemplateForm({ template }: TemplateFormProps) {
     template?.exercises.map((ex) => ex.exerciseName) ?? [""]
   );
 
+  const utils = api.useUtils();
+  
   const createTemplate = api.templates.create.useMutation({
+    onMutate: async (newTemplate) => {
+      // Cancel any outgoing refetches
+      await utils.templates.getAll.cancel();
+      
+      // Snapshot the previous value
+      const previousTemplates = utils.templates.getAll.getData();
+      
+      // Create optimistic template
+      const optimisticTemplate = {
+        id: -1, // Temporary negative ID
+        name: newTemplate.name,
+        userId: "temp-user", // Will be replaced by server
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        exercises: newTemplate.exercises.map((exerciseName, index) => ({
+          id: -index - 1,
+          templateId: -1,
+          exerciseName,
+          orderIndex: index,
+          createdAt: new Date(),
+        })),
+      };
+      
+      // Optimistically add to cache
+      utils.templates.getAll.setData(undefined, (old) => 
+        old ? [optimisticTemplate, ...old] : [optimisticTemplate]
+      );
+      
+      return { previousTemplates };
+    },
+    onError: (err, newTemplate, context) => {
+      // Rollback on error
+      if (context?.previousTemplates) {
+        utils.templates.getAll.setData(undefined, context.previousTemplates);
+      }
+    },
     onSuccess: () => {
       router.push("/templates");
+    },
+    onSettled: () => {
+      // Always refetch to ensure we have the latest data
+      void utils.templates.getAll.invalidate();
     },
   });
 
   const updateTemplate = api.templates.update.useMutation({
+    onMutate: async (updatedTemplate) => {
+      // Cancel any outgoing refetches
+      await utils.templates.getAll.cancel();
+      
+      // Snapshot the previous value
+      const previousTemplates = utils.templates.getAll.getData();
+      
+      // Optimistically update the cache
+      utils.templates.getAll.setData(undefined, (old) => 
+        old?.map((template) => 
+          template.id === updatedTemplate.id
+            ? {
+                ...template,
+                name: updatedTemplate.name,
+                updatedAt: new Date(),
+                exercises: updatedTemplate.exercises.map((exerciseName, index) => ({
+                  id: template.exercises[index]?.id ?? -index - 1,
+                  templateId: template.id,
+                  exerciseName,
+                  orderIndex: index,
+                  createdAt: template.exercises[index]?.createdAt ?? new Date(),
+                })),
+              }
+            : template
+        ) ?? []
+      );
+      
+      return { previousTemplates };
+    },
+    onError: (err, updatedTemplate, context) => {
+      // Rollback on error
+      if (context?.previousTemplates) {
+        utils.templates.getAll.setData(undefined, context.previousTemplates);
+      }
+    },
     onSuccess: () => {
       router.push("/templates");
+    },
+    onSettled: () => {
+      // Always refetch to ensure we have the latest data
+      void utils.templates.getAll.invalidate();
     },
   });
 

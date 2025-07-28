@@ -7,7 +7,28 @@ export function TemplatesList() {
   const { data: templates, isLoading } = api.templates.getAll.useQuery();
   const utils = api.useUtils();
   const deleteTemplate = api.templates.delete.useMutation({
-    onSuccess: () => {
+    onMutate: async (deletedTemplate) => {
+      // Cancel any outgoing refetches
+      await utils.templates.getAll.cancel();
+      
+      // Snapshot the previous value
+      const previousTemplates = utils.templates.getAll.getData();
+      
+      // Optimistically remove from cache
+      utils.templates.getAll.setData(undefined, (old) => 
+        old?.filter((template) => template.id !== deletedTemplate.id) ?? []
+      );
+      
+      return { previousTemplates };
+    },
+    onError: (err, deletedTemplate, context) => {
+      // Rollback on error
+      if (context?.previousTemplates) {
+        utils.templates.getAll.setData(undefined, context.previousTemplates);
+      }
+    },
+    onSettled: () => {
+      // Always refetch to ensure we have the latest data
       void utils.templates.getAll.invalidate();
     },
   });

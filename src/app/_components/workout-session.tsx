@@ -31,10 +31,58 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const utils = api.useUtils();
   
   const saveWorkout = api.workouts.save.useMutation({
+    onMutate: async (newWorkout) => {
+      // Cancel any outgoing refetches
+      await utils.workouts.getRecent.cancel();
+      
+      // Snapshot the previous value
+      const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
+      
+      // Optimistically update the cache
+      if (session?.template) {
+        const optimisticWorkout = {
+          id: sessionId,
+          userId: session.userId,
+          templateId: session.templateId,
+          workoutDate: session.workoutDate,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          template: session.template,
+          exercises: newWorkout.exercises.map((exercise, index) => ({
+            id: -index, // Temporary negative ID
+            sessionId: sessionId,
+            templateExerciseId: exercise.templateExerciseId ?? null,
+            exerciseName: exercise.exerciseName,
+            weight: exercise.weight?.toString() ?? null,
+            reps: exercise.reps ?? null,
+            sets: exercise.sets ?? null,
+            unit: exercise.unit as string,
+            createdAt: new Date(),
+          })),
+        };
+
+        // Add to the beginning of recent workouts
+        utils.workouts.getRecent.setData({ limit: 5 }, (old) => 
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any
+          old ? [optimisticWorkout as any, ...old.slice(0, 4)] : [optimisticWorkout as any]
+        );
+      }
+      
+      return { previousWorkouts };
+    },
+    onError: (err, newWorkout, context) => {
+      // Rollback on error
+      if (context?.previousWorkouts) {
+        utils.workouts.getRecent.setData({ limit: 5 }, context.previousWorkouts);
+      }
+    },
     onSuccess: () => {
-      // Invalidate workouts queries to refresh recent workouts
-      void utils.workouts.getRecent.invalidate();
+      // Navigate immediately since we've already updated the cache optimistically
       router.push("/");
+    },
+    onSettled: () => {
+      // Always refetch to ensure we have the latest data
+      void utils.workouts.getRecent.invalidate();
     },
   });
 

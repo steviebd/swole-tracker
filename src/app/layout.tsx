@@ -4,6 +4,8 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
+import { ConnectionStatus } from "~/app/_components/connection-status";
+import { SyncIndicator } from "~/app/_components/sync-indicator";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -22,7 +24,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable} dark`}>
       <body className="bg-gray-900 text-white min-h-screen">
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <ConnectionStatus />
+        <TRPCReactProvider>
+          <SyncIndicator />
+          {children}
+        </TRPCReactProvider>
       </body>
     </html>
   );

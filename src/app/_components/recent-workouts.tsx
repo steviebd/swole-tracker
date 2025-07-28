@@ -4,7 +4,16 @@ import Link from "next/link";
 import { api } from "~/trpc/react";
 
 export function RecentWorkouts() {
-  const { data: workouts, isLoading } = api.workouts.getRecent.useQuery({ limit: 3 });
+  const { data: workouts, isLoading, isStale, isFetching } = api.workouts.getRecent.useQuery(
+    { limit: 3 },
+    {
+      // Enhanced caching for better performance
+      staleTime: 2 * 60 * 1000, // 2 minutes - consider fresh for longer
+      gcTime: 10 * 60 * 1000, // 10 minutes in cache
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    }
+  );
 
   if (isLoading) {
     return (
@@ -32,7 +41,10 @@ export function RecentWorkouts() {
   return (
     <div className="space-y-3">
       {workouts.map((workout) => (
-        <div key={workout.id} className="bg-gray-800 rounded-lg p-4">
+        <div key={workout.id} className="bg-gray-800 rounded-lg p-4 relative">
+          {isStale && isFetching && (
+            <div className="absolute top-2 right-2 w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+          )}
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-medium">{workout.template.name}</h4>
             <div className="text-xs text-gray-400">
