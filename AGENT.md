@@ -8,10 +8,10 @@
 - **Database**: `pnpm db:push` (dev), `pnpm db:studio` (UI)
 
 ## Architecture
-- **T3 Stack**: Next.js 15 App Router + tRPC + Drizzle ORM + NextAuth + Tailwind
+- **T3 Stack**: Next.js 15 App Router + tRPC + Drizzle ORM + Clerk + Tailwind
 - **Database**: PostgreSQL with Drizzle ORM (schema: `src/server/db/schema.ts`)
 - **API**: tRPC routers in `src/server/api/` (type-safe client-server communication)
-- **Auth**: NextAuth v5 in `src/server/auth/`
+- **Auth**: Clerk in `src/server/auth/`
 - **Frontend**: App Router (`src/app/`), components in `src/app/_components/`
 
 ## Code Style

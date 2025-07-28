@@ -6,7 +6,6 @@ A mobile-first workout tracking application built with the T3 Stack.
 
 - Node.js 18+ and pnpm
 - PostgreSQL database (recommended: Supabase)
-- Discord application for OAuth
 
 ## Environment Variables
 
