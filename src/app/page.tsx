@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 import { RecentWorkouts } from "~/app/_components/recent-workouts";
+import { SignInButtons } from "~/app/_components/sign-in-buttons";
 
 export default async function Home() {
   const session = await auth();
@@ -17,12 +18,7 @@ export default async function Home() {
           <p className="text-xl text-gray-300 text-center max-w-2xl">
             Simple, mobile-first workout tracking. Log your workouts, track your progress, and get swole.
           </p>
-          <Link
-            href="/api/auth/signin"
-            className="rounded-lg bg-purple-600 px-8 py-3 font-semibold text-white hover:bg-purple-700 transition-colors"
-          >
-            Sign in with Discord
-          </Link>
+          <SignInButtons />
         </div>
       </main>
     );
