@@ -17,34 +17,35 @@ interface ExerciseInputProps {
   index: number;
   onUpdate: (index: number, field: keyof ExerciseData, value: string | number | undefined) => void;
   onToggleUnit: (index: number) => void;
+  readOnly?: boolean;
 }
 
-export function ExerciseInput({ exercise, index, onUpdate, onToggleUnit }: ExerciseInputProps) {
+export function ExerciseInput({ exercise, index, onUpdate, onToggleUnit, readOnly = false }: ExerciseInputProps) {
   const [hasLoadedLastData, setHasLoadedLastData] = useState(false);
   
-  const { data: lastData } = api.workouts.getLastExerciseData.useQuery(
+  const { data: lastData, isSuccess } = api.workouts.getLastExerciseData.useQuery(
     { exerciseName: exercise.exerciseName },
-    { enabled: !hasLoadedLastData }
+    { enabled: !readOnly } // Don't fetch last data if read-only
   );
 
-  // Pre-populate with last exercise data when it loads
+  // Pre-populate with last exercise data when it loads (only if not read-only)
   useEffect(() => {
-    if (lastData && !hasLoadedLastData) {
-      if (lastData.weight !== undefined) {
+    if (!readOnly && isSuccess && !hasLoadedLastData) {
+      if (lastData?.weight !== undefined) {
         onUpdate(index, "weight", lastData.weight);
       }
-      if (lastData.reps !== undefined && lastData.reps !== null) {
+      if (lastData?.reps !== undefined && lastData.reps !== null) {
         onUpdate(index, "reps", lastData.reps);
       }
-      if (lastData.sets !== undefined && lastData.sets !== null) {
+      if (lastData?.sets !== undefined && lastData.sets !== null) {
         onUpdate(index, "sets", lastData.sets);
       }
-      if (lastData.unit) {
+      if (lastData?.unit) {
         onUpdate(index, "unit", lastData.unit);
       }
       setHasLoadedLastData(true);
     }
-  }, [lastData, hasLoadedLastData, index, onUpdate]);
+  }, [readOnly, lastData, isSuccess, hasLoadedLastData, index, onUpdate]);
 
   const hasPrefilledData = lastData && (lastData.weight ?? lastData.reps ?? lastData.sets);
 
@@ -64,12 +65,22 @@ export function ExerciseInput({ exercise, index, onUpdate, onToggleUnit }: Exerc
               value={exercise.weight ?? ""}
               onChange={(e) => onUpdate(index, "weight", e.target.value ? parseFloat(e.target.value) : undefined)}
               placeholder="0"
-              className="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+              disabled={readOnly}
+              className={`flex-1 border rounded px-2 py-1 text-sm focus:outline-none ${
+                readOnly 
+                  ? "bg-gray-800 border-gray-700 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-700 border-gray-600 focus:ring-1 focus:ring-purple-500"
+              }`}
             />
             <button
               type="button"
-              onClick={() => onToggleUnit(index)}
-              className="text-xs text-purple-400 hover:text-purple-300 px-1"
+              onClick={() => !readOnly && onToggleUnit(index)}
+              disabled={readOnly}
+              className={`text-xs px-1 ${
+                readOnly 
+                  ? "text-gray-500 cursor-not-allowed"
+                  : "text-purple-400 hover:text-purple-300"
+              }`}
             >
               {exercise.unit}
             </button>
@@ -84,7 +95,12 @@ export function ExerciseInput({ exercise, index, onUpdate, onToggleUnit }: Exerc
             value={exercise.reps ?? ""}
             onChange={(e) => onUpdate(index, "reps", e.target.value ? parseInt(e.target.value) : undefined)}
             placeholder="0"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+            disabled={readOnly}
+            className={`w-full border rounded px-2 py-1 text-sm focus:outline-none ${
+              readOnly 
+                ? "bg-gray-800 border-gray-700 text-gray-400 cursor-not-allowed"
+                : "bg-gray-700 border-gray-600 focus:ring-1 focus:ring-purple-500"
+            }`}
           />
         </div>
 
@@ -96,7 +112,12 @@ export function ExerciseInput({ exercise, index, onUpdate, onToggleUnit }: Exerc
             value={exercise.sets ?? ""}
             onChange={(e) => onUpdate(index, "sets", e.target.value ? parseInt(e.target.value) : undefined)}
             placeholder="0"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+            disabled={readOnly}
+            className={`w-full border rounded px-2 py-1 text-sm focus:outline-none ${
+              readOnly 
+                ? "bg-gray-800 border-gray-700 text-gray-400 cursor-not-allowed"
+                : "bg-gray-700 border-gray-600 focus:ring-1 focus:ring-purple-500"
+            }`}
           />
         </div>
       </div>

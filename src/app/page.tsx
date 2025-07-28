@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
+import { RecentWorkouts } from "~/app/_components/recent-workouts";
 
 export default async function Home() {
   const session = await auth();
@@ -78,14 +79,7 @@ export default async function Home() {
                 View all →
               </Link>
             </div>
-            <div className="space-y-3">
-              {/* This will be populated by a client component */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <p className="text-gray-400 text-center py-4">
-                  No recent workouts. Start your first workout!
-                </p>
-              </div>
-            </div>
+            <RecentWorkouts />
           </div>
         </div>
       </main>

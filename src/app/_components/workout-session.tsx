@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "~/trpc/react";
 import { ExerciseInput } from "./exercise-input";
 
@@ -22,30 +23,51 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const router = useRouter();
   const [exercises, setExercises] = useState<ExerciseData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const { data: session } = api.workouts.getById.useQuery({ id: sessionId });
   const { data: preferences } = api.preferences.get.useQuery();
   const { mutate: updatePreferences } = api.preferences.update.useMutation();
+  const utils = api.useUtils();
   
   const saveWorkout = api.workouts.save.useMutation({
     onSuccess: () => {
+      // Invalidate workouts queries to refresh recent workouts
+      void utils.workouts.getRecent.invalidate();
       router.push("/");
     },
   });
 
-  // Initialize exercises from template
+  // Initialize exercises from template or existing session data
   useEffect(() => {
     if (!session?.template) return;
 
-    const initialExercises: ExerciseData[] = session.template.exercises.map((templateExercise: { id: number; exerciseName: string }) => ({
-      templateExerciseId: templateExercise.id,
-      exerciseName: templateExercise.exerciseName,
-      unit: (preferences?.defaultWeightUnit ?? "kg") as "kg" | "lbs",
-    }));
+    // Check if this session already has exercises (completed workout)
+    if (session.exercises && session.exercises.length > 0) {
+      // This is a completed workout, show existing data
+      const existingExercises: ExerciseData[] = session.exercises.map((sessionExercise) => ({
+        templateExerciseId: sessionExercise.templateExerciseId ?? undefined,
+        exerciseName: sessionExercise.exerciseName,
+        weight: sessionExercise.weight ? parseFloat(sessionExercise.weight) : undefined,
+        reps: sessionExercise.reps ?? undefined,
+        sets: sessionExercise.sets ?? undefined,
+        unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
+      }));
+      setExercises(existingExercises);
+      setIsReadOnly(true);
+    } else {
+      // This is a new session, initialize from template
+      const initialExercises: ExerciseData[] = session.template.exercises.map((templateExercise: { id: number; exerciseName: string }) => ({
+        templateExerciseId: templateExercise.id,
+        exerciseName: templateExercise.exerciseName,
+        unit: (preferences?.defaultWeightUnit ?? "kg") as "kg" | "lbs",
+      }));
+      setExercises(initialExercises);
+      setIsReadOnly(false);
+    }
 
-    setExercises(initialExercises);
     setLoading(false);
-  }, [session?.template, preferences?.defaultWeightUnit]);
+  }, [session?.template, session?.exercises, preferences?.defaultWeightUnit]);
 
   const updateExercise = (index: number, field: keyof ExerciseData, value: string | number | undefined) => {
     const newExercises = [...exercises];
@@ -105,6 +127,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           index={index}
           onUpdate={updateExercise}
           onToggleUnit={toggleUnit}
+          readOnly={isReadOnly}
         />
       ))}
 
@@ -115,16 +138,36 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
-      {/* Save Button */}
-      <div className="sticky bottom-4 pt-6">
-        <button
-          onClick={handleSave}
-          disabled={saveWorkout.isPending}
-          className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors rounded-lg py-3 font-medium text-lg"
-        >
-          {saveWorkout.isPending ? "Saving..." : "Save Workout"}
-        </button>
-      </div>
+      {/* Save Button - only show for new workouts */}
+      {!isReadOnly && (
+        <div className="sticky bottom-4 pt-6">
+          <button
+            onClick={handleSave}
+            disabled={saveWorkout.isPending}
+            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors rounded-lg py-3 font-medium text-lg"
+          >
+            {saveWorkout.isPending ? "Saving..." : "Save Workout"}
+          </button>
+        </div>
+      )}
+
+      {/* Read-only Actions */}
+      {isReadOnly && (
+        <div className="sticky bottom-4 pt-6 space-y-3">
+          <Link
+            href={`/workout/start?templateId=${session?.templateId}`}
+            className="w-full bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg py-3 font-medium text-lg text-center block"
+          >
+            Repeat This Workout
+          </Link>
+          <button
+            onClick={() => router.back()}
+            className="w-full bg-gray-700 hover:bg-gray-600 transition-colors rounded-lg py-3 font-medium text-lg"
+          >
+            Back to History
+          </button>
+        </div>
+      )}
     </div>
   );
 }

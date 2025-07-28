@@ -61,6 +61,8 @@ DISCORD_CLIENT_SECRET="your-discord-client-secret"
 - **Workout Templates**: Create and manage workout templates with custom exercises
 - **Workout Sessions**: Start workouts, log exercise data (weight, reps, sets)
 - **Progress Tracking**: Auto-populate previous exercise data for easy logging
+- **Workout History**: View all past workouts with detailed exercise data
+- **Read-Only Workout Views**: View completed workouts with the ability to repeat them
 - **Weight Units**: Toggle between kg and lbs with user preference storage
 - **Mobile-First Design**: Optimized for mobile devices with dark theme
 - **Type-Safe**: Full TypeScript implementation with tRPC
