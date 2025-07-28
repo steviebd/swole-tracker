@@ -1,67 +1,92 @@
 import Link from "next/link";
 
-import { LatestPost } from "~/app/_components/post";
 import { auth } from "~/server/auth";
 import { api, HydrateClient } from "~/trpc/server";
 
 export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
   const session = await auth();
 
-  if (session?.user) {
-    void api.post.getLatest.prefetch();
+  if (!session?.user) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center">
+        <div className="container flex flex-col items-center justify-center gap-8 px-4 py-16">
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-center">
+            💪 <span className="text-purple-400">Swole</span> Tracker
+          </h1>
+          <p className="text-xl text-gray-300 text-center max-w-2xl">
+            Simple, mobile-first workout tracking. Log your workouts, track your progress, and get swole.
+          </p>
+          <Link
+            href="/api/auth/signin"
+            className="rounded-lg bg-purple-600 px-8 py-3 font-semibold text-white hover:bg-purple-700 transition-colors"
+          >
+            Sign in with Discord
+          </Link>
+        </div>
+      </main>
+    );
   }
+
+  // Prefetch data for authenticated users
+  void api.templates.getAll.prefetch();
+  void api.workouts.getRecent.prefetch({ limit: 5 });
 
   return (
     <HydrateClient>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-          </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
+      <main className="min-h-screen">
+        <div className="container mx-auto px-4 py-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">💪 Swole Tracker</h1>
+              <p className="text-gray-400">Welcome back, {session.user.name}</p>
+            </div>
             <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/usage/first-steps"
-              target="_blank"
+              href="/api/auth/signout"
+              className="text-sm text-gray-400 hover:text-white transition-colors"
             >
-              <h3 className="text-2xl font-bold">First Steps →</h3>
-              <div className="text-lg">
-                Just the basics - Everything you need to know to set up your
-                database and authentication.
-              </div>
-            </Link>
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/introduction"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">Documentation →</h3>
-              <div className="text-lg">
-                Learn more about Create T3 App, the libraries it uses, and how
-                to deploy it.
-              </div>
+              Sign out
             </Link>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              {hello ? hello.greeting : "Loading tRPC query..."}
-            </p>
 
-            <div className="flex flex-col items-center justify-center gap-4">
-              <p className="text-center text-2xl text-white">
-                {session && <span>Logged in as {session.user?.name}</span>}
-              </p>
-              <Link
-                href={session ? "/api/auth/signout" : "/api/auth/signin"}
-                className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <Link
+              href="/workout/start"
+              className="bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg p-6 text-center"
+            >
+              <h3 className="text-xl font-semibold mb-2">🏋️ Start Workout</h3>
+              <p className="text-purple-100">Begin a new workout session</p>
+            </Link>
+            <Link
+              href="/templates"
+              className="bg-gray-800 hover:bg-gray-700 transition-colors rounded-lg p-6 text-center"
+            >
+              <h3 className="text-xl font-semibold mb-2">📋 Manage Templates</h3>
+              <p className="text-gray-300">Create and edit workout templates</p>
+            </Link>
+          </div>
+
+          {/* Recent Workouts Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Recent Workouts</h2>
+              <Link 
+                href="/workouts" 
+                className="text-purple-400 hover:text-purple-300 text-sm"
               >
-                {session ? "Sign out" : "Sign in"}
+                View all →
               </Link>
             </div>
+            <div className="space-y-3">
+              {/* This will be populated by a client component */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <p className="text-gray-400 text-center py-4">
+                  No recent workouts. Start your first workout!
+                </p>
+              </div>
+            </div>
           </div>
-
-          {session?.user && <LatestPost />}
         </div>
       </main>
     </HydrateClient>
