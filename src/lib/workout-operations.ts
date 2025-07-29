@@ -1,208 +1,254 @@
-import { createClerkSupabaseClient } from './supabase-client'
-import { createServerSupabaseClient } from './supabase-server'
+import { createClerkSupabaseClient } from "./supabase-client";
+import { createServerSupabaseClient } from "./supabase-server";
 
 // Types for workout data
 export interface WorkoutTemplate {
-  id: number
-  name: string
-  user_id: string
-  createdAt: string
-  updatedAt: string | null
+  id: number;
+  name: string;
+  user_id: string;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface WorkoutSession {
-  id: number
-  user_id: string
-  templateId: number
-  workoutDate: string
-  createdAt: string
-  updatedAt: string | null
+  id: number;
+  user_id: string;
+  templateId: number;
+  workoutDate: string;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface SessionExercise {
-  id: number
-  user_id: string
-  sessionId: number
-  templateExerciseId: number | null
-  exerciseName: string
-  weight: string | null
-  reps: number | null
-  sets: number | null
-  unit: string
-  createdAt: string
+  id: number;
+  user_id: string;
+  sessionId: number;
+  templateExerciseId: number | null;
+  exerciseName: string;
+  weight: string | null;
+  reps: number | null;
+  sets: number | null;
+  unit: string;
+  createdAt: string;
 }
 
 // Client-side operations (use in React components)
 export class WorkoutOperationsClient {
-  private client: ReturnType<typeof createClerkSupabaseClient>
+  private client: ReturnType<typeof createClerkSupabaseClient>;
 
   constructor(session: { getToken?: () => Promise<string | null> } | null) {
-    this.client = createClerkSupabaseClient(session)
+    this.client = createClerkSupabaseClient(session);
   }
 
   async getWorkoutTemplates(userId: string) {
     const { data, error } = await this.client
-      .from('swole-tracker_workout_template')
-      .select('*')
-      .eq('user_id', userId)
-      .order('createdAt', { ascending: false })
+      .from("swole-tracker_workout_template")
+      .select("*")
+      .eq("user_id", userId)
+      .order("createdAt", { ascending: false });
 
-    if (error) throw error
-    return data as WorkoutTemplate[]
+    if (error) throw error;
+    return data as WorkoutTemplate[];
   }
 
-  async createWorkoutTemplate(userId: string, name: string) {
+  async createWorkoutTemplate(
+    userId: string,
+    name: string,
+  ): Promise<WorkoutTemplate> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await this.client
-      .from('swole-tracker_workout_template')
+      .from("swole-tracker_workout_template")
       .insert({
         name,
         user_id: userId,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return data as WorkoutTemplate
+    if (error) throw error;
+    return data as WorkoutTemplate;
   }
 
-  async getRecentWorkouts(userId: string, limit = 5) {
+  async getRecentWorkouts(
+    userId: string,
+    limit = 5,
+  ): Promise<
+    Pick<WorkoutSession, "id" | "templateId" | "workoutDate" | "createdAt">[]
+  > {
     const { data, error } = await this.client
-      .from('swole-tracker_workout_session')
-      .select(`
+      .from("swole-tracker_workout_session")
+      .select(
+        `
         id,
         templateId,
         workoutDate,
         createdAt
-      `)
-      .eq('user_id', userId)
-      .order('workoutDate', { ascending: false })
-      .limit(limit)
+      `,
+      )
+      .eq("user_id", userId)
+      .order("workoutDate", { ascending: false })
+      .limit(limit);
 
-    if (error) throw error
-    return data
+    if (error) throw error;
+    return data as Pick<
+      WorkoutSession,
+      "id" | "templateId" | "workoutDate" | "createdAt"
+    >[];
   }
 
-  async getWorkoutSession(userId: string, sessionId: number) {
+  async getWorkoutSession(
+    userId: string,
+    sessionId: number,
+  ): Promise<WorkoutSession> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await this.client
-      .from('swole-tracker_workout_session')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('id', sessionId)
-      .single()
+      .from("swole-tracker_workout_session")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("id", sessionId)
+      .single();
 
-    if (error) throw error
-    return data as WorkoutSession
+    if (error) throw error;
+    return data as WorkoutSession;
   }
 
-  async createWorkoutSession(userId: string, templateId: number, workoutDate: string) {
+  async createWorkoutSession(
+    userId: string,
+    templateId: number,
+    workoutDate: string,
+  ): Promise<WorkoutSession> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await this.client
-      .from('swole-tracker_workout_session')
+      .from("swole-tracker_workout_session")
       .insert({
         user_id: userId,
         templateId,
         workoutDate,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return data as WorkoutSession
+    if (error) throw error;
+    return data as WorkoutSession;
   }
 
-  async getSessionExercises(userId: string, sessionId: number) {
+  async getSessionExercises(
+    userId: string,
+    sessionId: number,
+  ): Promise<SessionExercise[]> {
     const { data, error } = await this.client
-      .from('swole-tracker_session_exercise')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('sessionId', sessionId)
-      .order('createdAt', { ascending: true })
+      .from("swole-tracker_session_exercise")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("sessionId", sessionId)
+      .order("createdAt", { ascending: true });
 
-    if (error) throw error
-    return data as SessionExercise[]
+    if (error) throw error;
+    return data as SessionExercise[];
   }
 
   async addSessionExercise(
     userId: string,
     sessionId: number,
-    exercise: Omit<SessionExercise, 'id' | 'user_id' | 'sessionId' | 'createdAt'>
-  ) {
+    exercise: Omit<
+      SessionExercise,
+      "id" | "user_id" | "sessionId" | "createdAt"
+    >,
+  ): Promise<SessionExercise> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await this.client
-      .from('swole-tracker_session_exercise')
+      .from("swole-tracker_session_exercise")
       .insert({
         user_id: userId,
         sessionId,
         ...exercise,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return data as SessionExercise
+    if (error) throw error;
+    return data as SessionExercise;
   }
 }
 
 // Server-side operations (use in Server Components and API routes)
 export class WorkoutOperationsServer {
-  private getClient = createServerSupabaseClient
+  private getClient = createServerSupabaseClient;
 
   constructor() {
     // Client getter is initialized above
   }
 
   async getWorkoutTemplates(userId: string) {
-    const client = await this.getClient()
-    
-    const { data, error } = await client
-      .from('swole-tracker_workout_template')
-      .select('*')
-      .eq('user_id', userId)
-      .order('createdAt', { ascending: false })
+    const client = await this.getClient();
 
-    if (error) throw error
-    return data as WorkoutTemplate[]
+    const { data, error } = await client
+      .from("swole-tracker_workout_template")
+      .select("*")
+      .eq("user_id", userId)
+      .order("createdAt", { ascending: false });
+
+    if (error) throw error;
+    return data as WorkoutTemplate[];
   }
 
-  async createWorkoutTemplate(userId: string, name: string) {
-    const client = await this.getClient()
-    
+  async createWorkoutTemplate(
+    userId: string,
+    name: string,
+  ): Promise<WorkoutTemplate> {
+    const client = await this.getClient();
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await client
-      .from('swole-tracker_workout_template')
+      .from("swole-tracker_workout_template")
       .insert({
         name,
         user_id: userId,
       })
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
-    return data as WorkoutTemplate
+    if (error) throw error;
+    return data as WorkoutTemplate;
   }
 
-  async getRecentWorkouts(userId: string, limit = 5) {
-    const client = await this.getClient()
-    
+  async getRecentWorkouts(
+    userId: string,
+    limit = 5,
+  ): Promise<
+    Pick<WorkoutSession, "id" | "templateId" | "workoutDate" | "createdAt">[]
+  > {
+    const client = await this.getClient();
+
     const { data, error } = await client
-      .from('swole-tracker_workout_session')
-      .select(`
+      .from("swole-tracker_workout_session")
+      .select(
+        `
         id,
         templateId,
         workoutDate,
         createdAt
-      `)
-      .eq('user_id', userId)
-      .order('workoutDate', { ascending: false })
-      .limit(limit)
+      `,
+      )
+      .eq("user_id", userId)
+      .order("workoutDate", { ascending: false })
+      .limit(limit);
 
-    if (error) throw error
-    return data
+    if (error) throw error;
+    return data as Pick<
+      WorkoutSession,
+      "id" | "templateId" | "workoutDate" | "createdAt"
+    >[];
   }
 }
 
 // Convenience hooks and functions
-export function useWorkoutOperations(session: { getToken?: () => Promise<string | null> } | null) {
-  return new WorkoutOperationsClient(session)
+export function useWorkoutOperations(
+  session: { getToken?: () => Promise<string | null> } | null,
+) {
+  return new WorkoutOperationsClient(session);
 }
 
 export function getServerWorkoutOperations() {
-  return new WorkoutOperationsServer()
+  return new WorkoutOperationsServer();
 }

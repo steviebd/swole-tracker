@@ -15,9 +15,9 @@ export function ConnectionStatus() {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-yellow-600 text-white px-4 py-2 text-sm text-center z-50">
+    <div className="fixed top-0 right-0 left-0 z-50 bg-yellow-600 px-4 py-2 text-center text-sm text-white">
       <span className="inline-flex items-center gap-2">
-        <div className="w-2 h-2 bg-yellow-200 rounded-full animate-pulse"></div>
+        <div className="h-2 w-2 animate-pulse rounded-full bg-yellow-200"></div>
         You&apos;re offline. Changes will sync when connection is restored.
       </span>
     </div>

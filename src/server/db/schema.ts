@@ -15,9 +15,7 @@ export const workoutTemplates = createTable(
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     name: d.varchar({ length: 256 }).notNull(),
-    user_id: d
-      .varchar({ length: 256 })
-      .notNull(),
+    user_id: d.varchar({ length: 256 }).notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -35,9 +33,7 @@ export const templateExercises = createTable(
   "template_exercise",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    user_id: d
-      .varchar({ length: 256 })
-      .notNull(),
+    user_id: d.varchar({ length: 256 }).notNull(),
     templateId: d
       .integer()
       .notNull()
@@ -61,16 +57,12 @@ export const workoutSessions = createTable(
   "workout_session",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    user_id: d
-      .varchar({ length: 256 })
-      .notNull(),
+    user_id: d.varchar({ length: 256 }).notNull(),
     templateId: d
       .integer()
       .notNull()
       .references(() => workoutTemplates.id),
-    workoutDate: d
-      .timestamp({ withTimezone: true })
-      .notNull(),
+    workoutDate: d.timestamp({ withTimezone: true }).notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -89,16 +81,12 @@ export const sessionExercises = createTable(
   "session_exercise",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    user_id: d
-      .varchar({ length: 256 })
-      .notNull(),
+    user_id: d.varchar({ length: 256 }).notNull(),
     sessionId: d
       .integer()
       .notNull()
       .references(() => workoutSessions.id, { onDelete: "cascade" }),
-    templateExerciseId: d
-      .integer()
-      .references(() => templateExercises.id),
+    templateExerciseId: d.integer().references(() => templateExercises.id),
     exerciseName: d.varchar({ length: 256 }).notNull(),
     weight: decimal("weight", { precision: 6, scale: 2 }),
     reps: d.integer(),
@@ -122,10 +110,7 @@ export const userPreferences = createTable(
   "user_preferences",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    user_id: d
-      .varchar({ length: 256 })
-      .notNull()
-      .unique(),
+    user_id: d.varchar({ length: 256 }).notNull().unique(),
     defaultWeightUnit: d.varchar({ length: 10 }).notNull().default("kg"),
     createdAt: d
       .timestamp({ withTimezone: true })
@@ -133,9 +118,7 @@ export const userPreferences = createTable(
       .notNull(),
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
-  (t) => [
-    index("user_preferences_user_id_idx").on(t.user_id),
-  ],
+  (t) => [index("user_preferences_user_id_idx").on(t.user_id)],
 ); // RLS disabled - using Clerk auth with application-level security
 
 // Note: With Clerk, we don't need users table as Clerk handles user management
@@ -145,34 +128,56 @@ export const userPreferences = createTable(
 // This ensures complete data isolation between users at the application level
 
 // Relations
-export const workoutTemplatesRelations = relations(workoutTemplates, ({ many }) => ({
-  exercises: many(templateExercises),
-  sessions: many(workoutSessions),
-}));
+export const workoutTemplatesRelations = relations(
+  workoutTemplates,
+  ({ many }) => ({
+    exercises: many(templateExercises),
+    sessions: many(workoutSessions),
+  }),
+);
 
-export const templateExercisesRelations = relations(templateExercises, ({ one, many }) => ({
-  template: one(workoutTemplates, { fields: [templateExercises.templateId], references: [workoutTemplates.id] }),
-  sessionExercises: many(sessionExercises),
-}));
+export const templateExercisesRelations = relations(
+  templateExercises,
+  ({ one, many }) => ({
+    template: one(workoutTemplates, {
+      fields: [templateExercises.templateId],
+      references: [workoutTemplates.id],
+    }),
+    sessionExercises: many(sessionExercises),
+  }),
+);
 
-export const workoutSessionsRelations = relations(workoutSessions, ({ one, many }) => ({
-  template: one(workoutTemplates, { fields: [workoutSessions.templateId], references: [workoutTemplates.id] }),
-  exercises: many(sessionExercises),
-}));
+export const workoutSessionsRelations = relations(
+  workoutSessions,
+  ({ one, many }) => ({
+    template: one(workoutTemplates, {
+      fields: [workoutSessions.templateId],
+      references: [workoutTemplates.id],
+    }),
+    exercises: many(sessionExercises),
+  }),
+);
 
-export const sessionExercisesRelations = relations(sessionExercises, ({ one }) => ({
-  session: one(workoutSessions, { fields: [sessionExercises.sessionId], references: [workoutSessions.id] }),
-  templateExercise: one(templateExercises, { fields: [sessionExercises.templateExerciseId], references: [templateExercises.id] }),
-}));
+export const sessionExercisesRelations = relations(
+  sessionExercises,
+  ({ one }) => ({
+    session: one(workoutSessions, {
+      fields: [sessionExercises.sessionId],
+      references: [workoutSessions.id],
+    }),
+    templateExercise: one(templateExercises, {
+      fields: [sessionExercises.templateExerciseId],
+      references: [templateExercises.id],
+    }),
+  }),
+);
 
 // Daily Jokes
 export const dailyJokes = createTable(
   "daily_joke",
   (d) => ({
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    user_id: d
-      .varchar({ length: 256 })
-      .notNull(),
+    user_id: d.varchar({ length: 256 }).notNull(),
     joke: d.text().notNull(),
     aiModel: d.varchar({ length: 100 }).notNull(),
     prompt: d.text().notNull(),

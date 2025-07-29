@@ -9,7 +9,9 @@ interface StartWorkoutPageProps {
   searchParams: Promise<{ templateId?: string }>;
 }
 
-export default async function StartWorkoutPage({ searchParams }: StartWorkoutPageProps) {
+export default async function StartWorkoutPage({
+  searchParams,
+}: StartWorkoutPageProps) {
   const user = await currentUser();
   const { templateId } = await searchParams;
 
@@ -33,18 +35,17 @@ export default async function StartWorkoutPage({ searchParams }: StartWorkoutPag
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-6">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <Link 
-              href="/"
-              className="text-purple-400 hover:text-purple-300"
-            >
+          <div className="mb-6 flex items-center gap-4">
+            <Link href="/" className="text-purple-400 hover:text-purple-300">
               ← Back
             </Link>
             <h1 className="text-2xl font-bold">Start Workout</h1>
           </div>
 
           {/* Workout Starter */}
-          <WorkoutStarter initialTemplateId={templateId ? parseInt(templateId) : undefined} />
+          <WorkoutStarter
+            initialTemplateId={templateId ? parseInt(templateId) : undefined}
+          />
         </div>
       </main>
     </HydrateClient>

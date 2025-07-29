@@ -10,7 +10,7 @@ import * as schema from "./schema";
  */
 export async function getSupabaseDb() {
   const user = await currentUser();
-  
+
   if (!user) {
     throw new Error("User not authenticated");
   }
@@ -21,8 +21,8 @@ export async function getSupabaseDb() {
     connection: {
       "request.jwt.claims": JSON.stringify({ sub: user.id }),
       "request.jwt.claim.sub": user.id,
-      "role": "authenticated"
-    }
+      role: "authenticated",
+    },
   });
 
   return drizzle(conn, { schema });

@@ -9,7 +9,9 @@ interface EditTemplatePageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function EditTemplatePage({ params }: EditTemplatePageProps) {
+export default async function EditTemplatePage({
+  params,
+}: EditTemplatePageProps) {
   const user = await currentUser();
   const { id } = await params;
 
@@ -33,8 +35,8 @@ export default async function EditTemplatePage({ params }: EditTemplatePageProps
     <main className="min-h-screen">
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Link 
+        <div className="mb-6 flex items-center gap-4">
+          <Link
             href="/templates"
             className="text-purple-400 hover:text-purple-300"
           >

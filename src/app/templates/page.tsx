@@ -20,19 +20,16 @@ export default async function TemplatesPage() {
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link 
-                href="/"
-                className="text-purple-400 hover:text-purple-300"
-              >
+              <Link href="/" className="text-purple-400 hover:text-purple-300">
                 ← Back
               </Link>
               <h1 className="text-2xl font-bold">Workout Templates</h1>
             </div>
             <Link
               href="/templates/new"
-              className="bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg px-4 py-2 text-sm font-medium"
+              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-purple-700"
             >
               + New Template
             </Link>

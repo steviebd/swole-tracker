@@ -28,7 +28,7 @@ export function useOnlineStatus() {
         console.log("Connection restored");
       }
     };
-    
+
     const handleOffline = () => {
       setIsOnline(false);
       if (process.env.NODE_ENV === "development") {

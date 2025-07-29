@@ -4,7 +4,11 @@ import { useState, useEffect } from "react";
 
 interface OfflineAction {
   id: string;
-  type: "create_template" | "update_template" | "delete_template" | "save_workout";
+  type:
+    | "create_template"
+    | "update_template"
+    | "delete_template"
+    | "save_workout";
   data: Record<string, unknown>;
   timestamp: number;
 }
@@ -28,24 +32,29 @@ export function useOfflineStorage() {
   // Save pending actions to localStorage whenever they change
   useEffect(() => {
     try {
-      localStorage.setItem("swole-tracker-offline-actions", JSON.stringify(pendingActions));
+      localStorage.setItem(
+        "swole-tracker-offline-actions",
+        JSON.stringify(pendingActions),
+      );
     } catch (error) {
       console.error("Failed to save offline actions:", error);
     }
   }, [pendingActions]);
 
-  const addPendingAction = (action: Omit<OfflineAction, "id" | "timestamp">) => {
+  const addPendingAction = (
+    action: Omit<OfflineAction, "id" | "timestamp">,
+  ) => {
     const newAction: OfflineAction = {
       ...action,
       id: crypto.randomUUID(),
       timestamp: Date.now(),
     };
-    setPendingActions(prev => [...prev, newAction]);
+    setPendingActions((prev) => [...prev, newAction]);
     return newAction.id;
   };
 
   const removePendingAction = (id: string) => {
-    setPendingActions(prev => prev.filter(action => action.id !== id));
+    setPendingActions((prev) => prev.filter((action) => action.id !== id));
   };
 
   const clearAllPendingActions = () => {

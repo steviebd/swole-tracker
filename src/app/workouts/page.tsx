@@ -20,11 +20,8 @@ export default async function WorkoutsPage() {
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-6">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <Link 
-              href="/"
-              className="text-purple-400 hover:text-purple-300"
-            >
+          <div className="mb-6 flex items-center gap-4">
+            <Link href="/" className="text-purple-400 hover:text-purple-300">
               ← Back
             </Link>
             <h1 className="text-2xl font-bold">Workout History</h1>

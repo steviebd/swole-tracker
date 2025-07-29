@@ -11,15 +11,17 @@ export function TemplatesList() {
     onMutate: async (deletedTemplate) => {
       // Cancel any outgoing refetches
       await utils.templates.getAll.cancel();
-      
+
       // Snapshot the previous value
       const previousTemplates = utils.templates.getAll.getData();
-      
+
       // Optimistically remove from cache
-      utils.templates.getAll.setData(undefined, (old) => 
-        old?.filter((template) => template.id !== deletedTemplate.id) ?? []
+      utils.templates.getAll.setData(
+        undefined,
+        (old) =>
+          old?.filter((template) => template.id !== deletedTemplate.id) ?? [],
       );
-      
+
       return { previousTemplates };
     },
     onError: (err, deletedTemplate, context) => {
@@ -41,9 +43,9 @@ export function TemplatesList() {
         analytics.templateDeleted(id.toString());
       } catch (error) {
         console.error("Error deleting template:", error);
-        analytics.error(error as Error, { 
-          context: "template_delete", 
-          templateId: id.toString() 
+        analytics.error(error as Error, {
+          context: "template_delete",
+          templateId: id.toString(),
         });
       }
     }
@@ -52,10 +54,10 @@ export function TemplatesList() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[...Array(3) as number[]].map((_, i) => (
-          <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse">
-            <div className="h-4 bg-gray-700 rounded w-1/3 mb-2"></div>
-            <div className="h-3 bg-gray-700 rounded w-2/3"></div>
+        {[...(Array(3) as number[])].map((_, i) => (
+          <div key={i} className="animate-pulse rounded-lg bg-gray-800 p-4">
+            <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
+            <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
         ))}
       </div>
@@ -64,15 +66,15 @@ export function TemplatesList() {
 
   if (!templates?.length) {
     return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">📋</div>
-        <h3 className="text-xl font-semibold mb-2">No templates yet</h3>
-        <p className="text-gray-400 mb-6">
+      <div className="py-12 text-center">
+        <div className="mb-4 text-6xl">📋</div>
+        <h3 className="mb-2 text-xl font-semibold">No templates yet</h3>
+        <p className="mb-6 text-gray-400">
           Create your first workout template to get started
         </p>
         <Link
           href="/templates/new"
-          className="bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg px-6 py-3 font-medium"
+          className="rounded-lg bg-purple-600 px-6 py-3 font-medium transition-colors hover:bg-purple-700"
         >
           Create Template
         </Link>
@@ -83,8 +85,8 @@ export function TemplatesList() {
   return (
     <div className="space-y-4">
       {templates.map((template) => (
-        <div key={template.id} className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+        <div key={template.id} className="rounded-lg bg-gray-800 p-4">
+          <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-semibold">{template.name}</h3>
             <div className="flex items-center gap-2">
               <Link
@@ -108,7 +110,7 @@ export function TemplatesList() {
             ) : (
               <>
                 {template.exercises.length} exercise
-                {template.exercises.length !== 1 ? "s" : ""}: {" "}
+                {template.exercises.length !== 1 ? "s" : ""}:{" "}
                 {template.exercises.map((ex) => ex.exerciseName).join(", ")}
               </>
             )}
@@ -116,7 +118,7 @@ export function TemplatesList() {
           <div className="mt-3">
             <Link
               href={`/workout/start?templateId=${template.id}`}
-              className="text-sm bg-purple-600 hover:bg-purple-700 transition-colors rounded px-3 py-1"
+              className="rounded bg-purple-600 px-3 py-1 text-sm transition-colors hover:bg-purple-700"
             >
               Start Workout
             </Link>

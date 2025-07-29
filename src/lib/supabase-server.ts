@@ -1,13 +1,13 @@
-import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@supabase/supabase-js'
+import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * Server-side Supabase client with Clerk authentication
  * Use this in Server Components, API routes, and Server Actions
  */
 export async function createServerSupabaseClient() {
-  const { getToken } = await auth()
-  const token = await getToken()
+  const { getToken } = await auth();
+  const token = await getToken();
 
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,11 +15,11 @@ export async function createServerSupabaseClient() {
     {
       global: {
         headers: {
-          Authorization: token ? `Bearer ${token}` : '',
+          Authorization: token ? `Bearer ${token}` : "",
         },
       },
-    }
-  )
+    },
+  );
 }
 
 /**
@@ -28,8 +28,8 @@ export async function createServerSupabaseClient() {
  */
 export function createServerSupabaseClientFactory() {
   return async () => {
-    const { getToken } = await auth()
-    const token = await getToken()
+    const { getToken } = await auth();
+    const token = await getToken();
 
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,10 +37,10 @@ export function createServerSupabaseClientFactory() {
       {
         global: {
           headers: {
-            Authorization: token ? `Bearer ${token}` : '',
+            Authorization: token ? `Bearer ${token}` : "",
           },
         },
-      }
-    )
-  }
+      },
+    );
+  };
 }

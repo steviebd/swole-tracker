@@ -9,7 +9,9 @@ interface WorkoutSessionPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function WorkoutSessionPage({ params }: WorkoutSessionPageProps) {
+export default async function WorkoutSessionPage({
+  params,
+}: WorkoutSessionPageProps) {
   const user = await currentUser();
   const { id } = await params;
 
@@ -37,18 +39,16 @@ export default async function WorkoutSessionPage({ params }: WorkoutSessionPageP
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-6">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <Link 
-              href="/"
-              className="text-purple-400 hover:text-purple-300"
-            >
+          <div className="mb-6 flex items-center gap-4">
+            <Link href="/" className="text-purple-400 hover:text-purple-300">
               ← Back
             </Link>
             <div>
               <h1 className="text-2xl font-bold">
-                {workoutSession.exercises.length > 0 ? 'View Workout: ' : ''}{workoutSession.template.name}
+                {workoutSession.exercises.length > 0 ? "View Workout: " : ""}
+                {workoutSession.template.name}
               </h1>
-              <p className="text-gray-400 text-sm">
+              <p className="text-sm text-gray-400">
                 {new Date(workoutSession.workoutDate).toLocaleString()}
               </p>
             </div>

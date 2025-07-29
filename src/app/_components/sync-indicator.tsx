@@ -12,11 +12,11 @@ export function SyncIndicator() {
   }
 
   return (
-    <div className="fixed top-4 right-4 bg-purple-600 text-white px-3 py-2 rounded-lg shadow-lg z-40 flex items-center gap-2">
+    <div className="fixed top-4 right-4 z-40 flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-white shadow-lg">
       <div className="flex space-x-1">
-        <div className="w-1 h-1 bg-white rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="w-1 h-1 bg-white rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="w-1 h-1 bg-white rounded-full animate-bounce"></div>
+        <div className="h-1 w-1 animate-bounce rounded-full bg-white [animation-delay:-0.3s]"></div>
+        <div className="h-1 w-1 animate-bounce rounded-full bg-white [animation-delay:-0.15s]"></div>
+        <div className="h-1 w-1 animate-bounce rounded-full bg-white"></div>
       </div>
       <span className="text-xs">
         {isMutating > 0 ? "Saving..." : "Syncing..."}

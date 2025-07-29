@@ -21,7 +21,11 @@ export const analytics = {
     });
   },
 
-  workoutCompleted: (sessionId: string, duration: number, exerciseCount: number) => {
+  workoutCompleted: (
+    sessionId: string,
+    duration: number,
+    exerciseCount: number,
+  ) => {
     posthog.capture("workout_completed", {
       sessionId,
       duration,
@@ -30,7 +34,12 @@ export const analytics = {
     });
   },
 
-  exerciseLogged: (exerciseId: string, exerciseName: string, sets: number, weight?: number) => {
+  exerciseLogged: (
+    exerciseId: string,
+    exerciseName: string,
+    sets: number,
+    weight?: number,
+  ) => {
     posthog.capture("exercise_logged", {
       exerciseId,
       exerciseName,

@@ -131,7 +131,9 @@ export const templatesRouter = createTRPCRouter({
         throw new Error("Template not found");
       }
 
-      await ctx.db.delete(workoutTemplates).where(eq(workoutTemplates.id, input.id));
+      await ctx.db
+        .delete(workoutTemplates)
+        .where(eq(workoutTemplates.id, input.id));
 
       return { success: true };
     }),

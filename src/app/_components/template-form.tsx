@@ -17,19 +17,19 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const [name, setName] = useState(template?.name ?? "");
   const [exercises, setExercises] = useState<string[]>(
-    template?.exercises.map((ex) => ex.exerciseName) ?? [""]
+    template?.exercises.map((ex) => ex.exerciseName) ?? [""],
   );
 
   const utils = api.useUtils();
-  
+
   const createTemplate = api.templates.create.useMutation({
     onMutate: async (newTemplate) => {
       // Cancel any outgoing refetches
       await utils.templates.getAll.cancel();
-      
+
       // Snapshot the previous value
       const previousTemplates = utils.templates.getAll.getData();
-      
+
       // Create optimistic template
       const optimisticTemplate = {
         id: -1, // Temporary negative ID
@@ -46,12 +46,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
           createdAt: new Date(),
         })),
       };
-      
+
       // Optimistically add to cache
-      utils.templates.getAll.setData(undefined, (old) => 
-        old ? [optimisticTemplate, ...old] : [optimisticTemplate]
+      utils.templates.getAll.setData(undefined, (old) =>
+        old ? [optimisticTemplate, ...old] : [optimisticTemplate],
       );
-      
+
       return { previousTemplates };
     },
     onError: (err, newTemplate, context) => {
@@ -61,7 +61,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     },
     onSuccess: (data) => {
-      analytics.templateCreated(data.id.toString(), exercises.filter(ex => ex.trim()).length);
+      analytics.templateCreated(
+        data.id.toString(),
+        exercises.filter((ex) => ex.trim()).length,
+      );
       router.push("/templates");
     },
     onSettled: () => {
@@ -74,31 +77,37 @@ export function TemplateForm({ template }: TemplateFormProps) {
     onMutate: async (updatedTemplate) => {
       // Cancel any outgoing refetches
       await utils.templates.getAll.cancel();
-      
+
       // Snapshot the previous value
       const previousTemplates = utils.templates.getAll.getData();
-      
+
       // Optimistically update the cache
-      utils.templates.getAll.setData(undefined, (old) => 
-        old?.map((template) => 
-          template.id === updatedTemplate.id
-            ? {
-                ...template,
-                name: updatedTemplate.name,
-                updatedAt: new Date(),
-                exercises: updatedTemplate.exercises.map((exerciseName, index) => ({
-                  id: template.exercises[index]?.id ?? -index - 1,
-                  user_id: template.exercises[index]?.user_id ?? "temp-user",
-                  templateId: template.id,
-                  exerciseName,
-                  orderIndex: index,
-                  createdAt: template.exercises[index]?.createdAt ?? new Date(),
-                })),
-              }
-            : template
-        ) ?? []
+      utils.templates.getAll.setData(
+        undefined,
+        (old) =>
+          old?.map((template) =>
+            template.id === updatedTemplate.id
+              ? {
+                  ...template,
+                  name: updatedTemplate.name,
+                  updatedAt: new Date(),
+                  exercises: updatedTemplate.exercises.map(
+                    (exerciseName, index) => ({
+                      id: template.exercises[index]?.id ?? -index - 1,
+                      user_id:
+                        template.exercises[index]?.user_id ?? "temp-user",
+                      templateId: template.id,
+                      exerciseName,
+                      orderIndex: index,
+                      createdAt:
+                        template.exercises[index]?.createdAt ?? new Date(),
+                    }),
+                  ),
+                }
+              : template,
+          ) ?? [],
       );
-      
+
       return { previousTemplates };
     },
     onError: (err, updatedTemplate, context) => {
@@ -108,7 +117,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     },
     onSuccess: () => {
-      analytics.templateEdited(template!.id.toString(), exercises.filter(ex => ex.trim()).length);
+      analytics.templateEdited(
+        template!.id.toString(),
+        exercises.filter((ex) => ex.trim()).length,
+      );
       router.push("/templates");
     },
     onSettled: () => {
@@ -133,9 +145,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const filteredExercises = exercises.filter((ex) => ex.trim() !== "");
-    
+
     if (name.trim() === "") {
       alert("Please enter a template name");
       return;
@@ -156,9 +168,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      analytics.error(error as Error, { 
-        context: template ? "template_edit" : "template_create", 
-        templateId: template?.id.toString() 
+      analytics.error(error as Error, {
+        context: template ? "template_edit" : "template_create",
+        templateId: template?.id.toString(),
       });
       alert("Error saving template. Please try again.");
     }
@@ -170,7 +182,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Template Name */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium mb-2">
+        <label htmlFor="name" className="mb-2 block text-sm font-medium">
           Template Name
         </label>
         <input
@@ -179,24 +191,24 @@ export function TemplateForm({ template }: TemplateFormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g., Push Day, Pull Day, Legs"
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
           required
         />
       </div>
 
       {/* Exercises */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <label className="block text-sm font-medium">Exercises</label>
           <button
             type="button"
             onClick={addExercise}
-            className="text-sm bg-gray-700 hover:bg-gray-600 transition-colors rounded px-3 py-1"
+            className="rounded bg-gray-700 px-3 py-1 text-sm transition-colors hover:bg-gray-600"
           >
             + Add Exercise
           </button>
         </div>
-        
+
         <div className="space-y-3">
           {exercises.map((exercise, index) => (
             <div key={index} className="flex items-center gap-3">
@@ -206,14 +218,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   value={exercise}
                   onChange={(e) => updateExercise(index, e.target.value)}
                   placeholder={`Exercise ${index + 1}`}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
               {exercises.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeExercise(index)}
-                  className="text-red-400 hover:text-red-300 text-sm px-2"
+                  className="px-2 text-sm text-red-400 hover:text-red-300"
                 >
                   Remove
                 </button>
@@ -221,12 +233,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
             </div>
           ))}
         </div>
-        
+
         {exercises.length === 0 && (
           <button
             type="button"
             onClick={addExercise}
-            className="w-full border-2 border-dashed border-gray-700 rounded-lg py-8 text-gray-400 hover:border-gray-600 transition-colors"
+            className="w-full rounded-lg border-2 border-dashed border-gray-700 py-8 text-gray-400 transition-colors hover:border-gray-600"
           >
             + Add your first exercise
           </button>
@@ -238,14 +250,18 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors rounded-lg px-6 py-2 font-medium"
+          className="rounded-lg bg-purple-600 px-6 py-2 font-medium transition-colors hover:bg-purple-700 disabled:opacity-50"
         >
-          {isLoading ? "Saving..." : template ? "Update Template" : "Create Template"}
+          {isLoading
+            ? "Saving..."
+            : template
+              ? "Update Template"
+              : "Create Template"}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
-          className="text-gray-400 hover:text-white transition-colors px-4 py-2"
+          className="px-4 py-2 text-gray-400 transition-colors hover:text-white"
         >
           Cancel
         </button>

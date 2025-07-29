@@ -31,7 +31,7 @@ export const createQueryClient = () =>
         // Enhanced mutation settings for better UX
         retry: (failureCount, error) => {
           // Don't retry on 4xx errors (client errors)
-          if (error && 'status' in error && typeof error.status === 'number') {
+          if (error && "status" in error && typeof error.status === "number") {
             if (error.status >= 400 && error.status < 500) {
               return false;
             }

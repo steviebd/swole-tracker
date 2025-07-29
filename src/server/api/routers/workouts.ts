@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { 
-  workoutSessions, 
-  sessionExercises, 
-  workoutTemplates
+import {
+  workoutSessions,
+  sessionExercises,
+  workoutTemplates,
 } from "~/server/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -22,8 +22,8 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
       return ctx.db.query.workoutSessions.findMany({
-      where: eq(workoutSessions.user_id, ctx.user.id),
-      orderBy: [desc(workoutSessions.workoutDate)],
+        where: eq(workoutSessions.user_id, ctx.user.id),
+        orderBy: [desc(workoutSessions.workoutDate)],
         limit: input.limit,
         with: {
           template: {
@@ -66,7 +66,7 @@ export const workoutsRouter = createTRPCRouter({
       const lastExercise = await ctx.db.query.sessionExercises.findFirst({
         where: and(
           eq(sessionExercises.user_id, ctx.user.id),
-          eq(sessionExercises.exerciseName, input.exerciseName)
+          eq(sessionExercises.exerciseName, input.exerciseName),
         ),
         orderBy: [desc(sessionExercises.createdAt)],
       });
@@ -76,7 +76,9 @@ export const workoutsRouter = createTRPCRouter({
       }
 
       return {
-        weight: lastExercise.weight ? parseFloat(lastExercise.weight) : undefined,
+        weight: lastExercise.weight
+          ? parseFloat(lastExercise.weight)
+          : undefined,
         reps: lastExercise.reps,
         sets: lastExercise.sets,
         unit: lastExercise.unit as "kg" | "lbs",
@@ -151,7 +153,10 @@ export const workoutsRouter = createTRPCRouter({
 
       // Insert new exercises (only those with data)
       const exercisesToInsert = input.exercises.filter(
-        (exercise) => exercise.weight !== undefined || exercise.reps !== undefined || exercise.sets !== undefined
+        (exercise) =>
+          exercise.weight !== undefined ||
+          exercise.reps !== undefined ||
+          exercise.sets !== undefined,
       );
 
       if (exercisesToInsert.length > 0) {
@@ -185,7 +190,9 @@ export const workoutsRouter = createTRPCRouter({
         throw new Error("Workout session not found");
       }
 
-      await ctx.db.delete(workoutSessions).where(eq(workoutSessions.id, input.id));
+      await ctx.db
+        .delete(workoutSessions)
+        .where(eq(workoutSessions.id, input.id));
 
       return { success: true };
     }),
