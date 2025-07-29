@@ -7,23 +7,6 @@ CREATE TABLE "swole-tracker_daily_joke" (
 	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "swole-tracker_session_exercise" RENAME COLUMN "userId" TO "user_id";--> statement-breakpoint
-ALTER TABLE "swole-tracker_template_exercise" RENAME COLUMN "userId" TO "user_id";--> statement-breakpoint
-ALTER TABLE "swole-tracker_user_preferences" RENAME COLUMN "userId" TO "user_id";--> statement-breakpoint
-ALTER TABLE "swole-tracker_workout_session" RENAME COLUMN "userId" TO "user_id";--> statement-breakpoint
-ALTER TABLE "swole-tracker_workout_template" RENAME COLUMN "userId" TO "user_id";--> statement-breakpoint
-ALTER TABLE "swole-tracker_user_preferences" DROP CONSTRAINT "swole-tracker_user_preferences_userId_unique";--> statement-breakpoint
-DROP INDEX "session_exercise_user_id_idx";--> statement-breakpoint
-DROP INDEX "template_exercise_user_id_idx";--> statement-breakpoint
-DROP INDEX "user_preferences_user_id_idx";--> statement-breakpoint
-DROP INDEX "session_user_id_idx";--> statement-breakpoint
-DROP INDEX "template_user_id_idx";--> statement-breakpoint
 CREATE INDEX "daily_joke_user_id_idx" ON "swole-tracker_daily_joke" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "daily_joke_created_at_idx" ON "swole-tracker_daily_joke" USING btree ("createdAt");--> statement-breakpoint
-CREATE INDEX "daily_joke_user_date_idx" ON "swole-tracker_daily_joke" USING btree ("user_id","createdAt");--> statement-breakpoint
-CREATE INDEX "session_exercise_user_id_idx" ON "swole-tracker_session_exercise" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "template_exercise_user_id_idx" ON "swole-tracker_template_exercise" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "user_preferences_user_id_idx" ON "swole-tracker_user_preferences" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "session_user_id_idx" ON "swole-tracker_workout_session" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "template_user_id_idx" ON "swole-tracker_workout_template" USING btree ("user_id");--> statement-breakpoint
-ALTER TABLE "swole-tracker_user_preferences" ADD CONSTRAINT "swole-tracker_user_preferences_user_id_unique" UNIQUE("user_id");
+CREATE INDEX "daily_joke_user_date_idx" ON "swole-tracker_daily_joke" USING btree ("user_id","createdAt");
