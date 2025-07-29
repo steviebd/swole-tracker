@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 
 import { RecentWorkouts } from "~/app/_components/recent-workouts";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
+import { JokeOfTheDay } from "~/app/_components/joke-of-the-day";
 
 export default async function Home() {
   const user = await currentUser();
@@ -37,7 +38,7 @@ export default async function Home() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Link
             href="/workout/start"
             className="bg-purple-600 hover:bg-purple-700 transition-colors rounded-lg p-6 text-center"
@@ -45,6 +46,7 @@ export default async function Home() {
             <h3 className="text-xl font-semibold mb-2">🏋️ Start Workout</h3>
             <p className="text-purple-100">Begin a new workout session</p>
           </Link>
+          <JokeOfTheDay />
           <Link
             href="/templates"
             className="bg-gray-800 hover:bg-gray-700 transition-colors rounded-lg p-6 text-center"

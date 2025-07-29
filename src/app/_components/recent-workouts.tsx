@@ -71,7 +71,16 @@ export function RecentWorkouts() {
         setWorkouts(workoutsWithDetails)
       } catch (err: unknown) {
         console.error('Error loading workouts:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load workouts')
+        console.error('Environment check:', {
+          hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_KEY,
+          userId: user?.id,
+          hasSession: !!session
+        })
+        const errorMessage = err instanceof Error ? err.message : 
+          typeof err === 'object' && err !== null ? JSON.stringify(err) : 
+          'Failed to load workouts'
+        setError(errorMessage)
       } finally {
         setIsLoading(false)
       }
