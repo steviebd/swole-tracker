@@ -1,13 +1,61 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+
+interface JokeResponse {
+  joke?: string;
+  error?: string;
+}
 
 export function JokeOfTheDay() {
   const [isDismissed, setIsDismissed] = useState(false);
   const [clickCount, setClickCount] = useState(0);
+  const [joke, setJoke] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const fetchJoke = async () => {
+      // Check if joke is cached in session storage
+      const cachedJoke = sessionStorage.getItem('joke-of-the-day');
+      if (cachedJoke) {
+        setJoke(cachedJoke);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch('/api/joke');
+        const data: JokeResponse = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch joke');
+        }
+        
+        if (data.joke) {
+          setJoke(data.joke);
+          // Cache the joke for this session
+          sessionStorage.setItem('joke-of-the-day', data.joke);
+        } else {
+          throw new Error('No joke received');
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch joke';
+        setError(errorMessage);
+        console.error('Error fetching joke:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchJoke();
+  }, []);
 
   if (isDismissed) return null;
 
@@ -49,6 +97,35 @@ export function JokeOfTheDay() {
     }
   };
 
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <>
+          <h3 className="text-xl font-semibold mb-2 text-white">😄 Joke of the Day</h3>
+          <div className="text-blue-100 animate-pulse">Loading a joke for you...</div>
+        </>
+      );
+    }
+
+    if (error) {
+      return (
+        <>
+          <h3 className="text-xl font-semibold mb-2 text-white">😅 Joke of the Day</h3>
+          <div className="text-red-200 text-sm">Error: {error}</div>
+          <div className="text-blue-100 text-xs mt-1">Double-click or swipe to dismiss</div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <h3 className="text-xl font-semibold mb-2 text-white">😄 Joke of the Day</h3>
+        <p className="text-blue-100 text-sm leading-relaxed mb-2">{joke}</p>
+        <div className="text-blue-200 text-xs">Double-click or swipe to dismiss</div>
+      </>
+    );
+  };
+
   return (
     <div
       onClick={handleClick}
@@ -63,8 +140,7 @@ export function JokeOfTheDay() {
         e.currentTarget.style.backgroundColor = '#1e3a8a';
       }}
     >
-      <h3 className="text-xl font-semibold mb-2 text-white">😄 Joke of the Day</h3>
-      <p className="text-blue-100">Double-click or swipe to dismiss</p>
+      {renderContent()}
     </div>
   );
 }

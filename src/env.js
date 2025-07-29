@@ -12,6 +12,9 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    AI_GATEWAY_API_KEY: z.string(),
+    AI_GATEWAY_MODEL: z.string().default("google/gemini-2.0-flash-lite"),
+    AI_GATEWAY_PROMPT: z.string().default("Tell me a joke"),
   },
 
   /**
@@ -43,6 +46,9 @@ export const env = createEnv({
     NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    AI_GATEWAY_MODEL: process.env.AI_GATEWAY_MODEL,
+    AI_GATEWAY_PROMPT: process.env.AI_GATEWAY_PROMPT,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
