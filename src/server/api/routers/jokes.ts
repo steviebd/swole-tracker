@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { generateText } from "ai";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
@@ -51,6 +51,8 @@ interface JokeContext {
 }
 
 async function generateNewJoke(ctx: JokeContext) {
+  let enhancedPrompt = env.AI_GATEWAY_PROMPT;
+  
   try {
     // Check if AI Gateway is configured
     if (!env.VERCEL_AI_GATEWAY_API_KEY) {
@@ -64,9 +66,32 @@ async function generateNewJoke(ctx: JokeContext) {
 
     const modelInfo = getModelInfo(env.AI_GATEWAY_MODEL);
 
+    // Fetch previous jokes for memory
+    const memoryCount = env.AI_GATEWAY_JOKE_MEMORY_NUMBER;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const previousJokes: { joke: string }[] = await ctx.db
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .select({ joke: dailyJokes.joke })
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .from(dailyJokes)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .where(eq(dailyJokes.user_id, ctx.user.id))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .orderBy(desc(dailyJokes.createdAt))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .limit(memoryCount);
+
+    // Build enhanced prompt with previous jokes
+    
+    if (previousJokes.length > 0) {
+      const jokeList = previousJokes.map((j) => j.joke).join(", ");
+      enhancedPrompt = `These are the previous ${previousJokes.length} jokes that you've given. ${jokeList}. Don't repeat yourself and do the following: ${env.AI_GATEWAY_PROMPT}`;
+    }
+
     console.log("🚀 Generating new joke with Vercel AI Gateway...");
     console.log("📱 Model:", `${modelInfo.name} (${modelInfo.id})`);
-    console.log("💬 Prompt:", env.AI_GATEWAY_PROMPT?.substring(0, 50) + "...");
+    console.log("💬 Enhanced Prompt:", enhancedPrompt.substring(0, 100) + "...");
+    console.log("🧠 Memory: Using", previousJokes.length, "previous jokes");
 
     if (!modelInfo.isSupported) {
       console.warn(
@@ -81,7 +106,7 @@ async function generateNewJoke(ctx: JokeContext) {
 
     const { text } = await generateText({
       model: env.AI_GATEWAY_MODEL, // e.g., 'xai/grok-3-mini' - automatically uses Gateway
-      prompt: env.AI_GATEWAY_PROMPT,
+      prompt: enhancedPrompt,
       // The AI SDK automatically handles Vercel AI Gateway when using these model formats
     });
 
@@ -99,7 +124,7 @@ async function generateNewJoke(ctx: JokeContext) {
         user_id: ctx.user.id,
         joke: text.trim(),
         aiModel: env.AI_GATEWAY_MODEL,
-        prompt: env.AI_GATEWAY_PROMPT,
+        prompt: enhancedPrompt,
       })
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       .returning();
@@ -125,7 +150,7 @@ async function generateNewJoke(ctx: JokeContext) {
       stack: error instanceof Error ? error.stack : undefined,
       aiModel: env.AI_GATEWAY_MODEL,
       hasApiKey: !!env.VERCEL_AI_GATEWAY_API_KEY,
-      prompt: env.AI_GATEWAY_PROMPT?.substring(0, 100) + "...",
+      prompt: enhancedPrompt.substring(0, 100) + "...",
     });
 
     // Return fallback joke if AI Gateway fails

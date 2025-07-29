@@ -21,6 +21,7 @@ export const env = createEnv({
       .default(
         "Tell me a short, funny programming or tech joke. Keep it clean and under 100 words.",
       ),
+    AI_GATEWAY_JOKE_MEMORY_NUMBER: z.coerce.number().default(3),
   },
 
   /**
@@ -56,6 +57,7 @@ export const env = createEnv({
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
     AI_GATEWAY_MODEL: process.env.AI_GATEWAY_MODEL,
     AI_GATEWAY_PROMPT: process.env.AI_GATEWAY_PROMPT,
+    AI_GATEWAY_JOKE_MEMORY_NUMBER: process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
