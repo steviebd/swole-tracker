@@ -3,14 +3,15 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import SuperJSON from "superjson";
+import { configureQueryCache } from "./cache-config";
 
-export const createQueryClient = () =>
-  new QueryClient({
+export const createQueryClient = () => {
+  const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
         // Enhanced caching and performance settings
-        staleTime: 5 * 60 * 1000, // 5 minutes - consider data fresh for longer
-        gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
+        staleTime: 5 * 60 * 1000, // 5 minutes default
+        gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache much longer for offline
         refetchOnWindowFocus: true, // Refetch when user returns to tab
         refetchOnReconnect: true, // Refetch when internet reconnects
         refetchInterval: false, // Disable automatic polling by default
@@ -52,3 +53,9 @@ export const createQueryClient = () =>
       },
     },
   });
+
+  // Configure query-specific cache settings
+  configureQueryCache(queryClient);
+
+  return queryClient;
+};

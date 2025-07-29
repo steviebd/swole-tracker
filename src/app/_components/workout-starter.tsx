@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
+import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 
 interface WorkoutStarterProps {
   initialTemplateId?: number;
@@ -12,6 +13,7 @@ interface WorkoutStarterProps {
 
 export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   const router = useRouter();
+  const { onWorkoutStart } = useCacheInvalidation();
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     initialTemplateId ?? null,
   );
@@ -36,6 +38,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         selectedTemplateId?.toString() ?? "unknown",
         template?.name ?? "Unknown Template",
       );
+      
+      // Immediately invalidate cache for instant UI updates
+      onWorkoutStart();
+      
       router.push(`/workout/session/${data.sessionId}`);
     },
   });

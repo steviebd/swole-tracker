@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "~/trpc/react";
 import { ExerciseInput } from "./exercise-input";
 import { analytics } from "~/lib/analytics";
+import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 
 interface ExerciseData {
   templateExerciseId?: number;
@@ -22,6 +23,7 @@ interface WorkoutSessionProps {
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const router = useRouter();
+  const { onWorkoutSave, invalidateWorkouts } = useCacheInvalidation();
   const [exercises, setExercises] = useState<ExerciseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -96,6 +98,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         exercises.length,
       );
 
+      // Comprehensive cache invalidation for workout save
+      onWorkoutSave();
+
       // Navigate immediately since we've already updated the cache optimistically
       router.push("/");
     },
@@ -130,6 +135,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       }
     },
     onSuccess: () => {
+      // Comprehensive cache invalidation for workout deletion
+      invalidateWorkouts();
+      
       // Navigate back to home
       router.push("/");
     },
