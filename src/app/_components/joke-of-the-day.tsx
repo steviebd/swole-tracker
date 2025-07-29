@@ -11,10 +11,7 @@ export function JokeOfTheDay() {
   const [joke, setJoke] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [jokeCreatedAt, setJokeCreatedAt] = useState<Date | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const previousUserIdRef = useRef<string | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const [translateX, setTranslateX] = useState(0);
@@ -33,14 +30,12 @@ export function JokeOfTheDay() {
       retry: false,
     }
   );
-  const clearCacheMutation = api.jokes.clearCache.useMutation();
-  const generateNewMutation = api.jokes.generateNew.useMutation();
+  // No longer need cache mutations since we always fetch fresh jokes
 
   // Handle joke data from tRPC
   useEffect(() => {
     if (jokeData && user) {
       setJoke(jokeData.joke);
-      setJokeCreatedAt(jokeData.createdAt);
       setIsLoading(false);
       setError(null);
     }
@@ -58,44 +53,8 @@ export function JokeOfTheDay() {
     }
   }, [isJokeLoading, jokeError]);
 
-  // Clear cache and refetch when user changes (login/logout)
-  useEffect(() => {
-    if (isLoaded && user?.id && previousUserIdRef.current && previousUserIdRef.current !== user.id) {
-      console.log('User changed, clearing joke cache');
-      clearCacheMutation.mutate(undefined, {
-        onSuccess: () => {
-          void refetch();
-        }
-      });
-    }
-    previousUserIdRef.current = user?.id ?? null;
-  }, [user?.id, isLoaded, clearCacheMutation, refetch]);
-
-  // Set up 20-hour refresh timer
-  useEffect(() => {
-    if (!jokeCreatedAt) return;
-
-    const twentyHours = 20 * 60 * 60 * 1000; // 20 hours in milliseconds
-    const timeUntilRefresh = twentyHours - (Date.now() - jokeCreatedAt.getTime());
-
-    if (timeUntilRefresh > 0) {
-      refreshTimeoutRef.current = setTimeout(() => {
-        console.log('20 hours passed, fetching new joke');
-        generateNewMutation.mutate(undefined, {
-          onSuccess: (data) => {
-            setJoke(data.joke);
-            setJokeCreatedAt(data.createdAt);
-          }
-        });
-      }, timeUntilRefresh);
-    }
-
-    return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-      }
-    };
-  }, [jokeCreatedAt, generateNewMutation]);
+  // Fresh joke is fetched automatically on each browser refresh via tRPC query
+  // No caching logic needed - every page load gets a new joke from AI Gateway
 
   // Don't render if not loaded or user not authenticated
   if (!isLoaded || !user) return null;

@@ -1,6 +1,6 @@
 # AI Models for Joke of the Day
 
-This app supports switching between AI models just by updating your `.env` file! Here are the supported models:
+This app generates fresh jokes on every browser refresh using Vercel AI Gateway! Switch between AI models just by updating your `.env` file:
 
 ## Quick Model Switch
 
@@ -69,11 +69,18 @@ AI_GATEWAY_MODEL=xai/grok-3-mini
 AI_GATEWAY_PROMPT="Tell me a short, funny programming joke"
 ```
 
+## How It Works
+
+1. **Every browser refresh** calls the AI Gateway for a fresh joke
+2. **No caching** - each page load gets new content
+3. **Model tracking** - jokes are stored in database with model info
+4. **Instant switching** - change model in `.env` and refresh to see difference
+
 ## Testing Different Models
 
-1. Update `.env` with your desired model
-2. Restart your dev server
-3. Refresh the page to get a new joke
+1. Update `AI_GATEWAY_MODEL` in your `.env` file
+2. Restart your dev server (if needed)
+3. **Refresh the page** to get a fresh joke from the new model
 4. Check the console logs to see which model was used
 
-The app automatically handles caching, so jokes are stored with the model info for tracking which AI generated what!
+Every page refresh generates a completely new joke from your selected AI model!

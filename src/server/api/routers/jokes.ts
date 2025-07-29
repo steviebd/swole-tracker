@@ -40,7 +40,8 @@ function getModelInfo(modelId: string) {
   };
 }
 
-// Helper function to generate new joke with proper error handling
+// Helper function to generate fresh joke on every browser refresh
+// Always calls AI Gateway for new content - no caching
 // Supports all Vercel AI Gateway models via environment variables:
 // - XAI: xai/grok-3-mini, xai/grok-beta
 // - Google: google/gemini-2.0-flash-lite, google/gemini-1.5-pro
@@ -71,7 +72,7 @@ async function generateNewJoke(ctx: any) {
     
     // Use Vercel AI Gateway directly through the AI SDK
     // No custom baseURL needed - the AI SDK automatically routes to the Gateway
-    console.log('🚀 Using Vercel AI Gateway through AI SDK...');
+    console.log('🚀 Calling AI Gateway for fresh joke...');
     
     const { text } = await generateText({
       model: env.AI_GATEWAY_MODEL, // e.g., 'xai/grok-3-mini' - automatically uses Gateway
@@ -83,7 +84,7 @@ async function generateNewJoke(ctx: any) {
       throw new Error('No content generated from AI Gateway');
     }
 
-    // Store the new joke in the database
+    // Store the new joke in the database for record keeping
     const newJoke = await ctx.db
       .insert(dailyJokes)
       .values({
@@ -94,12 +95,12 @@ async function generateNewJoke(ctx: any) {
       })
       .returning();
 
-    console.log('Successfully generated and stored new joke');
+    console.log('✅ Fresh joke generated and stored');
 
     return {
       joke: text.trim(),
       createdAt: newJoke[0]!.createdAt,
-      isFromCache: false,
+      isFromCache: false, // Always fresh from AI Gateway
     };
   } catch (error) {
     console.error('Error generating joke with AI Gateway:', error);
@@ -123,39 +124,16 @@ async function generateNewJoke(ctx: any) {
 export const jokesRouter = createTRPCRouter({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
     console.log('jokesRouter.getCurrent called for user:', ctx.user.id);
+    console.log('🔄 Generating fresh joke on browser refresh...');
     
     try {
-      const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
-      
-      // Check if user has a recent joke (within 20 hours)
-      const existingJoke = await ctx.db
-        .select()
-        .from(dailyJokes)
-        .where(
-          and(
-            eq(dailyJokes.user_id, ctx.user.id),
-            gte(dailyJokes.createdAt, twentyHoursAgo)
-          )
-        )
-        .orderBy(dailyJokes.createdAt)
-        .limit(1);
-
-      if (existingJoke.length > 0) {
-        const joke = existingJoke[0]!;
-        return {
-          joke: joke.joke,
-          createdAt: joke.createdAt,
-          isFromCache: true,
-        };
-      }
-
-      // No recent joke found, generate a new one with AI Gateway
+      // Always generate a new joke on browser refresh - no caching
       return await generateNewJoke(ctx);
       
     } catch (error) {
-      console.error('Database error in getCurrent:', error);
+      console.error('Error generating fresh joke:', error);
       
-      // Return fallback joke if database fails
+      // Return fallback joke if AI Gateway fails
       return {
         joke: "Error loading joke, but here's a backup: Why did the scarecrow win an award? Because he was outstanding in his field!",
         createdAt: new Date(),
