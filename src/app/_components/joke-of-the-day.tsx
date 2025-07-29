@@ -16,6 +16,13 @@ export function JokeOfTheDay() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
+  const [translateX, setTranslateX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [velocity, setVelocity] = useState(0);
+  const lastTouchTimeRef = useRef<number>(0);
+  const lastTouchXRef = useRef<number>(0);
+  const animationRef = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchJoke = async () => {
@@ -75,25 +82,101 @@ export function JokeOfTheDay() {
     }
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartXRef.current = e.touches[0]?.clientX ?? null;
-    touchStartYRef.current = e.touches[0]?.clientY ?? null;
+  const startMomentumAnimation = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    const animate = () => {
+      setVelocity(prevVelocity => {
+        const newVelocity = prevVelocity * 0.95; // Friction
+        if (Math.abs(newVelocity) < 0.1) {
+          // Animation finished
+          const currentTranslateX = translateX + newVelocity;
+          if (Math.abs(currentTranslateX) > 150 || Math.abs(velocity) > 8) {
+            setIsDismissed(true);
+          } else {
+            // Snap back to center
+            setTranslateX(0);
+          }
+          return 0;
+        }
+        
+        setTranslateX(prevTranslateX => {
+          const newTranslateX = prevTranslateX + newVelocity;
+          if (Math.abs(newTranslateX) > 150 || Math.abs(velocity) > 8) {
+            setIsDismissed(true);
+            return newTranslateX;
+          }
+          return newTranslateX;
+        });
+        
+        animationRef.current = requestAnimationFrame(animate);
+        return newVelocity;
+      });
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartXRef.current || !touchStartYRef.current) return;
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+    lastTouchXRef.current = touch.clientX;
+    lastTouchTimeRef.current = Date.now();
+    setIsDragging(true);
+    setVelocity(0);
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+  };
 
-    const touchEndX = e.changedTouches[0]?.clientX ?? 0;
-    const touchEndY = e.changedTouches[0]?.clientY ?? 0;
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault(); // Prevent scrolling
+    if (!isDragging || !touchStartXRef.current || !touchStartYRef.current) return;
+
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const deltaX = touch.clientX - touchStartXRef.current;
+    const deltaY = touch.clientY - touchStartYRef.current;
     
-    const deltaX = touchEndX - touchStartXRef.current;
-    const deltaY = touchEndY - touchStartYRef.current;
+    // Only track horizontal movement if it's more significant than vertical
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      setTranslateX(deltaX);
+      
+      // Calculate velocity for momentum
+      const currentTime = Date.now();
+      const timeDelta = currentTime - lastTouchTimeRef.current;
+      const positionDelta = touch.clientX - lastTouchXRef.current;
+      
+      if (timeDelta > 0) {
+        setVelocity(positionDelta / timeDelta * 16); // Convert to pixels per frame (60fps)
+      }
+      
+      lastTouchXRef.current = touch.clientX;
+      lastTouchTimeRef.current = currentTime;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
     
-    const minSwipeDistance = 100;
-    const maxVerticalDistance = 50;
+    setIsDragging(false);
     
-    if (Math.abs(deltaX) > minSwipeDistance && Math.abs(deltaY) < maxVerticalDistance) {
+    // Check if should dismiss or animate back
+    if (Math.abs(translateX) > 150 || Math.abs(velocity) > 8) {
       setIsDismissed(true);
+    } else if (Math.abs(velocity) > 0.5) {
+      // Start momentum animation
+      startMomentumAnimation();
+    } else {
+      // Snap back to center
+      setTranslateX(0);
     }
   };
 
@@ -130,16 +213,28 @@ export function JokeOfTheDay() {
 
   return (
     <div
+      ref={cardRef}
       onClick={handleClick}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="bg-navy-600 hover:bg-navy-700 transition-colors rounded-lg p-6 text-center cursor-pointer select-none"
-      style={{ backgroundColor: '#1e3a8a', borderColor: '#1e40af' }}
+      className="bg-navy-600 hover:bg-navy-700 rounded-lg p-6 text-center cursor-pointer select-none touch-pan-y"
+      style={{ 
+        backgroundColor: '#1e3a8a', 
+        borderColor: '#1e40af',
+        transform: `translateX(${translateX}px)`,
+        transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        opacity: Math.max(0.3, 1 - Math.abs(translateX) / 200)
+      }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = '#1e40af';
+        if (!isDragging) {
+          e.currentTarget.style.backgroundColor = '#1e40af';
+        }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = '#1e3a8a';
+        if (!isDragging) {
+          e.currentTarget.style.backgroundColor = '#1e3a8a';
+        }
       }}
     >
       {renderContent()}
