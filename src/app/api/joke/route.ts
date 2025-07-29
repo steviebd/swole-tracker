@@ -5,6 +5,16 @@ import { env } from '~/env';
 
 export async function GET() {
   try {
+    // Check if AI Gateway is configured
+    if (!env.AI_GATEWAY_API_KEY) {
+      return NextResponse.json(
+        { 
+          error: 'AI Gateway is not configured. Please set up Vercel AI Gateway in your dashboard and add the API key to your environment variables.' 
+        },
+        { status: 503 }
+      );
+    }
+
     console.log('Fetching joke with Vercel AI Gateway...');
     console.log('Model:', env.AI_GATEWAY_MODEL);
     console.log('Prompt:', env.AI_GATEWAY_PROMPT);

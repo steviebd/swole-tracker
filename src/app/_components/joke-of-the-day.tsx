@@ -32,10 +32,10 @@ export function JokeOfTheDay() {
         setError(null);
         
         const response = await fetch('/api/joke');
-        const data: JokeResponse = await response.json();
+        const data = await response.json() as JokeResponse;
         
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch joke');
+          throw new Error(data.error ?? 'Failed to fetch joke');
         }
         
         if (data.joke) {
@@ -111,7 +111,9 @@ export function JokeOfTheDay() {
       return (
         <>
           <h3 className="text-xl font-semibold mb-2 text-white">😅 Joke of the Day</h3>
-          <div className="text-red-200 text-sm">Error: {error}</div>
+          <div className="text-red-200 text-sm">
+            {error.includes('not configured') ? 'Feature not available yet' : `Error: ${error}`}
+          </div>
           <div className="text-blue-100 text-xs mt-1">Double-click or swipe to dismiss</div>
         </>
       );

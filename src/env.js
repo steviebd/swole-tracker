@@ -12,7 +12,7 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    AI_GATEWAY_API_KEY: z.string(),
+    AI_GATEWAY_API_KEY: z.string().optional(),
     AI_GATEWAY_MODEL: z.string().default("google/gemini-2.0-flash-lite"),
     AI_GATEWAY_PROMPT: z.string().default("Tell me a joke"),
   },
