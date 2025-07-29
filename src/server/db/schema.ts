@@ -164,3 +164,26 @@ export const sessionExercisesRelations = relations(sessionExercises, ({ one }) =
   session: one(workoutSessions, { fields: [sessionExercises.sessionId], references: [workoutSessions.id] }),
   templateExercise: one(templateExercises, { fields: [sessionExercises.templateExerciseId], references: [templateExercises.id] }),
 }));
+
+// Daily Jokes
+export const dailyJokes = createTable(
+  "daily_joke",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d
+      .varchar({ length: 256 })
+      .notNull(),
+    joke: d.text().notNull(),
+    aiModel: d.varchar({ length: 100 }).notNull(),
+    prompt: d.text().notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("daily_joke_user_id_idx").on(t.user_id),
+    index("daily_joke_created_at_idx").on(t.createdAt),
+    index("daily_joke_user_date_idx").on(t.user_id, t.createdAt),
+  ],
+); // RLS disabled - using Clerk auth with application-level security

@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-
-interface JokeResponse {
-  joke?: string;
-  error?: string;
-}
+import { useUser } from "@clerk/nextjs";
+import { api } from "~/trpc/react";
 
 export function JokeOfTheDay() {
+  const { user, isLoaded } = useUser();
   const [isDismissed, setIsDismissed] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   const [joke, setJoke] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [jokeCreatedAt, setJokeCreatedAt] = useState<Date | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousUserIdRef = useRef<string | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const [translateX, setTranslateX] = useState(0);
@@ -24,46 +25,80 @@ export function JokeOfTheDay() {
   const animationRef = useRef<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchJoke = async () => {
-      // Check if joke is cached in session storage
-      const cachedJoke = sessionStorage.getItem('joke-of-the-day');
-      if (cachedJoke) {
-        setJoke(cachedJoke);
-        setIsLoading(false);
-        return;
-      }
+  // tRPC hooks
+  const { data: jokeData, isLoading: isJokeLoading, error: jokeError, refetch } = api.jokes.getCurrent.useQuery(
+    undefined,
+    { 
+      enabled: isLoaded && !!user,
+      retry: false,
+    }
+  );
+  const clearCacheMutation = api.jokes.clearCache.useMutation();
+  const generateNewMutation = api.jokes.generateNew.useMutation();
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const response = await fetch('/api/joke');
-        const data = await response.json() as JokeResponse;
-        
-        if (!response.ok) {
-          throw new Error(data.error ?? 'Failed to fetch joke');
+  // Handle joke data from tRPC
+  useEffect(() => {
+    if (jokeData && user) {
+      setJoke(jokeData.joke);
+      setJokeCreatedAt(jokeData.createdAt);
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [jokeData, user]);
+
+  // Handle loading and error states
+  useEffect(() => {
+    setIsLoading(isJokeLoading);
+    if (jokeError) {
+      if (jokeError.data?.code === 'UNAUTHORIZED') {
+        setError('Please log in to see the joke of the day');
+      } else {
+        setError(jokeError.message);
+      }
+    }
+  }, [isJokeLoading, jokeError]);
+
+  // Clear cache and refetch when user changes (login/logout)
+  useEffect(() => {
+    if (isLoaded && user?.id && previousUserIdRef.current && previousUserIdRef.current !== user.id) {
+      console.log('User changed, clearing joke cache');
+      clearCacheMutation.mutate(undefined, {
+        onSuccess: () => {
+          void refetch();
         }
-        
-        if (data.joke) {
-          setJoke(data.joke);
-          // Cache the joke for this session
-          sessionStorage.setItem('joke-of-the-day', data.joke);
-        } else {
-          throw new Error('No joke received');
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch joke';
-        setError(errorMessage);
-        console.error('Error fetching joke:', err);
-      } finally {
-        setIsLoading(false);
+      });
+    }
+    previousUserIdRef.current = user?.id ?? null;
+  }, [user?.id, isLoaded, clearCacheMutation, refetch]);
+
+  // Set up 20-hour refresh timer
+  useEffect(() => {
+    if (!jokeCreatedAt) return;
+
+    const twentyHours = 20 * 60 * 60 * 1000; // 20 hours in milliseconds
+    const timeUntilRefresh = twentyHours - (Date.now() - jokeCreatedAt.getTime());
+
+    if (timeUntilRefresh > 0) {
+      refreshTimeoutRef.current = setTimeout(() => {
+        console.log('20 hours passed, fetching new joke');
+        generateNewMutation.mutate(undefined, {
+          onSuccess: (data) => {
+            setJoke(data.joke);
+            setJokeCreatedAt(data.createdAt);
+          }
+        });
+      }, timeUntilRefresh);
+    }
+
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
       }
     };
+  }, [jokeCreatedAt, generateNewMutation]);
 
-    void fetchJoke();
-  }, []);
-
+  // Don't render if not loaded or user not authenticated
+  if (!isLoaded || !user) return null;
   if (isDismissed) return null;
 
   const handleClick = () => {

@@ -12,9 +12,11 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    AI_GATEWAY_API_KEY: z.string().optional(),
-    AI_GATEWAY_MODEL: z.string().default("google/gemini-2.0-flash-lite"),
-    AI_GATEWAY_PROMPT: z.string().default("Tell me a joke"),
+    // Vercel AI Gateway configuration (AI SDK 5 beta)
+    VERCEL_AI_GATEWAY_API_KEY: z.string().optional(),
+    // Supported models: xai/grok-3-mini, google/gemini-2.0-flash-lite, openai/gpt-4o, etc.
+    AI_GATEWAY_MODEL: z.string().default("xai/grok-3-mini"),
+    AI_GATEWAY_PROMPT: z.string().default("Tell me a short, funny programming or tech joke. Keep it clean and under 100 words."),
   },
 
   /**
@@ -46,7 +48,7 @@ export const env = createEnv({
     NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
-    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
     AI_GATEWAY_MODEL: process.env.AI_GATEWAY_MODEL,
     AI_GATEWAY_PROMPT: process.env.AI_GATEWAY_PROMPT,
   },
