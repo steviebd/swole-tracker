@@ -2,7 +2,7 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 
-import { RecentWorkouts } from "~/app/_components/recent-workouts";
+import { RecentWorkoutsTRPC } from "~/app/_components/recent-workouts-trpc";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
 import { JokeOfTheDay } from "~/app/_components/joke-of-the-day";
 
@@ -67,7 +67,7 @@ export default async function Home() {
               View all →
             </Link>
           </div>
-          <RecentWorkouts />
+          <RecentWorkoutsTRPC />
         </div>
       </div>
     </main>

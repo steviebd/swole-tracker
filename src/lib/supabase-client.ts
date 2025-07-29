@@ -5,15 +5,6 @@ import { createClient } from '@supabase/supabase-js'
  * Pass the session from useSession() hook
  */
 export function createClerkSupabaseClient(session: { getToken?: () => Promise<string | null> } | null) {
-  // Debug environment variables
-  console.log('Environment check:', {
-    NODE_ENV: process.env.NODE_ENV,
-    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_KEY,
-    hasServiceRoleKey: !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
-    supabaseUrlPreview: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
-  })
-
   // For local development, use service role key to bypass JWT validation
   const isLocalDev = process.env.NODE_ENV === 'development' && 
                      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('127.0.0.1')
@@ -48,8 +39,6 @@ export function createClerkSupabaseClient(session: { getToken?: () => Promise<st
   if (!process.env.NEXT_PUBLIC_SUPABASE_KEY) {
     throw new Error('NEXT_PUBLIC_SUPABASE_KEY is not set')
   }
-
-  console.log('Creating production Supabase client with Clerk auth')
   
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
