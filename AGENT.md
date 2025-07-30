@@ -1,4 +1,4 @@
-# AGENT.md - T3 Stack (Swole Tracker) Configuration
+# AGENT.md - Swole Tracker Configuration
 
 ## Commands
 - **Dev**: `pnpm dev` (with Turbo)
@@ -11,7 +11,7 @@
 
 ## Architecture
 - **T3 Stack**: Next.js 15 App Router + tRPC + Drizzle ORM + Clerk + Tailwind
-- **Database**: PostgreSQL with Drizzle ORM (schema: `src/server/db/schema.ts`)
+- **Database**: Supabase with Drizzle ORM (schema: `src/server/db/schema.ts`)
 - **API**: tRPC routers in `src/server/api/routers/`, root at `src/server/api/root.ts`
 - **Auth**: Clerk in `src/server/auth/`, middleware at `src/middleware.ts`
 - **Frontend**: App Router (`src/app/`), components in `src/app/_components/`
