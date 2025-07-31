@@ -8,6 +8,7 @@ export function WhoopConnection() {
   const [isLoading, setIsLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [rateLimit, setRateLimit] = useState<{ remaining: number; resetTime: string } | null>(null);
   const searchParams = useSearchParams();
 
   const { data: integrationStatus, refetch: refetchStatus } = api.whoop.getIntegrationStatus.useQuery();
@@ -70,7 +71,14 @@ export function WhoopConnection() {
           type: "success",
           text: `Sync completed! ${result.newWorkouts} new workouts, ${result.duplicates} duplicates skipped.`,
         });
+        setRateLimit(result.rateLimit);
         void refetchWorkouts();
+      } else if (response.status === 429) {
+        setMessage({ 
+          type: "error", 
+          text: result.message || "Rate limit exceeded. Please try again later." 
+        });
+        setRateLimit({ remaining: 0, resetTime: result.resetTime });
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
@@ -129,11 +137,20 @@ export function WhoopConnection() {
               <div className="space-y-2">
                 <button
                   onClick={handleSync}
-                  disabled={syncLoading}
+                  disabled={syncLoading || (rateLimit?.remaining === 0)}
                   className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   {syncLoading ? "Syncing..." : "Sync with Whoop"}
                 </button>
+                {rateLimit && (
+                  <div className="text-xs text-gray-400 text-center mt-2">
+                    {rateLimit.remaining > 0 ? (
+                      `${rateLimit.remaining} syncs remaining this hour`
+                    ) : (
+                      `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`
+                    )}
+                  </div>
+                )}
                 <button
                   onClick={handleConnect}
                   disabled={isLoading}

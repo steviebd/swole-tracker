@@ -5,6 +5,7 @@ import { db } from "~/server/db";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
+import { checkRateLimit } from "~/lib/rate-limit";
 
 interface WhoopWorkout {
   id: string;
@@ -91,6 +92,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check rate limit
+    const rateLimit = await checkRateLimit(
+      user.id,
+      "whoop_sync",
+      env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
+      60 * 60 * 1000 // 1 hour
+    );
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          message: `You can only sync ${env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR} times per hour. Try again in ${Math.ceil(rateLimit.retryAfter! / 60)} minutes.`,
+          retryAfter: rateLimit.retryAfter,
+          resetTime: rateLimit.resetTime.toISOString(),
+        },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": rateLimit.retryAfter!.toString(),
+            "X-RateLimit-Limit": env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR.toString(),
+            "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+            "X-RateLimit-Reset": Math.floor(rateLimit.resetTime.getTime() / 1000).toString(),
+          }
+        }
+      );
+    }
+
     // Get user's Whoop integration
     const [integration] = await db
       .select()
@@ -174,12 +203,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      totalWorkouts: workouts.length,
-      newWorkouts,
-      duplicates,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        totalWorkouts: workouts.length,
+        newWorkouts,
+        duplicates,
+        rateLimit: {
+          remaining: rateLimit.remaining,
+          resetTime: rateLimit.resetTime.toISOString(),
+        },
+      },
+      {
+        headers: {
+          "X-RateLimit-Limit": env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR.toString(),
+          "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+          "X-RateLimit-Reset": Math.floor(rateLimit.resetTime.getTime() / 1000).toString(),
+        }
+      }
+    );
   } catch (error) {
     console.error("Sync workouts error:", error);
     return NextResponse.json(

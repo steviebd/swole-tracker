@@ -22,6 +22,7 @@ CLERK_SECRET_KEY=your-clerk-secret-key
 # Whoop Integration (Optional)
 WHOOP_CLIENT_ID=your-whoop-client-id
 WHOOP_CLIENT_SECRET=your-whoop-client-secret
+WHOOP_SYNC_RATE_LIMIT_PER_HOUR=10
 
 ```
 
@@ -132,9 +133,16 @@ The application uses the following main tables:
 5. Users can sync workouts manually or automatically
 6. Duplicate workouts are automatically detected and skipped
 
+### Rate Limiting
+
+- **WHOOP_SYNC_RATE_LIMIT_PER_HOUR**: Controls how many times a user can sync per hour (default: 10)
+- Rate limiting is enforced per user per hour
+- Users see remaining sync count and reset time in the UI
+- Proper HTTP headers are returned (429 status, Retry-After, etc.)
+
 ### TODO - Future Enhancements
 
-- [ ] Add rate limiting for sync API calls
+- [x] Add rate limiting for sync API calls
 - [ ] Implement automatic periodic sync
 - [ ] Add webhook support for real-time updates
 - [ ] Support for other fitness integrations (Strava, Garmin)

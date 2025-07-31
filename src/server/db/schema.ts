@@ -247,6 +247,27 @@ export const externalWorkoutsWhoop = createTable(
   ],
 ); // RLS disabled - using Clerk auth with application-level security
 
+// Rate Limiting for API requests
+export const rateLimits = createTable(
+  "rate_limit",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    endpoint: d.varchar({ length: 100 }).notNull(), // e.g., 'whoop_sync'
+    requests: d.integer().notNull().default(0),
+    windowStart: d.timestamp({ withTimezone: true }).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("rate_limit_user_endpoint_idx").on(t.user_id, t.endpoint),
+    index("rate_limit_window_idx").on(t.windowStart),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
+
 // Relations for new tables
 export const userIntegrationsRelations = relations(
   userIntegrations,

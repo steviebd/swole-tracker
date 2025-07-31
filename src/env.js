@@ -25,6 +25,7 @@ export const env = createEnv({
     // Whoop Integration
     WHOOP_CLIENT_ID: z.string().optional(),
     WHOOP_CLIENT_SECRET: z.string().optional(),
+    WHOOP_SYNC_RATE_LIMIT_PER_HOUR: z.coerce.number().default(10),
   },
 
   /**
@@ -63,6 +64,7 @@ export const env = createEnv({
     AI_GATEWAY_JOKE_MEMORY_NUMBER: process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER,
     WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID,
     WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
+    WHOOP_SYNC_RATE_LIMIT_PER_HOUR: process.env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
