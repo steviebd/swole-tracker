@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import crypto from "crypto";
 
 export const whoopRouter = createTRPCRouter({
   getIntegrationStatus: protectedProcedure.query(async ({ ctx }) => {
@@ -125,5 +126,26 @@ export const whoopRouter = createTRPCRouter({
       );
 
     return { success: true };
+  }),
+
+  getWebhookInfo: protectedProcedure.query(async ({ ctx }) => {
+    // Get the base URL for the webhook endpoint
+    const webhookUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/webhooks/whoop`
+      : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/webhooks/whoop`;
+
+    return {
+      webhookUrl,
+      isConfigured: !!process.env.WHOOP_WEBHOOK_SECRET,
+      supportedEvents: ['workout.updated'],
+      instructions: [
+        '1. Go to your Whoop Developer Dashboard',
+        '2. Navigate to your app settings',
+        '3. Add the webhook URL above',
+        '4. Select "v2" model version for UUID support',
+        '5. Set your app secret as WHOOP_WEBHOOK_SECRET environment variable',
+        '6. Save the configuration'
+      ]
+    };
   }),
 });

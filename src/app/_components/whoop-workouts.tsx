@@ -259,6 +259,8 @@ export function WhoopWorkouts() {
         </div>
       )}
 
+
+
       {/* Workout Detail Overlay */}
       <WorkoutDetailOverlay
         workout={selectedWorkout}
