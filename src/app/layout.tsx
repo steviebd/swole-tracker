@@ -31,13 +31,36 @@ export default function RootLayout({
       telemetry={false}
     >
       <html lang="en" className={`${geist.variable} dark`}>
-        <body className="min-h-screen bg-gray-900 text-white">
+        <body className="min-h-screen bg-gray-900 text-white flex flex-col">
           <PostHogProvider>
             <PageTracker />
             <ConnectionStatus />
             <TRPCReactProvider>
               <SyncIndicator />
-              {children}
+              <main className="flex-1">
+                {children}
+              </main>
+              <footer className="mt-auto py-6 border-t border-gray-800">
+                <div className="container mx-auto px-4 text-center">
+                  <div className="flex justify-center space-x-6 text-sm text-gray-400">
+                    <a 
+                      href="/privacy" 
+                      className="hover:text-white transition-colors duration-200"
+                    >
+                      Privacy Policy
+                    </a>
+                    <a 
+                      href="/terms" 
+                      className="hover:text-white transition-colors duration-200"
+                    >
+                      Terms of Service
+                    </a>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500">
+                    © 2025 Steven Duong. All rights reserved.
+                  </div>
+                </div>
+              </footer>
             </TRPCReactProvider>
           </PostHogProvider>
         </body>
