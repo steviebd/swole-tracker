@@ -13,6 +13,7 @@ import { ZodError } from "zod";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "~/server/db";
+import { logger, logApiCall } from "~/lib/logger";
 
 /**
  * 1. CONTEXT
@@ -84,7 +85,7 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
+const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
   const start = Date.now();
 
   if (t._config.isDev) {
@@ -96,7 +97,10 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   const result = await next();
 
   const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+  
+  // Use logger instead of console.log
+  const userId = (ctx as any).user?.id;
+  logApiCall(path, userId || 'anonymous', end - start);
 
   return result;
 });

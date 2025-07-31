@@ -28,6 +28,11 @@ export const env = createEnv({
     WHOOP_SYNC_RATE_LIMIT_PER_HOUR: z.coerce.number().default(10),
     // Whoop Webhooks (using the same client secret for webhook verification)
     WHOOP_WEBHOOK_SECRET: z.string().optional(),
+    // Rate Limiting Configuration
+    RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR: z.coerce.number().default(100),
+    RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: z.coerce.number().default(200),
+    RATE_LIMIT_API_CALLS_PER_MINUTE: z.coerce.number().default(60),
+    RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
   },
 
   /**
@@ -68,6 +73,10 @@ export const env = createEnv({
     WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
     WHOOP_SYNC_RATE_LIMIT_PER_HOUR: process.env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
     WHOOP_WEBHOOK_SECRET: process.env.WHOOP_WEBHOOK_SECRET,
+    RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR: process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR,
+    RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR,
+    RATE_LIMIT_API_CALLS_PER_MINUTE: process.env.RATE_LIMIT_API_CALLS_PER_MINUTE,
+    RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
