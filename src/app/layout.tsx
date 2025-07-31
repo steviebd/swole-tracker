@@ -25,7 +25,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
+    >
       <html lang="en" className={`${geist.variable} dark`}>
         <body className="min-h-screen bg-gray-900 text-white">
           <PostHogProvider>
