@@ -285,3 +285,34 @@ export const externalWorkoutsWhoopRelations = relations(
     }),
   }),
 );
+
+// Webhook Events Log (for debugging and audit trail)
+export const webhookEvents = createTable(
+  "webhook_event",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    provider: d.varchar({ length: 50 }).notNull(), // 'whoop', 'strava', etc.
+    eventType: d.varchar({ length: 100 }).notNull(), // 'workout.updated', etc.
+    userId: d.varchar({ length: 256 }), // May be null if user mapping fails
+    externalUserId: d.varchar({ length: 256 }), // User ID from external provider
+    externalEntityId: d.varchar({ length: 256 }), // Workout ID, etc.
+    payload: d.json(), // Full webhook payload
+    headers: d.json(), // Webhook headers for debugging
+    status: d.varchar({ length: 20 }).notNull().default('received'), // 'received', 'processed', 'failed', 'ignored'
+    error: d.text(), // Error message if processing failed
+    processingTime: d.integer(), // Processing time in ms
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    processedAt: d.timestamp({ withTimezone: true }),
+  }),
+  (t) => [
+    index("webhook_event_provider_idx").on(t.provider),
+    index("webhook_event_type_idx").on(t.eventType),
+    index("webhook_event_user_id_idx").on(t.userId),
+    index("webhook_event_external_user_id_idx").on(t.externalUserId),
+    index("webhook_event_status_idx").on(t.status),
+    index("webhook_event_created_at_idx").on(t.createdAt),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
