@@ -1,8 +1,18 @@
 "use client";
 
-import { SignInButton } from "@clerk/nextjs";
+import { SignInButton, useUser } from "@clerk/nextjs";
 
 export function SignInButtons() {
+  const { isSignedIn, isLoaded } = useUser();
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (isSignedIn) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <SignInButton mode="modal">
