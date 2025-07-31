@@ -15,8 +15,9 @@ fi
 
 WEBHOOK_SECRET="$WHOOP_WEBHOOK_SECRET"
 
-# Create test payload
-PAYLOAD='{"user_id":12345,"id":"550e8400-e29b-41d4-a716-446655440000","type":"workout.updated","trace_id":"test-trace-id"}'
+# Create test payload with obvious test markers
+TIMESTAMP_ID=$(date +%s)
+PAYLOAD="{\"user_id\":12345,\"id\":\"test-workout-${TIMESTAMP_ID}\",\"type\":\"workout.updated\",\"trace_id\":\"test-trace-${TIMESTAMP_ID}\"}"
 
 # Generate timestamp
 TIMESTAMP=$(date +%s)000  # milliseconds

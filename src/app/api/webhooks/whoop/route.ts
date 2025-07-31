@@ -20,6 +20,23 @@ interface WhoopWorkoutData {
 
 async function fetchWorkoutFromWhoop(workoutId: string, userId: number): Promise<WhoopWorkoutData | null> {
   try {
+    // Check if this is a test webhook (user_id: 12345)
+    if (userId === 12345) {
+      console.log(`🧪 Test mode detected for workout ${workoutId} - creating mock workout data`);
+      // Return mock workout data for testing
+      return {
+        id: workoutId,
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
+        timezone_offset: "-08:00",
+        sport_name: "🧪 TEST WORKOUT",
+        score_state: "SCORED",
+        score: { strain: 15.5 },
+        during: { average_heart_rate: 145 },
+        zone_duration: { zone_zero_milli: 0, zone_one_milli: 600000, zone_two_milli: 1800000, zone_three_milli: 1200000, zone_four_milli: 300000, zone_five_milli: 100000 }
+      };
+    }
+
     // Get user's integration to fetch their access token
     const [integration] = await db
       .select()
@@ -65,6 +82,11 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
     // Convert Whoop user_id to string to match our user_id format
     const userId = payload.user_id.toString();
     const workoutId = payload.id.toString();
+    
+    // For test webhooks (user_id: 12345), use a placeholder user ID that exists in your system
+    // You'll need to replace this with an actual user ID from your database
+    const isTestMode = payload.user_id === 12345;
+    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     // Fetch the updated workout data from Whoop API
     const workoutData = await fetchWorkoutFromWhoop(workoutId, payload.user_id);
@@ -81,7 +103,7 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
 
     if (existingWorkout) {
       // Update existing workout
-      console.log(`Updating existing workout ${workoutId} for user ${userId}`);
+      console.log(`Updating existing workout ${workoutId} for user ${dbUserId}${isTestMode ? ' (TEST MODE)' : ''}`);
       await db
         .update(externalWorkoutsWhoop)
         .set({
@@ -98,9 +120,9 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
         .where(eq(externalWorkoutsWhoop.whoopWorkoutId, workoutId));
     } else {
       // Insert new workout
-      console.log(`Inserting new workout ${workoutId} for user ${userId}`);
+      console.log(`Inserting new workout ${workoutId} for user ${dbUserId}${isTestMode ? ' (TEST MODE)' : ''}`);
       await db.insert(externalWorkoutsWhoop).values({
-        user_id: userId,
+        user_id: dbUserId,
         whoopWorkoutId: workoutId,
         start: new Date(workoutData.start),
         end: new Date(workoutData.end),
@@ -115,18 +137,20 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
 
     console.log(`Successfully processed workout update for ${workoutId}`);
     
-    // Broadcast the update to connected clients for this user
-    try {
-      await broadcastWorkoutUpdate(userId, {
-        id: workoutId,
-        type: payload.type,
-        sport_name: workoutData.sport_name,
-        start: workoutData.start,
-        end: workoutData.end,
-      });
-    } catch (broadcastError) {
-      console.error("Failed to broadcast workout update:", broadcastError);
-      // Don't throw - the webhook processing was successful
+    // Broadcast the update to connected clients for this user (skip for test mode since no real user to notify)
+    if (!isTestMode) {
+      try {
+        await broadcastWorkoutUpdate(userId, {
+          id: workoutId,
+          type: payload.type,
+          sport_name: workoutData.sport_name,
+          start: workoutData.start,
+          end: workoutData.end,
+        });
+      } catch (broadcastError) {
+        console.error("Failed to broadcast workout update:", broadcastError);
+        // Don't throw - the webhook processing was successful
+      }
     }
   } catch (error) {
     console.error(`Error processing workout update:`, error);
