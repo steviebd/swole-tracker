@@ -39,17 +39,29 @@ async function refreshTokenIfNeeded(integration: any) {
       client_secret: env.WHOOP_CLIENT_SECRET!,
     };
 
-    const tokenResponse = await oauth.refreshTokenGrantRequest(
-      authorizationServer,
-      client,
-      integration.refreshToken
-    );
+    // Make refresh token request directly
+    const refreshRequest = {
+      grant_type: "refresh_token",
+      refresh_token: integration.refreshToken,
+      client_id: env.WHOOP_CLIENT_ID!,
+      client_secret: env.WHOOP_CLIENT_SECRET!,
+    };
 
-    const tokens = await oauth.processRefreshTokenResponse(
-      authorizationServer,
-      client,
-      tokenResponse
-    );
+    const tokenResponse = await fetch(authorizationServer.token_endpoint!, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+      },
+      body: new URLSearchParams(refreshRequest).toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      throw new Error(`Token refresh failed: ${tokenResponse.status} - ${errorText}`);
+    }
+
+    const tokens = await tokenResponse.json();
 
     const expiresAt = tokens.expires_in 
       ? new Date(Date.now() + tokens.expires_in * 1000)
