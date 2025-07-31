@@ -95,7 +95,7 @@ export function WhoopWorkouts() {
   };
 
   // Get unique sports for filter dropdown
-  const uniqueSports = workouts ? [...new Set(workouts.map(w => w.sport_name).filter(Boolean))] : [];
+  const uniqueSports = workouts ? [...new Set(workouts.map(w => w.sport_name).filter((sport): sport is string => sport !== null && sport !== undefined))] : [];
 
   // Filter and sort workouts by start time (latest first)
   const filteredWorkouts = workouts ? workouts.filter(workout => 
