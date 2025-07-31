@@ -22,6 +22,9 @@ export const env = createEnv({
         "Tell me a short, funny programming or tech joke. Keep it clean and under 100 words.",
       ),
     AI_GATEWAY_JOKE_MEMORY_NUMBER: z.coerce.number().default(3),
+    // Whoop Integration
+    WHOOP_CLIENT_ID: z.string().optional(),
+    WHOOP_CLIENT_SECRET: z.string().optional(),
   },
 
   /**
@@ -58,6 +61,8 @@ export const env = createEnv({
     AI_GATEWAY_MODEL: process.env.AI_GATEWAY_MODEL,
     AI_GATEWAY_PROMPT: process.env.AI_GATEWAY_PROMPT,
     AI_GATEWAY_JOKE_MEMORY_NUMBER: process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER,
+    WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID,
+    WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -15,6 +15,13 @@
       "when": 1753761143628,
       "tag": "0001_yummy_malcolm_colcord",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1753933012880,
+      "tag": "0002_lying_gateway",
+      "breakpoints": true
     }
   ]
 }

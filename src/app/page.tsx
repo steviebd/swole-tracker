@@ -37,7 +37,15 @@ export default async function Home() {
               Welcome back, {user.firstName ?? user.username}
             </p>
           </div>
-          <UserButton />
+          <div className="flex items-center gap-4">
+            <Link
+              href="/connect-whoop"
+              className="text-sm text-purple-400 hover:text-purple-300"
+            >
+              Connect Whoop
+            </Link>
+            <UserButton />
+          </div>
         </div>
 
         {/* Quick Actions */}

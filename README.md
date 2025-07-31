@@ -19,6 +19,10 @@ DATABASE_URL="postgresql://username:password@host:port/database"
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-public-key
 CLERK_SECRET_KEY=your-clerk-secret-key
 
+# Whoop Integration (Optional)
+WHOOP_CLIENT_ID=your-whoop-client-id
+WHOOP_CLIENT_SECRET=your-whoop-client-secret
+
 ```
 
 ## Setup Steps
@@ -64,6 +68,11 @@ CLERK_SECRET_KEY=your-clerk-secret-key
   - Connection status indicator
   - Sync indicator for background operations
   - Automatic retry when connection restored
+- **Whoop Integration**: 
+  - OAuth 2.0 authentication with Whoop
+  - Sync workout data from Whoop devices
+  - Display workout cards with start time, sport, and score state
+  - Automatic duplicate detection and prevention
 
 ## Available Scripts
 
@@ -82,6 +91,53 @@ The application uses the following main tables:
 - `workout_sessions` - Individual workout sessions
 - `session_exercises` - Exercise data logged during sessions
 - `user_preferences` - User settings (weight units, etc.)
+- `user_integrations` - OAuth tokens for external services (Whoop, etc.)
+- `external_workouts_whoop` - Synced workout data from Whoop devices
+
+## Whoop Integration Setup
+
+### Development Setup
+
+1. **Create Whoop Developer Account:**
+   - Go to [Whoop Developer Portal](https://developer.whoop.com/)
+   - Create an application
+   - Note your Client ID and Client Secret
+
+2. **Configure OAuth Redirect:**
+   - In your Whoop app settings, add redirect URI:
+   - Development: `http://localhost:3000/api/auth/whoop/callback`
+   - Production: `https://yourdomain.com/api/auth/whoop/callback`
+
+3. **Add Environment Variables:**
+   ```env
+   WHOOP_CLIENT_ID=your_whoop_client_id
+   WHOOP_CLIENT_SECRET=your_whoop_client_secret
+   ```
+
+### Production Setup
+
+1. **Update Whoop App Redirect URIs:**
+   - Add your production domain callback URL
+   - Example: `https://yourapp.vercel.app/api/auth/whoop/callback`
+
+2. **Set Production Environment Variables:**
+   - Add `WHOOP_CLIENT_ID` and `WHOOP_CLIENT_SECRET` to Vercel
+
+### Usage
+
+1. Users click "Connect Whoop" in the app
+2. OAuth flow redirects to Whoop for authentication
+3. User grants access to `read:workout` and `offline` scopes
+4. Tokens are stored securely in the database
+5. Users can sync workouts manually or automatically
+6. Duplicate workouts are automatically detected and skipped
+
+### TODO - Future Enhancements
+
+- [ ] Add rate limiting for sync API calls
+- [ ] Implement automatic periodic sync
+- [ ] Add webhook support for real-time updates
+- [ ] Support for other fitness integrations (Strava, Garmin)
 
 ## Production Deployment
 

@@ -192,3 +192,75 @@ export const dailyJokes = createTable(
     index("daily_joke_user_date_idx").on(t.user_id, t.createdAt),
   ],
 ); // RLS disabled - using Clerk auth with application-level security
+
+// User Integrations (OAuth tokens for external services)
+export const userIntegrations = createTable(
+  "user_integration",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    provider: d.varchar({ length: 50 }).notNull(), // 'whoop', 'strava', etc.
+    accessToken: d.text().notNull(),
+    refreshToken: d.text(),
+    expiresAt: d.timestamp({ withTimezone: true }),
+    scope: d.varchar({ length: 500 }), // OAuth scopes granted
+    isActive: d.boolean().notNull().default(true),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("user_integration_user_id_idx").on(t.user_id),
+    index("user_integration_provider_idx").on(t.provider),
+    index("user_integration_user_provider_idx").on(t.user_id, t.provider),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
+
+// External Workouts from Whoop
+export const externalWorkoutsWhoop = createTable(
+  "whoop_workout",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    whoopWorkoutId: d.varchar({ length: 256 }).notNull().unique(), // Whoop's workout ID
+    start: d.timestamp({ withTimezone: true }).notNull(),
+    end: d.timestamp({ withTimezone: true }).notNull(),
+    timezone_offset: d.varchar({ length: 20 }),
+    sport_name: d.varchar({ length: 100 }),
+    score_state: d.varchar({ length: 50 }), // "SCORED", "PENDING_SCORE", etc.
+    score: d.json(), // Full score object from Whoop
+    during: d.json(), // During metrics object
+    zone_duration: d.json(), // Zone duration object
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("external_workout_whoop_user_id_idx").on(t.user_id),
+    index("external_workout_whoop_workout_id_idx").on(t.whoopWorkoutId),
+    index("external_workout_whoop_start_idx").on(t.start),
+    index("external_workout_whoop_user_start_idx").on(t.user_id, t.start),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
+
+// Relations for new tables
+export const userIntegrationsRelations = relations(
+  userIntegrations,
+  ({ many }) => ({
+    whoopWorkouts: many(externalWorkoutsWhoop),
+  }),
+);
+
+export const externalWorkoutsWhoopRelations = relations(
+  externalWorkoutsWhoop,
+  ({ one }) => ({
+    integration: one(userIntegrations, {
+      fields: [externalWorkoutsWhoop.user_id],
+      references: [userIntegrations.user_id],
+    }),
+  }),
+);
