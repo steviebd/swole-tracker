@@ -28,6 +28,7 @@ export default function RootLayout({
     <ClerkProvider
       signInFallbackRedirectUrl="/"
       signUpFallbackRedirectUrl="/"
+      telemetry={false}
     >
       <html lang="en" className={`${geist.variable} dark`}>
         <body className="min-h-screen bg-gray-900 text-white">
