@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { WorkoutDetailOverlay } from "./workout-detail-overlay";
+import { useLocalStorage } from "~/hooks/use-local-storage";
 
 export function WhoopWorkouts() {
   const [syncLoading, setSyncLoading] = useState(false);
-  const [showAll, setShowAll] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rateLimit, setRateLimit] = useState<{ remaining: number; resetTime: string } | null>(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
+  const [clickOrigin, setClickOrigin] = useState<{ x: number; y: number } | undefined>();
+
+  // Use custom localStorage hook for persistent preferences
+  const [showAll, setShowAll, isShowAllLoaded] = useLocalStorage('whoop-workouts-show-all', false);
+  const [sportFilter, setSportFilter, isSportFilterLoaded] = useLocalStorage('whoop-workouts-sport-filter', 'all');
 
   const { data: integrationStatus } = api.whoop.getIntegrationStatus.useQuery();
   const { data: workouts, refetch: refetchWorkouts, isLoading: workoutsLoading } = api.whoop.getWorkouts.useQuery();
@@ -78,12 +85,28 @@ export function WhoopWorkouts() {
     return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
   };
 
-  // Sort workouts by start time (latest first) and limit display
-  const sortedWorkouts = workouts ? [...workouts].sort((a, b) => 
-    new Date(b.start).getTime() - new Date(a.start).getTime()
+  // Get unique sports for filter dropdown
+  const uniqueSports = workouts ? [...new Set(workouts.map(w => w.sport_name).filter(Boolean))] : [];
+
+  // Filter and sort workouts by start time (latest first)
+  const filteredWorkouts = workouts ? workouts.filter(workout => 
+    sportFilter === "all" || workout.sport_name === sportFilter
   ) : [];
   
+  const sortedWorkouts = [...filteredWorkouts].sort((a, b) => 
+    new Date(b.start).getTime() - new Date(a.start).getTime()
+  );
+  
   const displayedWorkouts = showAll ? sortedWorkouts : sortedWorkouts.slice(0, 3);
+
+  const handleWorkoutClick = (workout: any, event: React.MouseEvent) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    setClickOrigin({ x: centerX, y: centerY });
+    setSelectedWorkout(workout);
+  };
 
   return (
     <div className="space-y-8">
@@ -144,15 +167,39 @@ export function WhoopWorkouts() {
       {/* Workouts Display */}
       {integrationStatus?.isConnected && (
         <div>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Your Workouts</h2>
-            {sortedWorkouts.length > 3 && (
-              <button
-                onClick={() => setShowAll(!showAll)}
-                className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
-              >
-                {showAll ? "Show Less" : `Show All (${sortedWorkouts.length})`}
-              </button>
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold">Your Workouts</h2>
+              {sortedWorkouts.length > 3 && (
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  {showAll ? "Show Less" : `Show All (${sortedWorkouts.length})`}
+                </button>
+              )}
+            </div>
+            
+            {/* Sport Filter */}
+            {uniqueSports.length > 0 && (
+              <div className="flex items-center gap-3">
+                <label htmlFor="sport-filter" className="text-sm text-gray-400">
+                  Filter by sport:
+                </label>
+                <select
+                  id="sport-filter"
+                  value={sportFilter}
+                  onChange={(e) => setSportFilter(e.target.value)}
+                  className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-400 transition-colors"
+                >
+                  <option value="all">All Sports</option>
+                  {uniqueSports.map((sport) => (
+                    <option key={sport} value={sport}>
+                      {sport}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
 
@@ -165,7 +212,8 @@ export function WhoopWorkouts() {
               {displayedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="rounded-lg bg-gray-800 p-6 transition-colors hover:bg-gray-700"
+                  className="rounded-lg bg-gray-800 p-6 transition-all duration-200 hover:bg-gray-700 cursor-pointer hover:scale-105 hover:shadow-lg"
+                  onClick={(e) => handleWorkoutClick(workout, e)}
                 >
                   <div className="space-y-3">
                     <div className="text-sm text-gray-400">
@@ -185,11 +233,23 @@ export function WhoopWorkouts() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-400">No workouts found. Click "Sync with Whoop" to fetch your data.</p>
+              <p className="text-gray-400">
+                {sportFilter !== "all" && sortedWorkouts.length === 0 
+                  ? "No workouts from whoop" 
+                  : "No workouts found. Click \"Sync with Whoop\" to fetch your data."}
+              </p>
             </div>
           )}
         </div>
       )}
+
+      {/* Workout Detail Overlay */}
+      <WorkoutDetailOverlay
+        workout={selectedWorkout}
+        isOpen={!!selectedWorkout}
+        onClose={() => setSelectedWorkout(null)}
+        clickOrigin={clickOrigin}
+      />
     </div>
   );
 }
