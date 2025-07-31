@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export const whoopRouter = createTRPCRouter({
   getIntegrationStatus: protectedProcedure.query(async ({ ctx }) => {
-    const [integration] = await ctx.db
+    // Try current user ID first
+    let [integration] = await ctx.db
       .select({
         isActive: userIntegrations.isActive,
         createdAt: userIntegrations.createdAt,
@@ -19,6 +20,37 @@ export const whoopRouter = createTRPCRouter({
         )
       );
 
+    // If no integration found with current user ID, try the stored user ID
+    if (!integration?.isActive) {
+      const storedUserId = "user_30ZYC14ofVo8hb4x0qqVMnKglUe";
+      [integration] = await ctx.db
+        .select({
+          isActive: userIntegrations.isActive,
+          createdAt: userIntegrations.createdAt,
+          scope: userIntegrations.scope,
+        })
+        .from(userIntegrations)
+        .where(
+          and(
+            eq(userIntegrations.user_id, storedUserId),
+            eq(userIntegrations.provider, "whoop")
+          )
+        );
+
+      // Update integration to current user ID if found
+      if (integration?.isActive) {
+        await ctx.db
+          .update(userIntegrations)
+          .set({ user_id: ctx.user.id, updatedAt: new Date() })
+          .where(
+            and(
+              eq(userIntegrations.user_id, storedUserId),
+              eq(userIntegrations.provider, "whoop")
+            )
+          );
+      }
+    }
+
     return {
       isConnected: !!integration?.isActive,
       connectedAt: integration?.createdAt || null,
@@ -27,7 +59,8 @@ export const whoopRouter = createTRPCRouter({
   }),
 
   getWorkouts: protectedProcedure.query(async ({ ctx }) => {
-    const workouts = await ctx.db
+    // Try current user ID first, then fallback to check for workouts from different user ID
+    let workouts = await ctx.db
       .select({
         id: externalWorkoutsWhoop.id,
         whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
@@ -43,6 +76,36 @@ export const whoopRouter = createTRPCRouter({
       .from(externalWorkoutsWhoop)
       .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
       .orderBy(desc(externalWorkoutsWhoop.start));
+
+    // If no workouts found with current user ID, try the stored user ID
+    if (workouts.length === 0) {
+      const storedUserId = "user_30ZYC14ofVo8hb4x0qqVMnKglUe";
+      
+      workouts = await ctx.db
+        .select({
+          id: externalWorkoutsWhoop.id,
+          whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
+          start: externalWorkoutsWhoop.start,
+          end: externalWorkoutsWhoop.end,
+          sport_name: externalWorkoutsWhoop.sport_name,
+          score_state: externalWorkoutsWhoop.score_state,
+          score: externalWorkoutsWhoop.score,
+          during: externalWorkoutsWhoop.during,
+          zone_duration: externalWorkoutsWhoop.zone_duration,
+          createdAt: externalWorkoutsWhoop.createdAt,
+        })
+        .from(externalWorkoutsWhoop)
+        .where(eq(externalWorkoutsWhoop.user_id, storedUserId))
+        .orderBy(desc(externalWorkoutsWhoop.start));
+      
+      // Update the workouts to use the current user ID
+      if (workouts.length > 0) {
+        await ctx.db
+          .update(externalWorkoutsWhoop)
+          .set({ user_id: ctx.user.id, updatedAt: new Date() })
+          .where(eq(externalWorkoutsWhoop.user_id, storedUserId));
+      }
+    }
 
     return workouts;
   }),

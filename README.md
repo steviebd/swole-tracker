@@ -139,6 +139,7 @@ The application uses the following main tables:
 - Rate limiting is enforced per user per hour
 - Users see remaining sync count and reset time in the UI
 - Proper HTTP headers are returned (429 status, Retry-After, etc.)
+- WHOOP Apis only allow the last 25 workouts to be synced
 
 ### TODO - Future Enhancements
 

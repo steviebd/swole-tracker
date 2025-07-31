@@ -49,7 +49,7 @@ export default async function Home() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/workout/start"
             className="rounded-lg bg-purple-600 p-6 text-center transition-colors hover:bg-purple-700"
@@ -64,6 +64,13 @@ export default async function Home() {
           >
             <h3 className="mb-2 text-xl font-semibold">📋 Manage Templates</h3>
             <p className="text-gray-300">Create and edit workout templates</p>
+          </Link>
+          <Link
+            href="/whoop-workouts"
+            className="rounded-lg bg-orange-600 p-6 text-center transition-colors hover:bg-orange-700"
+          >
+            <h3 className="mb-2 text-xl font-semibold">💓 Whoop Workouts</h3>
+            <p className="text-orange-100">View and sync Whoop workout data</p>
           </Link>
         </div>
 

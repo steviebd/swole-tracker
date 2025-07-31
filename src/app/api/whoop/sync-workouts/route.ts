@@ -139,8 +139,9 @@ export async function POST(request: NextRequest) {
     // Refresh token if needed
     const accessToken = await refreshTokenIfNeeded(integration);
 
-    // Fetch workouts from Whoop API (v2 endpoint)
-    const whoopResponse = await fetch("https://api.prod.whoop.com/developer/v2/activity/workout", {
+    // Fetch workouts from Whoop API (v2 endpoint) with pagination
+    // Try to get more historical workouts by adding limit parameter
+    const whoopResponse = await fetch("https://api.prod.whoop.com/developer/v2/activity/workout?limit=25", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",

@@ -191,60 +191,7 @@ export function WhoopConnection() {
         </div>
       )}
 
-      {/* Workouts Display */}
-      {integrationStatus?.isConnected && workouts && workouts.length > 0 && (
-        <div>
-          <h2 className="mb-6 text-2xl font-semibold">Your Whoop Workouts</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {workouts.map((workout) => (
-              <div
-                key={workout.id}
-                className="rounded-lg bg-gray-800 p-6 transition-colors hover:bg-gray-700"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">
-                    {workout.sport_name || "Unknown Sport"}
-                  </h3>
-                  <span className={`text-sm font-medium ${getScoreColor(workout.score_state ?? "")}`}>
-                    {workout.score_state?.replace("_", " ") || "Unknown"}
-                  </span>
-                </div>
-                
-                <div className="space-y-2 text-sm text-gray-300">
-                  <div>
-                    <span className="font-medium">Start:</span> {formatDate(new Date(workout.start))}
-                  </div>
-                  <div>
-                    <span className="font-medium">Duration:</span>{" "}
-                    {formatDuration(new Date(workout.start), new Date(workout.end))}
-                  </div>
-                  
-                  {workout.score && typeof workout.score === "object" ? (
-                    <div className="mt-4 rounded bg-gray-900 p-3">
-                      <div className="text-xs font-medium text-gray-400 mb-2">Score Details</div>
-                      {(workout.score as any)?.strain && (
-                        <div>Strain: {((workout.score as any).strain as number).toFixed(1)}</div>
-                      )}
-                      {(workout.score as any)?.average_heart_rate && (
-                        <div>Avg HR: {(workout.score as any).average_heart_rate} bpm</div>
-                      )}
-                      {(workout.score as any)?.max_heart_rate && (
-                        <div>Max HR: {(workout.score as any).max_heart_rate} bpm</div>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {integrationStatus?.isConnected && workouts && workouts.length === 0 && (
-        <div className="text-center">
-          <p className="text-gray-400">No workouts synced yet. Click &quot;Sync with Whoop&quot; to fetch your data.</p>
-        </div>
-      )}
     </div>
   );
 }
