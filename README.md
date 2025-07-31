@@ -235,3 +235,5 @@ pnpm db:push
 - Check Supabase logs for database issues
 - Monitor Clerk dashboard for authentication metrics
 - Set up Vercel monitoring alerts for downtime
+## DEBUG
+Debug webhooks with a dedicated website at /debug/webhooks
