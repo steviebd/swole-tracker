@@ -3,6 +3,9 @@ import { webhookEvents } from "~/server/db/schema";
 import { desc } from "drizzle-orm";
 import { type Metadata } from "next";
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Webhook Debug - Swole Tracker",
   description: "Debug webhook events",
