@@ -17,6 +17,15 @@ export function WhoopWorkouts() {
   const [showAll, setShowAll, isShowAllLoaded] = useLocalStorage('whoop-workouts-show-all', false);
   const [sportFilter, setSportFilter, isSportFilterLoaded] = useLocalStorage('whoop-workouts-sport-filter', 'all');
 
+  // Debug function to clear localStorage (temporary)
+  const clearPreferences = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('whoop-workouts-sport-filter');
+      localStorage.removeItem('whoop-workouts-show-all');
+      window.location.reload();
+    }
+  };
+
   const { data: integrationStatus } = api.whoop.getIntegrationStatus.useQuery();
   const { data: workouts, refetch: refetchWorkouts, isLoading: workoutsLoading } = api.whoop.getWorkouts.useQuery();
 
@@ -199,6 +208,13 @@ export function WhoopWorkouts() {
                     </option>
                   ))}
                 </select>
+                <button
+                  onClick={clearPreferences}
+                  className="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-400 rounded"
+                  title="Clear corrupted localStorage data"
+                >
+                  Reset Prefs
+                </button>
               </div>
             )}
           </div>

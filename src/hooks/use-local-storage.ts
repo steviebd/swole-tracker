@@ -13,17 +13,24 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       if (typeof window !== 'undefined') {
         const item = window.localStorage.getItem(key);
         if (item !== null) {
-          const parsedValue = JSON.parse(item);
-          setStoredValue(parsedValue);
-          console.log(`[localStorage] Loaded ${key}:`, parsedValue);
+          try {
+            const parsedValue = JSON.parse(item);
+            setStoredValue(parsedValue);
+            console.log(`[localStorage] Loaded ${key}:`, parsedValue);
+          } catch (parseError) {
+            console.warn(`[localStorage] Invalid JSON for ${key}, clearing and using default:`, item);
+            // Clear corrupted data and use initial value
+            window.localStorage.removeItem(key);
+            setStoredValue(initialValue);
+          }
         }
       }
     } catch (error) {
-      console.error(`[localStorage] Error loading ${key}:`, error);
+      console.error(`[localStorage] Error accessing localStorage for ${key}:`, error);
     } finally {
       setIsLoaded(true);
     }
-  }, [key]);
+  }, [key, initialValue]);
 
   // Return a wrapped version of useState's setter function that persists the new value to localStorage
   const setValue = (value: T | ((val: T) => T)) => {
