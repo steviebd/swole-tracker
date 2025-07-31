@@ -4,6 +4,7 @@ import { db } from "~/server/db";
 import { externalWorkoutsWhoop, userIntegrations, webhookEvents } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
+import { broadcastWorkoutUpdate } from "~/lib/sse-broadcast";
 
 interface WhoopWorkoutData {
   id: string;
@@ -113,6 +114,20 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
     }
 
     console.log(`Successfully processed workout update for ${workoutId}`);
+    
+    // Broadcast the update to connected clients for this user
+    try {
+      await broadcastWorkoutUpdate(userId, {
+        id: workoutId,
+        type: payload.type,
+        sport_name: workoutData.sport_name,
+        start: workoutData.start,
+        end: workoutData.end,
+      });
+    } catch (broadcastError) {
+      console.error("Failed to broadcast workout update:", broadcastError);
+      // Don't throw - the webhook processing was successful
+    }
   } catch (error) {
     console.error(`Error processing workout update:`, error);
     throw error;

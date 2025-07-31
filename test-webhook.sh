@@ -5,7 +5,15 @@
 
 # Configuration
 WEBHOOK_URL="http://localhost:3000/api/webhooks/whoop"
-WEBHOOK_SECRET="your_whoop_app_secret_here"  # Replace with your actual secret
+
+# Check if environment variable is set
+if [ -z "$WHOOP_WEBHOOK_SECRET" ]; then
+    echo "❌ Error: WHOOP_WEBHOOK_SECRET environment variable not set"
+    echo "Run: set -a && source .env && set +a && ./test-webhook.sh"
+    exit 1
+fi
+
+WEBHOOK_SECRET="$WHOOP_WEBHOOK_SECRET"
 
 # Create test payload
 PAYLOAD='{"user_id":12345,"id":"550e8400-e29b-41d4-a716-446655440000","type":"workout.updated","trace_id":"test-trace-id"}'

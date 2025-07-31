@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
 import { useLocalStorage } from "~/hooks/use-local-storage";
+import { useWorkoutUpdates } from "~/hooks/use-workout-updates";
 
 export function WhoopWorkouts() {
   const [syncLoading, setSyncLoading] = useState(false);
@@ -28,6 +29,12 @@ export function WhoopWorkouts() {
 
   const { data: integrationStatus } = api.whoop.getIntegrationStatus.useQuery();
   const { data: workouts, refetch: refetchWorkouts, isLoading: workoutsLoading } = api.whoop.getWorkouts.useQuery();
+
+  // Listen for real-time workout updates via SSE
+  useWorkoutUpdates(() => {
+    // Refetch workouts when we receive an update
+    void refetchWorkouts();
+  });
 
   const handleSync = async () => {
     setSyncLoading(true);
