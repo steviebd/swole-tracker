@@ -68,7 +68,7 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
             return fetch(url, {
               ...options,
               // Add timeout for better offline detection
-              signal: AbortSignal.timeout(10000), // 10 second timeout
+              signal: AbortSignal.timeout(30000), // 30 second timeout
             }).catch((error: unknown) => {
               // Transform network errors for better React Query handling
               if (error && typeof error === "object" && "name" in error) {

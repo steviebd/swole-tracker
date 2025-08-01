@@ -205,17 +205,40 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       const newExercises = newDisplayOrder.map(item => item.exercise);
       setExercises(newExercises);
       
-      // Determine which exercises should be swiped in the new order
-      // Count how many exercises from the original normal section are in the new order
-      const originalNormalCount = exercises.length - swipedToBottomIndexes.length;
+      // New approach: Only keep exercises swiped if they're still in swiped positions
+      // Don't force section sizes - let them be dynamic based on user intent
       const newSwipedIndexes: number[] = [];
       
-      newDisplayOrder.forEach((item, newIndex) => {
-        // If this exercise is placed after the original normal section size, it should be swiped
-        if (newIndex >= originalNormalCount) {
-          newSwipedIndexes.push(newIndex);
+      // Find where swiped exercises naturally cluster at the bottom
+      // An exercise should be swiped if:
+      // 1. It was swiped before AND hasn't been moved to the top area, OR
+      // 2. It's a normal exercise that was moved to the bottom area
+      
+      // Find the natural clustering point - where swiped exercises start to appear
+      let swipedClusterStart = newDisplayOrder.length;
+      for (let i = newDisplayOrder.length - 1; i >= 0; i--) {
+        const item = newDisplayOrder[i];
+        const wasSwipedBefore = swipedToBottomIndexes.includes(item!.originalIndex);
+        
+        if (wasSwipedBefore) {
+          swipedClusterStart = i;
+        } else {
+          // If we hit a non-swiped exercise, stop looking backwards
+          break;
         }
-      });
+      }
+      
+      // Only exercises from the cluster start to the end should be swiped
+      // This prevents arbitrary exercises from being forced into swiped state
+      for (let i = swipedClusterStart; i < newDisplayOrder.length; i++) {
+        const item = newDisplayOrder[i];
+        const wasSwipedBefore = swipedToBottomIndexes.includes(item!.originalIndex);
+        
+        // Keep it swiped only if it was swiped before and is still in the bottom cluster
+        if (wasSwipedBefore) {
+          newSwipedIndexes.push(i);
+        }
+      }
       
       setSwipedToBottomIndexes(newSwipedIndexes);
       
@@ -560,7 +583,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
         <div className="text-center text-sm text-gray-500 mb-2">
-          💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Hold and drag anywhere to reorder (works on both mobile & desktop)
+          💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to reorder & move between sections • Works on mobile & desktop
         </div>
       )}
 
@@ -569,6 +592,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         const isSwiped = swipedToBottomIndexes.includes(originalIndex);
         const prevExercise = getDisplayOrder()[displayIndex - 1];
         const isFirstSwipedExercise = isSwiped && displayIndex > 0 && prevExercise && !swipedToBottomIndexes.includes(prevExercise.originalIndex);
+
         
         return (
           <div key={exercise.templateExerciseId ?? originalIndex}>
@@ -598,7 +622,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             isSwiped={isSwiped}
             draggable={!isReadOnly}
             isDraggedOver={dragState.dragOverIndex === displayIndex || dragState.dragOverIndex === displayIndex + 1}
-            isDragging={dragState.draggedIndex === displayIndex}
+            isDragging={dragState.isDragging && dragState.draggedIndex === displayIndex}
             dragOffset={dragState.dragOffset}
             onPointerDown={dragHandlers.onPointerDown(displayIndex)}
             setCardElement={(element) => dragHandlers.setCardElement?.(displayIndex, element)}

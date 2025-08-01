@@ -45,6 +45,8 @@ export function useUniversalDragReorder<T>(
   // Find the insertion point based on pointer position
   const findDropTarget = useCallback((x: number, y: number, excludeIndex?: number) => {
     let insertionIndex = 0;
+    let closestDistance = Infinity;
+    let closestIndex = 0;
     
     for (let i = 0; i < cardElements.current.length; i++) {
       const element = cardElements.current[i];
@@ -52,6 +54,13 @@ export function useUniversalDragReorder<T>(
       
       const rect = element.getBoundingClientRect();
       const centerY = rect.top + rect.height / 2;
+      const distance = Math.abs(y - centerY);
+      
+      // Track the closest element for fallback
+      if (x >= rect.left && x <= rect.right && distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
+      }
       
       // If the pointer is within horizontal bounds and above the center of this card
       if (x >= rect.left && x <= rect.right && y < centerY) {
@@ -62,6 +71,17 @@ export function useUniversalDragReorder<T>(
       // If we're past this card, the insertion point is after it
       if (x >= rect.left && x <= rect.right) {
         insertionIndex = i + 1;
+      }
+    }
+    
+    // If we're between elements or in a gap, use the closest element as reference
+    if (closestDistance < Infinity) {
+      const closestElement = cardElements.current[closestIndex];
+      if (closestElement) {
+        const rect = closestElement.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        // If we're below the closest element, insert after it
+        return y >= centerY ? closestIndex + 1 : closestIndex;
       }
     }
     
@@ -97,11 +117,16 @@ export function useUniversalDragReorder<T>(
       const deltaY = pos.y - dragStartPos.y;
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-      // Start dragging only after moving beyond threshold
+      // Start dragging only after moving beyond threshold AND if it's primarily vertical movement
       if (!hasDragStarted.current && distance > dragThreshold) {
-        hasDragStarted.current = true;
-        setIsDragging(true);
-        onStartDrag?.(draggedIndex);
+        const isVerticalMovement = Math.abs(deltaY) > Math.abs(deltaX);
+        
+        // Only start drag if it's vertical movement (up/down for reordering)
+        if (isVerticalMovement) {
+          hasDragStarted.current = true;
+          setIsDragging(true);
+          onStartDrag?.(draggedIndex);
+        }
       }
 
       if (hasDragStarted.current) {
@@ -110,9 +135,9 @@ export function useUniversalDragReorder<T>(
         // Find insertion point (excluding the dragged element)
         const insertionIndex = findDropTarget(pos.x, pos.y, draggedIndex);
         setDragOverIndex(insertionIndex);
+        
+        e.preventDefault(); // Only prevent default when actually dragging
       }
-
-      e.preventDefault();
     },
     [draggedIndex, dragStartPos, findDropTarget, onStartDrag]
   );

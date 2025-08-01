@@ -111,23 +111,31 @@ export function ExerciseCard({
   };
 
   // Calculate styles for animations and feedback
+  // Prioritize the active gesture - swipe for horizontal, drag for vertical
+  const isSwipeActive = swipeState.isDragging && Math.abs(swipeState.translateX) > 0;
+  const isDragActive = isDragging && Math.abs(dragOffset.y) > Math.abs(dragOffset.x);
+  
   // Don't apply swipe transform if card was dismissed - let it stay in place
   const cardStyle = {
-    transform: `translate(${isDragging ? dragOffset.x : (swipeState.isDismissed ? 0 : swipeState.translateX)}px, ${isDragging ? dragOffset.y : 0}px)`,
-    opacity: isDragging ? 0.7 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
-    scale: isDragging ? 0.95 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
-    zIndex: isDragging ? 50 : 1,
-    transition: swipeState.isDragging || isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    // Only set touchAction when not dragging to avoid conflicts
-    touchAction: isDragging ? 'none' : 'pan-y',
+    transform: `translate(${
+      isDragActive ? dragOffset.x : (swipeState.isDismissed ? 0 : swipeState.translateX)
+    }px, ${
+      isDragActive ? dragOffset.y : 0
+    }px)`,
+    opacity: isDragActive ? 0.7 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
+    scale: isDragActive ? 0.95 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
+    zIndex: isDragActive ? 50 : 1,
+    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    // Allow both horizontal swipes and vertical scrolling, disable when actively dragging
+    touchAction: isDragActive ? 'none' : 'manipulation',
   };
 
   const containerClasses = `
     rounded-lg overflow-hidden select-none
     ${isDraggedOver ? 'border-2 border-purple-500 bg-purple-900/20' : 
       isSwiped ? 'bg-gray-850 border border-gray-600' : 'bg-gray-800'}
-    ${isDragging ? 'shadow-2xl cursor-grabbing' : ''}
-    ${draggable && !readOnly && !isDragging ? 'cursor-grab hover:bg-gray-750 active:cursor-grabbing' : ''}
+    ${isDragActive ? 'shadow-2xl cursor-grabbing' : ''}
+    ${draggable && !readOnly && !isDragActive ? 'cursor-grab hover:bg-gray-750 active:cursor-grabbing' : ''}
   `.trim();
 
   // Handle pointer events for universal drag or swipe
@@ -138,13 +146,12 @@ export function ExerciseCard({
       return;
     }
     
-    // For drag reordering, call the drag handler
+    // Start both drag and swipe detection - they'll resolve conflicts later
     if (draggable && onPointerDown) {
       onPointerDown(e);
-      return;
     }
     
-    // For swipe gestures, convert to the appropriate handler
+    // Also start swipe gesture detection
     if ('touches' in e) {
       swipeHandlers.onTouchStart(e);
     } else {
@@ -160,11 +167,11 @@ export function ExerciseCard({
       onPointerDown={handlePointerDown}
       onMouseDown={handlePointerDown}
       onTouchStart={handlePointerDown}
-      onMouseMove={draggable ? undefined : swipeHandlers.onMouseMove}
-      onMouseUp={draggable ? undefined : swipeHandlers.onMouseUp}
-      onMouseLeave={draggable ? undefined : swipeHandlers.onMouseLeave}
-      onTouchMove={draggable ? undefined : swipeHandlers.onTouchMove}
-      onTouchEnd={draggable ? undefined : swipeHandlers.onTouchEnd}
+      onMouseMove={swipeHandlers.onMouseMove}
+      onMouseUp={swipeHandlers.onMouseUp}
+      onMouseLeave={swipeHandlers.onMouseLeave}
+      onTouchMove={swipeHandlers.onTouchMove}
+      onTouchEnd={swipeHandlers.onTouchEnd}
     >
       {/* Exercise Header */}
       <div
