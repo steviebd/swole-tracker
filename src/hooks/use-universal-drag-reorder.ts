@@ -29,11 +29,13 @@ export function useUniversalDragReorder<T>(
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
-  const dragThreshold = 5; // Minimum pixels to move before starting drag (reduced for more responsive feel)
+  const dragThreshold = 3; // Minimum pixels to move before starting drag (reduced for more responsive feel)
   const hasDragStarted = useRef(false);
   const dragStartTime = useRef(0);
   const cardElements = useRef<(HTMLElement | null)[]>([]);
   const animationFrameRef = useRef<number | undefined>(undefined);
+  const autoScrollRef = useRef<number | undefined>(undefined);
+  const scrollSpeed = useRef(0);
 
   // Get pointer position from different event types
   const getPointerPos = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent) => {
@@ -89,6 +91,56 @@ export function useUniversalDragReorder<T>(
     return insertionIndex;
   }, []);
 
+  // Auto-scroll when dragging near viewport edges
+  const handleAutoScroll = useCallback((clientY: number) => {
+    const scrollContainer = document.documentElement || document.body;
+    const viewportHeight = window.innerHeight;
+    const scrollTop = window.scrollY;
+    
+    const scrollZone = 100; // Pixels from edge to trigger scroll
+    const maxScrollSpeed = 10; // Maximum scroll speed per frame
+    
+    let newScrollSpeed = 0;
+    
+    // Check if near top of viewport
+    if (clientY < scrollZone) {
+      newScrollSpeed = -Math.max(1, (scrollZone - clientY) / scrollZone * maxScrollSpeed);
+    }
+    // Check if near bottom of viewport
+    else if (clientY > viewportHeight - scrollZone) {
+      newScrollSpeed = Math.max(1, (clientY - (viewportHeight - scrollZone)) / scrollZone * maxScrollSpeed);
+    }
+    
+    scrollSpeed.current = newScrollSpeed;
+    
+    // Start auto-scroll animation if needed
+    if (newScrollSpeed !== 0 && !autoScrollRef.current) {
+      const scroll = () => {
+        if (scrollSpeed.current !== 0) {
+          window.scrollBy(0, scrollSpeed.current);
+          autoScrollRef.current = requestAnimationFrame(scroll);
+        } else {
+          autoScrollRef.current = undefined;
+        }
+      };
+      autoScrollRef.current = requestAnimationFrame(scroll);
+    }
+    // Stop auto-scroll if speed is 0
+    else if (newScrollSpeed === 0 && autoScrollRef.current) {
+      cancelAnimationFrame(autoScrollRef.current);
+      autoScrollRef.current = undefined;
+    }
+  }, []);
+
+  // Stop auto-scroll
+  const stopAutoScroll = useCallback(() => {
+    scrollSpeed.current = 0;
+    if (autoScrollRef.current) {
+      cancelAnimationFrame(autoScrollRef.current);
+      autoScrollRef.current = undefined;
+    }
+  }, []);
+
   const onPointerDown = useCallback(
     (index: number) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
       // Prevent dragging when clicking on interactive elements
@@ -140,6 +192,9 @@ export function useUniversalDragReorder<T>(
         animationFrameRef.current = requestAnimationFrame(() => {
           setDragOffset({ x: deltaX, y: deltaY });
           
+          // Handle auto-scroll when near viewport edges
+          handleAutoScroll(pos.y);
+          
           // Throttle drop target detection to improve performance
           // Only update drop target every few pixels of movement
           const shouldUpdateDropTarget = Math.abs(deltaY) % 8 < 4; // Update roughly every 8px
@@ -152,7 +207,7 @@ export function useUniversalDragReorder<T>(
         e.preventDefault(); // Only prevent default when actually dragging
       }
     },
-    [draggedIndex, dragStartPos, findDropTarget, onStartDrag]
+    [draggedIndex, dragStartPos, findDropTarget, onStartDrag, handleAutoScroll]
   );
 
   const onPointerUp = useCallback(
@@ -187,17 +242,18 @@ export function useUniversalDragReorder<T>(
       setDragStartPos({ x: 0, y: 0 });
       hasDragStarted.current = false;
       
-      // Clean up animation frame
+      // Clean up animation frame and auto-scroll
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = undefined;
       }
+      stopAutoScroll();
       
       onEndDrag?.();
 
       e.preventDefault();
     },
-    [draggedIndex, dragOverIndex, items, onReorder, onEndDrag]
+    [draggedIndex, dragOverIndex, items, onReorder, onEndDrag, stopAutoScroll]
   );
 
   // Global pointer move and up handlers
