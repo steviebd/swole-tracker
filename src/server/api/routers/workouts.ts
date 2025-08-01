@@ -5,14 +5,20 @@ import {
   sessionExercises,
   workoutTemplates,
 } from "~/server/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
+
+const setInputSchema = z.object({
+  id: z.string(),
+  weight: z.number().optional(),
+  reps: z.number().int().positive().optional(),
+  sets: z.number().int().positive().default(1),
+  unit: z.enum(["kg", "lbs"]).default("kg"),
+});
 
 const exerciseInputSchema = z.object({
   templateExerciseId: z.number().optional(),
   exerciseName: z.string().min(1).max(256),
-  weight: z.number().optional(),
-  reps: z.number().int().positive().optional(),
-  sets: z.number().int().positive().optional(),
+  sets: z.array(setInputSchema),
   unit: z.enum(["kg", "lbs"]).default("kg"),
 });
 
@@ -61,27 +67,72 @@ export const workoutsRouter = createTRPCRouter({
 
   // Get last workout data for a specific exercise (for pre-populating)
   getLastExerciseData: protectedProcedure
-    .input(z.object({ exerciseName: z.string() }))
+    .input(z.object({ 
+      exerciseName: z.string(),
+      templateId: z.number().optional(),
+      excludeSessionId: z.number().optional()
+    }))
     .query(async ({ input, ctx }) => {
-      const lastExercise = await ctx.db.query.sessionExercises.findFirst({
-        where: and(
-          eq(sessionExercises.user_id, ctx.user.id),
-          eq(sessionExercises.exerciseName, input.exerciseName),
-        ),
-        orderBy: [desc(sessionExercises.createdAt)],
+      // Get the most recent workout session that contains this exercise from the same template
+      const whereConditions = [
+        eq(workoutSessions.user_id, ctx.user.id),
+      ];
+      
+      // If templateId is provided, filter by the same template
+      if (input.templateId) {
+        whereConditions.push(eq(workoutSessions.templateId, input.templateId));
+      }
+      
+      // Exclude the current session if specified
+      if (input.excludeSessionId) {
+        whereConditions.push(ne(workoutSessions.id, input.excludeSessionId));
+      }
+
+      const recentSessionsWithExercise = await ctx.db.query.workoutSessions.findMany({
+        where: and(...whereConditions),
+        orderBy: [desc(workoutSessions.workoutDate)],
+        with: {
+          exercises: {
+            where: eq(sessionExercises.exerciseName, input.exerciseName),
+          },
+        },
+        limit: 10, // Check last 10 sessions of the same template
       });
 
-      if (!lastExercise) {
+      // Find the first session that actually has this exercise
+      const lastSessionWithExercise = recentSessionsWithExercise.find(
+        session => session.exercises.length > 0
+      );
+
+      if (!lastSessionWithExercise) {
         return null;
       }
 
+      // Get all sets from that session for this exercise, ordered by setOrder
+      const lastExerciseSets = lastSessionWithExercise.exercises.sort(
+        (a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0)
+      );
+
+      const sets = lastExerciseSets.map((set, index) => ({
+        id: `prev-${index}`,
+        weight: set.weight ? parseFloat(set.weight) : undefined,
+        reps: set.reps,
+        sets: set.sets ?? 1,
+        unit: set.unit as "kg" | "lbs",
+      }));
+
+      // Calculate best performance for header display
+      const bestWeight = Math.max(...sets.map(set => set.weight ?? 0));
+      const bestSet = sets.find(set => set.weight === bestWeight);
+
       return {
-        weight: lastExercise.weight
-          ? parseFloat(lastExercise.weight)
-          : undefined,
-        reps: lastExercise.reps,
-        sets: lastExercise.sets,
-        unit: lastExercise.unit as "kg" | "lbs",
+        sets,
+        best: bestSet ? {
+          weight: bestSet.weight,
+          reps: bestSet.reps,
+          sets: bestSet.sets,
+          unit: bestSet.unit,
+        } : undefined,
       };
     }),
 
@@ -151,27 +202,29 @@ export const workoutsRouter = createTRPCRouter({
         .delete(sessionExercises)
         .where(eq(sessionExercises.sessionId, input.sessionId));
 
-      // Insert new exercises (only those with data)
-      const exercisesToInsert = input.exercises.filter(
-        (exercise) =>
-          exercise.weight !== undefined ||
-          exercise.reps !== undefined ||
-          exercise.sets !== undefined,
-      );
-
-      if (exercisesToInsert.length > 0) {
-        await ctx.db.insert(sessionExercises).values(
-          exercisesToInsert.map((exercise) => ({
+      // Flatten exercises into individual sets and filter out empty ones
+      const setsToInsert = input.exercises.flatMap((exercise) =>
+        exercise.sets
+          .filter((set) => 
+            set.weight !== undefined || 
+            set.reps !== undefined || 
+            set.sets !== undefined
+          )
+          .map((set, setIndex) => ({
             user_id: ctx.user.id,
             sessionId: input.sessionId,
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,
-            weight: exercise.weight?.toString(),
-            reps: exercise.reps,
-            sets: exercise.sets,
-            unit: exercise.unit,
-          })),
-        );
+            setOrder: setIndex,
+            weight: set.weight?.toString(),
+            reps: set.reps,
+            sets: set.sets,
+            unit: set.unit,
+          }))
+      );
+
+      if (setsToInsert.length > 0) {
+        await ctx.db.insert(sessionExercises).values(setsToInsert);
       }
 
       return { success: true };

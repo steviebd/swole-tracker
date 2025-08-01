@@ -55,8 +55,12 @@ export function RecentWorkoutsTRPC() {
           </div>
 
           <div className="mb-2 text-sm text-gray-400">
-            {workout.exercises.length} exercise
-            {workout.exercises.length !== 1 ? "s" : ""} logged
+            {(() => {
+              const uniqueExercises = new Set(
+                workout.exercises.map(exercise => exercise.exerciseName)
+              ).size;
+              return `${uniqueExercises} exercise${uniqueExercises !== 1 ? "s" : ""} logged`;
+            })()}
           </div>
 
           <div className="flex items-center gap-3 text-sm">

@@ -63,23 +63,43 @@ export function WorkoutHistory() {
             {workout.exercises.length === 0 ? (
               <p className="text-sm text-gray-500">No exercises logged</p>
             ) : (
-              workout.exercises.map((exercise) => (
-                <div key={exercise.id} className="text-sm">
-                  <span className="text-gray-300">
-                    {exercise.exerciseName}:
-                  </span>{" "}
-                  {exercise.weight && (
-                    <span>
-                      {exercise.weight}
-                      {exercise.unit}
-                    </span>
-                  )}
-                  {exercise.weight && exercise.reps && " × "}
-                  {exercise.reps && <span>{exercise.reps} reps</span>}
-                  {(exercise.reps ?? exercise.weight) && exercise.sets && " × "}
-                  {exercise.sets && <span>{exercise.sets} sets</span>}
-                </div>
-              ))
+              (() => {
+                // Group exercises by name and calculate summary
+                const exerciseGroups = new Map<string, typeof workout.exercises>();
+                workout.exercises.forEach((exercise) => {
+                  if (!exerciseGroups.has(exercise.exerciseName)) {
+                    exerciseGroups.set(exercise.exerciseName, []);
+                  }
+                  exerciseGroups.get(exercise.exerciseName)!.push(exercise);
+                });
+
+                return Array.from(exerciseGroups.entries()).map(([exerciseName, sets]) => {
+                  // Find the best set (highest weight)
+                  const bestSet = sets.reduce((best, current) => {
+                    const currentWeight = current.weight ? parseFloat(current.weight) : 0;
+                    const bestWeight = best.weight ? parseFloat(best.weight) : 0;
+                    return currentWeight > bestWeight ? current : best;
+                  });
+
+                  const totalSets = sets.reduce((sum, set) => sum + (set.sets ?? 0), 0);
+
+                  return (
+                    <div key={exerciseName} className="text-sm">
+                      <span className="text-gray-300">{exerciseName}:</span>{" "}
+                      {bestSet.weight && (
+                        <span>
+                          {bestSet.weight}
+                          {bestSet.unit}
+                        </span>
+                      )}
+                      {bestSet.weight && bestSet.reps && " × "}
+                      {bestSet.reps && <span>{bestSet.reps} reps</span>}
+                      {(bestSet.reps ?? bestSet.weight) && totalSets > 0 && " × "}
+                      {totalSets > 0 && <span>{totalSets} sets</span>}
+                    </div>
+                  );
+                });
+              })()
             )}
           </div>
 

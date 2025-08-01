@@ -86,8 +86,9 @@ export const sessionExercises = createTable(
       .integer()
       .notNull()
       .references(() => workoutSessions.id, { onDelete: "cascade" }),
-    templateExerciseId: d.integer().references(() => templateExercises.id),
+    templateExerciseId: d.integer().references(() => templateExercises.id, { onDelete: "set null" }),
     exerciseName: d.varchar({ length: 256 }).notNull(),
+    setOrder: d.integer().notNull().default(0),
     weight: decimal("weight", { precision: 6, scale: 2 }),
     reps: d.integer(),
     sets: d.integer(),
