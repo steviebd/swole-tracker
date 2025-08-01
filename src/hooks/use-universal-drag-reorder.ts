@@ -29,7 +29,7 @@ export function useUniversalDragReorder<T>(
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
-  const dragThreshold = 3; // Minimum pixels to move before starting drag (reduced for more responsive feel)
+  const dragThreshold = 5; // Minimum pixels to move before starting drag (reduced for more responsive feel)
   const hasDragStarted = useRef(false);
   const dragStartTime = useRef(0);
   const cardElements = useRef<(HTMLElement | null)[]>([]);
