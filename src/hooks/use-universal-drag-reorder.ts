@@ -29,10 +29,11 @@ export function useUniversalDragReorder<T>(
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
-  const dragThreshold = 5; // Minimum pixels to move before starting drag
+  const dragThreshold = 3; // Minimum pixels to move before starting drag (reduced for more responsive feel)
   const hasDragStarted = useRef(false);
   const dragStartTime = useRef(0);
   const cardElements = useRef<(HTMLElement | null)[]>([]);
+  const animationFrameRef = useRef<number | undefined>(undefined);
 
   // Get pointer position from different event types
   const getPointerPos = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent) => {
@@ -117,12 +118,13 @@ export function useUniversalDragReorder<T>(
       const deltaY = pos.y - dragStartPos.y;
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-      // Start dragging only after moving beyond threshold AND if it's primarily vertical movement
+      // Start dragging with more lenient conditions for smoother feel
       if (!hasDragStarted.current && distance > dragThreshold) {
-        const isVerticalMovement = Math.abs(deltaY) > Math.abs(deltaX);
+        // Allow drag to start if there's any vertical component (not strictly vertical)
+        // This prevents sticking when movement isn't perfectly vertical
+        const hasVerticalComponent = Math.abs(deltaY) >= dragThreshold * 0.7;
         
-        // Only start drag if it's vertical movement (up/down for reordering)
-        if (isVerticalMovement) {
+        if (hasVerticalComponent) {
           hasDragStarted.current = true;
           setIsDragging(true);
           onStartDrag?.(draggedIndex);
@@ -130,11 +132,22 @@ export function useUniversalDragReorder<T>(
       }
 
       if (hasDragStarted.current) {
-        setDragOffset({ x: deltaX, y: deltaY });
+        // Use requestAnimationFrame for smooth 60fps updates
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
         
-        // Find insertion point (excluding the dragged element)
-        const insertionIndex = findDropTarget(pos.x, pos.y, draggedIndex);
-        setDragOverIndex(insertionIndex);
+        animationFrameRef.current = requestAnimationFrame(() => {
+          setDragOffset({ x: deltaX, y: deltaY });
+          
+          // Throttle drop target detection to improve performance
+          // Only update drop target every few pixels of movement
+          const shouldUpdateDropTarget = Math.abs(deltaY) % 8 < 4; // Update roughly every 8px
+          if (shouldUpdateDropTarget) {
+            const insertionIndex = findDropTarget(pos.x, pos.y, draggedIndex);
+            setDragOverIndex(insertionIndex);
+          }
+        });
         
         e.preventDefault(); // Only prevent default when actually dragging
       }
@@ -173,6 +186,13 @@ export function useUniversalDragReorder<T>(
       setDragOffset({ x: 0, y: 0 });
       setDragStartPos({ x: 0, y: 0 });
       hasDragStarted.current = false;
+      
+      // Clean up animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
+      }
+      
       onEndDrag?.();
 
       e.preventDefault();

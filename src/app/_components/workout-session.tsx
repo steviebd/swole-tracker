@@ -165,12 +165,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // Generate unique ID for sets
   const generateSetId = () => `set-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Swipe settings for all exercise cards - adjustable for different feel
+  // Swipe settings for all exercise cards - adjusted for slower, more controlled feel
   const swipeSettings: Partial<SwipeSettings> = {
-    dismissThreshold: 120,    // Distance in pixels to trigger swipe-to-bottom
-    velocityThreshold: 6,     // Speed threshold for momentum dismissal  
-    friction: 0.93,           // Momentum decay (higher = slides further)
-    minimumVelocity: 0.3,     // Minimum speed to start momentum animation
+    dismissThreshold: 140,    // Distance in pixels to trigger swipe-to-bottom (increased for slower activation)
+    velocityThreshold: 4,     // Speed threshold for momentum dismissal (reduced for less aggressive)
+    friction: 0.88,           // Momentum decay (reduced for quicker deceleration)
+    minimumVelocity: 0.15,    // Minimum speed to start momentum animation (reduced for gentler start)
   };
 
   // Get the display order of exercises (normal exercises first, then swiped to bottom)

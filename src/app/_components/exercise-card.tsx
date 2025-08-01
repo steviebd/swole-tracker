@@ -125,9 +125,9 @@ export function ExerciseCard({
     opacity: isDragActive ? 0.7 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
     scale: isDragActive ? 0.95 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
     zIndex: isDragActive ? 50 : 1,
-    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    // Allow both horizontal swipes and vertical scrolling, disable when actively dragging
-    touchAction: isDragActive ? 'none' : 'manipulation',
+    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out, scale 0.2s ease-out',
+    // Optimize touch handling for better responsiveness
+    touchAction: isDragActive ? 'none' : 'pan-y pinch-zoom',
   };
 
   const containerClasses = `
