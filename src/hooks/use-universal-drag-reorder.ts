@@ -36,6 +36,8 @@ export function useUniversalDragReorder<T>(
   const animationFrameRef = useRef<number | undefined>(undefined);
   const autoScrollRef = useRef<number | undefined>(undefined);
   const scrollSpeed = useRef(0);
+  const initialScrollY = useRef(0);
+  const currentScrollY = useRef(0);
 
   // Get pointer position from different event types
   const getPointerPos = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent) => {
@@ -118,6 +120,7 @@ export function useUniversalDragReorder<T>(
       const scroll = () => {
         if (scrollSpeed.current !== 0) {
           window.scrollBy(0, scrollSpeed.current);
+          currentScrollY.current = window.scrollY;
           autoScrollRef.current = requestAnimationFrame(scroll);
         } else {
           autoScrollRef.current = undefined;
@@ -154,6 +157,10 @@ export function useUniversalDragReorder<T>(
       setDraggedIndex(index);
       dragStartTime.current = Date.now();
       hasDragStarted.current = false;
+      
+      // Capture initial scroll position for offset calculations
+      initialScrollY.current = window.scrollY;
+      currentScrollY.current = window.scrollY;
 
       // Prevent default to avoid text selection or scrolling
       e.preventDefault();
@@ -190,14 +197,21 @@ export function useUniversalDragReorder<T>(
         }
         
         animationFrameRef.current = requestAnimationFrame(() => {
-          setDragOffset({ x: deltaX, y: deltaY });
+          // Update current scroll position (for manual scrolling during drag)
+          currentScrollY.current = window.scrollY;
+          
+          // Calculate drag offset accounting for scroll changes
+          const scrollDelta = currentScrollY.current - initialScrollY.current;
+          const adjustedDeltaY = deltaY + scrollDelta;
+          
+          setDragOffset({ x: deltaX, y: adjustedDeltaY });
           
           // Handle auto-scroll when near viewport edges
           handleAutoScroll(pos.y);
           
           // Throttle drop target detection to improve performance
           // Only update drop target every few pixels of movement
-          const shouldUpdateDropTarget = Math.abs(deltaY) % 8 < 4; // Update roughly every 8px
+          const shouldUpdateDropTarget = Math.abs(adjustedDeltaY) % 8 < 4; // Update roughly every 8px
           if (shouldUpdateDropTarget) {
             const insertionIndex = findDropTarget(pos.x, pos.y, draggedIndex);
             setDragOverIndex(insertionIndex);
