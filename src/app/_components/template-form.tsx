@@ -56,6 +56,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           templateId: -1,
           exerciseName,
           orderIndex: index,
+          linkingRejected: false,
           createdAt: new Date(),
         })),
       };
@@ -112,6 +113,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
                       templateId: template.id,
                       exerciseName,
                       orderIndex: index,
+                      linkingRejected:
+                        template.exercises[index]?.linkingRejected ?? false,
                       createdAt:
                         template.exercises[index]?.createdAt ?? new Date(),
                     }),
