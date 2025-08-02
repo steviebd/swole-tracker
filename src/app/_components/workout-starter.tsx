@@ -101,8 +101,8 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       {/* Template Selection */}
       <div>
         <h2 className="mb-4 text-lg font-medium">Select Workout Template</h2>
-        <div className="grid max-h-96 grid-cols-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-          {templates.slice(0, 6).map((template) => (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {templates.map((template) => (
             <button
               key={template.id}
               onClick={() => setSelectedTemplateId(template.id)}
@@ -129,17 +129,6 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
             </button>
           ))}
         </div>
-
-        {templates.length > 6 && (
-          <div className="mt-4 text-center">
-            <Link
-              href="/templates"
-              className="text-sm text-purple-400 hover:text-purple-300"
-            >
-              View all {templates.length} templates →
-            </Link>
-          </div>
-        )}
       </div>
 
       {/* Selected Template & Actions */}
