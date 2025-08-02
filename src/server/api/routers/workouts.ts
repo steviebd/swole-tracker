@@ -113,14 +113,17 @@ export const workoutsRouter = createTRPCRouter({
         whereConditions.push(ne(workoutSessions.id, input.excludeSessionId));
       }
 
+      // Build the exercise filter condition
+      const exerciseWhereCondition = exerciseNamesToSearch.length === 1 
+        ? eq(sessionExercises.exerciseName, exerciseNamesToSearch[0]!)
+        : inArray(sessionExercises.exerciseName, exerciseNamesToSearch);
+
       const recentSessionsWithExercise = await ctx.db.query.workoutSessions.findMany({
         where: and(...whereConditions),
         orderBy: [desc(workoutSessions.workoutDate)],
         with: {
           exercises: {
-            where: exerciseNamesToSearch.length === 1 
-              ? eq(sessionExercises.exerciseName, exerciseNamesToSearch[0])
-              : inArray(sessionExercises.exerciseName, exerciseNamesToSearch),
+            where: exerciseWhereCondition,
           },
         },
         limit: 50, // Check more sessions since we're looking across templates
