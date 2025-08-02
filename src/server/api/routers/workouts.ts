@@ -187,6 +187,23 @@ export const workoutsRouter = createTRPCRouter({
           whereConditions.push(ne(sessionExercises.sessionId, input.excludeSessionId));
         }
 
+        // Get the most recent workout that contains this exercise
+        const latestWorkout = await ctx.db
+          .select({
+            sessionId: sessionExercises.sessionId,
+            workoutDate: workoutSessions.workoutDate,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(and(...whereConditions))
+          .orderBy(desc(workoutSessions.workoutDate))
+          .limit(1);
+
+        if (latestWorkout.length === 0) {
+          return null;
+        }
+
+        // Get the highest weight set from that workout
         const latestPerformance = await ctx.db
           .select({
             weight: sessionExercises.weight,
@@ -197,8 +214,12 @@ export const workoutsRouter = createTRPCRouter({
           })
           .from(sessionExercises)
           .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
-          .where(and(...whereConditions))
-          .orderBy(desc(workoutSessions.workoutDate))
+          .where(and(
+            eq(sessionExercises.user_id, ctx.user.id),
+            eq(sessionExercises.exerciseName, templateExercise[0]!.exerciseName),
+            eq(sessionExercises.sessionId, latestWorkout[0]!.sessionId)
+          ))
+          .orderBy(desc(sessionExercises.weight)) // Order by highest weight first
           .limit(1);
 
         return latestPerformance[0] ?? null;
@@ -242,6 +263,23 @@ export const workoutsRouter = createTRPCRouter({
         whereConditions.push(ne(sessionExercises.sessionId, input.excludeSessionId));
       }
 
+      // Get the most recent workout that contains any linked exercise
+      const latestWorkout = await ctx.db
+        .select({
+          sessionId: sessionExercises.sessionId,
+          workoutDate: workoutSessions.workoutDate,
+        })
+        .from(sessionExercises)
+        .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+        .where(and(...whereConditions))
+        .orderBy(desc(workoutSessions.workoutDate))
+        .limit(1);
+
+      if (latestWorkout.length === 0) {
+        return null;
+      }
+
+      // Get the highest weight set from that workout for any linked exercise
       const latestPerformance = await ctx.db
         .select({
           weight: sessionExercises.weight,
@@ -252,8 +290,12 @@ export const workoutsRouter = createTRPCRouter({
         })
         .from(sessionExercises)
         .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
-        .where(and(...whereConditions))
-        .orderBy(desc(workoutSessions.workoutDate))
+        .where(and(
+          eq(sessionExercises.user_id, ctx.user.id),
+          inArray(sessionExercises.templateExerciseId, templateExerciseIds),
+          eq(sessionExercises.sessionId, latestWorkout[0]!.sessionId)
+        ))
+        .orderBy(desc(sessionExercises.weight)) // Order by highest weight first
         .limit(1);
 
       return latestPerformance[0] ?? null;

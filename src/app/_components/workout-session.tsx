@@ -382,19 +382,44 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           const defaultUnit = (preferences?.defaultWeightUnit ?? "kg") as "kg" | "lbs";
           
           // Create sets based on previous workout or default to one empty set
-          const sets: SetData[] = previousData?.sets?.map((prevSet) => ({
-            id: generateSetId(),
-            weight: prevSet.weight,
-            reps: prevSet.reps,
-            sets: prevSet.sets,
-            unit: prevSet.unit,
-          })) ?? [{
-            id: generateSetId(),
-            weight: undefined,
-            reps: undefined,
-            sets: 1,
-            unit: defaultUnit,
-          }];
+          let sets: SetData[] = [];
+          
+          if (previousData?.sets) {
+            // Create sets from previous workout data
+            sets = previousData.sets.map((prevSet, index) => {
+              const isHighestWeightSet = previousData.best && 
+                prevSet.weight === previousData.best.weight &&
+                prevSet.reps === previousData.best.reps &&
+                prevSet.sets === previousData.best.sets;
+              
+              // Add progression suggestion to the highest weight set
+              let suggestedWeight = prevSet.weight;
+              let suggestedReps = prevSet.reps;
+              
+              if (isHighestWeightSet && prevSet.weight) {
+                // Add 2.5kg (or 5lbs) to the highest weight set as a suggestion
+                const increment = prevSet.unit === "kg" ? 2.5 : 5;
+                suggestedWeight = prevSet.weight + increment;
+              }
+              
+              return {
+                id: generateSetId(),
+                weight: suggestedWeight,
+                reps: suggestedReps,
+                sets: prevSet.sets,
+                unit: prevSet.unit,
+              };
+            });
+          } else {
+            // No previous data, create one empty set
+            sets = [{
+              id: generateSetId(),
+              weight: undefined,
+              reps: undefined,
+              sets: 1,
+              unit: defaultUnit,
+            }];
+          }
 
           return {
             templateExerciseId: templateExercise.id,
