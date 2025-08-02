@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
+import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 
 interface TemplateFormProps {
   template?: {
@@ -13,12 +14,24 @@ interface TemplateFormProps {
   };
 }
 
+interface SimilarExercise {
+  id: number;
+  name: string;
+  similarity: number;
+}
+
+interface LinkSuggestion {
+  exerciseName: string;
+  suggestions: SimilarExercise[];
+}
+
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const [name, setName] = useState(template?.name ?? "");
   const [exercises, setExercises] = useState<string[]>(
     template?.exercises.map((ex) => ex.exerciseName) ?? [""],
   );
+  const [_linkSuggestions, setLinkSuggestions] = useState<LinkSuggestion[]>([]);
 
   const utils = api.useUtils();
 
@@ -143,6 +156,16 @@ export function TemplateForm({ template }: TemplateFormProps) {
     setExercises(newExercises);
   };
 
+  const handleLinkSuggestion = (exerciseName: string, suggestions: SimilarExercise[]) => {
+    setLinkSuggestions(prev => {
+      const filtered = prev.filter(ls => ls.exerciseName !== exerciseName);
+      if (suggestions.length > 0) {
+        return [...filtered, { exerciseName, suggestions }];
+      }
+      return filtered;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -213,12 +236,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
           {exercises.map((exercise, index) => (
             <div key={index} className="flex items-center gap-3">
               <div className="flex-1">
-                <input
-                  type="text"
+                <ExerciseInputWithLinking
                   value={exercise}
-                  onChange={(e) => updateExercise(index, e.target.value)}
+                  onChange={(value) => updateExercise(index, value)}
                   placeholder={`Exercise ${index + 1}`}
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  onLinkSuggestion={handleLinkSuggestion}
                 />
               </div>
               {exercises.length > 1 && (

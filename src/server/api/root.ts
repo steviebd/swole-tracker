@@ -5,6 +5,7 @@ import { preferencesRouter } from "~/server/api/routers/preferences";
 import { jokesRouter } from "~/server/api/routers/jokes";
 import { whoopRouter } from "~/server/api/routers/whoop";
 import { webhooksRouter } from "~/server/api/routers/webhooks";
+import { exercisesRouter } from "~/server/api/routers/exercises";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -20,6 +21,7 @@ export const appRouter = createTRPCRouter({
   jokes: jokesRouter,
   whoop: whoopRouter,
   webhooks: webhooksRouter,
+  exercises: exercisesRouter,
 });
 
 // export type definition of API

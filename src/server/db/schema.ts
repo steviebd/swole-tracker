@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTableCreator, decimal } from "drizzle-orm/pg-core";
+import { index, pgTableCreator, decimal, unique } from "drizzle-orm/pg-core";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -40,6 +40,7 @@ export const templateExercises = createTable(
       .references(() => workoutTemplates.id, { onDelete: "cascade" }),
     exerciseName: d.varchar({ length: 256 }).notNull(),
     orderIndex: d.integer().notNull().default(0),
+    linkingRejected: d.boolean().notNull().default(false), // Track if user explicitly chose not to link
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -145,6 +146,10 @@ export const templateExercisesRelations = relations(
       references: [workoutTemplates.id],
     }),
     sessionExercises: many(sessionExercises),
+    exerciseLink: one(exerciseLinks, {
+      fields: [templateExercises.id],
+      references: [exerciseLinks.templateExerciseId],
+    }),
   }),
 );
 
@@ -269,6 +274,58 @@ export const rateLimits = createTable(
   ],
 ); // RLS disabled - using Clerk auth with application-level security
 
+// Master Exercises - Shared exercises across templates
+export const masterExercises = createTable(
+  "master_exercise",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    name: d.varchar({ length: 256 }).notNull(),
+    normalizedName: d.varchar({ length: 256 }).notNull(), // Lowercased, trimmed name for fuzzy matching
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("master_exercise_user_id_idx").on(t.user_id),
+    index("master_exercise_name_idx").on(t.name),
+    index("master_exercise_normalized_name_idx").on(t.normalizedName),
+    index("master_exercise_user_normalized_idx").on(t.user_id, t.normalizedName),
+    // Unique constraint: prevent duplicate master exercise names per user
+    unique("master_exercise_user_name_unique").on(t.user_id, t.normalizedName),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
+
+// Exercise Links - Maps template exercises to master exercises
+export const exerciseLinks = createTable(
+  "exercise_link",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    templateExerciseId: d
+      .integer()
+      .notNull()
+      .references(() => templateExercises.id, { onDelete: "cascade" }),
+    masterExerciseId: d
+      .integer()
+      .notNull()
+      .references(() => masterExercises.id, { onDelete: "cascade" }),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("exercise_link_template_exercise_idx").on(t.templateExerciseId),
+    index("exercise_link_master_exercise_idx").on(t.masterExerciseId),
+    index("exercise_link_user_id_idx").on(t.user_id),
+    // Unique constraint: each template exercise can only be linked to one master exercise
+    unique("exercise_link_template_exercise_unique").on(t.templateExerciseId),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
+
 // Relations for new tables
 export const userIntegrationsRelations = relations(
   userIntegrations,
@@ -283,6 +340,27 @@ export const externalWorkoutsWhoopRelations = relations(
     integration: one(userIntegrations, {
       fields: [externalWorkoutsWhoop.user_id],
       references: [userIntegrations.user_id],
+    }),
+  }),
+);
+
+export const masterExercisesRelations = relations(
+  masterExercises,
+  ({ many }) => ({
+    exerciseLinks: many(exerciseLinks),
+  }),
+);
+
+export const exerciseLinksRelations = relations(
+  exerciseLinks,
+  ({ one }) => ({
+    templateExercise: one(templateExercises, {
+      fields: [exerciseLinks.templateExerciseId],
+      references: [templateExercises.id],
+    }),
+    masterExercise: one(masterExercises, {
+      fields: [exerciseLinks.masterExerciseId],
+      references: [masterExercises.id],
     }),
   }),
 );

@@ -270,13 +270,54 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       
       for (const templateExercise of session.template.exercises) {
         try {
-          const data = await utils.workouts.getLastExerciseData.fetch({
-            exerciseName: templateExercise.exerciseName,
-            templateId: session.templateId,
-            excludeSessionId: sessionId,
-          });
-          if (data) {
-            previousDataMap.set(templateExercise.exerciseName, data);
+          let dataFound = false;
+          
+          // First try to get linked exercise data (cross-template)
+          try {
+            const linkedData = await utils.workouts.getLatestPerformanceForTemplateExercise.fetch({
+              templateExerciseId: templateExercise.id,
+              excludeSessionId: sessionId,
+            });
+            
+            if (linkedData) {
+              // Convert linked data to the expected format
+              const convertedData = {
+                sets: [{
+                  id: 'linked-1',
+                  weight: linkedData.weight ? parseFloat(linkedData.weight) : undefined,
+                  reps: linkedData.reps,
+                  sets: linkedData.sets ?? 1,
+                  unit: linkedData.unit as "kg" | "lbs",
+                }],
+                best: {
+                  weight: linkedData.weight ? parseFloat(linkedData.weight) : undefined,
+                  reps: linkedData.reps,
+                  sets: linkedData.sets ?? 1,
+                  unit: linkedData.unit as "kg" | "lbs",
+                }
+              };
+              previousDataMap.set(templateExercise.exerciseName, convertedData);
+              dataFound = true;
+            }
+          } catch {
+            // No linked data found, will try fallback
+          }
+          
+          // Fallback to old method (same template only) if no linked data found
+          if (!dataFound) {
+            try {
+              const data = await utils.workouts.getLastExerciseData.fetch({
+                exerciseName: templateExercise.exerciseName,
+                templateId: session.templateId,
+                excludeSessionId: sessionId,
+              });
+              if (data) {
+                previousDataMap.set(templateExercise.exerciseName, data);
+                dataFound = true;
+              }
+            } catch {
+              // No template-specific data found either
+            }
           }
         } catch (error) {
           console.error(`Failed to load previous data for ${templateExercise.exerciseName}:`, error);
@@ -287,7 +328,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     };
 
     void loadPreviousData();
-  }, [session?.template, isReadOnly, utils.workouts.getLastExerciseData]);
+  }, [session?.template, isReadOnly, utils.workouts.getLastExerciseData, utils.workouts.getLatestPerformanceForTemplateExercise]);
 
   // Initialize exercises from template or existing session data
   useEffect(() => {

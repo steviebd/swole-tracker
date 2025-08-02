@@ -27,12 +27,20 @@ export default async function TemplatesPage() {
               </Link>
               <h1 className="text-2xl font-bold">Workout Templates</h1>
             </div>
-            <Link
-              href="/templates/new"
-              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-purple-700"
-            >
-              + New Template
-            </Link>
+            <div className="flex gap-3">
+              <Link
+                href="/exercises"
+                className="rounded-lg border border-purple-600 px-4 py-2 text-sm font-medium text-purple-400 transition-colors hover:bg-purple-600 hover:text-white"
+              >
+                Manage Exercises
+              </Link>
+              <Link
+                href="/templates/new"
+                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-purple-700"
+              >
+                + New Template
+              </Link>
+            </div>
           </div>
 
           {/* Templates List */}

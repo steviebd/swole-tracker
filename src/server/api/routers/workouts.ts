@@ -4,8 +4,11 @@ import {
   workoutSessions,
   sessionExercises,
   workoutTemplates,
+  templateExercises,
+  exerciseLinks,
+  masterExercises,
 } from "~/server/db/schema";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { eq, desc, and, ne, sql, inArray } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -134,6 +137,126 @@ export const workoutsRouter = createTRPCRouter({
           unit: bestSet.unit,
         } : undefined,
       };
+    }),
+
+  // Get latest performance data for template exercise using exercise linking
+  getLatestPerformanceForTemplateExercise: protectedProcedure
+    .input(z.object({
+      templateExerciseId: z.number(),
+      excludeSessionId: z.number().optional()
+    }))
+    .query(async ({ input, ctx }) => {
+      // First, check if this template exercise is linked to a master exercise
+      const exerciseLink = await ctx.db
+        .select({
+          masterExerciseId: exerciseLinks.masterExerciseId,
+        })
+        .from(exerciseLinks)
+        .where(
+          and(
+            eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
+            eq(exerciseLinks.user_id, ctx.user.id)
+          )
+        )
+        .limit(1);
+
+      if (exerciseLink.length === 0) {
+        // No link found, fall back to exercise name matching
+        const templateExercise = await ctx.db
+          .select({ exerciseName: templateExercises.exerciseName })
+          .from(templateExercises)
+          .where(
+            and(
+              eq(templateExercises.id, input.templateExerciseId),
+              eq(templateExercises.user_id, ctx.user.id)
+            )
+          )
+          .limit(1);
+
+        if (templateExercise.length === 0) {
+          return null;
+        }
+
+        // Get latest performance by exercise name
+        const whereConditions = [
+          eq(sessionExercises.user_id, ctx.user.id),
+          eq(sessionExercises.exerciseName, templateExercise[0]!.exerciseName),
+        ];
+
+        if (input.excludeSessionId) {
+          whereConditions.push(ne(sessionExercises.sessionId, input.excludeSessionId));
+        }
+
+        const latestPerformance = await ctx.db
+          .select({
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            unit: sessionExercises.unit,
+            workoutDate: workoutSessions.workoutDate,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(and(...whereConditions))
+          .orderBy(desc(workoutSessions.workoutDate))
+          .limit(1);
+
+        return latestPerformance[0] ?? null;
+      }
+
+      // Exercise is linked to a master exercise, get latest performance from any linked exercise
+      const masterExerciseId = exerciseLink[0]!.masterExerciseId;
+
+      // Find all template exercises linked to this master exercise
+      const linkedTemplateExercises = await ctx.db
+        .select({ id: templateExercises.id })
+        .from(templateExercises)
+        .innerJoin(exerciseLinks, eq(exerciseLinks.templateExerciseId, templateExercises.id))
+        .where(
+          and(
+            eq(exerciseLinks.masterExerciseId, masterExerciseId),
+            eq(templateExercises.user_id, ctx.user.id)
+          )
+        );
+
+      if (linkedTemplateExercises.length === 0) {
+        return null;
+      }
+
+      const templateExerciseIds = linkedTemplateExercises.map(te => te.id);
+
+      // Get the most recent session exercise from any linked template exercise
+      const whereConditions = [
+        eq(sessionExercises.user_id, ctx.user.id),
+      ];
+
+      // Only add inArray condition if we have template exercise IDs
+      if (templateExerciseIds.length > 0) {
+        whereConditions.push(inArray(sessionExercises.templateExerciseId, templateExerciseIds));
+      } else {
+        // If no template exercise IDs, return null as there's nothing to search for
+        return null;
+      }
+
+      if (input.excludeSessionId) {
+        whereConditions.push(ne(sessionExercises.sessionId, input.excludeSessionId));
+      }
+
+      const latestPerformance = await ctx.db
+        .select({
+          weight: sessionExercises.weight,
+          reps: sessionExercises.reps,
+          sets: sessionExercises.sets,
+          unit: sessionExercises.unit,
+          workoutDate: workoutSessions.workoutDate,
+        })
+        .from(sessionExercises)
+        .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+        .where(and(...whereConditions))
+        .orderBy(desc(workoutSessions.workoutDate))
+        .limit(1);
+
+      return latestPerformance[0] ?? null;
     }),
 
   // Start a new workout session

@@ -1,7 +1,70 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { workoutTemplates, templateExercises } from "~/server/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { workoutTemplates, templateExercises, masterExercises, exerciseLinks } from "~/server/db/schema";
+import { eq, desc, and } from "drizzle-orm";
+
+// Utility function to normalize exercise names for fuzzy matching
+function normalizeExerciseName(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// Helper function to create or get master exercise and link it to template exercise
+async function createAndLinkMasterExercise(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  userId: string,
+  exerciseName: string,
+  templateExerciseId: number,
+) {
+  const normalizedName = normalizeExerciseName(exerciseName);
+  
+  // Try to find existing master exercise
+  const existing = await db
+    .select()
+    .from(masterExercises)
+    .where(
+      and(
+        eq(masterExercises.user_id, userId),
+        eq(masterExercises.normalizedName, normalizedName)
+      )
+    )
+    .limit(1);
+  
+  let masterExercise;
+  
+  if (existing.length > 0) {
+    masterExercise = existing[0];
+  } else {
+    // Create new master exercise
+    const newMasterExercise = await db
+      .insert(masterExercises)
+      .values({
+        user_id: userId,
+        name: exerciseName,
+        normalizedName,
+      })
+      .returning();
+    
+    masterExercise = newMasterExercise[0];
+  }
+  
+  // Create the link
+  await db
+    .insert(exerciseLinks)
+    .values({
+      templateExerciseId,
+      masterExerciseId: masterExercise.id,
+      user_id: userId,
+    })
+    .onConflictDoUpdate({
+      target: exerciseLinks.templateExerciseId,
+      set: {
+        masterExerciseId: masterExercise.id,
+      },
+    });
+  
+  return masterExercise;
+}
 
 export const templatesRouter = createTRPCRouter({
   // Get all templates for the current user
@@ -58,16 +121,26 @@ export const templatesRouter = createTRPCRouter({
         throw new Error("Failed to create template");
       }
 
-      // Insert exercises
+      // Insert exercises and create master exercise links
       if (input.exercises.length > 0) {
-        await ctx.db.insert(templateExercises).values(
+        const insertedExercises = await ctx.db.insert(templateExercises).values(
           input.exercises.map((exerciseName, index) => ({
             user_id: ctx.user.id,
             templateId: template.id,
             exerciseName,
             orderIndex: index,
           })),
-        );
+        ).returning();
+
+        // Create master exercises and links for each template exercise
+        for (const templateExercise of insertedExercises) {
+          await createAndLinkMasterExercise(
+            ctx.db,
+            ctx.user.id,
+            templateExercise.exerciseName,
+            templateExercise.id,
+          );
+        }
       }
 
       return template;
@@ -103,16 +176,26 @@ export const templatesRouter = createTRPCRouter({
         .delete(templateExercises)
         .where(eq(templateExercises.templateId, input.id));
 
-      // Insert new exercises
+      // Insert new exercises and create master exercise links
       if (input.exercises.length > 0) {
-        await ctx.db.insert(templateExercises).values(
+        const insertedExercises = await ctx.db.insert(templateExercises).values(
           input.exercises.map((exerciseName, index) => ({
             user_id: ctx.user.id,
             templateId: input.id,
             exerciseName,
             orderIndex: index,
           })),
-        );
+        ).returning();
+
+        // Create master exercises and links for each template exercise
+        for (const templateExercise of insertedExercises) {
+          await createAndLinkMasterExercise(
+            ctx.db,
+            ctx.user.id,
+            templateExercise.exerciseName,
+            templateExercise.id,
+          );
+        }
       }
 
       return { success: true };
