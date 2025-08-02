@@ -6,6 +6,8 @@ import Link from "next/link";
 import { api } from "~/trpc/react";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
 import { type SetData } from "./set-input";
+import { ProgressionModal } from "./progression-modal";
+import { ProgressionScopeModal } from "./progression-scope-modal";
 
 interface PreviousBest {
   weight?: number;
@@ -39,6 +41,30 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const [previousDataLoaded, setPreviousDataLoaded] = useState(false);
   const [notification, setNotification] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [swipedToBottomIndexes, setSwipedToBottomIndexes] = useState<number[]>([]); // Track order of swiped exercises
+  const [progressionModal, setProgressionModal] = useState<{
+    isOpen: boolean;
+    exerciseIndex: number;
+    exerciseName: string;
+    previousBest: {
+      weight?: number;
+      reps?: number;
+      sets: number;
+      unit: "kg" | "lbs";
+    };
+  } | null>(null);
+  const [hasShownAutoProgression, setHasShownAutoProgression] = useState(false);
+  const [progressionScopeModal, setProgressionScopeModal] = useState<{
+    isOpen: boolean;
+    exerciseIndex: number;
+    progressionType: "weight" | "reps";
+    increment: string;
+    previousBest: {
+      weight?: number;
+      reps?: number;
+      sets: number;
+      unit: "kg" | "lbs";
+    };
+  } | null>(null);
 
   const { data: session } = api.workouts.getById.useQuery({ id: sessionId });
   const { data: preferences } = api.preferences.get.useQuery();
@@ -270,54 +296,18 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       
       for (const templateExercise of session.template.exercises) {
         try {
-          let dataFound = false;
-          
-          // First try to get linked exercise data (cross-template)
+          // Always use getLastExerciseData to get ALL sets from previous workout
           try {
-            const linkedData = await utils.workouts.getLatestPerformanceForTemplateExercise.fetch({
-              templateExerciseId: templateExercise.id,
+            const data = await utils.workouts.getLastExerciseData.fetch({
+              exerciseName: templateExercise.exerciseName,
+              templateId: session.templateId,
               excludeSessionId: sessionId,
             });
-            
-            if (linkedData) {
-              // Convert linked data to the expected format
-              const convertedData = {
-                sets: [{
-                  id: 'linked-1',
-                  weight: linkedData.weight ? parseFloat(linkedData.weight) : undefined,
-                  reps: linkedData.reps,
-                  sets: linkedData.sets ?? 1,
-                  unit: linkedData.unit as "kg" | "lbs",
-                }],
-                best: {
-                  weight: linkedData.weight ? parseFloat(linkedData.weight) : undefined,
-                  reps: linkedData.reps,
-                  sets: linkedData.sets ?? 1,
-                  unit: linkedData.unit as "kg" | "lbs",
-                }
-              };
-              previousDataMap.set(templateExercise.exerciseName, convertedData);
-              dataFound = true;
+            if (data) {
+              previousDataMap.set(templateExercise.exerciseName, data);
             }
-          } catch {
-            // No linked data found, will try fallback
-          }
-          
-          // Fallback to old method (same template only) if no linked data found
-          if (!dataFound) {
-            try {
-              const data = await utils.workouts.getLastExerciseData.fetch({
-                exerciseName: templateExercise.exerciseName,
-                templateId: session.templateId,
-                excludeSessionId: sessionId,
-              });
-              if (data) {
-                previousDataMap.set(templateExercise.exerciseName, data);
-                dataFound = true;
-              }
-            } catch {
-              // No template-specific data found either
-            }
+          } catch (error) {
+            console.error(`Failed to load previous data for ${templateExercise.exerciseName}:`, error);
           }
         } catch (error) {
           console.error(`Failed to load previous data for ${templateExercise.exerciseName}:`, error);
@@ -385,31 +375,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           let sets: SetData[] = [];
           
           if (previousData?.sets) {
-            // Create sets from previous workout data
-            sets = previousData.sets.map((prevSet, index) => {
-              const isHighestWeightSet = previousData.best && 
-                prevSet.weight === previousData.best.weight &&
-                prevSet.reps === previousData.best.reps &&
-                prevSet.sets === previousData.best.sets;
-              
-              // Add progression suggestion to the highest weight set
-              let suggestedWeight = prevSet.weight;
-              let suggestedReps = prevSet.reps;
-              
-              if (isHighestWeightSet && prevSet.weight) {
-                // Add 2.5kg (or 5lbs) to the highest weight set as a suggestion
-                const increment = prevSet.unit === "kg" ? 2.5 : 5;
-                suggestedWeight = prevSet.weight + increment;
-              }
-              
-              return {
-                id: generateSetId(),
-                weight: suggestedWeight,
-                reps: suggestedReps,
-                sets: prevSet.sets,
-                unit: prevSet.unit,
-              };
-            });
+            // Create sets from previous workout data (no automatic progression)
+            sets = previousData.sets.map((prevSet) => ({
+              id: generateSetId(),
+              weight: prevSet.weight,
+              reps: prevSet.reps,
+              sets: prevSet.sets,
+              unit: prevSet.unit,
+            }));
           } else {
             // No previous data, create one empty set
             sets = [{
@@ -435,6 +408,42 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
     setLoading(false);
   }, [session?.template, session?.exercises, preferences?.defaultWeightUnit, previousExerciseData, previousDataLoaded]);
+
+  // Auto-show progression modal for first exercise with previous data
+  useEffect(() => {
+    // Only show for new workouts (no existing exercises in session)
+    const isNewWorkout = !session?.exercises || session.exercises.length === 0;
+    
+    // Additional safety checks to prevent race conditions:
+    // 1. Session must be fully loaded
+    // 2. Must not be read-only (which gets set after session data loads)
+    // 3. Previous data must be loaded (to avoid showing modal before we know if there's previous data)
+    const safeToShowModal = session && !isReadOnly && previousDataLoaded;
+    
+    if (!loading && safeToShowModal && isNewWorkout && exercises.length > 0 && !progressionModal && !hasShownAutoProgression) {
+      // Find first exercise with previous best performance
+      for (let i = 0; i < exercises.length; i++) {
+        const exercise = exercises[i];
+        const previousData = previousExerciseData.get(exercise?.exerciseName ?? "");
+        
+        if (exercise && previousData?.best && previousData.best.weight && previousData.best.sets) {
+          setProgressionModal({
+            isOpen: true,
+            exerciseIndex: i,
+            exerciseName: exercise.exerciseName,
+            previousBest: {
+              weight: previousData.best.weight,
+              reps: previousData.best.reps,
+              sets: previousData.best.sets,
+              unit: previousData.best.unit,
+            },
+          });
+          setHasShownAutoProgression(true); // Prevent showing again
+          break; // Only show for first exercise with data
+        }
+      }
+    }
+  }, [loading, isReadOnly, exercises, previousExerciseData, progressionModal, hasShownAutoProgression, session, previousDataLoaded]);
 
   const updateSet = (
     exerciseIndex: number,
@@ -487,6 +496,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const toggleExpansion = (exerciseIndex: number) => {
+    // Normal expansion/collapse behavior
     setExpandedExercises(prev => 
       prev.includes(exerciseIndex) 
         ? prev.filter(i => i !== exerciseIndex)
@@ -504,6 +514,122 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     
     // Collapse the swiped exercise
     setExpandedExercises(prev => prev.filter(index => index !== exerciseIndex));
+  };
+
+  const handleProgressionChoice = (type: "weight" | "reps" | "none") => {
+    if (!progressionModal) {
+      return;
+    }
+    
+    const { exerciseIndex, previousBest } = progressionModal;
+    
+    if (type === "none") {
+      // No progression, just expand and close
+      setExpandedExercises(prev => {
+        if (!prev.includes(exerciseIndex)) {
+          return [...prev, exerciseIndex];
+        }
+        return prev;
+      });
+      setProgressionModal(null);
+      return;
+    }
+    
+    // For weight/reps progression, show scope selection modal
+    const increment = type === "weight" 
+      ? `+${previousBest.unit === "kg" ? "2.5" : "5"}${previousBest.unit}`
+      : "+1 rep";
+    
+    setProgressionScopeModal({
+      isOpen: true,
+      exerciseIndex,
+      progressionType: type,
+      increment,
+      previousBest,
+    });
+    
+    // Close first modal
+    setProgressionModal(null);
+  };
+
+  const applyProgressionToAll = () => {
+    if (!progressionScopeModal) return;
+    
+    const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
+    
+    setExercises(prev => {
+      const newExercises = [...prev];
+      const exercise = newExercises[exerciseIndex];
+      
+      if (exercise) {
+        // Apply progression to ALL sets
+        exercise.sets = exercise.sets.map(set => {
+          const updatedSet = { ...set };
+          
+          if (progressionType === "weight" && updatedSet.weight) {
+            const increment = updatedSet.unit === "kg" ? 2.5 : 5;
+            updatedSet.weight += increment;
+          } else if (progressionType === "reps" && updatedSet.reps) {
+            updatedSet.reps += 1;
+          }
+          
+          return updatedSet;
+        });
+      }
+      
+      return newExercises;
+    });
+    
+    // Expand the exercise
+    setExpandedExercises(prev => {
+      if (!prev.includes(exerciseIndex)) {
+        return [...prev, exerciseIndex];
+      }
+      return prev;
+    });
+  };
+
+  const applyProgressionToHighest = () => {
+    if (!progressionScopeModal) return;
+    
+    const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
+    
+    setExercises(prev => {
+      const newExercises = [...prev];
+      const exercise = newExercises[exerciseIndex];
+      
+      if (exercise) {
+        // Find the set that matches the previous best performance
+        const bestSetIndex = exercise.sets.findIndex(set => 
+          set.weight === previousBest.weight &&
+          set.reps === previousBest.reps &&
+          set.sets === previousBest.sets
+        );
+        
+        if (bestSetIndex !== -1) {
+          const updatedSet = { ...exercise.sets[bestSetIndex]! };
+          
+          if (progressionType === "weight" && updatedSet.weight) {
+            const increment = updatedSet.unit === "kg" ? 2.5 : 5;
+            updatedSet.weight += increment;
+          } else if (progressionType === "reps" && updatedSet.reps) {
+            updatedSet.reps += 1;
+          }
+          
+          exercise.sets[bestSetIndex] = updatedSet;
+        }
+      }
+      
+      return newExercises;
+    });
+    
+    // Expand the exercise
+    setExpandedExercises(prev => {
+      if (!prev.includes(exerciseIndex)) {
+        return [...prev, exerciseIndex];
+      }
+      return prev;
+    });
   };
 
   const handleSave = async () => {
@@ -789,6 +915,29 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Progression Modal */}
+      {progressionModal && (
+        <ProgressionModal
+          isOpen={progressionModal.isOpen}
+          onClose={() => setProgressionModal(null)}
+          exerciseName={progressionModal.exerciseName}
+          previousBest={progressionModal.previousBest}
+          onApplyProgression={handleProgressionChoice}
+        />
+      )}
+
+      {/* Progression Scope Modal */}
+      {progressionScopeModal && (
+        <ProgressionScopeModal
+          isOpen={progressionScopeModal.isOpen}
+          onClose={() => setProgressionScopeModal(null)}
+          progressionType={progressionScopeModal.progressionType}
+          increment={progressionScopeModal.increment}
+          onApplyToAll={applyProgressionToAll}
+          onApplyToHighest={applyProgressionToHighest}
+        />
       )}
     </div>
   );
