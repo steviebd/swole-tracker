@@ -16,6 +16,18 @@ async function createAndLinkMasterExercise(
   exerciseName: string,
   templateExerciseId: number,
 ) {
+  // Check if linking has been rejected for this template exercise
+  const templateExercise = await db
+    .select({ linkingRejected: templateExercises.linkingRejected })
+    .from(templateExercises)
+    .where(eq(templateExercises.id, templateExerciseId))
+    .limit(1);
+  
+  if (templateExercise.length > 0 && templateExercise[0]!.linkingRejected) {
+    // Don't create links if user has rejected linking
+    return null;
+  }
+  
   const normalizedName = normalizeExerciseName(exerciseName);
   
   // Try to find existing master exercise
