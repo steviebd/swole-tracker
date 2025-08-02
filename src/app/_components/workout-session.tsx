@@ -300,8 +300,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           try {
             const data = await utils.workouts.getLastExerciseData.fetch({
               exerciseName: templateExercise.exerciseName,
-              templateId: session.templateId,
               excludeSessionId: sessionId,
+              templateExerciseId: templateExercise.id,
             });
             if (data) {
               previousDataMap.set(templateExercise.exerciseName, data);

@@ -73,18 +73,40 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ 
       exerciseName: z.string(),
       templateId: z.number().optional(),
-      excludeSessionId: z.number().optional()
+      excludeSessionId: z.number().optional(),
+      templateExerciseId: z.number().optional()
     }))
     .query(async ({ input, ctx }) => {
-      // Get the most recent workout session that contains this exercise from the same template
+      // First check if this exercise is linked to a master exercise
+      let exerciseNamesToSearch = [input.exerciseName];
+      
+      if (input.templateExerciseId) {
+        // Check if this template exercise is linked to a master exercise
+        const exerciseLink = await ctx.db.query.exerciseLinks.findFirst({
+          where: eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
+          with: {
+            masterExercise: true,
+          },
+        });
+
+        if (exerciseLink) {
+          // Find all template exercises linked to the same master exercise
+          const linkedExercises = await ctx.db.query.exerciseLinks.findMany({
+            where: eq(exerciseLinks.masterExerciseId, exerciseLink.masterExerciseId),
+            with: {
+              templateExercise: true,
+            },
+          });
+
+          // Get all exercise names from linked template exercises
+          exerciseNamesToSearch = linkedExercises.map(link => link.templateExercise.exerciseName);
+        }
+      }
+
+      // Get the most recent workout session that contains any of these linked exercises
       const whereConditions = [
         eq(workoutSessions.user_id, ctx.user.id),
       ];
-      
-      // If templateId is provided, filter by the same template
-      if (input.templateId) {
-        whereConditions.push(eq(workoutSessions.templateId, input.templateId));
-      }
       
       // Exclude the current session if specified
       if (input.excludeSessionId) {
@@ -96,10 +118,12 @@ export const workoutsRouter = createTRPCRouter({
         orderBy: [desc(workoutSessions.workoutDate)],
         with: {
           exercises: {
-            where: eq(sessionExercises.exerciseName, input.exerciseName),
+            where: exerciseNamesToSearch.length === 1 
+              ? eq(sessionExercises.exerciseName, exerciseNamesToSearch[0])
+              : inArray(sessionExercises.exerciseName, exerciseNamesToSearch),
           },
         },
-        limit: 10, // Check last 10 sessions of the same template
+        limit: 50, // Check more sessions since we're looking across templates
       });
 
       // Find the first session that actually has this exercise
