@@ -220,24 +220,45 @@ export function ExerciseCard({
             <div className="rounded-lg bg-gray-900 p-3 border border-gray-600">
               <h4 className="text-xs font-medium text-gray-400 mb-2">LAST WORKOUT</h4>
               <div className="space-y-2">
-                {previousSets.map((prevSet, index) => (
-                  <div key={index} className="flex items-center gap-3 text-sm text-gray-300">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-600 text-xs">
-                      {index + 1}
-                    </div>
-                    <div className="flex gap-4">
-                      {prevSet.weight && (
-                        <span>{prevSet.weight}{prevSet.unit}</span>
-                      )}
-                      {prevSet.reps && (
-                        <span>{prevSet.reps} reps</span>
-                      )}
-                      {prevSet.sets > 1 && (
-                        <span>{prevSet.sets} sets</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  // Sort previous sets by weight (highest first), then by original order
+                  const sortedSets = [...previousSets].sort((a, b) => {
+                    const weightA = a.weight ?? 0;
+                    const weightB = b.weight ?? 0;
+                    if (weightA !== weightB) {
+                      return weightB - weightA; // Higher weight first
+                    }
+                    // If weights are equal, maintain original order
+                    return previousSets.indexOf(a) - previousSets.indexOf(b);
+                  });
+                  
+                  return sortedSets.map((prevSet, index) => {
+                    const originalIndex = previousSets.indexOf(prevSet);
+                    const isHighestWeight = index === 0 && prevSet.weight && prevSet.weight > 0;
+                    
+                    return (
+                      <div key={originalIndex} className={`flex items-center gap-3 text-sm ${isHighestWeight ? 'text-green-300' : 'text-gray-300'}`}>
+                        <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? 'bg-green-600' : 'bg-gray-600'}`}>
+                          {originalIndex + 1}
+                        </div>
+                        <div className="flex gap-4">
+                          {prevSet.weight && (
+                            <span className={isHighestWeight ? 'font-medium' : ''}>{prevSet.weight}{prevSet.unit}</span>
+                          )}
+                          {prevSet.reps && (
+                            <span>{prevSet.reps} reps</span>
+                          )}
+                          {prevSet.sets > 1 && (
+                            <span>{prevSet.sets} sets</span>
+                          )}
+                          {isHighestWeight && (
+                            <span className="text-xs text-green-400">← Best</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}

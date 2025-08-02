@@ -75,6 +75,7 @@ export function SetInput({
                   : undefined;
                 handleWeightChange(value);
               }}
+              onFocus={(e) => e.target.select()}
               placeholder="0"
               disabled={readOnly}
               className={`flex-1 rounded border px-2 py-1 text-sm focus:outline-none ${
@@ -112,6 +113,7 @@ export function SetInput({
                 e.target.value ? parseInt(e.target.value) : undefined,
               )
             }
+            onFocus={(e) => e.target.select()}
             placeholder="0"
             disabled={readOnly}
             className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
@@ -136,6 +138,7 @@ export function SetInput({
                 e.target.value ? parseInt(e.target.value) : 1,
               )
             }
+            onFocus={(e) => e.target.select()}
             placeholder="1"
             min="1"
             disabled={readOnly}
