@@ -141,6 +141,7 @@ export const templatesRouter = createTRPCRouter({
             templateId: template.id,
             exerciseName,
             orderIndex: index,
+            linkingRejected: false,
           })),
         ).returning();
 
@@ -196,6 +197,7 @@ export const templatesRouter = createTRPCRouter({
             templateId: input.id,
             exerciseName,
             orderIndex: index,
+            linkingRejected: false,
           })),
         ).returning();
 
