@@ -15,16 +15,10 @@ async function createAndLinkMasterExercise(
   userId: string,
   exerciseName: string,
   templateExerciseId: number,
+  linkingRejected: boolean = false,
 ) {
-  // Check if linking has been rejected for this template exercise
-  const templateExercise = await db
-    .select({ linkingRejected: templateExercises.linkingRejected })
-    .from(templateExercises)
-    .where(eq(templateExercises.id, templateExerciseId))
-    .limit(1);
-  
-  if (templateExercise.length > 0 && templateExercise[0]!.linkingRejected) {
-    // Don't create links if user has rejected linking
+  // Don't create links if user has rejected linking
+  if (linkingRejected) {
     return null;
   }
   
@@ -152,6 +146,7 @@ export const templatesRouter = createTRPCRouter({
             ctx.user.id,
             templateExercise.exerciseName,
             templateExercise.id,
+            false, // New templates default to not rejected
           );
         }
       }
@@ -208,6 +203,7 @@ export const templatesRouter = createTRPCRouter({
             ctx.user.id,
             templateExercise.exerciseName,
             templateExercise.id,
+            false, // New templates default to not rejected
           );
         }
       }
