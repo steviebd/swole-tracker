@@ -83,12 +83,12 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       <div className="py-12 text-center">
         <div className="mb-4 text-6xl">📋</div>
         <h3 className="mb-2 text-xl font-semibold">No templates available</h3>
-        <p className="mb-6 text-gray-400">
+        <p className="mb-6 text-secondary">
           You need to create a workout template before you can start a workout
         </p>
         <Link
           href="/templates/new"
-          className="rounded-lg bg-purple-600 px-6 py-3 font-medium transition-colors hover:bg-purple-700"
+          className="btn-primary inline-flex px-6 py-3 font-medium"
         >
           Create Your First Template
         </Link>
@@ -108,17 +108,17 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
               onClick={() => setSelectedTemplateId(template.id)}
               className={`rounded-lg border-2 p-4 text-left transition-all ${
                 selectedTemplateId === template.id
-                  ? "border-purple-500 bg-purple-600/20"
+                  ? "border-[#0A84FF] bg-[#0A84FF]/10"
                   : "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700"
               }`}
             >
               <h3 className="mb-2 truncate font-semibold">{template.name}</h3>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-secondary">
                 {template.exercises.length} exercise
                 {template.exercises.length !== 1 ? "s" : ""}
               </p>
               {template.exercises.length > 0 && (
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-muted">
                   {template.exercises
                     .slice(0, 3)
                     .map((ex) => ex.exerciseName)
@@ -133,7 +133,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
       {/* Selected Template & Actions */}
       {selectedTemplateId && (
-        <div className="space-y-4 rounded-lg bg-gray-800 p-6">
+        <div className="space-y-4 card p-6">
           {(() => {
             const template = templates.find((t) => t.id === selectedTemplateId);
             return template ? (
@@ -149,7 +149,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                       <div className="space-y-1">
                         {template.exercises.map((exercise, index) => (
                           <div key={exercise.id} className="flex items-center">
-                            <span className="mr-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-purple-600 text-xs text-white">
+                            <span className="mr-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#0A84FF] text-xs text-black">
                               {index + 1}
                             </span>
                             {exercise.exerciseName}
@@ -174,21 +174,13 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                       onClick={() => {
                         const now = new Date();
                         const year = now.getFullYear();
-                        const month = String(now.getMonth() + 1).padStart(
-                          2,
-                          "0",
-                        );
+                        const month = String(now.getMonth() + 1).padStart(2, "0");
                         const day = String(now.getDate()).padStart(2, "0");
                         const hours = String(now.getHours()).padStart(2, "0");
-                        const minutes = String(now.getMinutes()).padStart(
-                          2,
-                          "0",
-                        );
-                        setWorkoutDate(
-                          `${year}-${month}-${day}T${hours}:${minutes}`,
-                        );
+                        const minutes = String(now.getMinutes()).padStart(2, "0");
+                        setWorkoutDate(`${year}-${month}-${day}T${hours}:${minutes}`);
                       }}
-                      className="text-xs text-purple-400 hover:text-purple-300"
+                      className="text-xs link-primary"
                     >
                       Use Now
                     </button>
@@ -198,7 +190,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                     id="workoutDate"
                     value={workoutDate}
                     onChange={(e) => setWorkoutDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 focus:outline-none focus:ring-2"
                     required
                   />
                 </div>
@@ -207,7 +199,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                 <button
                   onClick={handleStart}
                   disabled={startWorkout.isPending}
-                  className="w-full rounded-lg bg-purple-600 py-3 text-lg font-medium transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn-primary w-full py-3 text-lg font-medium disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {startWorkout.isPending ? "Starting..." : "Start Workout"}
                 </button>
@@ -220,7 +212,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       {/* No Selection State */}
       {!selectedTemplateId && (
         <div className="py-8 text-center">
-          <p className="text-gray-400">
+          <p className="text-secondary">
             Select a workout template above to continue
           </p>
         </div>

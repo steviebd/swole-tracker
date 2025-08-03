@@ -34,6 +34,7 @@
     "@trpc/server": "^11.0.0",
     "ai": "5.0.0-beta.29",
     "drizzle-orm": "^0.41.0",
+    "lucide-react": "^0.536.0",
     "next": "^15.2.3",
     "oauth4webapi": "^3.6.0",
     "postgres": "^3.4.4",
@@ -43,6 +44,7 @@
     "react-dom": "^19.0.0",
     "server-only": "^0.0.1",
     "superjson": "^2.2.1",
+    "workbox-core": "^7.3.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -55,12 +57,17 @@
     "eslint": "^9.23.0",
     "eslint-config-next": "^15.2.3",
     "eslint-plugin-drizzle": "^0.2.3",
+    "next-pwa": "^5.6.0",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^4.0.15",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.27.0"
+    "typescript-eslint": "^8.27.0",
+    "workbox-precaching": "^7.3.0",
+    "workbox-routing": "^7.3.0",
+    "workbox-strategies": "^7.3.0",
+    "workbox-window": "^7.3.0"
   },
   "ct3aMetadata": {
     "initVersion": "7.39.3"

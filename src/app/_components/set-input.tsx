@@ -53,7 +53,7 @@ export function SetInput({
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-gray-700 p-3">
+    <div className="flex items-center gap-3 rounded-lg bg-gray-700 p-3 select-none">
       {/* Set Number */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium">
         {setIndex + 1}
@@ -150,6 +150,29 @@ export function SetInput({
           />
         </div>
       </div>
+
+      {/* Right-edge drag handle (sets) */}
+      {!readOnly && (
+        <button
+          type="button"
+          aria-label="Drag set to reorder"
+          data-drag-handle="true"
+          className="ml-1 mr-1 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-100"
+          // The parent component that renders SetInput will bind the onPointerDown
+          // via event delegation on the card/list level using data-drag-handle
+          style={{ touchAction: 'none' }}
+          title="Drag to reorder"
+        >
+          <span className="inline-flex flex-col gap-0.5">
+            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+          </span>
+        </button>
+      )}
 
       {/* Delete Button */}
       {!readOnly && showDelete && (

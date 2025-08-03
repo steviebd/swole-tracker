@@ -19,6 +19,7 @@ import { analytics } from "~/lib/analytics";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
+import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 
 interface WorkoutSessionProps {
   sessionId: number;
@@ -70,6 +71,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const { data: preferences } = api.preferences.get.useQuery();
   const { mutate: updatePreferences } = api.preferences.update.useMutation();
   const utils = api.useUtils();
+
+  const { enqueue, flush, queueSize, isFlushing } = useOfflineSaveQueue();
 
   const saveWorkout = api.workouts.save.useMutation({
     onMutate: async (newWorkout) => {
@@ -227,52 +230,45 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const [dragState, dragHandlers] = useUniversalDragReorder(
     displayOrder,
     (newDisplayOrder) => {
-      // Reconstruct exercises array and swiped state from new display order
-      const newExercises = newDisplayOrder.map(item => item.exercise);
+      // Reconstruct exercises array from new display order
+      const newExercises = newDisplayOrder.map((item) => item.exercise);
       setExercises(newExercises);
-      
-      // New approach: Only keep exercises swiped if they're still in swiped positions
-      // Don't force section sizes - let them be dynamic based on user intent
-      const newSwipedIndexes: number[] = [];
-      
-      // Find where swiped exercises naturally cluster at the bottom
-      // An exercise should be swiped if:
-      // 1. It was swiped before AND hasn't been moved to the top area, OR
-      // 2. It's a normal exercise that was moved to the bottom area
-      
-      // Find the natural clustering point - where swiped exercises start to appear
-      let swipedClusterStart = newDisplayOrder.length;
-      for (let i = newDisplayOrder.length - 1; i >= 0; i--) {
-        const item = newDisplayOrder[i];
-        const wasSwipedBefore = swipedToBottomIndexes.includes(item!.originalIndex);
-        
-        if (wasSwipedBefore) {
-          swipedClusterStart = i;
-        } else {
-          // If we hit a non-swiped exercise, stop looking backwards
+
+      // Allow dragging swiped items back to active:
+      // Rule: If a previously swiped exercise is moved above the first previously-swiped item,
+      // it becomes active again (removed from swiped list). The bottom cluster remains swiped.
+      const prevSwipedOriginals = new Set(swipedToBottomIndexes);
+      const newSwipedOriginals: number[] = [];
+
+      // Find the first index in the new order that contains a previously swiped original index
+      let firstPrevSwipedDisplayIndex = -1;
+      for (let i = 0; i < newDisplayOrder.length; i++) {
+        if (prevSwipedOriginals.has(newDisplayOrder[i]!.originalIndex)) {
+          firstPrevSwipedDisplayIndex = i;
           break;
         }
       }
-      
-      // Only exercises from the cluster start to the end should be swiped
-      // This prevents arbitrary exercises from being forced into swiped state
-      for (let i = swipedClusterStart; i < newDisplayOrder.length; i++) {
-        const item = newDisplayOrder[i];
-        const wasSwipedBefore = swipedToBottomIndexes.includes(item!.originalIndex);
-        
-        // Keep it swiped only if it was swiped before and is still in the bottom cluster
-        if (wasSwipedBefore) {
-          newSwipedIndexes.push(i);
+
+      for (let i = 0; i < newDisplayOrder.length; i++) {
+        const { originalIndex } = newDisplayOrder[i]!;
+        const wasSwipedBefore = prevSwipedOriginals.has(originalIndex);
+        // Keep swiped only if:
+        // - it was swiped before, and
+        // - it is NOT moved above the first previously-swiped item (i >= firstPrevSwipedDisplayIndex)
+        if (wasSwipedBefore && firstPrevSwipedDisplayIndex !== -1 && i >= firstPrevSwipedDisplayIndex) {
+          newSwipedOriginals.push(originalIndex);
         }
       }
-      
-      setSwipedToBottomIndexes(newSwipedIndexes);
-      
+
+      setSwipedToBottomIndexes(newSwipedOriginals);
+
       // Update expanded exercises indices based on the new exercise order
-      const newExpandedIndexes = expandedExercises.map(oldIndex => {
-        const exerciseId = exercises[oldIndex]?.templateExerciseId;
-        return newExercises.findIndex(ex => ex.templateExerciseId === exerciseId);
-      }).filter(index => index !== -1);
+      const newExpandedIndexes = expandedExercises
+        .map((oldIndex) => {
+          const exerciseId = exercises[oldIndex]?.templateExerciseId;
+          return newExercises.findIndex((ex) => ex.templateExerciseId === exerciseId);
+        })
+        .filter((index) => index !== -1);
       setExpandedExercises(newExpandedIndexes);
     },
     (draggedDisplayIndex) => {
@@ -632,6 +628,30 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     });
   };
 
+  const buildSavePayload = () => {
+    // Prepare cleaned payload for API/queue
+    const cleanedExercises = exercises
+      .map(exercise => ({
+        ...exercise,
+        sets: exercise.sets
+          .filter(set => set.weight !== undefined || set.reps !== undefined || (set.sets && set.sets > 0))
+          .map(set => ({
+            ...set,
+            // Ensure id is present for offline queue typing
+            id: set.id ?? `offline-${Math.random().toString(36).slice(2)}`,
+            weight: set.weight === null ? undefined : set.weight,
+            reps: set.reps === null ? undefined : set.reps,
+            sets: set.sets === null ? 1 : set.sets,
+          }))
+      }))
+      .filter(exercise => exercise.sets.length > 0);
+
+    return {
+      sessionId,
+      exercises: cleanedExercises,
+    };
+  };
+
   const handleSave = async () => {
     // Validate that exercises have required data
     const validationErrors: string[] = [];
@@ -665,30 +685,28 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     }
 
     try {
-      // Clean the data before sending to API - convert null to undefined and filter out empty sets
-      const cleanedExercises = exercises
-        .map(exercise => ({
-          ...exercise,
-          sets: exercise.sets
-            .filter(set => set.weight !== undefined || set.reps !== undefined || (set.sets && set.sets > 0))
-            .map(set => ({
-              ...set,
-              weight: set.weight === null ? undefined : set.weight,
-              reps: set.reps === null ? undefined : set.reps,
-              sets: set.sets === null ? 1 : set.sets,
-            }))
-        }))
-        .filter(exercise => exercise.sets.length > 0);
+      const payload = buildSavePayload();
 
-      await saveWorkout.mutateAsync({
-        sessionId,
-        exercises: cleanedExercises,
-      });
-      
+      // If offline, enqueue and notify
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        enqueue(payload);
+        setNotification({
+          type: "success",
+          message:
+            "You’re offline. Workout queued and will sync automatically when back online. You can also tap 'Sync now' in the status bar.",
+        });
+        // No navigation here; let user remain on page
+        setTimeout(() => setNotification(null), 6000);
+        return;
+      }
+
+      // Try online save
+      await saveWorkout.mutateAsync(payload);
+
       // Show success notification briefly before navigation
       setNotification({
         type: "success",
-        message: "Workout saved successfully!"
+        message: "Workout saved successfully!",
       });
     } catch (error) {
       console.error("Error saving workout:", error);
@@ -696,28 +714,43 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         context: "workout_save",
         sessionId: sessionId.toString(),
       });
-      
-      // Check if it's a validation error
-      if (error && typeof error === 'object' && 'message' in error) {
-        const errorMessage = (error as Error).message;
-        if (errorMessage.includes('Expected number, received null') || errorMessage.includes('invalid_type')) {
-          setNotification({
-            type: "error",
-            message: "Please make sure all exercise fields are properly filled out. Empty fields should be left blank, not contain invalid values."
-          });
-        } else {
-          setNotification({
-            type: "error",
-            message: `Error saving workout: ${errorMessage}`
-          });
-        }
+
+      // If likely a network error, enqueue for offline
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String((error as Error).message)
+          : "";
+
+      if (
+        message.includes("Failed to fetch") ||
+        message.includes("NetworkError") ||
+        message.includes("TypeError")
+      ) {
+        const payload = buildSavePayload();
+        enqueue(payload);
+        setNotification({
+          type: "success",
+          message:
+            "Network issue detected. Workout queued and will sync automatically on reconnect.",
+        });
+        setTimeout(() => setNotification(null), 6000);
+        return;
+      }
+
+      // Otherwise surface validation/unknown error
+      if (message.includes("Expected number, received null") || message.includes("invalid_type")) {
+        setNotification({
+          type: "error",
+          message:
+            "Please make sure all exercise fields are properly filled out. Empty fields should be left blank, not contain invalid values.",
+        });
       } else {
         setNotification({
           type: "error",
-          message: "Error saving workout. Please try again."
+          message: `Error saving workout: ${message || "Unknown error"}`,
         });
       }
-      setTimeout(() => setNotification(null), 6000); // Auto-dismiss after 6 seconds
+      setTimeout(() => setNotification(null), 6000);
     }
   };
 
@@ -755,15 +788,21 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     <div className="space-y-4">
       {/* Notification */}
       {notification && (
-        <div className={`sticky top-4 z-50 rounded-lg p-4 shadow-lg ${
-          notification.type === "error" 
-            ? "bg-red-900 border border-red-700 text-red-100" 
-            : "bg-green-900 border border-green-700 text-green-100"
-        }`}>
+        <div
+          role="status"
+          aria-live={notification.type === "error" ? "assertive" : "polite"}
+          aria-atomic="true"
+          className={`sticky top-4 z-50 rounded-lg p-4 shadow-lg ${
+            notification.type === "error" 
+              ? "bg-red-900 border border-red-700 text-red-100" 
+              : "bg-green-900 border border-green-700 text-green-100"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div className="whitespace-pre-line">{notification.message}</div>
             <button
               onClick={() => setNotification(null)}
+              aria-label="Dismiss notification"
               className="ml-4 text-lg font-bold opacity-70 hover:opacity-100"
             >
               ×
@@ -774,7 +813,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
-        <div className="text-center text-sm text-gray-500 mb-2">
+        <div className="text-center text-sm text-muted mb-2">
           💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to reorder & move between sections • Works on mobile & desktop
         </div>
       )}
@@ -790,11 +829,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           <div key={exercise.templateExerciseId ?? originalIndex}>
             {/* Swiped Exercises Section Header */}
             {isFirstSwipedExercise && (
-              <div className="flex items-center gap-3 py-4">
-                <div className="flex-1 h-px bg-gray-600"></div>
-                <span className="text-sm text-gray-400 font-medium">Swiped Exercises</span>
-                <div className="flex-1 h-px bg-gray-600"></div>
-              </div>
+                <div className="flex items-center gap-3 py-4">
+                  <div className="flex-1 h-px bg-gray-600"></div>
+                  <span className="text-sm text-secondary font-medium">Swiped Exercises</span>
+                  <div className="flex-1 h-px bg-gray-600"></div>
+                </div>
             )}
             
             <ExerciseCard
@@ -826,27 +865,41 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {/* No Exercises State */}
       {exercises.length === 0 && (
         <div className="py-8 text-center">
-          <p className="text-gray-400">No exercises in this template</p>
+          <p className="text-secondary">No exercises in this template</p>
         </div>
       )}
 
       {/* Save Button - only show for new workouts */}
       {!isReadOnly && (
-        <div className="sticky bottom-4 space-y-3 pt-6">
+        <div className="sticky bottom-4 space-y-3 pt-6" role="region" aria-label="Workout actions">
           <button
             onClick={handleSave}
             disabled={saveWorkout.isPending}
-            className="w-full rounded-lg bg-purple-600 py-3 text-lg font-medium transition-colors hover:bg-purple-700 disabled:opacity-50"
+            className="btn-primary w-full py-3 text-lg font-semibold disabled:opacity-50"
+            aria-busy={saveWorkout.isPending ? "true" : "false"}
           >
             {saveWorkout.isPending ? "Saving..." : "Save Workout"}
           </button>
+          {queueSize > 0 && (
+            <div className="rounded-lg border border-yellow-700/70 bg-yellow-900/40 p-3 text-sm text-yellow-200 flex items-center justify-between">
+              <span>{isFlushing ? "Syncing queued workouts…" : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}</span>
+              <button
+                onClick={() => void flush()}
+                className="ml-3 rounded bg-yellow-700 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-600 transition"
+              >
+                Sync now
+              </button>
+            </div>
+          )}
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={deleteWorkout.isPending}
-            className="w-full rounded-lg bg-red-600 py-3 text-lg font-medium transition-colors hover:bg-red-700 disabled:opacity-50"
+            className="w-full py-3 text-lg font-semibold rounded-lg bg-red-600 transition-colors hover:bg-red-700 disabled:opacity-50"
+            aria-describedby="delete-workout-help"
           >
             {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
+          <span id="delete-workout-help" className="sr-only">Opens a confirmation dialog</span>
         </div>
       )}
 
@@ -855,7 +908,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         <div className="sticky bottom-4 space-y-3 pt-6">
           <Link
             href={`/workout/start?templateId=${session?.templateId}`}
-            className="block w-full rounded-lg bg-purple-600 py-3 text-center text-lg font-medium transition-colors hover:bg-purple-700"
+            className="btn-primary block w-full py-3 text-center text-lg font-medium"
           >
             Repeat This Workout
           </Link>
@@ -879,16 +932,20 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {showDeleteConfirm && (
         <div
           className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-black p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-workout-title"
+          aria-describedby="delete-workout-desc"
           onClick={() => setShowDeleteConfirm(false)}
         >
           <div
             className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="mb-4 text-xl font-bold text-red-400">
-              ⚠️ Delete Workout
+            <h3 id="delete-workout-title" className="mb-4 text-xl font-bold text-rose-400">
+              Delete Workout
             </h3>
-            <p className="mb-6 leading-relaxed text-gray-300">
+            <p id="delete-workout-desc" className="mb-6 leading-relaxed text-secondary">
               Are you sure you want to delete this workout?
               <br />
               <strong className="text-red-400">
@@ -898,7 +955,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 rounded-lg bg-gray-600 py-3 font-medium text-white transition-colors hover:bg-gray-700"
+                className="flex-1 rounded-lg bg-gray-700 py-3 font-medium text-white transition-colors hover:bg-gray-600"
               >
                 Cancel
               </button>

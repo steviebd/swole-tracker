@@ -1,0 +1,114 @@
+/**
+ * Minimal offline queue persisted to localStorage.
+ * Scope: workout save payloads. FIFO with bounded retries.
+ */
+export type SaveWorkoutPayload = {
+  sessionId: number;
+  exercises: Array<{
+    templateExerciseId?: number;
+    exerciseName: string;
+    sets: Array<{
+      id: string; // ensure id is present to satisfy API input types
+      weight?: number;
+      reps?: number;
+      sets?: number;
+      unit: "kg" | "lbs";
+    }>;
+    unit: "kg" | "lbs";
+  }>;
+};
+
+type QueueItem = {
+  id: string; // uuid-like
+  type: "workout_save";
+  payload: SaveWorkoutPayload;
+  attempts: number;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+const STORAGE_KEY = "offline.queue.v1";
+const MAX_ATTEMPTS = 8;
+
+function now() {
+  return Date.now();
+}
+
+function readQueue(): QueueItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as QueueItem[];
+  } catch {
+    return [];
+  }
+}
+
+function writeQueue(items: QueueItem[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function uuid() {
+  return `q_${Math.random().toString(36).slice(2)}_${now().toString(36)}`;
+}
+
+export function getQueue(): QueueItem[] {
+  return readQueue();
+}
+
+export function getQueueLength(): number {
+  return readQueue().length;
+}
+
+export function enqueueWorkoutSave(payload: SaveWorkoutPayload) {
+  const q = readQueue();
+  const item: QueueItem = {
+    id: uuid(),
+    type: "workout_save",
+    payload,
+    attempts: 0,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  q.push(item);
+  writeQueue(q);
+  return item.id;
+}
+
+export function dequeue(): QueueItem | undefined {
+  const q = readQueue();
+  const item = q.shift();
+  if (item) writeQueue(q);
+  return item;
+}
+
+export function updateItem(id: string, patch: Partial<QueueItem>) {
+  const q = readQueue();
+  const idx = q.findIndex((i) => i.id === id);
+  if (idx === -1) return;
+  q[idx] = { ...q[idx]!, ...patch, updatedAt: now() };
+  writeQueue(q);
+}
+
+export function requeueFront(item: QueueItem) {
+  const q = readQueue();
+  q.unshift(item);
+  writeQueue(q);
+}
+
+export function pruneExhausted() {
+  const q = readQueue().filter((i) => i.attempts < MAX_ATTEMPTS);
+  writeQueue(q);
+}
+
+/**
+ * Clear queue (for tests/debug).
+ */
+export function clearQueue() {
+  writeQueue([]);
+}

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { api, HydrateClient } from "~/trpc/server";
+import ClientHydrate from "~/trpc/HydrateClient";
+import { getQueryClient, getDehydratedState, prefetchTemplatesIndex } from "~/trpc/prefetch";
 import { TemplatesList } from "~/app/_components/templates-list";
 
 export default async function TemplatesPage() {
@@ -12,11 +14,13 @@ export default async function TemplatesPage() {
     redirect("/sign-in");
   }
 
-  // Prefetch templates
-  void api.templates.getAll.prefetch();
+  // SSR prefetch + hydrate using TanStack Query to avoid client refetch
+  const qc = getQueryClient();
+  await prefetchTemplatesIndex(qc);
+  const state = getDehydratedState(qc);
 
   return (
-    <HydrateClient>
+    <ClientHydrate state={state}>
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-6">
           {/* Header */}
@@ -38,7 +42,7 @@ export default async function TemplatesPage() {
                 href="/templates/new"
                 className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-purple-700"
               >
-                + New Template
+                New Template
               </Link>
             </div>
           </div>
@@ -47,6 +51,6 @@ export default async function TemplatesPage() {
           <TemplatesList />
         </div>
       </main>
-    </HydrateClient>
+    </ClientHydrate>
   );
 }

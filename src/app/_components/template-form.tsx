@@ -217,7 +217,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g., Push Day, Pull Day, Legs"
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:outline-none focus:ring-2"
+          style={{ outline: "none", boxShadow: "none" }}
           required
         />
       </div>
@@ -229,7 +230,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           <button
             type="button"
             onClick={addExercise}
-            className="rounded bg-gray-700 px-3 py-1 text-sm transition-colors hover:bg-gray-600"
+            className="btn-primary px-3 py-1 text-sm"
           >
             + Add Exercise
           </button>
@@ -243,7 +244,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   value={exercise}
                   onChange={(value) => updateExercise(index, value)}
                   placeholder={`Exercise ${index + 1}`}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:outline-none focus:ring-2"
                   onLinkSuggestion={handleLinkSuggestion}
                 />
               </div>
@@ -251,7 +252,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 <button
                   type="button"
                   onClick={() => removeExercise(index)}
-                  className="px-2 text-sm text-red-400 hover:text-red-300"
+                  className="px-2 text-sm text-rose-400 hover:text-rose-300"
                 >
                   Remove
                 </button>
@@ -264,7 +265,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           <button
             type="button"
             onClick={addExercise}
-            className="w-full rounded-lg border-2 border-dashed border-gray-700 py-8 text-gray-400 transition-colors hover:border-gray-600"
+            className="w-full rounded-lg border-2 border-dashed border-gray-700 py-8 text-secondary transition-colors hover:border-gray-600"
           >
             + Add your first exercise
           </button>
@@ -276,7 +277,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="rounded-lg bg-purple-600 px-6 py-2 font-medium transition-colors hover:bg-purple-700 disabled:opacity-50"
+          className="btn-primary px-6 py-2 font-medium disabled:opacity-50"
         >
           {isLoading
             ? "Saving..."
@@ -287,7 +288,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 text-gray-400 transition-colors hover:text-white"
+          className="px-4 py-2 text-muted hover:text-white transition-colors"
         >
           Cancel
         </button>

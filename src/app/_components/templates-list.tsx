@@ -55,7 +55,7 @@ export function TemplatesList() {
     return (
       <div className="space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg bg-gray-800 p-4">
+          <div key={i} className="animate-pulse card p-4">
             <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
             <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
@@ -69,12 +69,12 @@ export function TemplatesList() {
       <div className="py-12 text-center">
         <div className="mb-4 text-6xl">📋</div>
         <h3 className="mb-2 text-xl font-semibold">No templates yet</h3>
-        <p className="mb-6 text-gray-400">
+        <p className="mb-6 text-secondary">
           Create your first workout template to get started
         </p>
         <Link
           href="/templates/new"
-          className="rounded-lg bg-purple-600 px-6 py-3 font-medium transition-colors hover:bg-purple-700"
+          className="btn-primary inline-flex px-6 py-3 font-medium"
         >
           Create Template
         </Link>
@@ -85,13 +85,13 @@ export function TemplatesList() {
   return (
     <div className="space-y-4">
       {templates.map((template) => (
-        <div key={template.id} className="rounded-lg bg-gray-800 p-4">
+        <div key={template.id} className="card p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-semibold">{template.name}</h3>
             <div className="flex items-center gap-2">
               <Link
                 href={`/templates/${template.id}/edit`}
-                className="text-sm text-purple-400 hover:text-purple-300"
+                className="text-sm link-primary"
               >
                 Edit
               </Link>
@@ -104,7 +104,7 @@ export function TemplatesList() {
               </button>
             </div>
           </div>
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-secondary">
             {template.exercises.length === 0 ? (
               "No exercises"
             ) : (
@@ -118,7 +118,7 @@ export function TemplatesList() {
           <div className="mt-3">
             <Link
               href={`/workout/start?templateId=${template.id}`}
-              className="rounded bg-purple-600 px-3 py-1 text-sm transition-colors hover:bg-purple-700"
+              className="btn-primary inline-flex px-3 py-1 text-sm"
             >
               Start Workout
             </Link>
