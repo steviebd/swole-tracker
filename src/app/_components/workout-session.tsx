@@ -41,7 +41,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const [previousExerciseData, setPreviousExerciseData] = useState<Map<string, { best?: PreviousBest; sets?: SetData[] }>>(new Map());
   const [previousDataLoaded, setPreviousDataLoaded] = useState(false);
   const [notification, setNotification] = useState<{ type: "error" | "success"; message: string } | null>(null);
-  const [swipedToBottomIndexes, setSwipedToBottomIndexes] = useState<number[]>([]); // Track order of swiped exercises
+  // Instead of a separate "Swiped Exercises" section, we keep a single list.
+  // Swiping an exercise collapses it and moves it to the end of the list.
+  // Dragging can reorder freely; no separate section is rendered.
+  const [collapsedIndexes, setCollapsedIndexes] = useState<number[]>([]);
   const [progressionModal, setProgressionModal] = useState<{
     isOpen: boolean;
     exerciseIndex: number;
@@ -204,63 +207,40 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
   // Get the display order of exercises (normal exercises first, then swiped to bottom)
   const getDisplayOrder = () => {
-    const normalExercises: { exercise: ExerciseData; originalIndex: number }[] = [];
-    const swipedExercises: { exercise: ExerciseData; originalIndex: number }[] = [];
-
-    exercises.forEach((exercise, index) => {
-      if (swipedToBottomIndexes.includes(index)) {
-        swipedExercises.push({ exercise, originalIndex: index });
-      } else {
-        normalExercises.push({ exercise, originalIndex: index });
-      }
-    });
-
-    // Sort swiped exercises by the order they were swiped (last swiped goes to bottom)
-    swipedExercises.sort((a, b) => {
-      const aSwipeOrder = swipedToBottomIndexes.indexOf(a.originalIndex);
-      const bSwipeOrder = swipedToBottomIndexes.indexOf(b.originalIndex);
-      return aSwipeOrder - bSwipeOrder;
-    });
-
-    return [...normalExercises, ...swipedExercises];
+    // Single list: all exercises in current order.
+    // Collapsed items are visually collapsed but remain in the same array.
+    return exercises.map((exercise, index) => ({ exercise, originalIndex: index }));
   };
 
   // Universal drag and drop functionality - works on both mobile and desktop
   const displayOrder = getDisplayOrder();
+  // Track which original index is being dragged (explicit, avoids heuristics)
+  const [draggedOriginalIndex, setDraggedOriginalIndex] = useState<number | null>(null);
+
   const [dragState, dragHandlers] = useUniversalDragReorder(
     displayOrder,
     (newDisplayOrder) => {
-      // Reconstruct exercises array from new display order
+      // Rebuild the exercises array exactly in the new order
       const newExercises = newDisplayOrder.map((item) => item.exercise);
       setExercises(newExercises);
 
-      // Allow dragging swiped items back to active:
-      // Rule: If a previously swiped exercise is moved above the first previously-swiped item,
-      // it becomes active again (removed from swiped list). The bottom cluster remains swiped.
-      const prevSwipedOriginals = new Set(swipedToBottomIndexes);
-      const newSwipedOriginals: number[] = [];
+      // Keep collapsed state by exercise identity (templateExerciseId or name fallback)
+      // Map old indexes to identities, then rebuild collapsed indexes against new order.
+      const idFor = (ex: ExerciseData) => ex.templateExerciseId ?? `name:${ex.exerciseName}`;
+      const collapsedIdSet = new Set(
+        collapsedIndexes
+          .map((i) => exercises[i])
+          .filter(Boolean)
+          .map((ex) => idFor(ex as ExerciseData)),
+      );
 
-      // Find the first index in the new order that contains a previously swiped original index
-      let firstPrevSwipedDisplayIndex = -1;
-      for (let i = 0; i < newDisplayOrder.length; i++) {
-        if (prevSwipedOriginals.has(newDisplayOrder[i]!.originalIndex)) {
-          firstPrevSwipedDisplayIndex = i;
-          break;
+      const rebuiltCollapsedIndexes: number[] = [];
+      newExercises.forEach((ex, idx) => {
+        if (collapsedIdSet.has(idFor(ex))) {
+          rebuiltCollapsedIndexes.push(idx);
         }
-      }
-
-      for (let i = 0; i < newDisplayOrder.length; i++) {
-        const { originalIndex } = newDisplayOrder[i]!;
-        const wasSwipedBefore = prevSwipedOriginals.has(originalIndex);
-        // Keep swiped only if:
-        // - it was swiped before, and
-        // - it is NOT moved above the first previously-swiped item (i >= firstPrevSwipedDisplayIndex)
-        if (wasSwipedBefore && firstPrevSwipedDisplayIndex !== -1 && i >= firstPrevSwipedDisplayIndex) {
-          newSwipedOriginals.push(originalIndex);
-        }
-      }
-
-      setSwipedToBottomIndexes(newSwipedOriginals);
+      });
+      setCollapsedIndexes(rebuiltCollapsedIndexes);
 
       // Update expanded exercises indices based on the new exercise order
       const newExpandedIndexes = expandedExercises
@@ -270,12 +250,16 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         })
         .filter((index) => index !== -1);
       setExpandedExercises(newExpandedIndexes);
+
+      // Reset tracking for next drag
+      setDraggedOriginalIndex(null);
     },
     (draggedDisplayIndex) => {
-      // Collapse the dragged exercise when starting drag
+      // Collapse the dragged exercise when starting drag and record exact dragged original index
       const originalIndex = displayOrder[draggedDisplayIndex]?.originalIndex;
       if (originalIndex !== undefined) {
-        setExpandedExercises(prev => prev.filter(index => index !== originalIndex));
+        setExpandedExercises((prev) => prev.filter((index) => index !== originalIndex));
+        setDraggedOriginalIndex(originalIndex);
       }
     }
   );
@@ -501,15 +485,27 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const handleSwipeToBottom = (exerciseIndex: number) => {
-    setSwipedToBottomIndexes(prev => {
-      // Remove from previous position if already swiped
-      const filtered = prev.filter(index => index !== exerciseIndex);
-      // Add to the end (last swiped goes to bottom)
-      return [...filtered, exerciseIndex];
+    // Collapse and move the swiped exercise to the end of the list (single list, no section)
+    setExercises((prev) => {
+      if (exerciseIndex < 0 || exerciseIndex >= prev.length) return prev;
+      const next = [...prev];
+      const [item] = next.splice(exerciseIndex, 1);
+      next.push(item!);
+      return next;
     });
-    
-    // Collapse the swiped exercise
-    setExpandedExercises(prev => prev.filter(index => index !== exerciseIndex));
+
+    // Track collapsed state for the exercise (by its new index at end)
+    setCollapsedIndexes((prevCollapsed) => {
+      // Remove any previous collapsed index for this item (since indices shift)
+      const newCollapsed = prevCollapsed.filter((i) => i !== exerciseIndex);
+      // Collapsed item moved to the end => new index is exercises.length - 1 after state updates.
+      // We can't read new length here reliably; instead rebuild in the reorder callback as well.
+      // Optimistically add a placeholder "-1" we will normalize in the next render.
+      return [...newCollapsed, -1];
+    });
+
+    // Also collapse in expanded tracking
+    setExpandedExercises((prev) => prev.filter((idx) => idx !== exerciseIndex));
   };
 
   const handleProgressionChoice = (type: "weight" | "reps" | "none") => {
@@ -820,43 +816,35 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Exercise Cards */}
       {getDisplayOrder().map(({ exercise, originalIndex }, displayIndex) => {
-        const isSwiped = swipedToBottomIndexes.includes(originalIndex);
-        const prevExercise = getDisplayOrder()[displayIndex - 1];
-        const isFirstSwipedExercise = isSwiped && displayIndex > 0 && prevExercise && !swipedToBottomIndexes.includes(prevExercise.originalIndex);
+        // Collapsed state is derived from collapsedIndexes mapped to current order
+        const isCollapsed = collapsedIndexes.includes(displayIndex);
+        const isExpandedNow = !isCollapsed && expandedExercises.includes(originalIndex);
 
         
         return (
           <div key={exercise.templateExerciseId ?? originalIndex}>
             {/* Swiped Exercises Section Header */}
-            {isFirstSwipedExercise && (
-                <div className="flex items-center gap-3 py-4">
-                  <div className="flex-1 h-px bg-gray-600"></div>
-                  <span className="text-sm text-secondary font-medium">Swiped Exercises</span>
-                  <div className="flex-1 h-px bg-gray-600"></div>
-                </div>
-            )}
-            
             <ExerciseCard
-            exercise={exercise}
-            exerciseIndex={originalIndex}
-            onUpdate={updateSet}
-            onToggleUnit={toggleUnit}
-            onAddSet={addSet}
-            onDeleteSet={deleteSet}
-            isExpanded={!isSwiped && expandedExercises.includes(originalIndex)}
-            onToggleExpansion={toggleExpansion}
-            previousBest={previousExerciseData.get(exercise.exerciseName)?.best}
-            previousSets={previousExerciseData.get(exercise.exerciseName)?.sets}
-            readOnly={isReadOnly}
-            onSwipeToBottom={handleSwipeToBottom}
-            swipeSettings={swipeSettings}
-            isSwiped={isSwiped}
-            draggable={!isReadOnly}
-            isDraggedOver={dragState.dragOverIndex === displayIndex || dragState.dragOverIndex === displayIndex + 1}
-            isDragging={dragState.isDragging && dragState.draggedIndex === displayIndex}
-            dragOffset={dragState.dragOffset}
-            onPointerDown={dragHandlers.onPointerDown(displayIndex)}
-            setCardElement={(element) => dragHandlers.setCardElement?.(displayIndex, element)}
+              exercise={exercise}
+              exerciseIndex={originalIndex}
+              onUpdate={updateSet}
+              onToggleUnit={toggleUnit}
+              onAddSet={addSet}
+              onDeleteSet={deleteSet}
+              isExpanded={isExpandedNow}
+              onToggleExpansion={toggleExpansion}
+              previousBest={previousExerciseData.get(exercise.exerciseName)?.best}
+              previousSets={previousExerciseData.get(exercise.exerciseName)?.sets}
+              readOnly={isReadOnly}
+              onSwipeToBottom={handleSwipeToBottom}
+              swipeSettings={swipeSettings}
+              isSwiped={isCollapsed}
+              draggable={!isReadOnly}
+              isDraggedOver={dragState.dragOverIndex === displayIndex || dragState.dragOverIndex === displayIndex + 1}
+              isDragging={dragState.isDragging && dragState.draggedIndex === displayIndex}
+              dragOffset={dragState.dragOffset}
+              onPointerDown={dragHandlers.onPointerDown(displayIndex)}
+              setCardElement={(element) => dragHandlers.setCardElement?.(displayIndex, element)}
             />
           </div>
         );

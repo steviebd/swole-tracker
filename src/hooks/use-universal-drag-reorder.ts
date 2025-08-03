@@ -192,8 +192,7 @@ export function useUniversalDragReorder<T>(
       initialScrollY.current = window.scrollY;
       currentScrollY.current = window.scrollY;
 
-      // Prevent default to avoid text selection or scrolling
-      e.preventDefault();
+      // Do not call preventDefault here; rely on CSS touch-action to manage scrolling behavior.
     },
     [onStartDrag]
   );
@@ -272,7 +271,8 @@ export function useUniversalDragReorder<T>(
           }
         });
 
-        e.preventDefault(); // Only prevent default when actually dragging
+        // Do not call preventDefault here; React may attach touch listeners as passive.
+        // Use CSS (e.g., 'touch-none') on the draggable element while dragging to prevent scroll.
       }
     },
     [draggedIndex, dragStartPos, findDropTarget, onStartDrag, handleAutoScroll]
@@ -319,7 +319,7 @@ export function useUniversalDragReorder<T>(
       
       onEndDrag?.();
 
-      e.preventDefault();
+      // Do not call preventDefault on pointer/touch end.
     },
     [draggedIndex, dragOverIndex, items, onReorder, onEndDrag, stopAutoScroll]
   );
