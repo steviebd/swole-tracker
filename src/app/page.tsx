@@ -66,7 +66,7 @@ export default async function Home() {
             <p className="text-gray-300">Create and edit workout templates</p>
           </Link>
           <Link
-            href="/whoop-workouts"
+            href="/connect-whoop"
             className="rounded-lg bg-orange-600 p-6 text-center transition-colors hover:bg-orange-700"
           >
             <h3 className="mb-2 text-xl font-semibold">💓 Whoop Workouts</h3>
