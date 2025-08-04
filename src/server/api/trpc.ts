@@ -70,10 +70,38 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
     const code = shape.data?.code;
     const level = code === "INTERNAL_SERVER_ERROR" ? "error" : "warn";
     const userId = (ctx as any)?.user?.id ?? "anonymous";
+
+    // In tests, surface full stack to console to diagnose failing chains
+    const isTest = process.env.VITEST || process.env.NODE_ENV === 'test';
     if (level === "error") {
       logger.error("tRPC internal error", error, { path, userId, requestId, code });
+      if (isTest) {
+        // eslint-disable-next-line no-console
+        console.error("[tRPC errorFormatter]", {
+          path,
+          userId,
+          requestId,
+          code,
+          message: error?.message,
+          stack: (error as any)?.stack,
+          cause: (error as any)?.cause,
+          shape,
+        });
+      }
     } else {
       logger.warn("tRPC handled error", { path, userId, requestId, code, message: shape.message });
+      if (isTest) {
+        // eslint-disable-next-line no-console
+        console.warn("[tRPC warnFormatter]", {
+          path,
+          userId,
+          requestId,
+          code,
+          message: error?.message ?? shape.message,
+          stack: (error as any)?.stack,
+          shape,
+        });
+      }
     }
 
     return formatted;
