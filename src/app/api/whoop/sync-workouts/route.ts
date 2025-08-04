@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check rate limit
+    // Check rate limit (use shared env presets)
     const rateLimit = await checkRateLimit(
       user.id,
       "whoop_sync",

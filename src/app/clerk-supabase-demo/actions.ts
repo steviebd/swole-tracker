@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { createServerClient } from "~/lib/supabase";
 import { currentUser } from "@clerk/nextjs/server";
 
 export async function addWorkoutTemplate(name: string) {
@@ -10,7 +10,7 @@ export async function addWorkoutTemplate(name: string) {
     throw new Error("User not authenticated");
   }
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = await createServerClient();
 
   try {
     const { data, error } = await supabase

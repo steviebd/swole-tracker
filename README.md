@@ -1,239 +1,310 @@
-# Swole Tracker Setup Instructions
+# Swole Tracker
 
-A mobile-first workout tracking application built with the T3 Stack.
+Mobile‑first workout tracking built on the T3 stack: Next.js App Router, tRPC v11, Drizzle ORM, Clerk auth, Tailwind CSS v4, Supabase/Postgres, and WHOOP integration. Includes offline UX, rate limiting, webhook verification (HMAC), SSE, and analytics.
 
-## Prerequisites
+Repository: https://github.com/steviebd/swole-tracker
 
-- Node.js 18+ and pnpm
-- PostgreSQL database (recommended: Supabase)
+## Table of Contents
+- Overview
+- Tech Stack
+- Features
+- Architecture
+- Getting Started
+- Environment Variables
+- Database
+- Development Commands
+- Whoop Integration
+- Webhooks & Debugging
+- Analytics (PostHog)
+- Security Notes
+- Deployment
+- Troubleshooting
+- Roadmap
+- Acknowledgements
 
-## Environment Variables
+## Overview
+Swole Tracker helps you create templates, run workout sessions, and track progress over time. Authenticated areas include /workout, /workouts, and /templates. The app is optimized for mobile and supports offline-first usage with synchronization, save queue, and visual indicators.
 
-Create a `.env` file in the root directory with the following variables:
+Key flows:
+- Template → Start workout → Log sets/reps/weight → Save → History
+- Optional WHOOP integration for importing workouts
+- Preferences for unit system (kg/lbs)
 
-```env
-# Database (Supabase PostgreSQL)
-DATABASE_URL="postgresql://username:password@host:port/database"
-
-# Clerk Auth
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-public-key
-CLERK_SECRET_KEY=your-clerk-secret-key
-
-# Whoop Integration (Optional)
-WHOOP_CLIENT_ID=your-whoop-client-id
-WHOOP_CLIENT_SECRET=your-whoop-client-secret
-WHOOP_SYNC_RATE_LIMIT_PER_HOUR=10
-
-```
-
-## Setup Steps
-
-1. **Install dependencies:**
-   ```bash
-   pnpm install
-   ```
-
-2. **Set up your database:**
-   ```bash
-   pnpm db:push
-   ```
-
-3. **Start the development server:**
-   ```bash
-   pnpm dev
-   ```
-
-4. **Build for production:**
-   ```bash
-   pnpm build
-   ```
+## Tech Stack
+- Next.js 15 (App Router), React 19, TypeScript (strict)
+- tRPC v11 with TanStack Query and superjson
+- Drizzle ORM with PostgreSQL (Supabase recommended)
+- Clerk authentication and route protection via middleware
+- Tailwind CSS v4
+- Supabase JS
+- PostHog analytics (client + server helpers)
+- Vercel AI Gateway (optional) for AI jokes demo
+- Server-Sent Events (SSE) for workout updates
+- Custom rate limiting backed by DB
 
 ## Features
+- Authenticated routes: /workout, /workouts, /templates
+- Workout templates with exercises
+- Workout sessions with:
+  - Set logging and unit toggling
+  - Previous value suggestions
+  - Drag reorder and swipe to bottom
+  - Read-only views for saved sessions
+- History and progression helpers
+- Preferences (units: kg/lbs)
+- Offline-first UX:
+  - Connection and sync indicators
+  - React Query persistence/local storage
+  - Offline save queue with retries (src/lib/offline-queue.ts)
+- WHOOP integration:
+  - OAuth connect/disconnect
+  - Sync last 25 workouts
+  - Duplicate detection
+  - Rate-limited sync endpoint
+  - Webhook handling and debug page
+- Analytics via PostHog
+- Jokes demo via Vercel AI Gateway (configurable)
 
-- **User Authentication**: Clerk Auth
-- **Workout Templates**: Create and manage workout templates with custom exercises
-- **Workout Sessions**: Start workouts, log exercise data (weight, reps, sets)
-- **Progress Tracking**: Auto-populate previous exercise data for easy logging
-- **Workout History**: View all past workouts with detailed exercise data
-- **Read-Only Workout Views**: View completed workouts with the ability to repeat them
-- **Weight Units**: Toggle between kg and lbs with user preference storage
-- **Mobile-First Design**: Optimized for mobile devices with dark theme
-- **Type-Safe**: Full TypeScript implementation with tRPC
-- **Performance Optimized**: 
-  - Optimistic updates for instant UI feedback
-  - Aggressive caching with 5-minute stale time
-  - Background refetching on window focus/reconnect
-  - Exponential backoff retry logic
-- **Offline Support**:
-  - Offline-first approach with cached data
-  - Connection status indicator
-  - Sync indicator for background operations
-  - Automatic retry when connection restored
-- **Whoop Integration**: 
-  - OAuth 2.0 authentication with Whoop
-  - Sync workout data from Whoop devices
-  - Display workout cards with start time, sport, and score state
-  - Automatic duplicate detection and prevention
+## Architecture
+- App Router pages: src/app/
+  - Shared components: src/app/_components/
+  - Providers: src/providers/
+- API:
+  - tRPC routers: src/server/api/routers/
+  - Root: src/server/api/root.ts
+  - tRPC plumbing/middleware: src/server/api/trpc.ts
+- Database:
+  - Drizzle schema: src/server/db/schema.ts
+  - Supabase client helpers: src/server/db/supabase.ts; browser/server clients under src/lib/
+- Auth:
+  - Clerk middleware: src/middleware.ts (protects /workout(.*), /templates(.*), /workouts(.*))
+- Utilities:
+  - Rate limiting: src/lib/rate-limit.ts, src/lib/rate-limit-middleware.ts
+  - Webhook verification: src/lib/whoop-webhook.ts
+  - Logging: src/lib/logger.ts (replace console.* in source)
+  - SSE broadcast: src/lib/sse-broadcast.ts
+  - Offline storage/queue: src/lib/offline-storage.ts, src/lib/offline-queue.ts
+- TRPC client utilities:
+  - src/trpc/react.tsx, src/trpc/server.ts, src/trpc/HydrateClient.tsx, src/trpc/query-client.ts
 
-## Available Scripts
+## Getting Started
 
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm check` - Run linting and type checking
-- `pnpm format:write` - Format code with Prettier
-- `pnpm db:push` - Push database schema changes
-- `pnpm db:studio` - Open Drizzle Studio for database management
+Prerequisites:
+- Node.js 18+
+- pnpm (pinned in package.json)
+- PostgreSQL (Supabase recommended)
 
-## Database Schema
-
-The application uses the following main tables:
-- `workout_templates` - User-created workout templates
-- `template_exercises` - Exercises within templates
-- `workout_sessions` - Individual workout sessions
-- `session_exercises` - Exercise data logged during sessions
-- `user_preferences` - User settings (weight units, etc.)
-- `user_integrations` - OAuth tokens for external services (Whoop, etc.)
-- `external_workouts_whoop` - Synced workout data from Whoop devices
-
-## Whoop Integration Setup
-
-### Development Setup
-
-1. **Create Whoop Developer Account:**
-   - Go to [Whoop Developer Portal](https://developer.whoop.com/)
-   - Create an application
-   - Note your Client ID and Client Secret
-
-2. **Configure OAuth Redirect:**
-   - In your Whoop app settings, add redirect URI:
-   - Development: `http://localhost:3000/api/auth/whoop/callback`
-   - Production: `https://yourdomain.com/api/auth/whoop/callback`
-
-3. **Add Environment Variables:**
-   ```env
-   WHOOP_CLIENT_ID=your_whoop_client_id
-   WHOOP_CLIENT_SECRET=your_whoop_client_secret
-   ```
-
-### Production Setup
-
-1. **Update Whoop App Redirect URIs:**
-   - Add your production domain callback URL
-   - Example: `https://yourapp.vercel.app/api/auth/whoop/callback`
-
-2. **Set Production Environment Variables:**
-   - Add `WHOOP_CLIENT_ID` and `WHOOP_CLIENT_SECRET` to Vercel
-
-### Usage
-
-1. Users click "Connect Whoop" in the app
-2. OAuth flow redirects to Whoop for authentication
-3. User grants access to `read:workout` and `offline` scopes
-4. Tokens are stored securely in the database
-5. Users can sync workouts manually or automatically
-6. Duplicate workouts are automatically detected and skipped
-
-### Rate Limiting
-
-- **WHOOP_SYNC_RATE_LIMIT_PER_HOUR**: Controls how many times a user can sync per hour (default: 10)
-- Rate limiting is enforced per user per hour
-- Users see remaining sync count and reset time in the UI
-- Proper HTTP headers are returned (429 status, Retry-After, etc.)
-- WHOOP Apis only allow the last 25 workouts to be synced
-
-### TODO - Future Enhancements
-
-- [x] Add rate limiting for sync API calls
-- [ ] Implement automatic periodic sync
-- [ ] Add webhook support for real-time updates
-- [ ] Support for other fitness integrations (Strava, Garmin)
-
-## Production Deployment
-
-### Prerequisites
-
-- Vercel account
-- Supabase account
-- Clerk account
-
-### Step 1: Setup Supabase Database
-
-1. Create a new project in [Supabase](https://supabase.com)
-2. Go to Settings → Database and copy your connection string
-3. Update the connection string format:
-   ```
-   postgresql://postgres.reference:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
-   ```
-
-### Step 2: Setup Clerk Authentication
-
-1. Create a new application in [Clerk](https://clerk.com)
-2. Go to Developers → API Keys and copy:
-   - Publishable key
-   - Secret key
-3. Configure allowed redirect URLs for your Vercel domain
-
-### Step 3: Deploy to Vercel
-
-1. **Connect Repository:**
-   ```bash
-   # Install Vercel CLI
-   npm i -g vercel
-   
-   # Deploy
-   vercel
-   ```
-
-2. **Environment Variables:**
-   Add these in Vercel Dashboard → Settings → Environment Variables:
-   ```env
-   # Database
-   DATABASE_URL=your-supabase-connection-string
-   
-   # Clerk Auth
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
-   CLERK_SECRET_KEY=sk_test_xxxxx
-   ```
-
-3. **Build Settings:**
-   - Framework Preset: Next.js
-   - Build Command: `pnpm build`
-   - Output Directory: `.next`
-   - Install Command: `pnpm install`
-
-### Step 4: Initialize Database Schema
-
-After deployment, push your schema to Supabase:
-
+1) Install dependencies
 ```bash
-# Set production DATABASE_URL locally
-export DATABASE_URL="your-supabase-connection-string"
+pnpm install
+```
 
-# Push schema to production
+2) Configure environment
+Copy .env.example to .env and fill values (see next section). See src/env.js for canonical schema validation.
+
+3) Initialize database (dev)
+```bash
 pnpm db:push
 ```
 
-### Step 5: Verify Deployment
+4) Start dev server
+```bash
+pnpm dev
+```
 
-1. Visit your Vercel domain
-2. Test user registration/login
-3. Create a workout template to verify database connectivity
-4. Check Vercel Function logs for any errors
+5) Lint/typecheck and format before commit
+```bash
+pnpm check
+pnpm format:write
+```
 
-### Production Checklist
+## Environment Variables
+Create .env with the following (see src/env.js for the canonical schema):
 
-- [ ] Supabase project created and configured
-- [ ] Clerk application created with correct redirect URLs
-- [ ] Environment variables set in Vercel
-- [ ] Database schema pushed to production
-- [ ] SSL certificate configured (automatic with Vercel)
-- [ ] Custom domain configured (optional)
+Database
+- DATABASE_URL=postgres connection string
 
-### Monitoring & Maintenance
+Clerk
+- NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+- CLERK_SECRET_KEY=sk_...
 
-- Monitor performance in Vercel Analytics
-- Check Supabase logs for database issues
-- Monitor Clerk dashboard for authentication metrics
-- Set up Vercel monitoring alerts for downtime
-## DEBUG
-Debug webhooks with a dedicated website at /debug/webhooks
+Supabase
+- NEXT_PUBLIC_SUPABASE_URL=https://...
+- NEXT_PUBLIC_SUPABASE_KEY=public-anon-key
+- NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=... (optional, local dev only)
+
+PostHog
+- NEXT_PUBLIC_POSTHOG_KEY=phc_...
+- NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com (or your instance)
+
+AI Gateway (optional, jokes demo)
+- VERCEL_AI_GATEWAY_API_KEY=...
+- AI_GATEWAY_MODEL=xai/grok-3-mini (default)
+- AI_GATEWAY_PROMPT="Tell me a short, funny programming or tech joke..."
+- AI_GATEWAY_JOKE_MEMORY_NUMBER=3
+
+WHOOP
+- WHOOP_CLIENT_ID=...
+- WHOOP_CLIENT_SECRET=...
+- WHOOP_SYNC_RATE_LIMIT_PER_HOUR=10
+
+Webhooks
+- WHOOP_WEBHOOK_SECRET=<whoop app secret> (used for signature verification)
+
+Rate Limiting
+- RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR=100
+- RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR=200
+- RATE_LIMIT_API_CALLS_PER_MINUTE=60
+- RATE_LIMIT_ENABLED=true
+
+Optional
+- NODE_ENV=development|test|production
+
+Refer to .env.example and src/env.js for the latest list and defaults.
+
+## Database
+- ORM: Drizzle
+- Primary schema: src/server/db/schema.ts
+- Local workflow:
+  - Edit schema.ts
+  - Push schema (dev): pnpm db:push
+  - Inspect: pnpm db:studio
+- Bootstrap SQL (optional): drizzle/setup_database.sql
+
+Tables include (not exhaustive; see schema.ts):
+- User integrations (OAuth tokens)
+- WHOOP workouts (externalWorkoutsWhoop)
+- Rate limit records
+- Webhook events
+- Templates, exercises, sessions, preferences, jokes
+
+Row-level security
+- Enforced by filtering queries with user_id = ctx.user.id (Clerk).
+- Always include where clauses in updates/deletes (lint rule enforced).
+
+## Development Commands
+Common:
+- pnpm dev — Next dev (Turbopack)
+- pnpm build — Next build
+- pnpm preview — Build and start locally
+- pnpm start — Start built app
+- pnpm check — Lint + typecheck
+- pnpm lint, pnpm lint:fix
+- pnpm typecheck
+- pnpm format:write, pnpm format:check
+
+Database:
+- pnpm db:generate — Drizzle Kit generate
+- pnpm db:migrate — Drizzle Kit migrate
+- pnpm db:push — Push schema (dev)
+- pnpm db:studio — Drizzle Studio UI
+
+## WHOOP Integration
+Development setup
+1) Create a WHOOP developer app: https://developer.whoop.com/
+2) Add redirect URIs:
+   - http://localhost:3000/api/auth/whoop/callback (dev)
+   - https://yourdomain.com/api/auth/whoop/callback (prod)
+3) Set WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET in .env
+4) In the app, go to /connect-whoop to start OAuth
+5) After connecting, use the "Sync Workouts" UI (latest 25 workouts)
+
+Rate limiting
+- WHOOP_SYNC_RATE_LIMIT_PER_HOUR controls per-user sync quota (default 10)
+- Backed by database (src/lib/rate-limit.ts and src/lib/rate-limit-middleware.ts)
+- 429 responses and retry hints are returned as appropriate
+
+## Webhooks & Debugging
+Webhook verification
+- HMAC-SHA256 signature verification with timestamp window
+- src/lib/whoop-webhook.ts (uses WHOOP_WEBHOOK_SECRET)
+
+Endpoints
+- Receiver: /api/webhooks/whoop
+- Test: /api/webhooks/whoop/test
+
+Local testing
+- See WEBHOOK_TESTING.md
+- Quickstart:
+  - Set WHOOP_WEBHOOK_SECRET in .env
+  - Use the test route or ./test-webhook.sh
+  - For external delivery: expose localhost via ngrok and configure WHOOP app webhook URL (v2 model)
+
+UI
+- Debug page at /debug/webhooks
+
+## Analytics (PostHog)
+- Client SDK provider: src/providers/PostHogProvider.tsx
+- Server helpers: src/lib/posthog.ts
+- Configure NEXT_PUBLIC_POSTHOG_KEY and NEXT_PUBLIC_POSTHOG_HOST
+
+## Security Notes
+- Auth via Clerk; middleware protects sensitive routes (src/middleware.ts)
+- tRPC:
+  - publicProcedure with timing middleware
+  - protectedProcedure requires Clerk session
+- Input validation via Zod throughout routers
+- Drizzle ORM with enforced where clauses (lint)
+- Webhook signatures verified and timestamp-checked
+- Environment variables validated via @t3-oss/env-nextjs
+- Rate limiting backed by database
+
+## Deployment
+Vercel (recommended)
+- Connect repository
+- Set environment variables
+- Build: pnpm build
+- Output: .next
+- Install: pnpm install
+
+Database
+```bash
+# after deploy
+export DATABASE_URL="your-prod-connection-string"
+pnpm db:push
+```
+
+Domains
+- Configure Clerk redirect URLs
+- Optionally add a custom domain on Vercel
+
+## Troubleshooting
+Auth (Clerk)
+- Verify keys and allowed redirect URLs
+- Ensure middleware matcher protects expected routes
+
+Database
+- Confirm DATABASE_URL and SSL settings (Supabase pooler)
+- pnpm db:studio to inspect data
+
+tRPC / Zod
+- Ensure inputs match Zod schemas
+- Check superjson serialization
+
+Rate limiting
+- Verify RATE_LIMIT_* and WHOOP_SYNC_RATE_LIMIT_PER_HOUR
+- Inspect DB records for per-user/endpoint usage
+
+Offline / Network
+- Dev logs indicate online/offline and queue size
+- AbortSignal timeouts help detect offline
+
+Webhooks
+- Check verification logs
+- Confirm WHOOP_WEBHOOK_SECRET and ngrok URL config
+- Use /api/webhooks/whoop/test and /debug/webhooks
+
+## Roadmap
+- Extend rate limiting coverage to more mutation endpoints
+- Add automated tests (unit/integration)
+- Enhance security monitoring and request size limits
+- Support additional integrations (Strava, Garmin)
+- Periodic background sync for integrations
+
+## Acknowledgements
+- T3 Stack inspiration
+- WHOOP Developer Platform
+- Supabase, Drizzle ORM, Clerk, PostHog
+
+## License
+MIT — see LICENSE

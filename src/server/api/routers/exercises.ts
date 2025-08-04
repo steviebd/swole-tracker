@@ -2,6 +2,7 @@ import { z } from "zod";
 import { eq, and, sql, desc, ilike, inArray } from "drizzle-orm";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
 import { 
   masterExercises, 
   exerciseLinks, 
@@ -55,22 +56,98 @@ function levenshteinDistance(str1: string, str2: string): number {
 }
 
 export const exercisesRouter = createTRPCRouter({
-  // Find similar exercises for linking suggestions
+  // Deterministic, indexed search for master exercises (prefix/substring)
+  searchMaster: protectedProcedure
+    .use(apiCallRateLimit)
+    .input(
+      z.object({
+        q: z.string().trim(),
+        limit: z.number().int().min(1).max(50).default(20),
+        cursor: z.number().int().min(0).default(0), // offset based paging for simplicity
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const q = normalizeExerciseName(input.q);
+      if (q.length === 0) {
+        return { items: [], nextCursor: null as number | null };
+      }
+
+      // Prefer prefix match first, then fallback to contains. Combine via UNION ALL with ordering.
+      // Use normalizedName which should be indexed. If large dataset, consider trigram index separately.
+      const prefix = `${q}%`;
+      const contains = `%${q}%`;
+
+      // First do prefix matches
+      const prefixMatches = await ctx.db
+        .select({
+          id: masterExercises.id,
+          name: masterExercises.name,
+          normalizedName: masterExercises.normalizedName,
+          createdAt: masterExercises.createdAt,
+        })
+        .from(masterExercises)
+        .where(
+          and(
+            eq(masterExercises.user_id, ctx.user.id),
+            ilike(masterExercises.normalizedName, prefix),
+          ),
+        )
+        .orderBy(masterExercises.normalizedName)
+        .limit(input.limit)
+        .offset(input.cursor);
+
+      // If we filled the page with prefix matches, return them; otherwise, fill remainder with contains matches excluding duplicates.
+      let items = prefixMatches;
+      if (items.length < input.limit) {
+        const remaining = input.limit - items.length;
+
+        const containsMatches = await ctx.db
+          .select({
+            id: masterExercises.id,
+            name: masterExercises.name,
+            normalizedName: masterExercises.normalizedName,
+            createdAt: masterExercises.createdAt,
+          })
+          .from(masterExercises)
+          .where(
+            and(
+              eq(masterExercises.user_id, ctx.user.id),
+              ilike(masterExercises.normalizedName, contains),
+            ),
+          )
+          .orderBy(masterExercises.normalizedName)
+          .limit(remaining)
+          .offset(input.cursor);
+
+        // Deduplicate by id while preserving prefix priority
+        const seen = new Set(items.map(i => i.id));
+        for (const row of containsMatches) {
+          if (!seen.has(row.id)) {
+            items.push(row);
+            seen.add(row.id);
+          }
+        }
+      }
+
+      const nextCursor = items.length === input.limit ? input.cursor + input.limit : null;
+      return { items, nextCursor };
+    }),
+
+  // Find similar exercises for linking suggestions (legacy; retained for admin tools)
   findSimilar: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       exerciseName: z.string(),
       threshold: z.number().min(0).max(1).default(0.6),
     }))
     .query(async ({ ctx, input }) => {
       const normalizedInput = normalizeExerciseName(input.exerciseName);
-      
-      // Get all master exercises for the user
+
       const allExercises = await ctx.db
         .select()
         .from(masterExercises)
         .where(eq(masterExercises.user_id, ctx.user.id));
-      
-      // Calculate similarity scores and filter
+
       const similarExercises = allExercises
         .map((exercise) => ({
           ...exercise,
@@ -78,12 +155,13 @@ export const exercisesRouter = createTRPCRouter({
         }))
         .filter((exercise) => exercise.similarity >= input.threshold)
         .sort((a, b) => b.similarity - a.similarity);
-      
+
       return similarExercises;
     }),
 
   // Get all master exercises for management
   getAllMaster: protectedProcedure
+    .use(apiCallRateLimit)
     .query(async ({ ctx }) => {
       const exercises = await ctx.db
         .select({
@@ -104,6 +182,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Create or get master exercise
   createOrGetMaster: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       name: z.string().min(1),
     }))
@@ -141,6 +220,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Link template exercise to master exercise
   linkToMaster: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       templateExerciseId: z.number(),
       masterExerciseId: z.number(),
@@ -199,6 +279,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Unlink template exercise from master exercise
   unlink: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       templateExerciseId: z.number(),
     }))
@@ -217,6 +298,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Get latest performance data for a master exercise
   getLatestPerformance: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       masterExerciseId: z.number(),
     }))
@@ -269,6 +351,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Get exercise links for a template
   getLinksForTemplate: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       templateId: z.number(),
     }))
@@ -297,6 +380,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Check if a template exercise has linking rejected
   isLinkingRejected: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       templateExerciseId: z.number(),
     }))
@@ -317,6 +401,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Mark template exercise as linking rejected (user chose not to link)
   rejectLinking: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       templateExerciseId: z.number(),
     }))
@@ -348,6 +433,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Get detailed linking information for a master exercise
   getLinkingDetails: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       masterExerciseId: z.number(),
     }))
@@ -424,6 +510,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Bulk link similar exercises
   bulkLinkSimilar: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       masterExerciseId: z.number(),
       minimumSimilarity: z.number().min(0).max(1).default(0.7),
@@ -481,6 +568,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Bulk unlink all exercises from master exercise
   bulkUnlinkAll: protectedProcedure
+    .use(apiCallRateLimit)
     .input(z.object({
       masterExerciseId: z.number(),
     }))
@@ -500,6 +588,7 @@ export const exercisesRouter = createTRPCRouter({
 
   // Migrate existing template exercises to master exercises (one-time setup)
   migrateExistingExercises: protectedProcedure
+    .use(apiCallRateLimit)
     .mutation(async ({ ctx }) => {
       // Get all template exercises for the user that don't have links
       const unlinkedExercises = await ctx.db

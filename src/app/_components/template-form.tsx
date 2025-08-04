@@ -14,16 +14,6 @@ interface TemplateFormProps {
   };
 }
 
-interface SimilarExercise {
-  id: number;
-  name: string;
-  similarity: number;
-}
-
-interface LinkSuggestion {
-  exerciseName: string;
-  suggestions: SimilarExercise[];
-}
 
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
@@ -31,7 +21,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const [exercises, setExercises] = useState<string[]>(
     template?.exercises.map((ex) => ex.exerciseName) ?? [""],
   );
-  const [_linkSuggestions, setLinkSuggestions] = useState<LinkSuggestion[]>([]);
 
   const utils = api.useUtils();
 
@@ -159,15 +148,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
     setExercises(newExercises);
   };
 
-  const handleLinkSuggestion = (exerciseName: string, suggestions: SimilarExercise[]) => {
-    setLinkSuggestions(prev => {
-      const filtered = prev.filter(ls => ls.exerciseName !== exerciseName);
-      if (suggestions.length > 0) {
-        return [...filtered, { exerciseName, suggestions }];
-      }
-      return filtered;
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,7 +225,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   onChange={(value) => updateExercise(index, value)}
                   placeholder={`Exercise ${index + 1}`}
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:outline-none focus:ring-2"
-                  onLinkSuggestion={handleLinkSuggestion}
                 />
               </div>
               {exercises.length > 1 && (

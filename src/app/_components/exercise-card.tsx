@@ -2,6 +2,8 @@
 
 import { SetInput, type SetData } from "./set-input";
 import { useSwipeGestures, type SwipeSettings } from "~/hooks/use-swipe-gestures";
+import { ExerciseHeader } from "./workout/ExerciseHeader";
+import { SetList } from "./workout/SetList";
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -137,11 +139,32 @@ export function ExerciseCard({
   // Only start swipe gestures from the card surface; drag is initiated from the right-edge handle
   const handleCardPointerDown = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
+
+    // 1) Never start swipe from the explicit drag handle
     if (target.closest('[data-drag-handle="true"]')) {
-      // If the user pressed the drag handle, don't start swipe here
       return;
     }
-    if ('touches' in e) {
+
+    // 2) Do NOT start swipe when interacting with inputs or interactive controls
+    const interactiveSelectors = [
+      "input",
+      "textarea",
+      "select",
+      "button",
+      "label",
+      "[contenteditable='true']",
+      "[role='textbox']",
+      "[role='spinbutton']",
+      "[role='button']",
+    ].join(",");
+
+    if (target.closest(interactiveSelectors)) {
+      // Let the control handle the event (typing, focusing, etc.)
+      return;
+    }
+
+    // 3) Otherwise, begin swipe handling
+    if ("touches" in e) {
       swipeHandlers.onTouchStart(e);
     } else {
       swipeHandlers.onMouseDown(e as React.MouseEvent);
@@ -168,54 +191,43 @@ export function ExerciseCard({
       onTouchMove={handleCardTouchMove}
       onTouchEnd={handleCardTouchEnd}
     >
-      {/* Exercise Header */}
-      <div
-        onClick={() => onToggleExpansion(exerciseIndex)}
-        className="w-full p-4 text-left hover:bg-gray-750 transition-colors cursor-pointer"
-      >
+      {/* Exercise Header (presentational) */}
+      <div className="w-full p-4 text-left hover:bg-gray-750 transition-colors cursor-pointer" onClick={() => onToggleExpansion(exerciseIndex)}>
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-lg">{exercise.exerciseName}</h3>
-            <div className="text-sm text-gray-400 mt-1">
-              {hasCurrentData && currentBest ? (
-                <span className="text-green-400">Current: {formatBest(currentBest)}</span>
-              ) : previousBest ? (
-                <span>Last: {formatBest(previousBest)}</span>
-              ) : (
-                "No previous data"
-              )}
-            </div>
+          <div className="flex-1">
+            <ExerciseHeader
+              name={exercise.exerciseName}
+              isExpanded={isExpanded}
+              isSwiped={isSwiped}
+              readOnly={readOnly ?? false}
+              previousBest={hasCurrentData && currentBest ? currentBest : previousBest}
+              onToggleExpansion={onToggleExpansion}
+              onSwipeToBottom={onSwipeToBottom}
+              exerciseIndex={exerciseIndex}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            {draggable && !readOnly && (
-              <button
-                type="button"
-                aria-label="Drag to reorder"
-                data-drag-handle="true"
-                className="group mr-2 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-200"
-                onPointerDown={(e) => onPointerDown?.(e as any, { force: true })}
-                onMouseDown={(e) => onPointerDown?.(e as any, { force: true })}
-                onTouchStart={(e) => onPointerDown?.(e as any, { force: true })}
-                style={{ touchAction: 'none' }}
-                title="Drag to reorder"
-              >
-                <span className="inline-flex flex-col gap-0.5">
-                  <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                  <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                  <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                  <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                  <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                  <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                </span>
-              </button>
-            )}
-            {hasCurrentData && (
-              <div className="h-2 w-2 rounded-full bg-green-400"></div>
-            )}
-            <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-              ▼
-            </div>
-          </div>
+          {draggable && !readOnly && (
+            <button
+              type="button"
+              aria-label="Drag to reorder"
+              data-drag-handle="true"
+              className="group ml-2 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-200"
+              onPointerDown={(e) => onPointerDown?.(e as any, { force: true })}
+              onMouseDown={(e) => onPointerDown?.(e as any, { force: true })}
+              onTouchStart={(e) => onPointerDown?.(e as any, { force: true })}
+              style={{ touchAction: 'none' }}
+              title="Drag to reorder"
+            >
+              <span className="inline-flex flex-col gap-0.5">
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -270,34 +282,18 @@ export function ExerciseCard({
             </div>
           )}
 
-          {/* Current Sets */}
-          <div className="space-y-2">
-            {exercise.sets.map((set, setIndex) => (
-              <SetInput
-                key={set.id}
-                set={set}
-                setIndex={setIndex}
-                exerciseIndex={exerciseIndex}
-                exerciseName={exercise.exerciseName}
-                templateExerciseId={exercise.templateExerciseId}
-                onUpdate={onUpdate}
-                onToggleUnit={onToggleUnit}
-                onDelete={onDeleteSet}
-                readOnly={readOnly}
-                showDelete={exercise.sets.length > 1}
-              />
-            ))}
-          </div>
-
-          {/* Add Set Button */}
-          {!readOnly && (
-            <button
-              onClick={() => onAddSet(exerciseIndex)}
-              className="w-full rounded-lg border-2 border-dashed border-gray-600 py-3 text-gray-400 hover:border-purple-500 hover:text-purple-400 transition-colors"
-            >
-              + Add Set
-            </button>
-          )}
+          {/* Current Sets (presentational) */}
+          <SetList
+            exerciseIndex={exerciseIndex}
+            exerciseName={exercise.exerciseName}
+            templateExerciseId={exercise.templateExerciseId}
+            sets={exercise.sets}
+            readOnly={readOnly ?? false}
+            onUpdate={onUpdate}
+            onToggleUnit={onToggleUnit}
+            onAddSet={onAddSet}
+            onDeleteSet={onDeleteSet}
+          />
         </div>
       )}
     </div>

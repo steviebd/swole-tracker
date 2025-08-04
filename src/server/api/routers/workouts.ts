@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { workoutRateLimit } from "~/lib/rate-limit-middleware";
 import {
   workoutSessions,
   sessionExercises,
@@ -330,6 +331,7 @@ export const workoutsRouter = createTRPCRouter({
 
   // Start a new workout session
   start: protectedProcedure
+    .use(workoutRateLimit)
     .input(
       z.object({
         templateId: z.number(),
@@ -373,6 +375,7 @@ export const workoutsRouter = createTRPCRouter({
 
   // Save workout session with exercises
   save: protectedProcedure
+    .use(workoutRateLimit)
     .input(
       z.object({
         sessionId: z.number(),
@@ -424,6 +427,7 @@ export const workoutsRouter = createTRPCRouter({
 
   // Delete a workout session
   delete: protectedProcedure
+    .use(workoutRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership

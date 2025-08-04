@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { templateRateLimit } from "~/lib/rate-limit-middleware";
 import { workoutTemplates, templateExercises, masterExercises, exerciseLinks } from "~/server/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -108,6 +109,7 @@ export const templatesRouter = createTRPCRouter({
 
   // Create a new template
   create: protectedProcedure
+    .use(templateRateLimit)
     .input(
       z.object({
         name: z.string().min(1).max(256),
@@ -156,6 +158,7 @@ export const templatesRouter = createTRPCRouter({
 
   // Update a template
   update: protectedProcedure
+    .use(templateRateLimit)
     .input(
       z.object({
         id: z.number(),
@@ -213,6 +216,7 @@ export const templatesRouter = createTRPCRouter({
 
   // Delete a template
   delete: protectedProcedure
+    .use(templateRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership

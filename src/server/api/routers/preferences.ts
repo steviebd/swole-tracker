@@ -1,7 +1,7 @@
-import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { userPreferences } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import { unitPreferenceSchema } from "~/server/api/schemas/common";
 
 export const preferencesRouter = createTRPCRouter({
   // Get user preferences
@@ -16,9 +16,10 @@ export const preferencesRouter = createTRPCRouter({
   // Update user preferences
   update: protectedProcedure
     .input(
-      z.object({
-        defaultWeightUnit: z.enum(["kg", "lbs"]),
-      }),
+      // Centralized schema usage
+      // Map external field to internal enum for consistency
+      // Keeping API shape as { defaultWeightUnit: "kg" | "lbs" }
+      unitPreferenceSchema.transform((unit) => ({ defaultWeightUnit: unit }))
     )
     .mutation(async ({ input, ctx }) => {
       // Try to update existing preferences
