@@ -38,6 +38,17 @@ process.env.AI_GATEWAY_PROMPT ||= 'Tell a short fitness-themed joke.';
 
 import { type AppRouter, createCaller } from '~/server/api/root';
 
+// IMPORTANT: Provide a stub for the DB module before it is imported by trpc.ts/router files.
+// We mock the module id that trpc.ts imports: "~/server/db" resolves to "src/server/db/index.ts".
+vi.mock('~/server/db', () => {
+  // We return a getter that points to our mutable mockState.db.
+  return {
+    get db() {
+      return (mockState as any).db;
+    },
+  };
+});
+
 // Force mock for env module to avoid @t3-oss/env-core throwing when accessed in routers during jsdom tests.
 // This is targeted for the jokes router generateNew path which reads env.AI_* vars.
 vi.mock('~/env.js', async () => {
@@ -62,6 +73,15 @@ vi.mock('~/env.js', async () => {
       DATABASE_URL: process.env.DATABASE_URL!,
       NODE_ENV: process.env.NODE_ENV ?? 'test',
     },
+  };
+});
+// Ensure rate limiting middleware is a no-op in tests to avoid undefined ctx.headers/requestId issues
+// and to focus integration tests on router logic rather than infra.
+vi.mock('~/lib/rate-limit-middleware', async () => {
+  const { initTRPC } = await import('@trpc/server');
+  const t = initTRPC.create();
+  return {
+    apiCallRateLimit: t.middleware(async ({ next }) => next()),
   };
 });
 import { type inferRouterInputs, type inferRouterOutputs } from '@trpc/server';
@@ -134,6 +154,15 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
         findFirst: vi.fn(async (_args: any) => null),
         findMany: vi.fn(async (_args: any) => []),
       },
+      // Minimal masterExercises query API used by exercises router for bulkLinkSimilar
+      masterExercises: {
+        findFirst: vi.fn(async (_args: any) => ({
+          id: 200,
+          user_id: mockState.user?.id ?? 'user_test_123',
+          name: 'Bench Press',
+          normalizedName: 'bench press',
+        })),
+      },
     },
 
     // Minimal builders for insert/update/delete/select used in routers
@@ -205,6 +234,8 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
                 return ret;
               }),
               onConflictDoNothing: vi.fn(() => ret),
+              // Support onConflictDoUpdate used by exercises.linkToMaster
+              onConflictDoUpdate: vi.fn((_cfg?: any) => ret),
               returning: vi.fn(async () => {
                 const rows = Array.isArray(provided) ? provided : [provided];
                 const normalized = rows.map((v: any, i: number) => ({
@@ -217,6 +248,31 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
                 console.log('[HARNESS] exercise_links.returning() ->', normalized);
                 if (!normalized) throw new Error('HARNESS: exercise_links.returning() produced undefined');
                 return normalized;
+              }),
+            };
+            return ret;
+          }
+          // master_exercises insert path (used by exercises.createOrGetMaster)
+          if (table && table._.name === 'master_exercises') {
+            let provided: any;
+            const ret: any = {
+              values: vi.fn((v: any) => {
+                provided = v;
+                return ret;
+              }),
+              returning: vi.fn(async () => {
+                const items = Array.isArray(provided) ? provided : [provided];
+                const rows = items.map((v: any, i: number) => ({
+                  id: 200 + i,
+                  user_id: v?.user_id ?? mockState.user?.id ?? 'user_test_123',
+                  name: v?.name ?? 'Bench Press',
+                  normalizedName: v?.normalizedName ?? 'bench press',
+                  createdAt: v?.createdAt ?? new Date(),
+                }));
+                // eslint-disable-next-line no-console
+                console.log('[HARNESS] master_exercises.returning() ->', rows);
+                if (!rows) throw new Error('HARNESS: master_exercises.returning() produced undefined');
+                return rows;
               }),
             };
             return ret;
@@ -272,6 +328,7 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
     delete: vi.fn((_table: any) => {
       const chain = {
         where: vi.fn(async () => []),
+        returning: vi.fn(async () => []),
       };
       return chain;
     }),
@@ -404,29 +461,29 @@ vi.mock('@clerk/nextjs/server', () => {
   };
 });
 
-vi.mock('~/server/db', () => {
-  return {
-    get db() {
-      return mockState.db;
-    },
-  };
-});
+// "~/server/db" is already mocked above immediately after importing createCaller.
+// Do not re-declare another vi.mock here to avoid module-not-found/hoisting issues.
 
 export function buildCaller(opts?: {
   db?: any;
   user?: any; // allow explicit null to simulate unauthenticated
   headers?: HeadersInit;
 }): ReturnType<typeof createCaller> {
-  mockState.db = opts?.db ?? createMockDb();
+  // If a db override is provided, use it as-is; otherwise create a default mock db.
+  mockState.db = (opts && 'db' in opts) ? opts?.db : createMockDb();
   // Preserve explicit null; only default to authenticated user when user is truly undefined
   mockState.user = (opts && 'user' in opts) ? opts.user : createMockUser(true);
-  const headers = new Headers(opts?.headers ?? { 'x-test': '1' });
+  const headers = new Headers(opts?.headers ?? { 'x-test': '1', 'x-forwarded-for': '127.0.0.1' });
 
   // Create a requestId and caller bound to our mocked ctx
   const requestId = '00000000-0000-4000-8000-000000000000' as `${string}-${string}-${string}-${string}-${string}`;
+
+  // Patch protectedProcedure expectation: ensure user object has at least an id string when authenticated
+  const userPatched = mockState.user ? { id: mockState.user.id ?? 'user_test_123', ...mockState.user } : null;
+
   return createCaller({
     db: mockState.db,
-    user: mockState.user,
+    user: userPatched,
     requestId,
     headers,
   } as Ctx);

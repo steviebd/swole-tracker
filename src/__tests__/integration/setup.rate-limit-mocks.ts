@@ -15,19 +15,23 @@ process.env.RATE_LIMIT_JOKES_PER_HOUR ||= '100';
 process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ||= '100';
 
 // Mock the middleware module to no-op wrappers so handlers run without rate limiting.
-vi.mock('~/lib/rate-limit-middleware', () => {
-  // Compose-like higher-order function; returns handler unchanged
-  const passthrough = (handler: any) => handler;
+  vi.mock('~/lib/rate-limit-middleware', async () => {
+    // Align mock shape with tRPC middleware signature used by routers:
+    // t.middleware(async ({ next }) => next())
+    const { initTRPC } = await import('@trpc/server');
+    const t = initTRPC.create();
 
-  return {
+    const trpcNoop = t.middleware(async ({ next }) => next());
+
     // For code that constructs middleware dynamically
-    rateLimitMiddleware: () => passthrough,
-    // For code that imports preconfigured middlewares
-    templateRateLimit: passthrough,
-    workoutRateLimit: passthrough,
-    jokesRateLimit: passthrough,
-    whoopSyncRateLimit: passthrough,
-    // Some routers use a generic apiCallRateLimit helper
-    apiCallRateLimit: passthrough,
-  };
-});
+    const rateLimitMiddleware = () => trpcNoop;
+
+    return {
+      rateLimitMiddleware,
+      templateRateLimit: trpcNoop,
+      workoutRateLimit: trpcNoop,
+      jokesRateLimit: trpcNoop,
+      whoopSyncRateLimit: trpcNoop,
+      apiCallRateLimit: trpcNoop,
+    };
+  });

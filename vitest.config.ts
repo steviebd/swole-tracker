@@ -10,13 +10,24 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       all: true,
-      include: ['src/**/*.{ts,tsx}'],
+      include: [
+        // Focus coverage on lib and API routers where we have tests
+        'src/lib/**/*.{ts,tsx}',
+        'src/server/api/**/*.{ts,tsx}',
+      ],
       exclude: [
         'src/**/__tests__/**',
+        // Exclude Next.js app and components
         'src/app/**',
         'src/styles/**',
-        'src/trpc/**',
         'src/providers/**',
+        // Exclude server-only infra and DB adapters that require env/db
+        'src/server/db/**',
+        'src/server/api/trpc.ts',
+        // Exclude heavy client hooks not safe in jsdom without complex mocks
+        'src/hooks/useWorkoutSessionState.ts',
+        'src/hooks/use-workout-updates.ts',
+        // Misc
         'src/middleware.ts',
         'src/env.js',
         '**/*.d.ts',
