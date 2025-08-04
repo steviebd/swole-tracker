@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 /**
  * Shared env guards
  */
-function requireEnv(name: string): string {
+export function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) {
     throw new Error(`${name} is not set`);
