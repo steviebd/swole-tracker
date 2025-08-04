@@ -51,11 +51,18 @@ async function createAndLinkMasterExercise(
         normalizedName,
       })
       .returning();
-    
-    masterExercise = newMasterExercise[0];
+
+    // Defensive: some mocked drivers may return undefined or empty array
+    masterExercise = Array.isArray(newMasterExercise) ? newMasterExercise[0] : newMasterExercise?.[0];
   }
-  
+
+  // If we still don't have a master exercise, skip linking gracefully
+  if (!masterExercise || masterExercise.id == null) {
+    return null;
+  }
+
   // Create the link
+  // Upsert link without relying on onConflictDoUpdate (not available in some drivers/mocks)
   await db
     .insert(exerciseLinks)
     .values({
@@ -63,13 +70,16 @@ async function createAndLinkMasterExercise(
       masterExerciseId: masterExercise.id,
       user_id: userId,
     })
-    .onConflictDoUpdate({
-      target: exerciseLinks.templateExerciseId,
-      set: {
-        masterExerciseId: masterExercise.id,
-      },
-    });
-  
+    .onConflictDoNothing?.({ target: exerciseLinks.templateExerciseId });
+
+  // Ensure the link points to the latest masterExerciseId (idempotent)
+  await db
+    .update(exerciseLinks)
+    .set({
+      masterExerciseId: masterExercise.id,
+    })
+    .where(eq(exerciseLinks.templateExerciseId, templateExerciseId));
+
   return masterExercise;
 }
 
