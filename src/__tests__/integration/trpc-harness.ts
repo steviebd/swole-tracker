@@ -279,29 +279,39 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
           }
           // workout_sessions insert path
           if (table && table._.name === 'workout_sessions') {
-            // Return a created session row object as Drizzle returning()
             const ret = {
               returning: vi.fn(async () => {
                 const rows = [
                   { id: 500, user_id: vals?.user_id, templateId: vals?.templateId, workoutDate: vals?.workoutDate ?? now },
                 ];
-                // eslint-disable-next-line no-console
                 console.log('[HARNESS] workout_sessions.returning() ->', rows);
-                if (!rows) throw new Error('HARNESS: workout_sessions.returning() produced undefined');
                 return rows;
               }),
             };
             return ret;
           }
-          // Fallback builder that still supports onConflictDoNothing chaining (safety)
+          // session_exercises insert path
+          if (table && table._.name === 'session_exercises') {
+            const items = Array.isArray(vals) ? vals : [vals];
+            const rows = items.map((v: any, i: number) => ({
+              id: 1000 + i,
+              sessionId: v?.sessionId,
+              exerciseName: v?.exerciseName,
+              weight: v?.weight,
+              reps: v?.reps,
+              sets: v?.sets,
+              unit: v?.unit,
+            }));
+            return {
+              returning: vi.fn(async () => {
+                console.log('[HARNESS] session_exercises.returning() ->', rows);
+                return rows;
+              }),
+            };
+          }
+          // Fallback builder
           const ret: any = {
-            returning: vi.fn(async () => {
-              const rows: any[] = [];
-              // eslint-disable-next-line no-console
-              console.log(`[HARNESS] ${logTbl}.returning() ->`, rows);
-              if (!rows) throw new Error(`HARNESS: ${logTbl}.returning() produced undefined`);
-              return rows;
-            }),
+            returning: vi.fn(async () => []),
           };
           (ret as any).onConflictDoNothing = vi.fn(() => ret);
           return ret;
@@ -326,37 +336,36 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
     }),
 
     delete: vi.fn((_table: any) => {
+      const tableName = _table?._?.name ?? String(_table);
       const chain = {
-        where: vi.fn(async () => []),
-        returning: vi.fn(async () => []),
+        where: vi.fn(async () => {
+          if (tableName === 'workout_sessions') {
+            return [{ id: 77, user_id: 'user_test_123' }];
+          }
+          return [];
+        }),
+        returning: vi.fn(async () => {
+          if (tableName === 'workout_sessions') {
+            return [{ id: 77, user_id: 'user_test_123' }];
+          }
+          return [];
+        }),
       };
       return chain;
     }),
 
     select: vi.fn((_cols?: any) => {
-      // Provide a tiny query builder that returns arrays when awaited,
-      // and supports both `.limit(1)` returning [] and `.execute()`.
-      let result: any[] = [];
       const chain: any = {
-        _table: undefined as string | undefined,
         from: vi.fn((tbl: any) => {
-          chain._table = tbl?._?.name ?? tbl?.tableName ?? tbl?._?.alias ?? String(tbl);
-          // Default for master_exercises probe: return empty to force insert
-          if (chain._table === 'master_exercises') {
-            result = [];
-          }
+          chain._table = String(tbl);
           return chain;
         }),
-        where: vi.fn((_cond?: any) => chain),
-        limit: vi.fn((n?: number) => {
-          // When tests do `.limit(1)` and expect an array directly, emulate returning array
-          // Keep result as-is; consumers either use returned value or call .execute()
-          return n ? result.slice(0, n) : result;
-        }),
-        innerJoin: vi.fn((_tbl: any, _on: any) => chain),
-        orderBy: vi.fn((_o: any) => chain),
-        with: vi.fn((_w: any) => chain),
-        execute: vi.fn(async () => result),
+        where: vi.fn(() => chain),
+        innerJoin: vi.fn(() => chain),
+        orderBy: vi.fn(() => chain),
+        limit: vi.fn(() => chain),
+        with: vi.fn(() => chain),
+        execute: vi.fn(async () => []),
       };
       return chain;
     }),

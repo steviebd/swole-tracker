@@ -102,7 +102,7 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
           })),
         })),
       })),
-    } as any;
+    }) as any;
 
     const trpc = createCaller({ db, user });
     const created = await trpc.templates.create({ name: "Push", exercises: ["Bench Press", "Overhead Press"] });
@@ -163,7 +163,7 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
           })),
         })),
       })),
-    } as any;
+    }) as any;
 
     const trpc = createCaller({ db, user });
     const out = await trpc.templates.update({ id: 55, name: "New Name", exercises: ["Incline Bench", "Dips"] });
@@ -186,7 +186,7 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
           },
         },
         delete: vi.fn(() => ({ where: vi.fn(async () => []) })),
-      } as any;
+      }) as any;
 
       const trpc = createCaller({ db, user });
       const res = await trpc.templates.delete({ id: 77 });
@@ -201,7 +201,7 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
             findFirst: vi.fn().mockResolvedValueOnce({ id: 77, user_id: "another" }),
           },
         },
-      } as any;
+      }) as any;
 
       const trpc = createCaller({ db, user });
       await expect(trpc.templates.delete({ id: 77 })).rejects.toThrow(/Template not found/i);
@@ -215,7 +215,7 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
             findFirst: vi.fn().mockResolvedValueOnce(null),
           },
         },
-      } as any;
+      }) as any;
 
       const trpc = createCaller({ db, user });
       await expect(trpc.templates.delete({ id: 404 })).rejects.toThrow(/Template not found/i);
