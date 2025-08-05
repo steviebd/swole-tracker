@@ -45,7 +45,7 @@ export const env = createEnv({
     NEXT_PUBLIC_POSTHOG_KEY: z.string().default("phc_test_dummy"),
     NEXT_PUBLIC_POSTHOG_HOST: z.string().url().default("https://us.i.posthog.com"),
     NEXT_PUBLIC_SUPABASE_URL: z.string().url().default("https://test.supabase.co"),
-    NEXT_PUBLIC_SUPABASE_KEY: z.string().default("supabase_test_key"),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default("supabase_test_key"),
     NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   },
 
@@ -60,7 +60,7 @@ export const env = createEnv({
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_KEY,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY:
       process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
     DATABASE_URL: process.env.DATABASE_URL,

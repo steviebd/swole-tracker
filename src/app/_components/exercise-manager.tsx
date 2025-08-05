@@ -32,7 +32,7 @@ export function ExerciseManager() {
     },
   });
 
-  const filteredExercises = exercises?.filter((exercise) =>
+  const filteredExercises = (exercises as MasterExercise[] | undefined)?.filter((exercise) =>
     exercise.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) ?? [];
 

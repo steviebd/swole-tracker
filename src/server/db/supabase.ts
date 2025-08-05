@@ -16,7 +16,7 @@ export async function getSupabaseDb() {
   }
 
   // Create connection with user context for RLS
-  const conn = postgres(env.DATABASE_URL, {
+  const conn = postgres(env.DATABASE_URL ?? "", {
     // Set the user context for RLS policies
     connection: {
       "request.jwt.claims": JSON.stringify({ sub: user.id }),
@@ -32,6 +32,6 @@ export async function getSupabaseDb() {
  * Create a database connection without user context (for server admin operations)
  */
 export function getServerDb() {
-  const conn = postgres(env.DATABASE_URL);
+  const conn = postgres(env.DATABASE_URL ?? "");
   return drizzle(conn, { schema });
 }

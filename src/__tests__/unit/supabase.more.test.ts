@@ -5,8 +5,8 @@ describe("supabase browser/server helpers coverage", () => {
     vi.resetModules();
   });
 
-  it("browser client throws when required env missing and succeeds with local dev service role path", async () => {
-    // Missing env -> should throw
+  it("browser client uses env defaults when required env missing and succeeds with local dev service role path", async () => {
+    // Missing env -> should use defaults from env.js, not throw
     await expect(
       (async () => {
         const mod = await import("~/lib/supabase-browser");
@@ -16,25 +16,26 @@ describe("supabase browser/server helpers coverage", () => {
         };
         // Ensure env not present
         delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-        delete process.env.NEXT_PUBLIC_SUPABASE_KEY;
-        // This should throw due to requireEnv guard
-        createClerkSupabaseClient(null);
+        delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // This should use defaults from env.js, not throw
+        const client = createClerkSupabaseClient(null);
+        return client;
       })(),
-    ).rejects.toThrow(/NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_KEY/);
+    ).resolves.toBeDefined();
 
     // Local dev path with service role key
     const prev = {
       NODE_ENV: process.env.NODE_ENV,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
-      NEXT_PUBLIC_SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_KEY,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     };
     // Avoid descriptor mutation; use Vitest env helpers
     vi.unstubAllEnvs();
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY", "local-service-role-key");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
 
     const createClient = vi.fn().mockReturnValue({ ok: true });
     vi.doMock("@supabase/supabase-js", () => ({ createClient }));
@@ -59,7 +60,7 @@ describe("supabase browser/server helpers coverage", () => {
     vi.unstubAllEnvs();
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_KEY", "public-anon-key");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "public-anon-key");
 
     const createClient2 = vi.fn().mockImplementation((_url: string, _key: string, opts: any) => {
       // Call the wrapped fetch to ensure token injection path is executed
@@ -115,14 +116,14 @@ describe("supabase browser/server helpers coverage", () => {
       SUPABASE_URL: process.env.SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_KEY,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     };
     // Ensure server envs are set; provide NEXT_PUBLIC_* dummies to satisfy requireEnv guard.
     // Important: set server envs AFTER dummies so if module reads at import time, server values win.
     vi.unstubAllEnvs();
     vi.stubEnv("NODE_ENV", "test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://dummy.public.supabase.co");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_KEY", "dummy-public-anon");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "dummy-public-anon");
     vi.stubEnv("SUPABASE_URL", "https://server.supabase.co");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
 

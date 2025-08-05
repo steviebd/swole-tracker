@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { env } from "~/env";
 
 /**
  * Shared env guards (client-safe: only NEXT_PUBLIC_* are read)
@@ -22,7 +23,7 @@ function requireEnv(name: string): string {
 export function createClerkSupabaseClient(
   session?: { getToken?: () => Promise<string | null> } | null,
 ): SupabaseClient {
-  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 
   // Local dev helper: allow service role key when using local 127.0.0.1 Supabase instance
   const isLocalDev =
@@ -46,7 +47,7 @@ export function createClerkSupabaseClient(
 
   // No test-specific bypass: tests expect env guards to enforce presence
 
-  const supabaseAnonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   const getAuthToken = async (): Promise<string | null> => {
     if (!session?.getToken) return null;

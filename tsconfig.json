@@ -1,5 +1,4 @@
 {
-  "exclude": ["node_modules", "public"],
   "compilerOptions": {
     /* Base Options: */
     "esModuleInterop": true,
@@ -39,5 +38,5 @@
     "**/*.js",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "public", ".next", "coverage"]
 }

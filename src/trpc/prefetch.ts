@@ -2,6 +2,7 @@ import { QueryClient, dehydrate } from "@tanstack/react-query";
 import { createCaller } from "~/server/api/root";
 import { headers as nextHeaders } from "next/headers";
 import { getServerDb } from "~/server/db/supabase";
+import { randomUUID } from "crypto";
 
 /**
  * Returns a fresh QueryClient configured for SSR prefetch.
@@ -34,7 +35,7 @@ export async function prefetchHome(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
         return scopedCaller.workouts.getRecent({ limit: 5 });
       },
     }),
@@ -45,7 +46,7 @@ export async function prefetchHome(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
         return scopedCaller.templates.getAll();
       },
     }),
@@ -60,7 +61,7 @@ export async function prefetchTemplatesIndex(qc: QueryClient) {
       const h = new Headers();
       rh.forEach((value: string, key: string) => h.append(key, value));
       const db = getServerDb();
-      const scopedCaller = createCaller({ headers: h, db, user: null });
+      const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
       return scopedCaller.templates.getAll();
     },
   });
@@ -75,7 +76,7 @@ export async function prefetchWorkoutStart(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
         return scopedCaller.templates.getAll();
       },
     }),
@@ -86,7 +87,7 @@ export async function prefetchWorkoutStart(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
         return scopedCaller.workouts.getRecent({ limit: 5 });
       },
     }),
