@@ -16,7 +16,10 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
           try {
             const parsedValue = JSON.parse(item);
             setStoredValue(parsedValue);
-            console.log(`[localStorage] Loaded ${key}:`, parsedValue);
+            if (process.env.NODE_ENV !== 'test') {
+              // avoid noisy logging in test runners that can increase memory usage
+              console.log(`[localStorage] Loaded ${key}:`, parsedValue);
+            }
           } catch (parseError) {
             console.warn(`[localStorage] Invalid JSON for ${key}, clearing and using default:`, item);
             // Clear corrupted data and use initial value
@@ -44,7 +47,10 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       // Save to localStorage
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        console.log(`[localStorage] Saved ${key}:`, valueToStore);
+        if (process.env.NODE_ENV !== 'test') {
+          // avoid noisy logging in test runners that can increase memory usage
+          console.log(`[localStorage] Saved ${key}:`, valueToStore);
+        }
       }
     } catch (error) {
       console.error(`[localStorage] Error saving ${key}:`, error);

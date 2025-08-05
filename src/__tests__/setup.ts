@@ -10,6 +10,15 @@ process.env.VERCEL_AI_GATEWAY_API_KEY = 'mock-ai-key';
 // JSDOM cleanup after each test
 afterEach(() => {
   cleanup();
+  // Restore all spies/mocks and globals between tests to prevent leaks
+  try {
+    vi.restoreAllMocks();
+  } catch {}
+  // Vitest provides unstubAllGlobals in v3; guard in case of version diff
+  try {
+    // @ts-expect-error - not always typed
+    vi.unstubAllGlobals?.();
+  } catch {}
 });
 
 // Mock AI SDK globally for jokes tests

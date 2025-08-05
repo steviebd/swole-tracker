@@ -68,9 +68,14 @@ describe("logger", () => {
   });
 
   it("logSecurityEvent always logs via warn", () => {
+    // Spy on console.warn fresh since logSecurityEvent bypasses shouldLog() and uses console.warn directly
+    const freshWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    
     logSecurityEvent("blocked", "u3", { ip: "1.2.3.4" });
-    expect(spyWarn).toHaveBeenCalled();
-    const [msg] = spyWarn.mock.calls.at(-1)!;
+    expect(freshWarnSpy).toHaveBeenCalled();
+    const [msg] = freshWarnSpy.mock.calls.at(-1)!;
     expect(String(msg)).toContain("[SECURITY]");
+    
+    freshWarnSpy.mockRestore();
   });
 });
