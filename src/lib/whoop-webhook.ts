@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { env } from '~/env';
+import { logger } from '~/lib/logger';
 
 export interface WhoopWebhookPayload {
   user_id: number;
@@ -21,7 +22,7 @@ export function verifyWhoopWebhook(
   timestamp: string
 ): boolean {
   if (!env.WHOOP_WEBHOOK_SECRET) {
-    console.error('WHOOP_WEBHOOK_SECRET not configured');
+    logger.error('WHOOP_WEBHOOK_SECRET not configured');
     return false;
   }
 
@@ -42,7 +43,7 @@ export function verifyWhoopWebhook(
       Buffer.from(calculatedSignature, 'base64')
     );
   } catch (error) {
-    console.error('Error verifying webhook signature:', error);
+    logger.error('Error verifying webhook signature', error);
     return false;
   }
 }
@@ -57,7 +58,7 @@ export function extractWebhookHeaders(headers: Headers) {
   const timestamp = headers.get('X-WHOOP-Signature-Timestamp');
 
   if (!signature || !timestamp) {
-    console.error('Missing required webhook headers');
+    logger.warn('Missing required webhook headers');
     return null;
   }
 
@@ -67,7 +68,11 @@ export function extractWebhookHeaders(headers: Headers) {
   const fiveMinutesAgo = now - (5 * 60 * 1000);
 
   if (timestampMs < fiveMinutesAgo || timestampMs > now) {
-    console.error('Webhook timestamp outside acceptable range');
+    logger.warn('Webhook timestamp outside acceptable range', {
+      timestamp,
+      now,
+      fiveMinutesAgo,
+    });
     return null;
   }
 

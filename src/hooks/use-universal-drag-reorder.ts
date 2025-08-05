@@ -11,7 +11,7 @@ export interface UniversalDragState {
 }
 
 export interface UniversalDragHandlers {
-  onPointerDown: (index: number) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
+  onPointerDown: (index: number, opts?: { force?: boolean }) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
   onPointerMove: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
   onPointerUp: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
   setCardElement: (index: number, element: HTMLElement | null) => void;
@@ -29,9 +29,17 @@ export function useUniversalDragReorder<T>(
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
 
-  const dragThreshold = 3; // Minimum pixels to move before starting drag (reduced for more responsive feel)
+  // Gesture tuning constants (mobile-first)
+  const DRAG_START_SLOP = 14; // require more movement before drag starts
+  const AXIS_LOCK_Y_RATIO = 0.75; // vertical must dominate to start drag
+  const REORDER_CROSS_TOLERANCE_PX = 14; // extra tolerance before switching targets
+  const AUTOSCROLL_ZONE = 50; // px from viewport edge to start auto-scroll
+  const AUTOSCROLL_MAX_PX_PER_FRAME = 6; // slow, controlled auto-scroll
+
   const hasDragStarted = useRef(false);
   const dragStartTime = useRef(0);
+  const axisLockedToY = useRef(false);
+  const lastInsertionIndexRef = useRef<number | null>(null);
   const cardElements = useRef<(HTMLElement | null)[]>([]);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const autoScrollRef = useRef<number | undefined>(undefined);
@@ -95,27 +103,28 @@ export function useUniversalDragReorder<T>(
 
   // Auto-scroll when dragging near viewport edges
   const handleAutoScroll = useCallback((clientY: number) => {
-    const scrollContainer = document.documentElement || document.body;
     const viewportHeight = window.innerHeight;
-    const scrollTop = window.scrollY;
-    
-    const scrollZone = 100; // Pixels from edge to trigger scroll
-    const maxScrollSpeed = 10; // Maximum scroll speed per frame
-    
+
     let newScrollSpeed = 0;
-    
-    // Check if near top of viewport
-    if (clientY < scrollZone) {
-      newScrollSpeed = -Math.max(1, (scrollZone - clientY) / scrollZone * maxScrollSpeed);
+
+    // Top zone
+    if (clientY < AUTOSCROLL_ZONE) {
+      const dist = AUTOSCROLL_ZONE - clientY;
+      const ratio = Math.max(0, Math.min(1, dist / AUTOSCROLL_ZONE));
+      // Ease-in curve for precision control
+      const eased = Math.pow(ratio, 1.2);
+      newScrollSpeed = -Math.max(0, Math.round(eased * AUTOSCROLL_MAX_PX_PER_FRAME));
     }
-    // Check if near bottom of viewport
-    else if (clientY > viewportHeight - scrollZone) {
-      newScrollSpeed = Math.max(1, (clientY - (viewportHeight - scrollZone)) / scrollZone * maxScrollSpeed);
+    // Bottom zone
+    else if (clientY > viewportHeight - AUTOSCROLL_ZONE) {
+      const dist = clientY - (viewportHeight - AUTOSCROLL_ZONE);
+      const ratio = Math.max(0, Math.min(1, dist / AUTOSCROLL_ZONE));
+      const eased = Math.pow(ratio, 1.2);
+      newScrollSpeed = Math.max(0, Math.round(eased * AUTOSCROLL_MAX_PX_PER_FRAME));
     }
-    
+
     scrollSpeed.current = newScrollSpeed;
-    
-    // Start auto-scroll animation if needed
+
     if (newScrollSpeed !== 0 && !autoScrollRef.current) {
       const scroll = () => {
         if (scrollSpeed.current !== 0) {
@@ -127,9 +136,7 @@ export function useUniversalDragReorder<T>(
         }
       };
       autoScrollRef.current = requestAnimationFrame(scroll);
-    }
-    // Stop auto-scroll if speed is 0
-    else if (newScrollSpeed === 0 && autoScrollRef.current) {
+    } else if (newScrollSpeed === 0 && autoScrollRef.current) {
       cancelAnimationFrame(autoScrollRef.current);
       autoScrollRef.current = undefined;
     }
@@ -145,27 +152,49 @@ export function useUniversalDragReorder<T>(
   }, []);
 
   const onPointerDown = useCallback(
-    (index: number) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
-      // Prevent dragging when clicking on interactive elements
+    (index: number, opts?: { force?: boolean }) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
+      // Prevent dragging when clicking on interactive elements (except explicit drag handles)
       const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('input') || target.closest('select')) {
+      const isHandle = !!target.closest('[data-drag-handle="true"]');
+      if (!isHandle && (target.closest('button') || target.closest('input') || target.closest('select'))) {
         return;
+      }
+
+      // iOS/Safari robustness: attempt to capture pointer if available
+      const anyEvent = e as any;
+      const currentTarget = anyEvent.currentTarget as any;
+      if ('pointerId' in anyEvent && typeof currentTarget?.setPointerCapture === 'function') {
+        try {
+          currentTarget.setPointerCapture(anyEvent.pointerId as number);
+        } catch {
+          // ignore capture errors
+        }
       }
 
       const pos = getPointerPos(e);
       setDragStartPos(pos);
       setDraggedIndex(index);
       dragStartTime.current = Date.now();
-      hasDragStarted.current = false;
-      
+      axisLockedToY.current = false;
+      lastInsertionIndexRef.current = null;
+
+      // If initiated from the drag handle and force requested, start immediately with vertical lock
+      if (opts?.force || isHandle) {
+        hasDragStarted.current = true;
+        axisLockedToY.current = true;
+        setIsDragging(true);
+        onStartDrag?.(index);
+      } else {
+        hasDragStarted.current = false;
+      }
+
       // Capture initial scroll position for offset calculations
       initialScrollY.current = window.scrollY;
       currentScrollY.current = window.scrollY;
 
-      // Prevent default to avoid text selection or scrolling
-      e.preventDefault();
+      // Do not call preventDefault here; rely on CSS touch-action to manage scrolling behavior.
     },
-    []
+    [onStartDrag]
   );
 
   const onPointerMove = useCallback(
@@ -175,50 +204,75 @@ export function useUniversalDragReorder<T>(
       const pos = getPointerPos(e);
       const deltaX = pos.x - dragStartPos.x;
       const deltaY = pos.y - dragStartPos.y;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-      // Start dragging with more lenient conditions for smoother feel
-      if (!hasDragStarted.current && distance > dragThreshold) {
-        // Allow drag to start if there's any vertical component (not strictly vertical)
-        // This prevents sticking when movement isn't perfectly vertical
-        const hasVerticalComponent = Math.abs(deltaY) >= dragThreshold * 0.7;
-        
-        if (hasVerticalComponent) {
+      // Axis lock & start slop
+      if (!hasDragStarted.current) {
+        if (distance < DRAG_START_SLOP) {
+          return; // allow normal scroll/swipe
+        }
+        // Lock to Y if vertical dominates
+        if (absY >= absX * AXIS_LOCK_Y_RATIO) {
+          axisLockedToY.current = true;
           hasDragStarted.current = true;
           setIsDragging(true);
           onStartDrag?.(draggedIndex);
+        } else {
+          // Horizontal dominates – do not start vertical drag
+          return;
         }
       }
 
-      if (hasDragStarted.current) {
+      if (hasDragStarted.current && axisLockedToY.current) {
         // Use requestAnimationFrame for smooth 60fps updates
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
-        
+
         animationFrameRef.current = requestAnimationFrame(() => {
           // Update current scroll position (for manual scrolling during drag)
           currentScrollY.current = window.scrollY;
-          
+
           // Calculate drag offset accounting for scroll changes
           const scrollDelta = currentScrollY.current - initialScrollY.current;
           const adjustedDeltaY = deltaY + scrollDelta;
-          
-          setDragOffset({ x: deltaX, y: adjustedDeltaY });
-          
+
+          setDragOffset({ x: 0, y: adjustedDeltaY }); // lock X to 0 during vertical drag
+
           // Handle auto-scroll when near viewport edges
           handleAutoScroll(pos.y);
-          
+
           // Throttle drop target detection to improve performance
-          // Only update drop target every few pixels of movement
-          const shouldUpdateDropTarget = Math.abs(adjustedDeltaY) % 8 < 4; // Update roughly every 8px
+          const shouldUpdateDropTarget = Math.abs(adjustedDeltaY) % 8 < 4;
           if (shouldUpdateDropTarget) {
             const insertionIndex = findDropTarget(pos.x, pos.y, draggedIndex);
-            setDragOverIndex(insertionIndex);
+
+            // Apply tolerance to reduce jitter/flicker
+            if (lastInsertionIndexRef.current === null || insertionIndex !== lastInsertionIndexRef.current) {
+              // Only switch if pointer moved past tolerance relative to previous target
+              let allowSwitch = true;
+              if (lastInsertionIndexRef.current !== null) {
+                const prevEl = cardElements.current[Math.min(Math.max(lastInsertionIndexRef.current, 0), cardElements.current.length - 1)];
+                if (prevEl) {
+                  const rect = prevEl.getBoundingClientRect();
+                  const centerY = rect.top + rect.height / 2;
+                  if (Math.abs(pos.y - centerY) < REORDER_CROSS_TOLERANCE_PX) {
+                    allowSwitch = false;
+                  }
+                }
+              }
+              if (allowSwitch) {
+                lastInsertionIndexRef.current = insertionIndex;
+                setDragOverIndex(insertionIndex);
+              }
+            }
           }
         });
-        
-        e.preventDefault(); // Only prevent default when actually dragging
+
+        // Do not call preventDefault here; React may attach touch listeners as passive.
+        // Use CSS (e.g., 'touch-none') on the draggable element while dragging to prevent scroll.
       }
     },
     [draggedIndex, dragStartPos, findDropTarget, onStartDrag, handleAutoScroll]
@@ -265,7 +319,7 @@ export function useUniversalDragReorder<T>(
       
       onEndDrag?.();
 
-      e.preventDefault();
+      // Do not call preventDefault on pointer/touch end.
     },
     [draggedIndex, dragOverIndex, items, onReorder, onEndDrag, stopAutoScroll]
   );

@@ -17,8 +17,11 @@ class Logger {
   private isTest = process.env.NODE_ENV === 'test';
 
   private shouldLog(level: LogLevel): boolean {
-    if (this.isTest) return false;
-    
+    // In tests, suppress all non-security logs
+    if (this.isTest) {
+      return false;
+    }
+
     // In production, only log warnings and errors
     if (!this.isDevelopment) {
       return level === 'warn' || level === 'error';
@@ -103,10 +106,12 @@ class Logger {
     this.debug(`${endpoint} took ${duration}ms`, context);
   }
 
-  // Security event logging (always logged in production)
+  // Security event logging (always warn, including in tests)
   security(message: string, context?: LogContext): void {
     const sanitizedContext = context ? this.sanitizeContext(context) : {};
-    console.warn(`[SECURITY] ${message}`, sanitizedContext);
+    // Ensure console.warn exists (some test spies might unset)
+    const warnFn = console.warn ?? console.log;
+    warnFn(`[SECURITY] ${message}`, sanitizedContext);
   }
 }
 

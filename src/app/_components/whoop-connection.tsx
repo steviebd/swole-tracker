@@ -121,15 +121,15 @@ export function WhoopConnection() {
     <div className="space-y-8">
       {/* Connection Status & Controls */}
       <div className="flex justify-center">
-        <div className="max-w-md rounded-lg bg-gray-800 p-8 text-center">
+        <div className="card max-w-md p-8 text-center">
           <h2 className="mb-4 text-xl font-semibold">Whoop Integration</h2>
           
           {integrationStatus?.isConnected ? (
             <div className="space-y-4">
-              <div className="text-green-400">
-                ✅ Connected to Whoop
+              <div className="text-emerald-400">
+                Connected to Whoop
                 {integrationStatus.connectedAt && (
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-muted">
                     Since {formatDate(new Date(integrationStatus.connectedAt))}
                   </div>
                 )}
@@ -138,12 +138,12 @@ export function WhoopConnection() {
                 <button
                   onClick={handleSync}
                   disabled={syncLoading || (rateLimit?.remaining === 0)}
-                  className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="btn-primary w-full px-6 py-3 font-semibold disabled:opacity-50"
                 >
                   {syncLoading ? "Syncing..." : "Sync with Whoop"}
                 </button>
                 {rateLimit && (
-                  <div className="text-xs text-gray-400 text-center mt-2">
+                  <div className="mt-2 text-center text-xs text-muted">
                     {rateLimit.remaining > 0 ? (
                       `${rateLimit.remaining} syncs remaining this hour`
                     ) : (
@@ -154,7 +154,7 @@ export function WhoopConnection() {
                 <button
                   onClick={handleConnect}
                   disabled={isLoading}
-                  className="w-full rounded-lg bg-purple-600 px-6 py-3 font-semibold transition-colors hover:bg-purple-700 disabled:opacity-50"
+                  className="btn-primary w-full px-6 py-3 font-semibold disabled:opacity-50"
                 >
                   {isLoading ? "Connecting..." : "Reconnect to Whoop"}
                 </button>
@@ -162,14 +162,14 @@ export function WhoopConnection() {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-gray-300">
+              <p className="text-secondary">
                 Sync your Whoop workout metrics with your workout data to optimize
                 your training schedule.
               </p>
               <button
                 onClick={handleConnect}
                 disabled={isLoading}
-                className="w-full rounded-lg bg-purple-600 px-6 py-3 font-semibold transition-colors hover:bg-purple-700 disabled:opacity-50"
+                className="btn-primary w-full px-6 py-3 font-semibold disabled:opacity-50"
               >
                 {isLoading ? "Connecting..." : "Connect to Whoop"}
               </button>
@@ -182,11 +182,11 @@ export function WhoopConnection() {
       {message && (
         <div className="flex justify-center">
           <div
-            className={`max-w-md rounded-lg p-4 ${
-              message.type === "success" ? "bg-green-900 text-green-100" : "bg-red-900 text-red-100"
-            }`}
+            className={`card max-w-md p-4 ${message.type === "success" ? "border-emerald-700" : "border-rose-700"}`}
           >
-            {message.text}
+            <div className={message.type === "success" ? "text-emerald-300" : "text-rose-300"}>
+              {message.text}
+            </div>
           </div>
         </div>
       )}

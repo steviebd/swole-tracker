@@ -14,6 +14,7 @@ import { currentUser } from "@clerk/nextjs/server";
 
 import { db } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
+import { randomUUID } from "crypto";
 
 /**
  * 1. CONTEXT
@@ -29,10 +30,13 @@ import { logger, logApiCall } from "~/lib/logger";
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const user = await currentUser();
+  // Generate a requestId for correlating logs across middlewares/routers
+  const requestId = randomUUID();
 
   return {
     db,
     user,
+    requestId,
     ...opts,
   };
 };
@@ -46,15 +50,61 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
  */
 const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
-    return {
+  errorFormatter({ shape, error, ctx, path, type }) {
+    // Attach requestId and normalized error info for easier troubleshooting
+    const requestId = (ctx as any)?.requestId as string | undefined;
+
+    const formatted = {
       ...shape,
+      message: shape.message,
       data: {
         ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        requestId,
+        path,
+        type,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
+
+    // Log at warn/error depending on code
+    const code = shape.data?.code;
+    const level = code === "INTERNAL_SERVER_ERROR" ? "error" : "warn";
+    const userId = (ctx as any)?.user?.id ?? "anonymous";
+
+    // In tests, surface full stack to console to diagnose failing chains
+    const isTest = process.env.VITEST || process.env.NODE_ENV === 'test';
+    if (level === "error") {
+      logger.error("tRPC internal error", error, { path, userId, requestId, code });
+      if (isTest) {
+        // eslint-disable-next-line no-console
+        console.error("[tRPC errorFormatter]", {
+          path,
+          userId,
+          requestId,
+          code,
+          message: error?.message,
+          stack: (error as any)?.stack,
+          cause: (error as any)?.cause,
+          shape,
+        });
+      }
+    } else {
+      logger.warn("tRPC handled error", { path, userId, requestId, code, message: shape.message });
+      if (isTest) {
+        // eslint-disable-next-line no-console
+        console.warn("[tRPC warnFormatter]", {
+          path,
+          userId,
+          requestId,
+          code,
+          message: error?.message ?? shape.message,
+          stack: (error as any)?.stack,
+          shape,
+        });
+      }
+    }
+
+    return formatted;
   },
 });
 
@@ -97,10 +147,12 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
   const result = await next();
 
   const end = Date.now();
-  
-  // Use logger instead of console.log
-  const userId = (ctx as any).user?.id;
-  logApiCall(path, userId || 'anonymous', end - start);
+
+  // Correlated, structured timing log
+  const userId = (ctx as any).user?.id ?? "anonymous";
+  const requestId = (ctx as any).requestId as string | undefined;
+  logger.debug("tRPC request completed", { path, userId, requestId, durationMs: end - start });
+  logApiCall(path, userId, end - start);
 
   return result;
 });

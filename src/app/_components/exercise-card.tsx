@@ -2,6 +2,8 @@
 
 import { SetInput, type SetData } from "./set-input";
 import { useSwipeGestures, type SwipeSettings } from "~/hooks/use-swipe-gestures";
+import { ExerciseHeader } from "./workout/ExerciseHeader";
+import { SetList } from "./workout/SetList";
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -42,7 +44,7 @@ interface ExerciseCardProps {
   isSwiped?: boolean;
   // Universal drag and drop props
   draggable?: boolean;
-  onPointerDown?: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
+  onPointerDown?: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent, opts?: { force?: boolean }) => void;
   setCardElement?: (element: HTMLElement | null) => void;
 }
 
@@ -114,101 +116,118 @@ export function ExerciseCard({
   // Prioritize the active gesture - swipe for horizontal, drag for vertical
   const isSwipeActive = swipeState.isDragging && Math.abs(swipeState.translateX) > 0;
   const isDragActive = isDragging && Math.abs(dragOffset.y) > Math.abs(dragOffset.x);
-  
-  // Don't apply swipe transform if card was dismissed - let it stay in place
+
+  // Style: lock horizontal translation during vertical drag; add subtle scale/shadow
   const cardStyle = {
-    transform: `translate(${
-      isDragActive ? dragOffset.x : (swipeState.isDismissed ? 0 : swipeState.translateX)
-    }px, ${
-      isDragActive ? dragOffset.y : 0
-    }px)`,
-    opacity: isDragActive ? 0.7 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
-    scale: isDragActive ? 0.95 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
+    transform: `translate(${isDragActive ? 0 : (swipeState.isDismissed ? 0 : swipeState.translateX)}px, ${isDragActive ? dragOffset.y : 0}px)`,
+    opacity: isDragActive ? 0.9 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
+    scale: isDragActive ? 1.03 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
     zIndex: isDragActive ? 50 : 1,
-    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'transform 0.2s ease-out, opacity 0.2s ease-out, scale 0.2s ease-out',
-    // Optimize touch handling for better responsiveness
-    touchAction: isDragActive ? 'none' : 'pan-y pinch-zoom',
-  };
+    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'transform 0.18s ease-out, opacity 0.18s ease-out, scale 0.18s ease-out',
+    // Optimize touch handling: card body prefers vertical panning; drag handle will use touch-action: none
+    touchAction: 'pan-y pinch-zoom',
+    willChange: isDragActive ? 'transform' : undefined,
+  } as React.CSSProperties;
 
   const containerClasses = `
     rounded-lg overflow-hidden select-none
     ${isDraggedOver ? 'border-2 border-purple-500 bg-purple-900/20' : 
       isSwiped ? 'bg-gray-850 border border-gray-600' : 'bg-gray-800'}
-    ${isDragActive ? 'shadow-2xl cursor-grabbing' : ''}
-    ${draggable && !readOnly && !isDragActive ? 'cursor-grab hover:bg-gray-750 active:cursor-grabbing' : ''}
+    ${isDragActive ? 'shadow-xl cursor-grabbing' : ''}
   `.trim();
 
-  // Handle pointer events for universal drag or swipe
-  const handlePointerDown = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
-    // Prevent dragging when clicking on interactive elements
+  // Only start swipe gestures from the card surface; drag is initiated from the right-edge handle
+  const handleCardPointerDown = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('input') || target.closest('select')) {
+
+    // 1) Never start swipe from the explicit drag handle
+    if (target.closest('[data-drag-handle="true"]')) {
       return;
     }
-    
-    // Start both drag and swipe detection - they'll resolve conflicts later
-    if (draggable && onPointerDown) {
-      onPointerDown(e);
+
+    // 2) Do NOT start swipe when interacting with inputs or interactive controls
+    const interactiveSelectors = [
+      "input",
+      "textarea",
+      "select",
+      "button",
+      "label",
+      "[contenteditable='true']",
+      "[role='textbox']",
+      "[role='spinbutton']",
+      "[role='button']",
+    ].join(",");
+
+    if (target.closest(interactiveSelectors)) {
+      // Let the control handle the event (typing, focusing, etc.)
+      return;
     }
-    
-    // Also start swipe gesture detection
-    if ('touches' in e) {
+
+    // 3) Otherwise, begin swipe handling
+    if ("touches" in e) {
       swipeHandlers.onTouchStart(e);
     } else {
       swipeHandlers.onMouseDown(e as React.MouseEvent);
     }
   };
 
+  const handleCardMouseMove = swipeHandlers.onMouseMove;
+  const handleCardMouseUp = swipeHandlers.onMouseUp;
+  const handleCardMouseLeave = swipeHandlers.onMouseLeave;
+  const handleCardTouchMove = swipeHandlers.onTouchMove;
+  const handleCardTouchEnd = swipeHandlers.onTouchEnd;
+
   return (
     <div 
       ref={setCardElement}
       className={containerClasses}
       style={cardStyle}
-      onPointerDown={handlePointerDown}
-      onMouseDown={handlePointerDown}
-      onTouchStart={handlePointerDown}
-      onMouseMove={swipeHandlers.onMouseMove}
-      onMouseUp={swipeHandlers.onMouseUp}
-      onMouseLeave={swipeHandlers.onMouseLeave}
-      onTouchMove={swipeHandlers.onTouchMove}
-      onTouchEnd={swipeHandlers.onTouchEnd}
+      onPointerDown={handleCardPointerDown}
+      onMouseDown={handleCardPointerDown}
+      onTouchStart={handleCardPointerDown}
+      onMouseMove={handleCardMouseMove}
+      onMouseUp={handleCardMouseUp}
+      onMouseLeave={handleCardMouseLeave}
+      onTouchMove={handleCardTouchMove}
+      onTouchEnd={handleCardTouchEnd}
     >
-      {/* Exercise Header */}
-      <div
-        onClick={() => onToggleExpansion(exerciseIndex)}
-        className="w-full p-4 text-left hover:bg-gray-750 transition-colors cursor-pointer"
-      >
+      {/* Exercise Header (presentational) */}
+      <div className="w-full p-4 text-left hover:bg-gray-750 transition-colors cursor-pointer" onClick={() => onToggleExpansion(exerciseIndex)}>
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-lg">{exercise.exerciseName}</h3>
-            <div className="text-sm text-gray-400 mt-1">
-              {hasCurrentData && currentBest ? (
-                <span className="text-green-400">Current: {formatBest(currentBest)}</span>
-              ) : previousBest ? (
-                <span>Last: {formatBest(previousBest)}</span>
-              ) : (
-                "No previous data"
-              )}
-            </div>
+          <div className="flex-1">
+            <ExerciseHeader
+              name={exercise.exerciseName}
+              isExpanded={isExpanded}
+              isSwiped={isSwiped}
+              readOnly={readOnly ?? false}
+              previousBest={hasCurrentData && currentBest ? currentBest : previousBest}
+              onToggleExpansion={onToggleExpansion}
+              onSwipeToBottom={onSwipeToBottom}
+              exerciseIndex={exerciseIndex}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            {draggable && !readOnly && (
-              <div className="flex flex-col gap-0.5 text-gray-400 hover:text-gray-200 transition-colors cursor-grab active:cursor-grabbing mr-2 px-1" title="Drag anywhere to reorder">
-                <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
-                <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
-                <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
-                <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
-                <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
-                <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
-              </div>
-            )}
-            {hasCurrentData && (
-              <div className="h-2 w-2 rounded-full bg-green-400"></div>
-            )}
-            <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-              ▼
-            </div>
-          </div>
+          {draggable && !readOnly && (
+            <button
+              type="button"
+              aria-label="Drag to reorder"
+              data-drag-handle="true"
+              className="group ml-2 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-200"
+              onPointerDown={(e) => onPointerDown?.(e as any, { force: true })}
+              onMouseDown={(e) => onPointerDown?.(e as any, { force: true })}
+              onTouchStart={(e) => onPointerDown?.(e as any, { force: true })}
+              style={{ touchAction: 'none' }}
+              title="Drag to reorder"
+            >
+              <span className="inline-flex flex-col gap-0.5">
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -263,34 +282,18 @@ export function ExerciseCard({
             </div>
           )}
 
-          {/* Current Sets */}
-          <div className="space-y-2">
-            {exercise.sets.map((set, setIndex) => (
-              <SetInput
-                key={set.id}
-                set={set}
-                setIndex={setIndex}
-                exerciseIndex={exerciseIndex}
-                exerciseName={exercise.exerciseName}
-                templateExerciseId={exercise.templateExerciseId}
-                onUpdate={onUpdate}
-                onToggleUnit={onToggleUnit}
-                onDelete={onDeleteSet}
-                readOnly={readOnly}
-                showDelete={exercise.sets.length > 1}
-              />
-            ))}
-          </div>
-
-          {/* Add Set Button */}
-          {!readOnly && (
-            <button
-              onClick={() => onAddSet(exerciseIndex)}
-              className="w-full rounded-lg border-2 border-dashed border-gray-600 py-3 text-gray-400 hover:border-purple-500 hover:text-purple-400 transition-colors"
-            >
-              + Add Set
-            </button>
-          )}
+          {/* Current Sets (presentational) */}
+          <SetList
+            exerciseIndex={exerciseIndex}
+            exerciseName={exercise.exerciseName}
+            templateExerciseId={exercise.templateExerciseId}
+            sets={exercise.sets}
+            readOnly={readOnly ?? false}
+            onUpdate={onUpdate}
+            onToggleUnit={onToggleUnit}
+            onAddSet={onAddSet}
+            onDeleteSet={onDeleteSet}
+          />
         </div>
       )}
     </div>

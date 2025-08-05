@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { WhoopConnection } from "~/app/_components/whoop-connection";
+import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 
 export default async function ConnectWhoopPage() {
   const user = await currentUser();
@@ -22,13 +22,13 @@ export default async function ConnectWhoopPage() {
               ← Go Back
             </Link>
           </div>
-          <h1 className="text-3xl font-bold">Connect Whoop</h1>
+          <h1 className="text-3xl font-bold">Whoop Workouts</h1>
           <p className="text-gray-400">
-            Connect your Whoop device to sync your workout data
+            View and sync your Whoop workout data
           </p>
         </div>
 
-        <WhoopConnection />
+        <WhoopWorkouts />
       </div>
     </main>
   );

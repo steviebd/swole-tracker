@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { api } from "~/trpc/react";
+import { ExerciseLinkPicker } from "./ExerciseLinkPicker";
 
 interface ExerciseInputProps {
   value: string;
@@ -9,205 +10,209 @@ interface ExerciseInputProps {
   placeholder: string;
   className?: string;
   templateExerciseId?: number; // For existing template exercises
-  onLinkSuggestion?: (exerciseName: string, suggestions: SimilarExercise[]) => void;
 }
 
-interface SimilarExercise {
-  id: number;
-  name: string;
-  similarity: number;
-}
-
-export function ExerciseInputWithLinking({ 
-  value, 
-  onChange, 
-  placeholder, 
+export function ExerciseInputWithLinking({
+  value,
+  onChange,
+  placeholder,
   className,
   templateExerciseId,
-  onLinkSuggestion 
 }: ExerciseInputProps) {
-  const [suggestions, setSuggestions] = useState<SimilarExercise[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isCheckingForSuggestions, setIsCheckingForSuggestions] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [linkingRejected, setLinkingRejected] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const findSimilar = api.exercises.findSimilar.useQuery(
-    { exerciseName: value },
-    { 
-      enabled: false // We'll trigger this manually
-    }
-  );
-
-  const rejectLinking = api.exercises.rejectLinking.useMutation({
-    onSuccess: () => {
-      setLinkingRejected(true);
-      setShowSuggestions(false);
-      setSuggestions([]);
-    },
-  });
 
   // Check if this template exercise already has linking rejected
   const { data: isLinkingRejectedData } = api.exercises.isLinkingRejected.useQuery(
     { templateExerciseId: templateExerciseId! },
-    { enabled: !!templateExerciseId }
+    { enabled: !!templateExerciseId },
   );
 
-  // Initialize linkingRejected state for existing exercises
+  // Initialize linkingRejected state for existing exercises.
+  // Avoid infinite loops by only updating when value actually changes.
   useEffect(() => {
-    if (isLinkingRejectedData) {
+    if (typeof isLinkingRejectedData === "boolean" && isLinkingRejectedData !== linkingRejected) {
       setLinkingRejected(isLinkingRejectedData);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLinkingRejectedData]);
 
-  // Check for similar exercises when the user stops typing
-  useEffect(() => {
-    if (value.trim().length < 2 || linkingRejected) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      if (value.trim()) {
-        setIsCheckingForSuggestions(true);
-        void findSimilar.refetch().then((result) => {
-          if (result.data && result.data.length > 0) {
-            // Check if there's an exact match (100% similarity or exact name match)
-            const normalizedInput = value.toLowerCase().trim().replace(/\s+/g, ' ');
-            const exactMatch = result.data.find(suggestion => 
-              suggestion.similarity === 1 || 
-              suggestion.name.toLowerCase().trim().replace(/\s+/g, ' ') === normalizedInput
-            );
-            
-            if (exactMatch) {
-              // If there's an exact match, don't show suggestions
-              setSuggestions([]);
-              setShowSuggestions(false);
-            } else {
-              // Only show suggestions for non-exact matches
-              setSuggestions(result.data);
-              setShowSuggestions(true);
-              onLinkSuggestion?.(value, result.data);
-            }
-          } else {
-            setSuggestions([]);
-            setShowSuggestions(false);
-          }
-          setIsCheckingForSuggestions(false);
-        });
-      }
-    }, 500); // Debounce for 500ms
-
-    return () => clearTimeout(timer);
-  }, [value, findSimilar, onLinkSuggestion, linkingRejected]);
-
-  // Handle clicking outside to dismiss suggestions
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-        setSuggestions([]);
-      }
-    }
-
-    if (showSuggestions) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [showSuggestions]);
-
-  const handleSuggestionSelect = (suggestion: SimilarExercise) => {
-    onChange(suggestion.name);
-    setShowSuggestions(false);
-    setSuggestions([]);
-  };
+  const rejectLinking = api.exercises.rejectLinking.useMutation({
+    onSuccess: () => {
+      setLinkingRejected(true);
+    },
+  });
 
   const handleRejectLinking = () => {
     if (templateExerciseId) {
       rejectLinking.mutate({ templateExerciseId });
     } else {
-      // For new exercises (no templateExerciseId), just dismiss and mark as rejected locally
       setLinkingRejected(true);
-      setShowSuggestions(false);
-      setSuggestions([]);
     }
   };
 
   return (
-    <div ref={containerRef} className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => {
-          // Small delay to allow suggestion clicks to register
-          setTimeout(() => {
-            setShowSuggestions(false);
-            setSuggestions([]);
-          }, 200);
-        }}
-        placeholder={placeholder}
-        className={className}
-      />
-      
+    <div className="relative">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={className}
+        />
+        {!linkingRejected && (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="shrink-0 rounded border border-blue-700 bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+            title="Link to existing exercise"
+          >
+            Link
+          </button>
+        )}
+      </div>
+
       {linkingRejected && (
         <div className="mt-1 flex items-center gap-2 text-xs text-orange-400">
           <span>🔗</span>
           <span>Not linked - will create as new exercise</span>
         </div>
       )}
-      
-      {isCheckingForSuggestions && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 p-2 text-sm text-gray-400">
-          Checking for similar exercises...
+
+      {!linkingRejected && (
+        <div className="mt-1">
+          <button
+            type="button"
+            onClick={handleRejectLinking}
+            disabled={rejectLinking.isPending}
+            className="text-xs text-gray-400 hover:text-gray-300"
+          >
+            {rejectLinking.isPending ? "Saving..." : "Don’t link this exercise"}
+          </button>
         </div>
       )}
 
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-gray-600 bg-gray-800 shadow-lg">
-          <div className="border-b border-gray-700 p-3">
-            <div className="mb-2 text-sm font-medium text-yellow-400">
-              🔗 Similar exercises found
-            </div>
-            <div className="text-xs text-gray-400">
-              Link to existing exercise to track progress across templates
-            </div>
-          </div>
-          
-          <div className="max-h-48 overflow-y-auto">
-            {suggestions.map((suggestion) => (
-            <button
-            key={suggestion.id}
-            onClick={() => handleSuggestionSelect(suggestion)}
-            className="w-full p-3 text-left transition-colors hover:bg-gray-700"
-            >
-            <div className="flex items-center justify-between">
-            <span className="font-medium">{suggestion.name}</span>
-            <span className="text-xs text-green-400">
-            {Math.round(suggestion.similarity * 100)}% match
-            </span>
-            </div>
-            </button>
-            ))}
-          </div>
-          
-          <div className="border-t border-gray-700 p-3">
-            <button
-              onClick={handleRejectLinking}
-              disabled={rejectLinking.isPending}
-              className="w-full rounded bg-gray-700 py-2 text-sm transition-colors hover:bg-gray-600 disabled:opacity-50"
-            >
-              {rejectLinking.isPending 
-                ? "Saving..." 
-                : `Keep as "${value}" (new exercise)`
-              }
-            </button>
-          </div>
-        </div>
+      {/* When creating a new template, there is no templateExerciseId yet.
+          To enable linking in the "new" form, we need a target id.
+          Strategy: if no templateExerciseId, we create-or-get a master exercise first,
+          but we cannot link until the template exercise exists on the server.
+          So in the "new" workflow we simply allow searching and choosing a master,
+          and we reflect the chosen name back into the input. The actual link
+          will be created once the template is saved and the exercise records exist. */}
+      {pickerOpen && (
+        templateExerciseId != null ? (
+          <ExerciseLinkPicker
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            templateExerciseId={templateExerciseId}
+            currentName={value}
+          />
+        ) : (
+          <InlineSearchFallback
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            currentName={value}
+            onChooseName={(name) => {
+              onChange(name);
+              setPickerOpen(false);
+            }}
+          />
+        )
       )}
+    </div>
+  );
+}
+
+// Lightweight inline picker for "new" templates where templateExerciseId is not yet assigned.
+// This does not link on the server; it only helps pick a consistent name without fuzzy popup.
+function InlineSearchFallback({
+  open,
+  onClose,
+  currentName,
+  onChooseName,
+}: {
+  open: boolean;
+  onClose: () => void;
+  currentName: string;
+  onChooseName: (name: string) => void;
+}) {
+  const [q, setQ] = useState(currentName);
+  const [cursor, setCursor] = useState<number | null>(0);
+  const search = api.exercises.searchMaster.useQuery(
+    { q, limit: 20, cursor: cursor ?? 0 },
+    { enabled: open && q.trim().length > 0, staleTime: 10_000 },
+  );
+
+  useEffect(() => {
+    if (open) {
+      setQ(currentName);
+      setCursor(0);
+    }
+  }, [open, currentName]);
+
+  const items = search.data?.items ?? [];
+  const canLoadMore = search.data?.nextCursor != null;
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-700 p-3">
+          <div className="text-sm font-medium text-gray-200">Search exercises</div>
+          <button
+            onClick={onClose}
+            className="rounded px-2 py-1 text-sm text-gray-300 hover:bg-gray-700"
+          >
+            Close
+          </button>
+        </div>
+        <div className="p-3">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search master exercises"
+            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm outline-none placeholder:text-gray-500 focus:border-gray-500"
+          />
+          <div className="mt-3 max-h-72 overflow-y-auto rounded border border-gray-700">
+            {items.length === 0 ? (
+              <div className="p-3 text-sm text-gray-400">No results</div>
+            ) : (
+              <ul>
+                {items.map((it) => (
+                  <li
+                    key={it.id}
+                    className="flex items-center justify-between border-b border-gray-800 p-3 last:border-b-0"
+                  >
+                    <span className="text-sm text-gray-200">{it.name}</span>
+                    <button
+                      onClick={() => onChooseName(it.name)}
+                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+                    >
+                      Use name
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {canLoadMore && (
+            <div className="mt-2">
+              <button
+                onClick={() => {
+                  const next = search.data?.nextCursor ?? null;
+                  setCursor(next);
+                  if (next != null) void search.refetch();
+                }}
+                className="w-full rounded border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+              >
+                Load more
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

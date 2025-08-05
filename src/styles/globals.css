@@ -1,6 +1,100 @@
 @import "tailwindcss";
 
 @theme {
+  /* Typography */
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Apple-like dark palette tokens */
+  --color-bg-app: #0a0a0a;         /* ~gray-950 */
+  --color-bg-surface: #111827;     /* ~gray-900 */
+  --color-border: #1f2937;         /* ~gray-800 */
+  --color-text: #ffffff;           /* white */
+  --color-text-secondary: #d1d5db; /* ~gray-300 */
+  --color-text-muted: #9ca3af;     /* ~gray-400 */
+
+  /* Primary accent - macOS Big Sur blue */
+  --color-primary: #0A84FF;
+  --color-primary-hover: #0a7ae6;
+  --color-primary-active: #0867c4;
+
+  /* Semantic */
+  --color-success: #10b981; /* emerald-500 */
+  --color-warning: #f59e0b; /* amber-500 */
+  --color-danger:  #f43f5e; /* rose-500 */
+  --color-info:    #3b82f6; /* blue-500 */
+
+  /* Radius & shadow */
+  --radius-card: 0.75rem;
+  --shadow-focus: 0 0 0 2px color-mix(in oklab, var(--color-primary) 50%, transparent);
+}
+
+/* Base dark theme styles */
+:root {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: var(--color-bg-app);
+  color: var(--color-text);
+}
+
+/* Cards and surfaces */
+.card {
+  @apply rounded-lg border;
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+/* Text utilities */
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+/* Primary button */
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
+  background-color: var(--color-primary);
+  color: #0b0b0b;
+}
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+.btn-primary:active {
+  background-color: var(--color-primary-active);
+}
+.btn-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Link styles with primary accent */
+.link-primary {
+  @apply underline-offset-4 transition-colors;
+  color: var(--color-primary);
+}
+.link-primary:hover {
+  color: var(--color-primary-hover);
+}
+
+/* Section spacing */
+.section {
+  @apply py-6 md:py-8;
+}
+.container-default {
+  @apply container mx-auto px-4 md:px-6;
+}
+
+/* Reduce motion respect */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

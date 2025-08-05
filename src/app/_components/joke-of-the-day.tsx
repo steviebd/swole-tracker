@@ -131,7 +131,8 @@ export function JokeOfTheDay() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent scrolling
+    // Avoid calling preventDefault in passive event listeners to prevent console errors.
+    // We rely on touch-action CSS to control scrolling behavior.
     if (!isDragging || !touchStartXRef.current || !touchStartYRef.current)
       return;
 
@@ -228,7 +229,7 @@ export function JokeOfTheDay() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="bg-navy-600 hover:bg-navy-700 cursor-pointer touch-pan-y rounded-lg p-6 text-center select-none"
+      className="bg-navy-600 hover:bg-navy-700 cursor-pointer touch-none rounded-lg p-6 text-center select-none"
       style={{
         backgroundColor: "#1e3a8a",
         borderColor: "#1e40af",

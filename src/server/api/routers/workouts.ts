@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { workoutRateLimit } from "~/lib/rate-limit-middleware";
 import {
   workoutSessions,
   sessionExercises,
@@ -25,11 +26,18 @@ const exerciseInputSchema = z.object({
   unit: z.enum(["kg", "lbs"]).default("kg"),
 });
 
+/* DEBUG LOGGING ENABLED FOR TESTS */
+const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test';
+function debugLog(...args: any[]) {
+  if (debugEnabled) console.log('[workoutsRouter]', ...args);
+}
+
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
+      debugLog('getRecent: input', input);
       return ctx.db.query.workoutSessions.findMany({
         where: eq(workoutSessions.user_id, ctx.user.id),
         orderBy: [desc(workoutSessions.workoutDate)],
@@ -330,49 +338,75 @@ export const workoutsRouter = createTRPCRouter({
 
   // Start a new workout session
   start: protectedProcedure
+    .use(workoutRateLimit)
     .input(
       z.object({
         templateId: z.number(),
         workoutDate: z.date().default(() => new Date()),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
-      // Verify template ownership
-      const template = await ctx.db.query.workoutTemplates.findFirst({
-        where: eq(workoutTemplates.id, input.templateId),
-        with: {
-          exercises: {
-            orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+      try {
+
+        debugLog('start: input', input);
+        // Verify template ownership
+        const template = await ctx.db.query.workoutTemplates.findFirst({
+          where: eq(workoutTemplates.id, input.templateId),
+          with: {
+            exercises: {
+              orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+            },
           },
-        },
-      });
+        });
 
-      if (!template || template.user_id !== ctx.user.id) {
-        throw new Error("Template not found");
+        debugLog('start: found template', template);
+        if (!template || template.user_id !== ctx.user.id) {
+          throw new Error("Template not found");
+        }
+
+        // Create workout session
+        debugLog('start: inserting workout session');
+        const [session] = await ctx.db
+          .insert(workoutSessions)
+          .values({
+            user_id: ctx.user.id,
+            templateId: input.templateId,
+            workoutDate: input.workoutDate,
+          })
+          .returning();
+
+        debugLog('start: inserted session', session);
+        if (!session) {
+          throw new Error("Failed to create workout session");
+        }
+
+        const result = {
+          sessionId: session.id,
+          template,
+        };
+        debugLog('start: returning', result);
+        return result;
+      } catch (err: any) {
+        const { TRPCError } = await import('@trpc/server');
+        const message = err?.message ?? 'workouts.start failed';
+        const meta = {
+          name: err?.name,
+          cause: err?.cause,
+          stack: err?.stack,
+          err,
+        };
+        debugLog('start: caught error', message, meta);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message,
+          cause: meta,
+        });
       }
-
-      // Create workout session
-      const [session] = await ctx.db
-        .insert(workoutSessions)
-        .values({
-          user_id: ctx.user.id,
-          templateId: input.templateId,
-          workoutDate: input.workoutDate,
-        })
-        .returning();
-
-      if (!session) {
-        throw new Error("Failed to create workout session");
-      }
-
-      return {
-        sessionId: session.id,
-        template,
-      };
     }),
 
   // Save workout session with exercises
   save: protectedProcedure
+    .use(workoutRateLimit)
     .input(
       z.object({
         sessionId: z.number(),
@@ -424,6 +458,7 @@ export const workoutsRouter = createTRPCRouter({
 
   // Delete a workout session
   delete: protectedProcedure
+    .use(workoutRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership
