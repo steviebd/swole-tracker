@@ -288,12 +288,13 @@ describe("jokes.ts coverage tests", () => {
       const caller = await buildCaller({ db, user });
       const result = await caller.jokes.getCurrent();
 
-      // The actual implementation returns a fallback joke from generateNewJoke, not getCurrent's error handler
+      // getCurrent normalizes AI failures to a specific backup joke
       expect(result.joke).toBeDefined();
       expect(typeof result.joke).toBe("string");
       expect(result.isFromCache).toBe(false);
-      // The error is handled in generateNewJoke, so we get either the AI Gateway fallback or error fallback
-      expect(result.joke).toMatch(/AI generation failed|Vercel AI Gateway not configured/);
+      expect(result.joke).toContain(
+        "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!"
+      );
     });
 
     it("should handle various error types", async () => {

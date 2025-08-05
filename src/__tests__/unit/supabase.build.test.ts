@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { requireEnv } from "~/lib/supabase";
 
 describe("supabase.ts build tests", () => {
   describe("requireEnv function", () => {
@@ -7,11 +8,8 @@ describe("supabase.ts build tests", () => {
       const originalEnv = process.env;
       process.env = { ...originalEnv, TEST_VAR: "test_value" };
 
-      // Import the module to get the requireEnv function
-      const { requireEnv } = require("~/lib/supabase");
-      
       expect(requireEnv("TEST_VAR")).toBe("test_value");
-      
+
       // Restore process.env
       process.env = originalEnv;
     });
@@ -22,31 +20,28 @@ describe("supabase.ts build tests", () => {
       process.env = { ...originalEnv };
       delete process.env.MISSING_VAR;
 
-      // Import the module to get the requireEnv function
-      const { requireEnv } = require("~/lib/supabase");
-      
       expect(() => requireEnv("MISSING_VAR")).toThrow("MISSING_VAR is not set");
-      
+
       // Restore process.env
       process.env = originalEnv;
     });
   });
 
   describe("module exports", () => {
-    it("should not export client or server implementations", () => {
-      const module = require("~/lib/supabase");
-      
+    it("should not export client or server implementations", async () => {
+      const module = await import("~/lib/supabase");
+
       expect(module).toBeDefined();
       // The module should not export createClient or SupabaseClient
-      expect(module.createClient).toBeUndefined();
-      expect(module.SupabaseClient).toBeUndefined();
+      expect((module as any).createClient).toBeUndefined();
+      expect((module as any).SupabaseClient).toBeUndefined();
     });
   });
 
   describe("import behavior", () => {
-    it("should be importable without errors", () => {
-      expect(() => {
-        require("~/lib/supabase");
+    it("should be importable without errors", async () => {
+      expect(async () => {
+        await import("~/lib/supabase");
       }).not.toThrow();
     });
   });
