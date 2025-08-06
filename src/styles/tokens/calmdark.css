@@ -1,0 +1,79 @@
+/* CalmDark theme tokens */
+:root[data-theme="CalmDark"] {
+  --color-bg-app: #0B0E14;
+  --color-bg-surface: #111723;
+  --color-border: #1c2740;
+  --color-text: #E8ECF5;
+  --color-text-secondary: #C8D0E0;
+  --color-text-muted: #9AA6BF;
+
+  --color-primary: #6AA6FF;        /* softer azure */
+  --color-primary-hover: #5A95EF;
+  --color-primary-active: #4A84D8;
+
+  --color-success: #35C88A;
+  --color-warning: #F5A524;
+  --color-danger:  #F16B7E;
+  --color-info:    #78A6FF;
+
+  --radius-card: 0.625rem;
+
+  /* Focus and motion tuned for calmness */
+  --shadow-focus: 0 0 0 3px color-mix(in oklab, var(--color-primary) 30%, transparent);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+  --shadow-md: 0 6px 18px rgba(0,0,0,.4);
+  --shadow-lg: 0 12px 30px rgba(0,0,0,.45);
+
+  --motion-duration-fast: 180ms;
+  --motion-duration-base: 220ms;
+  --motion-duration-slow: 260ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Buttons */
+  --btn-primary-bg: none;
+  --btn-primary-bg-color: var(--color-primary);
+  --btn-primary-fg: #0b0b0b;
+  --btn-primary-border: transparent;
+  --btn-primary-bg-hover: var(--color-primary-hover);
+  --btn-primary-bg-active: var(--color-primary-active);
+
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: var(--color-text);
+  --btn-secondary-border: var(--color-border);
+  --btn-secondary-bg-hover: color-mix(in oklab, var(--color-bg-surface) 85%, white 15%);
+
+  --btn-ghost-fg: var(--color-text-secondary);
+}
+
+/* CalmDark component accents */
+:root[data-theme="CalmDark"] .card {
+  backdrop-filter: blur(4px);
+  background: color-mix(in oklab, var(--color-bg-surface) 92%, #ffffff 8%);
+  border-image: linear-gradient(180deg, #6AA6FF33, #1c274033) 1;
+}
+
+:root[data-theme="CalmDark"] .modal-backdrop {
+  backdrop-filter: blur(3px);
+  background: rgba(9, 12, 20, 0.6);
+}
+
+:root[data-theme="CalmDark"] .input {
+  @apply w-full rounded-md px-3 py-2 text-sm outline-none transition;
+  background-color: color-mix(in oklab, var(--color-bg-surface) 92%, #ffffff 8%);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+:root[data-theme="CalmDark"] .input:focus {
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-primary);
+}
+:root[data-theme="CalmDark"] .input[data-invalid="true"] { border-color: var(--color-danger); }
+
+:root[data-theme="CalmDark"] .page-backdrop {
+  @apply absolute inset-0 -z-10;
+  background:
+    radial-gradient(1200px 800px at -10% -20%, #6AA6FF10 0%, transparent 60%),
+    radial-gradient(1000px 700px at 110% -20%, #7EC8B918 0%, transparent 65%),
+    linear-gradient(180deg, #0A0E19 0%, #0B0E16 60%, #0E1423 100%);
+}

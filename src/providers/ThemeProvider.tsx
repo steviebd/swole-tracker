@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 
-type Theme = "light" | "dark" | "system" | "Horizon_wow";
+type Theme = "light" | "dark" | "system" | "CalmDark" | "BoldDark" | "PlayfulDark";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -23,8 +23,10 @@ function applyThemeClass(theme: Theme) {
   const shouldDark =
     theme === "dark" ||
     (theme === "system" && prefersDark) ||
-    // Horizon_wow uses a dark-first palette by default
-    theme === "Horizon_wow";
+    // All custom dark themes are dark-first
+    theme === "CalmDark" ||
+    theme === "BoldDark" ||
+    theme === "PlayfulDark";
 
   // data-theme is the source of truth for CSS variables/themes
   root.dataset.theme = theme;
@@ -34,7 +36,7 @@ function applyThemeClass(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+  const [theme, setThemeState] = useState<Theme>("CalmDark");
   // track system dark mode separately so consumers re-render when it changes
   const [systemDark, setSystemDark] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -50,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // initial load from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "system";
+    const stored = (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "CalmDark";
     setThemeState(stored);
     applyThemeClass(stored);
 

@@ -1,57 +1,47 @@
+/* Base tokens shared by all dark themes */
 @import "tailwindcss";
-@import "./tokens/base.css";
-@import "./tokens/calmdark.css";
-@import "./tokens/bolddark.css";
-@import "./tokens/playfuldark.css";
 
+/* Typography and layout scales */
 @theme {
-  /* Typography */
-  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-display: var(--font-display-internal, var(--font-ui));
 
-  /* Base palette (default theme - existing) */
-  --color-bg-app: #0a0a0a;         /* ~gray-950 */
-  --color-bg-surface: #111827;     /* ~gray-900 */
-  --color-border: #1f2937;         /* ~gray-800 */
-  --color-text: #ffffff;           /* white */
-  --color-text-secondary: #d1d5db; /* ~gray-300 */
-  --color-text-muted: #9ca3af;     /* ~gray-400 */
+  /* Default fallbacks (overridden by theme variants) */
+  --color-bg-app: #0a0a0a;
+  --color-bg-surface: #111827;
+  --color-border: #1f2937;
+  --color-text: #ffffff;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
 
-  /* Primary accent - default */
   --color-primary: #0A84FF;
   --color-primary-hover: #0a7ae6;
   --color-primary-active: #0867c4;
 
-  /* Semantic */
-  --color-success: #10b981; /* emerald-500 */
-  --color-warning: #f59e0b; /* amber-500 */
-  --color-danger:  #f43f5e; /* rose-500 */
-  --color-info:    #3b82f6; /* blue-500 */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger:  #f43f5e;
+  --color-info:    #3b82f6;
 
-  /* Radius & shadow */
   --radius-card: 0.75rem;
   --shadow-focus: 0 0 0 2px color-mix(in oklab, var(--color-primary) 50%, transparent);
 
-  /* Shadow scale */
   --shadow-xs: 0 1px 2px rgba(0,0,0,.15);
   --shadow-sm: 0 2px 8px rgba(0,0,0,.18);
   --shadow-md: 0 6px 18px rgba(0,0,0,.22);
   --shadow-lg: 0 12px 30px rgba(0,0,0,.28);
+
+  /* Motion defaults (overridden by variants as needed) */
+  --motion-duration-fast: 160ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-slow: 240ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-spring: cubic-bezier(0.2, 0.8, 0.2, 1.2);
 }
 
-/* Light-first base, with dark overrides via html.dark */
-:root {
-  color-scheme: light;
-}
-
-body {
-  @apply bg-gray-50 text-gray-900;
-}
-
-html.dark {
-  color-scheme: dark;
-}
+/* Global color-scheme and dark class */
+:root { color-scheme: dark; }
+html.dark { color-scheme: dark; }
 
 html.dark body {
   background-color: var(--color-bg-app);
@@ -72,20 +62,12 @@ html.dark .card {
 }
 
 /* Text utilities */
-.text-secondary {
-  @apply text-gray-600;
-}
-.text-muted {
-  @apply text-gray-500;
-}
-html.dark .text-secondary {
-  color: var(--color-text-secondary);
-}
-html.dark .text-muted {
-  color: var(--color-text-muted);
-}
+.text-secondary { @apply text-gray-600; }
+.text-muted { @apply text-gray-500; }
+html.dark .text-secondary { color: var(--color-text-secondary); }
+html.dark .text-muted { color: var(--color-text-muted); }
 
-/* Primary button - tokenized */
+/* Buttons */
 .btn-primary {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-image: var(--btn-primary-bg, none);
@@ -93,18 +75,10 @@ html.dark .text-muted {
   color: var(--btn-primary-fg, #0b0b0b);
   border: 1px solid var(--btn-primary-border, transparent);
 }
-.btn-primary:hover {
-  background-color: var(--btn-primary-bg-hover, var(--color-primary-hover));
-}
-.btn-primary:active {
-  background-color: var(--btn-primary-bg-active, var(--color-primary-active));
-}
-.btn-primary:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
+.btn-primary:hover { background-color: var(--btn-primary-bg-hover, var(--color-primary-hover)); }
+.btn-primary:active { background-color: var(--btn-primary-bg-active, var(--color-primary-active)); }
+.btn-primary:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
-/* Secondary, ghost, destructive, success buttons */
 .btn-secondary {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--btn-secondary-bg, transparent);
@@ -114,43 +88,35 @@ html.dark .text-muted {
 .btn-secondary:hover {
   background-color: var(--btn-secondary-bg-hover, color-mix(in oklab, var(--color-bg-surface) 85%, white 15%));
 }
+
 .btn-ghost {
   @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors;
   background-color: transparent;
   color: var(--btn-ghost-fg, var(--color-text-secondary));
 }
-.btn-ghost:hover {
-  background-color: color-mix(in oklab, var(--color-bg-surface) 80%, black 20%);
-}
+.btn-ghost:hover { background-color: color-mix(in oklab, var(--color-bg-surface) 80%, black 20%); }
+
 .btn-destructive {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-danger);
   color: #0b0b0b;
 }
+
 .btn-success {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-success);
   color: #0b0b0b;
 }
 
-/* Link styles with primary accent */
-.link-primary {
-  @apply underline-offset-4 transition-colors;
-  color: var(--color-primary);
-}
-.link-primary:hover {
-  color: var(--color-primary-hover);
-}
+/* Links */
+.link-primary { @apply underline-offset-4 transition-colors; color: var(--color-primary); }
+.link-primary:hover { color: var(--color-primary-hover); }
 
-/* Section spacing */
-.section {
-  @apply py-6 md:py-8;
-}
-.container-default {
-  @apply container mx-auto px-4 md:px-6;
-}
+/* Layout helpers */
+.section { @apply py-6 md:py-8; }
+.container-default { @apply container mx-auto px-4 md:px-6; }
 
-/* Reduce motion respect */
+/* Motion respect */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;
@@ -160,9 +126,7 @@ html.dark .text-muted {
   }
 }
 
-/* ===================== */
-/* Liquid Glass utilities (used by Horizon_wow) */
-/* ===================== */
+/* Glass utilities (shared) */
 .glass-surface {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -173,7 +137,6 @@ html.dark .text-muted {
   border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
   box-shadow: var(--shadow-sm);
 }
-
 .glass-header {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -182,7 +145,6 @@ html.dark .text-muted {
     color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
   border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
-
 .glass-footer {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -191,23 +153,13 @@ html.dark .text-muted {
     color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
   border-top: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
+.glass-hairline { border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%); }
 
-.glass-hairline {
-  border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
-}
-
+/* Backdrop gradient helper */
 .bg-horizon {
-  /* deep-space gradient backdrop */
   background:
     radial-gradient(1200px 800px at -10% -20%, #FF7A7A10 0%, transparent 60%),
     radial-gradient(1000px 700px at 110% -20%, #8A84FF18 0%, transparent 65%),
     radial-gradient(1200px 900px at 50% 120%, #FFD16612 0%, transparent 60%),
     linear-gradient(180deg, #070A17 0%, #0B1020 60%, #0F1530 100%);
 }
-
-/* Removed legacy Horizon_wow theme block. Tokens now provided via:
-   - src/styles/tokens/base.css
-   - src/styles/tokens/calmdark.css
-   - src/styles/tokens/bolddark.css
-   - src/styles/tokens/playfuldark.css
-*/
