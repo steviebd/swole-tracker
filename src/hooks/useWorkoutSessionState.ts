@@ -29,6 +29,25 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   const [previousDataLoaded, setPreviousDataLoaded] = useState(false);
   const [notification, setNotification] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [collapsedIndexes, setCollapsedIndexes] = useState<number[]>([]);
+  // Track last reversible action for persistent Undo behavior
+  const [lastAction, setLastAction] = useState<
+    | {
+        type: "swipeToEnd";
+        exerciseId: string;
+        fromIndex: number;
+        toIndex: number;
+      }
+    | {
+        type: "toggleCollapse";
+        exerciseId: string;
+        previousExpanded: boolean;
+      }
+    | {
+        type: "dragReorder";
+        previousOrder: Array<{ name: string; templateExerciseId?: number }>;
+      }
+    | null
+  >(null);
   const [progressionModal, setProgressionModal] = useState<{
     isOpen: boolean;
     exerciseIndex: number;
@@ -70,6 +89,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   const generateSetId = () => `set-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   // swipe settings
+  // Phase 3: allow asymmetric thresholds via preferences (future: per-direction)
   const swipeSettings: Partial<SwipeSettings> = {
     dismissThreshold: 140,
     velocityThreshold: 4,
@@ -86,8 +106,16 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   const [dragState, dragHandlers] = useUniversalDragReorder(
     displayOrder,
     (newDisplayOrder) => {
+      // Capture previous order for Undo
+      const prevOrder = exercises.map((ex) => ({ name: ex.exerciseName, templateExerciseId: ex.templateExerciseId }));
       const newExercises = newDisplayOrder.map((item) => item.exercise);
       setExercises(newExercises);
+
+      // record undo action
+      setLastAction({
+        type: "dragReorder",
+        previousOrder: prevOrder,
+      });
 
       // maintain collapsed by identity
       const idFor = (ex: ExerciseData) => ex.templateExerciseId ?? `name:${ex.exerciseName}`;
@@ -134,6 +162,10 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
           user_id: session.user_id,
           templateId: session.templateId,
           workoutDate: session.workoutDate,
+          // Phase 3 telemetry fields with safe defaults to match cache type
+          theme_used: (session as any).theme_used ?? null,
+          device_type: (session as any).device_type ?? null,
+          perf_metrics: (session as any).perf_metrics ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
           template: session.template,
@@ -149,10 +181,15 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
               reps: set.reps ?? null,
               sets: set.sets ?? null,
               unit: set.unit as string,
+              // Provide Phase 2 nullable fields to satisfy cache type
+              rpe: null as unknown as number | null,
+              rest_seconds: null as unknown as number | null,
+              is_estimate: false,
+              is_default_applied: false,
               createdAt: new Date(),
             }))
           ),
-        };
+        } as const;
 
         utils.workouts.getRecent.setData({ limit: 5 }, (old) =>
           old ? [optimisticWorkout, ...old.slice(0, 4)] : [optimisticWorkout],
@@ -349,13 +386,35 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     const exercise = newExercises[exerciseIndex];
     if (exercise) {
       const lastSet = exercise.sets[exercise.sets.length - 1];
+
+      // Phase 3: Predictive defaults engine (simple strategy v1)
+      // If enabled in preferences, prefill from last completed set values on this exercise
+      const predictiveEnabled = (preferences as any)?.predictive_defaults_enabled === true;
+
+      // Determine base values
+      let nextWeight: number | undefined = undefined;
+      let nextReps: number | undefined = undefined;
+      let nextSetsCount: number | undefined = 1;
+      const unitToUse = (lastSet?.unit ?? exercise.unit) as "kg" | "lbs";
+
+      if (predictiveEnabled) {
+        // Strategy: Prefill using most recent non-empty set in this exercise
+        const recent = [...exercise.sets].reverse().find(s => (s.weight ?? s.reps ?? s.sets) !== undefined);
+        if (recent) {
+          nextWeight = recent.weight;
+          nextReps = recent.reps;
+          nextSetsCount = recent.sets ?? 1;
+        }
+      }
+
       const newSet: SetData = {
         id: generateSetId(),
-        weight: undefined,
-        reps: undefined,
-        sets: 1,
-        unit: lastSet?.unit ?? exercise.unit,
+        weight: nextWeight,
+        reps: nextReps,
+        sets: nextSetsCount,
+        unit: unitToUse,
       };
+
       exercise.sets.push(newSet);
       setExercises(newExercises);
     }
@@ -371,9 +430,20 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   };
 
   const toggleExpansion = (exerciseIndex: number) => {
+    const exercise = exercises[exerciseIndex];
+    if (!exercise) return;
+
+    const wasExpanded = expandedExercises.includes(exerciseIndex);
     setExpandedExercises((prev) =>
-      prev.includes(exerciseIndex) ? prev.filter((i) => i !== exerciseIndex) : [...prev, exerciseIndex],
+      wasExpanded ? prev.filter((i) => i !== exerciseIndex) : [...prev, exerciseIndex],
     );
+
+    // record undo action
+    setLastAction({
+      type: "toggleCollapse",
+      exerciseId: (exercise.templateExerciseId ?? `name:${exercise.exerciseName}`).toString(),
+      previousExpanded: wasExpanded,
+    });
   };
 
   const handleSwipeToBottom = (exerciseIndex: number) => {
@@ -381,7 +451,18 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       if (exerciseIndex < 0 || exerciseIndex >= prev.length) return prev;
       const next = [...prev];
       const [item] = next.splice(exerciseIndex, 1);
-      next.push(item!);
+      if (!item) return prev;
+      const toIndex = next.length; // will be pushed to end
+      next.push(item);
+
+      // record undo action
+      setLastAction({
+        type: "swipeToEnd",
+        exerciseId: (item.templateExerciseId ?? `name:${item.exerciseName}`).toString(),
+        fromIndex: exerciseIndex,
+        toIndex,
+      });
+
       return next;
     });
 
@@ -411,10 +492,130 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       }))
       .filter((exercise) => exercise.sets.length > 0);
 
+    // Helper to push a custom last action (in case caller wants to set explicitly)
+  const pushLastAction = (action: NonNullable<typeof lastAction>) => setLastAction(action);
+
+  // Undo handlers to be used by the component
+  const undoLastAction = () => {
+    if (!lastAction) return;
+
+    if (lastAction.type === "swipeToEnd") {
+      // Move the exercise back to original index
+      setExercises((prev) => {
+        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const srcIndex = prev.findIndex((ex) => idFor(ex) === lastAction.exerciseId);
+        if (srcIndex === -1) return prev;
+        const next = [...prev];
+        const [item] = next.splice(srcIndex, 1);
+        next.splice(lastAction.fromIndex, 0, item!);
+        return next;
+      });
+      // Also clear collapsed flag for correctness
+      setCollapsedIndexes((prevCollapsed) => prevCollapsed.filter((i) => i !== -1));
+    } else if (lastAction.type === "toggleCollapse") {
+      // Restore previous expanded state
+      setExpandedExercises((prev) => {
+        const exerciseIndex = exercises.findIndex(
+          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === lastAction.exerciseId,
+        );
+        if (exerciseIndex === -1) return prev;
+        const isCurrentlyExpanded = prev.includes(exerciseIndex);
+        if (lastAction.previousExpanded && !isCurrentlyExpanded) {
+          return [...prev, exerciseIndex];
+        }
+        if (!lastAction.previousExpanded && isCurrentlyExpanded) {
+          return prev.filter((i) => i !== exerciseIndex);
+        }
+        return prev;
+      });
+    } else if (lastAction.type === "dragReorder") {
+      // Restore previous order based on identity
+      setExercises((prev) => {
+        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const byId = new Map(prev.map((ex) => [idFor(ex), ex]));
+        const restored: ExerciseData[] = [];
+        for (const item of lastAction.previousOrder) {
+          const key = (item.templateExerciseId ?? `name:${item.name}`).toString();
+          const ex = byId.get(key);
+          if (ex) restored.push(ex);
+        }
+        // Include any extras that might have been added (safety)
+        for (const ex of prev) {
+          const key = idFor(ex);
+          if (!restored.find((r) => idFor(r) === key)) restored.push(ex);
+        }
+        return restored;
+      });
+    }
+
+    // Clear last action after undo
+    setLastAction(null);
+  };
+
     return {
       sessionId,
       exercises: cleanedExercises,
     };
+  };
+
+  // Helper to push a custom last action (in case caller wants to set explicitly)
+  const pushLastAction = (action: NonNullable<typeof lastAction>) => setLastAction(action);
+
+  // Undo handlers to be used by the component
+  const undoLastAction = () => {
+    if (!lastAction) return;
+
+    if (lastAction.type === "swipeToEnd") {
+      // Move the exercise back to original index
+      setExercises((prev) => {
+        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const srcIndex = prev.findIndex((ex) => idFor(ex) === lastAction.exerciseId);
+        if (srcIndex === -1) return prev;
+        const next = [...prev];
+        const [item] = next.splice(srcIndex, 1);
+        next.splice(lastAction.fromIndex, 0, item!);
+        return next;
+      });
+      // Also clear collapsed flag for correctness
+      setCollapsedIndexes((prevCollapsed) => prevCollapsed.filter((i) => i !== -1));
+    } else if (lastAction.type === "toggleCollapse") {
+      // Restore previous expanded state
+      setExpandedExercises((prev) => {
+        const exerciseIndex = exercises.findIndex(
+          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === lastAction.exerciseId,
+        );
+        if (exerciseIndex === -1) return prev;
+        const isCurrentlyExpanded = prev.includes(exerciseIndex);
+        if (lastAction.previousExpanded && !isCurrentlyExpanded) {
+          return [...prev, exerciseIndex];
+        }
+        if (!lastAction.previousExpanded && isCurrentlyExpanded) {
+          return prev.filter((i) => i !== exerciseIndex);
+        }
+        return prev;
+      });
+    } else if (lastAction.type === "dragReorder") {
+      // Restore previous order based on identity
+      setExercises((prev) => {
+        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const byId = new Map(prev.map((ex) => [idFor(ex), ex]));
+        const restored: ExerciseData[] = [];
+        for (const item of lastAction.previousOrder) {
+          const key = (item.templateExerciseId ?? `name:${item.name}`).toString();
+          const ex = byId.get(key);
+          if (ex) restored.push(ex);
+        }
+        // Include any extras that might have been added (safety)
+        for (const ex of prev) {
+          const key = idFor(ex);
+          if (!restored.find((r) => idFor(r) === key)) restored.push(ex);
+        }
+        return restored;
+      });
+    }
+
+    // Clear last action after undo
+    setLastAction(null);
   };
 
   return {
@@ -466,5 +667,11 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     // expose updatePreferences for component use where needed
     updatePreferences,
     session,
+
+    // undo surface
+    lastAction,
+    pushLastAction,
+    undoLastAction,
+    setLastAction,
   };
 }

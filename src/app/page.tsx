@@ -9,6 +9,7 @@ import { JokeOfTheDay } from "~/app/_components/joke-of-the-day";
 
 import HydrateClient from "~/trpc/HydrateClient";
 import { getQueryClient, getDehydratedState, prefetchHome } from "~/trpc/prefetch";
+import ClientPreferencesTrigger from "./preferences-trigger";
 
 export default async function Home() {
   const user = await currentUser();
@@ -42,6 +43,7 @@ export default async function Home() {
 
   return (
     <HydrateClient state={state}>
+      <ClientPreferencesTrigger />
       <main className="min-h-screen container-default py-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between glass-header rounded-xl px-4 py-3">

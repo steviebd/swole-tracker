@@ -8,6 +8,8 @@ export interface SetData {
   reps?: number;
   sets: number;
   unit: "kg" | "lbs";
+  rpe?: number;   // 6–10
+  rest?: number;  // seconds
 }
 
 interface SetInputProps {
@@ -28,6 +30,10 @@ interface SetInputProps {
   showDelete?: boolean;
 }
 
+import { useEffect, useMemo, useRef, useState } from "react";
+import { NumericPadOverlay } from "./ui/NumericPadOverlay";
+import { Button } from "./ui/Button";
+
 export function SetInput({
   set,
   setIndex,
@@ -40,6 +46,29 @@ export function SetInput({
   readOnly = false,
   showDelete = true,
 }: SetInputProps) {
+  const [padOpenFor, setPadOpenFor] = useState<null | "weight" | "reps" | "rest">(null);
+  const weightInputRef = useRef<HTMLInputElement>(null);
+  const repsInputRef = useRef<HTMLInputElement>(null);
+  const restInputRef = useRef<HTMLInputElement>(null);
+  const lastUsedWeight = useRef<number | null>(null);
+
+  useEffect(() => {
+    // remember last used weight for shortcuts
+    if (typeof set.weight === "number" && !Number.isNaN(set.weight)) {
+      lastUsedWeight.current = set.weight;
+    }
+  }, [set.weight]);
+
+  const closePadAndRefocus = () => {
+    const field = padOpenFor;
+    setPadOpenFor(null);
+    // Return focus to the originating input
+    setTimeout(() => {
+      if (field === "weight") weightInputRef.current?.focus();
+      if (field === "reps") repsInputRef.current?.focus();
+      if (field === "rest") restInputRef.current?.focus();
+    }, 0);
+  };
   const handleWeightChange = (value: number | undefined) => {
     onUpdate(exerciseIndex, setIndex, "weight", value);
     if (value && set.sets) {
@@ -52,6 +81,22 @@ export function SetInput({
     }
   };
 
+  const handleRepsChange = (value: number | undefined) => {
+    onUpdate(exerciseIndex, setIndex, "reps", value);
+  };
+
+  const handleSetsChange = (value: number | undefined) => {
+    onUpdate(exerciseIndex, setIndex, "sets", value ?? 1);
+  };
+
+  const handleRpeChange = (value: number) => {
+    onUpdate(exerciseIndex, setIndex, "rpe", value);
+  };
+
+  const handleRestChange = (value: number | undefined) => {
+    onUpdate(exerciseIndex, setIndex, "rest", value);
+  };
+
   return (
     <div className="flex items-center gap-3 rounded-lg p-3 select-none glass-surface glass-hairline text-gray-900 dark:text-white">
       {/* Set Number */}
@@ -60,12 +105,13 @@ export function SetInput({
       </div>
 
       {/* Input Grid */}
-      <div className="flex flex-1 gap-3">
+      <div className="flex flex-1 flex-wrap gap-3">
         {/* Weight */}
-        <div className="flex-1">
+        <div className="min-w-[120px] flex-1">
           <label className="mb-1 block text-xs text-secondary">Weight</label>
           <div className="flex items-center gap-1">
             <input
+              ref={weightInputRef}
               type="number"
               step="0.5"
               value={set.weight ?? ""}
@@ -76,6 +122,7 @@ export function SetInput({
                 handleWeightChange(value);
               }}
               onFocus={(e) => e.target.select()}
+              onClick={() => !readOnly && setPadOpenFor("weight")}
               placeholder="0"
               disabled={readOnly}
               className={`input flex-1 bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
@@ -93,20 +140,18 @@ export function SetInput({
         </div>
 
         {/* Reps */}
-        <div className="flex-1">
+        <div className="min-w-[100px] flex-1">
           <label className="mb-1 block text-xs text-secondary">Reps</label>
           <input
+            ref={repsInputRef}
             type="number"
             value={set.reps ?? ""}
-            onChange={(e) =>
-              onUpdate(
-                exerciseIndex,
-                setIndex,
-                "reps",
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
+            onChange={(e) => {
+              const value = e.target.value ? parseInt(e.target.value) : undefined;
+              handleRepsChange(value);
+            }}
             onFocus={(e) => e.target.select()}
+            onClick={() => !readOnly && setPadOpenFor("reps")}
             placeholder="0"
             disabled={readOnly}
             className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
@@ -114,25 +159,77 @@ export function SetInput({
         </div>
 
         {/* Sets */}
-        <div className="flex-1">
+        <div className="min-w-[100px] flex-1">
           <label className="mb-1 block text-xs text-secondary">Sets</label>
           <input
             type="number"
             value={set.sets}
-            onChange={(e) =>
-              onUpdate(
-                exerciseIndex,
-                setIndex,
-                "sets",
-                e.target.value ? parseInt(e.target.value) : 1,
-              )
-            }
+            onChange={(e) => {
+              const value = e.target.value ? parseInt(e.target.value) : 1;
+              handleSetsChange(value);
+            }}
             onFocus={(e) => e.target.select()}
             placeholder="1"
             min="1"
             disabled={readOnly}
             className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
+        </div>
+        {/* RPE segmented [6-10] */}
+        <div className="min-w-[160px]">
+          <label className="mb-1 block text-xs text-secondary">RPE</label>
+          <div className="flex items-center gap-1">
+            {[6,7,8,9,10].map((r) => {
+              const active = set.rpe === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => !readOnly && handleRpeChange(r)}
+                  className={`
+                    px-2 py-1 rounded-md text-xs 
+                    ${active ? "btn-primary" : "btn-secondary"}
+                    ${readOnly ? "opacity-60 cursor-not-allowed" : ""}
+                  `}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Rest with quick chips */}
+        <div className="min-w-[160px] flex-1">
+          <label className="mb-1 block text-xs text-secondary">Rest (s)</label>
+          <div className="flex items-center gap-1">
+            <input
+              ref={restInputRef}
+              type="number"
+              value={set.rest ?? ""}
+              onChange={(e) => {
+                const value = e.target.value ? parseInt(e.target.value) : undefined;
+                handleRestChange(value);
+              }}
+              onFocus={(e) => e.target.select()}
+              onClick={() => !readOnly && setPadOpenFor("rest")}
+              placeholder="60"
+              disabled={readOnly}
+              className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+            />
+            {[30,60,90].map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                disabled={readOnly}
+                onClick={() => !readOnly && handleRestChange(sec)}
+                className={`px-2 py-1 rounded-md text-xs btn-secondary ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                {sec}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -168,6 +265,41 @@ export function SetInput({
         >
           ×
         </button>
+      )}
+      {/* Numeric Pad Overlay */}
+      {!readOnly && (
+        <NumericPadOverlay
+          open={padOpenFor !== null}
+          onClose={closePadAndRefocus}
+          value={
+            padOpenFor === "weight"
+              ? (set.weight ?? "").toString()
+              : padOpenFor === "reps"
+              ? (set.reps ?? "").toString()
+              : padOpenFor === "rest"
+              ? (set.rest ?? "").toString()
+              : ""
+          }
+          onChange={(next) => {
+            const parsed = next === "" ? undefined : Number(next);
+            if (padOpenFor === "weight") handleWeightChange(Number.isNaN(parsed!) ? undefined : parsed);
+            if (padOpenFor === "reps") handleRepsChange(Number.isNaN(parsed!) ? undefined : parsed);
+            if (padOpenFor === "rest") handleRestChange(Number.isNaN(parsed!) ? undefined : parsed);
+          }}
+          label={
+            padOpenFor === "weight" ? "Weight" : padOpenFor === "reps" ? "Reps" : padOpenFor === "rest" ? "Rest (s)" : "Enter value"
+          }
+          unit={
+            padOpenFor === "weight" ? set.unit : padOpenFor === "reps" ? "reps" : padOpenFor === "rest" ? "s" : undefined
+          }
+          shortcuts={
+            padOpenFor === "weight" ? (set.unit === "kg" ? [2.5, 5, 10] : [5, 10, 20]) : padOpenFor === "rest" ? [30, 60, 90] : []
+          }
+          lastUsed={padOpenFor === "weight" ? lastUsedWeight.current : null}
+          allowDecimal={padOpenFor === "weight"}
+          allowNegative={false}
+          onApply={closePadAndRefocus}
+        />
       )}
     </div>
   );

@@ -115,6 +115,8 @@ export function ExerciseCard({
   // Calculate styles for animations and feedback
   // Prioritize the active gesture - swipe for horizontal, drag for vertical
   const isSwipeActive = swipeState.isDragging && Math.abs(swipeState.translateX) > 0;
+  const isRightSwipeActive = isSwipeActive && swipeState.translateX > 0;
+  const isLeftSwipeActive = isSwipeActive && swipeState.translateX < 0;
   const isDragActive = isDragging && Math.abs(dragOffset.y) > Math.abs(dragOffset.x);
 
   // Style: lock horizontal translation during vertical drag; add subtle scale/shadow
@@ -123,7 +125,7 @@ export function ExerciseCard({
     opacity: isDragActive ? 0.9 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
     scale: isDragActive ? 1.03 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
     zIndex: isDragActive ? 50 : 1,
-    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'transform 0.18s ease-out, opacity 0.18s ease-out, scale 0.18s ease-out',
+    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'transform var(--motion-duration-base) var(--motion-ease), opacity var(--motion-duration-base) var(--motion-ease), scale var(--motion-duration-base) var(--motion-ease)',
     // Optimize touch handling: card body prefers vertical panning; drag handle will use touch-action: none
     touchAction: 'pan-y pinch-zoom',
     willChange: isDragActive ? 'transform' : undefined,
@@ -190,6 +192,17 @@ export function ExerciseCard({
       onTouchMove={handleCardTouchMove}
       onTouchEnd={handleCardTouchEnd}
     >
+      {/* Swipe affordance hints */}
+      {isLeftSwipeActive && !readOnly && (
+        <div className="absolute inset-y-0 right-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none">
+          Move to end →
+        </div>
+      )}
+      {isRightSwipeActive && !readOnly && (
+        <div className="absolute inset-y-0 left-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none">
+          {isExpanded ? "Collapse" : "Expand"} ←
+        </div>
+      )}
       {/* Exercise Header (presentational) */}
       <div
         className="w-full p-4 text-left transition-colors cursor-pointer hover:glass-hairline"

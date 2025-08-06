@@ -8,6 +8,7 @@ import { ExerciseCard, type ExerciseData } from "./exercise-card";
 import { type SetData } from "./set-input";
 import { ProgressionModal } from "./progression-modal";
 import { ProgressionScopeModal } from "./progression-scope-modal";
+import { Toast } from "./ui/Toast";
 
 interface PreviousBest {
   weight?: number;
@@ -69,6 +70,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     buildSavePayload,
     session,
     updatePreferences,
+    // undo integration
+    lastAction,
+    undoLastAction,
+    setLastAction,
   } = useWorkoutSessionState({ sessionId });
 
   // Generate unique ID for sets
@@ -415,6 +420,27 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
+      {/* Persistent Undo (global) */}
+      {lastAction && (
+        <div className="sticky bottom-4 z-[60]">
+          <Toast
+            open={true}
+            type="info"
+            message={
+              lastAction.type === "swipeToEnd"
+                ? "Exercise moved to end"
+                : lastAction.type === "toggleCollapse"
+                ? "Exercise expanded state changed"
+                : "Order changed"
+            }
+            onUndo={() => {
+              undoLastAction();
+            }}
+            onClose={() => setLastAction(null)}
+          />
+        </div>
+      )}
+
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
         <div className="text-center text-sm text-muted mb-2">
@@ -465,46 +491,80 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
-      {/* Save/Complete/Delete Buttons - only show for new workouts */}
+      {/* Bottom action bar - editable only */}
       {!isReadOnly && (
-        <div className="sticky bottom-4 space-y-3 pt-6" role="region" aria-label="Workout actions">
-          <button
-            onClick={handleSave}
-            disabled={saveWorkout.isPending}
-            className="w-full rounded-lg border border-gray-200 bg-white py-4 text-xl font-semibold text-gray-900 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-            aria-busy={saveWorkout.isPending ? "true" : "false"}
-          >
-            {saveWorkout.isPending ? "Saving..." : "Save Workout"}
-          </button>
+        <div className="sticky bottom-4 z-50 pt-6" role="region" aria-label="Workout actions">
+          <div className="glass-surface glass-hairline rounded-xl p-3 shadow-lg">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => {
+                  // Add a set to the first expanded exercise, or first exercise as fallback
+                  const targetIndex =
+                    expandedExercises[0] !== undefined ? expandedExercises[0] : 0;
+                  if (typeof targetIndex === "number") {
+                    addSet(targetIndex);
+                    // clear undo since a new action happened
+                    setLastAction(null);
+                  }
+                }}
+                className="btn-secondary py-3"
+                aria-label="Add set"
+              >
+                Add Set
+              </button>
 
-          <button
-            onClick={openCompleteModal}
-            className="btn-primary w-full py-4 text-xl font-semibold disabled:opacity-50"
-          >
-            Complete Workout
-          </button>
+              <button
+                onClick={handleSave}
+                disabled={saveWorkout.isPending}
+                className="btn-secondary py-3 disabled:opacity-50"
+                aria-busy={saveWorkout.isPending ? "true" : "false"}
+              >
+                {saveWorkout.isPending ? "Saving…" : "Save"}
+              </button>
 
-          {queueSize > 0 && (
-          <div className="rounded-lg border p-3 text-sm flex items-center justify-between border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-100">
-            <span>{isFlushing ? "Syncing queued workouts…" : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}</span>
-            <button
-              onClick={() => void flush()}
-              className="ml-3 rounded border border-yellow-300 px-3 py-1 text-xs font-medium hover:bg-yellow-100 dark:border-yellow-600 dark:hover:bg-yellow-900/50"
-            >
-              Sync now
-            </button>
+              <button
+                onClick={openCompleteModal}
+                className="btn-primary py-3"
+              >
+                Complete
+              </button>
+            </div>
+
+            {/* Offline queue status row */}
+            {queueSize > 0 && (
+              <div className="mt-3 rounded-lg border p-2 text-xs flex items-center justify-between border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-100">
+                <span>
+                  {isFlushing
+                    ? "Syncing queued workouts…"
+                    : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}
+                </span>
+                <button
+                  onClick={() => void flush()}
+                  className="ml-3 rounded border border-yellow-300 px-2 py-0.5 text-[11px] font-medium hover:bg-yellow-100 dark:border-yellow-600 dark:hover:bg-yellow-900/50"
+                >
+                  Sync now
+                </button>
+              </div>
+            )}
+
+            {/* Delete is secondary; keep outside the primary row */}
+            <div className="mt-2 text-center">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                  setLastAction(null);
+                }}
+                disabled={deleteWorkout.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold transition-colors hover:bg-red-700 disabled:opacity-50"
+                aria-describedby="delete-workout-help"
+              >
+                {deleteWorkout.isPending ? "Deleting…" : "Delete Workout"}
+              </button>
+              <span id="delete-workout-help" className="sr-only">
+                Opens a confirmation dialog
+              </span>
+            </div>
           </div>
-          )}
-
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={deleteWorkout.isPending}
-            className="w-3/4 mx-auto block py-2.5 text-base font-semibold rounded-lg bg-red-600 transition-colors hover:bg-red-700 disabled:opacity-50"
-            aria-describedby="delete-workout-help"
-          >
-            {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
-          </button>
-          <span id="delete-workout-help" className="sr-only">Opens a confirmation dialog</span>
         </div>
       )}
 
