@@ -30,7 +30,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   const [notification, setNotification] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [collapsedIndexes, setCollapsedIndexes] = useState<number[]>([]);
   // Track last reversible action for persistent Undo behavior
-  const [lastAction, setLastAction] = useState<
+  type HistoryAction =
     | {
         type: "swipeToEnd";
         exerciseId: string;
@@ -46,8 +46,33 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         type: "dragReorder";
         previousOrder: Array<{ name: string; templateExerciseId?: number }>;
       }
-    | null
-  >(null);
+    | {
+        type: "addSet";
+        exerciseIndex: number;
+        newSetId: string;
+      }
+    | {
+        type: "deleteSet";
+        exerciseIndex: number;
+        deletedSet: { index: number; data: SetData };
+      }
+    | {
+        type: "toggleUnit";
+        exerciseIndex: number;
+        setIndex: number;
+        previousUnit: "kg" | "lbs";
+      }
+    | {
+        type: "editSetFields";
+        exerciseIndex: number;
+        setIndex: number;
+        before: Partial<SetData>;
+        after: Partial<SetData>;
+      };
+
+  const [lastAction, setLastAction] = useState<HistoryAction | null>(null);
+  const [redoStack, setRedoStack] = useState<HistoryAction[]>([]);
+  const REDO_LIMIT = 30;
   const [progressionModal, setProgressionModal] = useState<{
     isOpen: boolean;
     exerciseIndex: number;
@@ -364,18 +389,147 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   }, [loading, isReadOnly, exercises, previousExerciseData, progressionModal, hasShownAutoProgression, session, previousDataLoaded]);
 
   // helpers exposed to component
+
+  // Undo handlers to be used by the component (define before return so it exists)
+  const undoLastAction = () => {
+    if (!lastAction) return;
+
+    // Push to redo stack
+    setRedoStack((prev) => {
+      const next = [lastAction, ...prev];
+      return next.slice(0, REDO_LIMIT);
+    });
+
+    if (lastAction.type === "swipeToEnd") {
+      // Move the exercise back to original index
+      setExercises((prev) => {
+        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const srcIndex = prev.findIndex((ex) => idFor(ex) === lastAction.exerciseId);
+        if (srcIndex === -1) return prev;
+        const next = [...prev];
+        const [item] = next.splice(srcIndex, 1);
+        next.splice(lastAction.fromIndex, 0, item!);
+        return next;
+      });
+      // Also clear collapsed flag for correctness
+      setCollapsedIndexes((prevCollapsed) => prevCollapsed.filter((i) => i !== -1));
+    } else if (lastAction.type === "toggleCollapse") {
+      // Restore previous expanded state
+      setExpandedExercises((prev) => {
+        const exerciseIndex = exercises.findIndex(
+          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === lastAction.exerciseId,
+        );
+        if (exerciseIndex === -1) return prev;
+        const isCurrentlyExpanded = prev.includes(exerciseIndex);
+        if (lastAction.previousExpanded && !isCurrentlyExpanded) {
+          return [...prev, exerciseIndex];
+        }
+        if (!lastAction.previousExpanded && isCurrentlyExpanded) {
+          return prev.filter((i) => i !== exerciseIndex);
+        }
+        return prev;
+      });
+    } else if (lastAction.type === "dragReorder") {
+      // Restore previous order based on identity
+      setExercises((prev) => {
+        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const byId = new Map(prev.map((ex) => [idFor(ex), ex]));
+        const restored: ExerciseData[] = [];
+        for (const item of lastAction.previousOrder) {
+          const key = (item.templateExerciseId ?? `name:${item.name}`).toString();
+          const ex = byId.get(key);
+          if (ex) restored.push(ex);
+        }
+        // Include any extras that might have been added (safety)
+        for (const ex of prev) {
+          const key = idFor(ex);
+          if (!restored.find((r) => idFor(r) === key)) restored.push(ex);
+        }
+        return restored;
+      });
+    } else if (lastAction.type === "addSet") {
+      // Remove the set that was just added
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[lastAction.exerciseIndex];
+        if (!ex) return prev;
+        const idx = ex.sets.findIndex((s) => s.id === lastAction.newSetId);
+        if (idx !== -1) {
+          ex.sets.splice(idx, 1);
+        }
+        return next;
+      });
+    } else if (lastAction.type === "deleteSet") {
+      // Reinsert the deleted set at its original position
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[lastAction.exerciseIndex];
+        if (!ex) return prev;
+        const insertAt = Math.min(Math.max(0, lastAction.deletedSet.index), ex.sets.length);
+        ex.sets.splice(insertAt, 0, lastAction.deletedSet.data);
+        return next;
+      });
+    } else if (lastAction.type === "toggleUnit") {
+      // Restore previous unit
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[lastAction.exerciseIndex];
+        if (!ex) return prev;
+        const s = ex.sets[lastAction.setIndex];
+        if (!s) return prev;
+        s.unit = lastAction.previousUnit;
+        return next;
+      });
+    } else if (lastAction.type === "editSetFields") {
+      // Restore previous field values
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[lastAction.exerciseIndex];
+        if (!ex) return prev;
+        const s = ex.sets[lastAction.setIndex];
+        if (!s) return prev;
+        Object.assign(s, lastAction.before);
+        return next;
+      });
+    }
+
+    // Clear last action after undo
+    setLastAction(null);
+  };
+
   const updateSet = (exerciseIndex: number, setIndex: number, field: keyof SetData, value: string | number | undefined) => {
     const newExercises = [...exercises];
-    if (newExercises[exerciseIndex]?.sets[setIndex]) {
+    const target = newExercises[exerciseIndex]?.sets[setIndex];
+    if (target) {
+      const before: Partial<SetData> = { [field]: target[field] } as Partial<SetData>;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (newExercises[exerciseIndex]!.sets[setIndex] as any)[field] = value;
+      (target as any)[field] = value;
+      const after: Partial<SetData> = { [field]: value } as Partial<SetData>;
       setExercises(newExercises);
+      // push history
+      setLastAction({
+        type: "editSetFields",
+        exerciseIndex,
+        setIndex,
+        before,
+        after,
+      });
+      // clear redo on new action
+      setRedoStack([]);
     }
   };
 
   const toggleUnit = (exerciseIndex: number, setIndex: number) => {
     const currentUnit = exercises[exerciseIndex]?.sets[setIndex]?.unit ?? "kg";
     const newUnit = currentUnit === "kg" ? "lbs" : "kg";
+    // record explicit toggle action for precise undo
+    setLastAction({
+      type: "toggleUnit",
+      exerciseIndex,
+      setIndex,
+      previousUnit: currentUnit as "kg" | "lbs",
+    });
+    setRedoStack([]);
     updateSet(exerciseIndex, setIndex, "unit", newUnit);
     // preferences mutation expects object shape { defaultWeightUnit }
     updatePreferences({ defaultWeightUnit: (newUnit as unknown) as "kg" | "lbs" });
@@ -388,7 +542,6 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       const lastSet = exercise.sets[exercise.sets.length - 1];
 
       // Phase 3: Predictive defaults engine (simple strategy v1)
-      // If enabled in preferences, prefill from last completed set values on this exercise
       const predictiveEnabled = (preferences as any)?.predictive_defaults_enabled === true;
 
       // Determine base values
@@ -398,7 +551,6 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       const unitToUse = (lastSet?.unit ?? exercise.unit) as "kg" | "lbs";
 
       if (predictiveEnabled) {
-        // Strategy: Prefill using most recent non-empty set in this exercise
         const recent = [...exercise.sets].reverse().find(s => (s.weight ?? s.reps ?? s.sets) !== undefined);
         if (recent) {
           nextWeight = recent.weight;
@@ -407,8 +559,9 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         }
       }
 
+      const newId = generateSetId();
       const newSet: SetData = {
-        id: generateSetId(),
+        id: newId,
         weight: nextWeight,
         reps: nextReps,
         sets: nextSetsCount,
@@ -417,15 +570,21 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
 
       exercise.sets.push(newSet);
       setExercises(newExercises);
+      setLastAction({ type: "addSet", exerciseIndex, newSetId: newId });
+      setRedoStack([]);
     }
   };
 
   const deleteSet = (exerciseIndex: number, setIndex: number) => {
     const newExercises = [...exercises];
     const exercise = newExercises[exerciseIndex];
-    if (exercise && exercise.sets.length > 1) {
+    if (exercise && exercise.sets.length > 0) {
+      const removed = exercise.sets[setIndex];
+      if (!removed) return;
       exercise.sets.splice(setIndex, 1);
       setExercises(newExercises);
+      setLastAction({ type: "deleteSet", exerciseIndex, deletedSet: { index: setIndex, data: removed } });
+      setRedoStack([]);
     }
   };
 
@@ -492,131 +651,102 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       }))
       .filter((exercise) => exercise.sets.length > 0);
 
-    // Helper to push a custom last action (in case caller wants to set explicitly)
-  const pushLastAction = (action: NonNullable<typeof lastAction>) => setLastAction(action);
-
-  // Undo handlers to be used by the component
-  const undoLastAction = () => {
-    if (!lastAction) return;
-
-    if (lastAction.type === "swipeToEnd") {
-      // Move the exercise back to original index
-      setExercises((prev) => {
-        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
-        const srcIndex = prev.findIndex((ex) => idFor(ex) === lastAction.exerciseId);
-        if (srcIndex === -1) return prev;
-        const next = [...prev];
-        const [item] = next.splice(srcIndex, 1);
-        next.splice(lastAction.fromIndex, 0, item!);
-        return next;
-      });
-      // Also clear collapsed flag for correctness
-      setCollapsedIndexes((prevCollapsed) => prevCollapsed.filter((i) => i !== -1));
-    } else if (lastAction.type === "toggleCollapse") {
-      // Restore previous expanded state
-      setExpandedExercises((prev) => {
-        const exerciseIndex = exercises.findIndex(
-          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === lastAction.exerciseId,
-        );
-        if (exerciseIndex === -1) return prev;
-        const isCurrentlyExpanded = prev.includes(exerciseIndex);
-        if (lastAction.previousExpanded && !isCurrentlyExpanded) {
-          return [...prev, exerciseIndex];
-        }
-        if (!lastAction.previousExpanded && isCurrentlyExpanded) {
-          return prev.filter((i) => i !== exerciseIndex);
-        }
-        return prev;
-      });
-    } else if (lastAction.type === "dragReorder") {
-      // Restore previous order based on identity
-      setExercises((prev) => {
-        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
-        const byId = new Map(prev.map((ex) => [idFor(ex), ex]));
-        const restored: ExerciseData[] = [];
-        for (const item of lastAction.previousOrder) {
-          const key = (item.templateExerciseId ?? `name:${item.name}`).toString();
-          const ex = byId.get(key);
-          if (ex) restored.push(ex);
-        }
-        // Include any extras that might have been added (safety)
-        for (const ex of prev) {
-          const key = idFor(ex);
-          if (!restored.find((r) => idFor(r) === key)) restored.push(ex);
-        }
-        return restored;
-      });
-    }
-
-    // Clear last action after undo
-    setLastAction(null);
-  };
-
     return {
       sessionId,
       exercises: cleanedExercises,
     };
   };
 
-  // Helper to push a custom last action (in case caller wants to set explicitly)
-  const pushLastAction = (action: NonNullable<typeof lastAction>) => setLastAction(action);
 
-  // Undo handlers to be used by the component
-  const undoLastAction = () => {
-    if (!lastAction) return;
+  const redoLastUndo = () => {
+    const action = redoStack[0];
+    if (!action) return;
+    const rest = redoStack.slice(1);
+    setRedoStack(rest);
 
-    if (lastAction.type === "swipeToEnd") {
-      // Move the exercise back to original index
+    // Re-apply the action we undid
+    if (action.type === "swipeToEnd") {
       setExercises((prev) => {
         const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
-        const srcIndex = prev.findIndex((ex) => idFor(ex) === lastAction.exerciseId);
+        const srcIndex = prev.findIndex((ex) => idFor(ex) === action.exerciseId);
         if (srcIndex === -1) return prev;
         const next = [...prev];
         const [item] = next.splice(srcIndex, 1);
-        next.splice(lastAction.fromIndex, 0, item!);
+        next.push(item!);
         return next;
       });
-      // Also clear collapsed flag for correctness
-      setCollapsedIndexes((prevCollapsed) => prevCollapsed.filter((i) => i !== -1));
-    } else if (lastAction.type === "toggleCollapse") {
-      // Restore previous expanded state
+    } else if (action.type === "toggleCollapse") {
       setExpandedExercises((prev) => {
         const exerciseIndex = exercises.findIndex(
-          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === lastAction.exerciseId,
+          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === action.exerciseId,
         );
         if (exerciseIndex === -1) return prev;
         const isCurrentlyExpanded = prev.includes(exerciseIndex);
-        if (lastAction.previousExpanded && !isCurrentlyExpanded) {
-          return [...prev, exerciseIndex];
-        }
-        if (!lastAction.previousExpanded && isCurrentlyExpanded) {
+        // redo does the inverse of undo: apply what original action did
+        if (action.previousExpanded) {
+          // original action collapsed; redo collapse if currently expanded
           return prev.filter((i) => i !== exerciseIndex);
+        } else {
+          // original action expanded; redo expand
+          if (!isCurrentlyExpanded) return [...prev, exerciseIndex];
+          return prev;
         }
-        return prev;
       });
-    } else if (lastAction.type === "dragReorder") {
-      // Restore previous order based on identity
+    } else if (action.type === "dragReorder") {
+      // Reapply a drag isn't trivially reconstructable; leave noop for redo to avoid unstable reorder.
+      // Alternatively, we could store the 'after' order. For now, skip.
+    } else if (action.type === "addSet") {
+      // Re-apply add by inserting a stub set if original id not present
       setExercises((prev) => {
-        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
-        const byId = new Map(prev.map((ex) => [idFor(ex), ex]));
-        const restored: ExerciseData[] = [];
-        for (const item of lastAction.previousOrder) {
-          const key = (item.templateExerciseId ?? `name:${item.name}`).toString();
-          const ex = byId.get(key);
-          if (ex) restored.push(ex);
+        const next = [...prev];
+        const ex = next[action.exerciseIndex];
+        if (!ex) return prev;
+        if (!ex.sets.find((s) => s.id === action.newSetId)) {
+          ex.sets.push({
+            id: action.newSetId,
+            unit: ex.unit,
+            sets: 1,
+          } as SetData);
         }
-        // Include any extras that might have been added (safety)
-        for (const ex of prev) {
-          const key = idFor(ex);
-          if (!restored.find((r) => idFor(r) === key)) restored.push(ex);
+        return next;
+      });
+    } else if (action.type === "deleteSet") {
+      // Re-apply delete by removing the set matching the saved data id if present
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[action.exerciseIndex];
+        if (!ex) return prev;
+        const idx = ex.sets.findIndex((s) => s.id === action.deletedSet.data.id);
+        if (idx !== -1) {
+          ex.sets.splice(idx, 1);
         }
-        return restored;
+        return next;
+      });
+    } else if (action.type === "toggleUnit") {
+      // Re-apply unit toggle by flipping from previous
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[action.exerciseIndex];
+        if (!ex) return prev;
+        const s = ex.sets[action.setIndex];
+        if (!s) return prev;
+        s.unit = action.previousUnit === "kg" ? "lbs" : "kg";
+        return next;
+      });
+    } else if (action.type === "editSetFields") {
+      // Re-apply field edits by setting 'after' values
+      setExercises((prev) => {
+        const next = [...prev];
+        const ex = next[action.exerciseIndex];
+        if (!ex) return prev;
+        const s = ex.sets[action.setIndex];
+        if (!s) return prev;
+        Object.assign(s, action.after);
+        return next;
       });
     }
-
-    // Clear last action after undo
-    setLastAction(null);
   };
+
 
   return {
     // state
@@ -670,8 +800,11 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
 
     // undo surface
     lastAction,
-    pushLastAction,
-    undoLastAction,
+    // expose setLastAction for advanced cases
     setLastAction,
+    // redo + undo
+    redoLastUndo,
+    redoStack,
+    undoLastAction,
   };
 }

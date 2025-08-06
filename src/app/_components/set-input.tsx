@@ -114,6 +114,8 @@ export function SetInput({
               ref={weightInputRef}
               type="number"
               step="0.5"
+              inputMode="decimal"
+              pattern="[0-9]*"
               value={set.weight ?? ""}
               onChange={(e) => {
                 const value = e.target.value
@@ -121,7 +123,13 @@ export function SetInput({
                   : undefined;
                 handleWeightChange(value);
               }}
-              onFocus={(e) => e.target.select()}
+              onFocus={(e) => {
+                // select content and make sure the field is visible above the keyboard
+                e.target.select();
+                try {
+                  e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                } catch {}
+              }}
               onClick={() => !readOnly && setPadOpenFor("weight")}
               placeholder="0"
               disabled={readOnly}
@@ -145,12 +153,19 @@ export function SetInput({
           <input
             ref={repsInputRef}
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={set.reps ?? ""}
             onChange={(e) => {
               const value = e.target.value ? parseInt(e.target.value) : undefined;
               handleRepsChange(value);
             }}
-            onFocus={(e) => e.target.select()}
+            onFocus={(e) => {
+              e.target.select();
+              try {
+                e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+              } catch {}
+            }}
             onClick={() => !readOnly && setPadOpenFor("reps")}
             placeholder="0"
             disabled={readOnly}
@@ -163,12 +178,19 @@ export function SetInput({
           <label className="mb-1 block text-xs text-secondary">Sets</label>
           <input
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={set.sets}
             onChange={(e) => {
               const value = e.target.value ? parseInt(e.target.value) : 1;
               handleSetsChange(value);
             }}
-            onFocus={(e) => e.target.select()}
+            onFocus={(e) => {
+              e.target.select();
+              try {
+                e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+              } catch {}
+            }}
             placeholder="1"
             min="1"
             disabled={readOnly}
@@ -207,12 +229,19 @@ export function SetInput({
             <input
               ref={restInputRef}
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={set.rest ?? ""}
               onChange={(e) => {
                 const value = e.target.value ? parseInt(e.target.value) : undefined;
                 handleRestChange(value);
               }}
-              onFocus={(e) => e.target.select()}
+              onFocus={(e) => {
+                e.target.select();
+                try {
+                  e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                } catch {}
+              }}
               onClick={() => !readOnly && setPadOpenFor("rest")}
               placeholder="60"
               disabled={readOnly}

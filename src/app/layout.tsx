@@ -11,6 +11,7 @@ import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSwitcher } from "~/app/_components/theme-switcher";
+import ClientPerfInit from "~/app/_components/ClientPerfInit";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -40,17 +41,20 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   // No-FOUC inline script: sets initial theme class before hydration
   // Reads localStorage('theme'), falls back to 'system', and applies dark based on system if needed.
+  // Ensure SSR and client produce the same initial <html> attributes:
+  // - Do NOT set 'dark' class or data-theme at SSR time; only the client-side inline script updates them.
+  // - This avoids hydration mismatches where CSR chooses a different theme than SSR snapshot.
   const noFoucScript = `
     (function() {
       try {
         var key = 'theme';
         var t = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        // Horizon_wow is a dark-first theme; when selected, ensure dark class is present
         var dark = (t === 'dark') || (t === 'system' && prefersDark) || (t === 'Horizon_wow');
         var root = document.documentElement;
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
-        root.dataset.theme = t;
+        // Only apply data-theme for client. Do not set this attribute in SSR markup to avoid hydration warnings.
+        root.setAttribute('data-theme', t);
       } catch (_) {}
     })();
   `;
@@ -60,7 +64,7 @@ export default function RootLayout({
       signUpFallbackRedirectUrl="/"
       telemetry={false}
     >
-      <html lang="en" className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable} dark`}>
+      <html lang="en" className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}>
         <body className="min-h-screen flex flex-col text-gray-900 dark:text-white page-shell">
           {/* Prevent theme flash */}
           <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
@@ -73,6 +77,7 @@ export default function RootLayout({
           </a>
           <PostHogProvider>
             <ThemeProvider>
+              <ClientPerfInit />
               <div className="page-backdrop" aria-hidden="true" />
               <PageTracker />
               <ConnectionStatus />

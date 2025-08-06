@@ -4,6 +4,8 @@ import { SetInput, type SetData } from "./set-input";
 import { useSwipeGestures, type SwipeSettings } from "~/hooks/use-swipe-gestures";
 import { ExerciseHeader } from "./workout/ExerciseHeader";
 import { SetList } from "./workout/SetList";
+import posthog from "posthog-js";
+import { vibrate } from "~/lib/client-telemetry";
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -74,6 +76,9 @@ export function ExerciseCard({
   const [swipeState, swipeHandlers, resetSwipe] = useSwipeGestures(
     () => {
       if (onSwipeToBottom && !readOnly) {
+        // Haptic + PostHog for swipe-to-bottom
+        try { vibrate(10); } catch {}
+        try { posthog.capture("haptic_action", { kind: "swipe" }); } catch {}
         onSwipeToBottom(exerciseIndex);
         // Reset the dismissed state so card can be swiped again
         setTimeout(() => resetSwipe(), 50);

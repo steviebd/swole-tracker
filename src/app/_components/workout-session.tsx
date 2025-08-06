@@ -17,6 +17,8 @@ interface PreviousBest {
   unit: "kg" | "lbs";
 }
 import { analytics } from "~/lib/analytics";
+import posthog from "posthog-js";
+import { vibrate, getDeviceType, getThemeUsed, snapshotMetricsBlob } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
@@ -136,6 +138,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const updateSet = hookUpdateSet;
   const toggleUnit = hookToggleUnit;
   const addSet = hookAddSet;
+  const vibrateSafe = (pattern: number | number[]) => {
+    try {
+      vibrate(pattern);
+    } catch {}
+  };
   const deleteSet = hookDeleteSet;
 
   // toggleExpansion provided by hook
@@ -505,6 +512,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     addSet(targetIndex);
                     // clear undo since a new action happened
                     setLastAction(null);
+                    // Haptic + PostHog
+                    vibrateSafe(10);
+                    try {
+                      posthog.capture("haptic_action", { kind: "add_set" });
+                    } catch {}
+                    // Smooth scroll to bottom to keep newly added set visible
+                    try {
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                    } catch {}
                   }
                 }}
                 className="btn-secondary py-3"
@@ -514,7 +530,28 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               </button>
 
               <button
-                onClick={handleSave}
+                onClick={async () => {
+                  // PostHog-only telemetry snapshot at save tap
+                  try {
+                    const theme_used = getThemeUsed();
+                    const device_type = getDeviceType();
+                    const perf = snapshotMetricsBlob();
+                    posthog.capture("workout_save", {
+                      theme_used,
+                      device_type,
+                      tti: perf.tti,
+                      tbt: perf.tbt,
+                      input_latency_avg: (perf.inputLatency as any)?.avg,
+                      input_latency_p95: (perf.inputLatency as any)?.p95,
+                    });
+                  } catch {}
+                  await handleSave();
+                  // Haptic feedback on save attempt (short-long-short)
+                  vibrateSafe([10, 30, 10]);
+                  try {
+                    posthog.capture("haptic_action", { kind: "save" });
+                  } catch {}
+                }}
                 disabled={saveWorkout.isPending}
                 className="btn-secondary py-3 disabled:opacity-50"
                 aria-busy={saveWorkout.isPending ? "true" : "false"}
@@ -523,7 +560,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               </button>
 
               <button
-                onClick={openCompleteModal}
+                onClick={() => {
+                  openCompleteModal();
+                  // Optional subtle haptic to acknowledge opening modal
+                  vibrateSafe(10);
+                  try {
+                    posthog.capture("haptic_action", { kind: "save" });
+                  } catch {}
+                }}
                 className="btn-primary py-3"
               >
                 Complete
@@ -553,6 +597,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 onClick={() => {
                   setShowDeleteConfirm(true);
                   setLastAction(null);
+                  vibrateSafe(10);
                 }}
                 disabled={deleteWorkout.isPending}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold transition-colors hover:bg-red-700 disabled:opacity-50"
