@@ -128,21 +128,21 @@ export function WhoopWorkouts() {
     <div className="space-y-8">
       {/* Sync Controls */}
       <div className="flex justify-center">
-        <div className="max-w-md rounded-lg bg-gray-800 p-6 text-center">
+        <div className="max-w-md rounded-lg card p-6 text-center">
           {integrationStatus?.isConnected ? (
             <div className="space-y-4">
-              <div className="text-green-400">
+              <div className="text-green-700 dark:text-green-400">
                 ✅ Connected to Whoop
               </div>
               <button
                 onClick={handleSync}
                 disabled={syncLoading || (rateLimit?.remaining === 0)}
-                className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold transition-colors hover:bg-blue-700 disabled:opacity-50"
+                className="btn-primary w-full px-6 py-3 disabled:opacity-50"
               >
                 {syncLoading ? "Syncing..." : "Sync with Whoop"}
               </button>
               {rateLimit && (
-                <div className="text-xs text-gray-400 text-center">
+                <div className="text-xs text-secondary text-center">
                   {rateLimit.remaining > 0 ? (
                     `${rateLimit.remaining} syncs remaining this hour`
                   ) : (
@@ -153,12 +153,12 @@ export function WhoopWorkouts() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-red-400">
+              <div className="text-red-600 dark:text-red-400">
                 ❌ Not connected to Whoop
               </div>
               <Link
                 href="/connect-whoop"
-                className="block w-full rounded-lg bg-purple-600 px-6 py-3 font-semibold transition-colors hover:bg-purple-700"
+                className="btn-primary block w-full px-6 py-3 text-center"
               >
                 Connect Whoop Now
               </Link>
@@ -171,8 +171,10 @@ export function WhoopWorkouts() {
       {message && (
         <div className="flex justify-center">
           <div
-            className={`max-w-md rounded-lg p-4 ${
-              message.type === "success" ? "bg-green-900 text-green-100" : "bg-red-900 text-red-100"
+            className={`max-w-md rounded-lg p-4 border ${
+              message.type === "success"
+                ? "bg-green-50 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-100 dark:border-green-700"
+                : "bg-red-50 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-100 dark:border-red-700"
             }`}
           >
             {message.text}
@@ -189,7 +191,7 @@ export function WhoopWorkouts() {
               {sortedWorkouts.length > 3 && (
                 <button
                   onClick={() => setShowAll(!showAll)}
-                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                  className="text-sm link-primary no-underline"
                 >
                   {showAll ? "Show Less" : `Show All (${sortedWorkouts.length})`}
                 </button>
@@ -199,14 +201,14 @@ export function WhoopWorkouts() {
             {/* Sport Filter */}
             {uniqueSports.length > 0 && (
               <div className="flex items-center gap-3">
-                <label htmlFor="sport-filter" className="text-sm text-gray-400">
+                <label htmlFor="sport-filter" className="text-sm text-secondary">
                   Filter by sport:
                 </label>
                 <select
                   id="sport-filter"
                   value={sportFilter}
                   onChange={(e) => setSportFilter(e.target.value)}
-                  className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-400 transition-colors"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="all">All Sports</option>
                   {uniqueSports.map((sport) => (
@@ -217,7 +219,7 @@ export function WhoopWorkouts() {
                 </select>
                 <button
                   onClick={clearPreferences}
-                  className="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-400 rounded"
+                  className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/30"
                   title="Clear corrupted localStorage data"
                 >
                   Reset Prefs
@@ -228,18 +230,18 @@ export function WhoopWorkouts() {
 
           {workoutsLoading ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">Loading workouts...</p>
+              <p className="text-secondary">Loading workouts...</p>
             </div>
           ) : displayedWorkouts.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {displayedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="rounded-lg bg-gray-800 p-6 transition-all duration-200 hover:bg-gray-700 cursor-pointer hover:scale-105 hover:shadow-lg"
+                  className="card p-6 transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-105"
                   onClick={(e) => handleWorkoutClick(workout, e)}
                 >
                   <div className="space-y-3">
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-muted">
                       {formatDateTime(new Date(workout.start), new Date(workout.end))}
                     </div>
                     
@@ -247,7 +249,7 @@ export function WhoopWorkouts() {
                       {workout.sport_name || "Unknown Sport"}
                     </h3>
                     
-                    <div className="text-sm text-gray-300">
+                    <div className="text-sm text-secondary">
                       <span className="font-medium">Score:</span> {formatScore(workout.score, workout.score_state)}
                     </div>
                   </div>
@@ -256,7 +258,7 @@ export function WhoopWorkouts() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-400">
+              <p className="text-secondary">
                 {sportFilter !== "all" && sortedWorkouts.length === 0 
                   ? "No workouts from whoop" 
                   : "No workouts found. Click \"Sync with Whoop\" to fetch your data."}

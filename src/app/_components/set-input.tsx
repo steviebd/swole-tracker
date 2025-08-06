@@ -53,9 +53,9 @@ export function SetInput({
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-gray-700 p-3 select-none">
+    <div className="flex items-center gap-3 rounded-lg p-3 select-none border border-gray-200 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
       {/* Set Number */}
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-white">
         {setIndex + 1}
       </div>
 
@@ -63,7 +63,7 @@ export function SetInput({
       <div className="flex flex-1 gap-3">
         {/* Weight */}
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-gray-400">Weight</label>
+          <label className="mb-1 block text-xs text-secondary">Weight</label>
           <div className="flex items-center gap-1">
             <input
               type="number"
@@ -80,8 +80,8 @@ export function SetInput({
               disabled={readOnly}
               className={`flex-1 rounded border px-2 py-1 text-sm focus:outline-none ${
                 readOnly
-                  ? "cursor-not-allowed border-gray-600 bg-gray-800 text-gray-400"
-                  : "border-gray-500 bg-gray-600 focus:ring-1 focus:ring-purple-500"
+                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
+                  : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
               }`}
             />
             <button
@@ -91,7 +91,7 @@ export function SetInput({
               className={`px-1 text-xs ${
                 readOnly
                   ? "cursor-not-allowed text-gray-500"
-                  : "text-purple-400 hover:text-purple-300"
+                  : "text-purple-700 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
               }`}
             >
               {set.unit}
@@ -101,7 +101,7 @@ export function SetInput({
 
         {/* Reps */}
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-gray-400">Reps</label>
+          <label className="mb-1 block text-xs text-secondary">Reps</label>
           <input
             type="number"
             value={set.reps ?? ""}
@@ -118,15 +118,15 @@ export function SetInput({
             disabled={readOnly}
             className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
               readOnly
-                ? "cursor-not-allowed border-gray-600 bg-gray-800 text-gray-400"
-                : "border-gray-500 bg-gray-600 focus:ring-1 focus:ring-purple-500"
+                ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
+                : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
             }`}
           />
         </div>
 
         {/* Sets */}
         <div className="flex-1">
-          <label className="mb-1 block text-xs text-gray-400">Sets</label>
+          <label className="mb-1 block text-xs text-secondary">Sets</label>
           <input
             type="number"
             value={set.sets}
@@ -144,8 +144,8 @@ export function SetInput({
             disabled={readOnly}
             className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
               readOnly
-                ? "cursor-not-allowed border-gray-600 bg-gray-800 text-gray-400"
-                : "border-gray-500 bg-gray-600 focus:ring-1 focus:ring-purple-500"
+                ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
+                : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
             }`}
           />
         </div>
@@ -157,7 +157,7 @@ export function SetInput({
           type="button"
           aria-label="Drag set to reorder"
           data-drag-handle="true"
-          className="ml-1 mr-1 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-100"
+          className="ml-1 mr-1 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
           // The parent component that renders SetInput will bind the onPointerDown
           // via event delegation on the card/list level using data-drag-handle
           style={{ touchAction: 'none' }}

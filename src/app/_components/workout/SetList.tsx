@@ -49,7 +49,7 @@ export function SetList({
       {!readOnly && (
         <div>
           <button
-            className="btn-secondary w-full py-2 text-sm"
+            className="w-full py-2 text-sm rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
             onClick={() => onAddSet(exerciseIndex)}
           >
             Add Set

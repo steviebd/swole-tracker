@@ -55,17 +55,17 @@ export function ExerciseManager() {
       <div className="py-12 text-center">
         <div className="mb-4 text-6xl">💪</div>
         <h3 className="mb-2 text-xl font-semibold">No exercises yet</h3>
-        <p className="mb-6 text-gray-400">
+        <p className="mb-6 text-secondary">
           Exercises will appear here as you create workout templates and link them together.
         </p>
         <button
           onClick={() => migrateExistingExercises.mutate()}
           disabled={migrateExistingExercises.isPending}
-          className="rounded-lg bg-blue-600 px-6 py-3 font-medium transition-colors hover:bg-blue-700 disabled:opacity-50"
+          className="btn-primary px-6 py-3"
         >
           {migrateExistingExercises.isPending ? "Migrating..." : "Migrate Existing Exercises"}
         </button>
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-muted">
           This will convert your existing template exercises into linkable master exercises.
         </p>
       </div>
@@ -81,14 +81,14 @@ export function ExerciseManager() {
           placeholder="Search exercises..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-lg border border-gray-600 bg-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
         
         <div className="flex justify-end">
           <button
             onClick={() => migrateExistingExercises.mutate()}
             disabled={migrateExistingExercises.isPending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="btn-primary px-4 py-2 text-sm"
           >
             {migrateExistingExercises.isPending ? "Migrating..." : "Migrate Unlinked Exercises"}
           </button>
@@ -97,7 +97,7 @@ export function ExerciseManager() {
 
       {/* Exercise List */}
       <div className="space-y-3">
-        <div className="mb-4 text-sm text-gray-400">
+        <div className="mb-4 text-sm text-secondary">
           {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
         </div>
         
@@ -118,11 +118,11 @@ function ExerciseCard({ exercise, onUpdate }: ExerciseCardProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+    <div className="card p-4">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <h3 className="font-semibold">{exercise.name}</h3>
-          <div className="mt-1 flex items-center gap-4 text-sm text-gray-400">
+          <div className="mt-1 flex items-center gap-4 text-sm text-secondary">
             <span>{exercise.linkedCount} template{exercise.linkedCount !== 1 ? 's' : ''} linked</span>
             <span>Created {exercise.createdAt.toLocaleDateString()}</span>
           </div>
@@ -131,7 +131,7 @@ function ExerciseCard({ exercise, onUpdate }: ExerciseCardProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="text-sm text-purple-400 hover:text-purple-300"
+            className="text-sm link-primary hover:no-underline"
           >
             {showDetails ? 'Hide Details' : 'Show Details'}
           </button>
@@ -200,16 +200,16 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
 
   if (detailsLoading) {
     return (
-      <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
-        <div className="animate-pulse text-sm text-gray-400">Loading linking details...</div>
+      <div className="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+        <div className="animate-pulse text-sm text-secondary">Loading linking details...</div>
       </div>
     );
   }
 
   if (!linkingDetails) {
     return (
-      <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
-        <div className="text-sm text-red-400">Failed to load linking details</div>
+      <div className="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+        <div className="text-sm text-red-600 dark:text-red-400">Failed to load linking details</div>
       </div>
     );
   }
@@ -218,21 +218,21 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
   const similarPotentialLinks = potentialLinks.filter(link => link.similarity >= 0.6 && !link.linkingRejected);
 
   return (
-    <div className="mt-4 space-y-4 border-t border-gray-700 pt-4">
+    <div className="mt-4 space-y-4 border-t border-gray-200 pt-4 dark:border-gray-700">
       {/* Basic Info */}
       <div className="text-sm">
-        <span className="text-gray-400">Normalized name:</span>
-        <span className="ml-2 font-mono text-gray-300">{normalizedName}</span>
+        <span className="text-secondary">Normalized name:</span>
+        <span className="ml-2 font-mono text-muted">{normalizedName}</span>
       </div>
 
       {/* Latest Performance */}
       {latestPerformance && (
         <div className="text-sm">
           <span className="text-gray-400">Latest performance:</span>
-          <span className="ml-2 text-green-400">
+          <span className="ml-2 text-green-600 dark:text-green-400">
             {latestPerformance.weight} {latestPerformance.unit} × {latestPerformance.reps} reps × {latestPerformance.sets} sets
           </span>
-          <span className="ml-2 text-gray-500">
+          <span className="ml-2 text-muted">
             ({latestPerformance.workoutDate.toLocaleDateString()})
           </span>
         </div>
@@ -244,7 +244,7 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
           <button
             onClick={() => bulkLinkSimilar.mutate({ masterExerciseId })}
             disabled={bulkLinkSimilar.isPending}
-            className="rounded bg-blue-600 px-3 py-1 text-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="btn-primary px-3 py-1 text-sm disabled:opacity-50"
           >
             {bulkLinkSimilar.isPending ? "Linking..." : `Link All Similar (${similarPotentialLinks.length})`}
           </button>
@@ -253,7 +253,7 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
         {linkedExercises.length > 0 && (
           <button
             onClick={() => setShowConfirmUnlinkAll(true)}
-            className="rounded bg-red-600 px-3 py-1 text-sm transition-colors hover:bg-red-700"
+            className="rounded bg-red-600 px-3 py-1 text-sm transition-colors hover:bg-red-700 text-white"
           >
             Unlink All ({linkedExercises.length})
           </button>
@@ -262,9 +262,9 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
 
       {/* Confirm Unlink All Dialog */}
       {showConfirmUnlinkAll && (
-        <div className="rounded-lg border border-red-600 bg-red-900/20 p-3">
-          <div className="mb-2 text-sm font-medium text-red-400">Confirm Unlink All</div>
-          <div className="mb-3 text-sm text-gray-300">
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-600 dark:bg-red-900/20">
+          <div className="mb-2 text-sm font-medium text-red-700 dark:text-red-400">Confirm Unlink All</div>
+          <div className="mb-3 text-sm text-gray-700 dark:text-gray-300">
             This will unlink all {linkedExercises.length} exercises from &quot;{masterExerciseName}&quot;. 
             Historical data will be separated.
           </div>
@@ -272,13 +272,13 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
             <button
               onClick={() => bulkUnlinkAll.mutate({ masterExerciseId })}
               disabled={bulkUnlinkAll.isPending}
-              className="rounded bg-red-600 px-3 py-1 text-sm transition-colors hover:bg-red-700 disabled:opacity-50"
+              className="rounded bg-red-600 px-3 py-1 text-sm transition-colors hover:bg-red-700 text-white disabled:opacity-50"
             >
               {bulkUnlinkAll.isPending ? "Unlinking..." : "Confirm Unlink All"}
             </button>
             <button
               onClick={() => setShowConfirmUnlinkAll(false)}
-              className="rounded bg-gray-600 px-3 py-1 text-sm transition-colors hover:bg-gray-700"
+              className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
             >
               Cancel
             </button>
@@ -289,23 +289,23 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
       {/* Linked Exercises */}
       {linkedExercises.length > 0 && (
         <div>
-          <h4 className="mb-2 text-sm font-medium text-green-400">
+          <h4 className="mb-2 text-sm font-medium text-green-700 dark:text-green-400">
             🔗 Linked Template Exercises ({linkedExercises.length})
           </h4>
           <div className="space-y-2">
             {linkedExercises.map((linked) => (
               <div 
                 key={linked.templateExerciseId}
-                className="flex items-center justify-between rounded bg-green-900/20 border border-green-700 p-2"
+                className="flex items-center justify-between rounded border p-2 bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700"
               >
                 <div className="text-sm">
                   <span className="font-medium">{linked.exerciseName}</span>
-                  <span className="ml-2 text-gray-400">from {linked.templateName}</span>
+                  <span className="ml-2 text-secondary">from {linked.templateName}</span>
                 </div>
                 <button
                   onClick={() => unlinkExercise.mutate({ templateExerciseId: linked.templateExerciseId })}
                   disabled={unlinkExercise.isPending}
-                  className="rounded bg-red-600 px-2 py-1 text-xs transition-colors hover:bg-red-700 disabled:opacity-50"
+                  className="rounded bg-red-600 px-2 py-1 text-xs text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                 >
                   {unlinkExercise.isPending ? "..." : "Unlink"}
                 </button>
@@ -318,7 +318,7 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
       {/* Potential Links */}
       {potentialLinks.length > 0 && (
         <div>
-          <h4 className="mb-2 text-sm font-medium text-blue-400">
+          <h4 className="mb-2 text-sm font-medium text-blue-700 dark:text-blue-400">
             🔍 Potential Links ({potentialLinks.length})
           </h4>
           <div className="space-y-2">
@@ -327,22 +327,22 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
                 key={potential.templateExerciseId}
                 className={`flex items-center justify-between rounded border p-2 ${
                   potential.linkingRejected
-                    ? 'bg-orange-900/20 border-orange-700'
+                    ? 'bg-orange-50 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700'
                     : potential.similarity >= 0.7
-                    ? 'bg-blue-900/20 border-blue-700'
-                    : 'bg-gray-900/20 border-gray-700'
+                    ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700'
+                    : 'bg-gray-50 border-gray-300 dark:bg-gray-900/20 dark:border-gray-700'
                 }`}
               >
                 <div className="text-sm">
                   <span className="font-medium">{potential.exerciseName}</span>
-                  <span className="ml-2 text-gray-400">from {potential.templateName}</span>
+                  <span className="ml-2 text-secondary">from {potential.templateName}</span>
                   <span className={`ml-2 text-xs ${
-                    potential.similarity >= 0.7 ? 'text-green-400' : 'text-yellow-400'
+                    potential.similarity >= 0.7 ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'
                   }`}>
                     {Math.round(potential.similarity * 100)}% match
                   </span>
                   {potential.linkingRejected && (
-                    <span className="ml-2 text-xs text-orange-400">(rejected)</span>
+                    <span className="ml-2 text-xs text-orange-700 dark:text-orange-400">(rejected)</span>
                   )}
                 </div>
                 {!potential.linkingRejected && (
@@ -352,7 +352,7 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
                       masterExerciseId 
                     })}
                     disabled={linkToMaster.isPending}
-                    className="rounded bg-blue-600 px-2 py-1 text-xs transition-colors hover:bg-blue-700 disabled:opacity-50"
+                    className="btn-primary px-2 py-1 text-xs disabled:opacity-50"
                   >
                     {linkToMaster.isPending ? "..." : "Link"}
                   </button>
@@ -365,7 +365,7 @@ function ExerciseDetails({ masterExerciseId, masterExerciseName, normalizedName,
 
       {/* No potential links message */}
       {potentialLinks.length === 0 && (
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-secondary">
           No unlinked template exercises found
         </div>
       )}

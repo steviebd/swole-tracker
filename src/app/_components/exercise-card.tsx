@@ -131,8 +131,8 @@ export function ExerciseCard({
 
   const containerClasses = `
     rounded-lg overflow-hidden select-none
-    ${isDraggedOver ? 'border-2 border-purple-500 bg-purple-900/20' : 
-      isSwiped ? 'bg-gray-850 border border-gray-600' : 'bg-gray-800'}
+    ${isDraggedOver ? 'border-2 border-purple-500 bg-purple-100 dark:bg-purple-900/20' :
+      isSwiped ? 'border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800' : 'border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'}
     ${isDragActive ? 'shadow-xl cursor-grabbing' : ''}
   `.trim();
 
@@ -192,7 +192,7 @@ export function ExerciseCard({
       onTouchEnd={handleCardTouchEnd}
     >
       {/* Exercise Header (presentational) */}
-      <div className="w-full p-4 text-left hover:bg-gray-750 transition-colors cursor-pointer" onClick={() => onToggleExpansion(exerciseIndex)}>
+      <div className="w-full p-4 text-left transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750" onClick={() => onToggleExpansion(exerciseIndex)}>
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <ExerciseHeader
@@ -236,8 +236,8 @@ export function ExerciseCard({
         <div className="px-4 pb-4 space-y-3">
           {/* Previous Workout Reference */}
           {previousSets && previousSets.length > 0 && !readOnly && (
-            <div className="rounded-lg bg-gray-900 p-3 border border-gray-600">
-              <h4 className="text-xs font-medium text-gray-400 mb-2">LAST WORKOUT</h4>
+            <div className="rounded-lg p-3 border bg-gray-50 border-gray-300 dark:bg-gray-900 dark:border-gray-600">
+              <h4 className="text-xs font-medium text-secondary mb-2">LAST WORKOUT</h4>
               <div className="space-y-2">
                 {(() => {
                   // Sort previous sets by weight (highest first), then by original order
@@ -256,8 +256,8 @@ export function ExerciseCard({
                     const isHighestWeight = index === 0 && prevSet.weight && prevSet.weight > 0;
                     
                     return (
-                      <div key={originalIndex} className={`flex items-center gap-3 text-sm ${isHighestWeight ? 'text-green-300' : 'text-gray-300'}`}>
-                        <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? 'bg-green-600' : 'bg-gray-600'}`}>
+                      <div key={originalIndex} className={`flex items-center gap-3 text-sm ${isHighestWeight ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                        <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-white'}`}>
                           {originalIndex + 1}
                         </div>
                         <div className="flex gap-4">
@@ -271,7 +271,7 @@ export function ExerciseCard({
                             <span>{prevSet.sets} sets</span>
                           )}
                           {isHighestWeight && (
-                            <span className="text-xs text-green-400">← Best</span>
+                            <span className="text-xs text-green-700 dark:text-green-400">← Best</span>
                           )}
                         </div>
                       </div>

@@ -471,7 +471,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           <button
             onClick={handleSave}
             disabled={saveWorkout.isPending}
-            className="w-full rounded-lg bg-gray-700 py-4 text-xl font-semibold transition-colors hover:bg-gray-600 disabled:opacity-50"
+            className="w-full rounded-lg border border-gray-200 bg-white py-4 text-xl font-semibold text-gray-900 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
             aria-busy={saveWorkout.isPending ? "true" : "false"}
           >
             {saveWorkout.isPending ? "Saving..." : "Save Workout"}
@@ -485,15 +485,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           </button>
 
           {queueSize > 0 && (
-            <div className="rounded-lg border border-yellow-700/70 bg-yellow-900/40 p-3 text-sm text-yellow-200 flex items-center justify-between">
-              <span>{isFlushing ? "Syncing queued workouts…" : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}</span>
-              <button
-                onClick={() => void flush()}
-                className="ml-3 rounded bg-yellow-700 px-3 py-1 text-xs font-medium text-white hover:bg-yellow-600 transition"
-              >
-                Sync now
-              </button>
-            </div>
+          <div className="rounded-lg border p-3 text-sm flex items-center justify-between border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-100">
+            <span>{isFlushing ? "Syncing queued workouts…" : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}</span>
+            <button
+              onClick={() => void flush()}
+              className="ml-3 rounded border border-yellow-300 px-3 py-1 text-xs font-medium hover:bg-yellow-100 dark:border-yellow-600 dark:hover:bg-yellow-900/50"
+            >
+              Sync now
+            </button>
+          </div>
           )}
 
           <button
@@ -544,10 +544,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           onClick={() => setShowDeleteConfirm(false)}
         >
           <div
-            className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-2xl"
+            className="w-full max-w-md card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="delete-workout-title" className="mb-4 text-xl font-bold text-rose-400">
+            <h3 id="delete-workout-title" className="mb-4 text-xl font-bold text-rose-600 dark:text-rose-400">
               Delete Workout
             </h3>
             <p id="delete-workout-desc" className="mb-6 leading-relaxed text-secondary">
@@ -560,7 +560,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 rounded-lg bg-gray-700 py-3 font-medium text-white transition-colors hover:bg-gray-600"
+                className="flex-1 rounded-lg bg-gray-200 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 Cancel
               </button>
@@ -613,10 +613,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           onClick={closeCompleteModal}
         >
           <div
-            className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-2xl"
+            className="w-full max-w-lg card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 id="complete-workout-title" className="mb-1 text-xl font-bold text-purple-300">
+            <h3 id="complete-workout-title" className="mb-1 text-xl font-bold text-purple-700 dark:text-purple-300">
               Complete Workout
             </h3>
             <p id="complete-workout-desc" className="mb-4 text-sm text-secondary">
@@ -657,7 +657,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     w ? `${w}${u ?? "kg"}${r ? ` × ${r}` : ""}` : "N/A";
 
                   return (
-                    <div key={`${ex.exerciseName}-${idx}`} className="rounded-md border border-gray-700 p-3">
+                    <div key={`${ex.exerciseName}-${idx}`} className="card p-3">
                       <div className="mb-2 text-sm font-semibold">{ex.exerciseName}</div>
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
@@ -703,7 +703,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               </button>
               <button
                 onClick={closeCompleteModal}
-                className="flex-1 rounded-lg bg-gray-700 py-3 text-lg font-medium transition-colors hover:bg-gray-600"
+                className="flex-1 rounded-lg bg-gray-200 py-3 text-lg font-medium transition-colors hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
               >
                 Continue Workout
               </button>

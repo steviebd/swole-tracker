@@ -109,7 +109,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
               className={`rounded-lg border-2 p-4 text-left transition-all ${
                 selectedTemplateId === template.id
                   ? "border-[#0A84FF] bg-[#0A84FF]/10"
-                  : "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700"
+                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700"
               }`}
             >
               <h3 className="mb-2 truncate font-semibold">{template.name}</h3>
@@ -190,7 +190,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                     id="workoutDate"
                     value={workoutDate}
                     onChange={(e) => setWorkoutDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 focus:outline-none focus:ring-2"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     required
                   />
                 </div>

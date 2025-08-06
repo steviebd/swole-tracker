@@ -20,14 +20,14 @@ export function ProgressionScopeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-600">
-        <h3 className="text-xl font-semibold mb-4 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/50">
+      <div className="card p-6 max-w-md w-full mx-4">
+        <h3 className="text-xl font-semibold mb-4">
           Apply Progression
         </h3>
         
-        <p className="text-gray-300 mb-6">
-          You chose to add <span className="font-medium text-green-400">{increment}</span>.
+        <p className="text-secondary mb-6">
+          You chose to add <span className="font-medium text-green-700 dark:text-green-400">{increment}</span>.
           <br />
           How would you like to apply this progression?
         </p>
@@ -38,10 +38,10 @@ export function ProgressionScopeModal({
               onApplyToAll();
               onClose();
             }}
-            className="w-full p-3 text-left rounded-lg bg-green-600 hover:bg-green-700 transition-colors"
+            className="w-full p-3 text-left rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
           >
             <div className="font-medium">Apply to ALL sets</div>
-            <div className="text-sm text-green-200">
+            <div className="text-sm opacity-90">
               Every set gets {increment}
             </div>
           </button>
@@ -51,10 +51,10 @@ export function ProgressionScopeModal({
               onApplyToHighest();
               onClose();
             }}
-            className="w-full p-3 text-left rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors"
+            className="w-full p-3 text-left rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
           >
             <div className="font-medium">Apply to HIGHEST set only</div>
-            <div className="text-sm text-blue-200">
+            <div className="text-sm opacity-90">
               Only the heaviest set gets {increment}
             </div>
           </button>
@@ -62,7 +62,7 @@ export function ProgressionScopeModal({
         
         <button
           onClick={onClose}
-          className="mt-4 w-full p-2 text-gray-400 hover:text-gray-200 text-sm"
+          className="mt-4 w-full rounded-lg bg-gray-200 px-4 py-2 text-gray-900 hover:bg-gray-300 text-sm dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
         >
           Cancel
         </button>

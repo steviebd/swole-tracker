@@ -113,15 +113,15 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
     if (!data || typeof data !== "object") return null;
 
     return (
-      <div className="bg-gray-800 rounded-lg p-4">
-        <h4 className="font-semibold text-sm text-gray-300 mb-3">{title}</h4>
+      <div className="card p-4">
+        <h4 className="font-semibold text-sm text-secondary mb-3">{title}</h4>
         <div className="space-y-2">
           {Object.entries(data).map(([key, value]) => (
             <div key={key} className="flex justify-between text-sm">
-              <span className="text-gray-400 capitalize">
+              <span className="text-muted capitalize">
                 {key.replace(/_/g, " ")}:
               </span>
-              <span className="text-white">
+              <span className="text-gray-900 dark:text-white">
                 {typeof value === "number" ? value.toFixed(2) : String(value)}
               </span>
             </div>
@@ -140,13 +140,13 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
       style={{ animation: isOpen ? 'fadeIn 0.3s ease-out' : '' }}
     >
       <div
         ref={contentRef}
-        className="bg-gray-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="card rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         onDoubleClick={handleDoubleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -156,19 +156,19 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
         }}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-gray-900 border-b border-gray-700 p-6 rounded-t-xl">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-xl dark:bg-gray-900 dark:border-gray-700">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-1">
+              <h2 className="text-2xl font-bold text-gray-900 mb-1 dark:text-white">
                 {workout.sport_name || "Unknown Sport"}
               </h2>
-              <p className="text-gray-400 text-sm">
+              <p className="text-secondary text-sm">
                 {formatDateTime(new Date(workout.start), new Date(workout.end))}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-2"
+              className="text-gray-500 hover:text-gray-900 transition-colors p-2 dark:text-gray-400 dark:hover:text-white"
             >
               ✕
             </button>
@@ -179,21 +179,21 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
         <div className="p-6 space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-semibold text-sm text-gray-300 mb-2">Duration</h4>
-              <p className="text-xl font-bold text-white">
+            <div className="card p-4">
+              <h4 className="font-semibold text-sm text-secondary mb-2">Duration</h4>
+              <p className="text-xl font-bold text-gray-900 dark:text-white">
                 {formatDuration(new Date(workout.start), new Date(workout.end))}
               </p>
             </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-semibold text-sm text-gray-300 mb-2">Score</h4>
-              <p className="text-xl font-bold text-white">
+            <div className="card p-4">
+              <h4 className="font-semibold text-sm text-secondary mb-2">Score</h4>
+              <p className="text-xl font-bold text-gray-900 dark:text-white">
                 {formatScore(workout.score, workout.score_state)}
               </p>
             </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-semibold text-sm text-gray-300 mb-2">Whoop ID</h4>
-              <p className="text-sm text-gray-300 font-mono break-all">
+            <div className="card p-4">
+              <h4 className="font-semibold text-sm text-secondary mb-2">Whoop ID</h4>
+              <p className="text-sm text-muted font-mono break-all">
                 {workout.whoopWorkoutId}
               </p>
             </div>
@@ -209,24 +209,24 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
           {renderMetricSection("Zone Duration", workout.zone_duration)}
 
           {/* Timestamps */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h4 className="font-semibold text-sm text-gray-300 mb-3">Timestamps</h4>
+          <div className="card p-4">
+            <h4 className="font-semibold text-sm text-secondary mb-3">Timestamps</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-400">Started:</span>
-                <span className="text-white">
+                <span className="text-muted">Started:</span>
+                <span className="text-gray-900 dark:text-white">
                   {new Date(workout.start).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Ended:</span>
-                <span className="text-white">
+                <span className="text-muted">Ended:</span>
+                <span className="text-gray-900 dark:text-white">
                   {new Date(workout.end).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Synced:</span>
-                <span className="text-white">
+                <span className="text-muted">Synced:</span>
+                <span className="text-gray-900 dark:text-white">
                   {new Date(workout.createdAt).toLocaleString()}
                 </span>
               </div>
@@ -235,8 +235,8 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
         </div>
 
         {/* Footer Help Text */}
-        <div className="bg-gray-800 p-4 rounded-b-xl">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="bg-white p-4 rounded-b-xl border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+          <p className="text-xs text-muted text-center">
             Double-click, swipe any direction, or click outside to close
           </p>
         </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
+import { ThemeSwitcher } from "~/app/_components/theme-switcher";
 
 import { RecentWorkoutsTRPC } from "~/app/_components/recent-workouts-trpc";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
@@ -54,6 +55,10 @@ export default async function Home() {
             >
               Connect Whoop
             </Link>
+            {/* Desktop theme switcher (hidden on small screens since it's in bottom nav there) */}
+            <div className="hidden md:block">
+              <ThemeSwitcher />
+            </div>
             <UserButton />
           </div>
         </div>
