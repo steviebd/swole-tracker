@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
+import { FocusTrap, useReturnFocus } from "./focus-trap";
 
 interface ProgressionModalProps {
   isOpen: boolean;
@@ -25,26 +26,46 @@ export function ProgressionModal({
   if (!isOpen) return null;
 
   const weightIncrement = previousBest.unit === "kg" ? 2.5 : 5;
-  
+  const { restoreFocus } = useReturnFocus();
+  const firstFocusRef = useRef<HTMLButtonElement>(null);
+
   const handleSelection = (type: "weight" | "reps" | "none") => {
     onApplyProgression(type);
+    restoreFocus();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
-      <div className="card glass-surface p-6 max-w-md w-full mx-4">
-        <h3 className="text-xl font-semibold mb-4">
-          Progression Suggestion
-        </h3>
-        
-        <p className="mb-4">
-          <span className="font-medium">{exerciseName}</span>
-        </p>
-        
-        <p className="text-sm text-secondary mb-6">
-          Last best: {previousBest.weight}{previousBest.unit} × {previousBest.reps} reps × {previousBest.sets} sets
-        </p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="progression-title"
+      onClick={() => {
+        restoreFocus();
+        onClose();
+      }}
+    >
+      <FocusTrap
+        onEscape={() => {
+          restoreFocus();
+          onClose();
+        }}
+        initialFocusRef={firstFocusRef as React.RefObject<HTMLElement>}
+        preventScroll
+      >
+        <div className="card glass-surface p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <h3 id="progression-title" className="text-xl font-semibold mb-4">
+            Progression Suggestion
+          </h3>
+          
+          <p className="mb-4">
+            <span className="font-medium">{exerciseName}</span>
+          </p>
+          
+          <p className="text-sm text-secondary mb-6">
+            Last best: {previousBest.weight}{previousBest.unit} × {previousBest.reps} reps × {previousBest.sets} sets
+          </p>
 
         <div className="space-y-3">
           <button
@@ -78,13 +99,18 @@ export function ProgressionModal({
           </button>
         </div>
         
-        <button
-          onClick={onClose}
-          className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
-        >
-          Cancel
-        </button>
-      </div>
+          <button
+            ref={firstFocusRef}
+            onClick={() => {
+              restoreFocus();
+              onClose();
+            }}
+            className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </FocusTrap>
     </div>
   );
 }

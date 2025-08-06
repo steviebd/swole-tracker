@@ -12,6 +12,7 @@ import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSwitcher } from "~/app/_components/theme-switcher";
 import ClientPerfInit from "~/app/_components/ClientPerfInit";
+import LiveRegionProvider from "~/app/_components/LiveRegion";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -77,12 +78,13 @@ export default function RootLayout({
           </a>
           <PostHogProvider>
             <ThemeProvider>
-              <ClientPerfInit />
-              <div className="page-backdrop" aria-hidden="true" />
-              <PageTracker />
-              <ConnectionStatus />
-              <TRPCReactProvider>
-                <SyncIndicator />
+              <LiveRegionProvider>
+                <ClientPerfInit />
+                <div className="page-backdrop" aria-hidden="true" />
+                <PageTracker />
+                <ConnectionStatus />
+                <TRPCReactProvider>
+                  <SyncIndicator />
 
                 <main id="main-content" className="flex-1 container-default py-6" role="main" tabIndex={-1}>
                   <div className="grid gap-6">
@@ -177,6 +179,7 @@ export default function RootLayout({
                   </div>
                 </footer>
               </TRPCReactProvider>
+              </LiveRegionProvider>
             </ThemeProvider>
           </PostHogProvider>
         </body>

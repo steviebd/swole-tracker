@@ -1,5 +1,8 @@
 "use client";
 
+import { useRef } from "react";
+import { FocusTrap, useReturnFocus } from "./focus-trap";
+
 interface ProgressionScopeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -19,18 +22,38 @@ export function ProgressionScopeModal({
 }: ProgressionScopeModalProps) {
   if (!isOpen) return null;
 
+  const { restoreFocus } = useReturnFocus();
+  const firstFocusRef = useRef<HTMLButtonElement>(null);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
-      <div className="card glass-surface p-6 max-w-md w-full mx-4">
-        <h3 className="text-xl font-semibold mb-4">
-          Apply Progression
-        </h3>
-        
-        <p className="text-secondary mb-6">
-          You chose to add <span className="font-medium text-green-700 dark:text-green-400">{increment}</span>.
-          <br />
-          How would you like to apply this progression?
-        </p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="progression-scope-title"
+      onClick={() => {
+        restoreFocus();
+        onClose();
+      }}
+    >
+      <FocusTrap
+        onEscape={() => {
+          restoreFocus();
+          onClose();
+        }}
+        initialFocusRef={firstFocusRef as React.RefObject<HTMLElement>}
+        preventScroll
+      >
+        <div className="card glass-surface p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <h3 id="progression-scope-title" className="text-xl font-semibold mb-4">
+            Apply Progression
+          </h3>
+          
+          <p className="text-secondary mb-6">
+            You chose to add <span className="font-medium text-green-700 dark:text-green-400">{increment}</span>.
+            <br />
+            How would you like to apply this progression?
+          </p>
 
         <div className="space-y-3">
           <button
@@ -60,13 +83,18 @@ export function ProgressionScopeModal({
           </button>
         </div>
         
-        <button
-          onClick={onClose}
-          className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
-        >
-          Cancel
-        </button>
-      </div>
+          <button
+            ref={firstFocusRef}
+            onClick={() => {
+              restoreFocus();
+              onClose();
+            }}
+            className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </FocusTrap>
     </div>
   );
 }

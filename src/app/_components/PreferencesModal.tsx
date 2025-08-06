@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/trpc/react";
+import { FocusTrap, useReturnFocus } from "./focus-trap";
 
 type RightSwipeAction = "collapse_expand" | "none";
 
@@ -56,23 +57,38 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
   if (!open) return null;
 
+  // Focus management
+  const { restoreFocus } = useReturnFocus();
+  const firstFocusRef = useRef<HTMLButtonElement>(null);
+
   return (
     <div
       className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60"
       role="dialog"
       aria-modal="true"
       aria-labelledby="preferences-title"
-      onClick={onClose}
+      onClick={() => {
+        restoreFocus();
+        onClose();
+      }}
     >
-      <div
-        className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl sm:bg-[var(--card)] sm:border sm:border-[var(--border)] bg-[var(--card)] border-t border-[var(--border)]"
-        onClick={(e) => e.stopPropagation()}
+      <FocusTrap
+        onEscape={() => {
+          restoreFocus();
+          onClose();
+        }}
+        initialFocusRef={firstFocusRef as React.RefObject<HTMLElement>}
+        preventScroll
       >
-        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)]">
-          <h2 id="preferences-title" className="text-lg font-bold">
-            Preferences
-          </h2>
-        </div>
+        <div
+          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl sm:bg-[var(--card)] sm:border sm:border-[var(--border)] bg-[var(--card)] border-t border-[var(--border)]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)]">
+            <h2 id="preferences-title" className="text-lg font-bold">
+              Preferences
+            </h2>
+          </div>
 
         <div className="px-4 py-3 sm:px-6 sm:py-5 space-y-6">
           {/* Predictive defaults toggle */}
@@ -135,24 +151,29 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
           </section>
         </div>
 
-        <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-[var(--border)] flex gap-2 justify-end">
-          <button
-            onClick={onClose}
-            className="btn-secondary px-4 py-2"
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => void handleSave()}
-            className="btn-primary px-4 py-2 disabled:opacity-50"
-            disabled={saving || saveDisabled}
-            aria-busy={saving ? "true" : "false"}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-[var(--border)] flex gap-2 justify-end">
+            <button
+              ref={firstFocusRef}
+              onClick={() => {
+                restoreFocus();
+                onClose();
+              }}
+              className="btn-secondary px-4 py-2"
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleSave()}
+              className="btn-primary px-4 py-2 disabled:opacity-50"
+              disabled={saving || saveDisabled}
+              aria-busy={saving ? "true" : "false"}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
         </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }

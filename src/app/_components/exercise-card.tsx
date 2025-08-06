@@ -6,6 +6,7 @@ import { ExerciseHeader } from "./workout/ExerciseHeader";
 import { SetList } from "./workout/SetList";
 import posthog from "posthog-js";
 import { vibrate } from "~/lib/client-telemetry";
+import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -72,6 +73,10 @@ export function ExerciseCard({
   onPointerDown,
   setCardElement,
 }: ExerciseCardProps) {
+  // Accessibility live region
+  const announce = useLiveRegion();
+  useAttachLiveRegion(announce);
+
   // Swipe gesture hook
   const [swipeState, swipeHandlers, resetSwipe] = useSwipeGestures(
     () => {
@@ -79,6 +84,7 @@ export function ExerciseCard({
         // Haptic + PostHog for swipe-to-bottom
         try { vibrate(10); } catch {}
         try { posthog.capture("haptic_action", { kind: "swipe" }); } catch {}
+        try { announce(`Moved ${exercise.exerciseName} to end`, { assertive: true }); } catch {}
         onSwipeToBottom(exerciseIndex);
         // Reset the dismissed state so card can be swiped again
         setTimeout(() => resetSwipe(), 50);
@@ -188,6 +194,9 @@ export function ExerciseCard({
       ref={setCardElement}
       className={containerClasses}
       style={cardStyle}
+      role="group"
+      aria-roledescription="Exercise card"
+      aria-label={`${exercise.exerciseName}`}
       onPointerDown={handleCardPointerDown}
       onMouseDown={handleCardPointerDown}
       onTouchStart={handleCardPointerDown}
@@ -199,18 +208,29 @@ export function ExerciseCard({
     >
       {/* Swipe affordance hints */}
       {isLeftSwipeActive && !readOnly && (
-        <div className="absolute inset-y-0 right-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none">
+        <div
+          className="absolute inset-y-0 right-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none"
+          role="status"
+          aria-live="polite"
+        >
           Move to end →
         </div>
       )}
       {isRightSwipeActive && !readOnly && (
-        <div className="absolute inset-y-0 left-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none">
+        <div
+          className="absolute inset-y-0 left-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none"
+          role="status"
+          aria-live="polite"
+        >
           {isExpanded ? "Collapse" : "Expand"} ←
         </div>
       )}
       {/* Exercise Header (presentational) */}
       <div
         className="w-full p-4 text-left transition-colors cursor-pointer hover:glass-hairline"
+        role="button"
+        aria-expanded={isExpanded ? "true" : "false"}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${exercise.exerciseName}`}
         onClick={() => onToggleExpansion(exerciseIndex)}
       >
         <div className="flex items-center justify-between">
