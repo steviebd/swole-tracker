@@ -53,7 +53,7 @@ export function SetInput({
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-lg p-3 select-none border border-gray-200 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+    <div className="flex items-center gap-3 rounded-lg p-3 select-none glass-surface glass-hairline text-gray-900 dark:text-white">
       {/* Set Number */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-white">
         {setIndex + 1}
@@ -78,21 +78,14 @@ export function SetInput({
               onFocus={(e) => e.target.select()}
               placeholder="0"
               disabled={readOnly}
-              className={`flex-1 rounded border px-2 py-1 text-sm focus:outline-none ${
-                readOnly
-                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-                  : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
-              }`}
+              className={`input flex-1 bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
             <button
               type="button"
               onClick={() => !readOnly && onToggleUnit(exerciseIndex, setIndex)}
               disabled={readOnly}
-              className={`px-1 text-xs ${
-                readOnly
-                  ? "cursor-not-allowed text-gray-500"
-                  : "text-purple-700 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
-              }`}
+              className={`px-2 text-xs btn-secondary ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+              title="Toggle unit"
             >
               {set.unit}
             </button>
@@ -116,11 +109,7 @@ export function SetInput({
             onFocus={(e) => e.target.select()}
             placeholder="0"
             disabled={readOnly}
-            className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
-              readOnly
-                ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-                : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
-            }`}
+            className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
         </div>
 
@@ -142,11 +131,7 @@ export function SetInput({
             placeholder="1"
             min="1"
             disabled={readOnly}
-            className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
-              readOnly
-                ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-                : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
-            }`}
+            className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
         </div>
       </div>
@@ -178,7 +163,7 @@ export function SetInput({
       {!readOnly && showDelete && (
         <button
           onClick={() => onDelete(exerciseIndex, setIndex)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
+          className="flex h-8 w-8 items-center justify-center rounded-full btn-destructive"
           title="Delete set"
         >
           ×

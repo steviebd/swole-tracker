@@ -61,7 +61,7 @@ export default function RootLayout({
       telemetry={false}
     >
       <html lang="en" className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable} dark`}>
-        <body className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white flex flex-col">
+        <body className="min-h-screen flex flex-col text-gray-900 dark:text-white page-shell">
           {/* Prevent theme flash */}
           <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
           {/* Skip to content link */}
@@ -73,18 +73,21 @@ export default function RootLayout({
           </a>
           <PostHogProvider>
             <ThemeProvider>
+              <div className="page-backdrop" aria-hidden="true" />
               <PageTracker />
               <ConnectionStatus />
               <TRPCReactProvider>
                 <SyncIndicator />
 
-                <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
-                  {children}
+                <main id="main-content" className="flex-1 container-default py-6" role="main" tabIndex={-1}>
+                  <div className="grid gap-6">
+                    {children}
+                  </div>
                 </main>
 
                 {/* Mobile Bottom Tab Bar */}
                 <nav
-                  className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/80 text-gray-700 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-gray-800 dark:bg-black/70 dark:text-gray-300"
+                  className="md:hidden fixed inset-x-0 bottom-0 app-footer text-gray-300"
                   role="navigation"
                   aria-label="Primary"
                 >
@@ -147,18 +150,18 @@ export default function RootLayout({
                   </div>
                 </nav>
 
-                <footer className="mt-auto py-6 border-t border-gray-800">
+                <footer className="mt-auto py-6 app-footer">
                   <div className="container mx-auto px-4 text-center">
-                    <div className="flex justify-center space-x-6 text-sm text-gray-400">
+                    <div className="flex justify-center space-x-6 text-sm text-gray-300">
                       <a 
                         href="/privacy" 
-                        className="hover:text-white transition-colors duration-200"
+                        className="hover:text-white transition-colors duration-200 link-primary"
                       >
                         Privacy Policy
                       </a>
                       <a 
                         href="/terms" 
-                        className="hover:text-white transition-colors duration-200"
+                        className="hover:text-white transition-colors duration-200 link-primary"
                       >
                         Terms of Service
                       </a>

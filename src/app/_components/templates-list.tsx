@@ -55,7 +55,7 @@ export function TemplatesList() {
     return (
       <div className="space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse card p-4">
+          <div key={i} className="animate-pulse glass-surface card p-4">
             <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
             <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
@@ -66,7 +66,7 @@ export function TemplatesList() {
 
   if (!templates?.length) {
     return (
-      <div className="py-12 text-center">
+      <div className="py-12 text-center glass-surface card">
         <div className="mb-4 text-6xl">📋</div>
         <h3 className="mb-2 text-xl font-semibold">No templates yet</h3>
         <p className="mb-6 text-secondary">
@@ -85,7 +85,7 @@ export function TemplatesList() {
   return (
     <div className="space-y-4">
       {templates.map((template) => (
-        <div key={template.id} className="card p-4">
+        <div key={template.id} className="card glass-surface p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-semibold">{template.name}</h3>
             <div className="flex items-center gap-2">

@@ -20,8 +20,8 @@ export function ProgressionScopeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/50">
-      <div className="card p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+      <div className="card glass-surface p-6 max-w-md w-full mx-4">
         <h3 className="text-xl font-semibold mb-4">
           Apply Progression
         </h3>
@@ -38,7 +38,7 @@ export function ProgressionScopeModal({
               onApplyToAll();
               onClose();
             }}
-            className="w-full p-3 text-left rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+            className="w-full p-3 text-left rounded-lg btn-success transition-colors"
           >
             <div className="font-medium">Apply to ALL sets</div>
             <div className="text-sm opacity-90">
@@ -51,7 +51,7 @@ export function ProgressionScopeModal({
               onApplyToHighest();
               onClose();
             }}
-            className="w-full p-3 text-left rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            className="w-full p-3 text-left rounded-lg btn-primary transition-colors"
           >
             <div className="font-medium">Apply to HIGHEST set only</div>
             <div className="text-sm opacity-90">
@@ -62,7 +62,7 @@ export function ProgressionScopeModal({
         
         <button
           onClick={onClose}
-          className="mt-4 w-full rounded-lg bg-gray-200 px-4 py-2 text-gray-900 hover:bg-gray-300 text-sm dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+          className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
         >
           Cancel
         </button>

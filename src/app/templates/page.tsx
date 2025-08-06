@@ -21,33 +21,33 @@ export default async function TemplatesPage() {
 
   return (
     <ClientHydrate state={state}>
-      <main className="min-h-screen">
-        <div className="container mx-auto px-4 py-6">
-          {/* Header */}
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-purple-400 hover:text-purple-300">
-                ← Back
-              </Link>
-              <h1 className="text-2xl font-bold">Workout Templates</h1>
-            </div>
-            <div className="flex gap-3">
-              <Link
-                href="/exercises"
-                className="rounded-lg border border-purple-600 px-4 py-2 text-sm font-medium text-purple-400 transition-colors hover:bg-purple-600 hover:text-white"
-              >
-                Manage Exercises
-              </Link>
-              <Link
-                href="/templates/new"
-                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-purple-700"
-              >
-                New Template
-              </Link>
-            </div>
+      <main className="min-h-screen container-default py-6">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between glass-header rounded-xl px-4 py-3">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="link-primary">
+              ← Back
+            </Link>
+            <h1 className="text-2xl font-bold">Workout Templates</h1>
           </div>
+          <div className="flex gap-3">
+            <Link
+              href="/exercises"
+              className="btn-secondary"
+            >
+              Manage Exercises
+            </Link>
+            <Link
+              href="/templates/new"
+              className="btn-primary"
+            >
+              New Template
+            </Link>
+          </div>
+        </div>
 
-          {/* Templates List */}
+        {/* Templates List */}
+        <div className="glass-surface card p-4">
           <TemplatesList />
         </div>
       </main>

@@ -130,9 +130,8 @@ export function ExerciseCard({
   } as React.CSSProperties;
 
   const containerClasses = `
-    rounded-lg overflow-hidden select-none
-    ${isDraggedOver ? 'border-2 border-purple-500 bg-purple-100 dark:bg-purple-900/20' :
-      isSwiped ? 'border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800' : 'border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800'}
+    card glass-surface overflow-hidden select-none
+    ${isDraggedOver ? 'glass-hairline' : ''}
     ${isDragActive ? 'shadow-xl cursor-grabbing' : ''}
   `.trim();
 
@@ -192,7 +191,10 @@ export function ExerciseCard({
       onTouchEnd={handleCardTouchEnd}
     >
       {/* Exercise Header (presentational) */}
-      <div className="w-full p-4 text-left transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-750" onClick={() => onToggleExpansion(exerciseIndex)}>
+      <div
+        className="w-full p-4 text-left transition-colors cursor-pointer hover:glass-hairline"
+        onClick={() => onToggleExpansion(exerciseIndex)}
+      >
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <ExerciseHeader
@@ -236,7 +238,7 @@ export function ExerciseCard({
         <div className="px-4 pb-4 space-y-3">
           {/* Previous Workout Reference */}
           {previousSets && previousSets.length > 0 && !readOnly && (
-            <div className="rounded-lg p-3 border bg-gray-50 border-gray-300 dark:bg-gray-900 dark:border-gray-600">
+            <div className="rounded-lg p-3 glass-surface glass-hairline">
               <h4 className="text-xs font-medium text-secondary mb-2">LAST WORKOUT</h4>
               <div className="space-y-2">
                 {(() => {
