@@ -2,6 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { env } from "~/env";
 import { logger, logSecurityEvent } from "~/lib/logger";
+import { t } from "~/server/api/trpc";
+import type { TRPCContext } from "~/server/api/trpc";
 
 export interface RateLimitOptions {
   endpoint: string;
@@ -13,26 +15,19 @@ export interface RateLimitOptions {
 /**
  * tRPC middleware for rate limiting based on user and endpoint
  */
-import type { TRPCContext } from "~/server/api/trpc"; // ensure TRPCContext exports the actual ctx shape
 
 type MiddlewareNext = () => Promise<unknown>;
 
-export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled = false }: RateLimitOptions) => {
-  // Use a plain async function compatible with tRPC's .use(middlewareFn)
-  return async ({ ctx, next }: { ctx: TRPCContext; next: MiddlewareNext }) => {
-    // Skip rate limiting if disabled and skipIfDisabled is true
+export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled = false }: RateLimitOptions) =>
+  t.middleware(async ({ ctx, next }) => {
     if (!env.RATE_LIMIT_ENABLED && skipIfDisabled) {
       return next();
     }
-
-    // Skip rate limiting if user is not authenticated (should not happen with protectedProcedure)
     if (!ctx.user?.id) {
       return next();
     }
-
     try {
       const result = await checkRateLimit(ctx.user.id, endpoint, limit, windowMs);
-
       if (!result.allowed) {
         logSecurityEvent(`Rate limit exceeded for ${endpoint}`, ctx.user.id, {
           endpoint,
@@ -40,37 +35,29 @@ export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled 
           remaining: result.remaining,
           resetTime: result.resetTime,
         });
-
         throw new TRPCError({
           code: "TOO_MANY_REQUESTS",
           message: `Rate limit exceeded. Try again in ${result.retryAfter} seconds.`,
         });
       }
-
-      // Log rate limit info in development
       logger.debug(`Rate limit check passed for ${endpoint}`, {
         userId: ctx.user.id,
         endpoint,
         remaining: result.remaining,
         resetTime: result.resetTime,
       });
-
       return next();
     } catch (error: unknown) {
       if (error instanceof TRPCError) {
         throw error;
       }
-
       logger.error(`Rate limit check failed for ${endpoint}`, error, {
         userId: ctx.user?.id,
         endpoint,
       });
-
-      // Allow request if rate limiting fails (graceful degradation)
       return next();
     }
-  };
-};
+  });
 
 // Pre-configured rate limiting middleware for common operations
 export const templateRateLimit = rateLimitMiddleware({

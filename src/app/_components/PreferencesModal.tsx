@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/trpc/react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
+import type { RouterOutputs } from "~/trpc/react";
+type Preferences = RouterOutputs['preferences']['get'];
 
 type RightSwipeAction = "collapse_expand" | "none";
 
@@ -31,19 +33,19 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   useEffect(() => {
     if (!isLoading && prefs) {
       // Server returns shape with safe defaults
-      setPredictiveEnabled(Boolean((prefs as any).predictive_defaults_enabled ?? false));
-      setRightSwipeAction(((prefs as any).right_swipe_action ?? "collapse_expand") as RightSwipeAction);
-      // If backend provides value, hydrate; otherwise leave blank to indicate default
-      const factor = (prefs as any).estimated_one_rm_factor as number | undefined;
+      setPredictiveEnabled(Boolean(prefs.predictive_defaults_enabled ?? false));
+      setRightSwipeAction((prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction);
+      // Only set estimatedOneRmFactor if present
+      const factor = 'estimated_one_rm_factor' in prefs ? prefs.estimated_one_rm_factor : undefined;
       setEstimatedOneRmFactor(typeof factor === "number" ? String(factor) : "");
     }
   }, [isLoading, prefs]);
 
   const saveDisabled = useMemo(() => {
     if (!prefs) return false; // allow initial save
-    const pe = Boolean((prefs as any).predictive_defaults_enabled ?? false);
-    const rs = ((prefs as any).right_swipe_action ?? "collapse_expand") as RightSwipeAction;
-    const pf = (prefs as any).estimated_one_rm_factor as number | undefined;
+    const pe = Boolean(prefs.predictive_defaults_enabled ?? false);
+    const rs = (prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction;
+    const pf = 'estimated_one_rm_factor' in prefs ? prefs.estimated_one_rm_factor : undefined;
     const uiPf = estimatedOneRmFactor.trim() === "" ? undefined : Number(estimatedOneRmFactor);
     return pe === predictiveEnabled && rs === rightSwipeAction && (pf ?? undefined) === (uiPf ?? undefined);
   }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor]);
@@ -51,7 +53,11 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const payload: any = {
+      const payload: {
+        predictive_defaults_enabled?: boolean;
+        right_swipe_action?: RightSwipeAction;
+        estimated_one_rm_factor?: number;
+      } = {
         predictive_defaults_enabled: predictiveEnabled,
         right_swipe_action: rightSwipeAction,
       };

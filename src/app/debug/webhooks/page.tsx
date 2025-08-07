@@ -18,8 +18,8 @@ interface WebhookEvent {
   userId: string | null;
   externalUserId: string | null;
   externalEntityId: string | null;
-  payload: any;
-  headers: any;
+  payload: Record<string, unknown>;
+  headers: Record<string, unknown>;
   status: string;
   error: string | null;
   processingTime: number | null;

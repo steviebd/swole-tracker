@@ -33,7 +33,7 @@ const exerciseInputSchema = z.object({
 
 /* DEBUG LOGGING ENABLED FOR TESTS */
 const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test';
-function debugLog(...args: any[]) {
+function debugLog(...args: unknown[]) {
   if (debugEnabled) console.log('[workoutsRouter]', ...args);
 }
 

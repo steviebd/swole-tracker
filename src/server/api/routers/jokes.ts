@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { dailyJokes } from "~/server/db/schema";
 import { env } from "~/env";
+import { type db } from "~/server/db";
 
 // Supported AI models via Vercel AI Gateway
 const SUPPORTED_MODELS = {
@@ -45,8 +46,7 @@ function getModelInfo(modelId: string) {
 // - Anthropic: anthropic/claude-3-5-sonnet-20241022
 // - Meta: meta/llama-3.1-405b-instruct
 interface JokeContext {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any;
+  db: typeof db;
   user: { id: string };
 }
 
@@ -56,17 +56,17 @@ async function generateNewJoke(ctx: JokeContext) {
   try {
     // Always fetch previous jokes first (tests assert these db calls happen)
     const memoryCount = env.AI_GATEWAY_JOKE_MEMORY_NUMBER ?? 3;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+     
     const previousJokes: { joke: string }[] = await ctx.db
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .select({ joke: dailyJokes.joke })
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .from(dailyJokes)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .where(eq(dailyJokes.user_id, ctx.user.id))
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .orderBy(desc(dailyJokes.createdAt))
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .limit(memoryCount);
 
     // Build enhanced prompt with previous jokes when available
@@ -141,21 +141,21 @@ async function generateNewJoke(ctx: JokeContext) {
     const trimmed = (text ?? "").trim();
 
     // Insert the new joke into DB
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+     
     const inserted = await ctx.db
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .insert(dailyJokes)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .values({
         user_id: ctx.user.id,
         joke: trimmed,
         aiModel: resolvedModel,
         prompt: enhancedPrompt,
       })
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       .returning();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+     
     const first = inserted[0];
     if (!first) {
       throw new Error("Failed to save joke to database");
@@ -163,7 +163,7 @@ async function generateNewJoke(ctx: JokeContext) {
 
     return {
       joke: trimmed,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+       
       createdAt: first.createdAt,
       isFromCache: false,
     };

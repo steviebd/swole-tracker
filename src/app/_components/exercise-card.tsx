@@ -9,6 +9,10 @@ import { vibrate } from "~/lib/client-telemetry";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { useExerciseInsights } from "~/hooks/use-insights";
 
+type Recommendation =
+  | { type: "weight"; nextWeight: number; rationale: string; unit: "kg" | "lbs" }
+  | { type: "reps"; nextReps: number; rationale: string; unit: "kg" | "lbs" };
+
 export interface ExerciseData {
   templateExerciseId?: number;
   exerciseName: string;
@@ -261,9 +265,9 @@ export function ExerciseCard({
               aria-label="Drag to reorder"
               data-drag-handle="true"
               className="group ml-2 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-200"
-              onPointerDown={(e) => onPointerDown?.(e as any, { force: true })}
-              onMouseDown={(e) => onPointerDown?.(e as any, { force: true })}
-              onTouchStart={(e) => onPointerDown?.(e as any, { force: true })}
+              onPointerDown={(e) => onPointerDown?.(e as React.PointerEvent | React.MouseEvent | React.TouchEvent, { force: true })}
+              onMouseDown={(e) => onPointerDown?.(e as React.PointerEvent | React.MouseEvent | React.TouchEvent, { force: true })}
+              onTouchStart={(e) => onPointerDown?.(e as React.PointerEvent | React.MouseEvent | React.TouchEvent, { force: true })}
               style={{ touchAction: 'none' }}
               title="Drag to reorder"
             >
@@ -319,15 +323,40 @@ export function ExerciseCard({
                         nextWeight: insights.recommendation?.nextWeight,
                         nextReps: insights.recommendation?.nextReps,
                         unit: insights.recommendation?.unit,
-                      }); } catch {}
+                      }); } catch (err: unknown) {
+                        if (err instanceof Error) {
+                          // handle error
+                        }
+                      }
                       // Prefill the last set with recommendation conservatively
-                      if (insights.recommendation?.type === "weight" && insights.recommendation?.nextWeight != null) {
+                      const rec = insights.recommendation;
+                      if (
+                        rec &&
+                        rec.type === "weight" &&
+                        Object.prototype.hasOwnProperty.call(rec, "nextWeight") &&
+                        typeof (rec as { nextWeight: unknown }).nextWeight === "number"
+                      ) {
                         const lastIndex = exercise.sets.length - 1;
-                        onUpdate(exerciseIndex, Math.max(0, lastIndex), "weight", insights.recommendation.nextWeight);
-                      } else if (insights.recommendation?.type === "reps" && insights.recommendation?.nextReps != null) {
+                        onUpdate(
+                          exerciseIndex,
+                          Math.max(0, lastIndex),
+                          "weight",
+                          (rec as unknown as { nextWeight: number }).nextWeight
+                        );
+                      } else if (
+                        rec &&
+                        rec.type === "reps" &&
+                        Object.prototype.hasOwnProperty.call(rec, "nextReps") &&
+                        typeof (rec as { nextReps: unknown }).nextReps === "number"
+                      ) {
                         const lastIndex = exercise.sets.length - 1;
                         const current = exercise.sets[Math.max(0, lastIndex)]?.reps ?? 0;
-                        onUpdate(exerciseIndex, Math.max(0, lastIndex), "reps", current + insights.recommendation.nextReps);
+                        onUpdate(
+                          exerciseIndex,
+                          Math.max(0, lastIndex),
+                          "reps",
+                          current + ((rec as unknown as { nextReps: number }).nextReps ?? 0)
+                        );
                       }
                     }}
                     title={insights.recommendation.rationale}

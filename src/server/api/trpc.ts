@@ -59,7 +59,7 @@ export const createTRPCContext = async (opts: { headers: Headers }): Promise<TRP
  * ZodErrors so that you get typesafety on the frontend if your procedure fails due to validation
  * errors on the backend.
  */
-const t = initTRPC.context<TRPCContext>().create({
+export const t = initTRPC.context<TRPCContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error, ctx, path, type }) {
     // Attach requestId and normalized error info for easier troubleshooting
