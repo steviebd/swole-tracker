@@ -4,7 +4,7 @@ import { desc } from "drizzle-orm";
 import { type Metadata } from "next";
 
 // Force dynamic rendering for this page
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Webhook Debug - Swole Tracker",
@@ -28,27 +28,27 @@ interface WebhookEvent {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-AU', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    timeZone: 'Australia/Sydney'
+  return new Intl.DateTimeFormat("en-AU", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "Australia/Sydney"
   }).format(date);
 }
 
 function getStatusBadge(status: string) {
   const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
   switch (status) {
-    case 'processed':
+    case "processed":
       return `${baseClasses} bg-green-100 text-green-800`;
-    case 'failed':
+    case "failed":
       return `${baseClasses} bg-red-100 text-red-800`;
-    case 'ignored':
+    case "ignored":
       return `${baseClasses} bg-yellow-100 text-yellow-800`;
-    case 'received':
+    case "received":
       return `${baseClasses} bg-blue-100 text-blue-800`;
     default:
       return `${baseClasses} bg-gray-100 text-gray-800`;
@@ -102,16 +102,16 @@ export default async function WebhookDebugPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-300 mb-1">External User ID</h4>
-                  <p className="text-sm text-gray-100">{event.externalUserId || 'N/A'}</p>
+                  <p className="text-sm text-gray-100">{event.externalUserId ?? "N/A"}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-300 mb-1">Entity ID</h4>
-                  <p className="text-sm text-gray-100">{event.externalEntityId || 'N/A'}</p>
+                  <p className="text-sm text-gray-100">{event.externalEntityId ?? "N/A"}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-300 mb-1">Processing Time</h4>
                   <p className="text-sm text-gray-100">
-                    {event.processingTime ? `${event.processingTime}ms` : 'N/A'}
+                    {event.processingTime ? `${event.processingTime}ms` : "N/A"}
                   </p>
                 </div>
               </div>

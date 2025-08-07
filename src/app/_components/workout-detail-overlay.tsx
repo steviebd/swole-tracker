@@ -177,7 +177,7 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1 dark:text-white">
-                {workout.sport_name || "Unknown Sport"}
+                {workout.sport_name ?? "Unknown Sport"}
               </h2>
               <p className="text-secondary text-sm">
                 {formatDateTime(new Date(workout.start), new Date(workout.end))}

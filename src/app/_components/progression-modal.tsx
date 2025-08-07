@@ -23,11 +23,13 @@ export function ProgressionModal({
   previousBest,
   onApplyProgression,
 }: ProgressionModalProps) {
+  // Always call hooks unconditionally at the top of the component
+  const { restoreFocus } = useReturnFocus();
+  const firstFocusRef = useRef<HTMLButtonElement>(null);
+
   if (!isOpen) return null;
 
   const weightIncrement = previousBest.unit === "kg" ? 2.5 : 5;
-  const { restoreFocus } = useReturnFocus();
-  const firstFocusRef = useRef<HTMLButtonElement>(null);
 
   const handleSelection = (type: "weight" | "reps" | "none") => {
     onApplyProgression(type);

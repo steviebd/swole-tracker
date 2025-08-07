@@ -20,10 +20,11 @@ export function ProgressionScopeModal({
   onApplyToAll,
   onApplyToHighest,
 }: ProgressionScopeModalProps) {
-  if (!isOpen) return null;
-
+  // Always call hooks unconditionally at the top of the component
   const { restoreFocus } = useReturnFocus();
   const firstFocusRef = useRef<HTMLButtonElement>(null);
+
+  if (!isOpen) return null;
 
   return (
     <div
