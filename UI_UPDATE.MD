@@ -1,10 +1,3 @@
-Phase 6: Advanced gestures and layout
-
-- Multi-select sets for bulk edits
-- Long-press context menu (duplicate set, clear values, set RPE/rest for all)
-- True asymmetric gesture preferences per user/exercise
-- Horizontal “set lanes” option for dense entry
-
 Phase 7: Integrations and data quality
 
 - Whoop overlay for recovery readiness hints in-session

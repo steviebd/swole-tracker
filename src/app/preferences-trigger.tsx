@@ -11,7 +11,8 @@ import { useTheme } from "~/providers/ThemeProvider";
  */
 export default function ClientPreferencesTrigger() {
   const [open, setOpen] = useState(false);
-  const { resolvedTheme } = useTheme(); // ensures ThemeProvider context is present
+  // Ensure ThemeProvider context is present
+  useTheme();
 
   return (
     <>

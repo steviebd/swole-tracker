@@ -77,8 +77,17 @@ export function ExerciseLinkPicker({
   // Explicitly coerce cursor to a definite number to satisfy generated types
   // Note: the query input type may allow cursor to be number | undefined due to zod defaults.
   // We always pass a concrete number to satisfy strict typing.
+  // Compute a fully concrete, strictly typed cursor value and avoid widening in hook params
+  const cursorValue = Number.isFinite(cursor) ? cursor : 0;
+  // Define a concrete input shape to avoid any widening of 'cursor'
+  interface SearchMasterInput {
+    q: string;
+    limit: number;
+    cursor: number;
+  }
+  const searchInput: SearchMasterInput = { q, limit: 20, cursor: cursorValue };
   const search = api.exercises.searchMaster.useQuery(
-    { q, limit: 20, cursor: cursor ?? 0 },
+    { q, limit: 20, cursor: cursorValue ?? 0 },
     {
       enabled: open && q.trim().length > 0,
       staleTime: 10_000,
@@ -132,8 +141,8 @@ export function ExerciseLinkPicker({
 
   function loadMore() {
     if (!canLoadMore) return;
-    const next = (search.data?.nextCursor ?? 0),
-    const safe = Number.isFinite(next) ? (next as number) : 0;
+    const next = search.data?.nextCursor ?? 0;
+    const safe = Number.isFinite(next) ? next : 0;
     setCursor(safe);
     if (safe !== 0) {
       void search.refetch();

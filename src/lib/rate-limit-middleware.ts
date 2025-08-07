@@ -13,13 +13,22 @@ export interface RateLimitOptions {
 }
 
 /**
- * tRPC middleware for rate limiting based on user and endpoint
+ * Lightweight handler shape our unit tests call directly.
+ * Matches: const mw = rateLimitMiddleware(opts); await mw({ ctx, next })
  */
-
 type MiddlewareNext = () => Promise<unknown>;
+type RateLimitHandler = (args: { ctx: TRPCContext; next: MiddlewareNext }) => Promise<unknown>;
 
-export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled = false }: RateLimitOptions) =>
-  t.middleware(async ({ ctx, next }) => {
+/**
+ * Factory that returns a plain async handler usable in tests and in routers.
+ */
+export const rateLimitMiddleware = ({
+  endpoint,
+  limit,
+  windowMs,
+  skipIfDisabled = false,
+}: RateLimitOptions): RateLimitHandler => {
+  return async ({ ctx, next }) => {
     if (!env.RATE_LIMIT_ENABLED && skipIfDisabled) {
       return next();
     }
@@ -57,9 +66,22 @@ export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled 
       });
       return next();
     }
+  };
+};
+
+/**
+ * Adapter to use the same handler inside t.middleware within routers.
+ * Usage in router: .middleware(asTrpcMiddleware(rateLimitMiddleware(opts)))
+ */
+export const asTrpcMiddleware = (handler: RateLimitHandler) =>
+  t.middleware(async ({ ctx, next }) => {
+    // Execute our plain handler for side-effects and error throwing semantics,
+    // then return the original next() result to satisfy tRPC's expected type.
+    await handler({ ctx, next });
+    return next();
   });
 
-// Pre-configured rate limiting middleware for common operations
+// Pre-configured rate limiting middleware for common operations (plain handlers)
 export const templateRateLimit = rateLimitMiddleware({
   endpoint: "template_operations",
   limit: env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ?? 0,
@@ -68,7 +90,7 @@ export const templateRateLimit = rateLimitMiddleware({
 });
 
 export const workoutRateLimit = rateLimitMiddleware({
-  endpoint: "workout_operations", 
+  endpoint: "workout_operations",
   limit: env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ?? 0,
   windowMs: 60 * 60 * 1000, // 1 hour
   skipIfDisabled: true,
