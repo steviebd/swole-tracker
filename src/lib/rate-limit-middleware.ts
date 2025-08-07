@@ -13,8 +13,13 @@ export interface RateLimitOptions {
 /**
  * tRPC middleware for rate limiting based on user and endpoint
  */
+import type { TRPCContext } from "~/server/api/trpc"; // ensure TRPCContext exports the actual ctx shape
+
+type MiddlewareNext = () => Promise<unknown>;
+
 export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled = false }: RateLimitOptions) => {
-  return async ({ ctx, next }: { ctx: any; next: any }) => {
+  // Use a plain async function compatible with tRPC's .use(middlewareFn)
+  return async ({ ctx, next }: { ctx: TRPCContext; next: MiddlewareNext }) => {
     // Skip rate limiting if disabled and skipIfDisabled is true
     if (!env.RATE_LIMIT_ENABLED && skipIfDisabled) {
       return next();
@@ -51,13 +56,13 @@ export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled 
       });
 
       return next();
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof TRPCError) {
         throw error;
       }
 
       logger.error(`Rate limit check failed for ${endpoint}`, error, {
-        userId: ctx.user.id,
+        userId: ctx.user?.id,
         endpoint,
       });
 
@@ -70,28 +75,28 @@ export const rateLimitMiddleware = ({ endpoint, limit, windowMs, skipIfDisabled 
 // Pre-configured rate limiting middleware for common operations
 export const templateRateLimit = rateLimitMiddleware({
   endpoint: "template_operations",
-  limit: env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR,
+  limit: env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ?? 0,
   windowMs: 60 * 60 * 1000, // 1 hour
   skipIfDisabled: true,
 });
 
 export const workoutRateLimit = rateLimitMiddleware({
   endpoint: "workout_operations", 
-  limit: env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR,
+  limit: env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ?? 0,
   windowMs: 60 * 60 * 1000, // 1 hour
   skipIfDisabled: true,
 });
 
 export const apiCallRateLimit = rateLimitMiddleware({
   endpoint: "api_calls",
-  limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE,
+  limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE ?? 0,
   windowMs: 60 * 1000, // 1 minute
   skipIfDisabled: false, // Always enforce API call limits
 });
 
 export const whoopSyncRateLimit = rateLimitMiddleware({
   endpoint: "whoop_sync",
-  limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
+  limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR ?? 0,
   windowMs: 60 * 60 * 1000, // 1 hour
   skipIfDisabled: false, // Always enforce Whoop sync limits
 });

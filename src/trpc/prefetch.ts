@@ -35,7 +35,7 @@ export async function prefetchHome(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() });
         return scopedCaller.workouts.getRecent({ limit: 5 });
       },
     }),
@@ -46,7 +46,7 @@ export async function prefetchHome(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() });
         return scopedCaller.templates.getAll();
       },
     }),
@@ -61,7 +61,7 @@ export async function prefetchTemplatesIndex(qc: QueryClient) {
       const h = new Headers();
       rh.forEach((value: string, key: string) => h.append(key, value));
       const db = getServerDb();
-      const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
+      const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() });
       return scopedCaller.templates.getAll();
     },
   });
@@ -76,7 +76,7 @@ export async function prefetchWorkoutStart(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() });
         return scopedCaller.templates.getAll();
       },
     }),
@@ -87,7 +87,7 @@ export async function prefetchWorkoutStart(qc: QueryClient) {
         const h = new Headers();
         rh.forEach((value: string, key: string) => h.append(key, value));
         const db = getServerDb();
-        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() as `${string}-${string}-${string}-${string}-${string}` });
+        const scopedCaller = createCaller({ headers: h, db, user: null, requestId: randomUUID() });
         return scopedCaller.workouts.getRecent({ limit: 5 });
       },
     }),

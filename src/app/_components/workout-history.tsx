@@ -9,6 +9,8 @@ export function WorkoutHistory() {
     limit: 50,
   });
 
+  const { data: exportData, isFetching: isExporting, refetch: refetchExport } = useExportWorkoutsCSV();
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -22,8 +24,6 @@ export function WorkoutHistory() {
       </div>
     );
   }
-
-  const { data: exportData, isFetching: isExporting, refetch: refetchExport } = useExportWorkoutsCSV();
 
   if (!workouts?.length) {
     return (
@@ -47,6 +47,8 @@ export function WorkoutHistory() {
     <div className="space-y-4">
       {/* Export / Share */}
       <div className="flex items-center justify-end">
+        {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
+        <span className="sr-only">{exportData ? "Export data ready" : "No export data"}</span>
         <button
           type="button"
           className="rounded bg-gray-700 px-3 py-1.5 text-sm hover:bg-gray-600 transition-colors"

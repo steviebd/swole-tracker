@@ -1,10 +1,3 @@
-Phase 5: Insights and progression
-
-- Auto-progression recommendations based on RPE and historical trend
-- Exercise-level insights: best set, volume, estimated 1RM; simple charts
-- Template tuning suggestions (e.g., rest too short/long, RPE too high/low)
-- Export/share summaries
-
 Phase 6: Advanced gestures and layout
 
 - Multi-select sets for bulk edits

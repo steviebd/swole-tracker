@@ -21,6 +21,52 @@ function compareUnits(weight: number | undefined, unit: "kg" | "lbs", targetUnit
   return targetUnit === "kg" ? weight / 2.2046226218 : weight * 2.2046226218;
 }
 
+type Unit = "kg" | "lbs";
+
+type ExerciseBestSet = {
+  weight?: number;
+  reps?: number;
+  unit?: Unit;
+  sets?: number;
+  rpe?: number;
+};
+
+type VolumePoint = { date: Date; volume: number };
+
+type Recommendation =
+  | { type: "weight"; nextWeight: number; rationale: string; unit: Unit }
+  | { type: "reps"; nextReps: number; rationale: string; unit: Unit };
+
+type ExerciseInsightsResponse = {
+  unit: Unit;
+  bestSet?: ExerciseBestSet;
+  best1RM?: number;
+  volumeSparkline: VolumePoint[];
+  recommendation?: Recommendation;
+  suggestions: Array<{ kind: "rest" | "rpe" | "volume"; message: string }>;
+};
+
+type SessionInsightsResponse = {
+  unit: Unit;
+  totalVolume: number;
+  bestSets: Array<{
+    exerciseName: string;
+    volume: number;
+    bestSet?: { weight?: number; reps?: number | null; unit: Unit };
+  }>;
+};
+
+type FlatSet = {
+  sessionId: number;
+  workoutDate: Date;
+  weight?: number;
+  reps?: number | null;
+  sets?: number | null;
+  unit: Unit;
+  rpe?: number | null;
+  rest_seconds?: number | null;
+};
+
 export const insightsRouter = createTRPCRouter({
   // Exercise-level insights aggregated from historical sessions
   getExerciseInsights: protectedProcedure
@@ -33,7 +79,7 @@ export const insightsRouter = createTRPCRouter({
         excludeSessionId: z.number().optional(),
       }),
     )
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input, ctx }): Promise<ExerciseInsightsResponse> => {
       // Resolve linked exercise names/ids via master linking if templateExerciseId provided
       let exerciseNamesToSearch: string[] = [input.exerciseName];
       let templateExerciseIds: number[] | undefined;
@@ -61,7 +107,7 @@ export const insightsRouter = createTRPCRouter({
       }
 
       // Build filters
-      const sessionWhere = [eq(workoutSessions.user_id, ctx.user.id)] as any[];
+      const sessionWhere = [eq(workoutSessions.user_id, ctx.user.id)] as Parameters<typeof and>[number][];
       if (input.excludeSessionId) sessionWhere.push(ne(workoutSessions.id, input.excludeSessionId));
 
       // Fetch recent sessions for the user
@@ -79,17 +125,6 @@ export const insightsRouter = createTRPCRouter({
       });
 
       // Flatten sets chronologically (per session order) and compute metrics
-      type FlatSet = {
-        sessionId: number;
-        workoutDate: Date;
-        weight?: number;
-        reps?: number | null;
-        sets?: number | null;
-        unit: "kg" | "lbs";
-        rpe?: number | null;
-        rest_seconds?: number | null;
-      };
-
       const flat: FlatSet[] = [];
       for (const s of recentSessions) {
         for (const ex of s.exercises.sort((a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0))) {
@@ -99,15 +134,18 @@ export const insightsRouter = createTRPCRouter({
             weight: toNumber(ex.weight),
             reps: ex.reps,
             sets: ex.sets,
-            unit: (ex.unit as "kg" | "lbs") ?? "kg",
-            rpe: (ex as any).rpe ?? null,
-            rest_seconds: (ex as any).rest_seconds ?? null,
+            unit: (ex.unit as Unit) ?? "kg",
+            rpe: typeof (ex as { rpe?: unknown }).rpe === "number" ? (ex as { rpe?: number }).rpe : null,
+            rest_seconds:
+              typeof (ex as { rest_seconds?: unknown }).rest_seconds === "number"
+                ? (ex as { rest_seconds?: number }).rest_seconds
+                : null,
           });
         }
       }
 
       // Aggregate per session: total volume, best set by absolute target unit weight, est 1RM best
-      const bySession = new Map<number, { date: Date; volume: number; bestWeight?: number; bestSet?: any; est1RM?: number }>();
+      const bySession = new Map<number, { date: Date; volume: number; bestWeight?: number; bestSet?: ExerciseBestSet; est1RM?: number }>();
       for (const fs of flat) {
         const weightTarget = compareUnits(fs.weight, fs.unit, input.unit);
         const vol = (weightTarget ?? 0) * (fs.reps ?? 0);
@@ -138,10 +176,10 @@ export const insightsRouter = createTRPCRouter({
         .map(([sessionId, v]) => ({ sessionId, ...v }))
         .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-      const sparkline = sessionsSorted.map((s) => ({ date: s.date, volume: Math.round(s.volume * 100) / 100 }));
+      const sparkline: VolumePoint[] = sessionsSorted.map((s) => ({ date: s.date, volume: Math.round(s.volume * 100) / 100 }));
 
       // Best overall
-      const bestSetOverall = sessionsSorted.reduce<{ weight?: number; reps?: number; unit?: "kg" | "lbs"; sets?: number; rpe?: number } | undefined>(
+      const bestSetOverall = sessionsSorted.reduce<ExerciseBestSet | undefined>(
         (acc, s) => {
           if (!s.bestSet) return acc;
           if (!acc || (s.bestSet.weight ?? -Infinity) > (acc.weight ?? -Infinity)) return s.bestSet;
@@ -162,15 +200,7 @@ export const insightsRouter = createTRPCRouter({
         .map((s) => (s.bestSet?.weight ?? undefined))
         .filter((w): w is number => typeof w === "number");
 
-      let recommendation:
-        | {
-            type: "weight" | "reps";
-            nextWeight?: number;
-            nextReps?: number;
-            rationale: string;
-            unit: "kg" | "lbs";
-          }
-        | undefined;
+      let recommendation: Recommendation | undefined;
 
       if (recentWeights.length >= 2) {
         const last = recentWeights[recentWeights.length - 1]!;
@@ -194,7 +224,7 @@ export const insightsRouter = createTRPCRouter({
       const rpeValues = flat.map((f) => (typeof f.rpe === "number" ? f.rpe : undefined)).filter((n): n is number => Number.isFinite(n));
       const restValues = flat.map((f) => (typeof f.rest_seconds === "number" ? f.rest_seconds : undefined)).filter((n): n is number => Number.isFinite(n));
 
-      const suggestions: Array<{ kind: "rest" | "rpe" | "volume"; message: string }> = [];
+      const suggestions: ExerciseInsightsResponse["suggestions"] = [];
       if (rpeValues.length >= 3) {
         const avgRpe = rpeValues.reduce((a, b) => a + b, 0) / rpeValues.length;
         if (avgRpe >= 9) suggestions.push({ kind: "rpe", message: "Average RPE is high (≥9). Consider reducing weight or total sets." });
@@ -223,14 +253,14 @@ export const insightsRouter = createTRPCRouter({
   // Session insights summary: totals and bests for the given session
   getSessionInsights: protectedProcedure
     .input(z.object({ sessionId: z.number(), unit: z.enum(["kg", "lbs"]).default("kg") }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input, ctx }): Promise<SessionInsightsResponse> => {
       const session = await ctx.db.query.workoutSessions.findFirst({
         where: and(eq(workoutSessions.id, input.sessionId), eq(workoutSessions.user_id, ctx.user.id)),
         with: { exercises: true },
       });
       if (!session) throw new Error("Session not found");
 
-      const byExercise = new Map<string, { volume: number; bestSet?: { weight?: number; reps?: number | null; unit: "kg" | "lbs" } }>();
+      const byExercise = new Map<string, { volume: number; bestSet?: { weight?: number; reps?: number | null; unit: Unit } }>();
 
       for (const ex of session.exercises) {
         const key = ex.exerciseName;
@@ -261,7 +291,7 @@ export const insightsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const where = [eq(workoutSessions.user_id, ctx.user.id)] as any[];
+      const where = [eq(workoutSessions.user_id, ctx.user.id)] as Parameters<typeof and>[number][];
       if (input.since) where.push(gte(workoutSessions.workoutDate, input.since));
 
       const sessions = await ctx.db.query.workoutSessions.findMany({
@@ -275,19 +305,26 @@ export const insightsRouter = createTRPCRouter({
       rows.push(["date", "sessionId", "templateName", "exercise", "setOrder", "weight", "reps", "sets", "unit", "rpe", "rest_seconds"].join(","));
       for (const s of sessions) {
         for (const ex of s.exercises) {
+          // narrow optional fields safely
+          const templateName = (s.template && typeof (s.template as { name?: unknown }).name === "string")
+            ? (s.template as { name?: string }).name
+            : "";
+          const rpeVal = (typeof (ex as { rpe?: unknown }).rpe === "number") ? (ex as { rpe?: number }).rpe : "";
+          const restVal = (typeof (ex as { rest_seconds?: unknown }).rest_seconds === "number") ? (ex as { rest_seconds?: number }).rest_seconds : "";
+
           rows.push(
             [
               s.workoutDate.toISOString(),
               s.id,
-              (s.template as any)?.name ?? "",
+              templateName,
               ex.exerciseName,
               ex.setOrder ?? 0,
               ex.weight ?? "",
               ex.reps ?? "",
               ex.sets ?? "",
               ex.unit ?? "",
-              (ex as any).rpe ?? "",
-              (ex as any).rest_seconds ?? "",
+              rpeVal,
+              restVal,
             ].join(","),
           );
         }

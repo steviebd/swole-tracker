@@ -1,31 +1,32 @@
-/* eslint-disable no-console */
 if (typeof process !== 'undefined' && process.on) {
-  process.on('unhandledRejection', (reason: any, promise) => {
+  process.on('unhandledRejection', (reason: unknown, promise: unknown) => {
+    const safe = reason instanceof Error ? reason : new Error(typeof reason === 'string' ? reason : JSON.stringify(reason));
     console.error('[DEBUG][unhandledRejection]', {
-      reason,
+      reason: safe.message,
       reasonType: typeof reason,
-      message: reason?.message,
-      name: reason?.name,
-      stack: reason?.stack,
-      cause: (reason as any)?.cause,
+      message: safe.message,
+      name: safe.name,
+      stack: safe.stack,
+      cause: (safe as { cause?: unknown }).cause,
       promise,
     });
   });
 
-  process.on('uncaughtException', (err: any) => {
+  process.on('uncaughtException', (err: unknown) => {
+    const safe = err instanceof Error ? err : new Error(typeof err === 'string' ? err : JSON.stringify(err));
     console.error('[DEBUG][uncaughtException]', {
-      err,
-      message: err?.message,
-      name: err?.name,
-      stack: err?.stack,
-      cause: (err as any)?.cause,
+      err: safe.message,
+      message: safe.message,
+      name: safe.name,
+      stack: safe.stack,
+      cause: (safe as { cause?: unknown }).cause,
     });
   });
 }
 
 // Vitest global hooks as extra safety
 try {
-  // @ts-ignore
+  // @ts-expect-error Vitest globals are provided at runtime in test environment
   const { beforeAll, afterAll } = globalThis;
   if (typeof beforeAll === 'function') {
     beforeAll(() => {

@@ -48,11 +48,22 @@ export function useUniversalDragReorder<T>(
   const currentScrollY = useRef(0);
 
   // Get pointer position from different event types
-  const getPointerPos = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent) => {
-    if ('touches' in e && e.touches.length > 0) {
-      return { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY };
+  const getPointerPos = (
+    e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent,
+  ): { x: number; y: number } => {
+    // TouchEvent path
+    if ("touches" in e) {
+      const t = (e as TouchEvent | React.TouchEvent).touches;
+      if (t && t.length > 0) {
+        return { x: t[0]!.clientX, y: t[0]!.clientY };
+      }
     }
-    return { x: (e as any).clientX, y: (e as any).clientY };
+    // Pointer/Mouse path
+    if ("clientX" in e && "clientY" in e) {
+      const p = e as PointerEvent | MouseEvent | React.PointerEvent | React.MouseEvent;
+      return { x: p.clientX, y: p.clientY };
+    }
+    return { x: 0, y: 0 };
   };
 
   // Find the insertion point based on pointer position
@@ -159,8 +170,7 @@ export function useUniversalDragReorder<T>(
 
       // IMPORTANT: Do NOT call preventDefault on React synthetic event here (React may mark as passive).
       // Instead, immediately add a non-passive native listener on the currentTarget to prevent default for the next move.
-      const anyEvent = e as any;
-      const currentTarget = anyEvent.currentTarget as HTMLElement | null;
+      const currentTarget = (e as React.SyntheticEvent).currentTarget as HTMLElement | null;
 
       if (currentTarget) {
         const nonPassiveMove = (ev: Event) => {
@@ -177,11 +187,14 @@ export function useUniversalDragReorder<T>(
       }
 
       // iOS/Safari robustness: attempt to capture pointer if available
-      const anyEvent2 = e as any;
-      const currentTarget2 = anyEvent2.currentTarget as any;
-      if ('pointerId' in anyEvent2 && typeof currentTarget2?.setPointerCapture === 'function') {
+      const evt = e as React.PointerEvent | React.MouseEvent | React.TouchEvent;
+      const ct = (evt as React.SyntheticEvent).currentTarget as HTMLElement | null;
+      // Only PointerEvent has pointerId
+      if ("pointerId" in evt && ct && typeof (ct as HTMLElement & { setPointerCapture?: (pointerId: number) => void }).setPointerCapture === "function") {
         try {
-          currentTarget2.setPointerCapture(anyEvent2.pointerId as number);
+          (ct as HTMLElement & { setPointerCapture: (pointerId: number) => void }).setPointerCapture(
+            (evt as React.PointerEvent).pointerId,
+          );
         } catch {
           // ignore capture errors
         }
@@ -345,11 +358,12 @@ export function useUniversalDragReorder<T>(
     if (draggedIndex === null) return;
 
     const handlePointerMove = (e: PointerEvent | MouseEvent | TouchEvent) => {
-      onPointerMove(e as any);
+      // Bridge native event to handler expecting React types; we only read clientX/Y or touches safely.
+      onPointerMove(e as unknown as React.PointerEvent);
     };
 
     const handlePointerUp = (e: PointerEvent | MouseEvent | TouchEvent) => {
-      onPointerUp(e as any);
+      onPointerUp(e as unknown as React.PointerEvent);
     };
 
     // Add listeners to document to capture events outside the element

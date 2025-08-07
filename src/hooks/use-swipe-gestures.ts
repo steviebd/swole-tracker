@@ -105,7 +105,7 @@ export function useSwipeGestures(
     animationRef.current = requestAnimationFrame(animate);
   }, [config, direction, translateX, translateY, velocity, onDismiss]);
 
-  const handleStart = useCallback((clientX: number, clientY: number, isMouse: boolean = false) => {
+  const handleStart = useCallback((clientX: number, clientY: number, isMouse = false) => {
     touchStartXRef.current = clientX;
     touchStartYRef.current = clientY;
     lastTouchXRef.current = clientX;
@@ -120,7 +120,7 @@ export function useSwipeGestures(
     }
   }, []);
 
-  const handleMove = useCallback((clientX: number, clientY: number, preventDefault: boolean = true) => {
+  const handleMove = useCallback((clientX: number, clientY: number, preventDefault = true) => {
     if (!isDragging || !touchStartXRef.current || !touchStartYRef.current) return;
 
     if (preventDefault) {

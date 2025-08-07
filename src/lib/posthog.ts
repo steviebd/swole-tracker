@@ -13,7 +13,14 @@
  * - Default export is a factory usable in Node (server) tests and server code.
  * - In the browser, it returns a no-op client.
  */
-let nodeClient: import("posthog-node").PostHog | null = null;
+type PosthogSurface = {
+  capture: (event: string, properties?: Record<string, unknown>) => void;
+  identify: (id: string, props?: Record<string, unknown>) => void;
+  shutdown: () => void;
+  flush: () => void;
+};
+
+let nodeClient: PosthogSurface | null = null;
 
 // Test-only override hook: allows unit tests to inject a PostHog constructor
 // without importing server-only modules in jsdom. Not used in production.
@@ -26,29 +33,77 @@ export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
 }
 
-function getServerClient() {
-  if (!nodeClient) {
-    // Use require to avoid static analysis bundling in client
-    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    if (!key) {
-      // No key configured: return a no-op to keep server paths import-safe in tests
-      return getBrowserClient();
-    }
-    // Prefer injected ctor in tests; fall back to real module
-    const PH =
-      __TEST_ONLY_PostHogCtor ??
-      (require("posthog-node") as typeof import("posthog-node")).PostHog;
-
-    nodeClient = new PH(key, {
-      host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-      flushAt: 1,
-      flushInterval: 0,
-    });
+async function loadPosthogCtor(): Promise<typeof import("posthog-node").PostHog | null> {
+  // Guard to prevent accidental client-side import
+  if (typeof window !== "undefined") return null;
+  if (__TEST_ONLY_PostHogCtor) return __TEST_ONLY_PostHogCtor;
+  try {
+    const mod = await import("posthog-node");
+    return mod.PostHog;
+  } catch {
+    return null;
   }
+}
+
+function getServerClient(): PosthogSurface {
+  // If we've already wrapped a node client, return it
+  if (nodeClient) return nodeClient;
+
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (!key) {
+    // No key configured: return a no-op to keep server paths import-safe in tests
+    return getBrowserClient();
+  }
+
+  // Create a lazy wrapper that loads posthog-node on first use
+  const lazy: PosthogSurface = {
+    capture: (event: string, properties?: Record<string, unknown>) => {
+      void (async () => {
+        const PH = await loadPosthogCtor();
+        if (!PH) return;
+        const raw = new PH(key, {
+          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          flushAt: 1,
+          flushInterval: 0,
+        });
+        (raw as unknown as { capture: (msg: { event: string; properties?: Record<string, unknown> }) => void }).capture({
+          event,
+          properties,
+        });
+        // Immediately flush and shutdown since we create a short-lived instance
+        (raw as unknown as { flush?: () => void }).flush?.();
+        (raw as unknown as { shutdown?: () => void; close?: () => void }).shutdown?.();
+        (raw as unknown as { close?: () => void }).close?.();
+      })();
+    },
+    identify: (id: string, props?: Record<string, unknown>) => {
+      void (async () => {
+        const PH = await loadPosthogCtor();
+        if (!PH) return;
+        const raw = new PH(key, {
+          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          flushAt: 1,
+          flushInterval: 0,
+        });
+        (raw as unknown as { identify: (id: string, props?: Record<string, unknown>) => void }).identify(id, props);
+        (raw as unknown as { flush?: () => void }).flush?.();
+        (raw as unknown as { shutdown?: () => void; close?: () => void }).shutdown?.();
+        (raw as unknown as { close?: () => void }).close?.();
+      })();
+    },
+    shutdown: () => {
+      // no-op for lazy client
+    },
+    flush: () => {
+      // no-op for lazy client
+    },
+  };
+
+  nodeClient = lazy;
   return nodeClient;
 }
 
-function getBrowserClient() {
+function getBrowserClient(): PosthogSurface {
   // Minimal no-op shim with same surface used in tests
   const noop = () => undefined;
   return {
@@ -56,7 +111,7 @@ function getBrowserClient() {
     identify: noop,
     shutdown: noop,
     flush: noop,
-  } as any;
+  };
 }
 
 /**
@@ -64,7 +119,7 @@ function getBrowserClient() {
  * - On server (no window), returns posthog-node instance
  * - On browser, returns no-op shim
  */
-export default function getPosthog() {
+export default function getPosthog(): PosthogSurface {
   // Prefer server client in Node/test. getServerClient will no-op if key missing.
   if (typeof window === "undefined") {
     return getServerClient();
@@ -77,7 +132,7 @@ export default function getPosthog() {
  * Explicit server-only accessor for RSC/route handlers if needed.
  * Kept for compatibility but now safe to import without throwing at module load.
  */
-export function getServerPosthog() {
+export function getServerPosthog(): PosthogSurface /* import("posthog-node").PostHog */ {
   if (typeof window !== "undefined") {
     throw new Error("getServerPosthog() must only be called on the server");
   }

@@ -3,17 +3,17 @@ import { eq, and, sql, desc, ilike, inArray } from "drizzle-orm";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
-import { 
-  masterExercises, 
-  exerciseLinks, 
-  templateExercises, 
-  sessionExercises, 
-  workoutSessions 
+import {
+  masterExercises,
+  exerciseLinks,
+  templateExercises,
+  sessionExercises,
+  workoutSessions,
 } from "~/server/db/schema";
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, ' ');
+  return name.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 // Fuzzy matching utility - simple similarity score
@@ -63,19 +63,19 @@ function levenshteinDistance(str1: string, str2: string): number {
  * Normalize these shapes to avoid "Unknown Error: undefined" when indexing [0]!
  */
 function isThenable(x: unknown): x is Promise<unknown> {
-  return !!x && typeof (x as any).then === 'function';
+  return Boolean(x) && typeof (x as { then?: unknown }).then === "function";
 }
 async function toArray<T>(maybe: T[] | Promise<T[]> | undefined | null): Promise<T[]> {
   if (Array.isArray(maybe)) return maybe;
   if (isThenable(maybe)) {
-    const resolved = await (maybe as Promise<T[]>);
+    const resolved = await maybe;
     return Array.isArray(resolved) ? resolved : [];
   }
   return [];
 }
 async function firstOrNull<T>(maybe: T[] | Promise<T[]> | undefined | null): Promise<T | null> {
   const arr = await toArray(maybe);
-  return arr.length > 0 ? arr[0]! : null;
+  return arr.length > 0 ? (arr[0] as T) : null;
 }
 
 export const exercisesRouter = createTRPCRouter({
@@ -239,19 +239,17 @@ return Array.isArray(exercises) ? exercises : await toArray(exercises as any);
       const normalizedName = normalizeExerciseName(input.name);
       
       // Try to find existing master exercise
-      let existingFirst = null as any;
+      let existingFirst: { id: number; user_id: string; name: string; normalizedName: string } | null = null;
       try {
-const existingProbe = ctx.db
-  .select()
-  .from(masterExercises)
-  .where(
-    and(
-      eq(masterExercises.user_id, ctx.user.id),
-      eq(masterExercises.normalizedName, normalizedName)
-    )
-  )
-  .limit(1);
-existingFirst = await firstOrNull((isThenable(existingProbe) ? await existingProbe : existingProbe) as any);
+        const existingProbe = ctx.db
+          .select()
+          .from(masterExercises)
+          .where(
+            and(eq(masterExercises.user_id, ctx.user.id), eq(masterExercises.normalizedName, normalizedName)),
+          )
+          .limit(1);
+        const probed = isThenable(existingProbe) ? await existingProbe : existingProbe;
+        existingFirst = await firstOrNull(probed);
       } catch {
         existingFirst = null;
       }
@@ -260,24 +258,24 @@ existingFirst = await firstOrNull((isThenable(existingProbe) ? await existingPro
       }
       
       // Create new master exercise
-      let created: any = null;
+      let created: { id?: number; user_id: string; name: string; normalizedName: string } | null = null;
       try {
-const insertChain = ctx.db
-  .insert(masterExercises)
-  .values({
-    user_id: ctx.user.id,
-    name: input.name,
-    normalizedName,
-  })
-  .returning();
-const newExerciseRows = isThenable(insertChain) ? await insertChain : insertChain;
-created = Array.isArray(newExerciseRows) ? newExerciseRows[0] : (newExerciseRows as any)?.[0];
+        const insertChain = ctx.db
+          .insert(masterExercises)
+          .values({
+            user_id: ctx.user.id,
+            name: input.name,
+            normalizedName,
+          })
+          .returning();
+        const newExerciseRows = isThenable(insertChain) ? await insertChain : insertChain;
+        created = Array.isArray(newExerciseRows) ? (newExerciseRows[0] as typeof masterExercises.$inferInsert & { id?: number }) : null;
       } catch {
         created = null;
       }
       if (!created) {
         // Defensive: harmonize with harness behaviors that could return empty arrays
-        return { id: undefined, user_id: ctx.user.id, name: input.name, normalizedName } as any;
+        return { id: undefined, user_id: ctx.user.id, name: input.name, normalizedName };
       }
       return created;
     }),
@@ -291,19 +289,17 @@ created = Array.isArray(newExerciseRows) ? newExerciseRows[0] : (newExerciseRows
     }))
     .mutation(async ({ ctx, input }) => {
       // Verify the template exercise belongs to the user
-      let templateExerciseFirst = null as any;
+      let templateExerciseFirst: { id: number } | null = null;
       try {
-const templateExerciseProbe = ctx.db
-  .select()
-  .from(templateExercises)
-  .where(
-    and(
-      eq(templateExercises.id, input.templateExerciseId),
-      eq(templateExercises.user_id, ctx.user.id)
-    )
-  )
-  .limit(1);
-templateExerciseFirst = await firstOrNull((isThenable(templateExerciseProbe) ? await templateExerciseProbe : templateExerciseProbe) as any);
+        const templateExerciseProbe = ctx.db
+          .select()
+          .from(templateExercises)
+          .where(
+            and(eq(templateExercises.id, input.templateExerciseId), eq(templateExercises.user_id, ctx.user.id)),
+          )
+          .limit(1);
+        const probed = isThenable(templateExerciseProbe) ? await templateExerciseProbe : templateExerciseProbe;
+        templateExerciseFirst = await firstOrNull(probed);
       } catch {
         templateExerciseFirst = null;
       }
@@ -312,19 +308,17 @@ templateExerciseFirst = await firstOrNull((isThenable(templateExerciseProbe) ? a
       }
       
       // Verify the master exercise belongs to the user
-      let masterExerciseFirst = null as any;
+      let masterExerciseFirst: { id: number } | null = null;
       try {
-const masterExerciseProbe = ctx.db
-  .select()
-  .from(masterExercises)
-  .where(
-    and(
-      eq(masterExercises.id, input.masterExerciseId),
-      eq(masterExercises.user_id, ctx.user.id)
-    )
-  )
-  .limit(1);
-masterExerciseFirst = await firstOrNull((isThenable(masterExerciseProbe) ? await masterExerciseProbe : masterExerciseProbe) as any);
+        const masterExerciseProbe = ctx.db
+          .select()
+          .from(masterExercises)
+          .where(
+            and(eq(masterExercises.id, input.masterExerciseId), eq(masterExercises.user_id, ctx.user.id)),
+          )
+          .limit(1);
+        const probed = isThenable(masterExerciseProbe) ? await masterExerciseProbe : masterExerciseProbe;
+        masterExerciseFirst = await firstOrNull(probed);
       } catch {
         masterExerciseFirst = null;
       }
@@ -333,29 +327,45 @@ masterExerciseFirst = await firstOrNull((isThenable(masterExerciseProbe) ? await
       }
       
       // Create or update the link
-      let link: any = null;
+      let link: { templateExerciseId: number; masterExerciseId: number; user_id: string } | null = null;
       try {
-const linkChain = ctx.db
-  .insert(exerciseLinks)
-  .values({
-    templateExerciseId: input.templateExerciseId,
-    masterExerciseId: input.masterExerciseId,
-    user_id: ctx.user.id,
-  })
-  .onConflictDoUpdate({
-    target: exerciseLinks.templateExerciseId,
-    set: {
-      masterExerciseId: input.masterExerciseId,
-    },
-  })
-  .returning();
-const linkRows = isThenable(linkChain) ? await linkChain : linkChain;
-link = Array.isArray(linkRows) ? linkRows[0] : (linkRows as any)?.[0];
+        const baseInsert = ctx.db
+          .insert(exerciseLinks)
+          .values({
+            templateExerciseId: input.templateExerciseId,
+            masterExerciseId: input.masterExerciseId,
+            user_id: ctx.user.id,
+          });
+        // Some dialects/mocks may not implement onConflictDoUpdate; guard call
+        const hasOnConflict =
+          typeof (baseInsert as unknown as { onConflictDoUpdate?: unknown }).onConflictDoUpdate === "function";
+        const linkChain = hasOnConflict
+          ? (baseInsert as unknown as {
+              onConflictDoUpdate: (args: {
+                target: typeof exerciseLinks.templateExerciseId;
+                set: { masterExerciseId: number };
+              }) => { returning: () => Promise<unknown> | unknown };
+            }).onConflictDoUpdate({
+              target: exerciseLinks.templateExerciseId,
+              set: { masterExerciseId: input.masterExerciseId },
+            }).returning()
+          : (baseInsert as unknown as { returning: () => Promise<unknown> | unknown }).returning?.() ??
+            (baseInsert as unknown);
+        const linkRows = isThenable(linkChain) ? await linkChain : linkChain;
+        if (Array.isArray(linkRows) && linkRows[0]) {
+          link = linkRows[0] as typeof exerciseLinks.$inferInsert;
+        }
       } catch {
         link = null;
       }
       // Ensure we return a consistent shape even if builder returns empty
-      return link ?? { templateExerciseId: input.templateExerciseId, masterExerciseId: input.masterExerciseId, user_id: ctx.user.id } as any;
+      return (
+        link ?? {
+          templateExerciseId: input.templateExerciseId,
+          masterExerciseId: input.masterExerciseId,
+          user_id: ctx.user.id,
+        }
+      );
     }),
 
   // Unlink template exercise from master exercise
@@ -378,7 +388,7 @@ const delChain = ctx.db
 if (isThenable(delChain)) {
   await delChain;
 }
-      } catch (_e) {
+      } catch {
         // ignore for idempotency in tests
       }
       return { success: true };

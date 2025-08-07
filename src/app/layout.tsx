@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist, Inter, Space_Grotesk } from "next/font/google";
+import Link from "next/link";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "~/trpc/react";
@@ -104,11 +105,11 @@ export default function RootLayout({
                   aria-label="Primary"
                 >
                   <div className="mx-auto grid grid-cols-5">
-                    <a
+                    <Link
                       href="/"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Home"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname === "/"
                           ? "page"
@@ -116,12 +117,12 @@ export default function RootLayout({
                       }
                     >
                       <span>Home</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/workout/start"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Start a workout"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname.startsWith("/workout/start")
                           ? "page"
@@ -129,12 +130,12 @@ export default function RootLayout({
                       }
                     >
                       <span>Start</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/templates"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Manage templates"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname.startsWith("/templates")
                           ? "page"
@@ -142,12 +143,12 @@ export default function RootLayout({
                       }
                     >
                       <span>Templates</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/connect-whoop"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Connect to Whoop"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname.startsWith("/connect-whoop")
                           ? "page"
@@ -155,7 +156,7 @@ export default function RootLayout({
                       }
                     >
                       <span>Connect</span>
-                    </a>
+                    </Link>
                     <div className="flex items-center justify-center py-2">
                       <ThemeSwitcher compact />
                     </div>
@@ -165,18 +166,20 @@ export default function RootLayout({
                 <footer className="mt-auto py-6 app-footer">
                   <div className="container mx-auto px-4 text-center">
                     <div className="flex justify-center space-x-6 text-sm text-gray-300">
-                      <a 
+                      <Link 
                         href="/privacy" 
                         className="hover:text-white transition-colors duration-200 link-primary"
+                        prefetch
                       >
                         Privacy Policy
-                      </a>
-                      <a 
+                      </Link>
+                      <Link 
                         href="/terms" 
                         className="hover:text-white transition-colors duration-200 link-primary"
+                        prefetch
                       >
                         Terms of Service
-                      </a>
+                      </Link>
                     </div>
                     <div className="mt-3 text-xs text-gray-500">
                       © 2025 Steven Duong. All rights reserved.

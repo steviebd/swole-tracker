@@ -11,18 +11,27 @@ type DeviceType = "android" | "ios" | "ipad" | "desktop" | "other";
 
 export function getDeviceType(): DeviceType {
   if (typeof navigator === "undefined") return "other";
-  const ua = navigator.userAgent || navigator.vendor || (window as any).opera || "";
+  const uaParts: Array<unknown> = [navigator.userAgent, (navigator as unknown as { vendor?: string }).vendor, (window as unknown as { opera?: string | undefined }).opera];
+  const ua = uaParts.find((p): p is string => typeof p === "string") ?? "";
   const uaLower = ua.toLowerCase();
 
   // Basic checks; not bulletproof, but adequate for coarse-grained analytics
-  if (/android/.test(uaLower)) return "android";
+  if (uaLower.includes("android")) return "android";
   // iPadOS on iPad can report as Mac; check for touch support
-  const isIpad = /ipad/.test(uaLower) || (/(macintosh|mac os x)/.test(uaLower) && "ontouchend" in document);
+  const isIpad =
+    uaLower.includes("ipad") ||
+    ((uaLower.includes("macintosh") || uaLower.includes("mac os x")) && typeof document !== "undefined" && "ontouchend" in document);
   if (isIpad) return "ipad";
-  if (/iphone|ipod/.test(uaLower)) return "ios";
+  if (uaLower.includes("iphone") || uaLower.includes("ipod")) return "ios";
 
   // Desktop common markers
-  if (/windows nt|macintosh|x11|linux x86_64/.test(uaLower)) return "desktop";
+  if (
+    uaLower.includes("windows nt") ||
+    uaLower.includes("macintosh") ||
+    uaLower.includes("x11") ||
+    uaLower.includes("linux x86_64")
+  )
+    return "desktop";
   return "other";
 }
 
@@ -59,7 +68,10 @@ export function startLongTaskObserver() {
 
 export function collectTTI_TBT(): { tti?: number; tbt?: number } {
   if (typeof performance === "undefined") return {};
-  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  const navEntry = performance.getEntriesByType("navigation")[0];
+  const nav = (navEntry && typeof (navEntry as PerformanceNavigationTiming).domContentLoadedEventEnd === "number"
+    ? (navEntry as PerformanceNavigationTiming)
+    : undefined);
   const tbt = Math.round(longTaskTotal);
 
   // TTI proxy:
@@ -131,9 +143,11 @@ export function snapshotMetricsBlob(): Record<string, unknown> {
  * Haptics helper
  */
 export function vibrate(pattern: number | number[]) {
-  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  if (typeof navigator === "undefined") return;
+  const vib = (navigator as unknown as { vibrate?: (p: number | number[]) => boolean }).vibrate;
+  if (typeof vib !== "function") return;
   try {
-    navigator.vibrate(pattern as any);
+    vib(pattern);
   } catch {
     // ignore
   }

@@ -6,19 +6,25 @@ import { eq, desc, and } from "drizzle-orm";
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, ' ');
+  return name.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 /* DEBUG LOGGING ENABLED FOR TESTS */
-const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test';
-function debugLog(...args: any[]) {
-  if (debugEnabled) console.log('[templatesRouter]', ...args);
+const debugEnabled = Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
+function debugLog(...args: unknown[]) {
+  if (debugEnabled) {
+    // eslint-disable-next-line no-console
+    console.log("[templatesRouter]", ...args);
+  }
 }
 
 // Helper function to create or get master exercise and link it to template exercise
+type Db = {
+  select: typeof import("drizzle-orm").sql | unknown;
+} & typeof import("~/server/db")["db"];
+
 async function createAndLinkMasterExercise(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any,
+  db: Db,
   userId: string,
   exerciseName: string,
   templateExerciseId: number,
@@ -45,7 +51,14 @@ async function createAndLinkMasterExercise(
     )
     .limit(1);
   
-  let masterExercise;
+  let masterExercise:
+    | {
+        id: number;
+        user_id: string;
+        name: string;
+        normalizedName: string;
+      }
+    | undefined;
   
   debugLog('createAndLinkMasterExercise: lookup existing', existing);
   if (existing.length > 0) {
@@ -63,7 +76,9 @@ async function createAndLinkMasterExercise(
       .returning();
 
     // Defensive: some mocked drivers may return undefined or empty array
-    masterExercise = Array.isArray(newMasterExercise) ? newMasterExercise[0] : newMasterExercise?.[0];
+    if (Array.isArray(newMasterExercise) && newMasterExercise.length > 0) {
+      masterExercise = newMasterExercise[0] as typeof masterExercises.$inferInsert & { id: number };
+    }
   }
 
   // If we still don't have a master exercise, skip linking gracefully
@@ -76,14 +91,21 @@ async function createAndLinkMasterExercise(
   // Create the link
   // Upsert link without relying on onConflictDoUpdate (not available in some drivers/mocks)
   debugLog('createAndLinkMasterExercise: inserting link');
-  await db
+  const insertLink = db
     .insert(exerciseLinks)
     .values({
       templateExerciseId,
       masterExerciseId: masterExercise.id,
       user_id: userId,
-    })
-    .onConflictDoNothing?.({ target: exerciseLinks.templateExerciseId });
+    });
+
+  // Some drivers/mocks may not support onConflict; call only if available
+  if (typeof (insertLink as unknown as { onConflictDoNothing?: Function }).onConflictDoNothing === "function") {
+    await (insertLink as unknown as { onConflictDoNothing: (args: { target: typeof exerciseLinks.templateExerciseId }) => Promise<unknown> })
+      .onConflictDoNothing({ target: exerciseLinks.templateExerciseId });
+  } else {
+    await insertLink;
+  }
 
   // Ensure the link points to the latest masterExerciseId (idempotent)
   debugLog('createAndLinkMasterExercise: ensuring latest link via update');
@@ -98,10 +120,11 @@ async function createAndLinkMasterExercise(
   return masterExercise;
 }
 
-const testLogMiddleware = process.env.NODE_ENV === 'test'
+const testLogMiddleware = process.env.NODE_ENV === "test"
   ? publicProcedure.use(async (opts) => {
       // eslint-disable-next-line no-console
-      console.log('[templatesRouter][test] entering', { path: opts.path, user: !!opts.ctx.user });
+      // eslint-disable-next-line no-console
+      console.log("[templatesRouter][test] entering", { path: opts.path, user: !!opts.ctx.user });
       return opts.next();
     })
   : publicProcedure;
@@ -165,15 +188,18 @@ export const templatesRouter = createTRPCRouter({
       }
 
       if (input.exercises.length > 0) {
-        const insertedExercises = await ctx.db.insert(templateExercises).values(
-          input.exercises.map((exerciseName: string, index: number) => ({
-            user_id: ctx.user.id,
-            templateId: template.id,
-            exerciseName,
-            orderIndex: index,
-            linkingRejected: false,
-          })),
-        ).returning();
+        const insertedExercises = await ctx.db
+          .insert(templateExercises)
+          .values(
+            input.exercises.map((exerciseName, index) => ({
+              user_id: ctx.user.id,
+              templateId: template.id,
+              exerciseName,
+              orderIndex: index,
+              linkingRejected: false,
+            })),
+          )
+          .returning();
 
         for (const templateExercise of insertedExercises) {
           await createAndLinkMasterExercise(
@@ -222,21 +248,24 @@ export const templatesRouter = createTRPCRouter({
 
       // Insert new exercises and create master exercise links
       if (input.exercises.length > 0) {
-        const insertedExercises = await ctx.db.insert(templateExercises).values(
-          input.exercises.map((exerciseName, index) => ({
-            user_id: (ctx as any).user!.id as string,
-            templateId: input.id,
-            exerciseName,
-            orderIndex: index,
-            linkingRejected: false,
-          })),
-        ).returning();
+        const insertedExercises = await ctx.db
+          .insert(templateExercises)
+          .values(
+            input.exercises.map((exerciseName, index) => ({
+              user_id: ctx.user.id,
+              templateId: input.id,
+              exerciseName,
+              orderIndex: index,
+              linkingRejected: false,
+            })),
+          )
+          .returning();
 
         // Create master exercises and links for each template exercise
         for (const templateExercise of insertedExercises) {
           await createAndLinkMasterExercise(
             ctx.db,
-            (ctx as any).user!.id as string,
+            ctx.user.id,
             templateExercise.exerciseName,
             templateExercise.id,
             false, // New templates default to not rejected

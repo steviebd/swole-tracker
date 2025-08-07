@@ -2,22 +2,22 @@
  * Ensure PUBLIC env is present before any imports that transitively load src/env.js,
  * which validates runtime env via @t3-oss/env-nextjs.
  */
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= 'pk_test_dummy';
-process.env.NEXT_PUBLIC_POSTHOG_KEY ||= 'phc_test_dummy';
-process.env.NEXT_PUBLIC_POSTHOG_HOST ||= 'https://us.i.posthog.com';
-process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'https://test.supabase.co';
-process.env.NEXT_PUBLIC_SUPABASE_KEY ||= 'supabase_test_key';
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??= 'pk_test_dummy';
+process.env.NEXT_PUBLIC_POSTHOG_KEY ??= 'phc_test_dummy';
+process.env.NEXT_PUBLIC_POSTHOG_HOST ??= 'https://us.i.posthog.com';
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'https://test.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_KEY ??= 'supabase_test_key';
 
 // Ensure rate-limit middleware is mocked before any app imports to avoid env-core errors in jsdom
 import './setup.rate-limit-mocks';
 
 // Also stub server-side env so @t3-oss/env-core proxy does not throw under jsdom.
 // These values are safe test defaults and prevent "Attempted to access a server-side env on the client".
-process.env.DATABASE_URL ||= 'postgres://test:test@localhost:5432/test';
-process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ||= '100';
-process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ||= '100';
-process.env.RATE_LIMIT_JOKES_PER_HOUR ||= '100';
-process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ||= '100';
+process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
+process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_JOKES_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ??= '100';
 /**
  * Jokes router reads server env from src/env.js via @t3-oss/env-nextjs/@t3-oss/env-core.
  * Under jsdom, any access to server env will throw unless values exist on process.env
@@ -25,10 +25,10 @@ process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ||= '100';
  * flag off to keep the code path that uses fallback jokes instead of calling an AI gateway.
  */
 process.env.AI_GATEWAY_ENABLED = 'false';
-process.env.AI_GATEWAY_URL ||= 'https://ai-gateway.localtest';
-process.env.AI_GATEWAY_API_KEY ||= 'ai_test_key';
-process.env.AI_GATEWAY_MODEL ||= 'gpt-4o-mini';
-process.env.AI_GATEWAY_PROMPT ||= 'Tell a short fitness-themed joke.';
+process.env.AI_GATEWAY_URL ??= 'https://ai-gateway.localtest';
+process.env.AI_GATEWAY_API_KEY ??= 'ai_test_key';
+process.env.AI_GATEWAY_MODEL ??= 'gpt-4o-mini';
+process.env.AI_GATEWAY_PROMPT ??= 'Tell a short fitness-themed joke.';
 /**
  * NODE_ENV is read-only in many setups; don't assign directly.
  * Vitest already sets NODE_ENV appropriately for tests.
@@ -89,9 +89,8 @@ import { vi } from 'vitest';
 
 // Minimal shape of context from createTRPCContext in src/server/api/trpc.ts
 type Ctx = {
-  db: any;
-  user: any;
-  // match uuid format `${string}-${string}-${string}-${string}-${string}`
+  db: unknown;
+  user: { id?: string } | null;
   requestId: `${string}-${string}-${string}-${string}-${string}`;
   headers: Headers;
 };
@@ -104,17 +103,17 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
     // Drizzle-like query API used by routers
     query: {
       // Expose schema-like table refs with _ names for our simple router checks (do not duplicate keys)
-      _workoutTemplates: undefined as any,
-      _templateExercises: undefined as any,
-      _exerciseLinks: undefined as any,
-      _workoutSessions: undefined as any,
+      _workoutTemplates: undefined as unknown as Record<string, unknown>,
+      _templateExercises: undefined as unknown as Record<string, unknown>,
+      _exerciseLinks: undefined as unknown as Record<string, unknown>,
+      _workoutSessions: undefined as unknown as Record<string, unknown>,
 
       workoutTemplates: {
-        findMany: vi.fn(async (_args: any) => {
+        findMany: vi.fn(async (_args: unknown) => {
           // Return empty list by default
           return [];
         }),
-        findFirst: vi.fn(async ({ with: withRel }: any) => {
+        findFirst: vi.fn(async ({ with: withRel }: { with?: { exercises?: boolean } }) => {
           // Ensure user_id matches the authenticated user so ownership checks pass
           const userId = mockState.user?.id ?? 'user_test_123';
           return {
@@ -133,8 +132,8 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
         }),
       },
       workoutSessions: {
-        findMany: vi.fn(async (_args: any) => []),
-        findFirst: vi.fn(async ({ where, with: withRel }: any) => ({
+        findMany: vi.fn(async (_args: unknown) => []),
+        findFirst: vi.fn(async ({ with: withRel }: { with?: { template?: boolean; exercises?: boolean } }) => ({
           id: 99,
           user_id: 'user_test_123',
           templateId: 1,
@@ -146,17 +145,17 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
         })),
       },
       exerciseLinks: {
-        findFirst: vi.fn(async (_args: any) => null),
-        findMany: vi.fn(async (_args: any) => []),
+        findFirst: vi.fn(async (_args: unknown) => null),
+        findMany: vi.fn(async (_args: unknown) => []),
       },
       // Match drizzle-orm "query.<table>.findFirst/findMany" access seen across routers
       templateExercises: {
-        findFirst: vi.fn(async (_args: any) => null),
-        findMany: vi.fn(async (_args: any) => []),
+        findFirst: vi.fn(async (_args: unknown) => null),
+        findMany: vi.fn(async (_args: unknown) => []),
       },
       // Minimal masterExercises query API used by exercises router for bulkLinkSimilar
       masterExercises: {
-        findFirst: vi.fn(async (_args: any) => ({
+        findFirst: vi.fn(async (_args: unknown) => ({
           id: 200,
           user_id: mockState.user?.id ?? 'user_test_123',
           name: 'Bench Press',
@@ -166,15 +165,16 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
     },
 
     // Minimal builders for insert/update/delete/select used in routers
-    insert: vi.fn((table: any) => {
+    insert: vi.fn((table: { _?: { name?: string } } | Record<string, unknown>) => {
       return {
-        values: vi.fn(function (vals: any) {
-          const logTbl = table?._?.name ?? '(unknown)';
+        values: vi.fn(function (vals: unknown) {
+          const logTbl = (table as { _?: { name?: string } } | Record<string, unknown>) as Record<string, unknown>;
           // Template creation path
-          if (table && table._.name === 'workout_templates') {
+          if ((table as any)?._?.name === 'workout_templates') {
             const ret = {
               returning: vi.fn(async () => {
-                const rows = [{ id: 1, name: vals?.name, user_id: vals?.user_id, createdAt: now }];
+                const v: any = vals as any;
+                const rows = [{ id: 1, name: v?.name, user_id: v?.user_id, createdAt: now }];
                 // eslint-disable-next-line no-console
                 console.log('[HARNESS] workout_templates.returning() ->', rows);
                 if (!rows) throw new Error('HARNESS: workout_templates.returning() produced undefined');
@@ -184,15 +184,15 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
             return ret;
           }
           // Template exercises insert path (returning inserted rows with ids and names)
-          if (table && table._.name === 'template_exercises') {
+          if ((table as any)?._?.name === 'template_exercises') {
             const items = Array.isArray(vals) ? vals : [vals];
-            const rows = items.map((v: any, i: number) => ({
+            const rows = items.map((v: Record<string, unknown>, i: number) => ({
               id: i + 100,
-              templateId: v?.templateId,
-              user_id: v?.user_id,
-              exerciseName: v?.exerciseName,
-              orderIndex: v?.orderIndex,
-              linkingRejected: v?.linkingRejected ?? false,
+              templateId: v?.templateId as number | undefined,
+              user_id: (v?.user_id as string | undefined) ?? (mockState.user?.id ?? 'user_test_123'),
+              exerciseName: v?.exerciseName as string | undefined,
+              orderIndex: v?.orderIndex as number | undefined,
+              linkingRejected: (v?.linkingRejected as boolean | undefined) ?? false,
             }));
             const ret = {
               returning: vi.fn(async () => {
@@ -207,7 +207,7 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
             return ret;
           }
           // master_exercises insert path (used by templates.create helper createAndLinkMasterExercise)
-          if (table && table._.name === 'master_exercises') {
+          if ((table as any)?._?.name === 'master_exercises') {
             const items = Array.isArray(vals) ? vals : [vals];
             const rows = items.map((v: any, i: number) => ({
               id: i + 200,
@@ -225,11 +225,11 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
             };
           }
           // exercise_links insert path: allow onConflictDoNothing chaining and return inserted link-like rows
-          if (table && table._.name === 'exercise_links') {
+          if ((table as any)?._?.name === 'exercise_links') {
             // Capture last provided values to synthesize returning rows
-            let provided: any;
+            let provided: unknown;
             const ret: any = {
-              values: vi.fn((v: any) => {
+              values: vi.fn((v: unknown) => {
                 provided = v;
                 return ret;
               }),
@@ -238,11 +238,11 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
               onConflictDoUpdate: vi.fn((_cfg?: any) => ret),
               returning: vi.fn(async () => {
                 const rows = Array.isArray(provided) ? provided : [provided];
-                const normalized = rows.map((v: any, i: number) => ({
+                const normalized = rows.map((v: Record<string, unknown>, i: number) => ({
                   id: 300 + i,
-                  user_id: v?.user_id ?? (Array.isArray(v) ? undefined : v?.user_id) ?? 'user_test_123',
-                  templateExerciseId: v?.templateExerciseId ?? v?.template_exercise_id ?? 100 + i,
-                  masterExerciseId: v?.masterExerciseId ?? v?.master_exercise_id ?? 200 + i,
+                  user_id: (v?.user_id as string | undefined) ?? 'user_test_123',
+                  templateExerciseId: (v?.templateExerciseId as number | undefined) ?? (v?.template_exercise_id as number | undefined) ?? 100 + i,
+                  masterExerciseId: (v?.masterExerciseId as number | undefined) ?? (v?.master_exercise_id as number | undefined) ?? 200 + i,
                 }));
                 // eslint-disable-next-line no-console
                 console.log('[HARNESS] exercise_links.returning() ->', normalized);
@@ -253,21 +253,21 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
             return ret;
           }
           // master_exercises insert path (used by exercises.createOrGetMaster)
-          if (table && table._.name === 'master_exercises') {
-            let provided: any;
+          if ((table as any)?._?.name === 'master_exercises') {
+            let provided: unknown;
             const ret: any = {
-              values: vi.fn((v: any) => {
+              values: vi.fn((v: unknown) => {
                 provided = v;
                 return ret;
               }),
               returning: vi.fn(async () => {
                 const items = Array.isArray(provided) ? provided : [provided];
-                const rows = items.map((v: any, i: number) => ({
+                const rows = items.map((v: Record<string, unknown>, i: number) => ({
                   id: 200 + i,
-                  user_id: v?.user_id ?? mockState.user?.id ?? 'user_test_123',
-                  name: v?.name ?? 'Bench Press',
-                  normalizedName: v?.normalizedName ?? 'bench press',
-                  createdAt: v?.createdAt ?? new Date(),
+                  user_id: (v?.user_id as string | undefined) ?? mockState.user?.id ?? 'user_test_123',
+                  name: (v?.name as string | undefined) ?? 'Bench Press',
+                  normalizedName: (v?.normalizedName as string | undefined) ?? 'bench press',
+                  createdAt: (v?.createdAt as Date | undefined) ?? new Date(),
                 }));
                 // eslint-disable-next-line no-console
                 console.log('[HARNESS] master_exercises.returning() ->', rows);
@@ -278,11 +278,12 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
             return ret;
           }
           // workout_sessions insert path
-          if (table && table._.name === 'workout_sessions') {
+          if ((table as any)?._?.name === 'workout_sessions') {
+            const v = vals as Record<string, unknown>;
             const ret = {
               returning: vi.fn(async () => {
                 const rows = [
-                  { id: 500, user_id: vals?.user_id, templateId: vals?.templateId, workoutDate: vals?.workoutDate ?? now },
+                  { id: 500, user_id: v?.user_id, templateId: v?.templateId, workoutDate: v?.workoutDate ?? now },
                 ];
                 console.log('[HARNESS] workout_sessions.returning() ->', rows);
                 return rows;
@@ -291,16 +292,16 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
             return ret;
           }
           // session_exercises insert path
-          if (table && table._.name === 'session_exercises') {
+          if ((table as any)?._?.name === 'session_exercises') {
             const items = Array.isArray(vals) ? vals : [vals];
-            const rows = items.map((v: any, i: number) => ({
+            const rows = items.map((v: Record<string, unknown>, i: number) => ({
               id: 1000 + i,
-              sessionId: v?.sessionId,
-              exerciseName: v?.exerciseName,
-              weight: v?.weight,
-              reps: v?.reps,
-              sets: v?.sets,
-              unit: v?.unit,
+              sessionId: v?.sessionId as number | string | undefined,
+              exerciseName: v?.exerciseName as string | undefined,
+              weight: v?.weight as number | undefined,
+              reps: v?.reps as number | undefined,
+              sets: v?.sets as number | undefined,
+              unit: v?.unit as string | undefined,
             }));
             return {
               returning: vi.fn(async () => {
@@ -319,9 +320,9 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
       };
     }),
 
-    update: vi.fn((table: any) => {
+    update: vi.fn((table: { _?: { name?: string } } | Record<string, unknown>) => {
       // exercise_links update used by templates.create helper to ensure link points to latest masterExerciseId
-      if (table && table._.name === 'exercise_links') {
+      if ((table as any)?._?.name === 'exercise_links') {
         const chain = {
           set: vi.fn(() => chain),
           where: vi.fn(async () => []),
@@ -335,8 +336,8 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
       return chain;
     }),
 
-    delete: vi.fn((_table: any) => {
-      const tableName = _table?._?.name ?? String(_table);
+    delete: vi.fn((_table: { _?: { name?: string } } | Record<string, unknown>) => {
+      const tableName: string = (_table as any)?._?.name ?? String(_table);
       const chain = {
         where: vi.fn(async () => {
           if (tableName === 'workout_sessions') {
@@ -354,9 +355,9 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
       return chain;
     }),
 
-    select: vi.fn((_cols?: any) => {
+    select: vi.fn((_cols?: unknown) => {
       const chain: any = {
-        from: vi.fn((tbl: any) => {
+        from: vi.fn((tbl: unknown) => {
           chain._table = String(tbl);
           return chain;
         }),
@@ -397,16 +398,16 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
 export function createLoggedMockDb(overrides: Partial<Record<string, unknown>> = {}) {
   const base = createMockDb(overrides);
 
-  const wrap = (obj: any, ns = 'db') =>
+  const wrap = (obj: unknown, ns = 'db') =>
     new Proxy(obj, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver);
         if (typeof value === 'function') {
-          return (...args: any[]) => {
+          return (...args: unknown[]) => {
             // eslint-disable-next-line no-console
             console.log(`[logged:${ns}] call ${String(prop)}(`, ...args, ')');
             try {
-              const ret = value.apply(target, args);
+              const ret = (value as (...a: unknown[]) => unknown).apply(target, args);
               if (ret && typeof ret === 'object') {
                 // chainable builders
                 return wrap(ret, `${ns}.${String(prop)}`);
@@ -456,8 +457,8 @@ export function createMockUser(
  * These vi.mock calls are hoisted by Vitest. We store mutable references that tests can set.
  */
 const mockState: {
-  db: any;
-  user: any;
+  db: unknown;
+  user: { id?: string } | null;
 } = {
   db: undefined,
   user: undefined,
@@ -474,12 +475,12 @@ vi.mock('@clerk/nextjs/server', () => {
 // Do not re-declare another vi.mock here to avoid module-not-found/hoisting issues.
 
 export function buildCaller(opts?: {
-  db?: any;
-  user?: any; // allow explicit null to simulate unauthenticated
+  db?: unknown;
+  user?: { id?: string } | null; // allow explicit null to simulate unauthenticated
   headers?: HeadersInit;
 }): ReturnType<typeof createCaller> {
   // If a db override is provided, use it as-is; otherwise create a default mock db.
-  mockState.db = (opts && 'db' in opts) ? opts?.db : createMockDb();
+  mockState.db = (opts && 'db' in opts) ? opts?.db : (createMockDb() as unknown);
   // Preserve explicit null; only default to authenticated user when user is truly undefined
   mockState.user = (opts && 'user' in opts) ? opts.user : createMockUser(true);
   const headers = new Headers(opts?.headers ?? { 'x-test': '1', 'x-forwarded-for': '127.0.0.1' });
@@ -488,14 +489,15 @@ export function buildCaller(opts?: {
   const requestId = '00000000-0000-4000-8000-000000000000' as `${string}-${string}-${string}-${string}-${string}`;
 
   // Patch protectedProcedure expectation: ensure user object has at least an id string when authenticated
-  const userPatched = mockState.user ? { id: mockState.user.id ?? 'user_test_123', ...mockState.user } : null;
+  const userPatched = mockState.user ? { id: (mockState.user as { id?: string }).id ?? 'user_test_123', ...(mockState.user as object) } : null;
 
+  // Cast the mocked db to unknown then to the expected db type to satisfy TRPCContext during tests.
   return createCaller({
-    db: mockState.db,
+    db: (mockState.db as unknown) as import('drizzle-orm/postgres-js').PostgresJsDatabase<typeof import('~/server/db/schema')> & { $client: import('postgres').Sql<object> },
     user: userPatched,
     requestId,
     headers,
-  } as Ctx);
+  } as unknown as import('~/server/api/trpc').TRPCContext);
 }
 
 export type RouterInputs = inferRouterInputs<AppRouter>;

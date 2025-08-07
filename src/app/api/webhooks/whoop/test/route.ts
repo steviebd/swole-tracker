@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import crypto from 'crypto';
 import { env } from "~/env";
 
@@ -17,12 +18,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get test parameters from request body
-    const { userId, workoutId, eventType = "workout.updated" } = await request.json();
+    const { userId, workoutId, eventType = "workout.updated" } = (await request.json()) as {
+      userId?: number | string;
+      workoutId?: string;
+      eventType?: string;
+    };
 
     // Create test webhook payload
     const testPayload = {
-      user_id: userId || 12345,
-      id: workoutId || "550e8400-e29b-41d4-a716-446655440000", // Test UUID
+      user_id: userId ?? 12345,
+      id: workoutId ?? "550e8400-e29b-41d4-a716-446655440000", // Test UUID
       type: eventType,
       trace_id: crypto.randomUUID()
     };
