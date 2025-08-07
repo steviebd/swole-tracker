@@ -81,15 +81,15 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
 
   const formatScore = (score: WorkoutScore | null, scoreState: string | null) => {
     if (!score || typeof score !== "object") {
-      return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
+      return `-- (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
     }
     
     const strainScore = score.strain;
     if (strainScore && typeof strainScore === "number") {
-      return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
+      return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
     }
     
-    return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
+    return `-- (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
