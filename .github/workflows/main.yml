@@ -27,15 +27,28 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Enable corepack (pnpm)
         run: |
           corepack enable
-          # If package.json has "packageManager": "pnpm@<version>", this will use that exact version.
-          # Otherwise, pin explicitly:
-          corepack prepare pnpm@9 --activate
+          node -v
+          corepack --version
+          # Prefer repo-pinned version if present in package.json
+          if jq -e '.packageManager | test("^pnpm@")' package.json >/dev/null 2>&1; then
+            echo "Using packageManager-pinned pnpm"
+            # corepack will auto-activate pnpm shim from packageManager
+            pnpm --version
+          else
+            echo "No packageManager pin; activating pnpm@9"
+            corepack prepare pnpm@9 --activate
+            pnpm --version
+          fi
 
       - name: Install dependencies
+        env:
+          # Ensure pnpm is resolved via corepack shim
+          COREPACK_ENABLE_STRICT: "0"
         run: pnpm install --frozen-lockfile
 
       - name: Lint and typecheck

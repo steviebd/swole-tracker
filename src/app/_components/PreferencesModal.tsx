@@ -32,21 +32,44 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
   useEffect(() => {
     if (!isLoading && prefs) {
-      // Server returns shape with safe defaults
-      setPredictiveEnabled(Boolean(prefs.predictive_defaults_enabled ?? false));
-      setRightSwipeAction((prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction);
+      // Server returns shape with safe defaults; guard for union variants
+      const predictive =
+        "predictive_defaults_enabled" in prefs
+          ? Boolean(prefs.predictive_defaults_enabled ?? false)
+          : false;
+      setPredictiveEnabled(predictive);
+
+      const rightSwipe =
+        "right_swipe_action" in prefs
+          ? (prefs.right_swipe_action ?? "collapse_expand")
+          : "collapse_expand";
+      setRightSwipeAction(rightSwipe as RightSwipeAction);
+
       // Only set estimatedOneRmFactor if present
-      const factor = 'estimated_one_rm_factor' in prefs ? prefs.estimated_one_rm_factor : undefined;
+      const factor =
+        "estimated_one_rm_factor" in prefs
+          ? prefs.estimated_one_rm_factor
+          : undefined;
       setEstimatedOneRmFactor(typeof factor === "number" ? String(factor) : "");
     }
   }, [isLoading, prefs]);
 
   const saveDisabled = useMemo(() => {
     if (!prefs) return false; // allow initial save
-    const pe = Boolean(prefs.predictive_defaults_enabled ?? false);
-    const rs = (prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction;
-    const pf = 'estimated_one_rm_factor' in prefs ? prefs.estimated_one_rm_factor : undefined;
-    const uiPf = estimatedOneRmFactor.trim() === "" ? undefined : Number(estimatedOneRmFactor);
+    const pe =
+      "predictive_defaults_enabled" in prefs
+        ? Boolean(prefs.predictive_defaults_enabled ?? false)
+        : false;
+    const rs =
+      "right_swipe_action" in prefs
+        ? ((prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction)
+        : ("collapse_expand" as RightSwipeAction);
+    const pf =
+      "estimated_one_rm_factor" in prefs
+        ? prefs.estimated_one_rm_factor
+        : undefined;
+    const uiPf =
+      estimatedOneRmFactor.trim() === "" ? undefined : Number(estimatedOneRmFactor);
     return pe === predictiveEnabled && rs === rightSwipeAction && (pf ?? undefined) === (uiPf ?? undefined);
   }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor]);
 
