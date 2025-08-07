@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eq, and, sql, desc, ilike, inArray } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
@@ -724,7 +725,7 @@ if (isThenable(delChain)) {
         let masterExercise;
 
         if (existing.length > 0) {
-          masterExercise = existing[0];
+          masterExercise = existing[0]!;
         } else {
           // Create new master exercise
           const newMasterExercise = await ctx.db
@@ -737,6 +738,12 @@ if (isThenable(delChain)) {
             .returning();
 
           masterExercise = newMasterExercise[0];
+          if (!masterExercise) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to create master exercise",
+            });
+          }
           createdMasterExercises++;
         }
 

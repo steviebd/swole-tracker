@@ -317,12 +317,14 @@ export function ExerciseCard({
                     aria-label="Apply auto-progression recommendation"
                     onClick={() => {
                       try { vibrate(5); } catch {}
-                      try { posthog.capture("insights_apply_recommendation", {
+                      try { 
+                        const recommendation = insights.recommendation;
+                        posthog.capture("insights_apply_recommendation", {
                         exerciseName: exercise.exerciseName,
-                        type: insights.recommendation?.type,
-                        nextWeight: insights.recommendation?.nextWeight,
-                        nextReps: insights.recommendation?.nextReps,
-                        unit: insights.recommendation?.unit,
+                        type: recommendation?.type,
+                        nextWeight: recommendation?.type === "weight" ? recommendation.nextWeight : undefined,
+                        nextReps: recommendation?.type === "reps" ? recommendation.nextReps : undefined,
+                        unit: recommendation?.unit,
                       }); } catch (err: unknown) {
                         if (err instanceof Error) {
                           // handle error

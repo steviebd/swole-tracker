@@ -82,30 +82,46 @@ export const asTrpcMiddleware = (handler: RateLimitHandler) =>
   });
 
 // Pre-configured rate limiting middleware for common operations (plain handlers)
-export const templateRateLimit = rateLimitMiddleware({
-  endpoint: "template_operations",
-  limit: env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ?? 0,
-  windowMs: 60 * 60 * 1000, // 1 hour
-  skipIfDisabled: true,
+export const templateRateLimit = t.middleware(async ({ ctx, next }) => {
+  const handler = rateLimitMiddleware({
+    endpoint: "template_operations",
+    limit: env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ?? 0,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    skipIfDisabled: true,
+  });
+  await handler({ ctx, next });
+  return next();
 });
 
-export const workoutRateLimit = rateLimitMiddleware({
-  endpoint: "workout_operations",
-  limit: env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ?? 0,
-  windowMs: 60 * 60 * 1000, // 1 hour
-  skipIfDisabled: true,
+export const workoutRateLimit = t.middleware(async ({ ctx, next }) => {
+  const handler = rateLimitMiddleware({
+    endpoint: "workout_operations",
+    limit: env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ?? 0,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    skipIfDisabled: true,
+  });
+  await handler({ ctx, next });
+  return next();
 });
 
-export const apiCallRateLimit = rateLimitMiddleware({
-  endpoint: "api_calls",
-  limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE ?? 0,
-  windowMs: 60 * 1000, // 1 minute
-  skipIfDisabled: false, // Always enforce API call limits
+export const apiCallRateLimit = t.middleware(async ({ ctx, next }) => {
+  const handler = rateLimitMiddleware({
+    endpoint: "api_calls",
+    limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE ?? 0,
+    windowMs: 60 * 1000, // 1 minute
+    skipIfDisabled: false, // Always enforce API call limits
+  });
+  await handler({ ctx, next });
+  return next();
 });
 
-export const whoopSyncRateLimit = rateLimitMiddleware({
-  endpoint: "whoop_sync",
-  limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR ?? 0,
-  windowMs: 60 * 60 * 1000, // 1 hour
-  skipIfDisabled: false, // Always enforce Whoop sync limits
+export const whoopSyncRateLimit = t.middleware(async ({ ctx, next }) => {
+  const handler = rateLimitMiddleware({
+    endpoint: "whoop_sync",
+    limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR ?? 0,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    skipIfDisabled: false, // Always enforce Whoop sync limits
+  });
+  await handler({ ctx, next });
+  return next();
 });
