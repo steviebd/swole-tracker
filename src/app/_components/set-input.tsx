@@ -293,7 +293,14 @@ export function SetInput({
       {/* Delete Button */}
       {!readOnly && showDelete && (
         <button
-          onClick={() => onDelete(exerciseIndex, setIndex)}
+          onClick={(e) => {
+            // Stop drag/swipe from hijacking the delete tap
+            e.stopPropagation();
+            onDelete(exerciseIndex, setIndex);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           className="flex h-8 w-8 items-center justify-center rounded-full btn-destructive"
           title="Delete set"
         >
