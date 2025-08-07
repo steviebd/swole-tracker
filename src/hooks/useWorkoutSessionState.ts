@@ -148,7 +148,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         collapsedIndexes
           .map((i) => exercises[i])
           .filter(Boolean)
-          .map((ex) => idFor(ex as ExerciseData)),
+          .map((ex) => idFor(ex!)),
       );
 
       const rebuiltCollapsedIndexes: number[] = [];
@@ -369,7 +369,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       for (let i = 0; i < exercises.length; i++) {
         const exercise = exercises[i];
         const previousData = previousExerciseData.get(exercise?.exerciseName ?? "");
-        if (exercise && previousData?.best && previousData.best.weight && previousData.best.sets) {
+        if (exercise && previousData?.best?.weight && previousData.best.sets) {
           setProgressionModal({
             isOpen: true,
             exerciseIndex: i,
@@ -499,7 +499,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
 
   // DEBUG helpers
   const debugLog = (...args: unknown[]) => {
-    // eslint-disable-next-line no-console
+     
     console.log("[WorkoutSessionState]", ...args);
   };
 
@@ -539,7 +539,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       type: "toggleUnit",
       exerciseIndex,
       setIndex,
-      previousUnit: currentUnit as "kg" | "lbs",
+      previousUnit: currentUnit,
     });
     setRedoStack([]);
     updateSet(exerciseIndex, setIndex, "unit", newUnit);
@@ -568,7 +568,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       let nextWeight: number | undefined = undefined;
       let nextReps: number | undefined = undefined;
       let nextSetsCount: number | undefined = 1;
-      const unitToUse = (lastSet?.unit ?? exercise.unit) as "kg" | "lbs";
+      const unitToUse = (lastSet?.unit ?? exercise.unit);
 
       if (predictiveEnabled) {
         const recent = [...exercise.sets].reverse().find(s => (s.weight ?? s.reps ?? s.sets) !== undefined);

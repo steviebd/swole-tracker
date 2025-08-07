@@ -89,13 +89,13 @@ export function SetList({
       );
 
       // Execute minimal swaps to transform currentIds -> desiredIds
-      let cur = currentIds.slice();
+      const cur = currentIds.slice();
       for (let to = 0; to < desiredIds.length; to++) {
         const want = desiredIds[to]!;
         const from = cur.indexOf(want);
         if (from === -1 || from === to) continue;
         move(from, to);
-        const moved = cur.splice(from, 1)[0] as string;
+        const moved = cur.splice(from, 1)[0]!;
         cur.splice(to, 0, moved);
       }
     },
@@ -143,8 +143,8 @@ export function SetList({
               e.stopPropagation();
               // Some browsers fire both pointer and click in quick succession in nested handlers.
               // Use a per-event guard flag to avoid double-fire.
-              const ne = (e as unknown as { nativeEvent?: Record<string, unknown> }).nativeEvent as Record<string, unknown> | undefined;
-              if (ne && ne._addSetHandled) return;
+              const ne = (e as unknown as { nativeEvent?: Record<string, unknown> }).nativeEvent;
+              if (ne?._addSetHandled) return;
               if (ne) ne._addSetHandled = true;
               onAddSet(exerciseIndex);
             }}

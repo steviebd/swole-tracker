@@ -53,14 +53,14 @@ export function useUniversalDragReorder<T>(
   ): { x: number; y: number } => {
     // TouchEvent path
     if ("touches" in e) {
-      const t = (e as TouchEvent | React.TouchEvent).touches;
+      const t = (e).touches;
       if (t && t.length > 0) {
         return { x: t[0]!.clientX, y: t[0]!.clientY };
       }
     }
     // Pointer/Mouse path
     if ("clientX" in e && "clientY" in e) {
-      const p = e as PointerEvent | MouseEvent | React.PointerEvent | React.MouseEvent;
+      const p = e;
       return { x: p.clientX, y: p.clientY };
     }
     return { x: 0, y: 0 };
@@ -187,13 +187,13 @@ export function useUniversalDragReorder<T>(
       }
 
       // iOS/Safari robustness: attempt to capture pointer if available
-      const evt = e as React.PointerEvent | React.MouseEvent | React.TouchEvent;
+      const evt = e;
       const ct = (evt as React.SyntheticEvent).currentTarget as HTMLElement | null;
       // Only PointerEvent has pointerId
       if ("pointerId" in evt && ct && typeof (ct as HTMLElement & { setPointerCapture?: (pointerId: number) => void }).setPointerCapture === "function") {
         try {
           (ct as HTMLElement & { setPointerCapture: (pointerId: number) => void }).setPointerCapture(
-            (evt as React.PointerEvent).pointerId,
+            (evt).pointerId,
           );
         } catch {
           // ignore capture errors

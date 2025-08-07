@@ -93,7 +93,7 @@ export function WhoopWorkouts() {
       return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
     }
     
-    const strainScore = (score as any)?.strain;
+    const strainScore = (score)?.strain;
     if (strainScore && typeof strainScore === "number") {
       return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
     }

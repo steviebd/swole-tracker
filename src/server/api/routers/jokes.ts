@@ -56,7 +56,7 @@ async function generateNewJoke(ctx: JokeContext) {
   try {
     // Always fetch previous jokes first (tests assert these db calls happen)
     const memoryCount = env.AI_GATEWAY_JOKE_MEMORY_NUMBER ?? 3;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const previousJokes: { joke: string }[] = await ctx.db
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       .select({ joke: dailyJokes.joke })
@@ -130,7 +130,7 @@ async function generateNewJoke(ctx: JokeContext) {
       });
       // Some tests directly mock generateText and return { text: ... }; others might resolve undefined.
       // Ensure we don't explode in unconfigured path (which already returned) and provide safe access here.
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+       
       text = (result as { text?: string } | undefined)?.text;
       if (!text) {
         // Explicit error message expected by tests

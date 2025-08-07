@@ -13,7 +13,7 @@ function normalizeExerciseName(name: string): string {
 const debugEnabled = Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
 function debugLog(...args: unknown[]) {
   if (debugEnabled) {
-    // eslint-disable-next-line no-console
+     
     console.log("[templatesRouter]", ...args);
   }
 }
@@ -28,7 +28,7 @@ async function createAndLinkMasterExercise(
   userId: string,
   exerciseName: string,
   templateExerciseId: number,
-  linkingRejected: boolean = false,
+  linkingRejected = false,
 ) {
   // Don't create links if user has rejected linking
   if (linkingRejected) {
@@ -83,7 +83,7 @@ async function createAndLinkMasterExercise(
 
   // If we still don't have a master exercise, skip linking gracefully
   debugLog('createAndLinkMasterExercise: resolved masterExercise', masterExercise);
-  if (!masterExercise || masterExercise.id == null) {
+  if (masterExercise?.id == null) {
     debugLog('createAndLinkMasterExercise: no masterExercise id, aborting link');
     return null;
   }
@@ -122,8 +122,8 @@ async function createAndLinkMasterExercise(
 
 const testLogMiddleware = process.env.NODE_ENV === "test"
   ? publicProcedure.use(async (opts) => {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+       
+       
       console.log("[templatesRouter][test] entering", { path: opts.path, user: !!opts.ctx.user });
       return opts.next();
     })

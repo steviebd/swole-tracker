@@ -24,7 +24,8 @@ export function ExerciseLinkPicker({
   currentName,
 }: ExerciseLinkPickerProps) {
   const [q, setQ] = useState(currentName);
-  const [cursor, setCursor] = useState<number | null>(0);
+  // Use a concrete number for query param; null is represented as 0 (first page)
+  const [cursor, setCursor] = useState<number>(0);
   const [items, setItems] = useState<Item[]>([]);
   const [isExactMatch, setIsExactMatch] = useState<Item | null>(null);
   const [pending, setPending] = useState(false);
@@ -42,8 +43,13 @@ export function ExerciseLinkPicker({
     },
   });
 
+  // Provide a concrete type for the query input so cursor is correctly typed
+  // tRPC type may infer cursor as number | undefined; coerce to number by defaulting to 0
+  // Use the generated RouterInputs type to ensure correct input shape
+  // Force the cursor to be a number literal to satisfy strict inference
+  // Ensure the query input is fully concrete to satisfy strict types
   const search = api.exercises.searchMaster.useQuery(
-    { q, limit: 20, cursor: cursor ?? 0 },
+    { q, limit: 20, cursor: cursor ?? 0 } as { q: string; limit: number; cursor: number },
     { enabled: open && q.trim().length > 0, staleTime: 10_000 },
   );
 
@@ -75,7 +81,7 @@ export function ExerciseLinkPicker({
     if (!search.data) return;
     const page = search.data.items as Item[];
     const merged =
-      (cursor ?? 0) === 0
+      cursor === 0
         ? page
         : [...items, ...page.filter((p) => !items.some((i) => i.id === p.id))];
     setItems(merged);
@@ -87,13 +93,13 @@ export function ExerciseLinkPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
 
-  const canLoadMore = useMemo(() => search.data?.nextCursor != null, [search.data?.nextCursor]);
+  const canLoadMore = useMemo(() => search.data?.nextCursor !== undefined && search.data?.nextCursor !== null, [search.data?.nextCursor]);
 
   function loadMore() {
     if (!canLoadMore) return;
-    const next = search.data?.nextCursor ?? null;
+    const next = search.data?.nextCursor ?? 0;
     setCursor(next);
-    if (next != null) {
+    if (next !== 0) {
       void search.refetch();
     }
   }

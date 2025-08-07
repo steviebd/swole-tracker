@@ -23,7 +23,7 @@ export function useLiveRegion() {
   }
 
   // Expose a setter for the provider to attach
-  (announce as any).__attach = (fn: (msg: string, opts?: Options) => void) => {
+  (announce as unknown as { __attach?: (fn: (msg: string, opts?: Options) => void) => void }).__attach = (fn: (msg: string, opts?: Options) => void) => {
     ref.current = fn;
   };
 
@@ -41,7 +41,9 @@ export default function LiveRegionProvider({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Singleton announce dispatcher; consumers use useLiveRegion and attach here via side-effect.
-  const announceRef = useRef<(msg: string, opts?: Options) => void>(() => {});
+  const announceRef = useRef<(msg: string, opts?: Options) => void>(() => {
+    // noop default
+  });
   if (!announceRef.current) {
     announceRef.current = (msg: string, opts?: Options) => {
       queueRef.current.push({ msg, assertive: opts?.assertive });
@@ -98,7 +100,7 @@ export default function LiveRegionProvider({
         {assertive}
       </div>
       {/* Context bridge: place function on window for hooks to attach in absence of React Context to keep it tiny */}
-      <LiveRegionBridge onAnnouncerReady={announceRef.current!} />
+      <LiveRegionBridge onAnnouncerReady={announceRef.current} />
       {children}
     </>
   );
@@ -111,10 +113,11 @@ export default function LiveRegionProvider({
 function LiveRegionBridge({ onAnnouncerReady }: { onAnnouncerReady: (msg: string, opts?: Options) => void }) {
   useEffect(() => {
     // Provide a global for hooks to attach (scoped to app tab)
-    (window as any).__liveRegionAnnounce = onAnnouncerReady;
+    (window as unknown as { __liveRegionAnnounce?: (msg: string, opts?: Options) => void }).__liveRegionAnnounce = onAnnouncerReady;
     return () => {
-      if ((window as any).__liveRegionAnnounce === onAnnouncerReady) {
-        delete (window as any).__liveRegionAnnounce;
+      const w = window as unknown as { __liveRegionAnnounce?: (msg: string, opts?: Options) => void };
+      if (w.__liveRegionAnnounce === onAnnouncerReady) {
+        delete w.__liveRegionAnnounce;
       }
     };
   }, [onAnnouncerReady]);
@@ -127,10 +130,12 @@ function LiveRegionBridge({ onAnnouncerReady }: { onAnnouncerReady: (msg: string
  */
 export function useAttachLiveRegion(announce: ReturnType<typeof useLiveRegion>) {
   useEffect(() => {
-    const fn = (window as any).__liveRegionAnnounce as undefined | ((msg: string, opts?: Options) => void);
+    const w = window as unknown as { __liveRegionAnnounce?: (msg: string, opts?: Options) => void };
+    const fn = w.__liveRegionAnnounce;
     if (fn && typeof announce === "function") {
-      if (typeof (announce as any).__attach === "function") {
-        (announce as any).__attach(fn);
+      const attach = (announce as unknown as { __attach?: (fn: (msg: string, opts?: Options) => void) => void }).__attach;
+      if (typeof attach === "function") {
+        attach(fn);
       }
     }
   }, [announce]);

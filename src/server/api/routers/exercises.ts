@@ -122,7 +122,7 @@ const prefixBuilder = ctx.db
     ),
   )
   .orderBy(masterExercises.normalizedName)
-  .limit(input.limit as number);
+  .limit(input.limit);
 const prefixMatchesRaw = isThenable(prefixBuilder) ? await prefixBuilder : prefixBuilder;
 prefixMatches = Array.isArray(prefixMatchesRaw)
   ? prefixMatchesRaw.slice(input.cursor, input.cursor + input.limit)
@@ -133,7 +133,7 @@ prefixMatches = Array.isArray(prefixMatchesRaw)
       }
 
       // If we filled the page with prefix matches, return them; otherwise, fill remainder with contains matches excluding duplicates.
-      let items = prefixMatches;
+      const items = prefixMatches;
       if (items.length < input.limit) {
         const remaining = input.limit - items.length;
 
@@ -154,7 +154,7 @@ const containsBuilder = ctx.db
     ),
   )
   .orderBy(masterExercises.normalizedName)
-  .limit(remaining as number);
+  .limit(remaining);
 const containsMatchesRaw = isThenable(containsBuilder) ? await containsBuilder : containsBuilder;
 containsMatches = Array.isArray(containsMatchesRaw)
   ? containsMatchesRaw.slice(input.cursor, input.cursor + remaining)
@@ -745,7 +745,7 @@ if (isThenable(delChain)) {
           .insert(exerciseLinks)
           .values({
             templateExerciseId: templateExercise.id,
-            masterExerciseId: masterExercise!.id,
+            masterExerciseId: masterExercise.id,
             user_id: ctx.user.id,
           });
         

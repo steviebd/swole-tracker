@@ -89,14 +89,14 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
     await db
       .update(userIntegrations)
       .set({
-        accessToken: t.access_token as string,
+        accessToken: t.access_token!,
         refreshToken: t.refresh_token ?? integration.refreshToken,
         expiresAt,
         updatedAt: new Date(),
       })
       .where(eq(userIntegrations.id, Number(integration.id)));
 
-    return t.access_token as string;
+    return t.access_token!;
   }
 
   return integration.accessToken;
@@ -204,9 +204,9 @@ export async function POST(request: NextRequest) {
         timezone_offset: String(o.timezone_offset ?? ""),
         sport_name: String(o.sport_name ?? ""),
         score_state: String(o.score_state ?? ""),
-        score: o.score as unknown,
-        during: o.during as unknown,
-        zone_duration: o.zone_duration as unknown,
+        score: o.score,
+        during: o.during,
+        zone_duration: o.zone_duration,
       };
     });
 

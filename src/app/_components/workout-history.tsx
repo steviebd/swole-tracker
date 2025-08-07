@@ -47,7 +47,7 @@ export function WorkoutHistory() {
     <div className="space-y-4">
       {/* Export / Share */}
       <div className="flex items-center justify-end">
-        {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
+        { }
         <span className="sr-only">{exportData ? "Export data ready" : "No export data"}</span>
         <button
           type="button"

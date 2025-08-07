@@ -150,14 +150,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     const withVolume = ex.sets
       .map((s) => ({ ...s, volume: (s.weight ?? 0) * (s.reps ?? 0) }))
       .filter((s) => s.volume && s.volume > 0);
-    const bestByVolume = withVolume.sort((a, b) => (b.volume! - a.volume!))[0];
+    const bestByVolume = withVolume.sort((a, b) => (b.volume - a.volume))[0];
 
     return {
       bestWeight: bestByWeight?.weight
         ? { weight: bestByWeight.weight, reps: bestByWeight.reps, sets: bestByWeight.sets, unit: bestByWeight.unit }
         : undefined,
       bestVolume: bestByVolume
-        ? { volume: bestByVolume.volume!, weight: bestByVolume.weight, reps: bestByVolume.reps, unit: bestByVolume.unit }
+        ? { volume: bestByVolume.volume, weight: bestByVolume.weight, reps: bestByVolume.reps, unit: bestByVolume.unit }
         : undefined,
     };
   };

@@ -87,7 +87,7 @@ const t = initTRPC.context<TRPCContext>().create({
     if (level === "error") {
       logger.error("tRPC internal error", error, { path, userId, requestId, code });
       if (isTest) {
-        // eslint-disable-next-line no-console
+         
         console.error("[tRPC errorFormatter]", {
           path,
           userId,
@@ -102,7 +102,7 @@ const t = initTRPC.context<TRPCContext>().create({
     } else {
       logger.warn("tRPC handled error", { path, userId, requestId, code, message: shape.message });
       if (isTest) {
-        // eslint-disable-next-line no-console
+         
         console.warn("[tRPC warnFormatter]", {
           path,
           userId,

@@ -31,7 +31,7 @@ export function createClerkSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("127.0.0.1");
 
   if (isLocalDev && process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY) {
-    // eslint-disable-next-line no-console
+     
     console.warn("[supabase] Using service role key for local development");
     return createClient(
       supabaseUrl,
