@@ -1,11 +1,3 @@
-Phase 4: Session UX polish and reliability
-
-- Keyboard and overlay ergonomics: ensure numpad + scroll interactions never conflict, refine return focus paths, improve large-template performance
-- Undo/redo breadth: extend undo to cover add/remove set and unit toggles; optional redo
-- Accessibility: ARIA roles for overlays, toasts; focus traps; screen-reader labels for swipe actions
-- Offline robustness: ensure queue flush/resume telemetry and conflict resolution messages
-Proceeding to finish Step 1 and Step 2. I will: 1) wire FocusTrap/useReturnFocus into progression-modal.tsx, progression-scope-modal.tsx, and the two inline modals in workout-session.tsx (delete confirm and complete modal); 2) add conservative virtualization (threshold 20) in workout-session.tsx by rendering a windowed slice around the viewport while preserving keys and focus. Confirm to apply these patches now.
-
 Phase 5: Insights and progression
 
 - Auto-progression recommendations based on RPE and historical trend

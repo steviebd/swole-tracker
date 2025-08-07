@@ -7,6 +7,7 @@ import { SetList } from "./workout/SetList";
 import posthog from "posthog-js";
 import { vibrate } from "~/lib/client-telemetry";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
+import { useExerciseInsights } from "~/hooks/use-insights";
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -112,6 +113,14 @@ export function ExerciseCard({
 
   const hasCurrentData = exercise.sets.some(set => set.weight ?? set.reps);
   const currentBest = getCurrentBest();
+
+  // Insights hook (read-only)
+  const { data: insights } = useExerciseInsights({
+    exerciseName: exercise.exerciseName,
+    templateExerciseId: exercise.templateExerciseId,
+    unit: exercise.unit,
+    limitSessions: 10,
+  });
 
   const formatBest = (best: PreviousBest | null) => {
     if (!best?.weight) return "No previous data";
@@ -274,6 +283,97 @@ export function ExerciseCard({
       {/* Expanded Content */}
       {isExpanded && (
         <div className="px-4 pb-4 space-y-3">
+          {/* Insights Row */}
+          {!readOnly && (
+            <div className="rounded-lg p-3 glass-surface glass-hairline">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-secondary">INSIGHTS</span>
+                  {insights?.bestSet ? (
+                    <span className="text-sm">
+                      Best:{" "}
+                      <strong>
+                        {insights.bestSet.weight}{insights.bestSet.unit}
+                      </strong>
+                      {insights.bestSet.reps ? <> × {insights.bestSet.reps}</> : null}
+                      {typeof insights.best1RM === "number" ? (
+                        <span className="ml-2 text-xs text-muted">1RM≈ {insights.best1RM.toFixed(1)}{exercise.unit}</span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted">No history yet</span>
+                  )}
+                </div>
+
+                {/* Recommendation pill */}
+                {insights?.recommendation ? (
+                  <button
+                    type="button"
+                    className="ml-auto shrink-0 rounded-full px-3 py-1 text-xs glass-surface hover:glass-hairline transition-colors"
+                    aria-label="Apply auto-progression recommendation"
+                    onClick={() => {
+                      try { vibrate(5); } catch {}
+                      try { posthog.capture("insights_apply_recommendation", {
+                        exerciseName: exercise.exerciseName,
+                        type: insights.recommendation?.type,
+                        nextWeight: insights.recommendation?.nextWeight,
+                        nextReps: insights.recommendation?.nextReps,
+                        unit: insights.recommendation?.unit,
+                      }); } catch {}
+                      // Prefill the last set with recommendation conservatively
+                      if (insights.recommendation?.type === "weight" && insights.recommendation?.nextWeight != null) {
+                        const lastIndex = exercise.sets.length - 1;
+                        onUpdate(exerciseIndex, Math.max(0, lastIndex), "weight", insights.recommendation.nextWeight);
+                      } else if (insights.recommendation?.type === "reps" && insights.recommendation?.nextReps != null) {
+                        const lastIndex = exercise.sets.length - 1;
+                        const current = exercise.sets[Math.max(0, lastIndex)]?.reps ?? 0;
+                        onUpdate(exerciseIndex, Math.max(0, lastIndex), "reps", current + insights.recommendation.nextReps);
+                      }
+                    }}
+                    title={insights.recommendation.rationale}
+                  >
+                    {insights.recommendation.type === "weight"
+                      ? `Suggest: ${insights.recommendation.nextWeight}${insights.recommendation.unit}`
+                      : `Suggest: +${insights.recommendation.nextReps} rep`}
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Simple sparkline (css-only, tiny) */}
+              {insights?.volumeSparkline && insights.volumeSparkline.length >= 2 && (
+                <div className="mt-2">
+                  <div className="flex items-end gap-1 h-8" aria-hidden="true">
+                    {(() => {
+                      const vols = insights.volumeSparkline.map(p => p.volume);
+                      const max = Math.max(...vols);
+                      const min = Math.min(...vols);
+                      const range = Math.max(1, max - min);
+                      return insights.volumeSparkline.map((p, i) => {
+                        const h = Math.round(((p.volume - min) / range) * 100);
+                        return (
+                          <span
+                            key={i}
+                            className="w-1.5 bg-emerald-500/70 dark:bg-emerald-400/70 rounded-sm"
+                            style={{ height: `${Math.max(8, h)}%` }}
+                            title={`${new Date(p.date).toLocaleDateString()}: Vol ${p.volume.toFixed(0)}`}
+                          />
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Heuristic suggestions */}
+              {insights?.suggestions && insights.suggestions.length > 0 && (
+                <ul className="mt-2 text-xs text-muted list-disc pl-5 space-y-1">
+                  {insights.suggestions.slice(0, 2).map((s, idx) => (
+                    <li key={idx}>{s.message}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           {/* Previous Workout Reference */}
           {previousSets && previousSets.length > 0 && !readOnly && (
             <div className="rounded-lg p-3 glass-surface glass-hairline">

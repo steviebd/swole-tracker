@@ -22,6 +22,7 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "plugins": [{ "name": "next" }],
+    "types": [],
     "incremental": true,
 
     /* Path Aliases */

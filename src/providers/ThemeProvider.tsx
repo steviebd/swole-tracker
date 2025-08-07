@@ -36,7 +36,7 @@ function applyThemeClass(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("CalmDark");
+  const [theme, setThemeState] = useState<Theme>("system");
   // track system dark mode separately so consumers re-render when it changes
   const [systemDark, setSystemDark] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -52,7 +52,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // initial load from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "CalmDark";
+    const stored = (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "system";
     setThemeState(stored);
     applyThemeClass(stored);
 

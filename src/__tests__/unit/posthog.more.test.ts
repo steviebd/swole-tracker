@@ -3,9 +3,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 describe("PostHogClient wrapper basic coverage", () => {
   beforeEach(() => {
     vi.resetModules();
+    // Ensure server context for each test run
+    // @ts-ignore
+    delete (global as any).window;
   });
 
-  it("constructs PostHog with env and returns client", async () => {
+  it("constructs PostHog with env and returns client (server context)", async () => {
     const prevHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     const prevKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://app.posthog.com";
@@ -23,9 +26,11 @@ describe("PostHogClient wrapper basic coverage", () => {
       flush,
     }));
 
-    vi.doMock("posthog-node", () => ({ PostHog: PHCtor }));
-
-    const getClient = (await import("~/lib/posthog")).default as () => any;
+    // Import module and inject the constructor via test-only hook
+    const posthogMod = await import("~/lib/posthog");
+    // @ts-expect-error internal test hook
+    posthogMod.__setTestPosthogCtor(PHCtor as any);
+    const getClient = posthogMod.default as () => any;
     const client = getClient();
 
     expect(PHCtor).toHaveBeenCalledWith("ph_test_key", expect.objectContaining({ host: "https://app.posthog.com" }));

@@ -156,16 +156,32 @@ export function useUniversalDragReorder<T>(
       // Prevent dragging when clicking on interactive elements (except explicit drag handles)
       const target = e.target as HTMLElement;
       const isHandle = !!target.closest('[data-drag-handle="true"]');
+
+      // IMPORTANT: Do NOT call preventDefault on React synthetic event here (React may mark as passive).
+      // Instead, immediately add a non-passive native listener on the currentTarget to prevent default for the next move.
+      const anyEvent = e as any;
+      const currentTarget = anyEvent.currentTarget as HTMLElement | null;
+
+      if (currentTarget) {
+        const nonPassiveMove = (ev: Event) => {
+          try { ev.preventDefault(); } catch {}
+        };
+        // Add once to block the first move which typically starts scroll/text selection on touch
+        currentTarget.addEventListener('touchmove', nonPassiveMove, { passive: false, once: true });
+        currentTarget.addEventListener('pointermove', nonPassiveMove, { passive: false, once: true });
+        currentTarget.addEventListener('mousemove', nonPassiveMove, { passive: false, once: true });
+      }
+
       if (!isHandle && (target.closest('button') || target.closest('input') || target.closest('select'))) {
         return;
       }
 
       // iOS/Safari robustness: attempt to capture pointer if available
-      const anyEvent = e as any;
-      const currentTarget = anyEvent.currentTarget as any;
-      if ('pointerId' in anyEvent && typeof currentTarget?.setPointerCapture === 'function') {
+      const anyEvent2 = e as any;
+      const currentTarget2 = anyEvent2.currentTarget as any;
+      if ('pointerId' in anyEvent2 && typeof currentTarget2?.setPointerCapture === 'function') {
         try {
-          currentTarget.setPointerCapture(anyEvent.pointerId as number);
+          currentTarget2.setPointerCapture(anyEvent2.pointerId as number);
         } catch {
           // ignore capture errors
         }
@@ -178,8 +194,8 @@ export function useUniversalDragReorder<T>(
       axisLockedToY.current = false;
       lastInsertionIndexRef.current = null;
 
-      // If initiated from the drag handle and force requested, start immediately with vertical lock
-      if (opts?.force || isHandle) {
+      // If initiated from the drag handle OR force requested, start immediately with vertical lock
+      if (isHandle || opts?.force) {
         hasDragStarted.current = true;
         axisLockedToY.current = true;
         setIsDragging(true);

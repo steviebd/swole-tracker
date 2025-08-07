@@ -25,6 +25,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
   const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
+  const [estimatedOneRmFactor, setEstimatedOneRmFactor] = useState<string>(""); // text to allow blank => default
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,9 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       // Server returns shape with safe defaults
       setPredictiveEnabled(Boolean((prefs as any).predictive_defaults_enabled ?? false));
       setRightSwipeAction(((prefs as any).right_swipe_action ?? "collapse_expand") as RightSwipeAction);
+      // If backend provides value, hydrate; otherwise leave blank to indicate default
+      const factor = (prefs as any).estimated_one_rm_factor as number | undefined;
+      setEstimatedOneRmFactor(typeof factor === "number" ? String(factor) : "");
     }
   }, [isLoading, prefs]);
 
@@ -39,27 +43,44 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     if (!prefs) return false; // allow initial save
     const pe = Boolean((prefs as any).predictive_defaults_enabled ?? false);
     const rs = ((prefs as any).right_swipe_action ?? "collapse_expand") as RightSwipeAction;
-    return pe === predictiveEnabled && rs === rightSwipeAction;
-  }, [prefs, predictiveEnabled, rightSwipeAction]);
+    const pf = (prefs as any).estimated_one_rm_factor as number | undefined;
+    const uiPf = estimatedOneRmFactor.trim() === "" ? undefined : Number(estimatedOneRmFactor);
+    return pe === predictiveEnabled && rs === rightSwipeAction && (pf ?? undefined) === (uiPf ?? undefined);
+  }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      await updateMutation.mutateAsync({
+      const payload: any = {
         predictive_defaults_enabled: predictiveEnabled,
         right_swipe_action: rightSwipeAction,
-      } as any);
+      };
+      // Only send factor if the input is not blank and within bounds; otherwise omit to keep default
+      const trimmed = estimatedOneRmFactor.trim();
+      if (trimmed !== "") {
+        const n = Number(trimmed);
+        if (!Number.isNaN(n)) {
+          payload.estimated_one_rm_factor = Math.min(0.05, Math.max(0.02, n));
+        }
+      }
+      await updateMutation.mutateAsync(payload);
       onClose();
     } finally {
       setSaving(false);
     }
   };
 
-  if (!open) return null;
-
-  // Focus management
+  // Always call hooks in the same order; avoid returning early before hooks.
+  // We render null at the end when not open.
   const { restoreFocus } = useReturnFocus();
   const firstFocusRef = useRef<HTMLButtonElement>(null);
+
+  const isClosed = !open;
+
+  if (isClosed) {
+    // When closed, render a stable, minimal subtree (no early return before hooks).
+    return null;
+  }
 
   return (
     <div
@@ -115,6 +136,31 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                 />
                 <span className="sr-only">Toggle predictive defaults</span>
               </button>
+            </div>
+          </section>
+
+          {/* Estimated 1RM factor */}
+          <section>
+            <div className="font-medium mb-1">Estimated 1RM factor</div>
+            <div className="text-sm text-muted mb-2">
+              Used in 1RM estimation formula: weight × (1 + reps × factor). Leave blank to use default 0.0333 (1/30).
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                step="0.0001"
+                min={0.02}
+                max={0.05}
+                inputMode="decimal"
+                aria-label="Estimated 1RM factor"
+                className="w-32 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2"
+                placeholder="0.0333"
+                value={estimatedOneRmFactor}
+                onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
+              />
+              <div className="text-xs text-muted">
+                Default: 0.0333
+              </div>
             </div>
           </section>
 

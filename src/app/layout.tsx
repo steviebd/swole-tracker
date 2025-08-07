@@ -51,7 +51,7 @@ export default function RootLayout({
         var key = 'theme';
         var t = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var dark = (t === 'dark') || (t === 'system' && prefersDark) || (t === 'Horizon_wow');
+        var dark = (t === 'dark') || (t === 'system' && prefersDark) || (t === 'CalmDark') || (t === 'BoldDark') || (t === 'PlayfulDark');
         var root = document.documentElement;
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
         // Only apply data-theme for client. Do not set this attribute in SSR markup to avoid hydration warnings.
@@ -65,9 +65,14 @@ export default function RootLayout({
       signUpFallbackRedirectUrl="/"
       telemetry={false}
     >
-      <html lang="en" className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}>
+      {/* Do not set data-theme or dark class on the server to avoid hydration mismatches */}
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}
+      >
         <body className="min-h-screen flex flex-col text-gray-900 dark:text-white page-shell">
-          {/* Prevent theme flash */}
+          {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
           <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
           {/* Skip to content link */}
           <a

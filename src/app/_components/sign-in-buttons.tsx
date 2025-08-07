@@ -27,7 +27,7 @@ export function SignInButtons() {
         </button>
       </SignInButton>
       <div className="text-xs text-secondary text-center">
-        Welcome to the Horizon_wow experience
+        Welcome to the Calm Dark experience
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
 
-type Theme = "light" | "dark" | "system" | "Horizon_wow";
+type Theme = "light" | "dark" | "system" | "CalmDark" | "BoldDark" | "PlayfulDark";
 
 export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -34,7 +34,13 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
         ? "Dark"
         : theme === "light"
           ? "Light"
-          : "Horizon_wow";
+          : theme === "CalmDark"
+            ? "Calm Dark"
+            : theme === "BoldDark"
+              ? "Bold Dark"
+              : theme === "PlayfulDark"
+                ? "Playful Dark"
+                : String(theme);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -91,13 +97,33 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
           </MenuItem>
           <MenuItem
             current={theme}
-            value="Horizon_wow"
+            value="CalmDark"
             onSelect={(t) => {
               setTheme(t);
               setOpen(false);
             }}
           >
-            Horizon_wow
+            Calm Dark
+          </MenuItem>
+          <MenuItem
+            current={theme}
+            value="BoldDark"
+            onSelect={(t) => {
+              setTheme(t);
+              setOpen(false);
+            }}
+          >
+            Bold Dark
+          </MenuItem>
+          <MenuItem
+            current={theme}
+            value="PlayfulDark"
+            onSelect={(t) => {
+              setTheme(t);
+              setOpen(false);
+            }}
+          >
+            Playful Dark
           </MenuItem>
         </div>
       )}

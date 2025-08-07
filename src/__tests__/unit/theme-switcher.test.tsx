@@ -83,13 +83,13 @@ describe("ThemeSwitcher", () => {
     const light = within(menu).getByRole("menuitemradio", { name: "Light" });
     const dark = within(menu).getByRole("menuitemradio", { name: "Dark" });
     const system = within(menu).getByRole("menuitemradio", { name: "System" });
-    const horizon = within(menu).getByRole("menuitemradio", { name: "Horizon_wow" });
+    const calm = within(menu).getByRole("menuitemradio", { name: "Calm Dark" });
 
     // initial selection is "system"
     expect(system).toHaveAttribute("aria-checked", "true");
     expect(light).toHaveAttribute("aria-checked", "false");
     expect(dark).toHaveAttribute("aria-checked", "false");
-    expect(horizon).toHaveAttribute("aria-checked", "false");
+    expect(calm).toHaveAttribute("aria-checked", "false");
   });
 
   it("selecting an option applies theme, persists, updates DOM, and closes on outside click/Escape", async () => {
@@ -166,7 +166,7 @@ describe("ThemeSwitcher", () => {
     expect(trigger.textContent).toMatch(/System \((dark|light)\)/);
   });
 
-  it("Horizon_wow applies dark-first and marks selection", async () => {
+  it("CalmDark applies dark-first and marks selection", async () => {
     setupMatchMedia(false);
     renderWithProvider(<ThemeSwitcher />);
 
@@ -174,17 +174,17 @@ describe("ThemeSwitcher", () => {
     await user.click(trigger);
     await screen.findByRole("menu", { name: "Theme options" });
 
-    await user.click(screen.getByRole("menuitemradio", { name: "Horizon_wow" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Calm Dark" }));
 
-    expect(localStorage.getItem("theme")).toBe("Horizon_wow");
-    expect(document.documentElement.dataset.theme).toBe("Horizon_wow");
+    expect(localStorage.getItem("theme")).toBe("CalmDark");
+    expect(document.documentElement.dataset.theme).toBe("CalmDark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(trigger).toHaveTextContent("Horizon_wow");
+    expect(trigger).toHaveTextContent("Calm Dark");
 
     // reopen and verify selection is highlighted
     await user.click(trigger);
     await screen.findByRole("menu", { name: "Theme options" });
-    expect(screen.getByRole("menuitemradio", { name: "Horizon_wow" })).toHaveAttribute(
+    expect(screen.getByRole("menuitemradio", { name: "Calm Dark" })).toHaveAttribute(
       "aria-checked",
       "true",
     );

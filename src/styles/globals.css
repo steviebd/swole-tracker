@@ -161,7 +161,7 @@ html.dark .text-muted {
 }
 
 /* ===================== */
-/* Liquid Glass utilities (used by Horizon_wow) */
+/* Liquid Glass utilities (used by custom dark themes: CalmDark, BoldDark, PlayfulDark) */
 /* ===================== */
 .glass-surface {
   backdrop-filter: blur(10px);

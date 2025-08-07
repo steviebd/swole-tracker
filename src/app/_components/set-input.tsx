@@ -28,6 +28,8 @@ interface SetInputProps {
   onDelete: (exerciseIndex: number, setIndex: number) => void;
   readOnly?: boolean;
   showDelete?: boolean;
+  // Optional: parent can pass a pointer down handler to start drag for reordering sets
+  onPointerDownForSet?: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
 }
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +47,7 @@ export function SetInput({
   onDelete,
   readOnly = false,
   showDelete = true,
+  onPointerDownForSet,
 }: SetInputProps) {
   const [padOpenFor, setPadOpenFor] = useState<null | "weight" | "reps" | "rest">(null);
   const weightInputRef = useRef<HTMLInputElement>(null);
@@ -269,8 +272,10 @@ export function SetInput({
           aria-label="Drag set to reorder"
           data-drag-handle="true"
           className="ml-1 mr-1 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
-          // The parent component that renders SetInput will bind the onPointerDown
-          // via event delegation on the card/list level using data-drag-handle
+          // Prefer starting drag from explicit handle to avoid conflicts with inputs
+          onPointerDown={onPointerDownForSet}
+          onMouseDown={onPointerDownForSet as any}
+          onTouchStart={onPointerDownForSet as any}
           style={{ touchAction: 'none' }}
           title="Drag to reorder"
         >
