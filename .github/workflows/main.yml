@@ -28,11 +28,12 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
+      - name: Enable corepack (pnpm)
+        run: |
+          corepack enable
+          # If package.json has "packageManager": "pnpm@<version>", this will use that exact version.
+          # Otherwise, pin explicitly:
+          corepack prepare pnpm@9 --activate
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

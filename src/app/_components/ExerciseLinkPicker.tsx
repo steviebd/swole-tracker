@@ -50,7 +50,10 @@ export function ExerciseLinkPicker({
 
   const createOrGetMaster = api.exercises.createOrGetMaster.useMutation({
     onSuccess: (master) => {
-      linkToMaster.mutate({ templateExerciseId, masterExerciseId: master.id });
+      // Ensure both IDs are concrete numbers; avoid any accidental widening to undefined
+      const masterId = Number(master.id);
+      const tmplId = Number(templateExerciseId);
+      linkToMaster.mutate({ templateExerciseId: tmplId, masterExerciseId: masterId });
     },
   });
 
