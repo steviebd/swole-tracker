@@ -136,7 +136,21 @@ export function SetList({
         <div>
           <button
             className="w-full py-2 text-sm rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-            onClick={() => onAddSet(exerciseIndex)}
+            onClick={(e) => {
+              // Prevent any parent pointer/mouse handlers from receiving this click,
+              // which can cause duplicate addSet invocations.
+              e.preventDefault();
+              e.stopPropagation();
+              // Some browsers fire both pointer and click in quick succession in nested handlers.
+              // Use a per-event guard flag to avoid double-fire.
+              const ne = (e as unknown as { nativeEvent?: Record<string, unknown> }).nativeEvent as Record<string, unknown> | undefined;
+              if (ne && ne._addSetHandled) return;
+              if (ne) ne._addSetHandled = true;
+              onAddSet(exerciseIndex);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             Add Set
           </button>

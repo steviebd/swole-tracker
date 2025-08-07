@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
@@ -497,7 +497,18 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     setLastAction(null);
   };
 
+  // DEBUG helpers
+  const debugLog = (...args: unknown[]) => {
+    // eslint-disable-next-line no-console
+    console.log("[WorkoutSessionState]", ...args);
+  };
+
+  // Action dedupe flags (same-tick guard)
+  const addSetInFlightRef = useRef(false);
+  const deleteSetInFlightRef = useRef(false);
+
   const updateSet = (exerciseIndex: number, setIndex: number, field: keyof SetData, value: string | number | undefined) => {
+    debugLog("updateSet:start", { exerciseIndex, setIndex, field, value, len: exercises[exerciseIndex]?.sets.length });
     const newExercises = [...exercises];
     const target = newExercises[exerciseIndex]?.sets[setIndex];
     if (target) {
@@ -506,6 +517,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       (target as any)[field] = value;
       const after: Partial<SetData> = { [field]: value } as Partial<SetData>;
       setExercises(newExercises);
+      debugLog("updateSet:applied", { exerciseIndex, setIndex, field, before, after });
       // push history
       setLastAction({
         type: "editSetFields",
@@ -536,9 +548,17 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   };
 
   const addSet = (exerciseIndex: number) => {
-    const newExercises = [...exercises];
-    const exercise = newExercises[exerciseIndex];
-    if (exercise) {
+    if (addSetInFlightRef.current) {
+      debugLog("addSet:suppressedDuplicate", { exerciseIndex });
+      return;
+    }
+    addSetInFlightRef.current = true;
+    debugLog("addSet:start", { exerciseIndex });
+    setExercises((prev) => {
+      const next = [...prev];
+      const exercise = next[exerciseIndex];
+      if (!exercise) return prev;
+
       const lastSet = exercise.sets[exercise.sets.length - 1];
 
       // Phase 3: Predictive defaults engine (simple strategy v1)
@@ -568,24 +588,58 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         unit: unitToUse,
       };
 
-      exercise.sets.push(newSet);
-      setExercises(newExercises);
+      // Replace sets array reference to force reconciliation
+      const beforeIds = exercise.sets.map(s => s.id);
+      exercise.sets = [...exercise.sets, newSet];
+      const afterIds = exercise.sets.map(s => s.id);
+
+      debugLog("addSet:added", { exerciseIndex, newId, beforeIds, afterIds, totalSets: exercise.sets.length });
       setLastAction({ type: "addSet", exerciseIndex, newSetId: newId });
       setRedoStack([]);
-    }
+
+      return next;
+    });
+    // Release guard after a short delay to prevent rapid double-clicks
+    setTimeout(() => { addSetInFlightRef.current = false; }, 150);
   };
 
   const deleteSet = (exerciseIndex: number, setIndex: number) => {
-    const newExercises = [...exercises];
-    const exercise = newExercises[exerciseIndex];
-    if (exercise && exercise.sets.length > 0) {
-      const removed = exercise.sets[setIndex];
-      if (!removed) return;
-      exercise.sets.splice(setIndex, 1);
-      setExercises(newExercises);
-      setLastAction({ type: "deleteSet", exerciseIndex, deletedSet: { index: setIndex, data: removed } });
-      setRedoStack([]);
+    if (deleteSetInFlightRef.current) {
+      debugLog("deleteSet:suppressedDuplicate", { exerciseIndex, setIndex });
+      return;
     }
+    deleteSetInFlightRef.current = true;
+
+    debugLog("deleteSet:click", { exerciseIndex, setIndex, lenBefore: exercises[exerciseIndex]?.sets.length });
+    setExercises((prev) => {
+      const next = [...prev];
+      const exercise = next[exerciseIndex];
+      if (!exercise) {
+        debugLog("deleteSet:exerciseNotFound", { exerciseIndex });
+        return prev;
+      }
+      if (exercise.sets.length === 0) {
+        debugLog("deleteSet:noSets", { exerciseIndex });
+        return prev;
+      }
+      // Defensive clamp of index to current bounds
+      const clampedIndex = Math.max(0, Math.min(setIndex, exercise.sets.length - 1));
+      const removed = exercise.sets[clampedIndex];
+      if (!removed) {
+        debugLog("deleteSet:setNotFound", { exerciseIndex, setIndex });
+        return prev;
+      }
+      const beforeIds = exercise.sets.map((s) => s.id);
+      exercise.sets = exercise.sets.filter((_, i) => i !== clampedIndex); // replace array ref for React reconciliation
+      const afterIds = exercise.sets.map((s) => s.id);
+      debugLog("deleteSet:removed", { exerciseIndex, setIndex: clampedIndex, removedId: removed.id, beforeIds, afterIds, lenAfter: exercise.sets.length });
+      // record undo uses clamped index so reinsert is correct against new array
+      setLastAction({ type: "deleteSet", exerciseIndex, deletedSet: { index: clampedIndex, data: removed } });
+      setRedoStack([]);
+      return next;
+    });
+    // Release guard on the next tick to coalesce duplicate events from the same user action
+    queueMicrotask(() => { deleteSetInFlightRef.current = false; });
   };
 
   const toggleExpansion = (exerciseIndex: number) => {
@@ -657,6 +711,34 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     };
   };
 
+  // Reorder sets within an exercise (true array reorder, not field swapping)
+  const reorderSets = (exerciseIndex: number, from: number, to: number) => {
+    setExercises((prev) => {
+      const next = [...prev];
+      const ex = next[exerciseIndex];
+      if (!ex) return prev;
+      const beforeIds = ex.sets.map((s) => s.id);
+      const setsCopy = [...ex.sets];
+      const [moved] = setsCopy.splice(from, 1);
+      if (!moved) return prev;
+      const clampedTo = Math.max(0, Math.min(to, setsCopy.length));
+      setsCopy.splice(clampedTo, 0, moved);
+      ex.sets = setsCopy; // replace ref
+      const afterIds = ex.sets.map((s) => s.id);
+      debugLog("reorderSets:applied", { exerciseIndex, from, to: clampedTo, beforeIds, afterIds });
+
+      // history for undo: store previous order (lightweight)
+      setLastAction({
+        type: "editSetFields",
+        exerciseIndex,
+        setIndex: clampedTo,
+        before: {},
+        after: {},
+      });
+      setRedoStack([]);
+      return next;
+    });
+  };
 
   const redoLastUndo = () => {
     const action = redoStack[0];
@@ -792,6 +874,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     toggleUnit,
     addSet,
     deleteSet,
+    reorderSets,
     buildSavePayload,
 
     // expose updatePreferences for component use where needed

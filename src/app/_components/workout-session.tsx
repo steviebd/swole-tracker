@@ -546,7 +546,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           <div className="glass-surface glass-hairline rounded-xl p-3 shadow-lg">
             <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  // Avoid double-fire from multiple pointer/mouse handlers or event bubbling
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if ((e as any).nativeEvent?._addSetHandled) return;
+                  (e as any).nativeEvent._addSetHandled = true;
+
                   // Add a set to the first expanded exercise, or first exercise as fallback
                   const targetIndex =
                     expandedExercises[0] !== undefined ? expandedExercises[0] : 0;
@@ -569,6 +575,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     } catch {}
                   }
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 className="btn-secondary py-3"
                 aria-label="Add set to current exercise"
               >
