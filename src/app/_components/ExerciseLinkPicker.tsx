@@ -88,6 +88,7 @@ export function ExerciseLinkPicker({
     limit: number;
     cursor: number;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const searchInput: SearchMasterInput = { q, limit: 20, cursor: cursorValue };
   const search = api.exercises.searchMaster.useQuery(
     { q, limit: 20, cursor: cursorValue ?? 0 },

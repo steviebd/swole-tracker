@@ -55,7 +55,7 @@ export class WorkoutOperationsClient {
     userId: string,
     name: string,
   ): Promise<WorkoutTemplate> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const { data, error } = await this.client
       .from("swole-tracker_workout_template")
       .insert({
@@ -100,7 +100,7 @@ export class WorkoutOperationsClient {
     userId: string,
     sessionId: number,
   ): Promise<WorkoutSession> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const { data, error } = await this.client
       .from("swole-tracker_workout_session")
       .select("*")
@@ -117,7 +117,7 @@ export class WorkoutOperationsClient {
     templateId: number,
     workoutDate: string,
   ): Promise<WorkoutSession> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const { data, error } = await this.client
       .from("swole-tracker_workout_session")
       .insert({
@@ -155,7 +155,7 @@ export class WorkoutOperationsClient {
       "id" | "user_id" | "sessionId" | "createdAt"
     >,
   ): Promise<SessionExercise> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const { data, error } = await this.client
       .from("swole-tracker_session_exercise")
       .insert({
@@ -198,7 +198,7 @@ export class WorkoutOperationsServer {
   ): Promise<WorkoutTemplate> {
     const client = await this.getClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+     
     const { data, error } = await client
       .from("swole-tracker_workout_template")
       .insert({

@@ -513,7 +513,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     const target = newExercises[exerciseIndex]?.sets[setIndex];
     if (target) {
       const before: Partial<SetData> = { [field]: target[field] } as Partial<SetData>;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (target as any)[field] = value;
       const after: Partial<SetData> = { [field]: value } as Partial<SetData>;
       setExercises(newExercises);

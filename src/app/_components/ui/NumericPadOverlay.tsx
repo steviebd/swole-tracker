@@ -4,9 +4,6 @@ import React, { useEffect, useMemo } from "react";
 import { Sheet } from "./Sheet";
 import { Button } from "./Button";
 
-function cx(...args: Array<string | false | null | undefined>) {
-  return args.filter(Boolean).join(" ");
-}
 
 export interface NumericPadOverlayProps {
   open: boolean;
@@ -32,22 +29,36 @@ export function NumericPadOverlay({
   shortcuts = [],
   lastUsed,
   allowDecimal = true,
-  allowNegative = false,
+  allowNegative: _allowNegative = false,
   onApply,
 }: NumericPadOverlayProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!open) return;
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
       // Basic keyboard support
       if (/^[0-9]$/.test(e.key)) {
         onChange(value + e.key);
-      } else if (e.key === "." && allowDecimal && !value.includes(".")) {
+        return;
+      }
+      if (e.key === "." && allowDecimal && !value.includes(".")) {
         onChange(value + ".");
-      } else if (e.key === "Backspace") {
+        return;
+      }
+      if (e.key === "Backspace") {
         onChange(value.slice(0, -1));
-      } else if (e.key === "Enter") {
-        onApply ? onApply() : onClose();
+        return;
+      }
+      if (e.key === "Enter") {
+        if (onApply) {
+          onApply();
+        } else {
+          onClose();
+        }
+        return;
       }
     };
     document.addEventListener("keydown", onKey);
@@ -68,32 +79,44 @@ export function NumericPadOverlay({
   }, [open]);
 
   const press = (k: string) => {
-    if (k === "back") {
+    // Normalize key and ensure only supported inputs proceed
+    const isDigit = /^[0-9]$/.test(k);
+    const isBack = k === "back";
+    const isClear = k === "clear";
+    const isDot = k === ".";
+    if (!isDigit && !isBack && !isClear && !isDot) {
+      return;
+    }
+
+    if (isBack) {
       onChange(value.slice(0, -1));
       return;
     }
-    if (k === "clear") {
+
+    if (isClear) {
       onChange("");
       hasStartedRef.current = false;
       return;
     }
-    if (k === ".") {
+
+    if (isDot) {
       if (!allowDecimal) return;
-      // If starting fresh, begin with "0."
       if (!hasStartedRef.current || value === "" || value === "0") {
-        onChange("0.");
         hasStartedRef.current = true;
-      } else if (!value.includes(".")) {
+        onChange("0.");
+        return;
+      }
+      if (!value.includes(".")) {
         onChange(value + ".");
       }
       return;
     }
-    // digit
-    if (/^[0-9]$/.test(k)) {
+
+    // Digit branch
+    if (isDigit) {
       if (!hasStartedRef.current) {
-        // First digit replaces the full value (select-all semantics)
-        onChange(k);
         hasStartedRef.current = true;
+        onChange(k);
       } else {
         onChange(value + k);
       }
@@ -159,7 +182,11 @@ export function NumericPadOverlay({
             {d}
           </button>
         ))}
-        <button className="btn-secondary py-4" onClick={() => press(allowDecimal ? "." : "0")}>
+        <button
+          className="btn-secondary py-4"
+          onClick={() => press(allowDecimal ? "." : "0")}
+          aria-label={allowDecimal ? "Decimal point" : "Zero"}
+        >
           {allowDecimal ? "." : "0"}
         </button>
         <button className="btn-secondary py-4" onClick={() => press("0")}>0</button>
@@ -169,7 +196,8 @@ export function NumericPadOverlay({
       {/* Actions row */}
       <div className="mt-3 grid grid-cols-3 gap-2">
         <button className="btn-secondary py-3" onClick={() => press("clear")}>Clear</button>
-        <div className="py-3" /> {/* Placeholder replacing +/- per request */}
+        {/* Placeholder replacing +/- per request */}
+        <div className="py-3" aria-hidden="true"></div>
         <button className="btn-primary py-3" onClick={onApply ?? onClose}>Apply</button>
       </div>
     </Sheet>
