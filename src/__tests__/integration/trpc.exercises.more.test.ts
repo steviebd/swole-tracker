@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildCaller } from "./trpc-harness";
 
-const createCaller = (opts?: Parameters<typeof buildCaller>[0]) => buildCaller(opts as any) as any;
+type CallerOpts = Parameters<typeof buildCaller>[0] | undefined;
+const createCaller = (opts?: CallerOpts) => buildCaller(opts as CallerOpts);
 
 describe("tRPC exercises router additional branches (integration, mocked ctx/db)", () => {
   beforeEach(() => {
@@ -42,11 +43,11 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
         })),
       });
 
-    const db = { select } as any;
-    const caller = createCaller({ user: { id: userId }, db });
+    const db = { select } as unknown;
+    const caller = createCaller({ user: { id: userId }, db } as { user: { id: string }; db: unknown });
 
     const res = await caller.exercises.searchMaster({ q: "row", limit: 2, cursor: 0 });
-    expect(res.items.map((i: any) => i.id)).toEqual([1, 2]); // page filled by prefix, no contains fallback needed
+    expect(res.items.map((i: { id: number }) => i.id)).toEqual([1, 2]); // page filled by prefix, no contains fallback needed
     expect(res.nextCursor).toBe(2);
   });
 
@@ -65,7 +66,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           returning: vi.fn(() => Promise.resolve([])), // emulate driver returning empty array
         })),
       })),
-    } as any;
+    } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
     const out = await caller.exercises.createOrGetMaster({ name: "  Bench   Press  " });
@@ -84,7 +85,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
         })),
       });
 
-    const db = { select } as any;
+    const db = { select } as unknown;
     const caller = createCaller({ user: { id: userId }, db });
     await expect(
       caller.exercises.linkToMaster({ templateExerciseId: 10, masterExerciseId: 1 }),
@@ -111,7 +112,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
         })),
       });
 
-    const db = { select } as any;
+    const db = { select } as unknown;
     const caller = createCaller({ user: { id: userId }, db });
     await expect(
       caller.exercises.linkToMaster({ templateExerciseId: 10, masterExerciseId: 999 }),
@@ -128,7 +129,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           })),
         })),
       })),
-    } as any;
+    } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
     const res = await caller.exercises.getLatestPerformance({ masterExerciseId: 42 });
@@ -166,7 +167,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           })),
         })),
       })),
-    } as any;
+    } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
     const out = await caller.exercises.getLinksForTemplate({ templateId: 77 });
@@ -254,7 +255,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
               })),
             })),
           }),
-      } as any;
+      } as unknown;
 
       const caller = createCaller({ user: { id: userId }, db });
       await expect(
@@ -295,7 +296,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
               })),
             })),
           }),
-      } as any;
+      } as unknown;
 
       const caller = createCaller({ user: { id: userId }, db });
       const res = await caller.exercises.getLinkingDetails({ masterExerciseId: 1 });
@@ -304,7 +305,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
       // Potential links sorted by similarity descending; we at least expect presence and length
       expect(Array.isArray(res.potentialLinks)).toBe(true);
       expect(res.potentialLinks.length).toBe(2);
-      expect(res.potentialLinks[0].similarity).toBeGreaterThanOrEqual(res.potentialLinks[1].similarity);
+      expect((res.potentialLinks?.[0]?.similarity ?? 0)).toBeGreaterThanOrEqual(res.potentialLinks?.[1]?.similarity ?? 0);
     }
   });
 
@@ -330,7 +331,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
       insert: vi.fn(() => ({
         values: vi.fn(() => Promise.resolve(undefined)),
       })),
-    } as any;
+    } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
     const res = await caller.exercises.bulkLinkSimilar({ masterExerciseId: 1, minimumSimilarity: 0.5 });
@@ -345,7 +346,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           returning: vi.fn(() => Promise.resolve([{ id: 1 }, { id: 2 }])),
         })),
       })),
-    } as any;
+    } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
     const res = await caller.exercises.bulkUnlinkAll({ masterExerciseId: 1 });
@@ -395,7 +396,7 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           }),
         })),
       })),
-    } as any;
+    } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
     const res = await caller.exercises.migrateExistingExercises();

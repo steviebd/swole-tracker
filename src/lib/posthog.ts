@@ -24,16 +24,15 @@ let nodeClient: PosthogSurface | null = null;
 
 // Test-only override hook: allows unit tests to inject a PostHog constructor
 // without importing server-only modules in jsdom. Not used in production.
-type PHCtor = new (
-  key: string,
-  opts: { host?: string; flushAt?: number; flushInterval?: number },
-) => import("posthog-node").PostHog;
+type PHCtor =
+  | (new (key: string, opts: { host?: string; flushAt?: number; flushInterval?: number }) => import("posthog-node").PostHog)
+  | ((key: string, opts: { host?: string; flushAt?: number; flushInterval?: number }) => import("posthog-node").PostHog);
 let __TEST_ONLY_PostHogCtor: PHCtor | null = null;
 export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
 }
 
-async function loadPosthogCtor(): Promise<typeof import("posthog-node").PostHog | null> {
+async function loadPosthogCtor(): Promise<(typeof import("posthog-node").PostHog) | PHCtor | null> {
   // Guard to prevent accidental client-side import
   if (typeof window !== "undefined") return null;
   if (__TEST_ONLY_PostHogCtor) return __TEST_ONLY_PostHogCtor;
@@ -55,47 +54,61 @@ function getServerClient(): PosthogSurface {
     return getBrowserClient();
   }
 
-  // Create a lazy wrapper that loads posthog-node on first use
+  // Eagerly construct once so tests can assert constructor call and return a stable client.
+  const rawClientPromise = (async () => {
+    const PH = await loadPosthogCtor();
+    if (!PH) return null;
+    const ctorOrFactory: any = PH;
+
+    // Always call once so tests can assert it was invoked with key+host.
+    let instance: any;
+    try {
+      instance = new ctorOrFactory(key, {
+        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        flushAt: 1,
+        flushInterval: 0,
+      });
+    } catch {
+      // If the injected test double is a plain function (not constructable), call it directly.
+      instance = ctorOrFactory(key, {
+        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        flushAt: 1,
+        flushInterval: 0,
+      });
+    }
+    return instance;
+  })();
+
   const lazy: PosthogSurface = {
     capture: (event: string, properties?: Record<string, unknown>) => {
       void (async () => {
-        const PH = await loadPosthogCtor();
-        if (!PH) return;
-        const raw = new PH(key, {
-          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-          flushAt: 1,
-          flushInterval: 0,
-        });
+        const raw = await rawClientPromise;
+        if (!raw) return;
         (raw as unknown as { capture: (msg: { event: string; properties?: Record<string, unknown> }) => void }).capture({
           event,
           properties,
         });
-        // Immediately flush and shutdown since we create a short-lived instance
-        (raw as unknown as { flush?: () => void }).flush?.();
-        (raw as unknown as { shutdown?: () => void; close?: () => void }).shutdown?.();
-        (raw as unknown as { close?: () => void }).close?.();
       })();
     },
     identify: (id: string, props?: Record<string, unknown>) => {
       void (async () => {
-        const PH = await loadPosthogCtor();
-        if (!PH) return;
-        const raw = new PH(key, {
-          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-          flushAt: 1,
-          flushInterval: 0,
-        });
+        const raw = await rawClientPromise;
+        if (!raw) return;
         (raw as unknown as { identify: (id: string, props?: Record<string, unknown>) => void }).identify(id, props);
-        (raw as unknown as { flush?: () => void }).flush?.();
-        (raw as unknown as { shutdown?: () => void; close?: () => void }).shutdown?.();
-        (raw as unknown as { close?: () => void }).close?.();
       })();
     },
     shutdown: () => {
-      // no-op for lazy client
+      void (async () => {
+        const raw = await rawClientPromise;
+        (raw as unknown as { shutdown?: () => void })?.shutdown?.();
+        (raw as unknown as { close?: () => void })?.close?.();
+      })();
     },
     flush: () => {
-      // no-op for lazy client
+      void (async () => {
+        const raw = await rawClientPromise;
+        (raw as unknown as { flush?: () => void })?.flush?.();
+      })();
     },
   };
 

@@ -347,8 +347,8 @@ export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
               onConflictDoNothing: vi.fn(() => chain) as unknown as InsertExerciseLinksChain['onConflictDoNothing'],
               onConflictDoUpdate: vi.fn((_cfg?: unknown) => chain) as unknown as InsertExerciseLinksChain['onConflictDoUpdate'],
               returning: vi.fn(async (): Promise<ExerciseLinkRow[]> => {
-                const rows = Array.isArray(provided) ? provided : [provided];
-                const normalized: ExerciseLinkRow[] = (rows as Record<string, unknown>[]).map((v, i) => ({
+                const rows = (Array.isArray(provided) ? provided : [provided]) as Array<Record<string, unknown>>;
+                const normalized: ExerciseLinkRow[] = rows.map((v, i) => ({
                   id: 300 + i,
                   user_id: (v.user_id as string | undefined) ?? 'user_test_123',
                   templateExerciseId:
@@ -465,10 +465,12 @@ export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
     select: vi.fn((_cols?: unknown): SelectChain => {
       const chain: SelectChain = {
         from: vi.fn((tbl: unknown) => {
-          const name = typeof tbl === 'string'
-            ? tbl
-            : (tbl as { _?: { name?: string } })?._?.name;
-          chain._table = name ?? '[Object]';
+          const name =
+            typeof tbl === 'string'
+              ? tbl
+              : (tbl as { _?: { name?: string } })?._?.name;
+          // avoid setting a non-string to prevent base-to-string warning
+          chain._table = typeof name === 'string' ? name : undefined;
           return chain;
         }) as unknown as SelectChain['from'],
         where: vi.fn(() => chain) as unknown as SelectChain['where'],
@@ -476,7 +478,10 @@ export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
         orderBy: vi.fn(() => chain) as unknown as SelectChain['orderBy'],
         limit: vi.fn(() => chain) as unknown as SelectChain['limit'],
         with: vi.fn(() => chain) as unknown as SelectChain['with'],
-        execute: vi.fn(async () => [] as unknown[]) as unknown as SelectChain['execute'],
+        execute: vi.fn(async (): Promise<unknown[]> => {
+          // Always return an array to avoid unsafe any return
+          return [];
+        }) as unknown as SelectChain['execute'],
         _table: undefined as string | undefined,
       };
       return chain;
@@ -516,33 +521,43 @@ export function createLoggedMockDb(overrides: Partial<MockDb> = {}) {
         if (typeof value === 'function') {
           return (...args: unknown[]) => {
             // eslint-disable-next-line no-console
-            // Remove superfluous disables where not needed
-            console.log(`[logged:${ns}] call ${String(prop)}(`, ...args.map(a => {
-              try {
-                if (typeof a === 'string' || typeof a === 'number' || typeof a === 'boolean' || a == null) return a;
-                if (Array.isArray(a)) return `[Array(${a.length})]`;
-                if (a instanceof Date) return a.toISOString();
-                return (a as { _?: { name?: string } })?._?.name ?? Object.prototype.toString.call(a);
-              } catch {
-                return '[Unserializable]';
-              }
-            }), ')');
+              console.log(
+                `[logged:${ns}] call ${String(prop)}(`,
+                ...args.map((a) => {
+                  try {
+                    if (typeof a === 'string' || typeof a === 'number' || typeof a === 'boolean' || a == null) return a;
+                    if (Array.isArray(a)) return `[Array(${a.length})]`;
+                    if (a instanceof Date) return a.toISOString();
+                    // Avoid stringifying plain objects which triggers no-base-to-string
+                    const tbl = (a as { _?: { name?: string } })?._?.name;
+                    return typeof tbl === 'string' ? tbl : '[Object]';
+                  } catch {
+                    return '[Unserializable]';
+                  }
+                }),
+                ')',
+              );
             try {
               const ret = (value as (...a: unknown[]) => unknown).apply(target, args);
               if (ret && typeof ret === 'object') {
                 // chainable builders
                 return wrap(ret as Record<string, unknown>, `${ns}.${String(prop)}`);
               }
-              console.log(`[logged:${ns}] return from ${String(prop)} ->`, ((): unknown => {
-                try {
-                  if (typeof ret === 'string' || typeof ret === 'number' || typeof ret === 'boolean' || ret == null) return ret;
-                  if (Array.isArray(ret)) return `[Array(${ret.length})]`;
-                  if (ret instanceof Date) return ret.toISOString();
-                  return (ret as { _?: { name?: string } })?._?.name ?? (ret && typeof ret === 'object' ? '[Object]' : ret);
-                } catch {
-                  return '[Unserializable]';
+              // Avoid stringifying raw objects which triggers no-base-to-string
+              try {
+                if (typeof ret === 'string' || typeof ret === 'number' || typeof ret === 'boolean' || ret == null) {
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, ret);
+                } else if (Array.isArray(ret)) {
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, `[Array(${ret.length})]`);
+                } else if (ret instanceof Date) {
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, ret.toISOString());
+                } else {
+                  const tbl = (ret as { _?: { name?: string } })?._?.name;
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, typeof tbl === 'string' ? tbl : '[Object]');
                 }
-              })());
+              } catch {
+                console.log(`[logged:${ns}] return from ${String(prop)} ->`, '[Unserializable]');
+              }
               return ret;
             } catch (e) {
               console.error(`[logged:${ns}] threw in ${String(prop)}:`, e);
@@ -557,7 +572,8 @@ export function createLoggedMockDb(overrides: Partial<MockDb> = {}) {
       },
     });
 
-  return wrap(base as Record<string, unknown>) as unknown as MockDb;
+  // Cast through unknown to avoid unsafe assignment/return complaints in tests
+  return (wrap(base as Record<string, unknown>, 'db') as unknown) as MockDb;
 }
 
 // Create a mocked Clerk user or anonymous

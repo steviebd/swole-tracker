@@ -26,12 +26,15 @@ describe("PostHogClient wrapper basic coverage", () => {
       flush,
     }));
 
-    // Import module and inject the constructor via test-only hook
+    // Inject constructor BEFORE first getClient() call so the lazy factory builds with our spy
     const posthogMod = await import("~/lib/posthog");
-    // @ts-expect-error internal test hook
     posthogMod.__setTestPosthogCtor(PHCtor as any);
-    const getClient = posthogMod.default as () => any;
+
+    const getClient = (await import("~/lib/posthog")).default as () => any;
     const client = getClient();
+
+    // wait a tick to allow async ctor promise to resolve inside the module
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(PHCtor).toHaveBeenCalledWith("ph_test_key", expect.objectContaining({ host: "https://app.posthog.com" }));
     expect(client).toBeTruthy();
@@ -40,6 +43,9 @@ describe("PostHogClient wrapper basic coverage", () => {
     client.identify?.({ distinctId: "u1" } as any);
     client.flush?.();
     client.shutdown?.();
+
+    // allow microtasks to flush through our async lazy wrapper
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(capture).toHaveBeenCalled();
     expect(identify).toHaveBeenCalled();

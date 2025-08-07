@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { buildCaller, createMockDb, createMockUser } from "./trpc-harness";
 import { dailyJokes } from "~/server/db/schema";
 
@@ -23,19 +23,16 @@ describe("tRPC jokes router additional coverage", () => {
 
     const db = createMockDb({
       select: vi.fn().mockReturnValue(selectChain),
-      from: vi.fn().mockReturnThis(),
-      orderBy: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([]),
       insert: vi.fn().mockReturnValue({
         values: vi.fn().mockReturnThis(),
-        returning: vi.fn().mockResolvedValue([]),
+        returning: vi.fn().mockResolvedValue([] as unknown[]),
       }),
       delete: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([]),
+        where: vi.fn().mockResolvedValue([] as unknown[]),
       }),
     });
 
-    const caller = await buildCaller({ db, user: user });
+    const caller = await buildCaller({ db, user });
 
     const res = await caller.jokes.generateNew();
 
@@ -58,11 +55,11 @@ describe("tRPC jokes router additional coverage", () => {
       select: vi.fn().mockReturnValue(selectChain),
       insert: vi.fn().mockReturnValue({
         values: vi.fn().mockReturnThis(),
-        returning: vi.fn().mockResolvedValue([]),
+        returning: vi.fn().mockResolvedValue([] as unknown[]),
       }),
     });
 
-    const caller = await buildCaller({ db, user: user });
+    const caller = await buildCaller({ db, user });
 
     const res = await caller.jokes.getCurrent();
 
@@ -85,11 +82,11 @@ describe("tRPC jokes router additional coverage", () => {
       select: vi.fn().mockReturnValue(selectChain),
       insert: vi.fn().mockReturnValue({
         values: vi.fn().mockReturnThis(),
-        returning: vi.fn().mockResolvedValue([]),
+        returning: vi.fn().mockResolvedValue([] as unknown[]),
       }),
     });
 
-    const caller = await buildCaller({ db, user: user });
+    const caller = await buildCaller({ db, user });
 
     const res = await caller.jokes.generateNew();
 
@@ -110,15 +107,15 @@ describe("tRPC jokes router additional coverage", () => {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([]),
+        limit: vi.fn().mockResolvedValue([] as unknown[]),
       }),
       insert: vi.fn().mockReturnValue({
         values: vi.fn().mockReturnThis(),
-        returning: vi.fn().mockResolvedValue([]),
+        returning: vi.fn().mockResolvedValue([] as unknown[]),
       }),
     });
 
-    const caller = await buildCaller({ db, user: user });
+    const caller = await buildCaller({ db, user });
 
     const res = await caller.jokes.clearCache();
 
