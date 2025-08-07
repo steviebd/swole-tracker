@@ -85,8 +85,6 @@ export const preferencesRouter = createTRPCRouter({
           defaultWeightUnit: input.defaultWeightUnit ?? "kg",
           predictive_defaults_enabled: input.predictive_defaults_enabled ?? false,
           right_swipe_action: input.right_swipe_action ?? "collapse_expand",
-          // Persist default if not provided
-          estimated_one_rm_factor: input.estimated_one_rm_factor ?? 1 / 30,
         });
       }
 
