@@ -404,4 +404,19 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     expect(res.createdMasterExercises).toBe(1);
     expect(res.createdLinks).toBe(2);
   });
+
+  it("getAllMaster returns empty array when no master exercises exist", async () => {
+    const userId = "user_1";
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => Promise.resolve([])),
+        })),
+      })),
+    } as unknown;
+
+    const caller = createCaller({ user: { id: userId }, db });
+    const res = await caller.exercises.getAllMaster();
+    expect(res).toEqual([]);
+  });
 });

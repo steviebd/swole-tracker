@@ -1,4 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+
+// Force test environment for logger initialization
+process.env.NODE_ENV = 'test';
+
 import { logger, logApiCall, logSecurityEvent, logWebhook } from "~/lib/logger";
 
 describe("logger", () => {
