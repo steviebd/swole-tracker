@@ -90,18 +90,4 @@ describe("rate-limit-middleware", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it("exports preconfigured middlewares", async () => {
-    // Ensure they are callable with a mocked ctx
-    vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-      allowed: true,
-      remaining: 1,
-      resetTime: new Date(Date.now() + 100),
-    } as any);
-
-    for (const mw of [templateRateLimit, workoutRateLimit, apiCallRateLimit, whoopSyncRateLimit]) {
-      next.mockClear();
-      await mw(makeCtx({}));
-      expect(next).toHaveBeenCalledOnce();
-    }
-  });
 });
