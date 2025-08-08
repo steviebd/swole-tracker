@@ -32,9 +32,8 @@ interface SetInputProps {
   onPointerDownForSet?: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
 }
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NumericPadOverlay } from "./ui/NumericPadOverlay";
-import { Button } from "./ui/Button";
 
 export function SetInput({
   set,

@@ -83,13 +83,6 @@ export function ExerciseLinkPicker({
   // Compute a fully concrete, strictly typed cursor value and avoid widening in hook params
   const cursorValue = Number.isFinite(cursor) ? cursor : 0;
   // Define a concrete input shape to avoid any widening of 'cursor'
-  interface SearchMasterInput {
-    q: string;
-    limit: number;
-    cursor: number;
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const searchInput: SearchMasterInput = { q, limit: 20, cursor: cursorValue };
   const search = api.exercises.searchMaster.useQuery(
     { q, limit: 20, cursor: cursorValue ?? 0 },
     {

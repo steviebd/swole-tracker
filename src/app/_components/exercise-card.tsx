@@ -1,6 +1,6 @@
 "use client";
 
-import { SetInput, type SetData } from "./set-input";
+import { type SetData } from "./set-input";
 import { useSwipeGestures, type SwipeSettings } from "~/hooks/use-swipe-gestures";
 import { ExerciseHeader } from "./workout/ExerciseHeader";
 import { SetList } from "./workout/SetList";
@@ -9,9 +9,6 @@ import { vibrate } from "~/lib/client-telemetry";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { useExerciseInsights } from "~/hooks/use-insights";
 
-type Recommendation =
-  | { type: "weight"; nextWeight: number; rationale: string; unit: "kg" | "lbs" }
-  | { type: "reps"; nextReps: number; rationale: string; unit: "kg" | "lbs" };
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -126,15 +123,6 @@ export function ExerciseCard({
     limitSessions: 10,
   });
 
-  const formatBest = (best: PreviousBest | null) => {
-    if (!best?.weight) return "No previous data";
-    
-    const parts = [`${best.weight}${best.unit}`];
-    if (best.reps) parts.push(`${best.reps} reps`);
-    if (best.sets && best.sets > 1) parts.push(`${best.sets} sets`);
-    
-    return parts.join(" × ");
-  };
 
   // Calculate styles for animations and feedback
   // Prioritize the active gesture - swipe for horizontal, drag for vertical
