@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
@@ -15,8 +15,8 @@ export function WhoopWorkouts() {
   const [clickOrigin, setClickOrigin] = useState<{ x: number; y: number } | undefined>();
 
   // Use custom localStorage hook for persistent preferences
-  const [showAll, setShowAll, isShowAllLoaded] = useLocalStorage('whoop-workouts-show-all', false);
-  const [sportFilter, setSportFilter, isSportFilterLoaded] = useLocalStorage('whoop-workouts-sport-filter', 'all');
+  const [showAll, setShowAll] = useLocalStorage('whoop-workouts-show-all', false);
+  const [sportFilter, setSportFilter] = useLocalStorage('whoop-workouts-sport-filter', 'all');
 
   // Debug function to clear localStorage (temporary)
   const clearPreferences = () => {

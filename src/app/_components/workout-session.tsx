@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api } from "~/trpc/react";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
 import { type SetData } from "./set-input";
 import { ProgressionModal } from "./progression-modal";

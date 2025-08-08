@@ -43,10 +43,6 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
 
-    const client: oauth.Client = {
-      client_id: env.WHOOP_CLIENT_ID!,
-      client_secret: env.WHOOP_CLIENT_SECRET!,
-    };
 
     // Make refresh token request directly
     const refreshRequest = {

@@ -105,7 +105,7 @@ export function useOfflineSaveQueue() {
       }
 
       setStatus("done");
-    } catch (e) {
+    } catch {
       setStatus("error");
       setLastError("Unexpected error while flushing queue.");
     } finally {

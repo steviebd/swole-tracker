@@ -6,7 +6,6 @@ import { FocusTrap, useReturnFocus } from "./focus-trap";
 interface ProgressionScopeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  progressionType: "weight" | "reps";
   increment: string; // e.g., "+2.5kg" or "+1 rep"
   onApplyToAll: () => void;
   onApplyToHighest: () => void;
@@ -15,7 +14,6 @@ interface ProgressionScopeModalProps {
 export function ProgressionScopeModal({
   isOpen,
   onClose,
-  progressionType,
   increment,
   onApplyToAll,
   onApplyToHighest,

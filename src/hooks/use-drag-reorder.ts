@@ -52,7 +52,7 @@ export function useDragReorder<T>(
   );
 
   const onDragEnd = useCallback(
-    (e: React.DragEvent) => {
+    (_e: React.DragEvent) => {
       setDraggedIndex(null);
       setDragOverIndex(null);
       setIsDragging(false);

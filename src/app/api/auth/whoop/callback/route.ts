@@ -36,11 +36,6 @@ export async function GET(request: NextRequest) {
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
 
-    const client: oauth.Client = {
-      client_id: env.WHOOP_CLIENT_ID!,
-      client_secret: env.WHOOP_CLIENT_SECRET!,
-    };
-
     const redirectUri = `${request.nextUrl.origin}/api/auth/whoop/callback`;
     
     // Get the authorization code (we already validated state)

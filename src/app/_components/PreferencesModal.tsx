@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/trpc/react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
-import type { RouterOutputs } from "~/trpc/react";
 
 type RightSwipeAction = "collapse_expand" | "none";
 
