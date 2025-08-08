@@ -150,7 +150,13 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("handleSubmit called");
     e.preventDefault();
+
+    // Prevent double submission
+    if (isLoading) {
+      return;
+    }
 
     const filteredExercises = exercises.filter((ex) => ex.trim() !== "");
 

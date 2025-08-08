@@ -810,18 +810,18 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         const next = [...prev];
         const ex = next[action.exerciseIndex];
         if (!ex) return prev;
-        const s = ex.sets[action.setIndex];
+        const s = ex.sets[lastAction.setIndex];
         if (!s) return prev;
-        s.unit = action.previousUnit === "kg" ? "lbs" : "kg";
+        s.unit = lastAction.previousUnit === "kg" ? "lbs" : "kg";
         return next;
       });
     } else if (action.type === "editSetFields") {
       // Re-apply field edits by setting 'after' values
       setExercises((prev) => {
         const next = [...prev];
-        const ex = next[action.exerciseIndex];
+        const ex = next[lastAction.exerciseIndex];
         if (!ex) return prev;
-        const s = ex.sets[action.setIndex];
+        const s = ex.sets[lastAction.setIndex];
         if (!s) return prev;
         Object.assign(s, action.after);
         return next;

@@ -120,15 +120,6 @@ async function createAndLinkMasterExercise(
   return masterExercise;
 }
 
-const testLogMiddleware = process.env.NODE_ENV === "test"
-  ? publicProcedure.use(async (opts) => {
-       
-       
-      console.log("[templatesRouter][test] entering", { path: opts.path, user: !!opts.ctx.user });
-      return opts.next();
-    })
-  : publicProcedure;
-
 export const templatesRouter = createTRPCRouter({
   // Get all templates for the current user
   getAll: protectedProcedure.query(async ({ ctx }) => {
