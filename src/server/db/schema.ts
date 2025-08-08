@@ -62,7 +62,7 @@ export const workoutSessions = createTable(
     templateId: d
       .integer()
       .notNull()
-      .references(() => workoutTemplates.id),
+      .references(() => workoutTemplates.id, { onDelete: "cascade" }),
     workoutDate: d.timestamp({ withTimezone: true }).notNull(),
     // Phase 2 additions
     theme_used: d.varchar({ length: 20 }), // 'CalmDark' | 'BoldDark' | 'PlayfulDark' (validated in app layer)

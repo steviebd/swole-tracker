@@ -29,6 +29,13 @@
       "when": 1754482511952,
       "tag": "0003_glossy_post",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1754623297331,
+      "tag": "0004_bumpy_husk",
+      "breakpoints": true
     }
   ]
 }
