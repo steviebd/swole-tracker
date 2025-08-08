@@ -473,6 +473,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       // Restore previous unit
       setExercises((prev) => {
         const next = [...prev];
+        if (lastAction.type !== "toggleUnit") return prev;
         const ex = next[lastAction.exerciseIndex];
         if (!ex) return prev;
         const s = ex.sets[lastAction.setIndex];
@@ -808,20 +809,22 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       // Re-apply unit toggle by flipping from previous
       setExercises((prev) => {
         const next = [...prev];
+        if (action.type !== "toggleUnit") return prev;
         const ex = next[action.exerciseIndex];
         if (!ex) return prev;
-        const s = ex.sets[lastAction.setIndex];
+        const s = ex.sets[action.setIndex];
         if (!s) return prev;
-        s.unit = lastAction.previousUnit === "kg" ? "lbs" : "kg";
+        s.unit = action.previousUnit === "kg" ? "lbs" : "kg";
         return next;
       });
     } else if (action.type === "editSetFields") {
       // Re-apply field edits by setting 'after' values
       setExercises((prev) => {
         const next = [...prev];
-        const ex = next[lastAction.exerciseIndex];
+        if (action.type !== "editSetFields") return prev;
+        const ex = next[action.exerciseIndex];
         if (!ex) return prev;
-        const s = ex.sets[lastAction.setIndex];
+        const s = ex.sets[action.setIndex];
         if (!s) return prev;
         Object.assign(s, action.after);
         return next;
