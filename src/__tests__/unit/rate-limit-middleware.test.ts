@@ -30,22 +30,20 @@ describe("rate-limit-middleware", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     next.mockClear();
+    // Reset env to original state
+    vi.mocked(env).RATE_LIMIT_ENABLED = origRateLimitEnabled;
   });
-  // ensure env restored
-  // @ts-expect-error test restore
-  env.RATE_LIMIT_ENABLED = origRateLimitEnabled;
+  
   function makeCtx(extra?: Record<string, unknown>) {
     return { ctx: { ...ctxBase, ...extra }, next } as any;
   }
 
   it("calls next immediately when skipIfDisabled is true and feature is disabled", async () => {
     const mw = rateLimitMiddleware({ endpoint: "test_skip", limit: 10, windowMs: 1000, skipIfDisabled: true });
-    const original = env.RATE_LIMIT_ENABLED;
-    env.RATE_LIMIT_ENABLED = false;
+    vi.mocked(env).RATE_LIMIT_ENABLED = false;
 
     const res = await mw(makeCtx({}));
 
-    env.RATE_LIMIT_ENABLED = original;
     expect(next).toHaveBeenCalledOnce();
     expect(res).toEqual({ ok: true });
   });
@@ -87,5 +85,4 @@ describe("rate-limit-middleware", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-});
 });
