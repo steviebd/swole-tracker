@@ -5,7 +5,21 @@ import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
 
 export function TemplatesList() {
-  const { data: templates, isLoading } = api.templates.getAll.useQuery();
+  const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
+  
+  // Deduplicate templates by ID to prevent any rendering duplicates
+  const templates = templatesRaw ? templatesRaw.filter((template, index, array) => 
+    array.findIndex(t => t.id === template.id) === index
+  ) : undefined;
+  
+  // Debug logging to track template duplication
+  console.log("TemplatesList render:", {
+    rawCount: templatesRaw?.length ?? 0,
+    deduplicatedCount: templates?.length ?? 0,
+    templates: templates?.map(t => ({ id: t.id, name: t.name })) ?? [],
+    duplicates: (templatesRaw?.length ?? 0) - (templates?.length ?? 0),
+    timestamp: new Date().toISOString()
+  });
   const utils = api.useUtils();
   const deleteTemplate = api.templates.delete.useMutation({
     onMutate: async (deletedTemplate) => {
@@ -105,7 +119,7 @@ export function TemplatesList() {
             </div>
           </div>
           <div className="text-sm text-secondary">
-            {template.exercises.length === 0 ? (
+            {!template.exercises || template.exercises.length === 0 ? (
               "No exercises"
             ) : (
               <>

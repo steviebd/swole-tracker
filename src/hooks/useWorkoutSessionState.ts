@@ -127,7 +127,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     exercises.map((exercise, index) => ({ exercise, originalIndex: index }));
 
   // drag + reorder
-  const displayOrder = useMemo(() => getDisplayOrder(), [exercises]);
+  const displayOrder = useMemo(() => getDisplayOrder(), [getDisplayOrder]);
   const [dragState, dragHandlers] = useUniversalDragReorder(
     displayOrder,
     (newDisplayOrder) => {
@@ -273,7 +273,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
           if (data) {
             previousDataMap.set(templateExercise.exerciseName, data);
           }
-        } catch (error) {
+        } catch (_error) {
           // noop
         }
       }
@@ -358,7 +358,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     }
 
     setLoading(false);
-  }, [session?.template, session?.exercises, preferences?.defaultWeightUnit, previousExerciseData, previousDataLoaded]);
+  }, [session?.template, session?.exercises, preferences?.defaultWeightUnit, previousExerciseData, previousDataLoaded, session]);
 
   // auto-progression modal
   useEffect(() => {

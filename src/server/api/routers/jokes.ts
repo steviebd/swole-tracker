@@ -209,7 +209,7 @@ export const jokesRouter = createTRPCRouter({
       }
 
       return result;
-    } catch (_error) {
+    } catch {
       // Return fallback joke if AI Gateway fails, with the exact phrase tests expect
       return {
         joke:

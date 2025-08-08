@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
@@ -17,6 +17,8 @@ interface TemplateFormProps {
 
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
+  const submitRef = useRef(false);
+  const lastSubmitRef = useRef<{ name: string; exercises: string[]; timestamp: number } | null>(null);
   const [name, setName] = useState(template?.name ?? "");
   const [exercises, setExercises] = useState<string[]>(
     template?.exercises.map((ex) => ex.exerciseName) ?? [""],
@@ -25,35 +27,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const utils = api.useUtils();
 
   const createTemplate = api.templates.create.useMutation({
-    onMutate: async (newTemplate) => {
-      // Cancel any outgoing refetches
+    onMutate: async (_newTemplate) => {
+      // Cancel any outgoing refetches to prevent race conditions
       await utils.templates.getAll.cancel();
 
-      // Snapshot the previous value
+      // Snapshot the previous value for error rollback
       const previousTemplates = utils.templates.getAll.getData();
-
-      // Create optimistic template
-      const optimisticTemplate = {
-        id: -1, // Temporary negative ID
-        name: newTemplate.name,
-        user_id: "temp-user", // Will be replaced by server
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        exercises: newTemplate.exercises.map((exerciseName, index) => ({
-          id: -index - 1,
-          user_id: "temp-user",
-          templateId: -1,
-          exerciseName,
-          orderIndex: index,
-          linkingRejected: false,
-          createdAt: new Date(),
-        })),
-      };
-
-      // Optimistically add to cache
-      utils.templates.getAll.setData(undefined, (old) =>
-        old ? [optimisticTemplate, ...old] : [optimisticTemplate],
-      );
 
       return { previousTemplates };
     },
@@ -62,16 +41,34 @@ export function TemplateForm({ template }: TemplateFormProps) {
       if (context?.previousTemplates) {
         utils.templates.getAll.setData(undefined, context.previousTemplates);
       }
+      // Reset submission flag on error
+      submitRef.current = false;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      console.log("Template created successfully:", {
+        id: data.id,
+        name: data.name,
+        user_id: data.user_id,
+        createdAt: data.createdAt
+      });
       analytics.templateCreated(
         data.id.toString(),
         exercises.filter((ex) => ex.trim()).length,
       );
+      // Reset submission flag
+      submitRef.current = false;
+      
+      // Update cache with the new template optimistically
+      utils.templates.getAll.setData(undefined, (old) => {
+        const newTemplate = data as NonNullable<typeof old>[number];
+        return old ? [newTemplate, ...old] : [newTemplate];
+      });
+      
+      // Navigate immediately with updated cache
       router.push("/templates");
     },
     onSettled: () => {
-      // Always refetch to ensure we have the latest data
+      // Ensure cache is invalidated
       void utils.templates.getAll.invalidate();
     },
   });
@@ -126,6 +123,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
         template!.id.toString(),
         exercises.filter((ex) => ex.trim()).length,
       );
+      // Reset submission flag
+      submitRef.current = false;
       router.push("/templates");
     },
     onSettled: () => {
@@ -153,28 +152,53 @@ export function TemplateForm({ template }: TemplateFormProps) {
     console.log("handleSubmit called");
     e.preventDefault();
 
-    // Prevent double submission
-    if (isLoading) {
+    // Prevent double submission using both loading state and ref
+    if (isLoading || submitRef.current) {
+      console.log("Form already submitting, preventing double submission");
       return;
     }
 
     const filteredExercises = exercises.filter((ex) => ex.trim() !== "");
+    const trimmedName = name.trim();
 
-    if (name.trim() === "") {
+    if (trimmedName === "") {
       alert("Please enter a template name");
       return;
     }
+
+    // Check if this is a duplicate submission (same data within 5 seconds)
+    const now = Date.now();
+    const lastSubmit = lastSubmitRef.current;
+    
+    if (!template && lastSubmit) {
+      const timeDiff = now - lastSubmit.timestamp;
+      const sameData = lastSubmit.name === trimmedName && 
+                     JSON.stringify(lastSubmit.exercises) === JSON.stringify(filteredExercises);
+      
+      if (sameData && timeDiff < 5000) {
+        console.log("Preventing duplicate submission - same data within 5 seconds", { timeDiff });
+        return;
+      }
+    }
+
+    // Set submission flag and record this attempt
+    submitRef.current = true;
+    lastSubmitRef.current = { name: trimmedName, exercises: filteredExercises, timestamp: now };
 
     try {
       if (template) {
         await updateTemplate.mutateAsync({
           id: template.id,
-          name: name.trim(),
+          name: trimmedName,
           exercises: filteredExercises,
         });
       } else {
+        console.log("Creating template with data:", {
+          name: trimmedName,
+          exercises: filteredExercises,
+        });
         await createTemplate.mutateAsync({
-          name: name.trim(),
+          name: trimmedName,
           exercises: filteredExercises,
         });
       }
@@ -185,6 +209,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         templateId: template?.id.toString(),
       });
       alert("Error saving template. Please try again.");
+      submitRef.current = false;
     }
   };
 
@@ -261,10 +286,13 @@ export function TemplateForm({ template }: TemplateFormProps) {
       <div className="flex items-center gap-4 pt-4">
         <button
           type="submit"
-          disabled={isLoading}
-          className="btn-primary px-6 py-2 font-medium disabled:opacity-50"
+          disabled={isLoading || submitRef.current}
+          className="btn-primary px-6 py-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ 
+            pointerEvents: isLoading || submitRef.current ? 'none' : 'auto' 
+          }}
         >
-          {isLoading
+          {isLoading || submitRef.current
             ? "Saving..."
             : template
               ? "Update Template"

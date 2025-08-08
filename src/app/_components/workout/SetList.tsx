@@ -49,7 +49,7 @@ export function SetList({
 
       // Build a list of moves [from -> to] based on the new display order
       // Ensure stable string identity for each target set
-      const targetOrder: string[] = newDisplay.map((d) => {
+      const _targetOrder: string[] = newDisplay.map((d) => {
         const id = d.set.id;
         if (id != null) return String(id);
         const original = idToOriginal.get((d.set.id as any)?.toString?.() ?? "");

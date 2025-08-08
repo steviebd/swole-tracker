@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { templateRateLimit } from "~/lib/rate-limit-middleware";
 import { workoutTemplates, templateExercises, masterExercises, exerciseLinks } from "~/server/db/schema";
 import { eq, desc, and } from "drizzle-orm";
@@ -19,9 +19,9 @@ function debugLog(...args: unknown[]) {
 }
 
 // Helper function to create or get master exercise and link it to template exercise
-type Db = {
-  select: typeof import("drizzle-orm").sql | unknown;
-} & typeof import("~/server/db")["db"];
+import type { db } from "~/server/db";
+
+type Db = typeof db;
 
 async function createAndLinkMasterExercise(
   db: Db,
@@ -164,8 +164,33 @@ export const templatesRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      debugLog('templates.create: resolver entered', { input, userId: ctx?.user?.id });
+      debugLog('templates.create: resolver entered', { input, userId: ctx?.user?.id, requestId: ctx.requestId });
       const userId = ctx.user.id;
+      
+      // Add server-side deduplication check - prevent creating duplicate templates with same name
+      // within a short time window (useful for detecting double-clicks)
+      const recentTemplate = await ctx.db.query.workoutTemplates.findFirst({
+        where: and(
+          eq(workoutTemplates.user_id, userId),
+          eq(workoutTemplates.name, input.name)
+        ),
+        orderBy: [desc(workoutTemplates.createdAt)],
+      });
+      
+      // If a template with same name was created in the last 5 seconds, return it instead
+      if (recentTemplate) {
+        const timeDiff = Date.now() - recentTemplate.createdAt.getTime();
+        if (timeDiff < 5000) {
+          debugLog('templates.create: returning existing recent template', { 
+            templateId: recentTemplate.id, 
+            timeDiff,
+            requestId: ctx.requestId 
+          });
+          return recentTemplate;
+        }
+      }
+      
+      debugLog('templates.create: creating new template', { requestId: ctx.requestId });
       const [template] = await ctx.db
         .insert(workoutTemplates)
         .values({
@@ -177,6 +202,8 @@ export const templatesRouter = createTRPCRouter({
       if (!template) {
         throw new Error("Failed to create template");
       }
+
+      debugLog('templates.create: template created', { templateId: template.id, requestId: ctx.requestId });
 
       if (input.exercises.length > 0) {
         const insertedExercises = await ctx.db
@@ -203,6 +230,7 @@ export const templatesRouter = createTRPCRouter({
         }
       }
 
+      debugLog('templates.create: completed', { templateId: template.id, requestId: ctx.requestId });
       return template;
     }),
 

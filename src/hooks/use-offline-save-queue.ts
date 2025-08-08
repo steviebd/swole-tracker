@@ -139,7 +139,7 @@ export function useOfflineSaveQueue() {
   const items = useMemo(() => {
     if (typeof window === "undefined") return [];
     return getQueue();
-  }, [queueSize]);
+  }, []);
 
   return {
     queueSize,

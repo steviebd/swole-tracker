@@ -308,7 +308,7 @@ export function useUniversalDragReorder<T>(
   );
 
   const onPointerUp = useCallback(
-    (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
+    (_e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
       if (draggedIndex === null) return;
 
       if (hasDragStarted.current && dragOverIndex !== null && dragOverIndex !== draggedIndex) {

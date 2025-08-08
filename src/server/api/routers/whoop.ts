@@ -1,9 +1,6 @@
-import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
-import crypto from "crypto";
-import { logger } from "~/lib/logger";
+import { eq, and, desc } from "drizzle-orm";
 
 export const whoopRouter = createTRPCRouter({
   getIntegrationStatus: protectedProcedure.query(async ({ ctx }) => {
@@ -66,7 +63,7 @@ export const whoopRouter = createTRPCRouter({
     return { success: true };
   }),
 
-  getWebhookInfo: protectedProcedure.query(async ({ ctx }) => {
+  getWebhookInfo: protectedProcedure.query(async ({ ctx: _ctx }) => {
     // Get the base URL for the webhook endpoint
     const webhookUrl = process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}/api/webhooks/whoop`

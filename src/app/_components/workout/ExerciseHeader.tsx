@@ -25,7 +25,7 @@ export function ExerciseHeader({
   isExpanded,
   previousBest,
   onToggleExpansion,
-  onSwipeToBottom,
+  onSwipeToBottom: _onSwipeToBottom,
   exerciseIndex,
 }: ExerciseHeaderProps) {
   return (

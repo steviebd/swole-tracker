@@ -5,7 +5,7 @@ import { env } from "~/env";
 /**
  * Shared env guards
  */
-function requireEnv(name: string): string {
+function _requireEnv(name: string): string {
   const v = process.env[name];
   if (v === undefined || v === null) {
     if (process.env.NODE_ENV === "test") {

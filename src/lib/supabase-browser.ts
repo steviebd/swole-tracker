@@ -4,7 +4,7 @@ import { env } from "~/env";
 /**
  * Shared env guards (client-safe: only NEXT_PUBLIC_* are read)
  */
-function requireEnv(name: string): string {
+function _requireEnv(name: string): string {
   const v = process.env[name];
   if (v === undefined || v === null || v === "") {
     // In tests, allow throwing to satisfy env-missing tests

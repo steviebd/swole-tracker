@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 
-import { api } from "~/trpc/server";
 import ClientHydrate from "~/trpc/HydrateClient";
 import { getQueryClient, getDehydratedState, prefetchTemplatesIndex } from "~/trpc/prefetch";
 import { TemplatesList } from "~/app/_components/templates-list";

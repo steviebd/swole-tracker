@@ -4,26 +4,16 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
-import { type SetData } from "./set-input";
 import { ProgressionModal } from "./progression-modal";
 import { ProgressionScopeModal } from "./progression-scope-modal";
 import { Toast } from "./ui/Toast";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
 
-interface PreviousBest {
-  weight?: number;
-  reps?: number;
-  sets?: number;
-  unit: "kg" | "lbs";
-}
 import { analytics } from "~/lib/analytics";
 import posthog from "posthog-js";
 import { vibrate, getDeviceType, getThemeUsed, snapshotMetricsBlob } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
-import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
-import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
-import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 
 interface WorkoutSessionProps {
@@ -32,7 +22,7 @@ interface WorkoutSessionProps {
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const router = useRouter();
-  const { onWorkoutSave, invalidateWorkouts } = useCacheInvalidation();
+  const { onWorkoutSave: _onWorkoutSave, invalidateWorkouts: _invalidateWorkouts } = useCacheInvalidation();
 
   // Move complex state and effects into a dedicated hook to reduce component size.
   const {
@@ -50,8 +40,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     collapsedIndexes,
     progressionModal,
     setProgressionModal,
-    hasShownAutoProgression,
-    setHasShownAutoProgression,
+    hasShownAutoProgression: _hasShownAutoProgression,
+    setHasShownAutoProgression: _setHasShownAutoProgression,
     progressionScopeModal,
     setProgressionScopeModal,
     saveWorkout,
@@ -72,7 +62,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     deleteSet: hookDeleteSet,
     buildSavePayload,
     session,
-    updatePreferences,
+    updatePreferences: _updatePreferences,
     // undo integration
     lastAction,
     undoLastAction,
@@ -98,7 +88,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const WINDOW_AFTER = 6;
 
   const [scrollY, setScrollY] = useState(0);
-  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const _listContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY || 0);
@@ -106,10 +96,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const getItemTop = (index: number) => {
+  const _getItemTop = (_index: number) => {
     // Approximate per-card height; lightweight and avoids layout thrash. Cards are fairly uniform in this view.
     const approx = 120; // px
-    return index * approx;
+    return _index * approx;
   };
 
   const totalCount = displayOrder.length;
@@ -189,7 +179,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       return;
     }
     
-    const { exerciseIndex, previousBest } = progressionModal;
+    const { exerciseIndex, previousBest: _previousBest } = progressionModal;
     
     if (type === "none") {
       // No progression, just expand and close
@@ -205,7 +195,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     
     // For weight/reps progression, show scope selection modal
     const increment = type === "weight" 
-      ? `+${previousBest.unit === "kg" ? "2.5" : "5"}${previousBest.unit}`
+      ? `+${_previousBest.unit === "kg" ? "2.5" : "5"}${_previousBest.unit}`
       : "+1 rep";
     
     setProgressionScopeModal({
@@ -213,7 +203,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       exerciseIndex,
       progressionType: type,
       increment,
-      previousBest,
+      previousBest: _previousBest,
     });
     
     // Close first modal
@@ -306,7 +296,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     // Validate that exercises have required data
     const validationErrors: string[] = [];
     
-    exercises.forEach((exercise, exerciseIndex) => {
+    exercises.forEach((exercise, _exerciseIndex) => {
       exercise.sets.forEach((set, setIndex) => {
         const hasData = set.weight !== undefined || set.reps !== undefined || (set.sets && set.sets > 0);
         
