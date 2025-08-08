@@ -110,8 +110,12 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
 
   const { enqueue, flush, queueSize, isFlushing } = useOfflineSaveQueue();
 
-  // id generation
-  const generateSetId = () => `set-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // id generation with counter to ensure uniqueness
+  const setIdCounterRef = useRef(0);
+  const generateSetId = () => {
+    const counter = ++setIdCounterRef.current;
+    return `set-${Date.now()}-${counter}-${Math.random().toString(36).substr(2, 9)}`;
+  };
 
   // swipe settings
   // Phase 3: allow asymmetric thresholds via preferences (future: per-direction)
@@ -507,6 +511,8 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   // Action dedupe flags (same-tick guard)
   const addSetInFlightRef = useRef(false);
   const deleteSetInFlightRef = useRef(false);
+  const lastAddedSetIdRef = useRef<string | null>(null);
+  const deleteOperationIdRef = useRef<string | null>(null);
 
   const updateSet = (exerciseIndex: number, setIndex: number, field: keyof SetData, value: string | number | undefined) => {
     debugLog("updateSet:start", { exerciseIndex, setIndex, field, value, len: exercises[exerciseIndex]?.sets.length });
@@ -555,10 +561,29 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     }
     addSetInFlightRef.current = true;
     debugLog("addSet:start", { exerciseIndex });
+    
+    // Pre-generate the new set ID outside the state update
+    const newId = generateSetId();
+    
     setExercises((prev) => {
+      // Double-check if we've already added a set with this exact ID
+      if (lastAddedSetIdRef.current === newId) {
+        debugLog("addSet:suppressedDuplicateId", { exerciseIndex, newId });
+        return prev;
+      }
+      
       const next = [...prev];
       const exercise = next[exerciseIndex];
-      if (!exercise) return prev;
+      if (!exercise) {
+        addSetInFlightRef.current = false;
+        return prev;
+      }
+
+      // Additional check: see if this exact set ID already exists in the exercise
+      if (exercise.sets.some(set => set.id === newId)) {
+        debugLog("addSet:suppressedExistingId", { exerciseIndex, newId });
+        return prev;
+      }
 
       const lastSet = exercise.sets[exercise.sets.length - 1];
 
@@ -580,7 +605,6 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         }
       }
 
-      const newId = generateSetId();
       const newSet: SetData = {
         id: newId,
         weight: nextWeight,
@@ -594,14 +618,20 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       exercise.sets = [...exercise.sets, newSet];
       const afterIds = exercise.sets.map(s => s.id);
 
-      debugLog("addSet:added", { exerciseIndex, newId, beforeIds, afterIds, totalSets: exercise.sets.length });
-      setLastAction({ type: "addSet", exerciseIndex, newSetId: newId });
-      setRedoStack([]);
+      // Track the last added set ID
+      lastAddedSetIdRef.current = newId;
 
+      debugLog("addSet:added", { exerciseIndex, newId, beforeIds, afterIds, totalSets: exercise.sets.length });
+      
       return next;
     });
-    // Release guard after a short delay to prevent rapid double-clicks
-    setTimeout(() => { addSetInFlightRef.current = false; }, 150);
+    
+    // Set the last action and clear redo stack after state update
+    setLastAction({ type: "addSet", exerciseIndex, newSetId: newId });
+    setRedoStack([]);
+    
+    // Release guard immediately after state update is queued
+    addSetInFlightRef.current = false;
   };
 
   const deleteSet = (exerciseIndex: number, setIndex: number) => {
@@ -612,35 +642,64 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     deleteSetInFlightRef.current = true;
 
     debugLog("deleteSet:click", { exerciseIndex, setIndex, lenBefore: exercises[exerciseIndex]?.sets.length });
+    
+    // Generate unique operation ID for this specific delete operation
+    const operationId = `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    let removedSet: SetData | null = null;
+    let clampedIndex = -1;
+    
     setExercises((prev) => {
+      // Check if we've already processed this exact operation to prevent duplicate executions
+      if (deleteOperationIdRef.current === operationId) {
+        debugLog("deleteSet:suppressedDuplicateOperation", { exerciseIndex, setIndex, operationId });
+        return prev;
+      }
+      
       const next = [...prev];
       const exercise = next[exerciseIndex];
       if (!exercise) {
         debugLog("deleteSet:exerciseNotFound", { exerciseIndex });
+        deleteSetInFlightRef.current = false;
         return prev;
       }
       if (exercise.sets.length === 0) {
         debugLog("deleteSet:noSets", { exerciseIndex });
+        deleteSetInFlightRef.current = false;
         return prev;
       }
+      
       // Defensive clamp of index to current bounds
-      const clampedIndex = Math.max(0, Math.min(setIndex, exercise.sets.length - 1));
+      clampedIndex = Math.max(0, Math.min(setIndex, exercise.sets.length - 1));
       const removed = exercise.sets[clampedIndex];
       if (!removed) {
         debugLog("deleteSet:setNotFound", { exerciseIndex, setIndex });
+        deleteSetInFlightRef.current = false;
         return prev;
       }
+      
+      // Mark this operation as processed to prevent duplicate executions
+      deleteOperationIdRef.current = operationId;
+      
+      // Store the removed set for undo functionality
+      removedSet = removed;
+      
       const beforeIds = exercise.sets.map((s) => s.id);
       exercise.sets = exercise.sets.filter((_, i) => i !== clampedIndex); // replace array ref for React reconciliation
       const afterIds = exercise.sets.map((s) => s.id);
       debugLog("deleteSet:removed", { exerciseIndex, setIndex: clampedIndex, removedId: removed.id, beforeIds, afterIds, lenAfter: exercise.sets.length });
-      // record undo uses clamped index so reinsert is correct against new array
-      setLastAction({ type: "deleteSet", exerciseIndex, deletedSet: { index: clampedIndex, data: removed } });
-      setRedoStack([]);
+      
       return next;
     });
-    // Release guard on the next tick to coalesce duplicate events from the same user action
-    queueMicrotask(() => { deleteSetInFlightRef.current = false; });
+    
+    // Set the last action and clear redo stack after state update
+    if (removedSet && clampedIndex !== -1) {
+      setLastAction({ type: "deleteSet", exerciseIndex, deletedSet: { index: clampedIndex, data: removedSet } });
+      setRedoStack([]);
+    }
+    
+    // Release guard immediately after state update is queued
+    deleteSetInFlightRef.current = false;
   };
 
   const toggleExpansion = (exerciseIndex: number) => {
