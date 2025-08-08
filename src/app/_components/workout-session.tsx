@@ -60,6 +60,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     toggleUnit: hookToggleUnit,
     addSet: hookAddSet,
     deleteSet: hookDeleteSet,
+    reorderSets,
     buildSavePayload,
     session,
     updatePreferences: _updatePreferences,
@@ -503,6 +504,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               onToggleUnit={toggleUnit}
               onAddSet={addSet}
               onDeleteSet={deleteSet}
+              onReorderSets={reorderSets}
               isExpanded={isExpandedNow}
               onToggleExpansion={toggleExpansion}
               previousBest={previousExerciseData.get(exercise.exerciseName)?.best}

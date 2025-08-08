@@ -34,7 +34,7 @@ export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
 }
 
-async function loadPosthogCtor(): Promise<(typeof PostHogNode) | PHCtor | null> {
+export async function loadPosthogCtor(): Promise<(typeof PostHogNode) | PHCtor | null> {
   // Guard to prevent accidental client-side import
   if (typeof window !== "undefined") return null;
   if (__TEST_ONLY_PostHogCtor) return __TEST_ONLY_PostHogCtor;
