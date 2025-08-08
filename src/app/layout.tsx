@@ -12,7 +12,7 @@ import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSwitcher } from "~/app/_components/theme-switcher";
-import ClientPerfInit from "~/app/_components/ClientPerfInit";
+import ClientPerfInit from "@/app/_components/ClientPerfInit";
 import LiveRegionProvider from "~/app/_components/LiveRegion";
 
 export const metadata: Metadata = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { startLongTaskObserver } from "~/lib/client-telemetry";
+import { startLongTaskObserver } from "@/lib/client-telemetry";
 /**
  * Do NOT import from "~/lib/posthog" here because that file provides a server-only
  * factory for posthog-node. For client analytics, prefer posthog-js initialized

@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { currentUser } from "@clerk/nextjs/server";
 
 export async function addWorkoutTemplate(name: string) {

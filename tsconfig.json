@@ -28,6 +28,7 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
       "~/*": ["./src/*"]
     }
   },
@@ -39,5 +40,5 @@
     "**/*.js",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "public", ".next", "coverage"]
+  "exclude": ["node_modules", "public", ".next", "coverage", "apps"]
 }

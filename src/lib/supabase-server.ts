@@ -2,19 +2,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 import { env } from "~/env";
 
-/**
- * Shared env guards
- */
-function _requireEnv(name: string): string {
-  const v = process.env[name];
-  if (v === undefined || v === null) {
-    if (process.env.NODE_ENV === "test") {
-      return "test-placeholder";
-    }
-    throw new Error(`${name} is not set`);
-  }
-  return v;
-}
 
 /**
  * Server-side Supabase with Clerk auth from request context.

@@ -1,20 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "~/env";
 
-/**
- * Shared env guards (client-safe: only NEXT_PUBLIC_* are read)
- */
-function _requireEnv(name: string): string {
-  const v = process.env[name];
-  if (v === undefined || v === null || v === "") {
-    // In tests, allow throwing to satisfy env-missing tests
-    if (process.env.NODE_ENV === "test") {
-      throw new Error(`${name} is not set`);
-    }
-    throw new Error(`${name} is not set`);
-  }
-  return v;
-}
 
 /**
  * Browser/client Supabase (optionally Clerk-authenticated)
