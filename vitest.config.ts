@@ -10,6 +10,19 @@ export default defineConfig({
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
+    // Ensure a single React instance across Vite Node and browser optimizer
+    server: {
+      deps: {
+        inline: [/react/, /react-dom/, /@testing-library\/react/],
+      },
+    },
+    deps: {
+      optimizer: {
+        web: {
+          include: ["react", "react-dom", "@testing-library/react"],
+        },
+      },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
@@ -47,6 +60,24 @@ export default defineConfig({
   resolve: {
     alias: {
       "~": resolve(__dirname, "./src"),
+      // Force single copies of React entry points
+      react: resolve(__dirname, "./node_modules/react"),
+      "react/jsx-runtime": resolve(
+        __dirname,
+        "./node_modules/react/jsx-runtime.js",
+      ),
+      "react/jsx-dev-runtime": resolve(
+        __dirname,
+        "./node_modules/react/jsx-dev-runtime.js",
+      ),
+      "react-dom": resolve(__dirname, "./node_modules/react-dom"),
+      "react-dom/client": resolve(
+        __dirname,
+        "./node_modules/react-dom/client",
+      ),
     },
+    // Ensure a single React instance across the test environment to avoid
+    // "Invalid hook call" errors caused by duplicate React copies
+    dedupe: ["react", "react-dom"],
   },
 });

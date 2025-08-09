@@ -1,16 +1,20 @@
 # TODO – Homepage Refactor to v1-Dark-Mode Mockup
 
 ## Phase 0 – Prep & Component Inventory
-- [ ] **0.1** Audit current homepage (`src/app/page.tsx`) – list rendered components.
-- [ ] **0.2** Cross-reference with mockup sections.
-- [ ] **0.3** Decide reuse vs. full rebuild for each component.
-- [ ] **0.4** Document current TRPC calls for mock hook replacement.
+- [x] **0.1** Audit current homepage (`src/app/page.tsx`) – list rendered components.
+- [x] **0.2** Cross-reference with mockup sections.
+- [x] **0.3** Decide reuse vs. full rebuild for each component.
+- [x] **0.4** Document current TRPC calls for mock hook replacement.
+
+Current homepage TRPC calls:
+- `api.workouts.getRecent` → used in `src/app/_components/RecentWorkoutsSection.tsx` (has fallback to `useMockFeed`).
+- `api.jokes.getCurrent` → used only by `joke-of-the-day` (removed from Quick Actions in favor of “View Progress”).
 
 ## Phase 1 – Layout Shell & Theming Foundation
-- [ ] **1.1** Create `HomePageLayout` with `ThemeProvider` integration & v1-dark layout classes.
-- [ ] **1.2** Move “page chrome” to `HomePageLayout` (header/footer/background).
-- [ ] **1.3** Implement container grids/flex wrappers per mockup spacing.
-- [ ] **1.4** Add mock hooks: `useMockStats()`, `useMockFeed()` returning type-safe values.
+- [x] **1.1** Create `HomePageLayout` with `ThemeProvider` integration & v1-dark layout classes.
+- [x] **1.2** Move “page chrome” to `HomePageLayout` (header/footer/background).
+- [x] **1.3** Implement container grids/flex wrappers per mockup spacing.
+- [x] **1.4** Add mock hooks: `useMockStats()`, `useMockFeed()` returning type-safe values.
 
 ## Phase 2 – Header Rebuild
 - [ ] **2.1** Refactor/replace header component to match mockup structure.

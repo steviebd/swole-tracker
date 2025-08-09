@@ -20,33 +20,50 @@ export function HomePageHeader() {
   if (!user) return null;
 
   return (
-    <header className={`border-b sticky top-0 z-40 backdrop-blur-md transition-colors duration-300 ${
-      theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-        ? "bg-gray-900/95 border-gray-800" 
-        : "bg-white/95 border-gray-200 dark:bg-gray-950/95 dark:border-gray-800"
-    }`}>
-      <div className="container mx-auto px-6 py-4">
+    <header
+      className={`sticky top-0 z-40 backdrop-blur-md border-b transition-colors duration-300 glass-header ${
+        theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+          ? "border-gray-800"
+          : "border-gray-200 dark:border-gray-800"
+      }`}
+    >
+      <div className="container mx-auto px-6 py-3 md:py-4">
         <div className="flex items-center justify-between">
           {/* Left side - App branding */}
-          <div>
-            <h1 className={`text-2xl font-bold transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
-              Swole Tracker
-            </h1>
-            <p className={`text-base transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-gray-400" 
-                : "text-gray-600 dark:text-gray-400"
-            }`}>
-              Welcome back, {user.firstName ?? user.username}
-            </p>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+              style={{ backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? "var(--color-info)" : "#3B82F6" }}
+              aria-hidden
+            >
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 10h2l2 4h4l2-4h2" />
+              </svg>
+            </div>
+            <div>
+              <h1
+                className={`font-bold transition-colors duration-300 text-xl md:text-2xl ${
+                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                    ? "text-white"
+                    : "text-gray-900 dark:text-white"
+                }`}
+              >
+                Swole Tracker
+              </h1>
+              <p
+                className={`transition-colors duration-300 text-sm md:text-base ${
+                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                    ? "text-gray-400"
+                    : "text-gray-600 dark:text-gray-400"
+                }`}
+              >
+                Welcome back, {user.firstName ?? user.username}
+              </p>
+            </div>
           </div>
 
           {/* Right side - Controls */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <ConnectWhoopButton />
             <ThemeToggleDropdown />
             
@@ -55,7 +72,7 @@ export function HomePageHeader() {
               {/* Progression Button */}
               <button
                 onClick={() => setProgressionOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
+                className={`p-2 text-sm font-medium rounded-lg md:rounded-xl transition-colors duration-300 ${
                   theme !== "system" || (theme === "system" && resolvedTheme === "dark")
                     ? "text-gray-300 hover:text-white hover:bg-gray-800" 
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
@@ -71,7 +88,7 @@ export function HomePageHeader() {
               {/* Settings Button */}
               <button
                 onClick={() => setSettingsOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
+                className={`p-2 text-sm font-medium rounded-lg md:rounded-xl transition-colors duration-300 ${
                   theme !== "system" || (theme === "system" && resolvedTheme === "dark")
                     ? "text-gray-300 hover:text-white hover:bg-gray-800" 
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
@@ -87,7 +104,7 @@ export function HomePageHeader() {
               {/* Preferences Button */}
               <button
                 onClick={() => setPreferencesOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
+                className={`p-2 text-sm font-medium rounded-lg md:rounded-xl transition-colors duration-300 ${
                   theme !== "system" || (theme === "system" && resolvedTheme === "dark")
                     ? "text-gray-300 hover:text-white hover:bg-gray-800" 
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"

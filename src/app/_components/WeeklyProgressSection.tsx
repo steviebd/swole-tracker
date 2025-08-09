@@ -36,13 +36,13 @@ export function WeeklyProgressSection() {
   const [selectedPeriod, setSelectedPeriod] = useState("week");
   const { data: progress } = useMockProgress();
 
-  const cardClass = `transition-all duration-300 border rounded-xl hover:shadow-xl ${
+  const cardClass = `transition-all duration-300 border rounded-xl md:rounded-2xl hover:shadow-xl ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
       ? "bg-gray-900 border-gray-800 shadow-lg hover:shadow-2xl" 
       : "bg-white border-gray-200 shadow-sm hover:shadow-lg dark:bg-gray-900 dark:border-gray-800"
   }`;
 
-  const titleClass = `text-xl font-bold transition-colors duration-300 ${
+  const titleClass = `text-lg md:text-xl font-bold transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
       ? "text-white" 
       : "text-gray-900 dark:text-white"

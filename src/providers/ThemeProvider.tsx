@@ -10,6 +10,7 @@ import React, {
 
 type Theme =
   | "system"
+  | "light"
   | "dark"
   | "CalmDark"
   | "BoldDark"
@@ -37,10 +38,7 @@ function applyThemeClass(theme: Theme) {
   // All themes are dark-first except system which follows system preference
   const shouldDark =
     (theme === "system" && prefersDark) ||
-    theme === "dark" ||
-    theme === "CalmDark" ||
-    theme === "BoldDark" ||
-    theme === "PlayfulDark";
+    (theme !== "system" && theme !== "light");
 
   // data-theme is the source of truth for CSS variables/themes
   root.dataset.theme = theme;
@@ -61,9 +59,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const resolvedTheme: "light" | "dark" = useMemo(() => {
     if (typeof window === "undefined") return "dark";
-    const prefersDark = systemDark;
-    // All themes are dark except when system theme uses light preference
-    return (theme === "system" && !prefersDark) ? "light" : "dark";
+    if (theme === "light") return "light";
+    if (theme === "system") return systemDark ? "dark" : "light";
+    return "dark";
   }, [theme, systemDark]);
 
   // initial load from localStorage
@@ -98,7 +96,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggle = useCallback(() => {
-    setTheme(theme === "system" ? "dark" : "system");
+    // Toggle only between explicit light/dark themes
+    setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 
   const value = useMemo(

@@ -21,7 +21,7 @@ interface GridProps {
 // Main content wrapper with proper spacing
 export function HomePageContent({ children }: HomePageContentProps) {
   return (
-    <div className="container mx-auto px-6 space-y-12">
+    <div className="container mx-auto px-6 space-y-8 md:space-y-10">
       {children}
     </div>
   );

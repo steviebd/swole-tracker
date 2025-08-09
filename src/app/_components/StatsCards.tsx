@@ -3,11 +3,11 @@
 import { useTheme } from "~/providers/ThemeProvider";
 import { useMockStats } from "~/hooks/useMockData";
 
-export function StatsCards() {
+export function StatsCards({ lead }: { lead?: React.ReactNode }) {
   const { theme, resolvedTheme } = useTheme();
   const { data: stats } = useMockStats();
 
-  const cardClass = `transition-all duration-300 border rounded-xl hover:shadow-xl ${
+  const cardClass = `transition-all duration-300 border rounded-xl md:rounded-2xl hover:shadow-xl ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
       ? "bg-gray-900 border-gray-800 shadow-lg hover:shadow-2xl" 
       : "bg-white border-gray-200 shadow-sm hover:shadow-lg dark:bg-gray-900 dark:border-gray-800"
@@ -23,13 +23,13 @@ export function StatsCards() {
       ? `text-${color}-400` 
       : `text-${color}-600 dark:text-${color}-400`;
 
-  const labelClass = `text-sm font-medium transition-colors duration-300 ${
+  const labelClass = `text-xs md:text-sm font-medium transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
       ? "text-gray-400" 
       : "text-gray-600 dark:text-gray-400"
   }`;
 
-  const valueClass = `text-2xl font-bold transition-colors duration-300 ${
+  const valueClass = `text-xl md:text-2xl font-bold transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
       ? "text-white" 
       : "text-gray-900 dark:text-white"
@@ -37,6 +37,7 @@ export function StatsCards() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {lead ? <div className="md:col-span-3">{lead}</div> : null}
       {/* This Week Workouts */}
       <div className={cardClass}>
         <div className="p-6">

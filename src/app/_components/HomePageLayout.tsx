@@ -22,10 +22,7 @@ export function HomePageLayout({ children, showHeader = true, showStatusBar = tr
     }`}>
       {showStatusBar && <PreferencesStatusBar />}
       {showHeader && <HomePageHeader />}
-      
-      <main className="container mx-auto px-6 py-8">
-        {children}
-      </main>
+      <div className={(showHeader || showStatusBar) ? "pt-5" : undefined}>{children}</div>
     </div>
   );
 }

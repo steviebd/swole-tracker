@@ -4,9 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "~/trpc/react";
 
+let dismissedThisSession = false;
+
 export function JokeOfTheDay() {
   const { user, isLoaded } = useUser();
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState<boolean>(dismissedThisSession);
   const [clickCount, setClickCount] = useState(0);
   const [joke, setJoke] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +76,7 @@ export function JokeOfTheDay() {
       }, 500);
     } else {
       setIsDismissed(true);
+      dismissedThisSession = true;
     }
   };
 
@@ -90,6 +93,7 @@ export function JokeOfTheDay() {
           const currentTranslateX = translateX + newVelocity;
           if (Math.abs(currentTranslateX) > 150 || Math.abs(velocity) > 8) {
             setIsDismissed(true);
+            dismissedThisSession = true;
           } else {
             // Snap back to center
             setTranslateX(0);
@@ -101,6 +105,7 @@ export function JokeOfTheDay() {
           const newTranslateX = prevTranslateX + newVelocity;
           if (Math.abs(newTranslateX) > 150 || Math.abs(velocity) > 8) {
             setIsDismissed(true);
+            dismissedThisSession = true;
             return newTranslateX;
           }
           return newTranslateX;
@@ -168,6 +173,7 @@ export function JokeOfTheDay() {
     // Check if should dismiss or animate back
     if (Math.abs(translateX) > 150 || Math.abs(velocity) > 8) {
       setIsDismissed(true);
+      dismissedThisSession = true;
     } else if (Math.abs(velocity) > 0.5) {
       // Start momentum animation
       startMomentumAnimation();
@@ -181,12 +187,8 @@ export function JokeOfTheDay() {
     if (isLoading) {
       return (
         <>
-          <h3 className="mb-2 text-xl font-semibold text-white">
-            😄 Joke of the Day
-          </h3>
-          <div className="animate-pulse text-blue-100">
-            Loading a joke for you...
-          </div>
+          <h3 className="mb-2 text-xl font-semibold text-white">😄 Joke of the Day</h3>
+          <div className="text-blue-100">Loading a joke for you...</div>
         </>
       );
     }
@@ -194,30 +196,22 @@ export function JokeOfTheDay() {
     if (error) {
       return (
         <>
-          <h3 className="mb-2 text-xl font-semibold text-white">
-            😅 Joke of the Day
-          </h3>
+          <h3 className="mb-2 text-xl font-semibold text-white">😅 Joke of the Day</h3>
           <div className="text-sm text-red-200">
             {error.includes("not configured")
               ? "Feature not available yet"
               : `Error: ${error}`}
           </div>
-          <div className="mt-1 text-xs text-blue-100">
-            Double-click or swipe to dismiss
-          </div>
+          <div className="mt-1 text-xs text-blue-100">Double-click or swipe to dismiss</div>
         </>
       );
     }
 
     return (
       <>
-        <h3 className="mb-2 text-xl font-semibold text-white">
-          😄 Joke of the Day
-        </h3>
+        <h3 className="mb-2 text-xl font-semibold text-white">😄 Joke of the Day</h3>
         <p className="mb-2 text-sm leading-relaxed text-blue-100">{joke}</p>
-        <div className="text-xs text-blue-200">
-          Double-click or swipe to dismiss
-        </div>
+        <div className="text-xs text-blue-200">Double-click or swipe to dismiss</div>
       </>
     );
   };
@@ -229,25 +223,14 @@ export function JokeOfTheDay() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="bg-navy-600 hover:bg-navy-700 cursor-pointer touch-none rounded-lg p-6 text-center select-none"
+      className="cursor-pointer touch-none rounded-xl md:rounded-2xl p-6 md:p-8 text-center select-none bg-gradient-to-r border-0"
+      data-theme="dark"
       style={{
-        backgroundColor: "#1e3a8a",
-        borderColor: "#1e40af",
+        backgroundImage: `linear-gradient(to right, var(--color-info), var(--color-chart-4))`,
+        boxShadow: "var(--shadow-lg)",
         transform: `translateX(${translateX}px)`,
-        transition: isDragging
-          ? "none"
-          : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "none",
         opacity: Math.max(0.3, 1 - Math.abs(translateX) / 200),
-      }}
-      onMouseEnter={(e) => {
-        if (!isDragging) {
-          e.currentTarget.style.backgroundColor = "#1e40af";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isDragging) {
-          e.currentTarget.style.backgroundColor = "#1e3a8a";
-        }
       }}
     >
       {renderContent()}

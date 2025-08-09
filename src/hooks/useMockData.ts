@@ -48,31 +48,48 @@ export function useMockFeed(limit = 3): {
   error: null;
 } {
   const mockData = useMemo(() => {
-    const baseDate = new Date();
-    
-    return Array.from({ length: limit }, (_, i) => ({
-      id: i + 1,
-      user_id: "mock_user",
-      templateId: i + 1,
-      workoutDate: new Date(baseDate.getTime() - (i * 2 * 24 * 60 * 60 * 1000)), // Every 2 days
-      template: {
+    // Fixed anchor to avoid SSR/CSR drift and hydration mismatches
+    const baseDate = new Date(Date.UTC(2025, 7, 9, 0, 0, 0));
+
+    return Array.from({ length: limit }, (_, i) => {
+      // Deterministic count: 3,4,5, repeat
+      const exerciseCount = 3 + (i % 3);
+      return {
         id: i + 1,
-        name: ["Push Day", "Pull Day", "Legs", "Upper Body", "Full Body"][i] || "Total",
-        exercises: [
-          { id: i * 10 + 1, exerciseName: "Bench Press", orderIndex: 0 },
-          { id: i * 10 + 2, exerciseName: "Squats", orderIndex: 1 },
-          { id: i * 10 + 3, exerciseName: "Deadlifts", orderIndex: 2 },
-        ]
-      },
-      exercises: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, (_, j) => ({
-        id: i * 100 + j,
-        exerciseName: ["Bench Press", "Squats", "Deadlifts", "Pull-ups", "Overhead Press", "Rows"][j] || "Exercise",
-        weight: (60 + Math.random() * 40).toFixed(1),
-        reps: Math.floor(Math.random() * 8) + 8,
-        sets: Math.floor(Math.random() * 3) + 3,
-        unit: "kg"
-      }))
-    }));
+        user_id: "mock_user",
+        templateId: i + 1,
+        // Every 2 days, anchored to now (date only used for display with fixed locale)
+        workoutDate: new Date(baseDate.getTime() - i * 2 * 24 * 60 * 60 * 1000),
+        template: {
+          id: i + 1,
+          name:
+            ["Push Day", "Pull Day", "Legs", "Upper Body", "Full Body"][i] ||
+            "Total",
+          exercises: [
+            { id: i * 10 + 1, exerciseName: "Bench Press", orderIndex: 0 },
+            { id: i * 10 + 2, exerciseName: "Squats", orderIndex: 1 },
+            { id: i * 10 + 3, exerciseName: "Deadlifts", orderIndex: 2 },
+          ],
+        },
+        exercises: Array.from({ length: exerciseCount }, (_, j) => ({
+          id: i * 100 + j,
+          exerciseName:
+            [
+              "Bench Press",
+              "Squats",
+              "Deadlifts",
+              "Pull-ups",
+              "Overhead Press",
+              "Rows",
+            ][j] || "Exercise",
+          // Deterministic but unused in current UI
+          weight: (60 + (i * 7 + j) % 40).toFixed(1),
+          reps: 8 + ((i + j) % 8),
+          sets: 3 + ((i + j) % 3),
+          unit: "kg",
+        })),
+      };
+    });
   }, [limit]);
 
   return {

@@ -86,6 +86,16 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
           </MenuItem>
           <MenuItem
             current={theme}
+            value="light"
+            onSelect={(t) => {
+              setTheme(t);
+              setOpen(false);
+            }}
+          >
+            Light
+          </MenuItem>
+          <MenuItem
+            current={theme}
             value="dark"
             onSelect={(t) => {
               setTheme(t);

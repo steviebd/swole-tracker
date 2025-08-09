@@ -118,7 +118,7 @@ export function RecentWorkoutsSection() {
       : "text-blue-500 hover:text-blue-600 dark:text-blue-400"
   }`;
 
-  const containerClass = `transition-all duration-300 rounded-xl p-6 border hover:shadow-xl ${
+  const containerClass = `transition-all duration-300 rounded-xl md:rounded-2xl p-6 border hover:shadow-xl ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
       ? "bg-gray-900 border-gray-800 shadow-lg hover:shadow-2xl" 
       : "bg-white border-gray-200 shadow-sm hover:shadow-lg dark:bg-gray-900 dark:border-gray-800"
@@ -171,10 +171,11 @@ export function RecentWorkoutsSection() {
               key={workout.id}
               id={workout.id}
               templateName={workout.template?.name ?? "Total"}
-              date={new Date(workout.workoutDate).toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
+              date={new Date(workout.workoutDate).toLocaleDateString('en-US', {
+                timeZone: 'UTC',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
               })}
               exerciseCount={workout.exercises?.length ?? 0}
               theme={theme}
