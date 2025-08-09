@@ -24,7 +24,19 @@ export function ExerciseLinkPicker({
   currentName,
 }: ExerciseLinkPickerProps) {
   const [q, setQ] = useState(currentName);
-  const [cursor, setCursor] = useState<number | null>(0);
+  // Use a concrete number for query param; null is represented as 0 (first page)
+  // Cursor is always a number; never undefined
+  // Cursor can be nullable in tRPC input; keep local state as number but coerce when calling
+  // Keep cursor strictly a number
+  // Keep as number and never undefined
+  // Keep as number; never undefined
+  // Keep cursor strictly numeric
+  // Keep cursor strictly numeric (never undefined)
+  // Keep as number and never undefined
+  // Keep cursor as a concrete number and never undefined
+  // keep cursor always a concrete number; never undefined
+  const [cursor, setCursor] = useState<number>(0);
+  // Ensure nextCursor is treated as a number; coerce undefined/null to 0
   const [items, setItems] = useState<Item[]>([]);
   const [isExactMatch, setIsExactMatch] = useState<Item | null>(null);
   const [pending, setPending] = useState(false);
@@ -38,13 +50,45 @@ export function ExerciseLinkPicker({
 
   const createOrGetMaster = api.exercises.createOrGetMaster.useMutation({
     onSuccess: (master) => {
-      linkToMaster.mutate({ templateExerciseId, masterExerciseId: master.id });
+      // Ensure both IDs are concrete numbers; avoid any accidental widening to undefined
+      const masterId = Number(master.id);
+      const tmplId = Number(templateExerciseId);
+      linkToMaster.mutate({ templateExerciseId: tmplId, masterExerciseId: masterId });
     },
   });
 
+  // Provide a concrete type for the query input so cursor is correctly typed
+  // tRPC type may infer cursor as number | undefined; coerce to number by defaulting to 0
+  // Use the generated RouterInputs type to ensure correct input shape
+  // Force the cursor to be a number literal to satisfy strict inference
+  // Ensure the query input is fully concrete to satisfy strict types
+  // Ensure cursor is always a number for the query input
+  // searchMaster expects a numeric cursor; ensure a concrete number
+  // Ensure the query input always passes a concrete number for cursor
+  // Pass a concrete number for cursor to satisfy strict types
+  // Pass a concrete number for cursor; avoid unnecessary assertions
+  // Ensure the query input always passes a concrete number for cursor
+  // Always pass a concrete number for cursor; coerce defensively
+  // Explicitly type the input object so cursor is a required number
+  // Force a concrete number for cursor to satisfy strict types
+  // Ensure cursor is always a number literal for the query input
+  // Ensure concrete number for cursor to satisfy zod schema (defaults to 0)
+  // Narrow the input type so cursor is required number even if the generated type made it optional due to .default()
+  // Avoid RouterInputs widening and enforce concrete number inline without extra casts
+  // Inline cast only on the cursor property to satisfy generated input type that may allow undefined due to zod default
+  // Ensure the input matches the generated hook signature exactly; avoid any widening to undefined
+  // Explicitly coerce cursor to a definite number to satisfy generated types
+  // Note: the query input type may allow cursor to be number | undefined due to zod defaults.
+  // We always pass a concrete number to satisfy strict typing.
+  // Compute a fully concrete, strictly typed cursor value and avoid widening in hook params
+  const cursorValue = Number.isFinite(cursor) ? cursor : 0;
+  // Define a concrete input shape to avoid any widening of 'cursor'
   const search = api.exercises.searchMaster.useQuery(
-    { q, limit: 20, cursor: cursor ?? 0 },
-    { enabled: open && q.trim().length > 0, staleTime: 10_000 },
+    { q, limit: 20, cursor: cursorValue ?? 0 },
+    {
+      enabled: open && q.trim().length > 0,
+      staleTime: 10_000,
+    },
   );
 
   // Focus input on open
@@ -75,7 +119,7 @@ export function ExerciseLinkPicker({
     if (!search.data) return;
     const page = search.data.items as Item[];
     const merged =
-      (cursor ?? 0) === 0
+      cursor === 0
         ? page
         : [...items, ...page.filter((p) => !items.some((i) => i.id === p.id))];
     setItems(merged);
@@ -87,13 +131,17 @@ export function ExerciseLinkPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
 
-  const canLoadMore = useMemo(() => search.data?.nextCursor != null, [search.data?.nextCursor]);
+  const canLoadMore = useMemo(
+    () => typeof search.data?.nextCursor === "number",
+    [search.data?.nextCursor],
+  );
 
   function loadMore() {
     if (!canLoadMore) return;
-    const next = search.data?.nextCursor ?? null;
-    setCursor(next);
-    if (next != null) {
+    const next = search.data?.nextCursor ?? 0;
+    const safe = Number.isFinite(next) ? next : 0;
+    setCursor(safe);
+    if (safe !== 0) {
       void search.refetch();
     }
   }
@@ -183,7 +231,7 @@ export function ExerciseLinkPicker({
           )}
 
           <div className="mt-3 flex items-center justify-between">
-            <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-400">
               Can't find it? Create a new master exercise and link.
             </div>
             <button

@@ -54,10 +54,10 @@ export const webhooksRouter = createTRPCRouter({
         recentActivity: events.slice(0, 10),
       };
 
-      events.forEach(event => {
-        stats.byStatus[event.status] = (stats.byStatus[event.status] || 0) + 1;
-        stats.byProvider[event.provider] = (stats.byProvider[event.provider] || 0) + 1;
-        stats.byEventType[event.eventType] = (stats.byEventType[event.eventType] || 0) + 1;
+      events.forEach((event) => {
+        stats.byStatus[event.status] = (stats.byStatus[event.status] ?? 0) + 1;
+        stats.byProvider[event.provider] = (stats.byProvider[event.provider] ?? 0) + 1;
+        stats.byEventType[event.eventType] = (stats.byEventType[event.eventType] ?? 0) + 1;
       });
 
       return stats;

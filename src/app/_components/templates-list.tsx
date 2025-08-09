@@ -5,7 +5,21 @@ import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
 
 export function TemplatesList() {
-  const { data: templates, isLoading } = api.templates.getAll.useQuery();
+  const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
+  
+  // Deduplicate templates by ID to prevent any rendering duplicates
+  const templates = templatesRaw ? templatesRaw.filter((template, index, array) => 
+    array.findIndex(t => t.id === template.id) === index
+  ) : undefined;
+  
+  // Debug logging to track template duplication
+  console.log("TemplatesList render:", {
+    rawCount: templatesRaw?.length ?? 0,
+    deduplicatedCount: templates?.length ?? 0,
+    templates: templates?.map(t => ({ id: t.id, name: t.name })) ?? [],
+    duplicates: (templatesRaw?.length ?? 0) - (templates?.length ?? 0),
+    timestamp: new Date().toISOString()
+  });
   const utils = api.useUtils();
   const deleteTemplate = api.templates.delete.useMutation({
     onMutate: async (deletedTemplate) => {
@@ -55,7 +69,7 @@ export function TemplatesList() {
     return (
       <div className="space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse card p-4">
+          <div key={i} className="animate-pulse glass-surface card p-4">
             <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
             <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
@@ -66,7 +80,7 @@ export function TemplatesList() {
 
   if (!templates?.length) {
     return (
-      <div className="py-12 text-center">
+      <div className="py-12 text-center glass-surface card">
         <div className="mb-4 text-6xl">📋</div>
         <h3 className="mb-2 text-xl font-semibold">No templates yet</h3>
         <p className="mb-6 text-secondary">
@@ -85,7 +99,7 @@ export function TemplatesList() {
   return (
     <div className="space-y-4">
       {templates.map((template) => (
-        <div key={template.id} className="card p-4">
+        <div key={template.id} className="card glass-surface p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-semibold">{template.name}</h3>
             <div className="flex items-center gap-2">
@@ -105,7 +119,7 @@ export function TemplatesList() {
             </div>
           </div>
           <div className="text-sm text-secondary">
-            {template.exercises.length === 0 ? (
+            {!template.exercises || template.exercises.length === 0 ? (
               "No exercises"
             ) : (
               <>

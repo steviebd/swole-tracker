@@ -26,6 +26,9 @@ export function SignInButtons() {
           Sign in
         </button>
       </SignInButton>
+      <div className="text-xs text-secondary text-center">
+        Welcome to the Calm Dark experience
+      </div>
     </div>
   );
 }

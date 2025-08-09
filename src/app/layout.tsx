@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist, Inter, Space_Grotesk } from "next/font/google";
+import Link from "next/link";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "~/trpc/react";
@@ -11,6 +12,8 @@ import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSwitcher } from "~/app/_components/theme-switcher";
+import ClientPerfInit from "@/app/_components/ClientPerfInit";
+import LiveRegionProvider from "~/app/_components/LiveRegion";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -40,17 +43,20 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   // No-FOUC inline script: sets initial theme class before hydration
   // Reads localStorage('theme'), falls back to 'system', and applies dark based on system if needed.
+  // Ensure SSR and client produce the same initial <html> attributes:
+  // - Do NOT set 'dark' class or data-theme at SSR time; only the client-side inline script updates them.
+  // - This avoids hydration mismatches where CSR chooses a different theme than SSR snapshot.
   const noFoucScript = `
     (function() {
       try {
         var key = 'theme';
         var t = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        // Horizon_wow is a dark-first theme; when selected, ensure dark class is present
-        var dark = (t === 'dark') || (t === 'system' && prefersDark) || (t === 'Horizon_wow');
+        var dark = (t === 'dark') || (t === 'system' && prefersDark) || (t === 'CalmDark') || (t === 'BoldDark') || (t === 'PlayfulDark');
         var root = document.documentElement;
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
-        root.dataset.theme = t;
+        // Only apply data-theme for client. Do not set this attribute in SSR markup to avoid hydration warnings.
+        root.setAttribute('data-theme', t);
       } catch (_) {}
     })();
   `;
@@ -60,9 +66,14 @@ export default function RootLayout({
       signUpFallbackRedirectUrl="/"
       telemetry={false}
     >
-      <html lang="en" className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable} dark`}>
-        <body className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white flex flex-col">
-          {/* Prevent theme flash */}
+      {/* Do not set data-theme or dark class on the server to avoid hydration mismatches */}
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}
+      >
+        <body className="min-h-screen flex flex-col text-gray-900 dark:text-white page-shell">
+          {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
           <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
           {/* Skip to content link */}
           <a
@@ -73,27 +84,32 @@ export default function RootLayout({
           </a>
           <PostHogProvider>
             <ThemeProvider>
-              <PageTracker />
-              <ConnectionStatus />
-              <TRPCReactProvider>
-                <SyncIndicator />
+              <LiveRegionProvider>
+                <ClientPerfInit />
+                <div className="page-backdrop" aria-hidden="true" />
+                <PageTracker />
+                <ConnectionStatus />
+                <TRPCReactProvider>
+                  <SyncIndicator />
 
-                <main id="main-content" className="flex-1" role="main" tabIndex={-1}>
-                  {children}
+                <main id="main-content" className="flex-1 container-default py-6" role="main" tabIndex={-1}>
+                  <div className="grid gap-6">
+                    {children}
+                  </div>
                 </main>
 
                 {/* Mobile Bottom Tab Bar */}
                 <nav
-                  className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/80 text-gray-700 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-gray-800 dark:bg-black/70 dark:text-gray-300"
+                  className="md:hidden fixed inset-x-0 bottom-0 app-footer text-gray-300"
                   role="navigation"
                   aria-label="Primary"
                 >
                   <div className="mx-auto grid grid-cols-5">
-                    <a
+                    <Link
                       href="/"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Home"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname === "/"
                           ? "page"
@@ -101,12 +117,12 @@ export default function RootLayout({
                       }
                     >
                       <span>Home</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/workout/start"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Start a workout"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname.startsWith("/workout/start")
                           ? "page"
@@ -114,12 +130,12 @@ export default function RootLayout({
                       }
                     >
                       <span>Start</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/templates"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Manage templates"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname.startsWith("/templates")
                           ? "page"
@@ -127,12 +143,12 @@ export default function RootLayout({
                       }
                     >
                       <span>Templates</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                       href="/connect-whoop"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
                       aria-label="Connect to Whoop"
-                      rel="prefetch"
+                      prefetch
                       aria-current={
                         typeof window !== "undefined" && window.location?.pathname.startsWith("/connect-whoop")
                           ? "page"
@@ -140,28 +156,30 @@ export default function RootLayout({
                       }
                     >
                       <span>Connect</span>
-                    </a>
+                    </Link>
                     <div className="flex items-center justify-center py-2">
                       <ThemeSwitcher compact />
                     </div>
                   </div>
                 </nav>
 
-                <footer className="mt-auto py-6 border-t border-gray-800">
+                <footer className="mt-auto py-6 app-footer">
                   <div className="container mx-auto px-4 text-center">
-                    <div className="flex justify-center space-x-6 text-sm text-gray-400">
-                      <a 
+                    <div className="flex justify-center space-x-6 text-sm text-gray-300">
+                      <Link 
                         href="/privacy" 
-                        className="hover:text-white transition-colors duration-200"
+                        className="hover:text-white transition-colors duration-200 link-primary"
+                        prefetch
                       >
                         Privacy Policy
-                      </a>
-                      <a 
+                      </Link>
+                      <Link 
                         href="/terms" 
-                        className="hover:text-white transition-colors duration-200"
+                        className="hover:text-white transition-colors duration-200 link-primary"
+                        prefetch
                       >
                         Terms of Service
-                      </a>
+                      </Link>
                     </div>
                     <div className="mt-3 text-xs text-gray-500">
                       © 2025 Steven Duong. All rights reserved.
@@ -169,6 +187,7 @@ export default function RootLayout({
                   </div>
                 </footer>
               </TRPCReactProvider>
+              </LiveRegionProvider>
             </ThemeProvider>
           </PostHogProvider>
         </body>

@@ -59,7 +59,7 @@ Key flows:
 - WHOOP integration:
   - OAuth connect/disconnect
   - Sync last 25 workouts
-  - Duplicate detection
+  - GPGDuplicate detection
   - Rate-limited sync endpoint
   - Webhook handling and debug page
 - Analytics via PostHog

@@ -62,8 +62,12 @@ export const workoutSessions = createTable(
     templateId: d
       .integer()
       .notNull()
-      .references(() => workoutTemplates.id),
+      .references(() => workoutTemplates.id, { onDelete: "cascade" }),
     workoutDate: d.timestamp({ withTimezone: true }).notNull(),
+    // Phase 2 additions
+    theme_used: d.varchar({ length: 20 }), // 'CalmDark' | 'BoldDark' | 'PlayfulDark' (validated in app layer)
+    device_type: d.varchar({ length: 20 }), // 'android' | 'ios' | 'desktop' | 'ipad' | 'other'
+    perf_metrics: d.json(), // optional perf/telemetry blob
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -94,6 +98,11 @@ export const sessionExercises = createTable(
     reps: d.integer(),
     sets: d.integer(),
     unit: d.varchar({ length: 10 }).notNull().default("kg"),
+    // Phase 2 additions
+    rpe: d.smallint(), // 6-10 recommended in UI, not enforced at DB
+    rest_seconds: d.integer(), // rest time in seconds
+    is_estimate: d.boolean().notNull().default(false),
+    is_default_applied: d.boolean().notNull().default(false),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -114,6 +123,9 @@ export const userPreferences = createTable(
     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
     user_id: d.varchar({ length: 256 }).notNull().unique(),
     defaultWeightUnit: d.varchar({ length: 10 }).notNull().default("kg"),
+    // Phase 2 additions
+    predictive_defaults_enabled: d.boolean().notNull().default(false),
+    right_swipe_action: d.varchar({ length: 32 }).notNull().default("collapse_expand"),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
   const userId = user.id;
 
   // Create a readable stream for SSE
-  const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
+  const { readable, writable } = new TransformStream<Uint8Array>();
+  const writer: WritableStreamDefaultWriter<Uint8Array> = writable.getWriter();
 
   // Store this connection for the user
   addConnection(userId, writer);
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   // Clean up when connection closes
   request.signal.addEventListener("abort", () => {
     removeConnection(userId, writer);
-    writer.close();
+    void writer.close();
   });
 
   return new Response(readable, {
@@ -38,5 +38,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-
-

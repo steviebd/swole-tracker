@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { verifyWhoopWebhook, extractWebhookHeaders, type WhoopWebhookPayload } from "~/lib/whoop-webhook";
 import { db } from "~/server/db";
 import { externalWorkoutsWhoop, userIntegrations, webhookEvents } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
-import { env } from "~/env";
 import { broadcastWorkoutUpdate } from "~/lib/sse-broadcast";
 
 interface WhoopWorkoutData {
@@ -13,9 +13,9 @@ interface WhoopWorkoutData {
   timezone_offset: string;
   sport_name: string;
   score_state: string;
-  score?: any;
-  during?: any;
-  zone_duration?: any;
+  score?: unknown;
+  during?: unknown;
+  zone_duration?: unknown;
 }
 
 async function fetchWorkoutFromWhoop(workoutId: string, userId: number): Promise<WhoopWorkoutData | null> {
@@ -67,8 +67,25 @@ async function fetchWorkoutFromWhoop(workoutId: string, userId: number): Promise
       return null;
     }
 
-    const workoutData = await response.json();
-    return workoutData;
+    const workoutData: unknown = await response.json();
+    if (typeof workoutData !== "object" || workoutData === null) {
+      console.error("Invalid workout JSON for", workoutId);
+      return null;
+    }
+    // Narrow unknown via runtime validation here and return correctly typed value
+    const obj = workoutData as Record<string, unknown>;
+    if (
+      typeof obj.id === "string" &&
+      typeof obj.start === "string" &&
+      typeof obj.end === "string" &&
+      typeof obj.timezone_offset === "string" &&
+      typeof obj.sport_name === "string" &&
+      typeof obj.score_state === "string"
+    ) {
+      return (obj as unknown) as WhoopWorkoutData;
+    }
+    console.error("Workout data failed runtime validation in fetch", workoutData);
+    return null;
   } catch (error) {
     console.error(`Error fetching workout ${workoutId} from Whoop API:`, error);
     return null;
@@ -94,6 +111,23 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       console.error(`Could not fetch workout data for ${workoutId}`);
       return;
     }
+    // Runtime shape guard to satisfy type checker
+    const isWhoopWorkoutData = (w: unknown): w is WhoopWorkoutData => {
+      if (typeof w !== "object" || w === null) return false;
+      const o = w as Record<string, unknown>;
+      return (
+        typeof o.id === "string" &&
+        typeof o.start === "string" &&
+        typeof o.end === "string" &&
+        typeof o.timezone_offset === "string" &&
+        typeof o.sport_name === "string" &&
+        typeof o.score_state === "string"
+      );
+    };
+    if (!isWhoopWorkoutData(workoutData)) {
+      console.error("Workout data failed runtime validation", workoutData);
+      return;
+    }
 
     // Check if workout already exists in our database
     const [existingWorkout] = await db
@@ -101,20 +135,23 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       .from(externalWorkoutsWhoop)
       .where(eq(externalWorkoutsWhoop.whoopWorkoutId, workoutId));
 
+    // workoutData already validated in fetch; treat as WhoopWorkoutData
+    const typedWorkout: WhoopWorkoutData = (workoutData as unknown) as WhoopWorkoutData;
+
     if (existingWorkout) {
       // Update existing workout
       console.log(`Updating existing workout ${workoutId} for user ${dbUserId}${isTestMode ? ' (TEST MODE)' : ''}`);
       await db
         .update(externalWorkoutsWhoop)
         .set({
-          start: new Date(workoutData.start),
-          end: new Date(workoutData.end),
-          timezone_offset: workoutData.timezone_offset,
-          sport_name: workoutData.sport_name,
-          score_state: workoutData.score_state,
-          score: workoutData.score || null,
-          during: workoutData.during || null,
-          zone_duration: workoutData.zone_duration || null,
+          start: new Date(typedWorkout.start),
+          end: new Date(typedWorkout.end),
+          timezone_offset: typedWorkout.timezone_offset,
+          sport_name: typedWorkout.sport_name,
+          score_state: typedWorkout.score_state,
+          score: typedWorkout.score ?? null,
+          during: typedWorkout.during ?? null,
+          zone_duration: typedWorkout.zone_duration ?? null,
           updatedAt: new Date(),
         })
         .where(eq(externalWorkoutsWhoop.whoopWorkoutId, workoutId));
@@ -124,14 +161,14 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       await db.insert(externalWorkoutsWhoop).values({
         user_id: dbUserId,
         whoopWorkoutId: workoutId,
-        start: new Date(workoutData.start),
-        end: new Date(workoutData.end),
-        timezone_offset: workoutData.timezone_offset,
-        sport_name: workoutData.sport_name,
-        score_state: workoutData.score_state,
-        score: workoutData.score || null,
-        during: workoutData.during || null,
-        zone_duration: workoutData.zone_duration || null,
+        start: new Date(typedWorkout.start),
+        end: new Date(typedWorkout.end),
+        timezone_offset: typedWorkout.timezone_offset,
+        sport_name: typedWorkout.sport_name,
+        score_state: typedWorkout.score_state,
+        score: typedWorkout.score ?? null,
+        during: typedWorkout.during ?? null,
+        zone_duration: typedWorkout.zone_duration ?? null,
       });
     }
 
@@ -143,9 +180,9 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
         await broadcastWorkoutUpdate(userId, {
           id: workoutId,
           type: payload.type,
-          sport_name: workoutData.sport_name,
-          start: workoutData.start,
-          end: workoutData.end,
+          sport_name: typedWorkout.sport_name,
+          start: typedWorkout.start,
+          end: typedWorkout.end,
         });
       } catch (broadcastError) {
         console.error("Failed to broadcast workout update:", broadcastError);
@@ -203,13 +240,13 @@ export async function POST(request: NextRequest) {
         eventType: payload.type,
         externalUserId: payload.user_id.toString(),
         externalEntityId: payload.id.toString(),
-        payload: payload as any,
+        payload: payload as unknown, // stored as JSONB; cast to unknown for lint safety
         headers: {
           signature: webhookHeaders.signature,
           timestamp: webhookHeaders.timestamp,
-          userAgent: request.headers.get('user-agent'),
-          contentType: request.headers.get('content-type'),
-        },
+          userAgent: request.headers.get('user-agent') ?? undefined,
+          contentType: request.headers.get('content-type') ?? undefined,
+        } as unknown, // JSONB payload; assert unknown to avoid any
         status: 'received',
       }).returning({ id: webhookEvents.id });
 

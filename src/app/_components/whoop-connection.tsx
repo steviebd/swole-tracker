@@ -12,7 +12,7 @@ export function WhoopConnection() {
   const searchParams = useSearchParams();
 
   const { data: integrationStatus, refetch: refetchStatus } = api.whoop.getIntegrationStatus.useQuery();
-  const { data: workouts, refetch: refetchWorkouts } = api.whoop.getWorkouts.useQuery();
+  const { refetch: refetchWorkouts } = api.whoop.getWorkouts.useQuery();
 
   useEffect(() => {
     const success = searchParams.get("success");
@@ -82,9 +82,9 @@ export function WhoopConnection() {
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
-    } catch (error) {
-      setMessage({ type: "error", text: "Network error during sync" });
-    } finally {
+  } catch {
+    setMessage({ type: "error", text: "Network error during sync" });
+  } finally {
       setSyncLoading(false);
     }
   };
@@ -99,23 +99,7 @@ export function WhoopConnection() {
     }).format(date);
   };
 
-  const formatDuration = (start: Date, end: Date) => {
-    const duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60)); // minutes
-    const hours = Math.floor(duration / 60);
-    const minutes = duration % 60;
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-  };
 
-  const getScoreColor = (scoreState: string) => {
-    switch (scoreState) {
-      case "SCORED":
-        return "text-green-400";
-      case "PENDING_SCORE":
-        return "text-yellow-400";
-      default:
-        return "text-gray-400";
-    }
-  };
 
   return (
     <div className="space-y-8">

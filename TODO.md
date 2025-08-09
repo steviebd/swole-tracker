@@ -1,199 +1,169 @@
-Update strength workout tracker to incorporate
-    - Body weight as an option
-    - Add an option to do for one excerise, register different weights for different sets. Rethink total sets and the UX.
-    - Keep pulling historic history that maps to the current workout but give peopel the flexbility to drop a set if needed
+# TODO: Swole Tracker – Dark Theme v1 Implementation & Theming Roadmap
 
-Incorporate AI to do reccomendations of workouts by using Whoop data to:
-    - Recommend workouts based on user's fitness level and goals
-    - Provide personalized workout plans based on user's fitness data
-    - Offer suggestions for modifications to workouts based on user's progress and feedback
-# From o3
-Here’s a roadmap for “wrapping” AI around your Whoop-powered strength-training app. The basic flow is:
+__Repository:__ root\
+__Mockup Source:__ `/apps/v1-dark-mode` is sole source of truth\
+__Tech Stack:__ Verified with `AGENT.md` – Next.js 15 App Router, Tailwind v4, Drizzle ORM, Clerk Auth
 
-1. Ingest & Filter  
-   • Pull “workout” objects from Whoop’s API.  
-   • Only keep workouts whose `type` (or `name`) maps to strength/weight training.  
+__Conventions:__
 
-2. Augment with Whoop Biometrics  
-   For each workout, fetch the user’s concomitant recovery data (HRV, sleep performance, readiness, strain) from Whoop’s User Metrics endpoints for the same day.  
+- After each major step, run Prettier + `pnpm check` (lint + typecheck) + relevant tests
+- Keep commits atomic, with descriptive messages
+- Submit PRs by micro-phase; smaller is better
+- Shared styles via Tailwind component classes / `@apply` in global CSS for common patterns
 
-3. Feature Engineering  
-   Build per‐workout feature vectors, e.g.:  
-   • volume = ∑(sets × reps × weight)  
-   • avg_heart_rate, max_heart_rate, time_in_zones  
-   • recovery_score, sleep_perf, HRV, daily_strain  
-   • historical deltas (e.g. % change vs. last 4 workouts)  
+---
 
-4. AI-Driven Use-Cases  
-   A. Dynamic Workout Adjustment  
-     – Given today’s readiness, propose a template tweak (e.g. drop volume by 10%, swap in unilateral work).  
-     – Prompt example for GPT:  
-       ```text
-       “User’s 4‐wk avg volume: 12 000 kg. Today’s recovery: 48/100.  
-       Suggest a strength workout template (~4 sets/exercise) to optimize growth while respecting low recovery.”  
-       ```  
-   B. Performance Trend Analysis  
-     – Use simple ML (e.g. linear regression) or GPT to summarize:  
-       “Your squat 1RM est. has risen 5 kg (+3%) over last 6 weeks. Your recovery on squat days averages 65 vs. non-squat days 55—good sign!”  
-   C. Overtraining/Risk Alerts  
-     – Classification model (e.g. decision tree) or rule‐based on high strain + low recovery for >3 days → “Consider a deload or active-recovery session.”  
-   D. Template Recommendation & Variation  
-     – Fine-tune a small GPT‐3.5/GPT-4 prompt to generate new exercises or periodization blocks based on user’s goals and Whoop metrics.  
+## Phase 0 – Environment Verification
 
-5. Architecture Sketch  
-   • Supabase stores raw Whoop workouts + biometrics.  
-   • A Node.js “AI service” periodically:  
-     a) Queries new Whoop workouts + daily metrics  
-     b) Runs feature‐pipeline  
-     c) Calls OpenAI’s Chat or Completion API for insights/recs  
-     d) Persists AI outputs back to Supabase (e.g. `recommended_workout`, `insights`)  
-   • Front-end fetches these alongside user‐logged workouts.  
+- [ ] Confirm local install and run:
 
-6. Sample Node.js Snippet (fetch → prompt → store)  
-   ```js
-   import { createClient } from '@supabase/supabase-js';
-   import OpenAI from 'openai';
+  - [ ] `pnpm install`
+  - [ ] `pnpm dev` (verify dev server)
+  - [ ] `pnpm check` (lint + typecheck)
+  - [ ] `pnpm test` (unit + component tests)
 
-   const supabase = createClient(process.env.SB_URL, 
-                                   process.env.SB_KEY);
-   const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
+- [ ] Confirm `/apps/v1-dark-mode` mockup assets (colors, spacing, typography)
 
-   async function generateRecommendation(userId, date) {
-     // 1) Load workouts + metrics
-     const { data: workouts } = await supabase
-       .from('whoop_workouts')
-       .select('*')
-       .eq('user_id', userId)
-       .eq('date', date)
-       .eq('type', 'strength');
-     const { data: metrics } = await supabase
-       .from('whoop_metrics')
-       .select('*')
-       .eq('user_id', userId)
-       .eq('date', date);
+---
 
-     // 2) Build prompt
-     const volume = workouts.reduce((sum, w) => 
-       sum + w.sets * w.reps * (w.weight || 0), 0);
-     const prompt = `
-     User strength volume today: ${volume} kg.
-     Recovery: ${metrics.recovery_score}/100,
-     Sleep Performance: ${metrics.sleep_perf}/100,
-     HRV: ${metrics.hrv} ms.
-     Suggest a 4-ex exercise strength session at moderate intensity.
-     `;
+## Phase 1 – Tailwind v4 Dark Mode & Token Setup (Dark only)
 
-     // 3) Call AI
-     const completion = await openai.chat.completions.create({
-       model: 'gpt-3.5-turbo',
-       messages: [{ role: 'user', content: prompt }]
-     });
+- [ ] Locate `tailwind.config.ts` in project root (`tailwind.config.js` replaced in v4)
 
-     // 4) Store reco
-     await supabase.from('ai_recommendations').insert({
-       user_id: userId,
-       date,
-       rec: completion.choices[0].message.content
-     });
-   }
-   ```
+- [ ] Set `darkMode: 'class'`
 
-7. Next Steps  
-   • Decide which “AI value-add” you want first (e.g. auto-generated templates vs. overtraining alerts).  
-   • Build your feature pipeline & store a history.  
-   • Prototype a GPT prompt or a small regression/classifier.  
-   • Iterate on UX—show recommendations in your app alongside logged sets/reps/weights.  
+- [ ] Configure `content` paths for Next.js App Router:
 
-With this in place, your app will not only log strength workouts but also coach users in real time based on both their performance and Whoop’s recovery and strain data.
+  ```ts
+  content: [
+    './src/**/*.{js,jsx,ts,tsx,mdx}',
+    './apps/**/*.{js,jsx,ts,tsx,mdx}'
+  ]
+  ```
 
-Below is the list of WHOOP API endpoints (and key fields) you’ll need to pull in order to implement the AI-driven recommendations I described:
+- [ ] Extract tokens from mockup (bg, surface, borders, accents, content colors, overlays)
 
+- [ ] Create shared color tokens in `theme.extend.colors`
 
-1. 
-Workout Data
-• Endpoint: GET /user/workouts
-– Scope: read:workout
-– Query params: start, end (ISO timestamps)
-– Key fields per record:
-• id, start, end, sport_name (to filter “strength” workouts)
-• score.strain
-• score.average_heart_rate, score.max_heart_rate
-• score.kilojoule
-• score.zone_durations (time in HR zones)
+- [ ] Add font family from mockup in `theme.extend.fontFamily` (e.g., InterVariable)
 
+- [ ] Shared style utilities:
 
+  - [ ] `.card` class for bg/border/shadow/radius
+  - [ ] `.muted-text` class for secondary content
+  - Defined in `src/styles/globals.css` with `@apply`
 
-2. 
-Physiological Cycles (Daily Strain)
-• Endpoint: GET /user/cycles
-– Scope: read:cycles
-– Query params: start, end
-– Key fields per cycle:
-• id, start, end
-• score.strain (24 h strain)
+- [ ] Apply `class="dark"` to `<html>` in `src/app/layout.tsx` (server layout)
 
+- [ ] Ensure `<body>` in layout includes `bg-base-100 text-content-100`
 
+---
 
-3. 
-Recovery Data
-• Endpoint: GET /recovery/{cycleId}
-– Scope: read:recovery
-– Path param: cycleId
-– Key fields in .score:
-• recovery_score
-• resting_heart_rate
-• hrv_rmssd_milli
-• spo2_percentage
-• skin_temp_celsius
+## Phase 2 – App Shell & Navigation
 
+- [ ] Create `src/app/_components/Sidebar.tsx`:
 
+  - Uses shared style utilities; bg-base-200, border-border-200, sticky
+  - Populated with `NavItem` links using `next/link`
 
-4. 
-Sleep Data
-• Endpoint: GET /sleep/{sleepId}  or  GET /user/sleep?start&end
-– Scope: read:sleep
-– Key fields in .score:
-• sleep_performance_percentage
-• sleep_consistency_percentage
-• sleep_efficiency_percentage
-• stage_summary.total_light_sleep_time_milli
-• stage_summary.total_slow_wave_sleep_time_milli
-• stage_summary.total_rem_sleep_time_milli
+- [ ] Create `src/app/_components/NavItem.tsx`:
+  - Wraps Next.js `Link`, applies active styles based on `usePathname`
 
+- [ ] Place Sidebar in `src/app/layout.tsx` alongside `<main>`
 
+- [ ] Add `StartWorkoutButton` as shared UI primitive
 
-5. 
-Body Measurements
-• Endpoint: GET /user/body_measurements
-– Scope: read:body_measurement
-– Key fields:
-• weight_kilogram
-• height_meter
-• max_heart_rate
+---
 
+## Phase 3 – Dashboard Skeleton
 
+- [ ] `src/app/page.tsx`:
 
-6. 
-User Profile (to tie data to your users)
-• Endpoint: GET /user/profile
-– Scope: read:profile
-– Key fields:
-• user_id, first_name, last_name, email
+  - Header row w/ Dashboard title + `StartWorkoutButton`
+  - `SummaryCardGrid` with mock data
 
+- [ ] Components:
 
+  - `SummaryCard` & `SummaryCardGrid`
+  - `VolumeChart` (Recharts, dynamic import to reduce bundle)
+  - `HistoryList` & `HistoryListItem`
 
-Summary of required OAuth scopes:
-– read:workout
-– read:cycles
-– read:recovery
-– read:sleep
-– read:body_measurement
-– read:profile
+- [ ] Apply responsive layout via CSS grid
 
-With these pulls you can:
-– compute per-workout feature vectors (volume, strain, HR zones)
-– track daily strain (cycles)
-– assess readiness (recovery & sleep metrics)
-– anchor workouts to user’s body stats (weight, max HR)
+---
 
-Once fetched and stored in your database you can feed them into your AI pipeline to generate dynamic workout adjustments, trend analyses, and overtraining alerts.
+## Phase 4 – Shared UI Primitives
+
+- [ ] `/src/app/_components/ui/`:
+
+  - `Button` (variants: primary, ghost, danger)
+  - `Card`
+  - `Badge`
+  - `Input`, `Label`
+
+- [ ] Use shared classes (`@apply`) for consistency across components
+
+---
+
+## Phase 5 – Accessibility & Theming Polish
+
+- [ ] Global focus states: visible outlines, ring-primary
+- [ ] ARIA attributes on navigational landmarks
+- [ ] Keyboard navigation QA
+- [ ] Tweaks to match mockup contrast/shadow exactly
+
+---
+
+## Phase 6 – Testing
+
+- [ ] Unit/component tests with Vitest + RTL for:
+
+  - Sidebar/NavItem active states
+  - SummaryCard + SummaryCardGrid render
+  - VolumeChart presence (skip tooltip actual hover in JSDOM)
+  - HistoryList render/content
+
+- [ ] Add integration test for Dashboard page
+
+---
+
+## Phase 7 – Cleanup & Docs
+
+- [ ] Remove unused CSS/old components
+
+- [ ] Update README with:
+
+  - Dark mode token structure
+  - How to add new themes
+  - Development/test commands
+
+- [ ] Final Prettier + lint pass
+
+---
+
+## Phase 8 – Future Work (Post–Dark Mode Launch)
+
+- [ ] Create 4 other themes based on Dark mode structure:
+
+  - Extract token definitions for each
+  - Theme switch logic in `ThemeProvider`
+  - Persistence in localStorage
+
+- [ ] Implement theme toggle UI
+
+- [ ] Add E2E tests for theme switching
+
+---
+
+### Key Changes from Original TODO.md
+
+- Tailored to __Next.js App Router + Tailwind v4__ (no `index.html`, `main.jsx` assumptions)
+- Strict alignment with `/apps/v1-dark-mode` as source of truth
+- Micro-phases for PR friendliness
+- Shared styles (`@apply`) to reduce repetition
+- Unit/component tests match existing `src/__tests__` approach
+- Added a clear future Phase 8 for theme expansion
+
+---
+
+If this aligns with your needs, we can now go step-by-step to actually replace your `TODO.md` with this refined breakdown and begin the implementation phases.

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { buildCaller, createMockDb, createMockUser } from "./trpc-harness";
 import { dailyJokes } from "~/server/db/schema";
 
@@ -33,25 +33,24 @@ describe("tRPC jokes router", () => {
 
     const db = createMockDb({
       select: vi.fn().mockReturnValue(selectChain),
-      from: vi.fn().mockReturnThis(),
-      orderBy: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([]),
+      // the following are not part of MockDb; place them on the returned selectChain instead
       insert: vi.fn().mockReturnValue(insertChain),
-      // delete used in clearCache test
       delete: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([]),
+        where: vi.fn().mockResolvedValue([] as unknown[]),
       }),
     });
 
-    const caller = await buildCaller({ db, user: user });
+    const caller = await buildCaller({ db, user });
 
-    const res = await caller.jokes.getCurrent();
+    const res = await Promise.resolve(caller.jokes.getCurrent());
 
     expect(typeof res.joke).toBe("string");
     expect(res.isFromCache).toBe(false);
     // In current implementation, when gateway is not configured it returns a fallback and does NOT insert.
     // So we assert no insert took place.
-    expect((db.insert as any).mock?.calls.length ?? 0).toBe(0);
+    // Narrow to a vitest mock before inspecting call metadata
+    const insertMock = db.insert as unknown as Mock;
+    expect(insertMock.mock.calls.length).toBe(0);
   });
 
   it("generateNew follows same path as getCurrent", async () => {
@@ -75,18 +74,19 @@ describe("tRPC jokes router", () => {
       select: vi.fn().mockReturnValue(selectChain),
       insert: vi.fn().mockReturnValue(insertChain),
       delete: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([]),
+        where: vi.fn().mockResolvedValue([] as unknown[]),
       }),
     });
 
-    const caller = await buildCaller({ db, user: user });
+    const caller = await buildCaller({ db, user });
 
-    const res = await caller.jokes.generateNew();
+    const res = await Promise.resolve(caller.jokes.generateNew());
 
     expect(typeof res.joke).toBe("string");
     expect(res.isFromCache).toBe(false);
     // Same as getCurrent: with no gateway key, generation returns fallback and skips insert.
-    expect((db.insert as any).mock?.calls.length ?? 0).toBe(0);
+    const insertMock2 = db.insert as unknown as Mock;
+    expect(insertMock2.mock.calls.length).toBe(0);
   });
 
   it("clearCache deletes by user id", async () => {
@@ -101,7 +101,7 @@ describe("tRPC jokes router", () => {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([]),
+        limit: vi.fn().mockResolvedValue([] as unknown[]),
       }),
       insert: vi.fn().mockReturnValue({
         values: vi.fn().mockReturnThis(),
@@ -111,7 +111,7 @@ describe("tRPC jokes router", () => {
 
     const caller = await buildCaller({ db, user: user });
 
-    const res = await caller.jokes.clearCache();
+    const res = await Promise.resolve(caller.jokes.clearCache());
 
     expect(res).toEqual({ success: true });
     expect(del).toHaveBeenCalledWith(dailyJokes);

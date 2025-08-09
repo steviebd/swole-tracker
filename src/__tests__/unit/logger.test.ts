@@ -1,4 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+
+// Use vi.stubEnv instead of directly assigning to process.env.NODE_ENV
+vi.stubEnv('NODE_ENV', 'test');
+
 import { logger, logApiCall, logSecurityEvent, logWebhook } from "~/lib/logger";
 
 describe("logger", () => {
@@ -44,6 +48,128 @@ describe("logger", () => {
     expect(spyLog).not.toHaveBeenCalled();
     expect(spyWarn).not.toHaveBeenCalled();
     expect(spyError).not.toHaveBeenCalled();
+  });
+
+  it("should log in production environment (warn/error only)", async () => {
+    // Mock production environment
+    const originalEnv = process.env.NODE_ENV;
+    vi.stubEnv('NODE_ENV', 'production');
+    
+    // Re-import logger to pick up new env
+    vi.resetModules();
+    const prodLogger = (await import("~/lib/logger")).logger;
+    
+    const prodWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const prodErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const prodLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    
+    // Should not log debug/info in production
+    prodLogger.debug("debug msg", { userId: "u1" });
+    prodLogger.info("info msg", { userId: "u1" });
+    expect(prodLogSpy).not.toHaveBeenCalled();
+    
+    // Should log warn/error in production
+    prodLogger.warn("warn msg", { userId: "u1", password: "secret" });
+    prodLogger.error("error msg", new Error("test"), { accessToken: "token" });
+    
+    expect(prodWarnSpy).toHaveBeenCalledWith("[WARN] warn msg", expect.objectContaining({ userId: "u1" }));
+    expect(prodWarnSpy).toHaveBeenCalledWith("[WARN] warn msg", expect.not.objectContaining({ password: expect.anything() }));
+    expect(prodErrorSpy).toHaveBeenCalledWith("[ERROR] error msg", expect.objectContaining({ 
+      error: "test",
+      stack: undefined // No stack in production
+    }));
+    expect(prodErrorSpy).toHaveBeenCalledWith("[ERROR] error msg", expect.not.objectContaining({ accessToken: expect.anything() }));
+    
+    prodWarnSpy.mockRestore();
+    prodErrorSpy.mockRestore();
+    prodLogSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it("should log everything in development environment", async () => {
+    // Mock development environment
+    const originalEnv = process.env.NODE_ENV;
+    vi.stubEnv('NODE_ENV', 'development');
+    
+    // Re-import logger to pick up new env
+    vi.resetModules();
+    const devLogger = (await import("~/lib/logger")).logger;
+    
+    const devWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const devErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const devLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    
+    // Should log all levels in development
+    devLogger.debug("debug msg", { userId: "u1" });
+    devLogger.info("info msg", { userId: "u1" });
+    devLogger.warn("warn msg", { userId: "u1" });
+    devLogger.error("error msg", new Error("test"), { userId: "u1" });
+    
+    expect(devLogSpy).toHaveBeenCalledWith("[DEBUG] debug msg", expect.objectContaining({ userId: "u1" }));
+    expect(devLogSpy).toHaveBeenCalledWith("[INFO] info msg", expect.objectContaining({ userId: "u1" }));
+    expect(devWarnSpy).toHaveBeenCalledWith("[WARN] warn msg", expect.objectContaining({ userId: "u1" }));
+    expect(devErrorSpy).toHaveBeenCalledWith("[ERROR] error msg", expect.objectContaining({ 
+      error: "test",
+      stack: expect.any(String) // Stack trace should be included in development
+    }));
+    
+    devWarnSpy.mockRestore();
+    devErrorSpy.mockRestore();
+    devLogSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it("should sanitize long strings in production", async () => {
+    // Mock production environment
+    const originalEnv = process.env.NODE_ENV;
+    vi.stubEnv('NODE_ENV', 'production');
+    
+    // Re-import logger to pick up new env
+    vi.resetModules();
+    const prodLogger = (await import("~/lib/logger")).logger;
+    
+    const prodWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    
+    const longString = 'a'.repeat(120); // Longer than 100 chars
+    prodLogger.warn("test", { longData: longString });
+    
+    expect(prodWarnSpy).toHaveBeenCalledWith("[WARN] test", expect.objectContaining({
+      longData: expect.stringMatching(/^a{97}\.\.\.$/),
+    }));
+    
+    prodWarnSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it("should handle webhook logging in development vs production", async () => {
+    // Test development webhook logging
+    const originalEnv = process.env.NODE_ENV;
+    vi.stubEnv('NODE_ENV', 'development');
+    
+    vi.resetModules();
+    const devLogger = (await import("~/lib/logger")).logger;
+    const devLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    
+    devLogger.webhook("test event", { data: "payload" }, { userId: "u1" });
+    expect(devLogSpy).toHaveBeenCalledWith("[DEBUG] Webhook: test event", expect.objectContaining({
+      userId: "u1",
+      payload: { data: "payload" }
+    }));
+    
+    devLogSpy.mockRestore();
+    
+    // Test production webhook logging
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.resetModules();
+    const prodLogger = (await import("~/lib/logger")).logger;
+    const prodLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    
+    prodLogger.webhook("test event", { data: "payload" }, { userId: "u1" });
+    // In production, webhook calls info() which is filtered out, so no log should occur
+    expect(prodLogSpy).not.toHaveBeenCalled();
+    
+    prodLogSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
   it("error logs non-Error payloads too in test env", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
@@ -15,8 +15,8 @@ export function WhoopWorkouts() {
   const [clickOrigin, setClickOrigin] = useState<{ x: number; y: number } | undefined>();
 
   // Use custom localStorage hook for persistent preferences
-  const [showAll, setShowAll, isShowAllLoaded] = useLocalStorage('whoop-workouts-show-all', false);
-  const [sportFilter, setSportFilter, isSportFilterLoaded] = useLocalStorage('whoop-workouts-sport-filter', 'all');
+  const [showAll, setShowAll] = useLocalStorage('whoop-workouts-show-all', false);
+  const [sportFilter, setSportFilter] = useLocalStorage('whoop-workouts-sport-filter', 'all');
 
   // Debug function to clear localStorage (temporary)
   const clearPreferences = () => {
@@ -63,7 +63,7 @@ export function WhoopWorkouts() {
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
-    } catch (error) {
+    } catch (_error) {
       setMessage({ type: "error", text: "Network error during sync" });
     } finally {
       setSyncLoading(false);
@@ -93,7 +93,7 @@ export function WhoopWorkouts() {
       return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
     }
     
-    const strainScore = (score as any)?.strain;
+    const strainScore = (score)?.strain;
     if (strainScore && typeof strainScore === "number") {
       return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
     }

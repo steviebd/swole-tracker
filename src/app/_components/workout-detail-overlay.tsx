@@ -2,6 +2,23 @@
 
 import { useEffect, useRef } from "react";
 
+interface WorkoutScore {
+  strain: number;
+  average_heart_rate?: number;
+  max_heart_rate?: number;
+  kilojoule?: number;
+  percent_recorded?: number;
+  distance_meter?: number;
+  altitude_gain_meter?: number;
+  altitude_change_meter?: number;
+  zone_durations?: Record<string, number>;
+  [key: string]: unknown;
+}
+
+type DuringMetrics = Record<string, number | string | null | undefined>;
+
+type ZoneDuration = Record<string, number>;
+
 interface WorkoutDetailOverlayProps {
   workout: {
     id: number;
@@ -10,9 +27,9 @@ interface WorkoutDetailOverlayProps {
     end: Date;
     sport_name: string | null;
     score_state: string | null;
-    score: any;
-    during: any;
-    zone_duration: any;
+    score: WorkoutScore | null;
+    during: DuringMetrics | null;
+    zone_duration: ZoneDuration | null;
     createdAt: Date;
   };
   isOpen: boolean;
@@ -62,17 +79,17 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  const formatScore = (score: any, scoreState: string | null) => {
+  const formatScore = (score: WorkoutScore | null, scoreState: string | null) => {
     if (!score || typeof score !== "object") {
-      return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
+      return `-- (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
     }
     
-    const strainScore = score?.strain;
+    const strainScore = score.strain;
     if (strainScore && typeof strainScore === "number") {
-      return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
+      return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
     }
     
-    return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
+    return `-- (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -109,7 +126,7 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
     touchStartRef.current = null;
   };
 
-  const renderMetricSection = (title: string, data: any) => {
+  const renderMetricSection = (title: string, data: Record<string, unknown> | null) => {
     if (!data || typeof data !== "object") return null;
 
     return (
@@ -160,7 +177,7 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-1 dark:text-white">
-                {workout.sport_name || "Unknown Sport"}
+                {workout.sport_name ?? "Unknown Sport"}
               </h2>
               <p className="text-secondary text-sm">
                 {formatDateTime(new Date(workout.start), new Date(workout.end))}

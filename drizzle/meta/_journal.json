@@ -22,6 +22,20 @@
       "when": 1753933012880,
       "tag": "0002_lying_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1754482511952,
+      "tag": "0003_glossy_post",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1754623297331,
+      "tag": "0004_bumpy_husk",
+      "breakpoints": true
     }
   ]
 }

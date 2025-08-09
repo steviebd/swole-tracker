@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 
 export interface SwipeSettings {
   dismissThreshold: number; // Distance in pixels to trigger dismiss
@@ -41,7 +41,7 @@ export function useSwipeGestures(
   settings: Partial<SwipeSettings> = {},
   direction: "horizontal" | "vertical" = "horizontal"
 ): [SwipeGestureState, SwipeGestureHandlers, () => void] {
-  const config = { ...DEFAULT_SWIPE_SETTINGS, ...settings };
+  const config = useMemo(() => ({ ...DEFAULT_SWIPE_SETTINGS, ...settings }), [settings]);
   
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
@@ -103,9 +103,9 @@ export function useSwipeGestures(
     };
 
     animationRef.current = requestAnimationFrame(animate);
-  }, [config, direction, translateX, translateY, velocity, onDismiss]);
+  }, [config, direction, velocity, onDismiss]);
 
-  const handleStart = useCallback((clientX: number, clientY: number, isMouse: boolean = false) => {
+  const handleStart = useCallback((clientX: number, clientY: number, isMouse = false) => {
     touchStartXRef.current = clientX;
     touchStartYRef.current = clientY;
     lastTouchXRef.current = clientX;
@@ -120,7 +120,7 @@ export function useSwipeGestures(
     }
   }, []);
 
-  const handleMove = useCallback((clientX: number, clientY: number, preventDefault: boolean = true) => {
+  const handleMove = useCallback((clientX: number, clientY: number, preventDefault = true) => {
     if (!isDragging || !touchStartXRef.current || !touchStartYRef.current) return;
 
     if (preventDefault) {

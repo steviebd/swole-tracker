@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { useExportWorkoutsCSV } from "~/hooks/use-insights";
 
 export function WorkoutHistory() {
   const { data: workouts, isLoading } = api.workouts.getRecent.useQuery({
     limit: 50,
   });
+
+  const { data: exportData, isFetching: isExporting, refetch: refetchExport } = useExportWorkoutsCSV();
 
   if (isLoading) {
     return (
@@ -42,6 +45,37 @@ export function WorkoutHistory() {
 
   return (
     <div className="space-y-4">
+      {/* Export / Share */}
+      <div className="flex items-center justify-end">
+        { }
+        <span className="sr-only">{exportData ? "Export data ready" : "No export data"}</span>
+        <button
+          type="button"
+          className="rounded bg-gray-700 px-3 py-1.5 text-sm hover:bg-gray-600 transition-colors"
+          aria-label="Export recent workouts as CSV"
+          onClick={async () => {
+            const res = await refetchExport();
+            const content = res.data?.content;
+            const filename = res.data?.filename ?? "workouts_export.csv";
+            if (!content) return;
+
+            // Trigger a client-side download
+            const blob = new Blob([content], { type: res.data?.mimeType ?? "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={isExporting}
+        >
+          {isExporting ? "Preparing CSV…" : "Export CSV"}
+        </button>
+      </div>
+
       {workouts.map((workout) => (
         <div key={workout.id} className="rounded-lg bg-gray-800 p-4">
           <div className="mb-2 flex items-center justify-between">

@@ -13,8 +13,8 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
-  private isTest = process.env.NODE_ENV === 'test';
+  private readonly isDevelopment: boolean = process.env.NODE_ENV === 'development';
+  private readonly isTest: boolean = process.env.NODE_ENV === 'test';
 
   private shouldLog(level: LogLevel): boolean {
     // In tests, suppress all non-security logs
@@ -42,9 +42,10 @@ class Logger {
     
     // Truncate long strings in production
     if (!this.isDevelopment) {
-      Object.keys(sanitized).forEach(key => {
-        if (typeof sanitized[key] === 'string' && sanitized[key]!.length > 100) {
-          sanitized[key] = sanitized[key]!.substring(0, 97) + '...';
+      Object.keys(sanitized).forEach((key) => {
+        const v = sanitized[key];
+        if (typeof v === 'string' && v.length > 100) {
+          sanitized[key] = v.substring(0, 97) + '...';
         }
       });
     }
@@ -73,7 +74,7 @@ class Logger {
     console.warn(`[WARN] ${message}`, sanitizedContext);
   }
 
-  error(message: string, error?: Error | unknown, context?: LogContext): void {
+  error(message: string, error?: unknown, context?: LogContext): void {
     if (!this.shouldLog('error')) return;
     
     const sanitizedContext = context ? this.sanitizeContext(context) : {};
@@ -95,7 +96,8 @@ class Logger {
       // In production, only log essential webhook info without full payload
       this.info(`Webhook: ${message}`, context);
     } else {
-      this.debug(`Webhook: ${message}`, { payload, ...context });
+      const merged: LogContext = { ...context, payload };
+      this.debug(`Webhook: ${message}`, merged);
     }
   }
 

@@ -7,9 +7,8 @@ import {
   workoutTemplates,
   templateExercises,
   exerciseLinks,
-  masterExercises,
 } from "~/server/db/schema";
-import { eq, desc, and, ne, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, ne, inArray } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -17,6 +16,11 @@ const setInputSchema = z.object({
   reps: z.number().int().positive().optional(),
   sets: z.number().int().positive().default(1),
   unit: z.enum(["kg", "lbs"]).default("kg"),
+  // Phase 2 additions (optional on input)
+  rpe: z.number().int().min(1).max(10).optional(),
+  rest: z.number().int().positive().optional(), // seconds
+  isEstimate: z.boolean().optional(),
+  isDefaultApplied: z.boolean().optional(),
 });
 
 const exerciseInputSchema = z.object({
@@ -26,9 +30,9 @@ const exerciseInputSchema = z.object({
   unit: z.enum(["kg", "lbs"]).default("kg"),
 });
 
-/* DEBUG LOGGING ENABLED FOR TESTS */
-const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test';
-function debugLog(...args: any[]) {
+/* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
+const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test' || (process.env.NODE_ENV === 'development' && process.env.DEBUG_WORKOUTS);
+function debugLog(...args: unknown[]) {
   if (debugEnabled) console.log('[workoutsRouter]', ...args);
 }
 
@@ -343,6 +347,10 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         templateId: z.number(),
         workoutDate: z.date().default(() => new Date()),
+        // Phase 3 telemetry (optional on start)
+        theme_used: z.string().max(20).optional(),
+        device_type: z.enum(["android", "ios", "desktop", "ipad", "other"]).optional(),
+        perf_metrics: z.any().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -372,6 +380,10 @@ export const workoutsRouter = createTRPCRouter({
             user_id: ctx.user.id,
             templateId: input.templateId,
             workoutDate: input.workoutDate,
+            // Phase 3 persistence
+            theme_used: input.theme_used ?? null,
+            device_type: input.device_type ?? null,
+            perf_metrics: input.perf_metrics ?? null,
           })
           .returning();
 
@@ -411,6 +423,10 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         sessionId: z.number(),
         exercises: z.array(exerciseInputSchema),
+        // Phase 3 telemetry on save (optional updates)
+        theme_used: z.string().max(20).optional(),
+        device_type: z.enum(["android", "ios", "desktop", "ipad", "other"]).optional(),
+        perf_metrics: z.any().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -421,6 +437,18 @@ export const workoutsRouter = createTRPCRouter({
 
       if (!session || session.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
+      }
+
+      // Optionally update session telemetry fields on save
+      if (typeof input.theme_used !== "undefined" || typeof input.device_type !== "undefined" || typeof input.perf_metrics !== "undefined") {
+        await ctx.db
+          .update(workoutSessions)
+          .set({
+            theme_used: typeof input.theme_used !== "undefined" ? input.theme_used : undefined,
+            device_type: typeof input.device_type !== "undefined" ? input.device_type : undefined,
+            perf_metrics: typeof input.perf_metrics !== "undefined" ? input.perf_metrics : undefined,
+          })
+          .where(eq(workoutSessions.id, input.sessionId));
       }
 
       // Delete existing exercises for this session
@@ -434,7 +462,9 @@ export const workoutsRouter = createTRPCRouter({
           .filter((set) => 
             set.weight !== undefined || 
             set.reps !== undefined || 
-            set.sets !== undefined
+            set.sets !== undefined ||
+            set.rpe !== undefined ||
+            set.rest !== undefined
           )
           .map((set, setIndex) => ({
             user_id: ctx.user.id,
@@ -446,6 +476,11 @@ export const workoutsRouter = createTRPCRouter({
             reps: set.reps,
             sets: set.sets,
             unit: set.unit,
+            // Phase 2 mappings
+            rpe: set.rpe, // maps to session_exercise.rpe
+            rest_seconds: set.rest, // maps to session_exercise.rest_seconds
+            is_estimate: set.isEstimate ?? false,
+            is_default_applied: set.isDefaultApplied ?? false,
           }))
       );
 
@@ -461,12 +496,12 @@ export const workoutsRouter = createTRPCRouter({
     .use(workoutRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      // Verify ownership
-      const session = await ctx.db.query.workoutSessions.findFirst({
+      // Verify ownership before deleting
+      const existingSession = await ctx.db.query.workoutSessions.findFirst({
         where: eq(workoutSessions.id, input.id),
       });
 
-      if (!session || session.user_id !== ctx.user.id) {
+      if (!existingSession || existingSession.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
 

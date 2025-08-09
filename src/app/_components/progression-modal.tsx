@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
+import { FocusTrap, useReturnFocus } from "./focus-trap";
 
 interface ProgressionModalProps {
   isOpen: boolean;
@@ -22,34 +23,56 @@ export function ProgressionModal({
   previousBest,
   onApplyProgression,
 }: ProgressionModalProps) {
+  // Always call hooks unconditionally at the top of the component
+  const { restoreFocus } = useReturnFocus();
+  const firstFocusRef = useRef<HTMLButtonElement>(null);
+
   if (!isOpen) return null;
 
   const weightIncrement = previousBest.unit === "kg" ? 2.5 : 5;
-  
+
   const handleSelection = (type: "weight" | "reps" | "none") => {
     onApplyProgression(type);
+    restoreFocus();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/50">
-      <div className="card p-6 max-w-md w-full mx-4">
-        <h3 className="text-xl font-semibold mb-4">
-          Progression Suggestion
-        </h3>
-        
-        <p className="mb-4">
-          <span className="font-medium">{exerciseName}</span>
-        </p>
-        
-        <p className="text-sm text-secondary mb-6">
-          Last best: {previousBest.weight}{previousBest.unit} × {previousBest.reps} reps × {previousBest.sets} sets
-        </p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="progression-title"
+      onClick={() => {
+        restoreFocus();
+        onClose();
+      }}
+    >
+      <FocusTrap
+        onEscape={() => {
+          restoreFocus();
+          onClose();
+        }}
+        initialFocusRef={firstFocusRef as React.RefObject<HTMLElement>}
+        preventScroll
+      >
+        <div className="card glass-surface p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <h3 id="progression-title" className="text-xl font-semibold mb-4">
+            Progression Suggestion
+          </h3>
+          
+          <p className="mb-4">
+            <span className="font-medium">{exerciseName}</span>
+          </p>
+          
+          <p className="text-sm text-secondary mb-6">
+            Last best: {previousBest.weight}{previousBest.unit} × {previousBest.reps} reps × {previousBest.sets} sets
+          </p>
 
         <div className="space-y-3">
           <button
             onClick={() => handleSelection("weight")}
-            className="w-full p-3 text-left rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+            className="w-full p-3 text-left rounded-lg btn-success transition-colors"
           >
             <div className="font-medium">Add +{weightIncrement}{previousBest.unit}</div>
             <div className="text-sm opacity-90">
@@ -59,7 +82,7 @@ export function ProgressionModal({
 
           <button
             onClick={() => handleSelection("reps")}
-            className="w-full p-3 text-left rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            className="w-full p-3 text-left rounded-lg btn-primary transition-colors"
           >
             <div className="font-medium">Add +1 rep</div>
             <div className="text-sm opacity-90">
@@ -69,7 +92,7 @@ export function ProgressionModal({
 
           <button
             onClick={() => handleSelection("none")}
-            className="w-full p-3 text-left rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="w-full p-3 text-left rounded-lg btn-secondary transition-colors"
           >
             <div className="font-medium">Keep as is</div>
             <div className="text-sm text-secondary">
@@ -78,13 +101,18 @@ export function ProgressionModal({
           </button>
         </div>
         
-        <button
-          onClick={onClose}
-          className="mt-4 w-full rounded-lg bg-gray-200 px-4 py-2 text-gray-900 hover:bg-gray-300 text-sm dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-        >
-          Cancel
-        </button>
-      </div>
+          <button
+            ref={firstFocusRef}
+            onClick={() => {
+              restoreFocus();
+              onClose();
+            }}
+            className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </FocusTrap>
     </div>
   );
 }

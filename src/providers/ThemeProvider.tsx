@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 
-type Theme = "light" | "dark" | "system" | "Horizon_wow";
+type Theme = "light" | "dark" | "system" | "CalmDark" | "BoldDark" | "PlayfulDark";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -23,8 +23,10 @@ function applyThemeClass(theme: Theme) {
   const shouldDark =
     theme === "dark" ||
     (theme === "system" && prefersDark) ||
-    // Horizon_wow uses a dark-first palette by default
-    theme === "Horizon_wow";
+    // All custom dark themes are dark-first
+    theme === "CalmDark" ||
+    theme === "BoldDark" ||
+    theme === "PlayfulDark";
 
   // data-theme is the source of truth for CSS variables/themes
   root.dataset.theme = theme;

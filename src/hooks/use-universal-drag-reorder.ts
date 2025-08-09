@@ -48,11 +48,22 @@ export function useUniversalDragReorder<T>(
   const currentScrollY = useRef(0);
 
   // Get pointer position from different event types
-  const getPointerPos = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent) => {
-    if ('touches' in e && e.touches.length > 0) {
-      return { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY };
+  const getPointerPos = (
+    e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent,
+  ): { x: number; y: number } => {
+    // TouchEvent path
+    if ("touches" in e) {
+      const t = (e).touches;
+      if (t && t.length > 0) {
+        return { x: t[0]!.clientX, y: t[0]!.clientY };
+      }
     }
-    return { x: (e as any).clientX, y: (e as any).clientY };
+    // Pointer/Mouse path
+    if ("clientX" in e && "clientY" in e) {
+      const p = e;
+      return { x: p.clientX, y: p.clientY };
+    }
+    return { x: 0, y: 0 };
   };
 
   // Find the insertion point based on pointer position
@@ -156,16 +167,35 @@ export function useUniversalDragReorder<T>(
       // Prevent dragging when clicking on interactive elements (except explicit drag handles)
       const target = e.target as HTMLElement;
       const isHandle = !!target.closest('[data-drag-handle="true"]');
+      console.log('[useUniversalDragReorder] onPointerDown called', { index, isHandle, targetTag: target.tagName, opts });
+
+      // IMPORTANT: Do NOT call preventDefault on React synthetic event here (React may mark as passive).
+      // Instead, immediately add a non-passive native listener on the currentTarget to prevent default for the next move.
+      const currentTarget = (e as React.SyntheticEvent).currentTarget as HTMLElement | null;
+
+      if (currentTarget) {
+        const nonPassiveMove = (ev: Event) => {
+          try { ev.preventDefault(); } catch {}
+        };
+        // Add once to block the first move which typically starts scroll/text selection on touch
+        currentTarget.addEventListener('touchmove', nonPassiveMove, { passive: false, once: true });
+        currentTarget.addEventListener('pointermove', nonPassiveMove, { passive: false, once: true });
+        currentTarget.addEventListener('mousemove', nonPassiveMove, { passive: false, once: true });
+      }
+
       if (!isHandle && (target.closest('button') || target.closest('input') || target.closest('select'))) {
         return;
       }
 
       // iOS/Safari robustness: attempt to capture pointer if available
-      const anyEvent = e as any;
-      const currentTarget = anyEvent.currentTarget as any;
-      if ('pointerId' in anyEvent && typeof currentTarget?.setPointerCapture === 'function') {
+      const evt = e;
+      const ct = (evt as React.SyntheticEvent).currentTarget as HTMLElement | null;
+      // Only PointerEvent has pointerId
+      if ("pointerId" in evt && ct && typeof (ct as HTMLElement & { setPointerCapture?: (pointerId: number) => void }).setPointerCapture === "function") {
         try {
-          currentTarget.setPointerCapture(anyEvent.pointerId as number);
+          (ct as HTMLElement & { setPointerCapture: (pointerId: number) => void }).setPointerCapture(
+            (evt).pointerId,
+          );
         } catch {
           // ignore capture errors
         }
@@ -178,8 +208,8 @@ export function useUniversalDragReorder<T>(
       axisLockedToY.current = false;
       lastInsertionIndexRef.current = null;
 
-      // If initiated from the drag handle and force requested, start immediately with vertical lock
-      if (opts?.force || isHandle) {
+      // If initiated from the drag handle OR force requested, start immediately with vertical lock
+      if (isHandle || opts?.force) {
         hasDragStarted.current = true;
         axisLockedToY.current = true;
         setIsDragging(true);
@@ -226,6 +256,7 @@ export function useUniversalDragReorder<T>(
       }
 
       if (hasDragStarted.current && axisLockedToY.current) {
+        console.log('[useUniversalDragReorder] onPointerMove - drag active', { draggedIndex, deltaX, deltaY, distance, dragOverIndex });
         // Use requestAnimationFrame for smooth 60fps updates
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
@@ -275,14 +306,15 @@ export function useUniversalDragReorder<T>(
         // Use CSS (e.g., 'touch-none') on the draggable element while dragging to prevent scroll.
       }
     },
-    [draggedIndex, dragStartPos, findDropTarget, onStartDrag, handleAutoScroll]
+    [draggedIndex, dragStartPos, dragOverIndex, findDropTarget, onStartDrag, handleAutoScroll]
   );
 
   const onPointerUp = useCallback(
-    (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
+    (_e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
       if (draggedIndex === null) return;
 
       if (hasDragStarted.current && dragOverIndex !== null && dragOverIndex !== draggedIndex) {
+        console.log('[useUniversalDragReorder] onPointerUp - performing reorder', { draggedIndex, dragOverIndex });
         // Perform reorder
         const newItems = [...items];
         const draggedItem = newItems[draggedIndex];
@@ -298,10 +330,15 @@ export function useUniversalDragReorder<T>(
           // Insert at the calculated position
           newItems.splice(adjustedInsertionIndex, 0, draggedItem);
           
+          console.log('[useUniversalDragReorder] onReorder called with newItems', newItems.map(item => {
+            const typedItem = item as Record<string, unknown>;
+            return typedItem.identity ?? typedItem.originalIndex;
+          }));
           onReorder(newItems);
         }
       }
 
+      console.log('[useUniversalDragReorder] onPointerUp - resetting state');
       // Reset state
       setDraggedIndex(null);
       setDragOverIndex(null);
@@ -329,11 +366,12 @@ export function useUniversalDragReorder<T>(
     if (draggedIndex === null) return;
 
     const handlePointerMove = (e: PointerEvent | MouseEvent | TouchEvent) => {
-      onPointerMove(e as any);
+      // Bridge native event to handler expecting React types; we only read clientX/Y or touches safely.
+      onPointerMove(e as unknown as React.PointerEvent);
     };
 
     const handlePointerUp = (e: PointerEvent | MouseEvent | TouchEvent) => {
-      onPointerUp(e as any);
+      onPointerUp(e as unknown as React.PointerEvent);
     };
 
     // Add listeners to document to capture events outside the element

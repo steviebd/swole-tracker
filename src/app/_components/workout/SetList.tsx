@@ -13,6 +13,7 @@ interface SetListProps {
   onToggleUnit: (exerciseIndex: number, setIndex: number) => void;
   onAddSet: (exerciseIndex: number) => void;
   onDeleteSet: (exerciseIndex: number, setIndex: number) => void;
+  onMoveSet: (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => void;
 }
 
 export function SetList({
@@ -25,13 +26,14 @@ export function SetList({
   onToggleUnit,
   onAddSet,
   onDeleteSet,
+  onMoveSet,
 }: SetListProps) {
   return (
     <div className="space-y-2">
-      {/* Render each set using the original SetInput component to preserve behavior */}
+      {/* Render each set with up/down arrows */}
       {sets.map((set, setIndex) => (
         <SetInput
-          key={set.id ?? `${exerciseIndex}-${setIndex}`}
+          key={`${exerciseIndex}-${set.id}-${setIndex}`}
           set={set}
           setIndex={setIndex}
           exerciseIndex={exerciseIndex}
@@ -42,6 +44,15 @@ export function SetList({
           onDelete={onDeleteSet}
           readOnly={readOnly}
           showDelete={sets.length > 1}
+          // Arrow button handlers
+          onMoveUp={setIndex > 0 ? () => {
+            console.log('[SetList] onMoveUp callback triggered', { exerciseIndex, setIndex });
+            onMoveSet(exerciseIndex, setIndex, 'up');
+          } : undefined}
+          onMoveDown={setIndex < sets.length - 1 ? () => {
+            console.log('[SetList] onMoveDown callback triggered', { exerciseIndex, setIndex });
+            onMoveSet(exerciseIndex, setIndex, 'down');
+          } : undefined}
         />
       ))}
 
@@ -50,7 +61,11 @@ export function SetList({
         <div>
           <button
             className="w-full py-2 text-sm rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-            onClick={() => onAddSet(exerciseIndex)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddSet(exerciseIndex);
+            }}
           >
             Add Set
           </button>

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
-import { version as nextVersion } from "next/package.json";
+import nextPackage from "next/package.json";
 import pkg from "../../../../package.json";
 
 /**
@@ -34,7 +34,7 @@ export default function SystemDebugPage() {
 
     const versions = {
       app: (pkg as any).version ?? "unknown",
-      next: nextVersion,
+      next: nextPackage.version,
       react: (pkg as any).dependencies?.react ?? "unknown",
       trpc: (pkg as any).dependencies?.["@trpc/server"] ?? "unknown",
       drizzle: (pkg as any).dependencies?.["drizzle-orm"] ?? "unknown",

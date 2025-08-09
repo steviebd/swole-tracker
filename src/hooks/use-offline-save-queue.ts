@@ -105,7 +105,7 @@ export function useOfflineSaveQueue() {
       }
 
       setStatus("done");
-    } catch (e) {
+    } catch {
       setStatus("error");
       setLastError("Unexpected error while flushing queue.");
     } finally {
@@ -139,7 +139,7 @@ export function useOfflineSaveQueue() {
   const items = useMemo(() => {
     if (typeof window === "undefined") return [];
     return getQueue();
-  }, [queueSize]);
+  }, []);
 
   return {
     queueSize,

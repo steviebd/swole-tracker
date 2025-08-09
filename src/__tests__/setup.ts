@@ -16,7 +16,6 @@ afterEach(() => {
   } catch {}
   // Vitest provides unstubAllGlobals in v3; guard in case of version diff
   try {
-    // @ts-expect-error - not always typed
     vi.unstubAllGlobals?.();
   } catch {}
 });

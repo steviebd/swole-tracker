@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import * as oauth from "oauth4webapi";
+import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -14,12 +15,19 @@ interface WhoopWorkout {
   timezone_offset: string;
   sport_name: string;
   score_state: string;
-  score?: any;
-  during?: any;
-  zone_duration?: any;
+  score?: unknown;
+  during?: unknown;
+  zone_duration?: unknown;
 }
 
-async function refreshTokenIfNeeded(integration: any) {
+type IntegrationRecord = {
+  id: number;
+  accessToken: string;
+  refreshToken: string | null;
+  expiresAt: string | Date | null;
+};
+
+async function refreshTokenIfNeeded(integration: IntegrationRecord) {
   // Check if token is expired or will expire in next 5 minutes
   const expiryBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
   const now = new Date();
@@ -35,10 +43,6 @@ async function refreshTokenIfNeeded(integration: any) {
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
 
-    const client: oauth.Client = {
-      client_id: env.WHOOP_CLIENT_ID!,
-      client_secret: env.WHOOP_CLIENT_SECRET!,
-    };
 
     // Make refresh token request directly
     const refreshRequest = {
@@ -62,30 +66,39 @@ async function refreshTokenIfNeeded(integration: any) {
       throw new Error(`Token refresh failed: ${tokenResponse.status} - ${errorText}`);
     }
 
-    const tokens = await tokenResponse.json();
+    const tokens: unknown = await tokenResponse.json();
 
-    const expiresAt = tokens.expires_in 
-      ? new Date(Date.now() + tokens.expires_in * 1000)
+    if (typeof tokens !== "object" || tokens === null) {
+      throw new Error("Unexpected token response shape");
+    }
+    const t = tokens as {
+      access_token?: string;
+      refresh_token?: string | null;
+      expires_in?: number;
+    };
+
+    const expiresAt = t.expires_in 
+      ? new Date(Date.now() + t.expires_in * 1000)
       : null;
 
     // Update tokens in database
     await db
       .update(userIntegrations)
       .set({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || integration.refreshToken,
+        accessToken: t.access_token!,
+        refreshToken: t.refresh_token ?? integration.refreshToken,
         expiresAt,
         updatedAt: new Date(),
       })
-      .where(eq(userIntegrations.id, integration.id));
+      .where(eq(userIntegrations.id, Number(integration.id)));
 
-    return tokens.access_token;
+    return t.access_token!;
   }
 
   return integration.accessToken;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const user = await currentUser();
     if (!user) {
@@ -157,15 +170,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const whoopData = await whoopResponse.json();
+    const whoopData: unknown = await whoopResponse.json();
+    if (typeof whoopData !== "object" || whoopData === null) {
+      return NextResponse.json(
+        { error: "Unexpected Whoop API response shape" },
+        { status: 502 },
+      );
+    }
+
+    // Narrow shape
+    const dataArr = (whoopData as { data?: unknown }).data;
+    const recordsArr = (whoopData as { records?: unknown }).records;
+
     console.log("Whoop API response structure:", {
-      keys: Object.keys(whoopData),
-      recordsLength: whoopData.records?.length,
-      dataLength: whoopData.data?.length,
+      keys: Object.keys(whoopData as Record<string, unknown>),
+      recordsLength: Array.isArray(recordsArr) ? recordsArr.length : undefined,
+      dataLength: Array.isArray(dataArr) ? dataArr.length : undefined,
     });
-    
+
     // v2 API might use 'data' instead of 'records'
-    const workouts: WhoopWorkout[] = whoopData.data || whoopData.records || [];
+    const workoutsRaw = (Array.isArray(dataArr) ? dataArr : Array.isArray(recordsArr) ? recordsArr : []) as unknown[];
+
+    const workouts: WhoopWorkout[] = workoutsRaw.map((w) => {
+      const o = w as Record<string, unknown>;
+      return {
+        id: String(o.id ?? ""),
+        start: String(o.start ?? ""),
+        end: String(o.end ?? ""),
+        timezone_offset: String(o.timezone_offset ?? ""),
+        sport_name: String(o.sport_name ?? ""),
+        score_state: String(o.score_state ?? ""),
+        score: o.score,
+        during: o.during,
+        zone_duration: o.zone_duration,
+      };
+    });
 
     let newWorkouts = 0;
     let duplicates = 0;
@@ -193,9 +232,9 @@ export async function POST(request: NextRequest) {
           timezone_offset: workout.timezone_offset,
           sport_name: workout.sport_name,
           score_state: workout.score_state,
-          score: workout.score || null,
-          during: workout.during || null,
-          zone_duration: workout.zone_duration || null,
+          score: workout.score ?? null,
+          during: workout.during ?? null,
+          zone_duration: workout.zone_duration ?? null,
         });
 
         newWorkouts++;

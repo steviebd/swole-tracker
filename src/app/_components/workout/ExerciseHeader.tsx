@@ -23,11 +23,9 @@ interface ExerciseHeaderProps {
 export function ExerciseHeader({
   name,
   isExpanded,
-  isSwiped,
-  readOnly,
   previousBest,
   onToggleExpansion,
-  onSwipeToBottom,
+  onSwipeToBottom: _onSwipeToBottom,
   exerciseIndex,
 }: ExerciseHeaderProps) {
   return (

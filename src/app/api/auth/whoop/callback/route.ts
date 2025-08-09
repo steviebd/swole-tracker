@@ -1,6 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import * as oauth from "oauth4webapi";
+import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -33,11 +34,6 @@ export async function GET(request: NextRequest) {
       issuer: "https://api.prod.whoop.com",
       authorization_endpoint: "https://api.prod.whoop.com/oauth/oauth2/auth",
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
-    };
-
-    const client: oauth.Client = {
-      client_id: env.WHOOP_CLIENT_ID!,
-      client_secret: env.WHOOP_CLIENT_SECRET!,
     };
 
     const redirectUri = `${request.nextUrl.origin}/api/auth/whoop/callback`;
@@ -78,18 +74,29 @@ export async function GET(request: NextRequest) {
       throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
     }
 
-    const tokens = await tokenResponse.json();
+    const tokens: unknown = await tokenResponse.json();
+
+    if (typeof tokens !== "object" || tokens === null) {
+      throw new Error("Token response was not an object");
+    }
+
+    const tok = tokens as {
+      access_token?: string;
+      refresh_token?: string | null;
+      expires_in?: number;
+      scope?: string;
+    };
 
     console.log("Tokens received:", {
-      hasAccessToken: !!tokens.access_token,
-      hasRefreshToken: !!tokens.refresh_token,
-      expiresIn: tokens.expires_in,
-      scope: tokens.scope,
+      hasAccessToken: !!tok.access_token,
+      hasRefreshToken: !!tok.refresh_token,
+      expiresIn: tok.expires_in,
+      scope: tok.scope,
     });
 
     // Calculate expires_at
-    const expiresAt = tokens.expires_in 
-      ? new Date(Date.now() + tokens.expires_in * 1000)
+    const expiresAt = tok.expires_in 
+      ? new Date(Date.now() + tok.expires_in * 1000)
       : null;
 
     // Store tokens in database (upsert pattern)
@@ -107,10 +114,10 @@ export async function GET(request: NextRequest) {
       await db
         .update(userIntegrations)
         .set({
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token ?? null,
+          accessToken: tok.access_token!,
+          refreshToken: tok.refresh_token ?? null,
           expiresAt,
-          scope: tokens.scope ?? "read:workout offline",
+          scope: tok.scope ?? "read:workout offline",
           isActive: true,
           updatedAt: new Date(),
         })
@@ -124,10 +131,10 @@ export async function GET(request: NextRequest) {
       await db.insert(userIntegrations).values({
         user_id: user.id,
         provider: "whoop",
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token ?? null,
+        accessToken: tok.access_token!,
+        refreshToken: tok.refresh_token ?? null,
         expiresAt,
-        scope: tokens.scope ?? "read:workout offline",
+        scope: tok.scope ?? "read:workout offline",
         isActive: true,
       });
     }

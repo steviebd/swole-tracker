@@ -1,25 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api } from "~/trpc/react";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
-import { type SetData } from "./set-input";
 import { ProgressionModal } from "./progression-modal";
 import { ProgressionScopeModal } from "./progression-scope-modal";
+import { Toast } from "./ui/Toast";
+import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
+import { FocusTrap, useReturnFocus } from "./focus-trap";
 
-interface PreviousBest {
-  weight?: number;
-  reps?: number;
-  sets?: number;
-  unit: "kg" | "lbs";
-}
 import { analytics } from "~/lib/analytics";
+import posthog from "posthog-js";
+import { vibrate, getDeviceType, getThemeUsed, snapshotMetricsBlob } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
-import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
-import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
-import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 
 interface WorkoutSessionProps {
@@ -28,7 +22,7 @@ interface WorkoutSessionProps {
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const router = useRouter();
-  const { onWorkoutSave, invalidateWorkouts } = useCacheInvalidation();
+  const { onWorkoutSave: _onWorkoutSave, invalidateWorkouts: _invalidateWorkouts } = useCacheInvalidation();
 
   // Move complex state and effects into a dedicated hook to reduce component size.
   const {
@@ -46,16 +40,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     collapsedIndexes,
     progressionModal,
     setProgressionModal,
-    hasShownAutoProgression,
-    setHasShownAutoProgression,
+    hasShownAutoProgression: _hasShownAutoProgression,
+    setHasShownAutoProgression: _setHasShownAutoProgression,
     progressionScopeModal,
     setProgressionScopeModal,
     saveWorkout,
     deleteWorkout,
     enqueue,
-    flush,
-    queueSize,
-    isFlushing,
     swipeSettings,
     dragState,
     dragHandlers,
@@ -66,9 +57,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     toggleUnit: hookToggleUnit,
     addSet: hookAddSet,
     deleteSet: hookDeleteSet,
+    moveSet,
     buildSavePayload,
     session,
-    updatePreferences,
+    updatePreferences: _updatePreferences,
+    // undo integration
+    lastAction,
+    undoLastAction,
+    setLastAction,
   } = useWorkoutSessionState({ sessionId });
 
   // Generate unique ID for sets
@@ -84,6 +80,39 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // drag state/handlers provided by hook
   const displayOrder = getDisplayOrder();
 
+  // Conservative virtualization window for very large templates
+  const VIRTUALIZE_THRESHOLD = 20;
+  const WINDOW_BEFORE = 6;
+  const WINDOW_AFTER = 6;
+
+  const [scrollY, setScrollY] = useState(0);
+  const _listContainerRef = useRef<HTMLDivElement | null>(null);
+  const progressionInProgressRef = useRef(false);
+  const lastProgressionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY || 0);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const _getItemTop = (_index: number) => {
+    // Approximate per-card height; lightweight and avoids layout thrash. Cards are fairly uniform in this view.
+    const approx = 120; // px
+    return _index * approx;
+  };
+
+  const totalCount = displayOrder.length;
+  const shouldVirtualize = totalCount >= VIRTUALIZE_THRESHOLD;
+
+  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+  const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollY / 120) - WINDOW_BEFORE) : 0;
+  const endIndex = shouldVirtualize ? Math.min(totalCount - 1, Math.ceil((scrollY + viewportHeight) / 120) + WINDOW_AFTER) : totalCount - 1;
+
+  // Accessibility live region
+  const announce = useLiveRegion();
+  useAttachLiveRegion(announce);
+
   // previous data loading handled in hook
 
   // session initialization handled in hook
@@ -92,6 +121,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
   // ===== COMPLETE WORKOUT MODAL STATE =====
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  // Focus restore for inline modals
+  const { restoreFocus: restoreFocusInline } = useReturnFocus();
 
   type BestMetrics = {
     bestWeight?: { weight: number; reps?: number; sets?: number; unit: "kg" | "lbs" };
@@ -108,14 +139,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     const withVolume = ex.sets
       .map((s) => ({ ...s, volume: (s.weight ?? 0) * (s.reps ?? 0) }))
       .filter((s) => s.volume && s.volume > 0);
-    const bestByVolume = withVolume.sort((a, b) => (b.volume! - a.volume!))[0];
+    const bestByVolume = withVolume.sort((a, b) => (b.volume - a.volume))[0];
 
     return {
       bestWeight: bestByWeight?.weight
         ? { weight: bestByWeight.weight, reps: bestByWeight.reps, sets: bestByWeight.sets, unit: bestByWeight.unit }
         : undefined,
       bestVolume: bestByVolume
-        ? { volume: bestByVolume.volume!, weight: bestByVolume.weight, reps: bestByVolume.reps, unit: bestByVolume.unit }
+        ? { volume: bestByVolume.volume, weight: bestByVolume.weight, reps: bestByVolume.reps, unit: bestByVolume.unit }
         : undefined,
     };
   };
@@ -131,6 +162,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const updateSet = hookUpdateSet;
   const toggleUnit = hookToggleUnit;
   const addSet = hookAddSet;
+  const vibrateSafe = (pattern: number | number[]) => {
+    try {
+      vibrate(pattern);
+    } catch {}
+  };
   const deleteSet = hookDeleteSet;
 
   // toggleExpansion provided by hook
@@ -143,7 +179,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       return;
     }
     
-    const { exerciseIndex, previousBest } = progressionModal;
+    const { exerciseIndex, previousBest: _previousBest } = progressionModal;
     
     if (type === "none") {
       // No progression, just expand and close
@@ -159,7 +195,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     
     // For weight/reps progression, show scope selection modal
     const increment = type === "weight" 
-      ? `+${previousBest.unit === "kg" ? "2.5" : "5"}${previousBest.unit}`
+      ? `+${_previousBest.unit === "kg" ? "2.5" : "5"}${_previousBest.unit}`
       : "+1 rep";
     
     setProgressionScopeModal({
@@ -167,7 +203,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       exerciseIndex,
       progressionType: type,
       increment,
-      previousBest,
+      previousBest: _previousBest,
     });
     
     // Close first modal
@@ -175,15 +211,38 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const applyProgressionToAll = () => {
-    if (!progressionScopeModal) return;
+    const callTime = Date.now();
+    console.log(`[DEBUG] applyProgressionToAll called at ${callTime}`);
     
-    const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
+    if (!progressionScopeModal) {
+      console.log('[DEBUG] No progressionScopeModal, returning');
+      return;
+    }
+    
+    if (progressionInProgressRef.current) {
+      console.log('[DEBUG] progressionInProgressRef.current is true, returning');
+      return;
+    }
+    
+    progressionInProgressRef.current = true;
+    console.log('[DEBUG] Set progressionInProgressRef.current to true');
+    
+    // Capture the modal data before closing it
+    const modalData = { ...progressionScopeModal };
+    const { exerciseIndex, progressionType, previousBest } = modalData;
+    console.log('[DEBUG] Modal data captured:', { exerciseIndex, progressionType });
+    
+    // Close the modal first to prevent double-execution
+    setProgressionScopeModal(null);
+    console.log('[DEBUG] Modal closed');
     
     setExercises(prev => {
       const newExercises = [...prev];
       const exercise = newExercises[exerciseIndex];
       
       if (exercise) {
+        console.log('[DEBUG] Exercise sets before progression:', exercise.sets.map(s => ({ id: s.id, weight: s.weight, reps: s.reps })));
+        
         // Apply progression to ALL sets
         exercise.sets = exercise.sets.map(set => {
           const updatedSet = { ...set };
@@ -209,12 +268,22 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       }
       return prev;
     });
+    
+    // Reset the progression guard after a brief delay to ensure state updates complete
+    setTimeout(() => {
+      console.log('[DEBUG] Resetting progressionInProgressRef.current to false');
+      progressionInProgressRef.current = false;
+      lastProgressionIdRef.current = null;
+    }, 500);
   };
 
   const applyProgressionToHighest = () => {
     if (!progressionScopeModal) return;
     
     const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
+    
+    // Close the modal first to prevent double-execution
+    setProgressionScopeModal(null);
     
     setExercises(prev => {
       const newExercises = [...prev];
@@ -260,7 +329,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     // Validate that exercises have required data
     const validationErrors: string[] = [];
     
-    exercises.forEach((exercise, exerciseIndex) => {
+    exercises.forEach((exercise, _exerciseIndex) => {
       exercise.sets.forEach((set, setIndex) => {
         const hasData = set.weight !== undefined || set.reps !== undefined || (set.sets && set.sets > 0);
         
@@ -359,15 +428,43 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const handleDelete = async () => {
+    // Prevent multiple rapid calls
+    if (deleteWorkout.isPending) {
+      console.log("Delete already in progress, ignoring duplicate call");
+      return;
+    }
+
+    // Validate sessionId before proceeding
+    if (!sessionId || typeof sessionId !== "number") {
+      console.error("Invalid sessionId for workout deletion:", sessionId);
+      alert("Cannot delete workout: invalid session ID");
+      return;
+    }
+
     try {
+      console.log("Attempting to delete workout session:", sessionId);
+      
+      // Try to delete from database
       await deleteWorkout.mutateAsync({ id: sessionId });
+      
+      // If we get here, deletion succeeded (either database delete or handled as unsaved session)
+      console.log("Workout deletion completed successfully");
+      
+      // Navigate to home after successful deletion
+      setShowDeleteConfirm(false);
+      router.push("/");
+      
     } catch (error) {
-      console.error("Error deleting workout:", error);
+      // This should rarely happen now due to our error handling in the mutation
+      console.error("Unexpected error during workout deletion:", error);
       analytics.error(error as Error, {
         context: "workout_delete",
         sessionId: sessionId.toString(),
       });
-      alert("Error deleting workout. Please try again.");
+      
+      // Even on error, close dialog and navigate away since the optimistic update already happened
+      setShowDeleteConfirm(false);
+      router.push("/");
     }
   };
 
@@ -415,6 +512,27 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
+      {/* Persistent Undo (global) */}
+      {lastAction && (
+        <div className="sticky bottom-4 z-[60]">
+          <Toast
+            open={true}
+            type="info"
+            message={
+              lastAction.type === "swipeToEnd"
+                ? "Exercise moved to end"
+                : lastAction.type === "toggleCollapse"
+                ? "Exercise expanded state changed"
+                : "Order changed"
+            }
+            onUndo={() => {
+              undoLastAction();
+            }}
+            onClose={() => setLastAction(null)}
+          />
+        </div>
+      )}
+
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
         <div className="text-center text-sm text-muted mb-2">
@@ -423,14 +541,21 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       )}
 
       {/* Exercise Cards */}
-      {getDisplayOrder().map(({ exercise, originalIndex }, displayIndex) => {
+      {(shouldVirtualize
+        ? displayOrder.slice(startIndex, endIndex + 1).map((entry, i) => ({ ...entry, windowIndex: startIndex + i }))
+        : displayOrder.map((entry, i) => ({ ...entry, windowIndex: i }))
+      ).map(({ exercise, originalIndex, windowIndex }) => {
+        const displayIndex = windowIndex;
         // Collapsed state is derived from collapsedIndexes mapped to current order
         const isCollapsed = collapsedIndexes.includes(displayIndex);
         const isExpandedNow = !isCollapsed && expandedExercises.includes(originalIndex);
 
         
         return (
-          <div key={exercise.templateExerciseId ?? originalIndex}>
+          <div
+            key={exercise.templateExerciseId ?? originalIndex}
+            style={shouldVirtualize ? { minHeight: 0 } : undefined}
+          >
             {/* Swiped Exercises Section Header */}
             <ExerciseCard
               exercise={exercise}
@@ -439,6 +564,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               onToggleUnit={toggleUnit}
               onAddSet={addSet}
               onDeleteSet={deleteSet}
+              onMoveSet={moveSet}
               isExpanded={isExpandedNow}
               onToggleExpansion={toggleExpansion}
               previousBest={previousExerciseData.get(exercise.exerciseName)?.best}
@@ -465,46 +591,120 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
-      {/* Save/Complete/Delete Buttons - only show for new workouts */}
+      {/* Bottom action bar - editable only */}
       {!isReadOnly && (
-        <div className="sticky bottom-4 space-y-3 pt-6" role="region" aria-label="Workout actions">
-          <button
-            onClick={handleSave}
-            disabled={saveWorkout.isPending}
-            className="w-full rounded-lg border border-gray-200 bg-white py-4 text-xl font-semibold text-gray-900 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-            aria-busy={saveWorkout.isPending ? "true" : "false"}
-          >
-            {saveWorkout.isPending ? "Saving..." : "Save Workout"}
-          </button>
+        <div className="sticky bottom-4 z-50 pt-6" role="region" aria-label="Workout actions">
+          <div className="glass-surface glass-hairline rounded-xl p-3 shadow-lg">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={(e) => {
+                  // Avoid double-fire from multiple pointer/mouse handlers or event bubbling
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if ((e as any).nativeEvent?._addSetHandled) return;
+                  (e as any).nativeEvent._addSetHandled = true;
 
-          <button
-            onClick={openCompleteModal}
-            className="btn-primary w-full py-4 text-xl font-semibold disabled:opacity-50"
-          >
-            Complete Workout
-          </button>
+                  // Add a set to the first expanded exercise, or first exercise as fallback
+                  const targetIndex =
+                    expandedExercises[0] !== undefined ? expandedExercises[0] : 0;
+                  if (typeof targetIndex === "number") {
+                    addSet(targetIndex);
+                    // clear undo since a new action happened
+                    setLastAction(null);
+                    // Haptic + PostHog
+                    vibrateSafe(10);
+                    try {
+                      posthog.capture("haptic_action", { kind: "add_set" });
+                    } catch {}
+                    // Live announcement
+                    try {
+                      announce("Set added", { assertive: false });
+                    } catch {}
+                    // Smooth scroll to bottom to keep newly added set visible
+                    try {
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                    } catch {}
+                  }
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                className="btn-secondary py-3"
+                aria-label="Add set to current exercise"
+              >
+                Add Set
+              </button>
 
-          {queueSize > 0 && (
-          <div className="rounded-lg border p-3 text-sm flex items-center justify-between border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-100">
-            <span>{isFlushing ? "Syncing queued workouts…" : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}</span>
-            <button
-              onClick={() => void flush()}
-              className="ml-3 rounded border border-yellow-300 px-3 py-1 text-xs font-medium hover:bg-yellow-100 dark:border-yellow-600 dark:hover:bg-yellow-900/50"
-            >
-              Sync now
-            </button>
+              <button
+                onClick={async () => {
+                  // PostHog-only telemetry snapshot at save tap
+                  try {
+                    const theme_used = getThemeUsed();
+                    const device_type = getDeviceType();
+                    const perf = snapshotMetricsBlob();
+                    posthog.capture("workout_save", {
+                      theme_used,
+                      device_type,
+                      tti: perf.tti,
+                      tbt: perf.tbt,
+                      input_latency_avg: (perf.inputLatency as any)?.avg,
+                      input_latency_p95: (perf.inputLatency as any)?.p95,
+                    });
+                  } catch {}
+                  await handleSave();
+                  // Haptic feedback on save attempt (short-long-short)
+                  vibrateSafe([10, 30, 10]);
+                  try {
+                    posthog.capture("haptic_action", { kind: "save" });
+                  } catch {}
+                  // Live announcement
+                  try {
+                    announce("Workout saved", { assertive: true });
+                  } catch {}
+                }}
+                disabled={saveWorkout.isPending}
+                className="btn-secondary py-3 disabled:opacity-50"
+                aria-busy={saveWorkout.isPending ? "true" : "false"}
+                aria-label="Save workout"
+              >
+                {saveWorkout.isPending ? "Saving…" : "Save"}
+              </button>
+
+              <button
+                onClick={() => {
+                  openCompleteModal();
+                  // Optional subtle haptic to acknowledge opening modal
+                  vibrateSafe(10);
+                  try {
+                    posthog.capture("haptic_action", { kind: "save" });
+                  } catch {}
+                }}
+                className="btn-primary py-3"
+              >
+                Complete
+              </button>
+            </div>
+
+
+            {/* Delete is secondary; keep outside the primary row */}
+            <div className="mt-2 text-center">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(true);
+                  setLastAction(null);
+                  vibrateSafe(10);
+                }}
+                disabled={deleteWorkout.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold transition-colors hover:bg-red-700 disabled:opacity-50"
+                aria-describedby="delete-workout-help"
+              >
+                {deleteWorkout.isPending ? "Deleting…" : "Delete Workout"}
+              </button>
+              <span id="delete-workout-help" className="sr-only">
+                Opens a confirmation dialog
+              </span>
+            </div>
           </div>
-          )}
-
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={deleteWorkout.isPending}
-            className="w-3/4 mx-auto block py-2.5 text-base font-semibold rounded-lg bg-red-600 transition-colors hover:bg-red-700 disabled:opacity-50"
-            aria-describedby="delete-workout-help"
-          >
-            {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
-          </button>
-          <span id="delete-workout-help" className="sr-only">Opens a confirmation dialog</span>
         </div>
       )}
 
@@ -541,41 +741,56 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           aria-modal="true"
           aria-labelledby="delete-workout-title"
           aria-describedby="delete-workout-desc"
-          onClick={() => setShowDeleteConfirm(false)}
+          onClick={() => {
+            restoreFocusInline();
+            setShowDeleteConfirm(false);
+          }}
         >
-          <div
-            className="w-full max-w-md card p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+          <FocusTrap
+            onEscape={() => {
+              restoreFocusInline();
+              setShowDeleteConfirm(false);
+            }}
+            preventScroll
           >
-            <h3 id="delete-workout-title" className="mb-4 text-xl font-bold text-rose-600 dark:text-rose-400">
-              Delete Workout
-            </h3>
-            <p id="delete-workout-desc" className="mb-6 leading-relaxed text-secondary">
-              Are you sure you want to delete this workout?
-              <br />
-              <strong className="text-red-400">
-                This action cannot be undone.
-              </strong>
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 rounded-lg bg-gray-200 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  void handleDelete();
-                }}
-                disabled={deleteWorkout.isPending}
-                className="flex-1 rounded-lg bg-red-600 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-              >
-                {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
-              </button>
+            <div
+              className="w-full max-w-md card p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="delete-workout-title" className="mb-4 text-xl font-bold text-rose-600 dark:text-rose-400">
+                Delete Workout
+              </h3>
+              <p id="delete-workout-desc" className="mb-6 leading-relaxed text-secondary">
+                Are you sure you want to delete this workout?
+                <br />
+                <strong className="text-red-400">
+                  This action cannot be undone.
+                </strong>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    restoreFocusInline();
+                    setShowDeleteConfirm(false);
+                  }}
+                  className="flex-1 rounded-lg bg-gray-200 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    restoreFocusInline();
+                    setShowDeleteConfirm(false);
+                    void handleDelete();
+                  }}
+                  disabled={deleteWorkout.isPending}
+                  className="flex-1 rounded-lg bg-red-600 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
+                </button>
+              </div>
             </div>
-          </div>
+          </FocusTrap>
         </div>
       )}
 
@@ -610,105 +825,116 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           aria-modal="true"
           aria-labelledby="complete-workout-title"
           aria-describedby="complete-workout-desc"
-          onClick={closeCompleteModal}
+          onClick={() => {
+            restoreFocusInline();
+            closeCompleteModal();
+          }}
         >
-          <div
-            className="w-full max-w-lg card p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+          <FocusTrap
+            onEscape={() => {
+              restoreFocusInline();
+              closeCompleteModal();
+            }}
+            preventScroll
           >
-            <h3 id="complete-workout-title" className="mb-1 text-xl font-bold text-purple-700 dark:text-purple-300">
-              Complete Workout
-            </h3>
-            <p id="complete-workout-desc" className="mb-4 text-sm text-secondary">
-              Review your performance compared to your previous best for each exercise.
-            </p>
-            <div className="max-h-[50vh] overflow-y-auto pr-1">
-              <div className="space-y-3">
-                {exercises.map((ex, idx) => {
-                  const curr = computeCurrentBest(ex);
-                  const prev = previousExerciseData.get(ex.exerciseName)?.best;
+            <div
+              className="w-full max-w-lg card p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="complete-workout-title" className="mb-1 text-xl font-bold text-purple-700 dark:text-purple-300">
+                Complete Workout
+              </h3>
+              <p id="complete-workout-desc" className="mb-4 text-sm text-secondary">
+                Review your performance compared to your previous best for each exercise.
+              </p>
+              <div className="max-h-[50vh] overflow-y-auto pr-1">
+                <div className="space-y-3">
+                  {exercises.map((ex, idx) => {
+                    const curr = computeCurrentBest(ex);
+                    const prev = previousExerciseData.get(ex.exerciseName)?.best;
 
-                  // helpers to compare
-                  const currWeight = curr.bestWeight?.weight ?? 0;
-                  const prevWeight = prev?.weight ?? 0;
-                  const weightDelta = currWeight - prevWeight;
-                  const weightBadge =
-                    curr.bestWeight && prev
-                      ? weightDelta > 0
-                        ? "text-green-300"
-                        : weightDelta < 0
-                        ? "text-red-300"
-                        : "text-gray-300"
-                      : "text-gray-300";
+                    // helpers to compare
+                    const currWeight = curr.bestWeight?.weight ?? 0;
+                    const prevWeight = prev?.weight ?? 0;
+                    const weightDelta = currWeight - prevWeight;
+                    const weightBadge =
+                      curr.bestWeight && prev
+                        ? weightDelta > 0
+                          ? "text-green-300"
+                          : weightDelta < 0
+                          ? "text-red-300"
+                          : "text-gray-300"
+                        : "text-gray-300";
 
-                  const currVol = curr.bestVolume?.volume ?? 0;
-                  const prevVol = (prev?.weight ?? 0) * (prev?.reps ?? 0);
-                  const volDelta = currVol - prevVol;
-                  const volBadge =
-                    currVol && prev
-                      ? volDelta > 0
-                        ? "text-green-300"
-                        : volDelta < 0
-                        ? "text-red-300"
-                        : "text-gray-300"
-                      : "text-gray-300";
+                    const currVol = curr.bestVolume?.volume ?? 0;
+                    const prevVol = (prev?.weight ?? 0) * (prev?.reps ?? 0);
+                    const volDelta = currVol - prevVol;
+                    const volBadge =
+                      currVol && prev
+                        ? volDelta > 0
+                          ? "text-green-300"
+                          : volDelta < 0
+                          ? "text-red-300"
+                          : "text-gray-300"
+                        : "text-gray-300";
 
-                  const fmtSet = (w?: number, r?: number, u?: "kg" | "lbs") =>
-                    w ? `${w}${u ?? "kg"}${r ? ` × ${r}` : ""}` : "N/A";
+                    const fmtSet = (w?: number, r?: number, u?: "kg" | "lbs") =>
+                      w ? `${w}${u ?? "kg"}${r ? ` × ${r}` : ""}` : "N/A";
 
-                  return (
-                    <div key={`${ex.exerciseName}-${idx}`} className="card p-3">
-                      <div className="mb-2 text-sm font-semibold">{ex.exerciseName}</div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <div className="text-xs text-muted mb-1">Previous Best</div>
-                          <div>Weight: {fmtSet(prev?.weight, prev?.reps, prev?.unit)}</div>
-                          <div>Volume: {prev ? (prev.weight ?? 0) * (prev.reps ?? 0) : "N/A"}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted mb-1">Current Best</div>
-                          <div className={weightBadge}>
-                            Weight: {fmtSet(curr.bestWeight?.weight, curr.bestWeight?.reps, curr.bestWeight?.unit)}
-                            {prev && curr.bestWeight?.weight !== undefined ? (
-                              <span className="ml-2 text-xs opacity-80">
-                                {weightDelta > 0 ? `(+${weightDelta})` : weightDelta < 0 ? `(${weightDelta})` : "(=)"}
-                              </span>
-                            ) : null}
+                    return (
+                      <div key={`${ex.exerciseName}-${idx}`} className="card p-3">
+                        <div className="mb-2 text-sm font-semibold">{ex.exerciseName}</div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <div className="text-xs text-muted mb-1">Previous Best</div>
+                            <div>Weight: {fmtSet(prev?.weight, prev?.reps, prev?.unit)}</div>
+                            <div>Volume: {prev ? (prev.weight ?? 0) * (prev.reps ?? 0) : "N/A"}</div>
                           </div>
-                          <div className={volBadge}>
-                            Volume: {curr.bestVolume?.volume ?? "N/A"}
-                            {prev ? (
-                              <span className="ml-2 text-xs opacity-80">
-                                {volDelta > 0 ? `(+${volDelta})` : volDelta < 0 ? `(${volDelta})` : "(=)"}
-                              </span>
-                            ) : null}
+                          <div>
+                            <div className="text-xs text-muted mb-1">Current Best</div>
+                            <div className={weightBadge}>
+                              Weight: {fmtSet(curr.bestWeight?.weight, curr.bestWeight?.reps, curr.bestWeight?.unit)}
+                              {prev && curr.bestWeight?.weight !== undefined ? (
+                                <span className="ml-2 text-xs opacity-80">
+                                  {weightDelta > 0 ? `(+${weightDelta})` : weightDelta < 0 ? `(${weightDelta})` : "(=)"}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className={volBadge}>
+                              Volume: {curr.bestVolume?.volume ?? "N/A"}
+                              {prev ? (
+                                <span className="ml-2 text-xs opacity-80">
+                                  {volDelta > 0 ? `(+${volDelta})` : volDelta < 0 ? `(${volDelta})` : "(=)"}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    closeCompleteModal();
+                    await handleSave();
+                    // Navigate to history immediately after existing save flow handles navigation/notifications
+                  }}
+                  className="btn-primary flex-1 py-3 text-lg font-semibold"
+                >
+                  Complete Workout
+                </button>
+                <button
+                  onClick={closeCompleteModal}
+                  className="flex-1 rounded-lg bg-gray-200 py-3 text-lg font-medium transition-colors hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                >
+                  Continue Workout
+                </button>
               </div>
             </div>
-            <div className="mt-5 flex items-center gap-3">
-              <button
-                onClick={async () => {
-                  closeCompleteModal();
-                  await handleSave();
-                  // Navigate to history immediately after existing save flow handles navigation/notifications
-                }}
-                className="btn-primary flex-1 py-3 text-lg font-semibold"
-              >
-                Complete Workout
-              </button>
-              <button
-                onClick={closeCompleteModal}
-                className="flex-1 rounded-lg bg-gray-200 py-3 text-lg font-medium transition-colors hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-              >
-                Continue Workout
-              </button>
-            </div>
-          </div>
+          </FocusTrap>
         </div>
       )}
     </div>

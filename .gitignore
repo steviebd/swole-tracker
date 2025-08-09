@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+/apps/mobile
+/apps/v1-dark-mode
+
 # dependencies
 /node_modules
 /.pnp
@@ -33,7 +36,7 @@ yarn-error.log*
 
 # local env files
 # do not commit any .env files to git, except for the .env.example file. https://create.t3.gg/en/usage/env-variables#using-environment-variables
-.env
+#.env
 .env*.local
 
 # vercel
@@ -46,3 +49,4 @@ yarn-error.log*
 .idea
 # clerk configuration (can include secrets)
 /.clerk/
+.env

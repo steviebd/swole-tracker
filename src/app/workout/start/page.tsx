@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 
-import { api, HydrateClient } from "~/trpc/server";
+import { api } from "~/trpc/server";
 import ClientHydrate from "~/trpc/HydrateClient";
 import { getQueryClient, getDehydratedState, prefetchWorkoutStart } from "~/trpc/prefetch";
 import { WorkoutStarter } from "~/app/_components/workout-starter";

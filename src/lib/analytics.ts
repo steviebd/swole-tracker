@@ -2,19 +2,34 @@
 
 import posthog from "posthog-js";
 
+const safeOnline = () => (typeof navigator === "undefined" ? false : navigator.onLine === true);
+const safeCapture = (event: string, props?: Record<string, unknown>) => {
+  try {
+    if (!safeOnline()) return;
+    posthog.capture(event, props ?? {});
+  } catch {
+    // swallow
+  }
+};
+
 export const analytics = {
   // Page tracking
   pageView: (page: string, properties?: Record<string, unknown>) => {
-    posthog.capture("$pageview", {
-      $current_url: window.location.href,
-      page,
-      ...properties,
-    });
+    try {
+      const url = typeof window !== "undefined" ? window.location.href : undefined;
+      safeCapture("$pageview", {
+        $current_url: url,
+        page,
+        ...properties,
+      });
+    } catch {
+      // ignore
+    }
   },
 
   // Workout events
   workoutStarted: (templateId: string, templateName: string) => {
-    posthog.capture("workout_started", {
+    safeCapture("workout_started", {
       templateId,
       templateName,
       timestamp: new Date().toISOString(),
@@ -26,7 +41,7 @@ export const analytics = {
     duration: number,
     exerciseCount: number,
   ) => {
-    posthog.capture("workout_completed", {
+    safeCapture("workout_completed", {
       sessionId,
       duration,
       exerciseCount,
@@ -40,7 +55,7 @@ export const analytics = {
     sets: number,
     weight?: number,
   ) => {
-    posthog.capture("exercise_logged", {
+    safeCapture("exercise_logged", {
       exerciseId,
       exerciseName,
       sets,
@@ -51,7 +66,7 @@ export const analytics = {
 
   // Template events
   templateCreated: (templateId: string, exerciseCount: number) => {
-    posthog.capture("template_created", {
+    safeCapture("template_created", {
       templateId,
       exerciseCount,
       timestamp: new Date().toISOString(),
@@ -59,14 +74,14 @@ export const analytics = {
   },
 
   templateDeleted: (templateId: string) => {
-    posthog.capture("template_deleted", {
+    safeCapture("template_deleted", {
       templateId,
       timestamp: new Date().toISOString(),
     });
   },
 
   templateEdited: (templateId: string, exerciseCount: number) => {
-    posthog.capture("template_edited", {
+    safeCapture("template_edited", {
       templateId,
       exerciseCount,
       timestamp: new Date().toISOString(),
@@ -75,7 +90,7 @@ export const analytics = {
 
   // Settings events
   weightUnitChanged: (unit: "kg" | "lbs") => {
-    posthog.capture("weight_unit_changed", {
+    safeCapture("weight_unit_changed", {
       unit,
       timestamp: new Date().toISOString(),
     });
@@ -83,7 +98,7 @@ export const analytics = {
 
   // Error tracking
   error: (error: Error, context?: Record<string, unknown>) => {
-    posthog.capture("error", {
+    safeCapture("error", {
       error: error.message,
       stack: error.stack,
       context,
@@ -93,7 +108,7 @@ export const analytics = {
 
   // Feature usage
   featureUsed: (feature: string, properties?: Record<string, unknown>) => {
-    posthog.capture("feature_used", {
+    safeCapture("feature_used", {
       feature,
       ...properties,
       timestamp: new Date().toISOString(),

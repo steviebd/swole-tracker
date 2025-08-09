@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { buildCaller, createLoggedMockDb } from "./trpc-harness";
+import { buildCaller } from "./trpc-harness";
 
 // This suite uses the mocked ctx/db from trpc-harness like other router tests.
 // We cover: listing (getAll), create/update/delete, master linking, and auth checks.
 
-// Helper to build a caller; forwards options to harness. Do NOT reach into caller.ctx in tests.
-const createCaller = (opts?: Parameters<typeof buildCaller>[0]) => buildCaller(opts as any) as any;
+// Helper to build a caller with strict typing for opts to avoid any
+type CallerOpts = Parameters<typeof buildCaller>[0] | undefined;
+const createCaller = (opts?: CallerOpts) => buildCaller(opts);
 
 describe("tRPC exercises router (integration, mocked ctx/db)", () => {
   beforeEach(() => {
@@ -40,22 +41,22 @@ describe("tRPC exercises router (integration, mocked ctx/db)", () => {
         from: vi.fn(() => ({
           where: vi.fn(() => ({
             // router awaits `.limit(1)` directly, so make it resolve to []
-            limit: vi.fn(() => Promise.resolve([])),
+            limit: vi.fn(async () => [] as Array<Record<string, unknown>>),
           })),
         })),
       })),
       insert: vi.fn(() => ({
         values: vi.fn(() => ({
           // router awaits `.returning()` directly, make it resolve to a row
-          returning: vi.fn(() =>
-            Promise.resolve([
+          returning: vi.fn(async () =>
+            [
               { id: 1, user_id: userId, name: "Bench Press", normalizedName: "bench press", createdAt: new Date() },
-            ]),
+            ] as Array<Record<string, unknown>>
           ),
         })),
       })),
-    } as any;
-    const caller = createCaller({ user: { id: userId }, db } as any);
+    } as unknown;
+    const caller = createCaller({ user: { id: userId }, db } as { user: { id: string }; db: unknown });
 
     const out = await caller.exercises.createOrGetMaster({ name: "Bench   Press" });
     expect(out).toMatchObject({ id: 1, name: "Bench Press", normalizedName: "bench press" });
@@ -91,7 +92,7 @@ describe("tRPC exercises router (integration, mocked ctx/db)", () => {
         })),
       })),
     } as any;
-    const caller = createCaller({ user: { id: userId }, db } as any);
+    const caller = createCaller({ user: { id: userId }, db });
 
     const res = await caller.exercises.linkToMaster({ templateExerciseId: 10, masterExerciseId: 99 });
     expect(res).toMatchObject({ templateExerciseId: 10, masterExerciseId: 99 });
@@ -101,10 +102,10 @@ describe("tRPC exercises router (integration, mocked ctx/db)", () => {
   it("unlink removes link by templateExerciseId", async () => {
     const db = {
       delete: vi.fn(() => ({
-        where: vi.fn(() => Promise.resolve([])),
+        where: vi.fn(async () => [] as unknown[]),
       })),
-    } as any;
-    const caller = createCaller({ user: { id: "user_1" }, db } as any);
+    } as unknown;
+    const caller = createCaller({ user: { id: "user_1" }, db } as { user: { id: string }; db: unknown });
     const out = await caller.exercises.unlink({ templateExerciseId: 10 });
     expect(out).toEqual({ success: true });
   });
@@ -116,16 +117,16 @@ describe("tRPC exercises router (integration, mocked ctx/db)", () => {
           leftJoin: vi.fn(() => ({
             where: vi.fn(() => ({
               groupBy: vi.fn(() => ({
-                orderBy: vi.fn(() =>
-                  Promise.resolve([{ id: 1, name: "Bench", normalizedName: "bench", createdAt: new Date(), linkedCount: 0 }]),
+                orderBy: vi.fn(async () =>
+                  [{ id: 1, name: "Bench", normalizedName: "bench", createdAt: new Date(), linkedCount: 0 }] as Array<Record<string, unknown>>,
                 ),
               })),
             })),
           })),
         })),
       })),
-    } as any;
-    const caller = createCaller({ user: { id: "user_1" }, db } as any);
+    } as unknown;
+    const caller = createCaller({ user: { id: "user_1" }, db } as { user: { id: string }; db: unknown });
 
     const rows = await caller.exercises.getAllMaster();
     expect(Array.isArray(rows)).toBe(true);

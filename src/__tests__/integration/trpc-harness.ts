@@ -2,22 +2,22 @@
  * Ensure PUBLIC env is present before any imports that transitively load src/env.js,
  * which validates runtime env via @t3-oss/env-nextjs.
  */
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= 'pk_test_dummy';
-process.env.NEXT_PUBLIC_POSTHOG_KEY ||= 'phc_test_dummy';
-process.env.NEXT_PUBLIC_POSTHOG_HOST ||= 'https://us.i.posthog.com';
-process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'https://test.supabase.co';
-process.env.NEXT_PUBLIC_SUPABASE_KEY ||= 'supabase_test_key';
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??= 'pk_test_dummy';
+process.env.NEXT_PUBLIC_POSTHOG_KEY ??= 'phc_test_dummy';
+process.env.NEXT_PUBLIC_POSTHOG_HOST ??= 'https://us.i.posthog.com';
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'https://test.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_KEY ??= 'supabase_test_key';
 
 // Ensure rate-limit middleware is mocked before any app imports to avoid env-core errors in jsdom
 import './setup.rate-limit-mocks';
 
 // Also stub server-side env so @t3-oss/env-core proxy does not throw under jsdom.
 // These values are safe test defaults and prevent "Attempted to access a server-side env on the client".
-process.env.DATABASE_URL ||= 'postgres://test:test@localhost:5432/test';
-process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ||= '100';
-process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ||= '100';
-process.env.RATE_LIMIT_JOKES_PER_HOUR ||= '100';
-process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ||= '100';
+process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
+process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_JOKES_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ??= '100';
 /**
  * Jokes router reads server env from src/env.js via @t3-oss/env-nextjs/@t3-oss/env-core.
  * Under jsdom, any access to server env will throw unless values exist on process.env
@@ -25,10 +25,10 @@ process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ||= '100';
  * flag off to keep the code path that uses fallback jokes instead of calling an AI gateway.
  */
 process.env.AI_GATEWAY_ENABLED = 'false';
-process.env.AI_GATEWAY_URL ||= 'https://ai-gateway.localtest';
-process.env.AI_GATEWAY_API_KEY ||= 'ai_test_key';
-process.env.AI_GATEWAY_MODEL ||= 'gpt-4o-mini';
-process.env.AI_GATEWAY_PROMPT ||= 'Tell a short fitness-themed joke.';
+process.env.AI_GATEWAY_URL ??= 'https://ai-gateway.localtest';
+process.env.AI_GATEWAY_API_KEY ??= 'ai_test_key';
+process.env.AI_GATEWAY_MODEL ??= 'gpt-4o-mini';
+process.env.AI_GATEWAY_PROMPT ??= 'Tell a short fitness-themed joke.';
 /**
  * NODE_ENV is read-only in many setups; don't assign directly.
  * Vitest already sets NODE_ENV appropriately for tests.
@@ -44,7 +44,7 @@ vi.mock('~/server/db', () => {
   // We return a getter that points to our mutable mockState.db.
   return {
     get db() {
-      return (mockState as any).db;
+      return mockState.db;
     },
   };
 });
@@ -88,41 +88,156 @@ import { type inferRouterInputs, type inferRouterOutputs } from '@trpc/server';
 import { vi } from 'vitest';
 
 // Minimal shape of context from createTRPCContext in src/server/api/trpc.ts
+/* eslint-disable @typescript-eslint/no-unused-vars */
 type Ctx = {
-  db: any;
-  user: any;
-  // match uuid format `${string}-${string}-${string}-${string}-${string}`
+  db: unknown;
+  user: { id?: string } | null;
   requestId: `${string}-${string}-${string}-${string}-${string}`;
   headers: Headers;
 };
 
+type WorkoutTemplateRow = {
+  id: number;
+  name: string;
+  user_id: string;
+  createdAt: Date;
+  exercises?: TemplateExerciseRow[];
+};
+
+type TemplateExerciseRow = {
+  id: number;
+  templateId: number;
+  user_id: string;
+  exerciseName: string;
+  orderIndex: number;
+  linkingRejected: boolean;
+};
+
+type WorkoutSessionRow = {
+  id: number | string;
+  user_id: string;
+  templateId: number;
+  workoutDate: Date;
+  template?: { id: number; name: string; exercises: TemplateExerciseRow[] } | undefined;
+  exercises?: Array<Record<string, unknown>> | undefined;
+};
+
+type ExerciseLinkRow = {
+  id: number;
+  user_id: string;
+  templateExerciseId: number;
+  masterExerciseId: number;
+};
+
+type FindManyArgs<TInclude extends Record<string, unknown> | undefined = undefined> = {
+  with?: TInclude;
+};
+
+type WorkoutTemplatesQuery = {
+  findMany: (args?: FindManyArgs) => Promise<WorkoutTemplateRow[]>;
+  findFirst: (args?: { with?: { exercises?: boolean } }) => Promise<WorkoutTemplateRow>;
+};
+
+type WorkoutSessionsQuery = {
+  findMany: (args?: FindManyArgs) => Promise<WorkoutSessionRow[]>;
+  findFirst: (args?: { with?: { template?: boolean; exercises?: boolean } }) => Promise<WorkoutSessionRow>;
+};
+
+type SimpleQuery<T> = {
+  findFirst: (_args?: unknown) => Promise<T | null>;
+  findMany: (_args?: unknown) => Promise<T[]>;
+};
+
+// Partial versions for overrides - allow providing only some methods
+type PartialWorkoutTemplatesQuery = Partial<WorkoutTemplatesQuery>;
+type PartialWorkoutSessionsQuery = Partial<WorkoutSessionsQuery>;
+type PartialSimpleQuery<T> = Partial<SimpleQuery<T>>;
+
+type QueryNamespace = {
+  _workoutTemplates: Record<string, unknown>;
+  _templateExercises: Record<string, unknown>;
+  _exerciseLinks: Record<string, unknown>;
+  _workoutSessions: Record<string, unknown>;
+  workoutTemplates: WorkoutTemplatesQuery;
+  workoutSessions: WorkoutSessionsQuery;
+  exerciseLinks: SimpleQuery<unknown>;
+  templateExercises: SimpleQuery<unknown>;
+  masterExercises: SimpleQuery<{
+    id: number;
+    user_id: string;
+    name: string;
+    normalizedName: string;
+  }>;
+};
+
+type InsertReturning<T> = { returning: () => Promise<T[]> };
+
+type InsertExerciseLinksChain = {
+  values: (v: unknown) => InsertExerciseLinksChain;
+  onConflictDoNothing: () => InsertExerciseLinksChain;
+  onConflictDoUpdate: (_cfg?: unknown) => InsertExerciseLinksChain;
+  returning: () => Promise<ExerciseLinkRow[]>;
+};
+
+type UpdateChain = {
+  set: (_v?: unknown) => UpdateChain;
+  where: (_v?: unknown) => Promise<unknown[]>;
+};
+
+type DeleteChain = {
+  where: (_v?: unknown) => Promise<unknown[]>;
+  returning: () => Promise<unknown[]>;
+};
+
+type SelectChain = {
+  from: (_tbl: unknown) => SelectChain;
+  where: (_v?: unknown) => SelectChain;
+  innerJoin: (_a?: unknown, _b?: unknown) => SelectChain;
+  orderBy: (_v?: unknown) => SelectChain;
+  limit: (_v?: unknown) => SelectChain;
+  with: (_v?: unknown) => SelectChain;
+  execute: () => Promise<unknown[]>;
+  _table?: string;
+};
+
+type MockDb = {
+  query: QueryNamespace;
+  insert: (table: { _?: { name?: string } } | Record<string, unknown>) => {
+    values: (vals: unknown) => unknown;
+  };
+  update: (_table: { _?: { name?: string } } | Record<string, unknown>) => UpdateChain;
+  delete: (_table: { _?: { name?: string } } | Record<string, unknown>) => DeleteChain;
+  select: (_cols?: unknown) => SelectChain;
+  jokes: {
+    insert: (_userId: string, text: string) => Promise<{ id: string; userId: string; text: string; createdAt: Date }>;
+    clearByUserId: (_userId: string) => Promise<number>;
+  };
+};
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
 // Create a mocked db layer you can tailor per test
-export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
+export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
   // Provide minimal stubs used by integration routers. Tests can override any of these.
   const now = new Date();
-  const defaultDb = {
+  const defaultDb: MockDb = {
     // Drizzle-like query API used by routers
     query: {
-      // Expose schema-like table refs with _ names for our simple router checks (do not duplicate keys)
-      _workoutTemplates: undefined as any,
-      _templateExercises: undefined as any,
-      _exerciseLinks: undefined as any,
-      _workoutSessions: undefined as any,
+      _workoutTemplates: {} as Record<string, unknown>,
+      _templateExercises: {} as Record<string, unknown>,
+      _exerciseLinks: {} as Record<string, unknown>,
+      _workoutSessions: {} as Record<string, unknown>,
 
       workoutTemplates: {
-        findMany: vi.fn(async (_args: any) => {
-          // Return empty list by default
+        findMany: vi.fn(async (_args?: FindManyArgs): Promise<WorkoutTemplateRow[]> => {
           return [];
         }),
-        findFirst: vi.fn(async ({ with: withRel }: any) => {
-          // Ensure user_id matches the authenticated user so ownership checks pass
+        findFirst: vi.fn(async ({ with: withRel }: { with?: { exercises?: boolean } } = {}): Promise<WorkoutTemplateRow> => {
           const userId = mockState.user?.id ?? 'user_test_123';
           return {
             id: 1,
             name: 'Mock Template',
             user_id: userId,
             createdAt: now,
-            // workouts.start expects ordered exercises list
             exercises: withRel?.exercises
               ? [
                   { id: 11, templateId: 1, user_id: userId, exerciseName: 'Bench Press', orderIndex: 0, linkingRejected: false },
@@ -131,241 +246,248 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
               : undefined,
           };
         }),
-      },
+      } satisfies WorkoutTemplatesQuery,
+
       workoutSessions: {
-        findMany: vi.fn(async (_args: any) => []),
-        findFirst: vi.fn(async ({ where, with: withRel }: any) => ({
+        findMany: vi.fn(async (_args?: FindManyArgs): Promise<WorkoutSessionRow[]> => []),
+        findFirst: vi.fn(async ({ with: withRel }: { with?: { template?: boolean; exercises?: boolean } } = {}): Promise<WorkoutSessionRow> => ({
           id: 99,
-          user_id: 'user_test_123',
+          user_id: mockState.user?.id ?? 'user_test_123',
           templateId: 1,
           workoutDate: now,
-          template: withRel?.template
-            ? { id: 1, name: 'Mock Template', exercises: [] }
-            : undefined,
+          template: withRel?.template ? { id: 1, name: 'Mock Template', exercises: [] } : undefined,
           exercises: withRel?.exercises ? [] : undefined,
         })),
-      },
+      } satisfies WorkoutSessionsQuery,
+
       exerciseLinks: {
-        findFirst: vi.fn(async (_args: any) => null),
-        findMany: vi.fn(async (_args: any) => []),
-      },
-      // Match drizzle-orm "query.<table>.findFirst/findMany" access seen across routers
+        findFirst: vi.fn(async (_args?: unknown): Promise<Record<string, unknown> | null> => null),
+        findMany: vi.fn(async (_args?: unknown): Promise<Record<string, unknown>[]> => []),
+      } satisfies SimpleQuery<Record<string, unknown>>,
+
       templateExercises: {
-        findFirst: vi.fn(async (_args: any) => null),
-        findMany: vi.fn(async (_args: any) => []),
-      },
-      // Minimal masterExercises query API used by exercises router for bulkLinkSimilar
+        findFirst: vi.fn(async (_args?: unknown): Promise<Record<string, unknown> | null> => null),
+        findMany: vi.fn(async (_args?: unknown): Promise<Record<string, unknown>[]> => []),
+      } satisfies SimpleQuery<Record<string, unknown>>,
+
       masterExercises: {
-        findFirst: vi.fn(async (_args: any) => ({
+        findFirst: vi.fn(async (_args?: unknown): Promise<{ id: number; user_id: string; name: string; normalizedName: string } | null> => ({
           id: 200,
           user_id: mockState.user?.id ?? 'user_test_123',
           name: 'Bench Press',
           normalizedName: 'bench press',
         })),
-      },
+        findMany: vi.fn(async (_args?: unknown): Promise<Array<{ id: number; user_id: string; name: string; normalizedName: string }>> => []),
+      } satisfies SimpleQuery<{ id: number; user_id: string; name: string; normalizedName: string }>,
     },
 
     // Minimal builders for insert/update/delete/select used in routers
-    insert: vi.fn((table: any) => {
+    insert: vi.fn((table: { _?: { name?: string } } | Record<string, unknown>) => {
       return {
-        values: vi.fn(function (vals: any) {
-          const logTbl = table?._?.name ?? '(unknown)';
+        values: vi.fn(function (vals: unknown) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const logTbl: Record<string, unknown> = (table as { _?: { name?: string } } | Record<string, unknown>) as Record<string, unknown>;
           // Template creation path
-          if (table && table._.name === 'workout_templates') {
-            const ret = {
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'workout_templates') {
+            const builder = {
               returning: vi.fn(async () => {
-                const rows = [{ id: 1, name: vals?.name, user_id: vals?.user_id, createdAt: now }];
-                // eslint-disable-next-line no-console
+                const v = vals as Record<string, unknown>;
+                const rows = [{
+                  id: 1,
+                  name: v?.name as string | undefined,
+                  user_id: (v?.user_id as string | undefined) ?? (mockState.user?.id ?? 'user_test_123'),
+                  createdAt: now,
+                }];
                 console.log('[HARNESS] workout_templates.returning() ->', rows);
-                if (!rows) throw new Error('HARNESS: workout_templates.returning() produced undefined');
-                return rows;
+                return rows as Array<Record<string, unknown>>;
               }),
             };
-            return ret;
+            return builder as unknown as Record<string, unknown>;
           }
           // Template exercises insert path (returning inserted rows with ids and names)
-          if (table && table._.name === 'template_exercises') {
-            const items = Array.isArray(vals) ? vals : [vals];
-            const rows = items.map((v: any, i: number) => ({
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'template_exercises') {
+            const items = Array.isArray(vals) ? (vals as Array<Record<string, unknown>>) : [vals as Record<string, unknown>];
+            const rows = items.map((v: Record<string, unknown>, i: number) => ({
               id: i + 100,
-              templateId: v?.templateId,
-              user_id: v?.user_id,
-              exerciseName: v?.exerciseName,
-              orderIndex: v?.orderIndex,
-              linkingRejected: v?.linkingRejected ?? false,
+              templateId: v?.templateId as number | undefined,
+              user_id: (v?.user_id as string | undefined) ?? (mockState.user?.id ?? 'user_test_123'),
+              exerciseName: v?.exerciseName as string | undefined,
+              orderIndex: v?.orderIndex as number | undefined,
+              linkingRejected: (v?.linkingRejected as boolean | undefined) ?? false,
             }));
-            const ret = {
+            const chain = {
               returning: vi.fn(async () => {
-                // eslint-disable-next-line no-console
                 console.log('[HARNESS] template_exercises.returning() ->', rows);
-                if (!rows) throw new Error('HARNESS: template_exercises.returning() produced undefined');
-                return rows;
+                return rows as unknown[];
               }),
+              onConflictDoNothing: vi.fn(() => chain),
             };
-            // Allow optional onConflictDoNothing chaining when used by exerciseLinks insert
-            (ret as any).onConflictDoNothing = vi.fn(() => ret);
-            return ret;
+            return chain as unknown as Record<string, unknown>;
           }
           // master_exercises insert path (used by templates.create helper createAndLinkMasterExercise)
-          if (table && table._.name === 'master_exercises') {
-            const items = Array.isArray(vals) ? vals : [vals];
-            const rows = items.map((v: any, i: number) => ({
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'master_exercises') {
+            const items = Array.isArray(vals) ? (vals as Array<Record<string, unknown>>) : [vals as Record<string, unknown>];
+            const rows = items.map((v: Record<string, unknown>, i: number) => ({
               id: i + 200,
-              user_id: v?.user_id,
-              name: v?.name,
-              normalizedName: v?.normalizedName,
+              user_id: (v?.user_id as string | undefined) ?? (mockState.user?.id ?? 'user_test_123'),
+              name: v?.name as string | undefined,
+              normalizedName: v?.normalizedName as string | undefined,
             }));
-            return {
+            const ret: { returning: () => Promise<unknown[]> } = {
               returning: vi.fn(async () => {
-                // eslint-disable-next-line no-console
                 console.log('[HARNESS] master_exercises.returning() ->', rows);
-                if (!rows) throw new Error('HARNESS: master_exercises.returning() produced undefined');
-                return rows;
+                return rows as unknown[];
               }),
             };
+            return ret as unknown as Record<string, unknown>;
           }
           // exercise_links insert path: allow onConflictDoNothing chaining and return inserted link-like rows
-          if (table && table._.name === 'exercise_links') {
-            // Capture last provided values to synthesize returning rows
-            let provided: any;
-            const ret: any = {
-              values: vi.fn((v: any) => {
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'exercise_links') {
+            let provided: unknown;
+            const chain: InsertExerciseLinksChain = {
+              values: vi.fn((v: unknown) => {
                 provided = v;
-                return ret;
-              }),
-              onConflictDoNothing: vi.fn(() => ret),
-              // Support onConflictDoUpdate used by exercises.linkToMaster
-              onConflictDoUpdate: vi.fn((_cfg?: any) => ret),
-              returning: vi.fn(async () => {
-                const rows = Array.isArray(provided) ? provided : [provided];
-                const normalized = rows.map((v: any, i: number) => ({
+                return chain;
+              }) as unknown as InsertExerciseLinksChain['values'],
+              onConflictDoNothing: vi.fn(() => chain) as unknown as InsertExerciseLinksChain['onConflictDoNothing'],
+              onConflictDoUpdate: vi.fn((_cfg?: unknown) => chain) as unknown as InsertExerciseLinksChain['onConflictDoUpdate'],
+              returning: vi.fn(async (): Promise<ExerciseLinkRow[]> => {
+                const rows = (Array.isArray(provided) ? provided : [provided]) as Array<Record<string, unknown>>;
+                const normalized: ExerciseLinkRow[] = rows.map((v, i) => ({
                   id: 300 + i,
-                  user_id: v?.user_id ?? (Array.isArray(v) ? undefined : v?.user_id) ?? 'user_test_123',
-                  templateExerciseId: v?.templateExerciseId ?? v?.template_exercise_id ?? 100 + i,
-                  masterExerciseId: v?.masterExerciseId ?? v?.master_exercise_id ?? 200 + i,
+                  user_id: (v.user_id as string | undefined) ?? 'user_test_123',
+                  templateExerciseId:
+                    (v.templateExerciseId as number | undefined) ??
+                    (v.template_exercise_id as number | undefined) ??
+                    100 + i,
+                  masterExerciseId:
+                    (v.masterExerciseId as number | undefined) ??
+                    (v.master_exercise_id as number | undefined) ??
+                    200 + i,
                 }));
-                // eslint-disable-next-line no-console
                 console.log('[HARNESS] exercise_links.returning() ->', normalized);
-                if (!normalized) throw new Error('HARNESS: exercise_links.returning() produced undefined');
                 return normalized;
-              }),
-            };
-            return ret;
+              }) as unknown as InsertExerciseLinksChain['returning'],
+            } as unknown as InsertExerciseLinksChain;
+            return chain as unknown as Record<string, unknown>;
           }
           // master_exercises insert path (used by exercises.createOrGetMaster)
-          if (table && table._.name === 'master_exercises') {
-            let provided: any;
-            const ret: any = {
-              values: vi.fn((v: any) => {
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'master_exercises') {
+            let provided: unknown;
+            const builder = {
+              values: vi.fn((v: unknown) => {
                 provided = v;
-                return ret;
+                return builder;
               }),
               returning: vi.fn(async () => {
                 const items = Array.isArray(provided) ? provided : [provided];
-                const rows = items.map((v: any, i: number) => ({
+                const rows = (items as Record<string, unknown>[]).map((v, i) => ({
                   id: 200 + i,
-                  user_id: v?.user_id ?? mockState.user?.id ?? 'user_test_123',
-                  name: v?.name ?? 'Bench Press',
-                  normalizedName: v?.normalizedName ?? 'bench press',
-                  createdAt: v?.createdAt ?? new Date(),
+                  user_id: (v.user_id as string | undefined) ?? mockState.user?.id ?? 'user_test_123',
+                  name: (v.name as string | undefined) ?? 'Bench Press',
+                  normalizedName: (v.normalizedName as string | undefined) ?? 'bench press',
+                  createdAt: (v.createdAt as Date | undefined) ?? new Date(),
                 }));
                 // eslint-disable-next-line no-console
                 console.log('[HARNESS] master_exercises.returning() ->', rows);
-                if (!rows) throw new Error('HARNESS: master_exercises.returning() produced undefined');
-                return rows;
+                return rows as unknown[];
               }),
             };
-            return ret;
+            return builder as unknown as Record<string, unknown>;
           }
           // workout_sessions insert path
-          if (table && table._.name === 'workout_sessions') {
-            const ret = {
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'workout_sessions') {
+            const v = vals as Record<string, unknown>;
+            const ret: { returning: () => Promise<unknown[]> } = {
               returning: vi.fn(async () => {
                 const rows = [
-                  { id: 500, user_id: vals?.user_id, templateId: vals?.templateId, workoutDate: vals?.workoutDate ?? now },
+                  { id: 500, user_id: v?.user_id, templateId: v?.templateId, workoutDate: v?.workoutDate ?? now },
                 ];
                 console.log('[HARNESS] workout_sessions.returning() ->', rows);
-                return rows;
+                return rows as unknown[];
               }),
             };
-            return ret;
+            return ret as unknown as Record<string, unknown>;
           }
           // session_exercises insert path
-          if (table && table._.name === 'session_exercises') {
-            const items = Array.isArray(vals) ? vals : [vals];
-            const rows = items.map((v: any, i: number) => ({
+          if ((table as { _?: { name?: string } } as { _?: { name?: string } })?._?.name === 'session_exercises') {
+            const items = Array.isArray(vals) ? (vals as Array<Record<string, unknown>>) : [vals as Record<string, unknown>];
+            const rows = items.map((v: Record<string, unknown>, i: number) => ({
               id: 1000 + i,
-              sessionId: v?.sessionId,
-              exerciseName: v?.exerciseName,
-              weight: v?.weight,
-              reps: v?.reps,
-              sets: v?.sets,
-              unit: v?.unit,
+              sessionId: v?.sessionId as number | string | undefined,
+              exerciseName: v?.exerciseName as string | undefined,
+              weight: v?.weight as number | undefined,
+              reps: v?.reps as number | undefined,
+              sets: v?.sets as number | undefined,
+              unit: v?.unit as string | undefined,
             }));
-            return {
+            const ret: { returning: () => Promise<unknown[]> } = {
               returning: vi.fn(async () => {
+                // eslint-disable-next-line no-console
                 console.log('[HARNESS] session_exercises.returning() ->', rows);
-                return rows;
+                return rows as unknown[];
               }),
             };
+            return ret as unknown as Record<string, unknown>;
           }
           // Fallback builder
-          const ret: any = {
-            returning: vi.fn(async () => []),
-          };
-          (ret as any).onConflictDoNothing = vi.fn(() => ret);
-          return ret;
+          const chain = {
+            returning: vi.fn(async () => [] as unknown[]),
+            onConflictDoNothing: vi.fn(() => chain),
+          } as { returning: () => Promise<unknown[]>; onConflictDoNothing: () => unknown };
+          return chain as unknown as Record<string, unknown>;
         }),
       };
     }),
 
-    update: vi.fn((table: any) => {
-      // exercise_links update used by templates.create helper to ensure link points to latest masterExerciseId
-      if (table && table._.name === 'exercise_links') {
-        const chain = {
-          set: vi.fn(() => chain),
-          where: vi.fn(async () => []),
-        };
-        return chain;
-      }
-      const chain = {
-        set: vi.fn(() => chain),
-        where: vi.fn(async () => []),
+    update: vi.fn((_table: { _?: { name?: string } } | Record<string, unknown>): UpdateChain => {
+      const chain: UpdateChain = {
+        set: vi.fn(() => chain) as unknown as UpdateChain['set'],
+        where: vi.fn(async () => [] as unknown[]) as unknown as UpdateChain['where'],
       };
       return chain;
     }),
 
-    delete: vi.fn((_table: any) => {
-      const tableName = _table?._?.name ?? String(_table);
-      const chain = {
+    delete: vi.fn((_table: { _?: { name?: string } } | Record<string, unknown>): DeleteChain => {
+      const tableName: string = (_table as { _?: { name?: string } })?._?.name ?? String(_table);
+      const chain: DeleteChain = {
         where: vi.fn(async () => {
           if (tableName === 'workout_sessions') {
-            return [{ id: 77, user_id: 'user_test_123' }];
+            return [{ id: 77, user_id: 'user_test_123' }] as unknown[];
           }
-          return [];
-        }),
+          return [] as unknown[];
+        }) as unknown as DeleteChain['where'],
         returning: vi.fn(async () => {
           if (tableName === 'workout_sessions') {
-            return [{ id: 77, user_id: 'user_test_123' }];
+            return [{ id: 77, user_id: 'user_test_123' }] as unknown[];
           }
-          return [];
-        }),
+          return [] as unknown[];
+        }) as unknown as DeleteChain['returning'],
       };
       return chain;
     }),
 
-    select: vi.fn((_cols?: any) => {
-      const chain: any = {
-        from: vi.fn((tbl: any) => {
-          chain._table = String(tbl);
+    select: vi.fn((_cols?: unknown): SelectChain => {
+      const chain: SelectChain = {
+        from: vi.fn((tbl: unknown) => {
+          const name =
+            typeof tbl === 'string'
+              ? tbl
+              : (tbl as { _?: { name?: string } })?._?.name;
+          // avoid setting a non-string to prevent base-to-string warning
+          chain._table = typeof name === 'string' ? name : undefined;
           return chain;
-        }),
-        where: vi.fn(() => chain),
-        innerJoin: vi.fn(() => chain),
-        orderBy: vi.fn(() => chain),
-        limit: vi.fn(() => chain),
-        with: vi.fn(() => chain),
-        execute: vi.fn(async () => []),
+        }) as unknown as SelectChain['from'],
+        where: vi.fn(() => chain) as unknown as SelectChain['where'],
+        innerJoin: vi.fn(() => chain) as unknown as SelectChain['innerJoin'],
+        orderBy: vi.fn(() => chain) as unknown as SelectChain['orderBy'],
+        limit: vi.fn(() => chain) as unknown as SelectChain['limit'],
+        with: vi.fn(() => chain) as unknown as SelectChain['with'],
+        execute: vi.fn(async (): Promise<unknown[]> => {
+          // Always return an array to avoid unsafe any return
+          return [];
+        }) as unknown as SelectChain['execute'],
+        _table: undefined as string | undefined,
       };
       return chain;
     }),
@@ -382,10 +504,51 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
     },
   };
 
-  const db = {
+  // Properly merge query objects with their nested properties
+  const mergedQuery = { ...defaultDb.query };
+  if (overrides.query) {
+    // For each query property, ensure both findFirst and findMany are available
+    if (overrides.query.exerciseLinks) {
+      const override = overrides.query.exerciseLinks;
+      mergedQuery.exerciseLinks = {
+        findFirst: override.findFirst || mergedQuery.exerciseLinks.findFirst,
+        findMany: override.findMany || mergedQuery.exerciseLinks.findMany,
+      };
+    }
+    if (overrides.query.templateExercises) {
+      const override = overrides.query.templateExercises;
+      mergedQuery.templateExercises = {
+        findFirst: override.findFirst || mergedQuery.templateExercises.findFirst,
+        findMany: override.findMany || mergedQuery.templateExercises.findMany,
+      };
+    }
+    if (overrides.query.workoutSessions) {
+      const override = overrides.query.workoutSessions;
+      mergedQuery.workoutSessions = {
+        findFirst: override.findFirst || mergedQuery.workoutSessions.findFirst,
+        findMany: override.findMany || mergedQuery.workoutSessions.findMany,
+      };
+    }
+    if (overrides.query.masterExercises) {
+      const override = overrides.query.masterExercises;
+      mergedQuery.masterExercises = {
+        findFirst: override.findFirst || mergedQuery.masterExercises.findFirst,
+        findMany: override.findMany || mergedQuery.masterExercises.findMany,
+      };
+    }
+    // Handle any other query properties that don't need the dual interface
+    for (const [key, value] of Object.entries(overrides.query)) {
+      if (!['exerciseLinks', 'templateExercises', 'workoutSessions', 'masterExercises'].includes(key)) {
+        (mergedQuery as any)[key] = value;
+      }
+    }
+  }
+
+  const db: MockDb = {
     ...defaultDb,
     ...overrides,
-  } as any;
+    query: mergedQuery,
+  };
 
   return db;
 }
@@ -394,41 +557,69 @@ export function createMockDb(overrides: Partial<Record<string, unknown>> = {}) {
  * Wrap a mock DB with verbose logging proxies to trace calls and returned values.
  * Use in failing tests to pinpoint undefined throws in builder chains.
  */
-export function createLoggedMockDb(overrides: Partial<Record<string, unknown>> = {}) {
+export function createLoggedMockDb(overrides: Partial<MockDb> = {}) {
   const base = createMockDb(overrides);
 
-  const wrap = (obj: any, ns = 'db') =>
+  const wrap = (obj: Record<string, unknown>, ns = 'db'): Record<string, unknown> =>
     new Proxy(obj, {
       get(target, prop, receiver) {
         const value = Reflect.get(target, prop, receiver);
         if (typeof value === 'function') {
-          return (...args: any[]) => {
+          return (...args: unknown[]) => {
             // eslint-disable-next-line no-console
-            console.log(`[logged:${ns}] call ${String(prop)}(`, ...args, ')');
+              console.log(
+                `[logged:${ns}] call ${String(prop)}(`,
+                ...args.map((a) => {
+                  try {
+                    if (typeof a === 'string' || typeof a === 'number' || typeof a === 'boolean' || a == null) return a;
+                    if (Array.isArray(a)) return `[Array(${a.length})]`;
+                    if (a instanceof Date) return a.toISOString();
+                    // Avoid stringifying plain objects which triggers no-base-to-string
+                    const tbl = (a as { _?: { name?: string } })?._?.name;
+                    return typeof tbl === 'string' ? tbl : '[Object]';
+                  } catch {
+                    return '[Unserializable]';
+                  }
+                }),
+                ')',
+              );
             try {
-              const ret = value.apply(target, args);
+              const ret = (value as (...a: unknown[]) => unknown).apply(target, args);
               if (ret && typeof ret === 'object') {
                 // chainable builders
-                return wrap(ret, `${ns}.${String(prop)}`);
+                return wrap(ret as Record<string, unknown>, `${ns}.${String(prop)}`);
               }
-              // eslint-disable-next-line no-console
-              console.log(`[logged:${ns}] return from ${String(prop)} ->`, ret);
+              // Avoid stringifying raw objects which triggers no-base-to-string
+              try {
+                if (typeof ret === 'string' || typeof ret === 'number' || typeof ret === 'boolean' || ret == null) {
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, ret);
+                } else if (Array.isArray(ret)) {
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, `[Array(${ret.length})]`);
+                } else if (ret instanceof Date) {
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, ret.toISOString());
+                } else {
+                  const tbl = (ret as { _?: { name?: string } })?._?.name;
+                  console.log(`[logged:${ns}] return from ${String(prop)} ->`, typeof tbl === 'string' ? tbl : '[Object]');
+                }
+              } catch {
+                console.log(`[logged:${ns}] return from ${String(prop)} ->`, '[Unserializable]');
+              }
               return ret;
             } catch (e) {
-              // eslint-disable-next-line no-console
               console.error(`[logged:${ns}] threw in ${String(prop)}:`, e);
               throw e;
             }
           };
         }
         if (value && typeof value === 'object') {
-          return wrap(value, `${ns}.${String(prop)}`);
+          return wrap(value as Record<string, unknown>, `${ns}.${String(prop)}`);
         }
         return value;
       },
     });
 
-  return wrap(base);
+  // Cast through unknown to avoid unsafe assignment/return complaints in tests
+  return (wrap(base as Record<string, unknown>, 'db') as unknown) as MockDb;
 }
 
 // Create a mocked Clerk user or anonymous
@@ -456,11 +647,11 @@ export function createMockUser(
  * These vi.mock calls are hoisted by Vitest. We store mutable references that tests can set.
  */
 const mockState: {
-  db: any;
-  user: any;
+  db: unknown;
+  user: { id?: string } | null;
 } = {
   db: undefined,
-  user: undefined,
+  user: null,
 };
 
 // Hoisted mocks
@@ -474,28 +665,29 @@ vi.mock('@clerk/nextjs/server', () => {
 // Do not re-declare another vi.mock here to avoid module-not-found/hoisting issues.
 
 export function buildCaller(opts?: {
-  db?: any;
-  user?: any; // allow explicit null to simulate unauthenticated
+  db?: unknown;
+  user?: { id?: string } | null; // allow explicit null to simulate unauthenticated
   headers?: HeadersInit;
 }): ReturnType<typeof createCaller> {
   // If a db override is provided, use it as-is; otherwise create a default mock db.
-  mockState.db = (opts && 'db' in opts) ? opts?.db : createMockDb();
+  mockState.db = (opts && 'db' in opts) ? opts?.db : (createMockDb() as unknown);
   // Preserve explicit null; only default to authenticated user when user is truly undefined
-  mockState.user = (opts && 'user' in opts) ? opts.user : createMockUser(true);
+  mockState.user = (opts && 'user' in opts) ? (opts.user as { id?: string } | null) : createMockUser(true);
   const headers = new Headers(opts?.headers ?? { 'x-test': '1', 'x-forwarded-for': '127.0.0.1' });
 
   // Create a requestId and caller bound to our mocked ctx
   const requestId = '00000000-0000-4000-8000-000000000000' as `${string}-${string}-${string}-${string}-${string}`;
 
   // Patch protectedProcedure expectation: ensure user object has at least an id string when authenticated
-  const userPatched = mockState.user ? { id: mockState.user.id ?? 'user_test_123', ...mockState.user } : null;
+  const userPatched = mockState.user ? { id: (mockState.user as { id?: string }).id ?? 'user_test_123', ...(mockState.user as Record<string, unknown>) } : null;
 
+  // Cast the mocked db to unknown then to the expected db type to satisfy TRPCContext during tests.
   return createCaller({
-    db: mockState.db,
+    db: (mockState.db as unknown) as import('drizzle-orm/postgres-js').PostgresJsDatabase<typeof import('~/server/db/schema')> & { $client: import('postgres').Sql<Record<string, unknown>> },
     user: userPatched,
     requestId,
     headers,
-  } as Ctx);
+  } as unknown as import('~/server/api/trpc').TRPCContext);
 }
 
 export type RouterInputs = inferRouterInputs<AppRouter>;

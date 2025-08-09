@@ -8,6 +8,8 @@ export interface SetData {
   reps?: number;
   sets: number;
   unit: "kg" | "lbs";
+  rpe?: number;   // 6–10
+  rest?: number;  // seconds
 }
 
 interface SetInputProps {
@@ -26,7 +28,12 @@ interface SetInputProps {
   onDelete: (exerciseIndex: number, setIndex: number) => void;
   readOnly?: boolean;
   showDelete?: boolean;
+  // Arrow button handlers for reordering sets
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
+
+import { useEffect, useRef } from "react";
 
 export function SetInput({
   set,
@@ -39,7 +46,21 @@ export function SetInput({
   onDelete,
   readOnly = false,
   showDelete = true,
+  onMoveUp,
+  onMoveDown,
 }: SetInputProps) {
+  const weightInputRef = useRef<HTMLInputElement>(null);
+  const repsInputRef = useRef<HTMLInputElement>(null);
+  const restInputRef = useRef<HTMLInputElement>(null);
+  const lastUsedWeight = useRef<number | null>(null);
+
+  useEffect(() => {
+    // remember last used weight for shortcuts
+    if (typeof set.weight === "number" && !Number.isNaN(set.weight)) {
+      lastUsedWeight.current = set.weight;
+    }
+  }, [set.weight]);
+
   const handleWeightChange = (value: number | undefined) => {
     onUpdate(exerciseIndex, setIndex, "weight", value);
     if (value && set.sets) {
@@ -52,22 +73,41 @@ export function SetInput({
     }
   };
 
+  const handleRepsChange = (value: number | undefined) => {
+    onUpdate(exerciseIndex, setIndex, "reps", value);
+  };
+
+  const handleSetsChange = (value: number | undefined) => {
+    onUpdate(exerciseIndex, setIndex, "sets", value ?? 1);
+  };
+
+  const handleRpeChange = (value: number) => {
+    onUpdate(exerciseIndex, setIndex, "rpe", value);
+  };
+
+  const handleRestChange = (value: number | undefined) => {
+    onUpdate(exerciseIndex, setIndex, "rest", value);
+  };
+
   return (
-    <div className="flex items-center gap-3 rounded-lg p-3 select-none border border-gray-200 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+    <div className="flex items-center gap-3 rounded-lg p-3 select-none glass-surface glass-hairline text-gray-900 dark:text-white">
       {/* Set Number */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-white">
         {setIndex + 1}
       </div>
 
       {/* Input Grid */}
-      <div className="flex flex-1 gap-3">
+      <div className="flex flex-1 flex-wrap gap-3">
         {/* Weight */}
-        <div className="flex-1">
+        <div className="min-w-[120px] flex-1">
           <label className="mb-1 block text-xs text-secondary">Weight</label>
           <div className="flex items-center gap-1">
             <input
+              ref={weightInputRef}
               type="number"
               step="0.5"
+              inputMode="decimal"
+              pattern="[0-9]*"
               value={set.weight ?? ""}
               onChange={(e) => {
                 const value = e.target.value
@@ -75,24 +115,23 @@ export function SetInput({
                   : undefined;
                 handleWeightChange(value);
               }}
-              onFocus={(e) => e.target.select()}
+              onFocus={(e) => {
+                // select content and make sure the field is visible above the keyboard
+                e.target.select();
+                try {
+                  e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                } catch {}
+              }}
               placeholder="0"
               disabled={readOnly}
-              className={`flex-1 rounded border px-2 py-1 text-sm focus:outline-none ${
-                readOnly
-                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-                  : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
-              }`}
+              className={`input flex-1 bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
             <button
               type="button"
               onClick={() => !readOnly && onToggleUnit(exerciseIndex, setIndex)}
               disabled={readOnly}
-              className={`px-1 text-xs ${
-                readOnly
-                  ? "cursor-not-allowed text-gray-500"
-                  : "text-purple-700 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
-              }`}
+              className={`px-2 text-xs btn-secondary ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+              title="Toggle unit"
             >
               {set.unit}
             </button>
@@ -100,85 +139,169 @@ export function SetInput({
         </div>
 
         {/* Reps */}
-        <div className="flex-1">
+        <div className="min-w-[100px] flex-1">
           <label className="mb-1 block text-xs text-secondary">Reps</label>
           <input
+            ref={repsInputRef}
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={set.reps ?? ""}
-            onChange={(e) =>
-              onUpdate(
-                exerciseIndex,
-                setIndex,
-                "reps",
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
-            onFocus={(e) => e.target.select()}
+            onChange={(e) => {
+              const value = e.target.value ? parseInt(e.target.value) : undefined;
+              handleRepsChange(value);
+            }}
+            onFocus={(e) => {
+              e.target.select();
+              try {
+                e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+              } catch {}
+            }}
             placeholder="0"
             disabled={readOnly}
-            className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
-              readOnly
-                ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-                : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
-            }`}
+            className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
         </div>
 
         {/* Sets */}
-        <div className="flex-1">
+        <div className="min-w-[100px] flex-1">
           <label className="mb-1 block text-xs text-secondary">Sets</label>
           <input
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={set.sets}
-            onChange={(e) =>
-              onUpdate(
-                exerciseIndex,
-                setIndex,
-                "sets",
-                e.target.value ? parseInt(e.target.value) : 1,
-              )
-            }
-            onFocus={(e) => e.target.select()}
+            onChange={(e) => {
+              const value = e.target.value ? parseInt(e.target.value) : 1;
+              handleSetsChange(value);
+            }}
+            onFocus={(e) => {
+              e.target.select();
+              try {
+                e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+              } catch {}
+            }}
             placeholder="1"
             min="1"
             disabled={readOnly}
-            className={`w-full rounded border px-2 py-1 text-sm focus:outline-none ${
-              readOnly
-                ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-800"
-                : "border-gray-300 bg-white text-gray-900 focus:ring-1 focus:ring-purple-500 dark:border-gray-500 dark:bg-gray-600 dark:text-white"
-            }`}
+            className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
+        </div>
+        {/* RPE segmented [6-10] */}
+        <div className="min-w-[160px]">
+          <label className="mb-1 block text-xs text-secondary">RPE</label>
+          <div className="flex items-center gap-1">
+            {[6,7,8,9,10].map((r) => {
+              const active = set.rpe === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => !readOnly && handleRpeChange(r)}
+                  className={`
+                    px-2 py-1 rounded-md text-xs 
+                    ${active ? "btn-primary" : "btn-secondary"}
+                    ${readOnly ? "opacity-60 cursor-not-allowed" : ""}
+                  `}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Rest with quick chips */}
+        <div className="min-w-[160px] flex-1">
+          <label className="mb-1 block text-xs text-secondary">Rest (s)</label>
+          <div className="flex items-center gap-1">
+            <input
+              ref={restInputRef}
+              type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={set.rest ?? ""}
+              onChange={(e) => {
+                const value = e.target.value ? parseInt(e.target.value) : undefined;
+                handleRestChange(value);
+              }}
+              onFocus={(e) => {
+                e.target.select();
+                try {
+                  e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                } catch {}
+              }}
+              placeholder="60"
+              disabled={readOnly}
+              className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+            />
+            {[30,60,90].map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                disabled={readOnly}
+                onClick={() => !readOnly && handleRestChange(sec)}
+                className={`px-2 py-1 rounded-md text-xs btn-secondary ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                {sec}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Right-edge drag handle (sets) */}
-      {!readOnly && (
-        <button
-          type="button"
-          aria-label="Drag set to reorder"
-          data-drag-handle="true"
-          className="ml-1 mr-1 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
-          // The parent component that renders SetInput will bind the onPointerDown
-          // via event delegation on the card/list level using data-drag-handle
-          style={{ touchAction: 'none' }}
-          title="Drag to reorder"
-        >
-          <span className="inline-flex flex-col gap-0.5">
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-          </span>
-        </button>
+      {/* Up/Down arrow buttons for reordering sets */}
+      {!readOnly && (onMoveUp || onMoveDown) && (
+        <div className="flex flex-col gap-1 ml-1 mr-1">
+          {/* Move Up Button */}
+          <button
+            type="button"
+            onClick={() => {
+              console.log('[SetInput] Move Up button clicked', { exerciseIndex, setIndex });
+              onMoveUp?.();
+            }}
+            disabled={!onMoveUp}
+            className="px-1 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Move set up"
+            aria-label="Move set up"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 14l5-5 5 5z" />
+            </svg>
+          </button>
+          
+          {/* Move Down Button */}
+          <button
+            type="button"
+            onClick={() => {
+              console.log('[SetInput] Move Down button clicked', { exerciseIndex, setIndex });
+              onMoveDown?.();
+            }}
+            disabled={!onMoveDown}
+            className="px-1 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Move set down"
+            aria-label="Move set down"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+        </div>
       )}
 
       {/* Delete Button */}
       {!readOnly && showDelete && (
         <button
-          onClick={() => onDelete(exerciseIndex, setIndex)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700"
+          onClick={(e) => {
+            // Stop drag/swipe from hijacking the delete tap
+            e.stopPropagation();
+            onDelete(exerciseIndex, setIndex);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className="flex h-8 w-8 items-center justify-center rounded-full btn-destructive"
           title="Delete set"
         >
           ×

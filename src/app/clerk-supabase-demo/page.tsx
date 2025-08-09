@@ -1,68 +1,57 @@
-import { createServerSupabaseClient } from "~/lib/supabase-server";
-import { ClientWorkouts } from "./client-workouts";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { AddWorkoutForm } from "./add-workout-form";
+import { ClientWorkouts } from "./client-workouts";
 
-export default async function ClerkSupabaseDemo() {
-  // Server-side rendering with Supabase + Clerk
+export default async function ClerkSupabaseDemoPage() {
+  const user = await currentUser();
+
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   const supabase = await createServerSupabaseClient();
 
-  // Query workout templates using Supabase (this would normally use your Drizzle schema table names)
-  const { data: templates, error } = await supabase
+  const { data: workouts, error } = await supabase
     .from("swole-tracker_workout_template")
     .select("*")
-    .order("createdAt", { ascending: false })
-    .limit(5);
+    .eq("user_id", user.id);
 
   if (error) {
-    console.error("Error fetching templates:", error);
+    console.error("Error fetching workouts:", error);
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="mb-8 text-3xl font-bold">
-        Clerk + Supabase Integration Demo
-      </h1>
+    <main className="min-h-screen container-default py-6">
+      <h1 className="text-2xl font-bold mb-6">Clerk + Supabase Demo</h1>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Server-side rendered section */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Server-side Rendering</h2>
-          <p className="text-gray-400">
-            Workout templates fetched on the server
-          </p>
-
-          <div className="space-y-3">
-            {templates && templates.length > 0 ? (
-              templates.map(
-                (template: { id: number; name: string; createdAt: string }) => (
-                  <div key={template.id} className="rounded-lg bg-gray-800 p-4">
-                    <h3 className="font-medium">{template.name}</h3>
-                    <p className="text-sm text-gray-400">
-                      Created:{" "}
-                      {new Date(template.createdAt).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-gray-500">ID: {template.id}</p>
-                  </div>
-                ),
-              )
-            ) : (
-              <div className="rounded-lg bg-gray-800 p-4">
-                <p className="text-gray-400">No templates found</p>
-              </div>
-            )}
-          </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Add New Workout Template</h2>
           <AddWorkoutForm />
         </div>
 
-        {/* Client-side rendered section */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Client-side Rendering</h2>
-          <p className="text-gray-400">Recent workouts fetched on the client</p>
-
-          <ClientWorkouts />
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Your Workout Templates (Server-side)</h2>
+          {workouts && workouts.length > 0 ? (
+            <ul className="space-y-2">
+              {workouts.map((workout) => (
+                <li key={workout.id} className="card p-3">
+                  {workout.name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-secondary">No templates yet.</p>
+          )}
         </div>
       </div>
-    </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Your Workout Templates (Client-side)</h2>
+        <ClientWorkouts />
+      </div>
+    </main>
   );
 }

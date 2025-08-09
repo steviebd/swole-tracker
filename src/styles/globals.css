@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "./tokens/base.css";
+@import "./tokens/calmdark.css";
+@import "./tokens/bolddark.css";
+@import "./tokens/playfuldark.css";
 
 @theme {
   /* Typography */
@@ -157,100 +161,53 @@ html.dark .text-muted {
 }
 
 /* ===================== */
-/* Horizon_wow THEME     */
+/* Liquid Glass utilities (used by custom dark themes: CalmDark, BoldDark, PlayfulDark) */
 /* ===================== */
-:root[data-theme="Horizon_wow"] {
-  /* Colors - light context tokens used with dark class toggled by provider */
-  --color-bg-app: #0B1020;
-  --color-bg-surface: #0F1530;
-  --color-border: #2A3472;
-  --color-text: #E6EAF7;
-  --color-text-secondary: #B9C0E0;
-  --color-text-muted: #8F98C7;
-
-  /* Brand */
-  --color-primary: #7B74FF;     /* 500 */
-  --color-primary-hover: #6E67FF; /* 600 */
-  --color-primary-active: #5E57E6; /* 700 */
-
-  --color-secondary: #FF7A7A;
-  --color-accent: #FFD166;
-
-  /* Semantic */
-  --color-success: #38D66B;
-  --color-warning: #FF9F1C;
-  --color-danger:  #FF4D4F;
-  --color-info:    #8A84FF;
-
-  /* Elevation */
-  --shadow-xs: 0 1px 2px rgba(0,0,0,.35);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
-  --shadow-md: 0 6px 18px rgba(0,0,0,.4);
-  --shadow-lg: 0 12px 30px rgba(0,0,0,.45);
-  --shadow-focus: 0 0 0 3px color-mix(in oklab, #8A84FF 35%, transparent);
-
-  /* Radii */
-  --radius-card: 0.625rem; /* ~10px */
-
-  /* Buttons */
-  --btn-primary-bg: linear-gradient(135deg, #FF7A7A 0%, #FFD166 40%, #8A84FF 100%);
-  --btn-primary-bg-color: transparent; /* use gradient */
-  --btn-primary-fg: #0b0b0b;
-  --btn-primary-border: color-mix(in oklab, #FFFFFF 30%, transparent);
-
-  --btn-secondary-bg: transparent;
-  --btn-secondary-fg: var(--color-text);
-  --btn-secondary-border: #2A3472;
-  --btn-secondary-bg-hover: color-mix(in oklab, #0F1530 85%, #FFFFFF 15%);
-
-  --btn-ghost-fg: var(--color-text-secondary);
-}
-:root[data-theme="Horizon_wow"].dark body {
-  /* Ensure dark surfaces when dark class is on */
-  background-color: var(--color-bg-app);
-  color: var(--color-text);
+.glass-surface {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background:
+    radial-gradient(1200px 600px at 20% -10%, #ffffff12 0%, transparent 60%),
+    radial-gradient(800px 400px at 110% 0%, #8A84FF22 0%, transparent 60%),
+    color-mix(in oklab, var(--color-bg-surface) 85%, black 15%);
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Component variants - inputs, cards, modals, switches, tabs, badges */
-:root[data-theme="Horizon_wow"] .input {
-  @apply w-full rounded-md px-3 py-2 text-sm outline-none transition;
-  background-color: color-mix(in oklab, var(--color-bg-surface) 92%, #ffffff 8%);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-:root[data-theme="Horizon_wow"] .input:focus {
-  box-shadow: var(--shadow-focus);
-  border-color: var(--color-primary);
-}
-:root[data-theme="Horizon_wow"] .input[data-invalid="true"] {
-  border-color: var(--color-danger);
+.glass-header {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background:
+    linear-gradient(180deg, #ffffff05 0%, transparent 100%),
+    color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
 
-:root[data-theme="Horizon_wow"] .card {
-  backdrop-filter: blur(4px);
-  background: color-mix(in oklab, var(--color-bg-surface) 92%, #ffffff 8%);
-  border-image: linear-gradient(180deg, #8A84FF33, #2A347233) 1;
+.glass-footer {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background:
+    linear-gradient(0deg, #ffffff08 0%, transparent 100%),
+    color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
+  border-top: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
 
-:root[data-theme="Horizon_wow"] .modal-backdrop {
-  backdrop-filter: blur(2px);
-  background: rgba(7, 10, 23, 0.6);
+.glass-hairline {
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
 
-:root[data-theme="Horizon_wow"] .switch {
-  @apply relative inline-flex h-6 w-11 cursor-pointer items-center rounded-full transition;
-  background-color: color-mix(in oklab, var(--color-primary) 60%, #000 40%);
-}
-:root[data-theme="Horizon_wow"] .switch-thumb {
-  @apply inline-block h-5 w-5 transform rounded-full bg-white transition;
+.bg-horizon {
+  /* deep-space gradient backdrop */
+  background:
+    radial-gradient(1200px 800px at -10% -20%, #FF7A7A10 0%, transparent 60%),
+    radial-gradient(1000px 700px at 110% -20%, #8A84FF18 0%, transparent 65%),
+    radial-gradient(1200px 900px at 50% 120%, #FFD16612 0%, transparent 60%),
+    linear-gradient(180deg, #070A17 0%, #0B1020 60%, #0F1530 100%);
 }
 
-:root[data-theme="Horizon_wow"] .tabs a[aria-selected="true"] {
-  border-bottom: 2px solid var(--color-primary);
-  color: var(--color-text);
-}
-:root[data-theme="Horizon_wow"] .badge {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
-  background-color: color-mix(in oklab, var(--color-primary) 18%, #0B1020 82%);
-  color: var(--color-text);
-}
+/* Removed legacy Horizon_wow theme block. Tokens now provided via:
+   - src/styles/tokens/base.css
+   - src/styles/tokens/calmdark.css
+   - src/styles/tokens/bolddark.css
+   - src/styles/tokens/playfuldark.css
+*/
