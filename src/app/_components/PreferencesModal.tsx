@@ -215,6 +215,20 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
             </div>
           </section>
 
+          {/* Connect Whoop */}
+          <section>
+            <div className="font-medium mb-1">Connect Whoop</div>
+            <div className="text-sm text-muted mb-2">
+              Connect your Whoop device to sync recovery and strain data.
+            </div>
+            <a
+              href="/connect-whoop"
+              className="btn-secondary px-4 py-2 text-sm inline-block"
+            >
+              Connect Whoop
+            </a>
+          </section>
+
           {/* Asymmetric swipe thresholds placeholder */}
           <section className="rounded-md border border-dashed border-[var(--border)] p-3">
             <div className="font-medium">Asymmetric swipe thresholds</div>

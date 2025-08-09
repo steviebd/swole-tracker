@@ -52,12 +52,11 @@ export default async function Home() {
               Welcome back, {user.firstName ?? user.username}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/connect-whoop" className="text-sm link-primary">
-              Connect Whoop
-            </Link>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden sm:block">
+              <ThemeSwitcher compact />
+            </div>
             <ClientPreferencesTrigger inline />
-            <ThemeSwitcher compact />
             <UserButton />
           </div>
         </div>

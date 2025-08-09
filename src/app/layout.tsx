@@ -104,7 +104,7 @@ export default function RootLayout({
                   role="navigation"
                   aria-label="Primary"
                 >
-                  <div className="mx-auto grid grid-cols-4">
+                  <div className="mx-auto grid grid-cols-3">
                     <Link
                       href="/"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
@@ -143,19 +143,6 @@ export default function RootLayout({
                       }
                     >
                       <span>Templates</span>
-                    </Link>
-                    <Link
-                      href="/connect-whoop"
-                      className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
-                      aria-label="Connect to Whoop"
-                      prefetch
-                      aria-current={
-                        typeof window !== "undefined" && window.location?.pathname.startsWith("/connect-whoop")
-                          ? "page"
-                          : undefined
-                      }
-                    >
-                      <span>Connect</span>
                     </Link>
                   </div>
                 </nav>
