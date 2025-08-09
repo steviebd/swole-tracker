@@ -108,7 +108,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     updatePreferencesMutation.mutate(input as unknown as Parameters<typeof updatePreferencesMutation.mutate>[0]);
   };
 
-  const { enqueue, flush, queueSize, isFlushing } = useOfflineSaveQueue();
+  const { enqueue } = useOfflineSaveQueue();
 
   // id generation with counter to ensure uniqueness
   const setIdCounterRef = useRef(0);
@@ -998,9 +998,6 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     saveWorkout,
     deleteWorkout,
     enqueue,
-    flush,
-    queueSize,
-    isFlushing,
 
     // interactions
     swipeSettings,

@@ -33,8 +33,7 @@ interface SetInputProps {
   onMoveDown?: () => void;
 }
 
-import { useEffect, useRef, useState } from "react";
-import { NumericPadOverlay } from "./ui/NumericPadOverlay";
+import { useEffect, useRef } from "react";
 
 export function SetInput({
   set,
@@ -50,7 +49,6 @@ export function SetInput({
   onMoveUp,
   onMoveDown,
 }: SetInputProps) {
-  const [padOpenFor, setPadOpenFor] = useState<null | "weight" | "reps" | "rest">(null);
   const weightInputRef = useRef<HTMLInputElement>(null);
   const repsInputRef = useRef<HTMLInputElement>(null);
   const restInputRef = useRef<HTMLInputElement>(null);
@@ -63,16 +61,6 @@ export function SetInput({
     }
   }, [set.weight]);
 
-  const closePadAndRefocus = () => {
-    const field = padOpenFor;
-    setPadOpenFor(null);
-    // Return focus to the originating input
-    setTimeout(() => {
-      if (field === "weight") weightInputRef.current?.focus();
-      if (field === "reps") repsInputRef.current?.focus();
-      if (field === "rest") restInputRef.current?.focus();
-    }, 0);
-  };
   const handleWeightChange = (value: number | undefined) => {
     onUpdate(exerciseIndex, setIndex, "weight", value);
     if (value && set.sets) {
@@ -134,7 +122,6 @@ export function SetInput({
                   e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
                 } catch {}
               }}
-              onClick={() => !readOnly && setPadOpenFor("weight")}
               placeholder="0"
               disabled={readOnly}
               className={`input flex-1 bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
@@ -170,7 +157,6 @@ export function SetInput({
                 e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
               } catch {}
             }}
-            onClick={() => !readOnly && setPadOpenFor("reps")}
             placeholder="0"
             disabled={readOnly}
             className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
@@ -246,7 +232,6 @@ export function SetInput({
                   e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
                 } catch {}
               }}
-              onClick={() => !readOnly && setPadOpenFor("rest")}
               placeholder="60"
               disabled={readOnly}
               className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
@@ -321,41 +306,6 @@ export function SetInput({
         >
           ×
         </button>
-      )}
-      {/* Numeric Pad Overlay */}
-      {!readOnly && (
-        <NumericPadOverlay
-          open={padOpenFor !== null}
-          onClose={closePadAndRefocus}
-          value={
-            padOpenFor === "weight"
-              ? (set.weight ?? "").toString()
-              : padOpenFor === "reps"
-              ? (set.reps ?? "").toString()
-              : padOpenFor === "rest"
-              ? (set.rest ?? "").toString()
-              : ""
-          }
-          onChange={(next) => {
-            const parsed = next === "" ? undefined : Number(next);
-            if (padOpenFor === "weight") handleWeightChange(Number.isNaN(parsed!) ? undefined : parsed);
-            if (padOpenFor === "reps") handleRepsChange(Number.isNaN(parsed!) ? undefined : parsed);
-            if (padOpenFor === "rest") handleRestChange(Number.isNaN(parsed!) ? undefined : parsed);
-          }}
-          label={
-            padOpenFor === "weight" ? "Weight" : padOpenFor === "reps" ? "Reps" : padOpenFor === "rest" ? "Rest (s)" : "Enter value"
-          }
-          unit={
-            padOpenFor === "weight" ? set.unit : padOpenFor === "reps" ? "reps" : padOpenFor === "rest" ? "s" : undefined
-          }
-          shortcuts={
-            padOpenFor === "weight" ? (set.unit === "kg" ? [2.5, 5, 10] : [5, 10, 20]) : padOpenFor === "rest" ? [30, 60, 90] : []
-          }
-          lastUsed={padOpenFor === "weight" ? lastUsedWeight.current : null}
-          allowDecimal={padOpenFor === "weight"}
-          allowNegative={false}
-          onApply={closePadAndRefocus}
-        />
       )}
     </div>
   );

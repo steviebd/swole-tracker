@@ -154,7 +154,10 @@ export function NumericPadOverlay({
           <button
             key={s}
             className="rounded-md border px-3 py-1.5 text-sm hover:opacity-90 border-[color:var(--color-border)]"
-            onClick={() => onChange(String(s))}
+            onClick={() => {
+              hasStartedRef.current = true;
+              onChange(String(s));
+            }}
           >
             +{s}
             {unit ? <span className="ml-0.5 opacity-70">{unit}</span> : null}
@@ -163,7 +166,10 @@ export function NumericPadOverlay({
         {lastUsed != null && (
           <button
             className="rounded-md border px-3 py-1.5 text-sm hover:opacity-90 border-[color:var(--color-border)]"
-            onClick={() => onChange(String(lastUsed))}
+            onClick={() => {
+              hasStartedRef.current = true;
+              onChange(String(lastUsed));
+            }}
             title="Use last used value"
           >
             Last: {lastUsed}{unit ? <span className="ml-0.5 opacity-70">{unit}</span> : null}
@@ -184,10 +190,11 @@ export function NumericPadOverlay({
         ))}
         <button
           className="btn-secondary py-4"
-          onClick={() => press(allowDecimal ? "." : "0")}
-          aria-label={allowDecimal ? "Decimal point" : "Zero"}
+          onClick={() => press(".")}
+          disabled={!allowDecimal}
+          aria-label="Decimal point"
         >
-          {allowDecimal ? "." : "0"}
+          .
         </button>
         <button className="btn-secondary py-4" onClick={() => press("0")}>0</button>
         <button className="btn-secondary py-4" onClick={() => press("back")} aria-label="Backspace">⌫</button>

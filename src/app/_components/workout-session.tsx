@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
@@ -47,9 +47,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     saveWorkout,
     deleteWorkout,
     enqueue,
-    flush,
-    queueSize,
-    isFlushing,
     swipeSettings,
     dragState,
     dragHandlers,
@@ -90,6 +87,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
   const [scrollY, setScrollY] = useState(0);
   const _listContainerRef = useRef<HTMLDivElement | null>(null);
+  const progressionInProgressRef = useRef(false);
+  const lastProgressionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY || 0);
@@ -212,18 +211,38 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const applyProgressionToAll = () => {
-    if (!progressionScopeModal) return;
+    const callTime = Date.now();
+    console.log(`[DEBUG] applyProgressionToAll called at ${callTime}`);
     
-    const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
+    if (!progressionScopeModal) {
+      console.log('[DEBUG] No progressionScopeModal, returning');
+      return;
+    }
+    
+    if (progressionInProgressRef.current) {
+      console.log('[DEBUG] progressionInProgressRef.current is true, returning');
+      return;
+    }
+    
+    progressionInProgressRef.current = true;
+    console.log('[DEBUG] Set progressionInProgressRef.current to true');
+    
+    // Capture the modal data before closing it
+    const modalData = { ...progressionScopeModal };
+    const { exerciseIndex, progressionType, previousBest } = modalData;
+    console.log('[DEBUG] Modal data captured:', { exerciseIndex, progressionType });
     
     // Close the modal first to prevent double-execution
     setProgressionScopeModal(null);
+    console.log('[DEBUG] Modal closed');
     
     setExercises(prev => {
       const newExercises = [...prev];
       const exercise = newExercises[exerciseIndex];
       
       if (exercise) {
+        console.log('[DEBUG] Exercise sets before progression:', exercise.sets.map(s => ({ id: s.id, weight: s.weight, reps: s.reps })));
+        
         // Apply progression to ALL sets
         exercise.sets = exercise.sets.map(set => {
           const updatedSet = { ...set };
@@ -249,6 +268,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       }
       return prev;
     });
+    
+    // Reset the progression guard after a brief delay to ensure state updates complete
+    setTimeout(() => {
+      console.log('[DEBUG] Resetting progressionInProgressRef.current to false');
+      progressionInProgressRef.current = false;
+      lastProgressionIdRef.current = null;
+    }, 500);
   };
 
   const applyProgressionToHighest = () => {
@@ -659,28 +685,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               </button>
             </div>
 
-            {/* Offline queue status row */}
-            {queueSize > 0 && (
-              <div className="mt-3 rounded-lg border p-2 text-xs flex items-center justify-between border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-100">
-                <span>
-                  {isFlushing
-                    ? "Syncing queued workouts…"
-                    : `${queueSize} workout${queueSize > 1 ? "s" : ""} pending sync`}
-                </span>
-                <button
-                  onClick={() => {
-                    try {
-                      announce("Syncing queued workouts", { assertive: false });
-                    } catch {}
-                    void flush();
-                  }}
-                  className="ml-3 rounded border border-yellow-300 px-2 py-0.5 text-[11px] font-medium hover:bg-yellow-100 dark:border-yellow-600 dark:hover:bg-yellow-900/50"
-                  aria-label="Sync queued workouts now"
-                >
-                  Sync now
-                </button>
-              </div>
-            )}
 
             {/* Delete is secondary; keep outside the primary row */}
             <div className="mt-2 text-center">

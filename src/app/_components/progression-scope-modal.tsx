@@ -57,10 +57,7 @@ export function ProgressionScopeModal({
 
         <div className="space-y-3">
           <button
-            onClick={() => {
-              onApplyToAll();
-              onClose();
-            }}
+            onClick={onApplyToAll}
             className="w-full p-3 text-left rounded-lg btn-success transition-colors"
           >
             <div className="font-medium">Apply to ALL sets</div>
@@ -70,10 +67,7 @@ export function ProgressionScopeModal({
           </button>
 
           <button
-            onClick={() => {
-              onApplyToHighest();
-              onClose();
-            }}
+            onClick={onApplyToHighest}
             className="w-full p-3 text-left rounded-lg btn-primary transition-colors"
           >
             <div className="font-medium">Apply to HIGHEST set only</div>
