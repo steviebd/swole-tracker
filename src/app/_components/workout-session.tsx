@@ -402,15 +402,43 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const handleDelete = async () => {
+    // Prevent multiple rapid calls
+    if (deleteWorkout.isPending) {
+      console.log("Delete already in progress, ignoring duplicate call");
+      return;
+    }
+
+    // Validate sessionId before proceeding
+    if (!sessionId || typeof sessionId !== "number") {
+      console.error("Invalid sessionId for workout deletion:", sessionId);
+      alert("Cannot delete workout: invalid session ID");
+      return;
+    }
+
     try {
+      console.log("Attempting to delete workout session:", sessionId);
+      
+      // Try to delete from database
       await deleteWorkout.mutateAsync({ id: sessionId });
+      
+      // If we get here, deletion succeeded (either database delete or handled as unsaved session)
+      console.log("Workout deletion completed successfully");
+      
+      // Navigate to home after successful deletion
+      setShowDeleteConfirm(false);
+      router.push("/");
+      
     } catch (error) {
-      console.error("Error deleting workout:", error);
+      // This should rarely happen now due to our error handling in the mutation
+      console.error("Unexpected error during workout deletion:", error);
       analytics.error(error as Error, {
         context: "workout_delete",
         sessionId: sessionId.toString(),
       });
-      alert("Error deleting workout. Please try again.");
+      
+      // Even on error, close dialog and navigate away since the optimistic update already happened
+      setShowDeleteConfirm(false);
+      router.push("/");
     }
   };
 

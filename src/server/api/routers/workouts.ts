@@ -30,8 +30,8 @@ const exerciseInputSchema = z.object({
   unit: z.enum(["kg", "lbs"]).default("kg"),
 });
 
-/* DEBUG LOGGING ENABLED FOR TESTS */
-const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test';
+/* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
+const debugEnabled = process.env.VITEST || process.env.NODE_ENV === 'test' || (process.env.NODE_ENV === 'development' && process.env.DEBUG_WORKOUTS);
 function debugLog(...args: unknown[]) {
   if (debugEnabled) console.log('[workoutsRouter]', ...args);
 }
@@ -496,18 +496,19 @@ export const workoutsRouter = createTRPCRouter({
     .use(workoutRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      // Verify ownership
-      const session = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.id),
-      });
+      // Use a single atomic delete operation with ownership check for better performance
+      // This avoids race conditions and reduces database queries
+      const deletedRows = await ctx.db
+        .delete(workoutSessions)
+        .where(and(
+          eq(workoutSessions.id, input.id),
+          eq(workoutSessions.user_id, ctx.user.id)
+        ))
+        .returning({ id: workoutSessions.id });
 
-      if (!session || session.user_id !== ctx.user.id) {
+      if (deletedRows.length === 0) {
         throw new Error("Workout session not found");
       }
-
-      await ctx.db
-        .delete(workoutSessions)
-        .where(eq(workoutSessions.id, input.id));
 
       return { success: true };
     }),

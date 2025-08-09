@@ -330,7 +330,10 @@ export function useUniversalDragReorder<T>(
           // Insert at the calculated position
           newItems.splice(adjustedInsertionIndex, 0, draggedItem);
           
-          console.log('[useUniversalDragReorder] onReorder called with newItems', newItems.map(item => (item as any).identity || (item as any).originalIndex));
+          console.log('[useUniversalDragReorder] onReorder called with newItems', newItems.map(item => {
+            const typedItem = item as Record<string, unknown>;
+            return typedItem.identity ?? typedItem.originalIndex;
+          }));
           onReorder(newItems);
         }
       }

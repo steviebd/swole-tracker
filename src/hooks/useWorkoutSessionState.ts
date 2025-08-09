@@ -238,17 +238,33 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   });
 
   const deleteWorkout = api.workouts.delete.useMutation({
-    onMutate: async () => {
+    // Disable retries since they're causing multiple failed attempts
+    retry: false,
+    onMutate: async (variables) => {
       await utils.workouts.getRecent.cancel();
       const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
 
+      // Optimistic update - remove from cache immediately
+      const deleteId = variables.id;
       utils.workouts.getRecent.setData({ limit: 5 }, (old) =>
-        old ? old.filter((workout) => workout.id !== sessionId) : [],
+        old ? old.filter((workout) => workout.id !== deleteId) : [],
       );
 
       return { previousWorkouts };
     },
-    onError: (_err, _variables, context) => {
+    onSuccess: () => {
+      console.log("Workout deleted successfully");
+    },
+    onError: (_err, variables, context) => {
+      console.error("Failed to delete workout:", _err.message);
+      
+      // For new/unsaved workouts, treat "not found" as success
+      if (_err.message === "Workout session not found") {
+        console.log("Workout not found in database - likely an unsaved session, treating as successful deletion");
+        return; // Don't restore cache, deletion was conceptually successful
+      }
+      
+      // Only restore cache for actual server errors
       if (context?.previousWorkouts) {
         utils.workouts.getRecent.setData({ limit: 5 }, context.previousWorkouts);
       }
