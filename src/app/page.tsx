@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
-import { UserButton } from "@clerk/nextjs";
 
-import { RecentWorkoutsTRPC } from "~/app/_components/recent-workouts-trpc";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
-import { JokeOfTheDay } from "~/app/_components/joke-of-the-day";
+import { PreferencesStatusBar } from "~/app/_components/PreferencesStatusBar";
+import { HomePageHeader } from "~/app/_components/HomePageHeader";
+import { DashboardContent } from "~/app/_components/DashboardContent";
 
 import HydrateClient from "~/trpc/HydrateClient";
 import {
@@ -12,7 +11,6 @@ import {
   getDehydratedState,
   prefetchHome,
 } from "~/trpc/prefetch";
-import ClientPreferencesTrigger from "./preferences-trigger";
 
 export default async function Home() {
   const user = await currentUser();
@@ -25,89 +23,35 @@ export default async function Home() {
   if (!user) {
     return (
       <HydrateClient state={state}>
-        <main className="container-default min-h-screen py-10">
-          <div className="relative mx-auto max-w-3xl text-center">
-            <div className="glass-surface card p-10">
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl">
-                💪 <span className="text-purple-400">Swole</span> Tracker
-              </h1>
-              <p className="text-secondary mx-auto mt-4 max-w-2xl text-lg">
-                Simple, mobile-first workout tracking. Log your workouts, track
-                your progress, and get stronger.
-              </p>
-              <div className="mt-8">
-                <SignInButtons />
-              </div>
+        <div className="relative mx-auto max-w-3xl text-center flex items-center justify-center min-h-[60vh]">
+          <div className="glass-surface card p-10 rounded-xl">
+            <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl">
+              💪 <span className="text-purple-400">Swole</span> Tracker
+            </h1>
+            <p className="text-secondary mx-auto mt-4 max-w-2xl text-lg">
+              Simple, mobile-first workout tracking. Log your workouts, track
+              your progress, and get stronger.
+            </p>
+            <div className="mt-8">
+              <SignInButtons />
             </div>
           </div>
-        </main>
+        </div>
       </HydrateClient>
     );
   }
 
   return (
     <HydrateClient state={state}>
-      <main className="container-default min-h-screen py-6">
-        {/* Header */}
-        <div className="glass-header mb-8 flex items-center justify-between rounded-xl px-4 py-3">
-          <div>
-            <h1 className="text-3xl font-bold">Swole Tracker</h1>
-            <p className="text-secondary">
-              Welcome back, {user.firstName ?? user.username}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <ClientPreferencesTrigger inline />
-            <UserButton />
-          </div>
+      <>
+        <div className="fixed inset-x-0 top-0 z-40">
+          <PreferencesStatusBar />
+          <HomePageHeader />
         </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link
-            href="/workout/start"
-            className="card glass-surface p-6 text-center transition"
-          >
-            <h3 className="mb-2 text-xl font-semibold">Start Workout</h3>
-            <p className="text-secondary">Begin a new workout session</p>
-            <div className="mt-4">
-              <span className="btn-primary inline-flex w-full justify-center">
-                Open
-              </span>
-            </div>
-          </Link>
-
-          <div className="glass-surface card p-0">
-            <JokeOfTheDay />
-          </div>
-
-          <Link
-            href="/templates"
-            className="card glass-surface p-6 text-center transition"
-          >
-            <h3 className="mb-2 text-xl font-semibold">Manage Templates</h3>
-            <p className="text-secondary">Create and edit workout templates</p>
-            <div className="mt-4">
-              <span className="btn-primary inline-flex w-full justify-center">
-                Open
-              </span>
-            </div>
-          </Link>
+        <div className="pt-32">
+          <DashboardContent />
         </div>
-
-        {/* Recent Workouts Section */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Recent Workouts</h2>
-            <Link href="/workouts" className="link-primary text-sm">
-              View all workouts →
-            </Link>
-          </div>
-          <div className="glass-surface card p-4">
-            <RecentWorkoutsTRPC />
-          </div>
-        </div>
-      </main>
+      </>
     </HydrateClient>
   );
 }

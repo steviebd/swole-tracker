@@ -4,10 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
 
 type Theme =
-  | "light"
-  | "dark"
   | "system"
-  | "v1dark"
+  | "dark"
   | "CalmDark"
   | "BoldDark"
   | "PlayfulDark";
@@ -39,17 +37,13 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
       ? `System (${resolvedTheme})`
       : theme === "dark"
         ? "Dark"
-        : theme === "light"
-          ? "Light"
-          : theme === "v1dark"
-            ? "V1 Dark"
-            : theme === "CalmDark"
-              ? "Calm Dark"
-              : theme === "BoldDark"
-                ? "Bold Dark"
-                : theme === "PlayfulDark"
-                  ? "Playful Dark"
-                  : String(theme);
+        : theme === "CalmDark"
+          ? "Calm Dark"
+          : theme === "BoldDark"
+            ? "Bold Dark"
+            : theme === "PlayfulDark"
+              ? "Playful Dark"
+              : String(theme);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -82,26 +76,6 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
         >
           <MenuItem
             current={theme}
-            value="light"
-            onSelect={(t) => {
-              setTheme(t);
-              setOpen(false);
-            }}
-          >
-            Light
-          </MenuItem>
-          <MenuItem
-            current={theme}
-            value="dark"
-            onSelect={(t) => {
-              setTheme(t);
-              setOpen(false);
-            }}
-          >
-            Dark
-          </MenuItem>
-          <MenuItem
-            current={theme}
             value="system"
             onSelect={(t) => {
               setTheme(t);
@@ -112,13 +86,13 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
           </MenuItem>
           <MenuItem
             current={theme}
-            value="v1dark"
+            value="dark"
             onSelect={(t) => {
               setTheme(t);
               setOpen(false);
             }}
           >
-            V1 Dark
+            Dark
           </MenuItem>
           <MenuItem
             current={theme}

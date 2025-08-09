@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "./tokens/base.css";
-@import "./tokens/v1dark.css";
+@import "./tokens/dark.css";
 @import "./tokens/calmdark.css";
 @import "./tokens/bolddark.css";
 @import "./tokens/playfuldark.css";
