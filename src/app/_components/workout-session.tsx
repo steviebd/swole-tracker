@@ -216,6 +216,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     
     const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
     
+    // Close the modal first to prevent double-execution
+    setProgressionScopeModal(null);
+    
     setExercises(prev => {
       const newExercises = [...prev];
       const exercise = newExercises[exerciseIndex];
@@ -252,6 +255,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     if (!progressionScopeModal) return;
     
     const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
+    
+    // Close the modal first to prevent double-execution
+    setProgressionScopeModal(null);
     
     setExercises(prev => {
       const newExercises = [...prev];
