@@ -51,9 +51,9 @@
 
 ## Phase 7 – Wrap-Up & Checks
 - [ ] **7.1** Remove unused/placeholder components.
-- [ ] **7.2** Run `pnpm check` (lint + typecheck) and fix issues.
+- [ ] **7.2** Run `bun check` (lint + typecheck) and fix issues.
 - [ ] **7.3** Write new tests for refactored components.
-- [ ] **7.4** Run `pnpm build` & verify.
+- [ ] **7.4** Run `bun build` & verify.
 
 ---
 

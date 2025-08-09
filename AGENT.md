@@ -3,23 +3,23 @@
 This document defines the project-specific workflow, commands, architecture, and conventions for maintainers and automation.
 
 ## Commands
-- Dev: `pnpm dev` (Next.js 15 with turbopack)
-- Build: `pnpm build`
-- Preview (prod locally): `pnpm preview` (alias: `next build && next start`)
-- Start: `pnpm start` (serve built app)
-- Lint: `pnpm lint`
-- Lint:Fix: `pnpm lint:fix`
-- Type Check: `pnpm typecheck`
-- Check (lint + typecheck): `pnpm check`
-- Format (write): `pnpm format:write`
-- Format (check): `pnpm format:check`
-- DB: Generate: `pnpm db:generate`
-- DB: Migrate: `pnpm db:migrate`
-- DB: Push (dev): `pnpm db:push`
-- DB: Studio (UI): `pnpm db:studio`
+- Dev: `bun dev` (Next.js 15 with turbopack)
+- Build: `bun run build`
+- Preview (prod locally): `bun preview` (alias: `next build && next start`)
+- Start: `bun start` (serve built app)
+- Lint: `bun lint`
+- Lint:Fix: `bun lint:fix`
+- Type Check: `bun typecheck`
+- Check (lint + typecheck): `bun check`
+- Format (write): `bun format:write`
+- Format (check): `bun format:check`
+- DB: Generate: `bun db:generate`
+- DB: Migrate: `bun db:migrate`
+- DB: Push (dev): `bun db:push`
+- DB: Studio (UI): `bun db:studio`
 
 Notes:
-- Package manager is pinned: `pnpm@10.13.1` (required).
+- Package manager is pinned: `bun@1.2.19` (required).
 - Node.js 18+ recommended (Next 15).
 
 ## Architecture
@@ -91,32 +91,32 @@ Create `.env` from `.env.example`. Required keys (see README for details):
 - App router pages live under `src/app/.../page.tsx`
 
 ## Local Development Workflow
-1) Install: `pnpm install`
+1) Install: `bun install`
 2) Configure `.env`
-3) Initialize DB: `pnpm db:push`
-4) Dev server: `pnpm dev`
-5) Lint/typecheck prior to commit: `pnpm check`
-6) Format code: `pnpm format:write`
+3) Initialize DB: `bun db:push`
+4) Dev server: `bun dev`
+5) Lint/typecheck prior to commit: `bun check`
+6) Format code: `bun format:write`
 
 ## Commit & PR Checklist
-- [ ] `pnpm format:write` clean
-- [ ] `pnpm check` passes (lint + typecheck)
-- [ ] DB changes reviewed; `pnpm db:push` run locally if schema changed
+- [ ] `bun format:write` clean
+- [ ] `bun check` passes (lint + typecheck)
+- [ ] DB changes reviewed; `bun db:push` run locally if schema changed
 - [ ] No direct updates/deletes without `where` clauses
 - [ ] Added/updated tRPC procedures include Zod validation
 - [ ] Protected routes use `protectedProcedure` where required
 - [ ] UI follows mobile-first and Tailwind class ordering conventions
 
 ## Production & Preview
-- Preview locally: `pnpm preview`
+- Preview locally: `bun preview`
 - Vercel deployment:
-  - Build: `pnpm build`
+  - Build: `bun build`
   - Output: `.next`
-  - Install: `pnpm install`
+  - Install: `bun install`
   - Env vars configured in dashboard
 - After deploy, push schema to production DB as needed:
   - `DATABASE_URL` set to production
-  - `pnpm db:push`
+  - `bun db:push`
 
 ## Troubleshooting
 - Clerk auth issues: verify publishable and secret keys, redirect URLs, and middleware matcher
