@@ -7,8 +7,7 @@ import { useTheme } from "~/providers/ThemeProvider";
 import { PreferencesModal } from "./PreferencesModal";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
-import { ConnectWhoopButton } from "./ConnectWhoopButton";
-import { ThemeToggleDropdown } from "./ThemeToggleDropdown";
+// ConnectWhoop and Theme controls moved into PreferencesModal
 
 export function HomePageHeader() {
   const { user } = useUser();
@@ -64,8 +63,6 @@ export function HomePageHeader() {
 
           {/* Right side - Controls */}
           <div className="flex items-center gap-3 md:gap-4">
-            <ConnectWhoopButton />
-            <ThemeToggleDropdown />
             
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
@@ -85,21 +82,8 @@ export function HomePageHeader() {
                 </svg>
               </button>
 
-              {/* Settings Button */}
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg md:rounded-xl transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-                }`}
-                aria-label="Open Settings"
-                title="Settings"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-                </svg>
-              </button>
+              {/* Settings Button (optional) */}
+              {/* Removed Theme dropdown and Connect Whoop from header; both available in Preferences */}
 
               {/* Preferences Button */}
               <button
