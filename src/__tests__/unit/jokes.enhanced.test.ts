@@ -1,6 +1,22 @@
 // Complete refactor of jokes router tests with proper module mocking
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { eq } from "drizzle-orm";
+
+/**
+ * Ensure PUBLIC env is present before any imports that transitively load src/env.js,
+ * which validates runtime env via @t3-oss/env-nextjs.
+ */
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??= 'pk_test_dummy';
+process.env.NEXT_PUBLIC_POSTHOG_KEY ??= 'phc_test_dummy';
+process.env.NEXT_PUBLIC_POSTHOG_HOST ??= 'https://us.i.posthog.com';
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'https://test.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_KEY ??= 'supabase_test_key';
+
+// Also stub server-side env so @t3-oss/env-core proxy does not throw under jsdom.
+process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
+process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_JOKES_PER_HOUR ??= '100';
+process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ??= '100';
 
 // Mock environment before any imports
 const mockEnv = {
@@ -9,6 +25,19 @@ const mockEnv = {
   AI_GATEWAY_PROMPT: "Tell a short fitness-themed joke.",
   AI_GATEWAY_JOKE_MEMORY_NUMBER: 3,
   AI_GATEWAY_ENABLED: false,
+  // Public vars (unused in server code paths here, but keep for completeness)
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!,
+  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY!,
+  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST!,
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  NEXT_PUBLIC_SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_KEY!,
+  // Server vars used by routers
+  RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR: process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR!,
+  RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR!,
+  RATE_LIMIT_JOKES_PER_HOUR: process.env.RATE_LIMIT_JOKES_PER_HOUR!,
+  RATE_LIMIT_WHOOP_SYNC_PER_HOUR: process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR!,
+  DATABASE_URL: process.env.DATABASE_URL!,
+  NODE_ENV: process.env.NODE_ENV ?? 'test',
 };
 
 vi.mock("~/env", () => ({
@@ -32,14 +61,41 @@ vi.mock("~/server/db/schema", () => ({
   },
 }));
 
-// Mock tRPC setup
-vi.mock("~/server/api/trpc", () => ({
-  createTRPCRouter: vi.fn((routes) => routes),
-  protectedProcedure: {
-    query: vi.fn((fn) => ({ queryFn: fn })),
-    mutation: vi.fn((fn) => ({ mutationFn: fn })),
-  },
-}));
+// Ensure rate limiting middleware is a no-op in tests to avoid undefined ctx.headers/requestId issues
+vi.mock('~/lib/rate-limit-middleware', async () => {
+  const { initTRPC } = await import('@trpc/server');
+  const t = initTRPC.create();
+  const noOpMiddleware = t.middleware(async ({ next }) => next());
+  return {
+    apiCallRateLimit: noOpMiddleware,
+    templateRateLimit: noOpMiddleware,
+    workoutRateLimit: noOpMiddleware,
+    whoopSyncRateLimit: noOpMiddleware,
+    rateLimitMiddleware: () => async ({ next }: any) => next(),
+    asTrpcMiddleware: () => noOpMiddleware,
+  };
+});
+
+// Mock Clerk currentUser
+vi.mock('@clerk/nextjs/server', () => {
+  return {
+    currentUser: async () => ({ id: 'test-user' }),
+  };
+});
+
+// Mock the database module
+const mockState = {
+  db: undefined as any,
+  user: { id: 'test-user' },
+};
+
+vi.mock("~/server/db", () => {
+  return {
+    get db() {
+      return mockState.db;
+    },
+  };
+});
 
 describe("jokes.ts enhanced coverage (rewritten)", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
@@ -80,9 +136,14 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
       delete: vi.fn().mockReturnValue({ where: whereChain }),
     };
 
+    // Update mockState with the new db
+    mockState.db = mockDb;
+
     mockCtx = {
       db: mockDb,
       user: { id: "test-user" },
+      requestId: "00000000-0000-4000-8000-000000000000",
+      headers: new Headers({ 'x-test': '1' }),
     };
   });
 
