@@ -104,7 +104,7 @@ export default function RootLayout({
                   role="navigation"
                   aria-label="Primary"
                 >
-                  <div className="mx-auto grid grid-cols-5">
+                  <div className="mx-auto grid grid-cols-4">
                     <Link
                       href="/"
                       className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
@@ -157,9 +157,6 @@ export default function RootLayout({
                     >
                       <span>Connect</span>
                     </Link>
-                    <div className="flex items-center justify-center py-2">
-                      <ThemeSwitcher compact />
-                    </div>
                   </div>
                 </nav>
 
