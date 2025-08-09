@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/trpc/react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
+import { useTheme } from "~/providers/ThemeProvider";
 
 type RightSwipeAction = "collapse_expand" | "none";
 
@@ -22,6 +23,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       await utils.preferences.get.invalidate();
     },
   });
+
+  const { theme, resolvedTheme, setTheme } = useTheme();
 
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
   const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
@@ -129,7 +132,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         preventScroll
       >
         <div
-          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl sm:bg-[var(--card)] sm:border sm:border-[var(--border)] bg-[var(--card)] border-t border-[var(--border)]"
+          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl bg-[var(--background)] sm:border sm:border-[var(--border)] border-t border-[var(--border)]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)]">
@@ -163,6 +166,42 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                 />
                 <span className="sr-only">Toggle predictive defaults</span>
               </button>
+            </div>
+          </section>
+
+          {/* Theme selector */}
+          <section>
+            <div className="font-medium mb-1">Theme</div>
+            <div className="text-sm text-muted mb-2">
+              Choose your preferred color theme for the app.
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "light", label: "Light" },
+                { value: "dark", label: "Dark" },
+                { value: "system", label: "System" },
+                { value: "CalmDark", label: "Calm Dark" },
+                { value: "BoldDark", label: "Bold Dark" },
+                { value: "PlayfulDark", label: "Playful Dark" },
+              ].map((themeOption) => (
+                <button
+                  key={themeOption.value}
+                  onClick={() => setTheme(themeOption.value as any)}
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    theme === themeOption.value
+                      ? "btn-primary"
+                      : "btn-secondary"
+                  }`}
+                  aria-pressed={theme === themeOption.value ? "true" : "false"}
+                >
+                  {themeOption.label}
+                  {theme === themeOption.value && themeOption.value === "system" && (
+                    <span className="ml-1 text-xs opacity-70">
+                      ({resolvedTheme})
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </section>
 

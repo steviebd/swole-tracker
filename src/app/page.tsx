@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
-import { ThemeSwitcher } from "~/app/_components/theme-switcher";
 
 import { RecentWorkoutsTRPC } from "~/app/_components/recent-workouts-trpc";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
@@ -53,9 +52,6 @@ export default async function Home() {
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden sm:block">
-              <ThemeSwitcher compact />
-            </div>
             <ClientPreferencesTrigger inline />
             <UserButton />
           </div>
