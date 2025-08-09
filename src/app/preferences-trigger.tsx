@@ -9,22 +9,32 @@ import { useTheme } from "~/providers/ThemeProvider";
  * Renders a small button in the home page header area (absolute overlay) to open PreferencesModal.
  * Mobile-first: shows an icon button. Desktop could be integrated elsewhere later.
  */
-export default function ClientPreferencesTrigger() {
+export default function ClientPreferencesTrigger({ inline = false, label = "Preferences" }: { inline?: boolean; label?: string }) {
   const [open, setOpen] = useState(false);
   // Ensure ThemeProvider context is present
   useTheme();
+
+  const btnClass = inline
+    ? "text-sm link-primary"
+    : "fixed bottom-20 right-4 z-[9000] rounded-full bg-purple-600 p-3 text-white shadow-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 md:static md:ml-2 md:rounded-lg md:px-3 md:py-2 md:bg-gray-800 md:hover:bg-gray-700";
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 z-[9000] rounded-full bg-purple-600 p-3 text-white shadow-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 md:static md:ml-2 md:rounded-lg md:px-3 md:py-2 md:bg-gray-800 md:hover:bg-gray-700"
+        className={btnClass}
         aria-label="Open Preferences"
         title="Preferences"
       >
-        <span className="inline-block md:hidden">⚙️</span>
-        <span className="hidden md:inline">Preferences</span>
+        {inline ? (
+          <span>{label}</span>
+        ) : (
+          <>
+            <span className="inline-block md:hidden">⚙️</span>
+            <span className="hidden md:inline">Preferences</span>
+          </>
+        )}
       </button>
 
       <PreferencesModal open={open} onClose={() => setOpen(false)} />

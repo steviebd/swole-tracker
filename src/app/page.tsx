@@ -43,7 +43,6 @@ export default async function Home() {
 
   return (
     <HydrateClient state={state}>
-      <ClientPreferencesTrigger />
       <main className="min-h-screen container-default py-6">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between glass-header rounded-xl px-4 py-3">
@@ -53,15 +52,9 @@ export default async function Home() {
               Welcome back, {user.firstName ?? user.username}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/connect-whoop" className="text-sm link-primary">
-              Connect Whoop
-            </Link>
-            {/* Desktop theme switcher (hidden on small screens since it's in bottom nav there) */}
-            <div className="hidden md:block">
-              <ThemeSwitcher />
-            </div>
+          <div className="flex items-center gap-2 sm:gap-4">
             <UserButton />
+            <ClientPreferencesTrigger inline />
           </div>
         </div>
 

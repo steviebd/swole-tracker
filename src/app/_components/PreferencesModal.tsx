@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/trpc/react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
+import { useTheme } from "~/providers/ThemeProvider";
 
 type RightSwipeAction = "collapse_expand" | "none";
 
@@ -23,6 +24,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     },
   });
 
+  const { theme, setTheme } = useTheme();
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
   const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
   const [estimatedOneRmFactor, setEstimatedOneRmFactor] = useState<string>(""); // text to allow blank => default
@@ -129,7 +131,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         preventScroll
       >
         <div
-          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl sm:bg-[var(--card)] sm:border sm:border-[var(--border)] bg-[var(--card)] border-t border-[var(--border)]"
+          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl bg-gray-900 border border-gray-700"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)]">
@@ -213,6 +215,49 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                 </button>
               ))}
             </div>
+          </section>
+
+          {/* Theme Selector */}
+          <section>
+            <div className="font-medium mb-1">Theme</div>
+            <div className="text-sm text-muted mb-2">
+              Choose your preferred theme appearance.
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["light", "dark", "system", "CalmDark", "BoldDark", "PlayfulDark"] as const).map((themeOption) => (
+                <button
+                  key={themeOption}
+                  onClick={() => setTheme(themeOption)}
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    theme === themeOption
+                      ? "btn-primary"
+                      : "btn-secondary"
+                  }`}
+                  aria-pressed={theme === themeOption ? "true" : "false"}
+                >
+                  {themeOption === "system" ? "System" :
+                   themeOption === "light" ? "Light" :
+                   themeOption === "dark" ? "Dark" :
+                   themeOption === "CalmDark" ? "Calm Dark" :
+                   themeOption === "BoldDark" ? "Bold Dark" :
+                   "Playful Dark"}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Connect Whoop */}
+          <section>
+            <div className="font-medium mb-1">Connect Whoop</div>
+            <div className="text-sm text-muted mb-2">
+              Connect your Whoop device to sync recovery and strain data.
+            </div>
+            <a
+              href="/connect-whoop"
+              className="btn-secondary px-4 py-2 text-sm inline-block"
+            >
+              Connect Whoop
+            </a>
           </section>
 
           {/* Asymmetric swipe thresholds placeholder */}
