@@ -36,7 +36,7 @@ interface ExerciseCardProps {
   onToggleUnit: (exerciseIndex: number, setIndex: number) => void;
   onAddSet: (exerciseIndex: number) => void;
   onDeleteSet: (exerciseIndex: number, setIndex: number) => void;
-  onReorderSets: (exerciseIndex: number, from: number, to: number) => void;
+  onMoveSet: (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => void;
   isExpanded: boolean;
   onToggleExpansion: (exerciseIndex: number) => void;
   previousBest?: PreviousBest;
@@ -61,7 +61,7 @@ export function ExerciseCard({
   onToggleUnit,
   onAddSet,
   onDeleteSet,
-  onReorderSets,
+  onMoveSet,
   isExpanded,
   onToggleExpansion,
   previousBest,
@@ -454,7 +454,7 @@ export function ExerciseCard({
             onToggleUnit={onToggleUnit}
             onAddSet={onAddSet}
             onDeleteSet={onDeleteSet}
-            onReorderSets={onReorderSets}
+            onMoveSet={onMoveSet}
           />
         </div>
       )}

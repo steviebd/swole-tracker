@@ -167,6 +167,7 @@ export function useUniversalDragReorder<T>(
       // Prevent dragging when clicking on interactive elements (except explicit drag handles)
       const target = e.target as HTMLElement;
       const isHandle = !!target.closest('[data-drag-handle="true"]');
+      console.log('[useUniversalDragReorder] onPointerDown called', { index, isHandle, targetTag: target.tagName, opts });
 
       // IMPORTANT: Do NOT call preventDefault on React synthetic event here (React may mark as passive).
       // Instead, immediately add a non-passive native listener on the currentTarget to prevent default for the next move.
@@ -255,6 +256,7 @@ export function useUniversalDragReorder<T>(
       }
 
       if (hasDragStarted.current && axisLockedToY.current) {
+        console.log('[useUniversalDragReorder] onPointerMove - drag active', { draggedIndex, deltaX, deltaY, distance, dragOverIndex });
         // Use requestAnimationFrame for smooth 60fps updates
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
@@ -304,7 +306,7 @@ export function useUniversalDragReorder<T>(
         // Use CSS (e.g., 'touch-none') on the draggable element while dragging to prevent scroll.
       }
     },
-    [draggedIndex, dragStartPos, findDropTarget, onStartDrag, handleAutoScroll]
+    [draggedIndex, dragStartPos, dragOverIndex, findDropTarget, onStartDrag, handleAutoScroll]
   );
 
   const onPointerUp = useCallback(
@@ -312,6 +314,7 @@ export function useUniversalDragReorder<T>(
       if (draggedIndex === null) return;
 
       if (hasDragStarted.current && dragOverIndex !== null && dragOverIndex !== draggedIndex) {
+        console.log('[useUniversalDragReorder] onPointerUp - performing reorder', { draggedIndex, dragOverIndex });
         // Perform reorder
         const newItems = [...items];
         const draggedItem = newItems[draggedIndex];
@@ -327,10 +330,12 @@ export function useUniversalDragReorder<T>(
           // Insert at the calculated position
           newItems.splice(adjustedInsertionIndex, 0, draggedItem);
           
+          console.log('[useUniversalDragReorder] onReorder called with newItems', newItems.map(item => (item as any).identity || (item as any).originalIndex));
           onReorder(newItems);
         }
       }
 
+      console.log('[useUniversalDragReorder] onPointerUp - resetting state');
       // Reset state
       setDraggedIndex(null);
       setDragOverIndex(null);

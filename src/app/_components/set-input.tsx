@@ -28,8 +28,9 @@ interface SetInputProps {
   onDelete: (exerciseIndex: number, setIndex: number) => void;
   readOnly?: boolean;
   showDelete?: boolean;
-  // Optional: parent can pass a pointer down handler to start drag for reordering sets
-  onPointerDownForSet?: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
+  // Arrow button handlers for reordering sets
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 import { useEffect, useRef, useState } from "react";
@@ -46,7 +47,8 @@ export function SetInput({
   onDelete,
   readOnly = false,
   showDelete = true,
-  onPointerDownForSet,
+  onMoveUp,
+  onMoveDown,
 }: SetInputProps) {
   const [padOpenFor, setPadOpenFor] = useState<null | "weight" | "reps" | "rest">(null);
   const weightInputRef = useRef<HTMLInputElement>(null);
@@ -264,29 +266,43 @@ export function SetInput({
         </div>
       </div>
 
-      {/* Right-edge drag handle (sets) */}
-      {!readOnly && (
-        <button
-          type="button"
-          aria-label="Drag set to reorder"
-          data-drag-handle="true"
-          className="ml-1 mr-1 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
-          // Prefer starting drag from explicit handle to avoid conflicts with inputs
-          onPointerDown={onPointerDownForSet}
-          onMouseDown={onPointerDownForSet as any}
-          onTouchStart={onPointerDownForSet as any}
-          style={{ touchAction: 'none' }}
-          title="Drag to reorder"
-        >
-          <span className="inline-flex flex-col gap-0.5">
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-          </span>
-        </button>
+      {/* Up/Down arrow buttons for reordering sets */}
+      {!readOnly && (onMoveUp || onMoveDown) && (
+        <div className="flex flex-col gap-1 ml-1 mr-1">
+          {/* Move Up Button */}
+          <button
+            type="button"
+            onClick={() => {
+              console.log('[SetInput] Move Up button clicked', { exerciseIndex, setIndex });
+              onMoveUp?.();
+            }}
+            disabled={!onMoveUp}
+            className="px-1 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Move set up"
+            aria-label="Move set up"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 14l5-5 5 5z" />
+            </svg>
+          </button>
+          
+          {/* Move Down Button */}
+          <button
+            type="button"
+            onClick={() => {
+              console.log('[SetInput] Move Down button clicked', { exerciseIndex, setIndex });
+              onMoveDown?.();
+            }}
+            disabled={!onMoveDown}
+            className="px-1 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Move set down"
+            aria-label="Move set down"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+        </div>
       )}
 
       {/* Delete Button */}

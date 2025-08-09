@@ -511,6 +511,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   // Action dedupe flags (same-tick guard)
   const addSetInFlightRef = useRef(false);
   const deleteSetInFlightRef = useRef(false);
+  const reorderInProgressRef = useRef(false);
   const lastAddedSetIdRef = useRef<string | null>(null);
   const deleteOperationIdRef = useRef<string | null>(null);
 
@@ -771,31 +772,91 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     };
   };
 
-  // Reorder sets within an exercise (true array reorder, not field swapping)
-  const reorderSets = (exerciseIndex: number, from: number, to: number) => {
+  // Move sets within an exercise using simple up/down operations
+  const moveSet = (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => {
+    const operationKey = `${exerciseIndex}-${setIndex}-${direction}`;
+    console.log('[moveSet] Called with:', { exerciseIndex, setIndex, direction, operationKey });
+    
+    if (reorderInProgressRef.current) {
+      console.log('[moveSet] Operation already in progress, skipping');
+      return;
+    }
+    
+    reorderInProgressRef.current = true;
+    console.log('[moveSet] Starting move operation', { exerciseIndex, setIndex, direction });
+    
+    // Add a small delay to allow React to process any pending updates
+    setTimeout(() => {
+      reorderInProgressRef.current = false;
+    }, 100);
+    
     setExercises((prev) => {
       const next = [...prev];
       const ex = next[exerciseIndex];
-      if (!ex) return prev;
-      const beforeIds = ex.sets.map((s) => s.id);
+      if (!ex?.sets?.[setIndex]) {
+        reorderInProgressRef.current = false;
+        return prev;
+      }
+      
+      const newIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
+      
+      // Check bounds
+      if (newIndex < 0 || newIndex >= ex.sets.length) {
+        console.log('[moveSet] Move out of bounds, skipping');
+        reorderInProgressRef.current = false;
+        return prev;
+      }
+      
+      // Simple swap operation with proper type safety and forced re-render
       const setsCopy = [...ex.sets];
-      const [moved] = setsCopy.splice(from, 1);
-      if (!moved) return prev;
-      const clampedTo = Math.max(0, Math.min(to, setsCopy.length));
-      setsCopy.splice(clampedTo, 0, moved);
-      ex.sets = setsCopy; // replace ref
-      const afterIds = ex.sets.map((s) => s.id);
-      debugLog("reorderSets:applied", { exerciseIndex, from, to: clampedTo, beforeIds, afterIds });
-
-      // history for undo: store previous order (lightweight)
+      const setA = setsCopy[setIndex];
+      const setB = setsCopy[newIndex];
+      
+      if (!setA || !setB) {
+        console.log('[moveSet] Invalid sets for swap, skipping');
+        reorderInProgressRef.current = false;
+        return prev;
+      }
+      
+      // Create new objects to force React re-render
+      setsCopy[setIndex] = { ...setB };
+      setsCopy[newIndex] = { ...setA };
+      
+      // Replace the entire exercise object to ensure React sees the change
+      next[exerciseIndex] = {
+        ...ex,
+        sets: setsCopy
+      };
+      
+      console.log('[moveSet] Successfully moved set', direction, { from: setIndex, to: newIndex });
+      
+      // history for undo: store move operation
       setLastAction({
         type: "editSetFields",
         exerciseIndex,
-        setIndex: clampedTo,
+        setIndex: newIndex,
         before: {},
         after: {},
       });
       setRedoStack([]);
+      
+      // Trigger auto-save after move
+      const savePayload = {
+        sessionId: session?.id || 0,
+        exercises: next
+          .map((exercise) => ({
+            ...exercise,
+            sets: exercise.sets
+              .filter((set) => set.weight !== undefined || set.reps !== undefined || set.sets !== undefined)
+              .map((set) => ({ ...set, unit: set.unit || "kg" }))
+          }))
+          .filter((exercise) => exercise.sets.length > 0)
+      };
+      console.log('[moveSet] Enqueuing save after move');
+      enqueue(savePayload);
+      
+      debugLog("moveSet:applied", { exerciseIndex, setIndex, direction, newIndex });
+      
       return next;
     });
   };
@@ -936,7 +997,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     toggleUnit,
     addSet,
     deleteSet,
-    reorderSets,
+    moveSet,
     buildSavePayload,
 
     // expose updatePreferences for component use where needed
