@@ -10,10 +10,16 @@ function setupMatchMedia(initialDark = false) {
     matches: initialDark,
     media: "(prefers-color-scheme: dark)",
     onchange: null,
-    addEventListener: (_type: "change", cb: (e: MediaQueryListEvent) => void) => {
+    addEventListener: (
+      _type: "change",
+      cb: (e: MediaQueryListEvent) => void,
+    ) => {
       listeners.push(cb);
     },
-    removeEventListener: (_type: "change", cb: (e: MediaQueryListEvent) => void) => {
+    removeEventListener: (
+      _type: "change",
+      cb: (e: MediaQueryListEvent) => void,
+    ) => {
       const idx = listeners.indexOf(cb);
       if (idx > -1) listeners.splice(idx, 1);
     },
@@ -25,11 +31,23 @@ function setupMatchMedia(initialDark = false) {
     },
   } as unknown as MediaQueryList;
 
-  vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => {
-    if (query === "(prefers-color-scheme: dark)") return mql;
-    // fallback for other queries if any
-    return { matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), onchange: null, dispatchEvent: vi.fn() } as unknown as MediaQueryList;
-  }));
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => {
+      if (query === "(prefers-color-scheme: dark)") return mql;
+      // fallback for other queries if any
+      return {
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        onchange: null,
+        dispatchEvent: vi.fn(),
+      } as unknown as MediaQueryList;
+    }),
+  );
 
   return {
     mql,

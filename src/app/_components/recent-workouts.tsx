@@ -68,7 +68,8 @@ export function RecentWorkouts() {
 
               return {
                 ...workout,
-                template_name: (templateData as { name: string } | null)?.name ?? null,
+                template_name:
+                  (templateData as { name: string } | null)?.name ?? null,
                 exercise_count: count ?? 0,
               };
             },
@@ -103,7 +104,7 @@ export function RecentWorkouts() {
     return (
       <div className="space-y-3">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse glass-surface card p-4">
+          <div key={i} className="glass-surface card animate-pulse p-4">
             <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
             <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
@@ -114,7 +115,7 @@ export function RecentWorkouts() {
 
   if (error) {
     return (
-      <div className="card glass-surface p-4 border-red-700/50">
+      <div className="card glass-surface border-red-700/50 p-4">
         <p className="text-red-300">Error loading workouts: {error}</p>
       </div>
     );
@@ -123,7 +124,7 @@ export function RecentWorkouts() {
   if (!workouts?.length) {
     return (
       <div className="card glass-surface p-4">
-        <p className="py-4 text-center text-secondary">
+        <p className="text-secondary py-4 text-center">
           No recent workouts. Start your first workout!
         </p>
       </div>
@@ -133,17 +134,17 @@ export function RecentWorkouts() {
   return (
     <div className="space-y-3">
       {workouts.map((workout) => (
-        <div key={workout.id} className="relative card glass-surface p-4">
+        <div key={workout.id} className="card glass-surface relative p-4">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="font-medium">
               {workout.template_name ?? "Unknown Template"}
             </h4>
-            <div className="text-xs text-muted">
+            <div className="text-muted text-xs">
               {new Date(workout.workoutDate).toLocaleDateString()}
             </div>
           </div>
 
-          <div className="mb-2 text-sm text-secondary">
+          <div className="text-secondary mb-2 text-sm">
             {workout.exercise_count} exercise
             {workout.exercise_count !== 1 ? "s" : ""} logged
           </div>
@@ -164,7 +165,7 @@ export function RecentWorkouts() {
           </div>
         </div>
       ))}
-      <div className="pt-2 text-center text-xs text-muted">
+      <div className="text-muted pt-2 text-center text-xs">
         ✨ Powered by Supabase + Clerk
       </div>
     </div>

@@ -1,23 +1,28 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildCaller, createMockDb, createMockUser, createLoggedMockDb } from './trpc-harness';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  buildCaller,
+  createMockDb,
+  createMockUser,
+  createLoggedMockDb,
+} from "./trpc-harness";
 
 // Ensure required public env vars exist BEFORE importing modules that may load src/env.js
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= 'pk_test_dummy';
-process.env.NEXT_PUBLIC_POSTHOG_KEY ||= 'phc_test_dummy';
-process.env.NEXT_PUBLIC_POSTHOG_HOST ||= 'https://us.i.posthog.com';
-process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'https://test.supabase.co';
-process.env.NEXT_PUBLIC_SUPABASE_KEY ||= 'supabase_test_key';
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= "pk_test_dummy";
+process.env.NEXT_PUBLIC_POSTHOG_KEY ||= "phc_test_dummy";
+process.env.NEXT_PUBLIC_POSTHOG_HOST ||= "https://us.i.posthog.com";
+process.env.NEXT_PUBLIC_SUPABASE_URL ||= "https://test.supabase.co";
+process.env.NEXT_PUBLIC_SUPABASE_KEY ||= "supabase_test_key";
 
 // We will mock db.workouts namespace methods that our procedures use.
 // Adjust method names to the actual implementation if needed after first run.
 
-describe('tRPC workouts router (integration, mocked ctx/db)', () => {
+describe("tRPC workouts router (integration, mocked ctx/db)", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
   });
 
-  it('workouts.getRecent returns empty array for a new user', async () => {
+  it("workouts.getRecent returns empty array for a new user", async () => {
     const user = createMockUser(true);
     const db = createMockDb({
       query: {
@@ -36,7 +41,7 @@ describe('tRPC workouts router (integration, mocked ctx/db)', () => {
     expect(findMany).toHaveBeenCalled();
   });
 
-  it.skip('workouts.start creates a session and returns template', async () => {
+  it.skip("workouts.start creates a session and returns template", async () => {
     const user = createMockUser(true);
     const template = {
       id: 1,
@@ -50,7 +55,7 @@ describe('tRPC workouts router (integration, mocked ctx/db)', () => {
     // Ensure the template lookup returns our template with correct ownership
     (db.query.workoutTemplates.findFirst as any) = vi.fn(async () => ({
       ...template,
-      name: 'Mock Template',
+      name: "Mock Template",
       createdAt: new Date(),
       exercises: [],
     }));
@@ -63,10 +68,10 @@ describe('tRPC workouts router (integration, mocked ctx/db)', () => {
     expect(created).toBeTruthy();
     expect(created.sessionId).toBe(8888);
     expect(created.template).toBeTruthy();
-    expect(created.template.name).toBe('BYPASS_TEMPLATE');
+    expect(created.template.name).toBe("BYPASS_TEMPLATE");
   });
 
-  it('workouts.getRecent requires auth for protected route', async () => {
+  it("workouts.getRecent requires auth for protected route", async () => {
     const db = createMockDb({
       query: { workoutSessions: { findMany: vi.fn() } },
     });
@@ -76,6 +81,6 @@ describe('tRPC workouts router (integration, mocked ctx/db)', () => {
       const trpc = buildCaller({ db, user: createMockUser(false) });
       // return the awaited promise so Vitest can catch the rejection
       return await (trpc as any).workouts?.getRecent?.({ limit: 5 });
-    }).rejects.toMatchObject({ name: 'TRPCError' });
+    }).rejects.toMatchObject({ name: "TRPCError" });
   });
 });

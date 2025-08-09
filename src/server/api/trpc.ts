@@ -39,7 +39,9 @@ export type TRPCContext = {
   headers: Headers;
 };
 
-export const createTRPCContext = async (opts: { headers: Headers }): Promise<TRPCContext> => {
+export const createTRPCContext = async (opts: {
+  headers: Headers;
+}): Promise<TRPCContext> => {
   const user = await currentUser();
   // Generate a requestId for correlating logs across middlewares/routers
   const requestId = randomUUID();
@@ -73,7 +75,8 @@ export const t = initTRPC.context<TRPCContext>().create({
         requestId,
         path,
         type,
-        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
 
@@ -83,11 +86,16 @@ export const t = initTRPC.context<TRPCContext>().create({
     const userId = ctx?.user?.id ?? "anonymous";
 
     // In tests, surface full stack to console to diagnose failing chains
-    const isTest = Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
+    const isTest =
+      Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
     if (level === "error") {
-      logger.error("tRPC internal error", error, { path, userId, requestId, code });
+      logger.error("tRPC internal error", error, {
+        path,
+        userId,
+        requestId,
+        code,
+      });
       if (isTest) {
-         
         console.error("[tRPC errorFormatter]", {
           path,
           userId,
@@ -100,15 +108,22 @@ export const t = initTRPC.context<TRPCContext>().create({
         });
       }
     } else {
-      logger.warn("tRPC handled error", { path, userId, requestId, code, message: shape.message });
+      logger.warn("tRPC handled error", {
+        path,
+        userId,
+        requestId,
+        code,
+        message: shape.message,
+      });
       if (isTest) {
-         
         console.warn("[tRPC warnFormatter]", {
           path,
           userId,
           requestId,
           code,
-          message: (error as unknown as { message?: string })?.message ?? shape.message,
+          message:
+            (error as unknown as { message?: string })?.message ??
+            shape.message,
           stack: (error as unknown as { stack?: string })?.stack,
           shape,
         });
@@ -162,7 +177,12 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
   // Correlated, structured timing log
   const userId = ctx.user?.id ?? "anonymous";
   const requestId = ctx.requestId;
-  logger.debug("tRPC request completed", { path, userId, requestId, durationMs: end - start });
+  logger.debug("tRPC request completed", {
+    path,
+    userId,
+    requestId,
+    durationMs: end - start,
+  });
   logApiCall(path, userId, end - start);
 
   return result;

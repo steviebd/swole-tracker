@@ -9,11 +9,20 @@ interface SetListProps {
   templateExerciseId?: number;
   sets: SetData[];
   readOnly: boolean;
-  onUpdate: (exerciseIndex: number, setIndex: number, field: keyof SetData, value: string | number | undefined) => void;
+  onUpdate: (
+    exerciseIndex: number,
+    setIndex: number,
+    field: keyof SetData,
+    value: string | number | undefined,
+  ) => void;
   onToggleUnit: (exerciseIndex: number, setIndex: number) => void;
   onAddSet: (exerciseIndex: number) => void;
   onDeleteSet: (exerciseIndex: number, setIndex: number) => void;
-  onMoveSet: (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => void;
+  onMoveSet: (
+    exerciseIndex: number,
+    setIndex: number,
+    direction: "up" | "down",
+  ) => void;
 }
 
 export function SetList({
@@ -45,14 +54,28 @@ export function SetList({
           readOnly={readOnly}
           showDelete={sets.length > 1}
           // Arrow button handlers
-          onMoveUp={setIndex > 0 ? () => {
-            console.log('[SetList] onMoveUp callback triggered', { exerciseIndex, setIndex });
-            onMoveSet(exerciseIndex, setIndex, 'up');
-          } : undefined}
-          onMoveDown={setIndex < sets.length - 1 ? () => {
-            console.log('[SetList] onMoveDown callback triggered', { exerciseIndex, setIndex });
-            onMoveSet(exerciseIndex, setIndex, 'down');
-          } : undefined}
+          onMoveUp={
+            setIndex > 0
+              ? () => {
+                  console.log("[SetList] onMoveUp callback triggered", {
+                    exerciseIndex,
+                    setIndex,
+                  });
+                  onMoveSet(exerciseIndex, setIndex, "up");
+                }
+              : undefined
+          }
+          onMoveDown={
+            setIndex < sets.length - 1
+              ? () => {
+                  console.log("[SetList] onMoveDown callback triggered", {
+                    exerciseIndex,
+                    setIndex,
+                  });
+                  onMoveSet(exerciseIndex, setIndex, "down");
+                }
+              : undefined
+          }
         />
       ))}
 
@@ -60,7 +83,7 @@ export function SetList({
       {!readOnly && (
         <div>
           <button
-            className="w-full py-2 text-sm rounded-md border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="w-full rounded-md border border-gray-200 bg-white py-2 text-sm text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

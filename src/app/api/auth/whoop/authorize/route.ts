@@ -15,16 +15,21 @@ export async function GET(request: NextRequest) {
         hasClientId: !!env.WHOOP_CLIENT_ID,
         hasClientSecret: !!env.WHOOP_CLIENT_SECRET,
       });
-      return NextResponse.redirect(`${request.nextUrl.origin}/connect-whoop?error=whoop_not_configured`);
+      return NextResponse.redirect(
+        `${request.nextUrl.origin}/connect-whoop?error=whoop_not_configured`,
+      );
     }
 
     // Generate state parameter for CSRF protection
     const state = crypto.randomUUID();
-    
+
     // Store state in session/cookie for verification later
     const authUrl = new URL("https://api.prod.whoop.com/oauth/oauth2/auth");
     authUrl.searchParams.append("client_id", env.WHOOP_CLIENT_ID);
-    authUrl.searchParams.append("redirect_uri", `${request.nextUrl.origin}/api/auth/whoop/callback`);
+    authUrl.searchParams.append(
+      "redirect_uri",
+      `${request.nextUrl.origin}/api/auth/whoop/callback`,
+    );
     authUrl.searchParams.append("response_type", "code");
     authUrl.searchParams.append("scope", "read:workout offline");
     authUrl.searchParams.append("state", state);
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
     console.error("Whoop OAuth authorization error:", error);
     return NextResponse.json(
       { error: "Failed to initiate authorization" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -43,7 +43,7 @@ export const preferencesRouter = createTRPCRouter({
             right_swipe_action: input.right_swipe_action,
             estimated_one_rm_factor: input.estimated_one_rm_factor,
           };
-        })
+        }),
     )
     .mutation(async ({ input, ctx }) => {
       // Load existing row (if any)
@@ -84,7 +84,8 @@ export const preferencesRouter = createTRPCRouter({
         await ctx.db.insert(userPreferences).values({
           user_id: ctx.user.id,
           defaultWeightUnit: input.defaultWeightUnit ?? "kg",
-          predictive_defaults_enabled: input.predictive_defaults_enabled ?? false,
+          predictive_defaults_enabled:
+            input.predictive_defaults_enabled ?? false,
           right_swipe_action: input.right_swipe_action ?? "collapse_expand",
         });
       }

@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { templateRateLimit } from "~/lib/rate-limit-middleware";
-import { workoutTemplates, templateExercises, masterExercises, exerciseLinks } from "~/server/db/schema";
+import {
+  workoutTemplates,
+  templateExercises,
+  masterExercises,
+  exerciseLinks,
+} from "~/server/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 // Utility function to normalize exercise names for fuzzy matching
@@ -10,10 +15,10 @@ function normalizeExerciseName(name: string): string {
 }
 
 /* DEBUG LOGGING ENABLED FOR TESTS */
-const debugEnabled = Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
+const debugEnabled =
+  Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
 function debugLog(...args: unknown[]) {
   if (debugEnabled) {
-     
     console.log("[templatesRouter]", ...args);
   }
 }
@@ -34,11 +39,16 @@ async function createAndLinkMasterExercise(
   if (linkingRejected) {
     return null;
   }
-  
+
   const normalizedName = normalizeExerciseName(exerciseName);
-  
+
   // Try to find existing master exercise
-  debugLog('createAndLinkMasterExercise: start', { userId, exerciseName, templateExerciseId, linkingRejected });
+  debugLog("createAndLinkMasterExercise: start", {
+    userId,
+    exerciseName,
+    templateExerciseId,
+    linkingRejected,
+  });
 
   const existing = await db
     .select()
@@ -46,11 +56,11 @@ async function createAndLinkMasterExercise(
     .where(
       and(
         eq(masterExercises.user_id, userId),
-        eq(masterExercises.normalizedName, normalizedName)
-      )
+        eq(masterExercises.normalizedName, normalizedName),
+      ),
     )
     .limit(1);
-  
+
   let masterExercise:
     | {
         id: number;
@@ -59,13 +69,13 @@ async function createAndLinkMasterExercise(
         normalizedName: string;
       }
     | undefined;
-  
-  debugLog('createAndLinkMasterExercise: lookup existing', existing);
+
+  debugLog("createAndLinkMasterExercise: lookup existing", existing);
   if (existing.length > 0) {
     masterExercise = existing[0];
   } else {
     // Create new master exercise
-    debugLog('createAndLinkMasterExercise: inserting new master exercise');
+    debugLog("createAndLinkMasterExercise: inserting new master exercise");
     const newMasterExercise = await db
       .insert(masterExercises)
       .values({
@@ -77,38 +87,52 @@ async function createAndLinkMasterExercise(
 
     // Defensive: some mocked drivers may return undefined or empty array
     if (Array.isArray(newMasterExercise) && newMasterExercise.length > 0) {
-      masterExercise = newMasterExercise[0] as typeof masterExercises.$inferInsert & { id: number };
+      masterExercise =
+        newMasterExercise[0] as typeof masterExercises.$inferInsert & {
+          id: number;
+        };
     }
   }
 
   // If we still don't have a master exercise, skip linking gracefully
-  debugLog('createAndLinkMasterExercise: resolved masterExercise', masterExercise);
+  debugLog(
+    "createAndLinkMasterExercise: resolved masterExercise",
+    masterExercise,
+  );
   if (masterExercise?.id == null) {
-    debugLog('createAndLinkMasterExercise: no masterExercise id, aborting link');
+    debugLog(
+      "createAndLinkMasterExercise: no masterExercise id, aborting link",
+    );
     return null;
   }
 
   // Create the link
   // Upsert link without relying on onConflictDoUpdate (not available in some drivers/mocks)
-  debugLog('createAndLinkMasterExercise: inserting link');
-  const insertLink = db
-    .insert(exerciseLinks)
-    .values({
-      templateExerciseId,
-      masterExerciseId: masterExercise.id,
-      user_id: userId,
-    });
+  debugLog("createAndLinkMasterExercise: inserting link");
+  const insertLink = db.insert(exerciseLinks).values({
+    templateExerciseId,
+    masterExerciseId: masterExercise.id,
+    user_id: userId,
+  });
 
   // Some drivers/mocks may not support onConflict; call only if available
-  if (typeof (insertLink as unknown as { onConflictDoNothing?: Function }).onConflictDoNothing === "function") {
-    await (insertLink as unknown as { onConflictDoNothing: (args: { target: typeof exerciseLinks.templateExerciseId }) => Promise<unknown> })
-      .onConflictDoNothing({ target: exerciseLinks.templateExerciseId });
+  if (
+    typeof (insertLink as unknown as { onConflictDoNothing?: Function })
+      .onConflictDoNothing === "function"
+  ) {
+    await (
+      insertLink as unknown as {
+        onConflictDoNothing: (args: {
+          target: typeof exerciseLinks.templateExerciseId;
+        }) => Promise<unknown>;
+      }
+    ).onConflictDoNothing({ target: exerciseLinks.templateExerciseId });
   } else {
     await insertLink;
   }
 
   // Ensure the link points to the latest masterExerciseId (idempotent)
-  debugLog('createAndLinkMasterExercise: ensuring latest link via update');
+  debugLog("createAndLinkMasterExercise: ensuring latest link via update");
   await db
     .update(exerciseLinks)
     .set({
@@ -116,7 +140,9 @@ async function createAndLinkMasterExercise(
     })
     .where(eq(exerciseLinks.templateExerciseId, templateExerciseId));
 
-  debugLog('createAndLinkMasterExercise: done', { masterExerciseId: masterExercise.id });
+  debugLog("createAndLinkMasterExercise: done", {
+    masterExerciseId: masterExercise.id,
+  });
   return masterExercise;
 }
 
@@ -161,36 +187,42 @@ export const templatesRouter = createTRPCRouter({
       z.object({
         name: z.string().min(1).max(256),
         exercises: z.array(z.string().min(1).max(256)),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      debugLog('templates.create: resolver entered', { input, userId: ctx?.user?.id, requestId: ctx.requestId });
+      debugLog("templates.create: resolver entered", {
+        input,
+        userId: ctx?.user?.id,
+        requestId: ctx.requestId,
+      });
       const userId = ctx.user.id;
-      
+
       // Add server-side deduplication check - prevent creating duplicate templates with same name
       // within a short time window (useful for detecting double-clicks)
       const recentTemplate = await ctx.db.query.workoutTemplates.findFirst({
         where: and(
           eq(workoutTemplates.user_id, userId),
-          eq(workoutTemplates.name, input.name)
+          eq(workoutTemplates.name, input.name),
         ),
         orderBy: [desc(workoutTemplates.createdAt)],
       });
-      
+
       // If a template with same name was created in the last 5 seconds, return it instead
       if (recentTemplate) {
         const timeDiff = Date.now() - recentTemplate.createdAt.getTime();
         if (timeDiff < 5000) {
-          debugLog('templates.create: returning existing recent template', { 
-            templateId: recentTemplate.id, 
+          debugLog("templates.create: returning existing recent template", {
+            templateId: recentTemplate.id,
             timeDiff,
-            requestId: ctx.requestId 
+            requestId: ctx.requestId,
           });
           return recentTemplate;
         }
       }
-      
-      debugLog('templates.create: creating new template', { requestId: ctx.requestId });
+
+      debugLog("templates.create: creating new template", {
+        requestId: ctx.requestId,
+      });
       const [template] = await ctx.db
         .insert(workoutTemplates)
         .values({
@@ -203,7 +235,10 @@ export const templatesRouter = createTRPCRouter({
         throw new Error("Failed to create template");
       }
 
-      debugLog('templates.create: template created', { templateId: template.id, requestId: ctx.requestId });
+      debugLog("templates.create: template created", {
+        templateId: template.id,
+        requestId: ctx.requestId,
+      });
 
       if (input.exercises.length > 0) {
         const insertedExercises = await ctx.db
@@ -230,7 +265,10 @@ export const templatesRouter = createTRPCRouter({
         }
       }
 
-      debugLog('templates.create: completed', { templateId: template.id, requestId: ctx.requestId });
+      debugLog("templates.create: completed", {
+        templateId: template.id,
+        requestId: ctx.requestId,
+      });
       return template;
     }),
 

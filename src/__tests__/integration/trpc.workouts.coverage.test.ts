@@ -38,7 +38,9 @@ describe("tRPC workouts router additional coverage", () => {
       workoutDate: new Date(Date.now() - (i + 1) * 1000),
       template: {
         name: `Template ${i + 1}`,
-        exercises: Array(i + 2).fill(null).map((_, j) => ({ id: j + 1 })),
+        exercises: Array(i + 2)
+          .fill(null)
+          .map((_, j) => ({ id: j + 1 })),
       },
       exercises: Array(i + 2).fill(null),
     }));
@@ -74,7 +76,12 @@ describe("tRPC workouts router additional coverage", () => {
       exercises: [{ id: 11, exerciseName: "Bench Press", orderIndex: 0 }],
     };
 
-    const sessionRow = { id: 500, user_id: user.id, templateId: 1, workoutDate: new Date() };
+    const sessionRow = {
+      id: 500,
+      user_id: user.id,
+      templateId: 1,
+      workoutDate: new Date(),
+    };
 
     const db = createMockDb({
       query: {
@@ -256,7 +263,9 @@ describe("tRPC workouts router additional coverage", () => {
 
     const trpc = await buildCaller({ db, user });
 
-    await expect(trpc.workouts.getById({ id: 999 } as any)).rejects.toBeTruthy();
+    await expect(
+      trpc.workouts.getById({ id: 999 } as any),
+    ).rejects.toBeTruthy();
   });
 
   it("getById throws when workout not owned (error branch)", async () => {
@@ -281,7 +290,9 @@ describe("tRPC workouts router additional coverage", () => {
 
     const trpc = await buildCaller({ db, user });
 
-    await expect(trpc.workouts.getById({ id: 101 } as any)).rejects.toBeTruthy();
+    await expect(
+      trpc.workouts.getById({ id: 101 } as any),
+    ).rejects.toBeTruthy();
   });
 
   it("getLastExerciseData returns null when no matching workouts", async () => {
@@ -363,7 +374,7 @@ describe("tRPC workouts router additional coverage", () => {
           orderBy: vi.fn(() => chain),
           limit: vi.fn(() => chain),
         };
-        
+
         // The actual method calls await on the chain, so we need to make the chain thenable
         chain.then = vi.fn(async (resolve) => {
           // First call: exercise link lookup - return empty array (no link)
@@ -376,7 +387,7 @@ describe("tRPC workouts router additional coverage", () => {
           }
           return resolve([]);
         });
-        
+
         return chain;
       }),
     });
@@ -397,10 +408,7 @@ describe("tRPC workouts router additional coverage", () => {
       masterExerciseId: 1,
     };
 
-    const linkedTemplateExercises = [
-      { id: 11 },
-      { id: 12 },
-    ];
+    const linkedTemplateExercises = [{ id: 11 }, { id: 12 }];
 
     const latestWorkout = {
       sessionId: 300,
@@ -429,7 +437,7 @@ describe("tRPC workouts router additional coverage", () => {
           orderBy: vi.fn(() => chain),
           limit: vi.fn(() => chain),
         };
-        
+
         // The actual method calls await on the chain, so we need to make the chain thenable
         chain.then = vi.fn(async (resolve) => {
           // First call: exercise link lookup - return array with the exercise link
@@ -450,7 +458,7 @@ describe("tRPC workouts router additional coverage", () => {
           }
           return resolve([]);
         });
-        
+
         return chain;
       }),
     });

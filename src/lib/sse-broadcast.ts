@@ -5,16 +5,25 @@ type WorkoutUpdatePayload = {
 };
 
 // Store active connections for each user
-const connections = new Map<string, Set<WritableStreamDefaultWriter<Uint8Array>>>();
+const connections = new Map<
+  string,
+  Set<WritableStreamDefaultWriter<Uint8Array>>
+>();
 
-export function addConnection(userId: string, writer: WritableStreamDefaultWriter<Uint8Array>): void {
+export function addConnection(
+  userId: string,
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+): void {
   if (!connections.has(userId)) {
     connections.set(userId, new Set());
   }
   connections.get(userId)!.add(writer);
 }
 
-export function removeConnection(userId: string, writer: WritableStreamDefaultWriter<Uint8Array>): void {
+export function removeConnection(
+  userId: string,
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+): void {
   const userConnections = connections.get(userId);
   if (userConnections) {
     userConnections.delete(writer);
@@ -25,7 +34,10 @@ export function removeConnection(userId: string, writer: WritableStreamDefaultWr
 }
 
 // Function to broadcast workout updates to a specific user
-export async function broadcastWorkoutUpdate(userId: string, workoutData: unknown): Promise<void> {
+export async function broadcastWorkoutUpdate(
+  userId: string,
+  workoutData: unknown,
+): Promise<void> {
   const userConnections = connections.get(userId);
   if (!userConnections || userConnections.size === 0) {
     return; // No active connections for this user

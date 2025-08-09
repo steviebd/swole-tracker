@@ -10,7 +10,7 @@ describe("webhooksRouter enhanced coverage", () => {
   describe("getRecentEvents", () => {
     it("returns recent events with default limit", async () => {
       const user = createMockUser({ id: "user_webhook_1" })!;
-      
+
       const mockEvents = [
         {
           id: 1,
@@ -54,7 +54,7 @@ describe("webhooksRouter enhanced coverage", () => {
 
     it("respects custom limit parameter", async () => {
       const user = createMockUser({ id: "user_webhook_2" })!;
-      
+
       const mockEvents = [
         {
           id: 1,
@@ -106,7 +106,7 @@ describe("webhooksRouter enhanced coverage", () => {
 
     it("filters by provider when specified", async () => {
       const user = createMockUser({ id: "user_webhook_3" })!;
-      
+
       const mockEvents = [
         {
           id: 1,
@@ -136,7 +136,9 @@ describe("webhooksRouter enhanced coverage", () => {
 
       const caller = await buildCaller({ db, user });
 
-      const result = await caller.webhooks.getRecentEvents({ provider: "whoop" });
+      const result = await caller.webhooks.getRecentEvents({
+        provider: "whoop",
+      });
 
       expect(result).toHaveLength(1);
       expect(result[0]?.provider).toBe("whoop");
@@ -149,17 +151,21 @@ describe("webhooksRouter enhanced coverage", () => {
       const caller = await buildCaller({ db, user });
 
       // Test minimum bound
-      await expect(caller.webhooks.getRecentEvents({ limit: 0 })).rejects.toThrow();
+      await expect(
+        caller.webhooks.getRecentEvents({ limit: 0 }),
+      ).rejects.toThrow();
 
       // Test maximum bound
-      await expect(caller.webhooks.getRecentEvents({ limit: 101 })).rejects.toThrow();
+      await expect(
+        caller.webhooks.getRecentEvents({ limit: 101 }),
+      ).rejects.toThrow();
     });
   });
 
   describe("getEventById", () => {
     it("returns specific event by id", async () => {
       const user = createMockUser({ id: "user_webhook_5" })!;
-      
+
       const mockEvent = {
         id: 123,
         provider: "whoop",
@@ -191,7 +197,7 @@ describe("webhooksRouter enhanced coverage", () => {
 
     it("returns undefined for non-existent event", async () => {
       const user = createMockUser({ id: "user_webhook_6" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockResolvedValue([]),
@@ -212,7 +218,7 @@ describe("webhooksRouter enhanced coverage", () => {
   describe("getStats", () => {
     it("returns comprehensive statistics", async () => {
       const user = createMockUser({ id: "user_webhook_7" })!;
-      
+
       const mockEvents = [
         {
           status: "success",
@@ -253,27 +259,27 @@ describe("webhooksRouter enhanced coverage", () => {
       const stats = await caller.webhooks.getStats();
 
       expect(stats.total).toBe(4);
-      
+
       // Check status breakdown
       expect(stats.byStatus.success).toBe(3);
       expect(stats.byStatus.failed).toBe(1);
-      
+
       // Check provider breakdown
       expect(stats.byProvider.whoop).toBe(3);
       expect(stats.byProvider.strava).toBe(1);
-      
+
       // Check event type breakdown
       expect(stats.byEventType["workout.created"]).toBe(2);
       expect(stats.byEventType["workout.updated"]).toBe(1);
       expect(stats.byEventType["activity.created"]).toBe(1);
-      
+
       // Check recent activity (should be limited to 10)
       expect(stats.recentActivity).toHaveLength(4);
     });
 
     it("handles empty webhook events gracefully", async () => {
       const user = createMockUser({ id: "user_webhook_8" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockResolvedValue([]),
       };
@@ -295,7 +301,7 @@ describe("webhooksRouter enhanced coverage", () => {
 
     it("limits recent activity to 10 items", async () => {
       const user = createMockUser({ id: "user_webhook_9" })!;
-      
+
       // Create 15 mock events
       const mockEvents = Array.from({ length: 15 }, (_, i) => ({
         status: "success",
@@ -322,7 +328,7 @@ describe("webhooksRouter enhanced coverage", () => {
 
     it("correctly aggregates multiple occurrences", async () => {
       const user = createMockUser({ id: "user_webhook_10" })!;
-      
+
       const mockEvents = [
         {
           status: "success",
@@ -378,7 +384,9 @@ describe("webhooksRouter enhanced coverage", () => {
       const db = createMockDb({});
       const caller = await buildCaller({ db, user: null });
 
-      await expect(caller.webhooks.getEventById({ id: 1 })).rejects.toMatchObject({
+      await expect(
+        caller.webhooks.getEventById({ id: 1 }),
+      ).rejects.toMatchObject({
         code: "UNAUTHORIZED",
       });
     });

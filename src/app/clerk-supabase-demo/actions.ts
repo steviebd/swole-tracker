@@ -27,7 +27,12 @@ export async function addWorkoutTemplate(name: string) {
     }
 
     console.log("Template successfully added!", data);
-    return data as { id: number; name: string; user_id: string; createdAt: string }[];
+    return data as {
+      id: number;
+      name: string;
+      user_id: string;
+      createdAt: string;
+    }[];
   } catch (error: unknown) {
     console.error(
       "Error adding template:",

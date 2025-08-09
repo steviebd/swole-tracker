@@ -9,7 +9,13 @@ import { useTheme } from "~/providers/ThemeProvider";
  * Renders a small button in the home page header area (absolute overlay) to open PreferencesModal.
  * Mobile-first: shows an icon button. Desktop could be integrated elsewhere later.
  */
-export default function ClientPreferencesTrigger({ inline = false, label = "Preferences" }: { inline?: boolean; label?: string }) {
+export default function ClientPreferencesTrigger({
+  inline = false,
+  label = "Preferences",
+}: {
+  inline?: boolean;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
   // Ensure ThemeProvider context is present
   useTheme();

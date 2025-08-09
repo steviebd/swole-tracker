@@ -23,15 +23,19 @@ export function ExerciseInputWithLinking({
   const [linkingRejected, setLinkingRejected] = useState(false);
 
   // Check if this template exercise already has linking rejected
-  const { data: isLinkingRejectedData } = api.exercises.isLinkingRejected.useQuery(
-    { templateExerciseId: templateExerciseId! },
-    { enabled: !!templateExerciseId },
-  );
+  const { data: isLinkingRejectedData } =
+    api.exercises.isLinkingRejected.useQuery(
+      { templateExerciseId: templateExerciseId! },
+      { enabled: !!templateExerciseId },
+    );
 
   // Initialize linkingRejected state for existing exercises.
   // Avoid infinite loops by only updating when value actually changes.
   useEffect(() => {
-    if (typeof isLinkingRejectedData === "boolean" && isLinkingRejectedData !== linkingRejected) {
+    if (
+      typeof isLinkingRejectedData === "boolean" &&
+      isLinkingRejectedData !== linkingRejected
+    ) {
       setLinkingRejected(isLinkingRejectedData);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,8 +104,8 @@ export function ExerciseInputWithLinking({
           So in the "new" workflow we simply allow searching and choosing a master,
           and we reflect the chosen name back into the input. The actual link
           will be created once the template is saved and the exercise records exist. */}
-      {pickerOpen && (
-        templateExerciseId != null ? (
+      {pickerOpen &&
+        (templateExerciseId != null ? (
           <ExerciseLinkPicker
             open={pickerOpen}
             onClose={() => setPickerOpen(false)}
@@ -118,8 +122,7 @@ export function ExerciseInputWithLinking({
               setPickerOpen(false);
             }}
           />
-        )
-      )}
+        ))}
     </div>
   );
 }
@@ -160,7 +163,9 @@ function InlineSearchFallback({
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-700 p-3">
-          <div className="text-sm font-medium text-gray-200">Search exercises</div>
+          <div className="text-sm font-medium text-gray-200">
+            Search exercises
+          </div>
           <button
             onClick={onClose}
             className="rounded px-2 py-1 text-sm text-gray-300 hover:bg-gray-700"

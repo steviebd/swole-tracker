@@ -7,7 +7,11 @@ import { SignInButtons } from "~/app/_components/sign-in-buttons";
 import { JokeOfTheDay } from "~/app/_components/joke-of-the-day";
 
 import HydrateClient from "~/trpc/HydrateClient";
-import { getQueryClient, getDehydratedState, prefetchHome } from "~/trpc/prefetch";
+import {
+  getQueryClient,
+  getDehydratedState,
+  prefetchHome,
+} from "~/trpc/prefetch";
 import ClientPreferencesTrigger from "./preferences-trigger";
 
 export default async function Home() {
@@ -21,14 +25,15 @@ export default async function Home() {
   if (!user) {
     return (
       <HydrateClient state={state}>
-        <main className="min-h-screen container-default py-10">
+        <main className="container-default min-h-screen py-10">
           <div className="relative mx-auto max-w-3xl text-center">
             <div className="glass-surface card p-10">
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl">
                 💪 <span className="text-purple-400">Swole</span> Tracker
               </h1>
-              <p className="mx-auto mt-4 max-w-2xl text-lg text-secondary">
-                Simple, mobile-first workout tracking. Log your workouts, track your progress, and get stronger.
+              <p className="text-secondary mx-auto mt-4 max-w-2xl text-lg">
+                Simple, mobile-first workout tracking. Log your workouts, track
+                your progress, and get stronger.
               </p>
               <div className="mt-8">
                 <SignInButtons />
@@ -42,9 +47,9 @@ export default async function Home() {
 
   return (
     <HydrateClient state={state}>
-      <main className="min-h-screen container-default py-6">
+      <main className="container-default min-h-screen py-6">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between glass-header rounded-xl px-4 py-3">
+        <div className="glass-header mb-8 flex items-center justify-between rounded-xl px-4 py-3">
           <div>
             <h1 className="text-3xl font-bold">Swole Tracker</h1>
             <p className="text-secondary">
@@ -59,11 +64,16 @@ export default async function Home() {
 
         {/* Quick Actions */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/workout/start" className="card glass-surface p-6 text-center transition">
+          <Link
+            href="/workout/start"
+            className="card glass-surface p-6 text-center transition"
+          >
             <h3 className="mb-2 text-xl font-semibold">Start Workout</h3>
             <p className="text-secondary">Begin a new workout session</p>
             <div className="mt-4">
-              <span className="btn-primary inline-flex w-full justify-center">Open</span>
+              <span className="btn-primary inline-flex w-full justify-center">
+                Open
+              </span>
             </div>
           </Link>
 
@@ -71,11 +81,16 @@ export default async function Home() {
             <JokeOfTheDay />
           </div>
 
-          <Link href="/templates" className="card glass-surface p-6 text-center transition">
+          <Link
+            href="/templates"
+            className="card glass-surface p-6 text-center transition"
+          >
             <h3 className="mb-2 text-xl font-semibold">Manage Templates</h3>
             <p className="text-secondary">Create and edit workout templates</p>
             <div className="mt-4">
-              <span className="btn-primary inline-flex w-full justify-center">Open</span>
+              <span className="btn-primary inline-flex w-full justify-center">
+                Open
+              </span>
             </div>
           </Link>
         </div>
@@ -84,7 +99,7 @@ export default async function Home() {
         <div className="mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">Recent Workouts</h2>
-            <Link href="/workouts" className="text-sm link-primary">
+            <Link href="/workouts" className="link-primary text-sm">
               View all workouts →
             </Link>
           </div>

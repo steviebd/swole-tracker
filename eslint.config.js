@@ -22,7 +22,7 @@ export default tseslint.config(
       "src/__tests__",
       "src/__e2e__",
       "**/__tests__/**",
-      "**/__e2e__/**"
+      "**/__e2e__/**",
     ],
   },
   // Generated bundles: ignore entire public directory from linting
@@ -106,11 +106,18 @@ export default tseslint.config(
 // Loosen rules for JS config files
 export const overrides = [
   {
-    files: ["*.config.js","*.cjs","*.mjs","next.config.js","postcss.config.js","prettier.config.js"],
+    files: [
+      "*.config.js",
+      "*.cjs",
+      "*.mjs",
+      "next.config.js",
+      "postcss.config.js",
+      "prettier.config.js",
+    ],
     rules: {
       "import/no-anonymous-default-export": "off",
       // Ensure this rule is known (we don't include eslint-config-next); disable if referenced
-      "@typescript-eslint/ban-ts-comment": "off"
-    }
-  }
+      "@typescript-eslint/ban-ts-comment": "off",
+    },
+  },
 ];

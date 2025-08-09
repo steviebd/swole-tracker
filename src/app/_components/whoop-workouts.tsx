@@ -9,26 +9,44 @@ import { useWorkoutUpdates } from "~/hooks/use-workout-updates";
 
 export function WhoopWorkouts() {
   const [syncLoading, setSyncLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [rateLimit, setRateLimit] = useState<{ remaining: number; resetTime: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [rateLimit, setRateLimit] = useState<{
+    remaining: number;
+    resetTime: string;
+  } | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
-  const [clickOrigin, setClickOrigin] = useState<{ x: number; y: number } | undefined>();
+  const [clickOrigin, setClickOrigin] = useState<
+    { x: number; y: number } | undefined
+  >();
 
   // Use custom localStorage hook for persistent preferences
-  const [showAll, setShowAll] = useLocalStorage('whoop-workouts-show-all', false);
-  const [sportFilter, setSportFilter] = useLocalStorage('whoop-workouts-sport-filter', 'all');
+  const [showAll, setShowAll] = useLocalStorage(
+    "whoop-workouts-show-all",
+    false,
+  );
+  const [sportFilter, setSportFilter] = useLocalStorage(
+    "whoop-workouts-sport-filter",
+    "all",
+  );
 
   // Debug function to clear localStorage (temporary)
   const clearPreferences = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('whoop-workouts-sport-filter');
-      localStorage.removeItem('whoop-workouts-show-all');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("whoop-workouts-sport-filter");
+      localStorage.removeItem("whoop-workouts-show-all");
       window.location.reload();
     }
   };
 
   const { data: integrationStatus } = api.whoop.getIntegrationStatus.useQuery();
-  const { data: workouts, refetch: refetchWorkouts, isLoading: workoutsLoading } = api.whoop.getWorkouts.useQuery();
+  const {
+    data: workouts,
+    refetch: refetchWorkouts,
+    isLoading: workoutsLoading,
+  } = api.whoop.getWorkouts.useQuery();
 
   // Listen for real-time workout updates via SSE
   useWorkoutUpdates(() => {
@@ -55,9 +73,10 @@ export function WhoopWorkouts() {
         setRateLimit(result.rateLimit);
         void refetchWorkouts();
       } else if (response.status === 429) {
-        setMessage({ 
-          type: "error", 
-          text: result.message || "Rate limit exceeded. Please try again later." 
+        setMessage({
+          type: "error",
+          text:
+            result.message || "Rate limit exceeded. Please try again later.",
         });
         setRateLimit({ remaining: 0, resetTime: result.resetTime });
       } else {
@@ -78,13 +97,13 @@ export function WhoopWorkouts() {
       minute: "2-digit",
       hour12: true,
     }).format(start);
-    
+
     const endTime = new Intl.DateTimeFormat("en-GB", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     }).format(end);
-    
+
     return `${startTime} - ${endTime}`;
   };
 
@@ -92,34 +111,49 @@ export function WhoopWorkouts() {
     if (!score || typeof score !== "object") {
       return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
     }
-    
-    const strainScore = (score)?.strain;
+
+    const strainScore = score?.strain;
     if (strainScore && typeof strainScore === "number") {
       return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
     }
-    
+
     return `-- (${scoreState?.replace("_", " ") || "UNKNOWN"})`;
   };
 
   // Get unique sports for filter dropdown
-  const uniqueSports = workouts ? [...new Set(workouts.map(w => w.sport_name).filter((sport): sport is string => sport !== null && sport !== undefined))] : [];
+  const uniqueSports = workouts
+    ? [
+        ...new Set(
+          workouts
+            .map((w) => w.sport_name)
+            .filter(
+              (sport): sport is string => sport !== null && sport !== undefined,
+            ),
+        ),
+      ]
+    : [];
 
   // Filter and sort workouts by start time (latest first)
-  const filteredWorkouts = workouts ? workouts.filter(workout => 
-    sportFilter === "all" || workout.sport_name === sportFilter
-  ) : [];
-  
-  const sortedWorkouts = [...filteredWorkouts].sort((a, b) => 
-    new Date(b.start).getTime() - new Date(a.start).getTime()
+  const filteredWorkouts = workouts
+    ? workouts.filter(
+        (workout) =>
+          sportFilter === "all" || workout.sport_name === sportFilter,
+      )
+    : [];
+
+  const sortedWorkouts = [...filteredWorkouts].sort(
+    (a, b) => new Date(b.start).getTime() - new Date(a.start).getTime(),
   );
-  
-  const displayedWorkouts = showAll ? sortedWorkouts : sortedWorkouts.slice(0, 3);
+
+  const displayedWorkouts = showAll
+    ? sortedWorkouts
+    : sortedWorkouts.slice(0, 3);
 
   const handleWorkoutClick = (workout: any, event: React.MouseEvent) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
+
     setClickOrigin({ x: centerX, y: centerY });
     setSelectedWorkout(workout);
   };
@@ -128,7 +162,7 @@ export function WhoopWorkouts() {
     <div className="space-y-8">
       {/* Sync Controls */}
       <div className="flex justify-center">
-        <div className="max-w-md rounded-lg card p-6 text-center">
+        <div className="card max-w-md rounded-lg p-6 text-center">
           {integrationStatus?.isConnected ? (
             <div className="space-y-4">
               <div className="text-green-700 dark:text-green-400">
@@ -136,18 +170,16 @@ export function WhoopWorkouts() {
               </div>
               <button
                 onClick={handleSync}
-                disabled={syncLoading || (rateLimit?.remaining === 0)}
+                disabled={syncLoading || rateLimit?.remaining === 0}
                 className="btn-primary w-full px-6 py-3 disabled:opacity-50"
               >
                 {syncLoading ? "Syncing..." : "Sync with Whoop"}
               </button>
               {rateLimit && (
-                <div className="text-xs text-secondary text-center">
-                  {rateLimit.remaining > 0 ? (
-                    `${rateLimit.remaining} syncs remaining this hour`
-                  ) : (
-                    `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`
-                  )}
+                <div className="text-secondary text-center text-xs">
+                  {rateLimit.remaining > 0
+                    ? `${rateLimit.remaining} syncs remaining this hour`
+                    : `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`}
                 </div>
               )}
             </div>
@@ -171,10 +203,10 @@ export function WhoopWorkouts() {
       {message && (
         <div className="flex justify-center">
           <div
-            className={`max-w-md rounded-lg p-4 border ${
+            className={`max-w-md rounded-lg border p-4 ${
               message.type === "success"
-                ? "bg-green-50 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-100 dark:border-green-700"
-                : "bg-red-50 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-100 dark:border-red-700"
+                ? "border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-100"
+                : "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100"
             }`}
           >
             {message.text}
@@ -186,29 +218,34 @@ export function WhoopWorkouts() {
       {integrationStatus?.isConnected && (
         <div>
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Your Workouts</h2>
               {sortedWorkouts.length > 3 && (
                 <button
                   onClick={() => setShowAll(!showAll)}
-                  className="text-sm link-primary no-underline"
+                  className="link-primary text-sm no-underline"
                 >
-                  {showAll ? "Show Less" : `Show All (${sortedWorkouts.length})`}
+                  {showAll
+                    ? "Show Less"
+                    : `Show All (${sortedWorkouts.length})`}
                 </button>
               )}
             </div>
-            
+
             {/* Sport Filter */}
             {uniqueSports.length > 0 && (
               <div className="flex items-center gap-3">
-                <label htmlFor="sport-filter" className="text-sm text-secondary">
+                <label
+                  htmlFor="sport-filter"
+                  className="text-secondary text-sm"
+                >
                   Filter by sport:
                 </label>
                 <select
                   id="sport-filter"
                   value={sportFilter}
                   onChange={(e) => setSportFilter(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="all">All Sports</option>
                   {uniqueSports.map((sport) => (
@@ -219,7 +256,7 @@ export function WhoopWorkouts() {
                 </select>
                 <button
                   onClick={clearPreferences}
-                  className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/30"
+                  className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/30"
                   title="Clear corrupted localStorage data"
                 >
                   Reset Prefs
@@ -229,7 +266,7 @@ export function WhoopWorkouts() {
           </div>
 
           {workoutsLoading ? (
-            <div className="text-center py-8">
+            <div className="py-8 text-center">
               <p className="text-secondary">Loading workouts...</p>
             </div>
           ) : displayedWorkouts.length > 0 ? (
@@ -237,38 +274,40 @@ export function WhoopWorkouts() {
               {displayedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="card p-6 transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-105"
+                  className="card cursor-pointer p-6 transition-all duration-200 hover:scale-105 hover:shadow-lg"
                   onClick={(e) => handleWorkoutClick(workout, e)}
                 >
                   <div className="space-y-3">
-                    <div className="text-sm text-muted">
-                      {formatDateTime(new Date(workout.start), new Date(workout.end))}
+                    <div className="text-muted text-sm">
+                      {formatDateTime(
+                        new Date(workout.start),
+                        new Date(workout.end),
+                      )}
                     </div>
-                    
+
                     <h3 className="text-lg font-semibold">
                       {workout.sport_name || "Unknown Sport"}
                     </h3>
-                    
-                    <div className="text-sm text-secondary">
-                      <span className="font-medium">Score:</span> {formatScore(workout.score, workout.score_state)}
+
+                    <div className="text-secondary text-sm">
+                      <span className="font-medium">Score:</span>{" "}
+                      {formatScore(workout.score, workout.score_state)}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="py-8 text-center">
               <p className="text-secondary">
-                {sportFilter !== "all" && sortedWorkouts.length === 0 
-                  ? "No workouts from whoop" 
-                  : "No workouts found. Click \"Sync with Whoop\" to fetch your data."}
+                {sportFilter !== "all" && sortedWorkouts.length === 0
+                  ? "No workouts from whoop"
+                  : 'No workouts found. Click "Sync with Whoop" to fetch your data.'}
               </p>
             </div>
           )}
         </div>
       )}
-
-
 
       {/* Workout Detail Overlay */}
       <WorkoutDetailOverlay

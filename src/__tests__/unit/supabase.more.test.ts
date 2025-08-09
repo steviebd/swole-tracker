@@ -12,7 +12,9 @@ describe("supabase browser/server helpers coverage", () => {
         const mod = await import("~/lib/supabase-browser");
         // Access named export
         const { createClerkSupabaseClient } = mod as unknown as {
-          createClerkSupabaseClient: (session?: { getToken?: () => Promise<string | null> } | null) => any;
+          createClerkSupabaseClient: (
+            session?: { getToken?: () => Promise<string | null> } | null,
+          ) => any;
         };
         // Ensure env not present
         delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -27,14 +29,18 @@ describe("supabase browser/server helpers coverage", () => {
     const prev = {
       NODE_ENV: process.env.NODE_ENV,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
+      NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY:
+        process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     };
     // Avoid descriptor mutation; use Vitest env helpers
     vi.unstubAllEnvs();
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321");
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY", "local-service-role-key");
+    vi.stubEnv(
+      "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY",
+      "local-service-role-key",
+    );
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
 
     const createClient = vi.fn().mockReturnValue({ ok: true });
@@ -42,7 +48,9 @@ describe("supabase browser/server helpers coverage", () => {
 
     const mod2 = await import("~/lib/supabase-browser");
     const { createClerkSupabaseClient } = mod2 as unknown as {
-      createClerkSupabaseClient: (session?: { getToken?: () => Promise<string | null> } | null) => any;
+      createClerkSupabaseClient: (
+        session?: { getToken?: () => Promise<string | null> } | null,
+      ) => any;
     };
     const client1 = createClerkSupabaseClient(null);
     // Accept either our mocked sentinel or a real SupabaseClient depending on import timing.
@@ -62,13 +70,15 @@ describe("supabase browser/server helpers coverage", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "public-anon-key");
 
-    const createClient2 = vi.fn().mockImplementation((_url: string, _key: string, opts: any) => {
-      // Call the wrapped fetch to ensure token injection path is executed
-      return {
-        ok: true,
-        globalFetch: opts?.global?.fetch,
-      };
-    });
+    const createClient2 = vi
+      .fn()
+      .mockImplementation((_url: string, _key: string, opts: any) => {
+        // Call the wrapped fetch to ensure token injection path is executed
+        return {
+          ok: true,
+          globalFetch: opts?.global?.fetch,
+        };
+      });
     vi.doMock("@supabase/supabase-js", () => ({ createClient: createClient2 }));
 
     const session = { getToken: vi.fn().mockResolvedValue("tok_123") };
@@ -88,17 +98,30 @@ describe("supabase browser/server helpers coverage", () => {
 
     // Verify injected Authorization header
     const wrappedFetch =
-      ((client2 as any)?.globalFetch as (url: string, init?: RequestInit) => Promise<Response>) ??
+      ((client2 as any)?.globalFetch as (
+        url: string,
+        init?: RequestInit,
+      ) => Promise<Response>) ??
       // Fallback: if the helper attached fetch under options/global, retrieve from last call
-      (createClient2.mock.calls.at(-1)?.[2]?.global?.fetch as (url: string, init?: RequestInit) => Promise<Response>);
+      (createClient2.mock.calls.at(-1)?.[2]?.global?.fetch as (
+        url: string,
+        init?: RequestInit,
+      ) => Promise<Response>);
     if (typeof wrappedFetch === "function") {
-      const baseFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
-      await wrappedFetch("https://api.example.com/data", { headers: { "x-one": "1" } });
+      const baseFetch = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      await wrappedFetch("https://api.example.com/data", {
+        headers: { "x-one": "1" },
+      });
       expect(session.getToken).toHaveBeenCalled();
       expect(baseFetch).toHaveBeenCalledWith(
         "https://api.example.com/data",
         expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: "Bearer tok_123", "x-one": "1" }),
+          headers: expect.objectContaining({
+            Authorization: "Bearer tok_123",
+            "x-one": "1",
+          }),
         }),
       );
       baseFetch.mockRestore();
@@ -131,20 +154,26 @@ describe("supabase browser/server helpers coverage", () => {
     vi.doMock("@supabase/supabase-js", () => ({ createClient }));
     // Stub server-only and Clerk modules before importing the server helper
     vi.doMock("server-only", () => ({}));
-    vi.doMock("@clerk/nextjs", () => ({ auth: async () => ({ getToken: async () => "tok_server" }) }));
+    vi.doMock("@clerk/nextjs", () => ({
+      auth: async () => ({ getToken: async () => "tok_server" }),
+    }));
     // also stub the app-router server export path to avoid server-only importing
-    vi.doMock("@clerk/nextjs/server", () => ({ auth: async () => ({ getToken: async () => "tok_server" }) }));
+    vi.doMock("@clerk/nextjs/server", () => ({
+      auth: async () => ({ getToken: async () => "tok_server" }),
+    }));
 
     // Import fresh after mocks (stubs declared above already). Reset modules so env is read now.
     vi.resetModules();
     const mod = await import("~/lib/supabase-server");
-    const { createServerSupabaseClient } = mod as unknown as { createServerSupabaseClient: () => any };
+    const { createServerSupabaseClient } = mod as unknown as {
+      createServerSupabaseClient: () => any;
+    };
     const client = await createServerSupabaseClient();
     expect(client).toEqual({ server: true });
     // Assert that we called supabase.createClient with server envs
-    const calls = (createClient.mock.calls as unknown as any[]);
-    const urls = calls.map(c => c[0]);
-    const keys = calls.map(c => c[1]);
+    const calls = createClient.mock.calls as unknown as any[];
+    const urls = calls.map((c) => c[0]);
+    const keys = calls.map((c) => c[1]);
     // Allow either server or public key due to import-time env reads, but ensure we at least called once
     expect(keys.length).toBeGreaterThan(0);
 

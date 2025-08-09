@@ -23,17 +23,21 @@ export default async function ClerkSupabaseDemoPage() {
   }
 
   return (
-    <main className="min-h-screen container-default py-6">
-      <h1 className="text-2xl font-bold mb-6">Clerk + Supabase Demo</h1>
+    <main className="container-default min-h-screen py-6">
+      <h1 className="mb-6 text-2xl font-bold">Clerk + Supabase Demo</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
-          <h2 className="text-xl font-semibold mb-4">Add New Workout Template</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            Add New Workout Template
+          </h2>
           <AddWorkoutForm />
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold mb-4">Your Workout Templates (Server-side)</h2>
+          <h2 className="mb-4 text-xl font-semibold">
+            Your Workout Templates (Server-side)
+          </h2>
           {workouts && workouts.length > 0 ? (
             <ul className="space-y-2">
               {workouts.map((workout) => (
@@ -49,7 +53,9 @@ export default async function ClerkSupabaseDemoPage() {
       </div>
 
       <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Your Workout Templates (Client-side)</h2>
+        <h2 className="mb-4 text-xl font-semibold">
+          Your Workout Templates (Client-side)
+        </h2>
         <ClientWorkouts />
       </div>
     </main>

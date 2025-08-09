@@ -14,11 +14,14 @@ interface TemplateFormProps {
   };
 }
 
-
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const submitRef = useRef(false);
-  const lastSubmitRef = useRef<{ name: string; exercises: string[]; timestamp: number } | null>(null);
+  const lastSubmitRef = useRef<{
+    name: string;
+    exercises: string[];
+    timestamp: number;
+  } | null>(null);
   const [name, setName] = useState(template?.name ?? "");
   const [exercises, setExercises] = useState<string[]>(
     template?.exercises.map((ex) => ex.exerciseName) ?? [""],
@@ -49,7 +52,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         id: data.id,
         name: data.name,
         user_id: data.user_id,
-        createdAt: data.createdAt
+        createdAt: data.createdAt,
       });
       analytics.templateCreated(
         data.id.toString(),
@@ -57,13 +60,13 @@ export function TemplateForm({ template }: TemplateFormProps) {
       );
       // Reset submission flag
       submitRef.current = false;
-      
+
       // Update cache with the new template optimistically
       utils.templates.getAll.setData(undefined, (old) => {
         const newTemplate = data as NonNullable<typeof old>[number];
         return old ? [newTemplate, ...old] : [newTemplate];
       });
-      
+
       // Navigate immediately with updated cache
       router.push("/templates");
     },
@@ -147,7 +150,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
     setExercises(newExercises);
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     console.log("handleSubmit called");
     e.preventDefault();
@@ -169,21 +171,30 @@ export function TemplateForm({ template }: TemplateFormProps) {
     // Check if this is a duplicate submission (same data within 5 seconds)
     const now = Date.now();
     const lastSubmit = lastSubmitRef.current;
-    
+
     if (!template && lastSubmit) {
       const timeDiff = now - lastSubmit.timestamp;
-      const sameData = lastSubmit.name === trimmedName && 
-                     JSON.stringify(lastSubmit.exercises) === JSON.stringify(filteredExercises);
-      
+      const sameData =
+        lastSubmit.name === trimmedName &&
+        JSON.stringify(lastSubmit.exercises) ===
+          JSON.stringify(filteredExercises);
+
       if (sameData && timeDiff < 5000) {
-        console.log("Preventing duplicate submission - same data within 5 seconds", { timeDiff });
+        console.log(
+          "Preventing duplicate submission - same data within 5 seconds",
+          { timeDiff },
+        );
         return;
       }
     }
 
     // Set submission flag and record this attempt
     submitRef.current = true;
-    lastSubmitRef.current = { name: trimmedName, exercises: filteredExercises, timestamp: now };
+    lastSubmitRef.current = {
+      name: trimmedName,
+      exercises: filteredExercises,
+      timestamp: now,
+    };
 
     try {
       if (template) {
@@ -228,7 +239,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g., Push Day, Pull Day, Legs"
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:outline-none focus:ring-2"
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:outline-none"
           style={{ outline: "none", boxShadow: "none" }}
           required
         />
@@ -255,7 +266,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   value={exercise}
                   onChange={(value) => updateExercise(index, value)}
                   placeholder={`Exercise ${index + 1}`}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:outline-none focus:ring-2"
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:outline-none"
                 />
               </div>
               {exercises.length > 1 && (
@@ -275,7 +286,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
           <button
             type="button"
             onClick={addExercise}
-            className="w-full rounded-lg border-2 border-dashed border-gray-700 py-8 text-secondary transition-colors hover:border-gray-600"
+            className="text-secondary w-full rounded-lg border-2 border-dashed border-gray-700 py-8 transition-colors hover:border-gray-600"
           >
             + Add your first exercise
           </button>
@@ -287,9 +298,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <button
           type="submit"
           disabled={isLoading || submitRef.current}
-          className="btn-primary px-6 py-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ 
-            pointerEvents: isLoading || submitRef.current ? 'none' : 'auto' 
+          className="btn-primary px-6 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50"
+          style={{
+            pointerEvents: isLoading || submitRef.current ? "none" : "auto",
           }}
         >
           {isLoading || submitRef.current
@@ -301,7 +312,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 text-muted hover:text-white transition-colors"
+          className="text-muted px-4 py-2 transition-colors hover:text-white"
         >
           Cancel
         </button>

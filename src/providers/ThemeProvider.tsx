@@ -1,8 +1,21 @@
 "use client";
 
-import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-type Theme = "light" | "dark" | "system" | "CalmDark" | "BoldDark" | "PlayfulDark";
+type Theme =
+  | "light"
+  | "dark"
+  | "system"
+  | "v1dark"
+  | "CalmDark"
+  | "BoldDark"
+  | "PlayfulDark";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -11,19 +24,23 @@ interface ThemeContextValue {
   toggle: () => void;
 }
 
-export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+export const ThemeContext = createContext<ThemeContextValue | undefined>(
+  undefined,
+);
 
 const THEME_STORAGE_KEY = "theme";
 
 function applyThemeClass(theme: Theme) {
   const root = document.documentElement;
-  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
+  const prefersDark =
+    window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
 
   // Determine dark mode for class toggling
   const shouldDark =
     theme === "dark" ||
     (theme === "system" && prefersDark) ||
     // All custom dark themes are dark-first
+    theme === "v1dark" ||
     theme === "CalmDark" ||
     theme === "BoldDark" ||
     theme === "PlayfulDark";
@@ -40,19 +57,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // track system dark mode separately so consumers re-render when it changes
   const [systemDark, setSystemDark] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
+    return (
+      window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false
+    );
   });
 
   const resolvedTheme: "light" | "dark" = useMemo(() => {
     if (typeof window === "undefined") return "dark";
     const prefersDark = systemDark;
-    return theme === "dark" || (theme === "system" && prefersDark) ? "dark" : "light";
+    return theme === "dark" || (theme === "system" && prefersDark)
+      ? "dark"
+      : "light";
   }, [theme, systemDark]);
 
   // initial load from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "system";
+    const stored =
+      (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "system";
     setThemeState(stored);
     applyThemeClass(stored);
 
@@ -88,7 +110,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [theme, resolvedTheme, setTheme, toggle],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {

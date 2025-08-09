@@ -21,7 +21,10 @@ export default async function ExercisesPage() {
         <div className="container mx-auto px-4 py-6">
           {/* Header */}
           <div className="mb-6 flex items-center gap-4">
-            <Link href="/templates" className="text-purple-400 hover:text-purple-300">
+            <Link
+              href="/templates"
+              className="text-purple-400 hover:text-purple-300"
+            >
               ← Back to Templates
             </Link>
             <h1 className="text-2xl font-bold">Exercise Management</h1>

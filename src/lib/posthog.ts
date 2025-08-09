@@ -27,14 +27,22 @@ let nodeClient: PosthogSurface | null = null;
 // Test-only override hook: allows unit tests to inject a PostHog constructor
 // without importing server-only modules in jsdom. Not used in production.
 type PHCtor =
-  | (new (key: string, opts: { host?: string; flushAt?: number; flushInterval?: number }) => PostHogNode)
-  | ((key: string, opts: { host?: string; flushAt?: number; flushInterval?: number }) => PostHogNode);
+  | (new (
+      key: string,
+      opts: { host?: string; flushAt?: number; flushInterval?: number },
+    ) => PostHogNode)
+  | ((
+      key: string,
+      opts: { host?: string; flushAt?: number; flushInterval?: number },
+    ) => PostHogNode);
 let __TEST_ONLY_PostHogCtor: PHCtor | null = null;
 export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
 }
 
-export async function loadPosthogCtor(): Promise<(typeof PostHogNode) | PHCtor | null> {
+export async function loadPosthogCtor(): Promise<
+  typeof PostHogNode | PHCtor | null
+> {
   // Guard to prevent accidental client-side import
   if (typeof window !== "undefined") return null;
   if (__TEST_ONLY_PostHogCtor) return __TEST_ONLY_PostHogCtor;
@@ -60,23 +68,28 @@ function getServerClient(): PosthogSurface {
   const rawClientPromise = (async () => {
     const PH = await loadPosthogCtor();
     if (!PH) return null;
-    const ctorOrFactory: PHCtor | (typeof PostHogNode) = PH as unknown as PHCtor | (typeof PostHogNode);
+    const ctorOrFactory: PHCtor | typeof PostHogNode = PH as unknown as
+      | PHCtor
+      | typeof PostHogNode;
 
     // Always call once so tests can assert it was invoked with key+host.
     let instance: PostHogNode | null = null;
     try {
       // Try construct signature
-      instance = new (ctorOrFactory as new (key: string, opts: { host?: string; flushAt?: number; flushInterval?: number }) => PostHogNode)(
-        key,
-        {
-          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-          flushAt: 1,
-          flushInterval: 0,
-        },
-      );
+      instance = new (ctorOrFactory as new (
+        key: string,
+        opts: { host?: string; flushAt?: number; flushInterval?: number },
+      ) => PostHogNode)(key, {
+        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        flushAt: 1,
+        flushInterval: 0,
+      });
     } catch {
       // Fallback to factory signature
-      const factory = ctorOrFactory as (key: string, opts: { host?: string; flushAt?: number; flushInterval?: number }) => PostHogNode;
+      const factory = ctorOrFactory as (
+        key: string,
+        opts: { host?: string; flushAt?: number; flushInterval?: number },
+      ) => PostHogNode;
       instance = factory(key, {
         host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
         flushAt: 1,

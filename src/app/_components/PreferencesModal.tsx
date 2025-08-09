@@ -27,7 +27,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
 
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
-  const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
+  const [rightSwipeAction, setRightSwipeAction] =
+    useState<RightSwipeAction>("collapse_expand");
   const [estimatedOneRmFactor, setEstimatedOneRmFactor] = useState<string>(""); // text to allow blank => default
   const [saving, setSaving] = useState(false);
 
@@ -70,8 +71,14 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         ? prefs.estimated_one_rm_factor
         : undefined;
     const uiPf =
-      estimatedOneRmFactor.trim() === "" ? undefined : Number(estimatedOneRmFactor);
-    return pe === predictiveEnabled && rs === rightSwipeAction && (pf ?? undefined) === (uiPf ?? undefined);
+      estimatedOneRmFactor.trim() === ""
+        ? undefined
+        : Number(estimatedOneRmFactor);
+    return (
+      pe === predictiveEnabled &&
+      rs === rightSwipeAction &&
+      (pf ?? undefined) === (uiPf ?? undefined)
+    );
   }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor]);
 
   const handleSave = async () => {
@@ -114,7 +121,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60"
+      className="fixed inset-0 z-[10000] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="preferences-title"
@@ -132,152 +139,159 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         preventScroll
       >
         <div
-          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl bg-[var(--background)] sm:border sm:border-[var(--border)] border-t border-[var(--border)]"
+          className="w-full border-t border-[var(--border)] bg-[var(--background)] sm:max-w-md sm:rounded-xl sm:border sm:border-[var(--border)] sm:shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)]">
+          <div className="border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
             <h2 id="preferences-title" className="text-lg font-bold">
               Preferences
             </h2>
           </div>
 
-        <div className="px-4 py-3 sm:px-6 sm:py-5 space-y-6">
-          {/* Predictive defaults toggle */}
-          <section>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Predictive defaults</div>
-                <div className="text-sm text-muted">
-                  Prefill new sets with your most recent values for the exercise.
+          <div className="space-y-6 px-4 py-3 sm:px-6 sm:py-5">
+            {/* Predictive defaults toggle */}
+            <section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Predictive defaults</div>
+                  <div className="text-muted text-sm">
+                    Prefill new sets with your most recent values for the
+                    exercise.
+                  </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                aria-pressed={predictiveEnabled ? "true" : "false"}
-                onClick={() => setPredictiveEnabled((v) => !v)}
-                className={`inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                  predictiveEnabled ? "bg-purple-600" : "bg-gray-600"
-                }`}
-              >
-                <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                    predictiveEnabled ? "translate-x-7" : "translate-x-1"
+                <button
+                  type="button"
+                  aria-pressed={predictiveEnabled ? "true" : "false"}
+                  onClick={() => setPredictiveEnabled((v) => !v)}
+                  className={`inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                    predictiveEnabled ? "bg-purple-600" : "bg-gray-600"
                   }`}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                      predictiveEnabled ? "translate-x-7" : "translate-x-1"
+                    }`}
+                  />
+                  <span className="sr-only">Toggle predictive defaults</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Theme selector */}
+            <section>
+              <div className="mb-1 font-medium">Theme</div>
+              <div className="text-muted mb-2 text-sm">
+                Choose your preferred color theme for the app.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                  { value: "system", label: "System" },
+                  { value: "v1dark", label: "V1 Dark" },
+                  { value: "CalmDark", label: "Calm Dark" },
+                  { value: "BoldDark", label: "Bold Dark" },
+                  { value: "PlayfulDark", label: "Playful Dark" },
+                ].map((themeOption) => (
+                  <button
+                    key={themeOption.value}
+                    onClick={() => setTheme(themeOption.value as any)}
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      theme === themeOption.value
+                        ? "btn-primary"
+                        : "btn-secondary"
+                    }`}
+                    aria-pressed={
+                      theme === themeOption.value ? "true" : "false"
+                    }
+                  >
+                    {themeOption.label}
+                    {theme === themeOption.value &&
+                      themeOption.value === "system" && (
+                        <span className="ml-1 text-xs opacity-70">
+                          ({resolvedTheme})
+                        </span>
+                      )}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Estimated 1RM factor */}
+            <section>
+              <div className="mb-1 font-medium">Estimated 1RM factor</div>
+              <div className="text-muted mb-2 text-sm">
+                Used in 1RM estimation formula: weight × (1 + reps × factor).
+                Leave blank to use default 0.0333 (1/30).
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  step="0.0001"
+                  min={0.02}
+                  max={0.05}
+                  inputMode="decimal"
+                  aria-label="Estimated 1RM factor"
+                  className="w-32 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2"
+                  placeholder="0.0333"
+                  value={estimatedOneRmFactor}
+                  onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
                 />
-                <span className="sr-only">Toggle predictive defaults</span>
-              </button>
-            </div>
-          </section>
-
-          {/* Theme selector */}
-          <section>
-            <div className="font-medium mb-1">Theme</div>
-            <div className="text-sm text-muted mb-2">
-              Choose your preferred color theme for the app.
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: "light", label: "Light" },
-                { value: "dark", label: "Dark" },
-                { value: "system", label: "System" },
-                { value: "CalmDark", label: "Calm Dark" },
-                { value: "BoldDark", label: "Bold Dark" },
-                { value: "PlayfulDark", label: "Playful Dark" },
-              ].map((themeOption) => (
-                <button
-                  key={themeOption.value}
-                  onClick={() => setTheme(themeOption.value as any)}
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    theme === themeOption.value
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                  aria-pressed={theme === themeOption.value ? "true" : "false"}
-                >
-                  {themeOption.label}
-                  {theme === themeOption.value && themeOption.value === "system" && (
-                    <span className="ml-1 text-xs opacity-70">
-                      ({resolvedTheme})
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Estimated 1RM factor */}
-          <section>
-            <div className="font-medium mb-1">Estimated 1RM factor</div>
-            <div className="text-sm text-muted mb-2">
-              Used in 1RM estimation formula: weight × (1 + reps × factor). Leave blank to use default 0.0333 (1/30).
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                step="0.0001"
-                min={0.02}
-                max={0.05}
-                inputMode="decimal"
-                aria-label="Estimated 1RM factor"
-                className="w-32 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2"
-                placeholder="0.0333"
-                value={estimatedOneRmFactor}
-                onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
-              />
-              <div className="text-xs text-muted">
-                Default: 0.0333
+                <div className="text-muted text-xs">Default: 0.0333</div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Right swipe action selector */}
-          <section>
-            <div className="font-medium mb-1">Right-swipe action</div>
-            <div className="text-sm text-muted mb-2">
-              Choose what happens when you right-swipe an exercise card.
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {(["collapse_expand", "none"] as RightSwipeAction[]).map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => setRightSwipeAction(opt)}
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    rightSwipeAction === opt
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                  aria-pressed={rightSwipeAction === opt ? "true" : "false"}
-                >
-                  {opt === "collapse_expand" ? "Collapse/Expand" : "None"}
-                </button>
-              ))}
-            </div>
-          </section>
+            {/* Right swipe action selector */}
+            <section>
+              <div className="mb-1 font-medium">Right-swipe action</div>
+              <div className="text-muted mb-2 text-sm">
+                Choose what happens when you right-swipe an exercise card.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(["collapse_expand", "none"] as RightSwipeAction[]).map(
+                  (opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setRightSwipeAction(opt)}
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        rightSwipeAction === opt
+                          ? "btn-primary"
+                          : "btn-secondary"
+                      }`}
+                      aria-pressed={rightSwipeAction === opt ? "true" : "false"}
+                    >
+                      {opt === "collapse_expand" ? "Collapse/Expand" : "None"}
+                    </button>
+                  ),
+                )}
+              </div>
+            </section>
 
-          {/* Connect Whoop */}
-          <section>
-            <div className="font-medium mb-1">Connect Whoop</div>
-            <div className="text-sm text-muted mb-2">
-              Connect your Whoop device to sync recovery and strain data.
-            </div>
-            <a
-              href="/connect-whoop"
-              className="btn-secondary px-4 py-2 text-sm inline-block"
-            >
-              Connect Whoop
-            </a>
-          </section>
+            {/* Connect Whoop */}
+            <section>
+              <div className="mb-1 font-medium">Connect Whoop</div>
+              <div className="text-muted mb-2 text-sm">
+                Connect your Whoop device to sync recovery and strain data.
+              </div>
+              <a
+                href="/connect-whoop"
+                className="btn-secondary inline-block px-4 py-2 text-sm"
+              >
+                Connect Whoop
+              </a>
+            </section>
 
-          {/* Asymmetric swipe thresholds placeholder */}
-          <section className="rounded-md border border-dashed border-[var(--border)] p-3">
-            <div className="font-medium">Asymmetric swipe thresholds</div>
-            <div className="text-sm text-muted">
-              Coming soon: configure different swipe distances for left/right actions.
-            </div>
-          </section>
-        </div>
+            {/* Asymmetric swipe thresholds placeholder */}
+            <section className="rounded-md border border-dashed border-[var(--border)] p-3">
+              <div className="font-medium">Asymmetric swipe thresholds</div>
+              <div className="text-muted text-sm">
+                Coming soon: configure different swipe distances for left/right
+                actions.
+              </div>
+            </section>
+          </div>
 
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-[var(--border)] flex gap-2 justify-end">
+          <div className="flex justify-end gap-2 border-t border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
             <button
               ref={firstFocusRef}
               onClick={() => {

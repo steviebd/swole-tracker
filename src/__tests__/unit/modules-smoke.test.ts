@@ -57,7 +57,9 @@ describe("module smoke: supabase adapters and analytics", () => {
 
 describe("sse-broadcast extended coverage", () => {
   it("handles addConnection and removing closed connections on broadcast", async () => {
-    const { addConnection, broadcastWorkoutUpdate } = await import("~/lib/sse-broadcast");
+    const { addConnection, broadcastWorkoutUpdate } = await import(
+      "~/lib/sse-broadcast"
+    );
 
     const writes: Uint8Array[] = [];
     const mkWriter = (ok = true) => ({

@@ -2,7 +2,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 import { env } from "~/env";
 
-
 /**
  * Server-side Supabase with Clerk auth from request context.
  * Use in Server Components, Route Handlers, and Server Actions.

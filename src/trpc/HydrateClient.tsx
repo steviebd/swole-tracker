@@ -1,7 +1,11 @@
 "use client";
 
 import { type PropsWithChildren, useState } from "react";
-import { HydrationBoundary, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  HydrationBoundary,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { type DehydratedState } from "@tanstack/react-query";
 
 /**

@@ -27,8 +27,8 @@ export async function checkRateLimit(
       and(
         eq(rateLimits.user_id, userId),
         eq(rateLimits.endpoint, endpoint),
-        eq(rateLimits.windowStart, windowStart)
-      )
+        eq(rateLimits.windowStart, windowStart),
+      ),
     );
 
   if (!existingLimit) {
@@ -76,8 +76,6 @@ export async function checkRateLimit(
 
 export async function cleanupExpiredRateLimits(): Promise<void> {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  
-  await db
-    .delete(rateLimits)
-    .where(eq(rateLimits.windowStart, oneHourAgo));
+
+  await db.delete(rateLimits).where(eq(rateLimits.windowStart, oneHourAgo));
 }

@@ -33,13 +33,18 @@ describe("rate-limit-middleware", () => {
     // Reset env to original state
     vi.mocked(env).RATE_LIMIT_ENABLED = origRateLimitEnabled;
   });
-  
+
   function makeCtx(extra?: Record<string, unknown>) {
     return { ctx: { ...ctxBase, ...extra }, next } as any;
   }
 
   it("calls next immediately when skipIfDisabled is true and feature is disabled", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "test_skip", limit: 10, windowMs: 1000, skipIfDisabled: true });
+    const mw = rateLimitMiddleware({
+      endpoint: "test_skip",
+      limit: 10,
+      windowMs: 1000,
+      skipIfDisabled: true,
+    });
     vi.mocked(env).RATE_LIMIT_ENABLED = false;
 
     const res = await mw(makeCtx({}));
@@ -49,12 +54,18 @@ describe("rate-limit-middleware", () => {
   });
 
   it("enforces rate limit when enabled and under limit", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "test_endpoint", limit: 2, windowMs: 1000 });
-    const allowSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-      allowed: true,
-      remaining: 1,
-      resetTime: new Date(Date.now() + 500),
-    } as any);
+    const mw = rateLimitMiddleware({
+      endpoint: "test_endpoint",
+      limit: 2,
+      windowMs: 1000,
+    });
+    const allowSpy = vi
+      .spyOn(rateLimitLib, "checkRateLimit" as any)
+      .mockResolvedValue({
+        allowed: true,
+        remaining: 1,
+        resetTime: new Date(Date.now() + 500),
+      } as any);
 
     const res = await mw(makeCtx({}));
     expect(allowSpy).toHaveBeenCalledWith("user_1", "test_endpoint", 2, 1000);
@@ -63,7 +74,11 @@ describe("rate-limit-middleware", () => {
   });
 
   it("blocks when over limit and returns structured error", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "blocked", limit: 1, windowMs: 1000 });
+    const mw = rateLimitMiddleware({
+      endpoint: "blocked",
+      limit: 1,
+      windowMs: 1000,
+    });
     vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
       allowed: false,
       remaining: 0,
@@ -78,7 +93,11 @@ describe("rate-limit-middleware", () => {
   });
 
   it("skips when user missing (middleware returns next)", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "no_identity", limit: 5, windowMs: 1000 });
+    const mw = rateLimitMiddleware({
+      endpoint: "no_identity",
+      limit: 5,
+      windowMs: 1000,
+    });
     const spy = vi.spyOn(rateLimitLib, "checkRateLimit" as any);
     await mw({ ctx: {}, next } as any);
     expect(spy).not.toHaveBeenCalled();
@@ -86,7 +105,11 @@ describe("rate-limit-middleware", () => {
   });
 
   it("skips when user.id is undefined", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "no_user_id", limit: 5, windowMs: 1000 });
+    const mw = rateLimitMiddleware({
+      endpoint: "no_user_id",
+      limit: 5,
+      windowMs: 1000,
+    });
     const spy = vi.spyOn(rateLimitLib, "checkRateLimit" as any);
     await mw({ ctx: { user: { id: undefined } }, next } as any);
     expect(spy).not.toHaveBeenCalled();
@@ -94,34 +117,56 @@ describe("rate-limit-middleware", () => {
   });
 
   it("continues when rate limit check throws non-TRPC error", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "error_endpoint", limit: 5, windowMs: 1000 });
-    vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockRejectedValue(new Error("Database error"));
-    
+    const mw = rateLimitMiddleware({
+      endpoint: "error_endpoint",
+      limit: 5,
+      windowMs: 1000,
+    });
+    vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockRejectedValue(
+      new Error("Database error"),
+    );
+
     const res = await mw(makeCtx({}));
     expect(next).toHaveBeenCalledOnce();
     expect(res).toEqual({ ok: true });
   });
 
   it("rethrows TRPCError from rate limit check", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "trpc_error", limit: 5, windowMs: 1000 });
+    const mw = rateLimitMiddleware({
+      endpoint: "trpc_error",
+      limit: 5,
+      windowMs: 1000,
+    });
     const TRPCError = (await import("@trpc/server")).TRPCError;
-    const trpcError = new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Custom error" });
-    
-    vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockRejectedValue(trpcError);
-    
+    const trpcError = new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Custom error",
+    });
+
+    vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockRejectedValue(
+      trpcError,
+    );
+
     await expect(mw(makeCtx({}))).rejects.toThrow(trpcError);
     expect(next).not.toHaveBeenCalled();
   });
 
   it("enforces rate limit when disabled but skipIfDisabled is false", async () => {
-    const mw = rateLimitMiddleware({ endpoint: "always_enforce", limit: 5, windowMs: 1000, skipIfDisabled: false });
+    const mw = rateLimitMiddleware({
+      endpoint: "always_enforce",
+      limit: 5,
+      windowMs: 1000,
+      skipIfDisabled: false,
+    });
     vi.mocked(env).RATE_LIMIT_ENABLED = false;
-    
-    const allowSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-      allowed: true,
-      remaining: 4,
-      resetTime: new Date(Date.now() + 500),
-    } as any);
+
+    const allowSpy = vi
+      .spyOn(rateLimitLib, "checkRateLimit" as any)
+      .mockResolvedValue({
+        allowed: true,
+        remaining: 4,
+        resetTime: new Date(Date.now() + 500),
+      } as any);
 
     const res = await mw(makeCtx({}));
     expect(allowSpy).toHaveBeenCalled();
@@ -130,7 +175,6 @@ describe("rate-limit-middleware", () => {
   });
 
   // Note: Pre-configured middleware tests removed due to TRPC middleware complexity in test environment
-  // The actual middleware functions (templateRateLimit, workoutRateLimit, etc.) are tested implicitly 
+  // The actual middleware functions (templateRateLimit, workoutRateLimit, etc.) are tested implicitly
   // through the rateLimitMiddleware function which they all use internally
-
 });

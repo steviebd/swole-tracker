@@ -18,7 +18,8 @@ describe("lib/sse-broadcast.ts coverage", () => {
 
   it("adds/removes connections and broadcasts per-user, cleaning up dead writers", async () => {
     const mod = await import("~/lib/sse-broadcast");
-    const { addConnection, removeConnection, broadcastWorkoutUpdate } = mod as typeof import("~/lib/sse-broadcast");
+    const { addConnection, removeConnection, broadcastWorkoutUpdate } =
+      mod as typeof import("~/lib/sse-broadcast");
 
     const userA = "user_a";
     const userB = "user_b";
@@ -62,7 +63,8 @@ describe("lib/sse-broadcast.ts coverage", () => {
 
   it("no-ops when broadcasting to user with no connections", async () => {
     const mod = await import("~/lib/sse-broadcast");
-    const { broadcastWorkoutUpdate } = mod as typeof import("~/lib/sse-broadcast");
+    const { broadcastWorkoutUpdate } =
+      mod as typeof import("~/lib/sse-broadcast");
     // should not throw
     await broadcastWorkoutUpdate("nobody", { anything: true });
     expect(true).toBe(true);

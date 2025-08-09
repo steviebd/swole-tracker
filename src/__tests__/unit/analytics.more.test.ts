@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // Defer import to allow env mocking per test
 const loadModule = async () => await import("~/lib/analytics");
 
-const withEnv = (vars: Record<string, string | undefined>, fn: () => Promise<void>) => {
+const withEnv = (
+  vars: Record<string, string | undefined>,
+  fn: () => Promise<void>,
+) => {
   const prev: Record<string, string | undefined> = {};
   for (const k of Object.keys(vars)) prev[k] = process.env[k];
   Object.assign(process.env, vars);
@@ -49,7 +52,9 @@ describe("analytics thin wrapper coverage", () => {
       async () => {
         const mod = await loadModule();
         // Try calling all exported functions if present, otherwise ensure module loads
-        const fns = Object.entries(mod).filter(([_, v]) => typeof v === "function") as unknown as Array<[string, (...args: any[]) => any]>;
+        const fns = Object.entries(mod).filter(
+          ([_, v]) => typeof v === "function",
+        ) as unknown as Array<[string, (...args: any[]) => any]>;
         // Call each function with minimal safe arguments
         for (const [name, fn] of fns) {
           try {
@@ -86,7 +91,9 @@ describe("analytics thin wrapper coverage", () => {
       },
       async () => {
         const mod = await loadModule();
-        const fns = Object.entries(mod).filter(([_, v]) => typeof v === "function") as unknown as Array<[string, (...args: any[]) => any]>;
+        const fns = Object.entries(mod).filter(
+          ([_, v]) => typeof v === "function",
+        ) as unknown as Array<[string, (...args: any[]) => any]>;
         for (const [name, fn] of fns) {
           try {
             if (name.match(/track|capture|event/i)) {

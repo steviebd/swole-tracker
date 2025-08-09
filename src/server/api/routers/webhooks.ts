@@ -5,10 +5,12 @@ import { desc, eq } from "drizzle-orm";
 
 export const webhooksRouter = createTRPCRouter({
   getRecentEvents: protectedProcedure
-    .input(z.object({
-      limit: z.number().min(1).max(100).default(20),
-      provider: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        provider: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const query = ctx.db
         .select()
@@ -34,32 +36,33 @@ export const webhooksRouter = createTRPCRouter({
       return event;
     }),
 
-  getStats: protectedProcedure
-    .query(async ({ ctx }) => {
-      // This is a simple stats query - in production you might want to optimize this
-      const events = await ctx.db
-        .select({
-          status: webhookEvents.status,
-          provider: webhookEvents.provider,
-          eventType: webhookEvents.eventType,
-          createdAt: webhookEvents.createdAt,
-        })
-        .from(webhookEvents);
+  getStats: protectedProcedure.query(async ({ ctx }) => {
+    // This is a simple stats query - in production you might want to optimize this
+    const events = await ctx.db
+      .select({
+        status: webhookEvents.status,
+        provider: webhookEvents.provider,
+        eventType: webhookEvents.eventType,
+        createdAt: webhookEvents.createdAt,
+      })
+      .from(webhookEvents);
 
-      const stats = {
-        total: events.length,
-        byStatus: {} as Record<string, number>,
-        byProvider: {} as Record<string, number>,
-        byEventType: {} as Record<string, number>,
-        recentActivity: events.slice(0, 10),
-      };
+    const stats = {
+      total: events.length,
+      byStatus: {} as Record<string, number>,
+      byProvider: {} as Record<string, number>,
+      byEventType: {} as Record<string, number>,
+      recentActivity: events.slice(0, 10),
+    };
 
-      events.forEach((event) => {
-        stats.byStatus[event.status] = (stats.byStatus[event.status] ?? 0) + 1;
-        stats.byProvider[event.provider] = (stats.byProvider[event.provider] ?? 0) + 1;
-        stats.byEventType[event.eventType] = (stats.byEventType[event.eventType] ?? 0) + 1;
-      });
+    events.forEach((event) => {
+      stats.byStatus[event.status] = (stats.byStatus[event.status] ?? 0) + 1;
+      stats.byProvider[event.provider] =
+        (stats.byProvider[event.provider] ?? 0) + 1;
+      stats.byEventType[event.eventType] =
+        (stats.byEventType[event.eventType] ?? 0) + 1;
+    });
 
-      return stats;
-    }),
+    return stats;
+  }),
 });

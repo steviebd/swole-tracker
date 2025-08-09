@@ -27,7 +27,7 @@ export function ProgressionScopeModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+      className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="progression-scope-title"
@@ -44,46 +44,56 @@ export function ProgressionScopeModal({
         initialFocusRef={firstFocusRef as React.RefObject<HTMLElement>}
         preventScroll
       >
-        <div className="card glass-surface p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-          <h3 id="progression-scope-title" className="text-xl font-semibold mb-4">
+        <div
+          className="card glass-surface mx-4 w-full max-w-md p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3
+            id="progression-scope-title"
+            className="mb-4 text-xl font-semibold"
+          >
             Apply Progression
           </h3>
-          
+
           <p className="text-secondary mb-6">
-            You chose to add <span className="font-medium text-green-700 dark:text-green-400">{increment}</span>.
+            You chose to add{" "}
+            <span className="font-medium text-green-700 dark:text-green-400">
+              {increment}
+            </span>
+            .
             <br />
             How would you like to apply this progression?
           </p>
 
-        <div className="space-y-3">
-          <button
-            onClick={onApplyToAll}
-            className="w-full p-3 text-left rounded-lg btn-success transition-colors"
-          >
-            <div className="font-medium">Apply to ALL sets</div>
-            <div className="text-sm opacity-90">
-              Every set gets {increment}
-            </div>
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={onApplyToAll}
+              className="btn-success w-full rounded-lg p-3 text-left transition-colors"
+            >
+              <div className="font-medium">Apply to ALL sets</div>
+              <div className="text-sm opacity-90">
+                Every set gets {increment}
+              </div>
+            </button>
 
-          <button
-            onClick={onApplyToHighest}
-            className="w-full p-3 text-left rounded-lg btn-primary transition-colors"
-          >
-            <div className="font-medium">Apply to HIGHEST set only</div>
-            <div className="text-sm opacity-90">
-              Only the heaviest set gets {increment}
-            </div>
-          </button>
-        </div>
-        
+            <button
+              onClick={onApplyToHighest}
+              className="btn-primary w-full rounded-lg p-3 text-left transition-colors"
+            >
+              <div className="font-medium">Apply to HIGHEST set only</div>
+              <div className="text-sm opacity-90">
+                Only the heaviest set gets {increment}
+              </div>
+            </button>
+          </div>
+
           <button
             ref={firstFocusRef}
             onClick={() => {
               restoreFocus();
               onClose();
             }}
-            className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
+            className="btn-secondary mt-4 w-full rounded-lg px-4 py-2 text-sm"
           >
             Cancel
           </button>

@@ -2,7 +2,8 @@ import "./setup.debug-errors";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { buildCaller, createMockDb, createMockUser } from "./trpc-harness";
 
-const createCaller = (opts?: Parameters<typeof buildCaller>[0]) => buildCaller(opts as any) as any;
+const createCaller = (opts?: Parameters<typeof buildCaller>[0]) =>
+  buildCaller(opts as any) as any;
 
 describe("tRPC templates router additional flows (integration, mocked ctx/db)", () => {
   beforeEach(() => {
@@ -18,14 +19,14 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
       const db = createMockDb({
         query: {
           workoutTemplates: {
-            findFirst: vi
-              .fn()
-              .mockResolvedValueOnce({
-                id: 10,
-                user_id: user!.id,
-                name: "Push",
-                exercises: [{ id: 1, exerciseName: "Bench Press", orderIndex: 0 }],
-              }),
+            findFirst: vi.fn().mockResolvedValueOnce({
+              id: 10,
+              user_id: user!.id,
+              name: "Push",
+              exercises: [
+                { id: 1, exerciseName: "Bench Press", orderIndex: 0 },
+              ],
+            }),
           },
         },
       });
@@ -51,7 +52,9 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
         },
       });
       const trpc = createCaller({ db, user });
-      await expect(trpc.templates.getById({ id: 11 })).rejects.toThrow(/Template not found/i);
+      await expect(trpc.templates.getById({ id: 11 })).rejects.toThrow(
+        /Template not found/i,
+      );
     }
 
     // Case 3: not found -> throws
@@ -62,16 +65,37 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
         },
       });
       const trpc = createCaller({ db, user });
-      await expect(trpc.templates.getById({ id: 999 })).rejects.toThrow(/Template not found/i);
+      await expect(trpc.templates.getById({ id: 999 })).rejects.toThrow(
+        /Template not found/i,
+      );
     }
   });
 
   it("create inserts template and inserts exercises then links masters (happy path)", async () => {
     const user = createMockUser(true);
-    const insertedTemplate = { id: 42, user_id: user!.id, name: "Push", createdAt: new Date() };
+    const insertedTemplate = {
+      id: 42,
+      user_id: user!.id,
+      name: "Push",
+      createdAt: new Date(),
+    };
     const insertedExercises = [
-      { id: 101, user_id: user!.id, templateId: insertedTemplate.id, exerciseName: "Bench Press", orderIndex: 0, linkingRejected: false },
-      { id: 102, user_id: user!.id, templateId: insertedTemplate.id, exerciseName: "Overhead Press", orderIndex: 1, linkingRejected: false },
+      {
+        id: 101,
+        user_id: user!.id,
+        templateId: insertedTemplate.id,
+        exerciseName: "Bench Press",
+        orderIndex: 0,
+        linkingRejected: false,
+      },
+      {
+        id: 102,
+        user_id: user!.id,
+        templateId: insertedTemplate.id,
+        exerciseName: "Overhead Press",
+        orderIndex: 1,
+        linkingRejected: false,
+      },
     ];
 
     const db = createMockDb({
@@ -79,15 +103,31 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
         return {
           values: vi.fn().mockImplementation((vals: any) => {
             const isTemplateInsert = Array.isArray(vals)
-              ? !!(vals[0] && typeof vals[0] === "object" && "name" in vals[0] && !("templateId" in vals[0]))
-              : !!(vals && typeof vals === "object" && "name" in vals && !("templateId" in vals));
+              ? !!(
+                  vals[0] &&
+                  typeof vals[0] === "object" &&
+                  "name" in vals[0] &&
+                  !("templateId" in vals[0])
+                )
+              : !!(
+                  vals &&
+                  typeof vals === "object" &&
+                  "name" in vals &&
+                  !("templateId" in vals)
+                );
             return {
-              returning: vi.fn().mockResolvedValue(isTemplateInsert ? [insertedTemplate] : insertedExercises),
+              returning: vi
+                .fn()
+                .mockResolvedValue(
+                  isTemplateInsert ? [insertedTemplate] : insertedExercises,
+                ),
             };
           }),
         };
       }),
-      update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => []) })) })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({ where: vi.fn(async () => []) })),
+      })),
       query: {
         workoutTemplates: {
           // post-create reads are not strictly necessary for create(), but keep available
@@ -105,12 +145,15 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
     }) as any;
 
     const trpc = createCaller({ db, user });
-    const created = await trpc.templates.create({ name: "Push", exercises: ["Bench Press", "Overhead Press"] });
+    const created = await trpc.templates.create({
+      name: "Push",
+      exercises: ["Bench Press", "Overhead Press"],
+    });
 
     expect(created).toBeTruthy();
     expect(created.id).toBe(42);
     // Verify we attempted to insert template + exercises
-    expect((db.insert as any)).toHaveBeenCalled();
+    expect(db.insert as any).toHaveBeenCalled();
   });
 
   it("create throws when insert returns no template row", async () => {
@@ -125,12 +168,19 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
     } as any);
 
     const trpc = createCaller({ db, user });
-    await expect(trpc.templates.create({ name: "Bad", exercises: [] })).rejects.toThrow(/Failed to create template/i);
+    await expect(
+      trpc.templates.create({ name: "Bad", exercises: [] }),
+    ).rejects.toThrow(/Failed to create template/i);
   });
 
   it("update renames template, replaces exercises, and links masters; also guards ownership", async () => {
     const user = createMockUser(true);
-    const existingTemplate = { id: 55, user_id: user!.id, name: "Old", createdAt: new Date() };
+    const existingTemplate = {
+      id: 55,
+      user_id: user!.id,
+      name: "Old",
+      createdAt: new Date(),
+    };
 
     const db = createMockDb({
       query: {
@@ -150,8 +200,22 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
         values: vi.fn(() => ({
           returning: vi.fn(() =>
             Promise.resolve([
-              { id: 201, user_id: user!.id, templateId: existingTemplate.id, exerciseName: "Incline Bench", orderIndex: 0, linkingRejected: false },
-              { id: 202, user_id: user!.id, templateId: existingTemplate.id, exerciseName: "Dips", orderIndex: 1, linkingRejected: false },
+              {
+                id: 201,
+                user_id: user!.id,
+                templateId: existingTemplate.id,
+                exerciseName: "Incline Bench",
+                orderIndex: 0,
+                linkingRejected: false,
+              },
+              {
+                id: 202,
+                user_id: user!.id,
+                templateId: existingTemplate.id,
+                exerciseName: "Dips",
+                orderIndex: 1,
+                linkingRejected: false,
+              },
             ]),
           ),
         })),
@@ -166,12 +230,22 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
     }) as any;
 
     const trpc = createCaller({ db, user });
-    const out = await trpc.templates.update({ id: 55, name: "New Name", exercises: ["Incline Bench", "Dips"] });
+    const out = await trpc.templates.update({
+      id: 55,
+      name: "New Name",
+      exercises: ["Incline Bench", "Dips"],
+    });
     expect(out).toEqual({ success: true });
 
     // Ownership guarded branch
-    (db.query.workoutTemplates.findFirst as any).mockResolvedValueOnce({ id: 55, user_id: "another", name: "X" });
-    await expect(trpc.templates.update({ id: 55, name: "Z", exercises: [] })).rejects.toThrow(/Template not found/i);
+    (db.query.workoutTemplates.findFirst as any).mockResolvedValueOnce({
+      id: 55,
+      user_id: "another",
+      name: "X",
+    });
+    await expect(
+      trpc.templates.update({ id: 55, name: "Z", exercises: [] }),
+    ).rejects.toThrow(/Template not found/i);
   });
 
   it("delete removes template when owned; throws when not owned/not found", async () => {
@@ -182,7 +256,9 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
       const db = createMockDb({
         query: {
           workoutTemplates: {
-            findFirst: vi.fn().mockResolvedValueOnce({ id: 77, user_id: user!.id }),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce({ id: 77, user_id: user!.id }),
           },
         },
         delete: vi.fn(() => ({ where: vi.fn(async () => []) })),
@@ -198,13 +274,17 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
       const db = createMockDb({
         query: {
           workoutTemplates: {
-            findFirst: vi.fn().mockResolvedValueOnce({ id: 77, user_id: "another" }),
+            findFirst: vi
+              .fn()
+              .mockResolvedValueOnce({ id: 77, user_id: "another" }),
           },
         },
       }) as any;
 
       const trpc = createCaller({ db, user });
-      await expect(trpc.templates.delete({ id: 77 })).rejects.toThrow(/Template not found/i);
+      await expect(trpc.templates.delete({ id: 77 })).rejects.toThrow(
+        /Template not found/i,
+      );
     }
 
     // not found
@@ -218,7 +298,9 @@ describe("tRPC templates router additional flows (integration, mocked ctx/db)", 
       }) as any;
 
       const trpc = createCaller({ db, user });
-      await expect(trpc.templates.delete({ id: 404 })).rejects.toThrow(/Template not found/i);
+      await expect(trpc.templates.delete({ id: 404 })).rejects.toThrow(
+        /Template not found/i,
+      );
     }
   });
 });

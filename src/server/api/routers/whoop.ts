@@ -14,8 +14,8 @@ export const whoopRouter = createTRPCRouter({
       .where(
         and(
           eq(userIntegrations.user_id, ctx.user.id),
-          eq(userIntegrations.provider, "whoop")
-        )
+          eq(userIntegrations.provider, "whoop"),
+        ),
       );
 
     return {
@@ -56,8 +56,8 @@ export const whoopRouter = createTRPCRouter({
       .where(
         and(
           eq(userIntegrations.user_id, ctx.user.id),
-          eq(userIntegrations.provider, "whoop")
-        )
+          eq(userIntegrations.provider, "whoop"),
+        ),
       );
 
     return { success: true };
@@ -65,22 +65,22 @@ export const whoopRouter = createTRPCRouter({
 
   getWebhookInfo: protectedProcedure.query(async ({ ctx: _ctx }) => {
     // Get the base URL for the webhook endpoint
-    const webhookUrl = process.env.VERCEL_URL 
+    const webhookUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}/api/webhooks/whoop`
-      : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/webhooks/whoop`;
+      : `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/webhooks/whoop`;
 
     return {
       webhookUrl,
       isConfigured: !!process.env.WHOOP_WEBHOOK_SECRET,
-      supportedEvents: ['workout.updated'],
+      supportedEvents: ["workout.updated"],
       instructions: [
-        '1. Go to your Whoop Developer Dashboard',
-        '2. Navigate to your app settings',
-        '3. Add the webhook URL above',
+        "1. Go to your Whoop Developer Dashboard",
+        "2. Navigate to your app settings",
+        "3. Add the webhook URL above",
         '4. Select "v2" model version for UUID support',
-        '5. Set your app secret as WHOOP_WEBHOOK_SECRET environment variable',
-        '6. Save the configuration'
-      ]
+        "5. Set your app secret as WHOOP_WEBHOOK_SECRET environment variable",
+        "6. Save the configuration",
+      ],
     };
   }),
 });

@@ -33,11 +33,15 @@ export function ExerciseHeader({
       <div className="flex min-w-0 flex-col">
         <div className="truncate text-base font-semibold">{name}</div>
         {previousBest && (
-          <div className="text-xs text-muted">
+          <div className="text-muted text-xs">
             Prev best:{" "}
-            {previousBest.weight !== undefined ? `${previousBest.weight}${previousBest.unit}` : "-"}
+            {previousBest.weight !== undefined
+              ? `${previousBest.weight}${previousBest.unit}`
+              : "-"}
             {previousBest.reps !== undefined ? ` × ${previousBest.reps}` : ""}
-            {previousBest.sets !== undefined ? ` (${previousBest.sets} set${previousBest.sets > 1 ? "s" : ""})` : ""}
+            {previousBest.sets !== undefined
+              ? ` (${previousBest.sets} set${previousBest.sets > 1 ? "s" : ""})`
+              : ""}
           </div>
         )}
       </div>

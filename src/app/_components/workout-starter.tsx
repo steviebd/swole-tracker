@@ -38,10 +38,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         selectedTemplateId?.toString() ?? "unknown",
         template?.name ?? "Unknown Template",
       );
-      
+
       // Immediately invalidate cache for instant UI updates
       onWorkoutStart();
-      
+
       router.push(`/workout/session/${data.sessionId}`);
     },
   });
@@ -83,7 +83,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       <div className="py-12 text-center">
         <div className="mb-4 text-6xl">📋</div>
         <h3 className="mb-2 text-xl font-semibold">No templates available</h3>
-        <p className="mb-6 text-secondary">
+        <p className="text-secondary mb-6">
           You need to create a workout template before you can start a workout
         </p>
         <Link
@@ -113,12 +113,12 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
               }`}
             >
               <h3 className="mb-2 truncate font-semibold">{template.name}</h3>
-              <p className="text-sm text-secondary">
+              <p className="text-secondary text-sm">
                 {template.exercises.length} exercise
                 {template.exercises.length !== 1 ? "s" : ""}
               </p>
               {template.exercises.length > 0 && (
-                <div className="mt-2 text-xs text-muted">
+                <div className="text-muted mt-2 text-xs">
                   {template.exercises
                     .slice(0, 3)
                     .map((ex) => ex.exerciseName)
@@ -133,7 +133,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
       {/* Selected Template & Actions */}
       {selectedTemplateId && (
-        <div className="space-y-4 card p-6">
+        <div className="card space-y-4 p-6">
           {(() => {
             const template = templates.find((t) => t.id === selectedTemplateId);
             return template ? (
@@ -174,13 +174,21 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                       onClick={() => {
                         const now = new Date();
                         const year = now.getFullYear();
-                        const month = String(now.getMonth() + 1).padStart(2, "0");
+                        const month = String(now.getMonth() + 1).padStart(
+                          2,
+                          "0",
+                        );
                         const day = String(now.getDate()).padStart(2, "0");
                         const hours = String(now.getHours()).padStart(2, "0");
-                        const minutes = String(now.getMinutes()).padStart(2, "0");
-                        setWorkoutDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+                        const minutes = String(now.getMinutes()).padStart(
+                          2,
+                          "0",
+                        );
+                        setWorkoutDate(
+                          `${year}-${month}-${day}T${hours}:${minutes}`,
+                        );
                       }}
-                      className="text-xs link-primary"
+                      className="link-primary text-xs"
                     >
                       Use Now
                     </button>
@@ -190,7 +198,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                     id="workoutDate"
                     value={workoutDate}
                     onChange={(e) => setWorkoutDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     required
                   />
                 </div>

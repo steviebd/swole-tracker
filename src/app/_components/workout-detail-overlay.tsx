@@ -37,20 +37,25 @@ interface WorkoutDetailOverlayProps {
   clickOrigin?: { x: number; y: number };
 }
 
-export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: WorkoutDetailOverlayProps) {
+export function WorkoutDetailOverlay({
+  workout,
+  isOpen,
+  onClose,
+  clickOrigin,
+}: WorkoutDetailOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
 
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
@@ -62,33 +67,38 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
       minute: "2-digit",
       hour12: true,
     }).format(start);
-    
+
     const endTime = new Intl.DateTimeFormat("en-GB", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     }).format(end);
-    
+
     return `${startTime} - ${endTime}`;
   };
 
   const formatDuration = (start: Date, end: Date) => {
-    const duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60)); // minutes
+    const duration = Math.round(
+      (end.getTime() - start.getTime()) / (1000 * 60),
+    ); // minutes
     const hours = Math.floor(duration / 60);
     const minutes = duration % 60;
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   };
 
-  const formatScore = (score: WorkoutScore | null, scoreState: string | null) => {
+  const formatScore = (
+    score: WorkoutScore | null,
+    scoreState: string | null,
+  ) => {
     if (!score || typeof score !== "object") {
       return `-- (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
     }
-    
+
     const strainScore = score.strain;
     if (strainScore && typeof strainScore === "number") {
       return `${strainScore.toFixed(1)} (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
     }
-    
+
     return `-- (${scoreState?.replace("_", " ") ?? "UNKNOWN"})`;
   };
 
@@ -126,12 +136,15 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
     touchStartRef.current = null;
   };
 
-  const renderMetricSection = (title: string, data: Record<string, unknown> | null) => {
+  const renderMetricSection = (
+    title: string,
+    data: Record<string, unknown> | null,
+  ) => {
     if (!data || typeof data !== "object") return null;
 
     return (
       <div className="card p-4">
-        <h4 className="font-semibold text-sm text-secondary mb-3">{title}</h4>
+        <h4 className="text-secondary mb-3 text-sm font-semibold">{title}</h4>
         <div className="space-y-2">
           {Object.entries(data).map(([key, value]) => (
             <div key={key} className="flex justify-between text-sm">
@@ -150,33 +163,33 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
 
   if (!isOpen) return null;
 
-  const animationOrigin = clickOrigin 
+  const animationOrigin = clickOrigin
     ? { transformOrigin: `${clickOrigin.x}px ${clickOrigin.y}px` }
     : {};
 
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 bg-black/40 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm dark:bg-black/50"
       onClick={handleBackdropClick}
-      style={{ animation: isOpen ? 'fadeIn 0.3s ease-out' : '' }}
+      style={{ animation: isOpen ? "fadeIn 0.3s ease-out" : "" }}
     >
       <div
         ref={contentRef}
-        className="card rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl shadow-2xl"
         onDoubleClick={handleDoubleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          animation: isOpen ? 'scaleIn 0.3s ease-out' : '',
-          ...animationOrigin
+          animation: isOpen ? "scaleIn 0.3s ease-out" : "",
+          ...animationOrigin,
         }}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-xl dark:bg-gray-900 dark:border-gray-700">
-          <div className="flex justify-between items-start">
+        <div className="sticky top-0 rounded-t-xl border-b border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+          <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1 dark:text-white">
+              <h2 className="mb-1 text-2xl font-bold text-gray-900 dark:text-white">
                 {workout.sport_name ?? "Unknown Sport"}
               </h2>
               <p className="text-secondary text-sm">
@@ -185,7 +198,7 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
             </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-900 transition-colors p-2 dark:text-gray-400 dark:hover:text-white"
+              className="p-2 text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             >
               ✕
             </button>
@@ -193,24 +206,30 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 p-6">
           {/* Basic Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="card p-4">
-              <h4 className="font-semibold text-sm text-secondary mb-2">Duration</h4>
+              <h4 className="text-secondary mb-2 text-sm font-semibold">
+                Duration
+              </h4>
               <p className="text-xl font-bold text-gray-900 dark:text-white">
                 {formatDuration(new Date(workout.start), new Date(workout.end))}
               </p>
             </div>
             <div className="card p-4">
-              <h4 className="font-semibold text-sm text-secondary mb-2">Score</h4>
+              <h4 className="text-secondary mb-2 text-sm font-semibold">
+                Score
+              </h4>
               <p className="text-xl font-bold text-gray-900 dark:text-white">
                 {formatScore(workout.score, workout.score_state)}
               </p>
             </div>
             <div className="card p-4">
-              <h4 className="font-semibold text-sm text-secondary mb-2">Whoop ID</h4>
-              <p className="text-sm text-muted font-mono break-all">
+              <h4 className="text-secondary mb-2 text-sm font-semibold">
+                Whoop ID
+              </h4>
+              <p className="text-muted font-mono text-sm break-all">
                 {workout.whoopWorkoutId}
               </p>
             </div>
@@ -227,7 +246,9 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
 
           {/* Timestamps */}
           <div className="card p-4">
-            <h4 className="font-semibold text-sm text-secondary mb-3">Timestamps</h4>
+            <h4 className="text-secondary mb-3 text-sm font-semibold">
+              Timestamps
+            </h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted">Started:</span>
@@ -252,8 +273,8 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
         </div>
 
         {/* Footer Help Text */}
-        <div className="bg-white p-4 rounded-b-xl border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700">
-          <p className="text-xs text-muted text-center">
+        <div className="rounded-b-xl border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <p className="text-muted text-center text-xs">
             Double-click, swipe any direction, or click outside to close
           </p>
         </div>
@@ -261,16 +282,20 @@ export function WorkoutDetailOverlay({ workout, isOpen, onClose, clickOrigin }: 
 
       <style jsx>{`
         @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
         }
-        
+
         @keyframes scaleIn {
-          from { 
+          from {
             opacity: 0;
             transform: scale(0.7);
           }
-          to { 
+          to {
             opacity: 1;
             transform: scale(1);
           }

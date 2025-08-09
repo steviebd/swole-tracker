@@ -2,7 +2,8 @@
 
 import posthog from "posthog-js";
 
-const safeOnline = () => (typeof navigator === "undefined" ? false : navigator.onLine === true);
+const safeOnline = () =>
+  typeof navigator === "undefined" ? false : navigator.onLine === true;
 const safeCapture = (event: string, props?: Record<string, unknown>) => {
   try {
     if (!safeOnline()) return;
@@ -16,7 +17,8 @@ export const analytics = {
   // Page tracking
   pageView: (page: string, properties?: Record<string, unknown>) => {
     try {
-      const url = typeof window !== "undefined" ? window.location.href : undefined;
+      const url =
+        typeof window !== "undefined" ? window.location.href : undefined;
       safeCapture("$pageview", {
         $current_url: url,
         page,

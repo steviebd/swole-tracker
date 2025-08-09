@@ -39,7 +39,7 @@ export function ProgressionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+      className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="progression-title"
@@ -56,58 +56,69 @@ export function ProgressionModal({
         initialFocusRef={firstFocusRef as React.RefObject<HTMLElement>}
         preventScroll
       >
-        <div className="card glass-surface p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-          <h3 id="progression-title" className="text-xl font-semibold mb-4">
+        <div
+          className="card glass-surface mx-4 w-full max-w-md p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 id="progression-title" className="mb-4 text-xl font-semibold">
             Progression Suggestion
           </h3>
-          
+
           <p className="mb-4">
             <span className="font-medium">{exerciseName}</span>
           </p>
-          
-          <p className="text-sm text-secondary mb-6">
-            Last best: {previousBest.weight}{previousBest.unit} × {previousBest.reps} reps × {previousBest.sets} sets
+
+          <p className="text-secondary mb-6 text-sm">
+            Last best: {previousBest.weight}
+            {previousBest.unit} × {previousBest.reps} reps × {previousBest.sets}{" "}
+            sets
           </p>
 
-        <div className="space-y-3">
-          <button
-            onClick={() => handleSelection("weight")}
-            className="w-full p-3 text-left rounded-lg btn-success transition-colors"
-          >
-            <div className="font-medium">Add +{weightIncrement}{previousBest.unit}</div>
-            <div className="text-sm opacity-90">
-              {(previousBest.weight ?? 0) + weightIncrement}{previousBest.unit} × {previousBest.reps} reps
-            </div>
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => handleSelection("weight")}
+              className="btn-success w-full rounded-lg p-3 text-left transition-colors"
+            >
+              <div className="font-medium">
+                Add +{weightIncrement}
+                {previousBest.unit}
+              </div>
+              <div className="text-sm opacity-90">
+                {(previousBest.weight ?? 0) + weightIncrement}
+                {previousBest.unit} × {previousBest.reps} reps
+              </div>
+            </button>
 
-          <button
-            onClick={() => handleSelection("reps")}
-            className="w-full p-3 text-left rounded-lg btn-primary transition-colors"
-          >
-            <div className="font-medium">Add +1 rep</div>
-            <div className="text-sm opacity-90">
-              {previousBest.weight}{previousBest.unit} × {(previousBest.reps ?? 0) + 1} reps
-            </div>
-          </button>
+            <button
+              onClick={() => handleSelection("reps")}
+              className="btn-primary w-full rounded-lg p-3 text-left transition-colors"
+            >
+              <div className="font-medium">Add +1 rep</div>
+              <div className="text-sm opacity-90">
+                {previousBest.weight}
+                {previousBest.unit} × {(previousBest.reps ?? 0) + 1} reps
+              </div>
+            </button>
 
-          <button
-            onClick={() => handleSelection("none")}
-            className="w-full p-3 text-left rounded-lg btn-secondary transition-colors"
-          >
-            <div className="font-medium">Keep as is</div>
-            <div className="text-sm text-secondary">
-              {previousBest.weight}{previousBest.unit} × {previousBest.reps} reps
-            </div>
-          </button>
-        </div>
-        
+            <button
+              onClick={() => handleSelection("none")}
+              className="btn-secondary w-full rounded-lg p-3 text-left transition-colors"
+            >
+              <div className="font-medium">Keep as is</div>
+              <div className="text-secondary text-sm">
+                {previousBest.weight}
+                {previousBest.unit} × {previousBest.reps} reps
+              </div>
+            </button>
+          </div>
+
           <button
             ref={firstFocusRef}
             onClick={() => {
               restoreFocus();
               onClose();
             }}
-            className="mt-4 w-full rounded-lg btn-secondary px-4 py-2 text-sm"
+            className="btn-secondary mt-4 w-full rounded-lg px-4 py-2 text-sm"
           >
             Cancel
           </button>

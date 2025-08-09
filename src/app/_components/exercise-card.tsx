@@ -1,14 +1,16 @@
 "use client";
 
 import { type SetData } from "./set-input";
-import { useSwipeGestures, type SwipeSettings } from "~/hooks/use-swipe-gestures";
+import {
+  useSwipeGestures,
+  type SwipeSettings,
+} from "~/hooks/use-swipe-gestures";
 import { ExerciseHeader } from "./workout/ExerciseHeader";
 import { SetList } from "./workout/SetList";
 import posthog from "posthog-js";
 import { vibrate } from "~/lib/client-telemetry";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { useExerciseInsights } from "~/hooks/use-insights";
-
 
 export interface ExerciseData {
   templateExerciseId?: number;
@@ -36,7 +38,11 @@ interface ExerciseCardProps {
   onToggleUnit: (exerciseIndex: number, setIndex: number) => void;
   onAddSet: (exerciseIndex: number) => void;
   onDeleteSet: (exerciseIndex: number, setIndex: number) => void;
-  onMoveSet: (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => void;
+  onMoveSet: (
+    exerciseIndex: number,
+    setIndex: number,
+    direction: "up" | "down",
+  ) => void;
   isExpanded: boolean;
   onToggleExpansion: (exerciseIndex: number) => void;
   previousBest?: PreviousBest;
@@ -50,7 +56,10 @@ interface ExerciseCardProps {
   isSwiped?: boolean;
   // Universal drag and drop props
   draggable?: boolean;
-  onPointerDown?: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent, opts?: { force?: boolean }) => void;
+  onPointerDown?: (
+    e: React.PointerEvent | React.MouseEvent | React.TouchEvent,
+    opts?: { force?: boolean },
+  ) => void;
   setCardElement?: (element: HTMLElement | null) => void;
 }
 
@@ -86,26 +95,34 @@ export function ExerciseCard({
     () => {
       if (onSwipeToBottom && !readOnly) {
         // Haptic + PostHog for swipe-to-bottom
-        try { vibrate(10); } catch {}
-        try { posthog.capture("haptic_action", { kind: "swipe" }); } catch {}
-        try { announce(`Moved ${exercise.exerciseName} to end`, { assertive: true }); } catch {}
+        try {
+          vibrate(10);
+        } catch {}
+        try {
+          posthog.capture("haptic_action", { kind: "swipe" });
+        } catch {}
+        try {
+          announce(`Moved ${exercise.exerciseName} to end`, {
+            assertive: true,
+          });
+        } catch {}
         onSwipeToBottom(exerciseIndex);
         // Reset the dismissed state so card can be swiped again
         setTimeout(() => resetSwipe(), 50);
       }
     },
     swipeSettings,
-    "horizontal"
+    "horizontal",
   );
 
   const getCurrentBest = () => {
     if (exercise.sets.length === 0) return null;
-    
-    const maxWeight = Math.max(...exercise.sets.map(set => set.weight ?? 0));
-    const bestSet = exercise.sets.find(set => set.weight === maxWeight);
-    
+
+    const maxWeight = Math.max(...exercise.sets.map((set) => set.weight ?? 0));
+    const bestSet = exercise.sets.find((set) => set.weight === maxWeight);
+
     if (!bestSet?.weight) return null;
-    
+
     return {
       weight: bestSet.weight,
       reps: bestSet.reps,
@@ -114,7 +131,7 @@ export function ExerciseCard({
     };
   };
 
-  const hasCurrentData = exercise.sets.some(set => set.weight ?? set.reps);
+  const hasCurrentData = exercise.sets.some((set) => set.weight ?? set.reps);
   const currentBest = getCurrentBest();
 
   // Insights hook (read-only)
@@ -125,34 +142,48 @@ export function ExerciseCard({
     limitSessions: 10,
   });
 
-
   // Calculate styles for animations and feedback
   // Prioritize the active gesture - swipe for horizontal, drag for vertical
-  const isSwipeActive = swipeState.isDragging && Math.abs(swipeState.translateX) > 0;
+  const isSwipeActive =
+    swipeState.isDragging && Math.abs(swipeState.translateX) > 0;
   const isRightSwipeActive = isSwipeActive && swipeState.translateX > 0;
   const isLeftSwipeActive = isSwipeActive && swipeState.translateX < 0;
-  const isDragActive = isDragging && Math.abs(dragOffset.y) > Math.abs(dragOffset.x);
+  const isDragActive =
+    isDragging && Math.abs(dragOffset.y) > Math.abs(dragOffset.x);
 
   // Style: lock horizontal translation during vertical drag; add subtle scale/shadow
   const cardStyle = {
-    transform: `translate(${isDragActive ? 0 : (swipeState.isDismissed ? 0 : swipeState.translateX)}px, ${isDragActive ? dragOffset.y : 0}px)`,
-    opacity: isDragActive ? 0.9 : swipeState.isDismissed ? 1 : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
-    scale: isDragActive ? 1.03 : swipeState.isDismissed ? 1 : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
+    transform: `translate(${isDragActive ? 0 : swipeState.isDismissed ? 0 : swipeState.translateX}px, ${isDragActive ? dragOffset.y : 0}px)`,
+    opacity: isDragActive
+      ? 0.9
+      : swipeState.isDismissed
+        ? 1
+        : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
+    scale: isDragActive
+      ? 1.03
+      : swipeState.isDismissed
+        ? 1
+        : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
     zIndex: isDragActive ? 50 : 1,
-    transition: (swipeState.isDragging && isSwipeActive) || isDragActive ? 'none' : 'transform var(--motion-duration-base) var(--motion-ease), opacity var(--motion-duration-base) var(--motion-ease), scale var(--motion-duration-base) var(--motion-ease)',
+    transition:
+      (swipeState.isDragging && isSwipeActive) || isDragActive
+        ? "none"
+        : "transform var(--motion-duration-base) var(--motion-ease), opacity var(--motion-duration-base) var(--motion-ease), scale var(--motion-duration-base) var(--motion-ease)",
     // Optimize touch handling: card body prefers vertical panning; drag handle will use touch-action: none
-    touchAction: 'pan-y pinch-zoom',
-    willChange: isDragActive ? 'transform' : undefined,
+    touchAction: "pan-y pinch-zoom",
+    willChange: isDragActive ? "transform" : undefined,
   } as React.CSSProperties;
 
   const containerClasses = `
     card glass-surface overflow-hidden select-none
-    ${isDraggedOver ? 'glass-hairline' : ''}
-    ${isDragActive ? 'shadow-xl cursor-grabbing' : ''}
+    ${isDraggedOver ? "glass-hairline" : ""}
+    ${isDragActive ? "shadow-xl cursor-grabbing" : ""}
   `.trim();
 
   // Only start swipe gestures from the card surface; drag is initiated from the right-edge handle
-  const handleCardPointerDown = (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
+  const handleCardPointerDown = (
+    e: React.PointerEvent | React.MouseEvent | React.TouchEvent,
+  ) => {
     const target = e.target as HTMLElement;
 
     // 1) Never start swipe from the explicit drag handle
@@ -193,7 +224,7 @@ export function ExerciseCard({
   const handleCardTouchEnd = swipeHandlers.onTouchEnd;
 
   return (
-    <div 
+    <div
       ref={setCardElement}
       className={containerClasses}
       style={cardStyle}
@@ -212,7 +243,7 @@ export function ExerciseCard({
       {/* Swipe affordance hints */}
       {isLeftSwipeActive && !readOnly && (
         <div
-          className="absolute inset-y-0 right-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none"
+          className="glass-surface pointer-events-none absolute inset-y-0 right-2 my-auto flex h-6 items-center rounded px-2 text-xs"
           role="status"
           aria-live="polite"
         >
@@ -221,7 +252,7 @@ export function ExerciseCard({
       )}
       {isRightSwipeActive && !readOnly && (
         <div
-          className="absolute inset-y-0 left-2 my-auto h-6 px-2 rounded glass-surface text-xs flex items-center pointer-events-none"
+          className="glass-surface pointer-events-none absolute inset-y-0 left-2 my-auto flex h-6 items-center rounded px-2 text-xs"
           role="status"
           aria-live="polite"
         >
@@ -230,7 +261,7 @@ export function ExerciseCard({
       )}
       {/* Exercise Header (presentational) */}
       <div
-        className="w-full p-4 text-left transition-colors cursor-pointer hover:glass-hairline"
+        className="hover:glass-hairline w-full cursor-pointer p-4 text-left transition-colors"
         role="button"
         aria-expanded={isExpanded ? "true" : "false"}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} ${exercise.exerciseName}`}
@@ -243,7 +274,9 @@ export function ExerciseCard({
               isExpanded={isExpanded}
               isSwiped={isSwiped}
               readOnly={readOnly ?? false}
-              previousBest={hasCurrentData && currentBest ? currentBest : previousBest}
+              previousBest={
+                hasCurrentData && currentBest ? currentBest : previousBest
+              }
               onToggleExpansion={onToggleExpansion}
               onSwipeToBottom={onSwipeToBottom}
               exerciseIndex={exerciseIndex}
@@ -254,20 +287,35 @@ export function ExerciseCard({
               type="button"
               aria-label="Drag to reorder"
               data-drag-handle="true"
-              className="group ml-2 px-1 py-2 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-200"
-              onPointerDown={(e) => onPointerDown?.(e as React.PointerEvent | React.MouseEvent | React.TouchEvent, { force: true })}
-              onMouseDown={(e) => onPointerDown?.(e as React.PointerEvent | React.MouseEvent | React.TouchEvent, { force: true })}
-              onTouchStart={(e) => onPointerDown?.(e as React.PointerEvent | React.MouseEvent | React.TouchEvent, { force: true })}
-              style={{ touchAction: 'none' }}
+              className="group ml-2 cursor-grab touch-none px-1 py-2 text-gray-400 hover:text-gray-200 active:cursor-grabbing"
+              onPointerDown={(e) =>
+                onPointerDown?.(
+                  e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
+                  { force: true },
+                )
+              }
+              onMouseDown={(e) =>
+                onPointerDown?.(
+                  e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
+                  { force: true },
+                )
+              }
+              onTouchStart={(e) =>
+                onPointerDown?.(
+                  e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
+                  { force: true },
+                )
+              }
+              style={{ touchAction: "none" }}
               title="Drag to reorder"
             >
               <span className="inline-flex flex-col gap-0.5">
-                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
-                <span className="w-1.5 h-1.5 bg-current rounded-full"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
               </span>
             </button>
           )}
@@ -276,26 +324,34 @@ export function ExerciseCard({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-3">
+        <div className="space-y-3 px-4 pb-4">
           {/* Insights Row */}
           {!readOnly && (
-            <div className="rounded-lg p-3 glass-surface glass-hairline">
-              <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="glass-surface glass-hairline rounded-lg p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-secondary">INSIGHTS</span>
+                  <span className="text-secondary text-xs font-medium">
+                    INSIGHTS
+                  </span>
                   {insights?.bestSet ? (
                     <span className="text-sm">
                       Best:{" "}
                       <strong>
-                        {insights.bestSet.weight}{insights.bestSet.unit}
+                        {insights.bestSet.weight}
+                        {insights.bestSet.unit}
                       </strong>
-                      {insights.bestSet.reps ? <> × {insights.bestSet.reps}</> : null}
+                      {insights.bestSet.reps ? (
+                        <> × {insights.bestSet.reps}</>
+                      ) : null}
                       {typeof insights.best1RM === "number" ? (
-                        <span className="ml-2 text-xs text-muted">1RM≈ {insights.best1RM.toFixed(1)}{exercise.unit}</span>
+                        <span className="text-muted ml-2 text-xs">
+                          1RM≈ {insights.best1RM.toFixed(1)}
+                          {exercise.unit}
+                        </span>
                       ) : null}
                     </span>
                   ) : (
-                    <span className="text-sm text-muted">No history yet</span>
+                    <span className="text-muted text-sm">No history yet</span>
                   )}
                 </div>
 
@@ -303,19 +359,28 @@ export function ExerciseCard({
                 {insights?.recommendation ? (
                   <button
                     type="button"
-                    className="ml-auto shrink-0 rounded-full px-3 py-1 text-xs glass-surface hover:glass-hairline transition-colors"
+                    className="glass-surface hover:glass-hairline ml-auto shrink-0 rounded-full px-3 py-1 text-xs transition-colors"
                     aria-label="Apply auto-progression recommendation"
                     onClick={() => {
-                      try { vibrate(5); } catch {}
-                      try { 
+                      try {
+                        vibrate(5);
+                      } catch {}
+                      try {
                         const recommendation = insights.recommendation;
                         posthog.capture("insights_apply_recommendation", {
-                        exerciseName: exercise.exerciseName,
-                        type: recommendation?.type,
-                        nextWeight: recommendation?.type === "weight" ? recommendation.nextWeight : undefined,
-                        nextReps: recommendation?.type === "reps" ? recommendation.nextReps : undefined,
-                        unit: recommendation?.unit,
-                      }); } catch (err: unknown) {
+                          exerciseName: exercise.exerciseName,
+                          type: recommendation?.type,
+                          nextWeight:
+                            recommendation?.type === "weight"
+                              ? recommendation.nextWeight
+                              : undefined,
+                          nextReps:
+                            recommendation?.type === "reps"
+                              ? recommendation.nextReps
+                              : undefined,
+                          unit: recommendation?.unit,
+                        });
+                      } catch (err: unknown) {
                         if (err instanceof Error) {
                           // handle error
                         }
@@ -325,29 +390,37 @@ export function ExerciseCard({
                       if (
                         rec &&
                         rec.type === "weight" &&
-                        Object.prototype.hasOwnProperty.call(rec, "nextWeight") &&
-                        typeof (rec as { nextWeight: unknown }).nextWeight === "number"
+                        Object.prototype.hasOwnProperty.call(
+                          rec,
+                          "nextWeight",
+                        ) &&
+                        typeof (rec as { nextWeight: unknown }).nextWeight ===
+                          "number"
                       ) {
                         const lastIndex = exercise.sets.length - 1;
                         onUpdate(
                           exerciseIndex,
                           Math.max(0, lastIndex),
                           "weight",
-                          (rec as unknown as { nextWeight: number }).nextWeight
+                          (rec as unknown as { nextWeight: number }).nextWeight,
                         );
                       } else if (
                         rec &&
                         rec.type === "reps" &&
                         Object.prototype.hasOwnProperty.call(rec, "nextReps") &&
-                        typeof (rec as { nextReps: unknown }).nextReps === "number"
+                        typeof (rec as { nextReps: unknown }).nextReps ===
+                          "number"
                       ) {
                         const lastIndex = exercise.sets.length - 1;
-                        const current = exercise.sets[Math.max(0, lastIndex)]?.reps ?? 0;
+                        const current =
+                          exercise.sets[Math.max(0, lastIndex)]?.reps ?? 0;
                         onUpdate(
                           exerciseIndex,
                           Math.max(0, lastIndex),
                           "reps",
-                          current + ((rec as unknown as { nextReps: number }).nextReps ?? 0)
+                          current +
+                            ((rec as unknown as { nextReps: number })
+                              .nextReps ?? 0),
                         );
                       }
                     }}
@@ -361,33 +434,41 @@ export function ExerciseCard({
               </div>
 
               {/* Simple sparkline (css-only, tiny) */}
-              {insights?.volumeSparkline && insights.volumeSparkline.length >= 2 && (
-                <div className="mt-2">
-                  <div className="flex items-end gap-1 h-8" aria-hidden="true">
-                    {(() => {
-                      const vols = insights.volumeSparkline.map(p => p.volume);
-                      const max = Math.max(...vols);
-                      const min = Math.min(...vols);
-                      const range = Math.max(1, max - min);
-                      return insights.volumeSparkline.map((p, i) => {
-                        const h = Math.round(((p.volume - min) / range) * 100);
-                        return (
-                          <span
-                            key={i}
-                            className="w-1.5 bg-emerald-500/70 dark:bg-emerald-400/70 rounded-sm"
-                            style={{ height: `${Math.max(8, h)}%` }}
-                            title={`${new Date(p.date).toLocaleDateString()}: Vol ${p.volume.toFixed(0)}`}
-                          />
+              {insights?.volumeSparkline &&
+                insights.volumeSparkline.length >= 2 && (
+                  <div className="mt-2">
+                    <div
+                      className="flex h-8 items-end gap-1"
+                      aria-hidden="true"
+                    >
+                      {(() => {
+                        const vols = insights.volumeSparkline.map(
+                          (p) => p.volume,
                         );
-                      });
-                    })()}
+                        const max = Math.max(...vols);
+                        const min = Math.min(...vols);
+                        const range = Math.max(1, max - min);
+                        return insights.volumeSparkline.map((p, i) => {
+                          const h = Math.round(
+                            ((p.volume - min) / range) * 100,
+                          );
+                          return (
+                            <span
+                              key={i}
+                              className="w-1.5 rounded-sm bg-emerald-500/70 dark:bg-emerald-400/70"
+                              style={{ height: `${Math.max(8, h)}%` }}
+                              title={`${new Date(p.date).toLocaleDateString()}: Vol ${p.volume.toFixed(0)}`}
+                            />
+                          );
+                        });
+                      })()}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Heuristic suggestions */}
               {insights?.suggestions && insights.suggestions.length > 0 && (
-                <ul className="mt-2 text-xs text-muted list-disc pl-5 space-y-1">
+                <ul className="text-muted mt-2 list-disc space-y-1 pl-5 text-xs">
                   {insights.suggestions.slice(0, 2).map((s, idx) => (
                     <li key={idx}>{s.message}</li>
                   ))}
@@ -397,8 +478,10 @@ export function ExerciseCard({
           )}
           {/* Previous Workout Reference */}
           {previousSets && previousSets.length > 0 && !readOnly && (
-            <div className="rounded-lg p-3 glass-surface glass-hairline">
-              <h4 className="text-xs font-medium text-secondary mb-2">LAST WORKOUT</h4>
+            <div className="glass-surface glass-hairline rounded-lg p-3">
+              <h4 className="text-secondary mb-2 text-xs font-medium">
+                LAST WORKOUT
+              </h4>
               <div className="space-y-2">
                 {(() => {
                   // Sort previous sets by weight (highest first), then by original order
@@ -411,28 +494,37 @@ export function ExerciseCard({
                     // If weights are equal, maintain original order
                     return previousSets.indexOf(a) - previousSets.indexOf(b);
                   });
-                  
+
                   return sortedSets.map((prevSet, index) => {
                     const originalIndex = previousSets.indexOf(prevSet);
-                    const isHighestWeight = index === 0 && prevSet.weight && prevSet.weight > 0;
-                    
+                    const isHighestWeight =
+                      index === 0 && prevSet.weight && prevSet.weight > 0;
+
                     return (
-                      <div key={originalIndex} className={`flex items-center gap-3 text-sm ${isHighestWeight ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                        <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-white'}`}>
+                      <div
+                        key={originalIndex}
+                        className={`flex items-center gap-3 text-sm ${isHighestWeight ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}`}
+                      >
+                        <div
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "bg-green-600 text-white" : "bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-white"}`}
+                        >
                           {originalIndex + 1}
                         </div>
                         <div className="flex gap-4">
                           {prevSet.weight && (
-                            <span className={isHighestWeight ? 'font-medium' : ''}>{prevSet.weight}{prevSet.unit}</span>
+                            <span
+                              className={isHighestWeight ? "font-medium" : ""}
+                            >
+                              {prevSet.weight}
+                              {prevSet.unit}
+                            </span>
                           )}
-                          {prevSet.reps && (
-                            <span>{prevSet.reps} reps</span>
-                          )}
-                          {prevSet.sets > 1 && (
-                            <span>{prevSet.sets} sets</span>
-                          )}
+                          {prevSet.reps && <span>{prevSet.reps} reps</span>}
+                          {prevSet.sets > 1 && <span>{prevSet.sets} sets</span>}
                           {isHighestWeight && (
-                            <span className="text-xs text-green-700 dark:text-green-400">← Best</span>
+                            <span className="text-xs text-green-700 dark:text-green-400">
+                              ← Best
+                            </span>
                           )}
                         </div>
                       </div>

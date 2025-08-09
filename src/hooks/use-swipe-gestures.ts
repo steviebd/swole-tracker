@@ -39,16 +39,19 @@ export interface SwipeGestureHandlers {
 export function useSwipeGestures(
   onDismiss?: () => void,
   settings: Partial<SwipeSettings> = {},
-  direction: "horizontal" | "vertical" = "horizontal"
+  direction: "horizontal" | "vertical" = "horizontal",
 ): [SwipeGestureState, SwipeGestureHandlers, () => void] {
-  const config = useMemo(() => ({ ...DEFAULT_SWIPE_SETTINGS, ...settings }), [settings]);
-  
+  const config = useMemo(
+    () => ({ ...DEFAULT_SWIPE_SETTINGS, ...settings }),
+    [settings],
+  );
+
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [velocity, setVelocity] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
-  
+
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const lastTouchXRef = useRef<number>(0);
@@ -78,7 +81,10 @@ export function useSwipeGestures(
         if (direction === "horizontal") {
           setTranslateX((prevTranslateX) => {
             const newTranslateX = prevTranslateX + newVelocity;
-            if (Math.abs(newTranslateX) > config.dismissThreshold || Math.abs(velocity) > config.velocityThreshold) {
+            if (
+              Math.abs(newTranslateX) > config.dismissThreshold ||
+              Math.abs(velocity) > config.velocityThreshold
+            ) {
               setIsDismissed(true);
               onDismiss?.();
               return 0; // Reset to center immediately
@@ -88,7 +94,10 @@ export function useSwipeGestures(
         } else {
           setTranslateY((prevTranslateY) => {
             const newTranslateY = prevTranslateY + newVelocity;
-            if (Math.abs(newTranslateY) > config.dismissThreshold || Math.abs(velocity) > config.velocityThreshold) {
+            if (
+              Math.abs(newTranslateY) > config.dismissThreshold ||
+              Math.abs(velocity) > config.velocityThreshold
+            ) {
               setIsDismissed(true);
               onDismiss?.();
               return 0; // Reset to center immediately
@@ -105,67 +114,78 @@ export function useSwipeGestures(
     animationRef.current = requestAnimationFrame(animate);
   }, [config, direction, velocity, onDismiss]);
 
-  const handleStart = useCallback((clientX: number, clientY: number, isMouse = false) => {
-    touchStartXRef.current = clientX;
-    touchStartYRef.current = clientY;
-    lastTouchXRef.current = clientX;
-    lastTouchYRef.current = clientY;
-    lastTouchTimeRef.current = Date.now();
-    setIsDragging(true);
-    setVelocity(0);
-    isMouseRef.current = isMouse;
+  const handleStart = useCallback(
+    (clientX: number, clientY: number, isMouse = false) => {
+      touchStartXRef.current = clientX;
+      touchStartYRef.current = clientY;
+      lastTouchXRef.current = clientX;
+      lastTouchYRef.current = clientY;
+      lastTouchTimeRef.current = Date.now();
+      setIsDragging(true);
+      setVelocity(0);
+      isMouseRef.current = isMouse;
 
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
-  }, []);
-
-  const handleMove = useCallback((clientX: number, clientY: number, preventDefault = true) => {
-    if (!isDragging || !touchStartXRef.current || !touchStartYRef.current) return;
-
-    if (preventDefault) {
-      // Note: We can't call preventDefault here for mouse events, 
-      // it should be called in the component's event handler
-    }
-
-    const deltaX = clientX - touchStartXRef.current;
-    const deltaY = clientY - touchStartYRef.current;
-
-    if (direction === "horizontal") {
-      // Only track horizontal movement if it's more significant than vertical
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        setTranslateX(deltaX);
-
-        // Calculate velocity for momentum
-        const currentTime = Date.now();
-        const timeDelta = currentTime - lastTouchTimeRef.current;
-        const positionDelta = clientX - lastTouchXRef.current;
-
-        if (timeDelta > 0) {
-          setVelocity((positionDelta / timeDelta) * (1000 / config.framesPerSecond));
-        }
-
-        lastTouchXRef.current = clientX;
-        lastTouchTimeRef.current = currentTime;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
-    } else {
-      // Vertical direction
-      if (Math.abs(deltaY) > Math.abs(deltaX)) {
-        setTranslateY(deltaY);
+    },
+    [],
+  );
 
-        const currentTime = Date.now();
-        const timeDelta = currentTime - lastTouchTimeRef.current;
-        const positionDelta = clientY - lastTouchYRef.current;
+  const handleMove = useCallback(
+    (clientX: number, clientY: number, preventDefault = true) => {
+      if (!isDragging || !touchStartXRef.current || !touchStartYRef.current)
+        return;
 
-        if (timeDelta > 0) {
-          setVelocity((positionDelta / timeDelta) * (1000 / config.framesPerSecond));
-        }
-
-        lastTouchYRef.current = clientY;
-        lastTouchTimeRef.current = currentTime;
+      if (preventDefault) {
+        // Note: We can't call preventDefault here for mouse events,
+        // it should be called in the component's event handler
       }
-    }
-  }, [isDragging, direction, config.framesPerSecond]);
+
+      const deltaX = clientX - touchStartXRef.current;
+      const deltaY = clientY - touchStartYRef.current;
+
+      if (direction === "horizontal") {
+        // Only track horizontal movement if it's more significant than vertical
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          setTranslateX(deltaX);
+
+          // Calculate velocity for momentum
+          const currentTime = Date.now();
+          const timeDelta = currentTime - lastTouchTimeRef.current;
+          const positionDelta = clientX - lastTouchXRef.current;
+
+          if (timeDelta > 0) {
+            setVelocity(
+              (positionDelta / timeDelta) * (1000 / config.framesPerSecond),
+            );
+          }
+
+          lastTouchXRef.current = clientX;
+          lastTouchTimeRef.current = currentTime;
+        }
+      } else {
+        // Vertical direction
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          setTranslateY(deltaY);
+
+          const currentTime = Date.now();
+          const timeDelta = currentTime - lastTouchTimeRef.current;
+          const positionDelta = clientY - lastTouchYRef.current;
+
+          if (timeDelta > 0) {
+            setVelocity(
+              (positionDelta / timeDelta) * (1000 / config.framesPerSecond),
+            );
+          }
+
+          lastTouchYRef.current = clientY;
+          lastTouchTimeRef.current = currentTime;
+        }
+      }
+    },
+    [isDragging, direction, config.framesPerSecond],
+  );
 
   const handleEnd = useCallback(() => {
     if (!isDragging) return;
@@ -173,10 +193,14 @@ export function useSwipeGestures(
     setIsDragging(false);
     isMouseRef.current = false;
 
-    const currentTranslate = direction === "horizontal" ? translateX : translateY;
-    
+    const currentTranslate =
+      direction === "horizontal" ? translateX : translateY;
+
     // Check if should dismiss or animate back
-    if (Math.abs(currentTranslate) > config.dismissThreshold || Math.abs(velocity) > config.velocityThreshold) {
+    if (
+      Math.abs(currentTranslate) > config.dismissThreshold ||
+      Math.abs(velocity) > config.velocityThreshold
+    ) {
       // Trigger dismiss callback but reset position immediately
       setIsDismissed(true);
       onDismiss?.();
@@ -197,37 +221,58 @@ export function useSwipeGestures(
         setTranslateY(0);
       }
     }
-  }, [isDragging, direction, translateX, translateY, velocity, config, onDismiss, startMomentumAnimation]);
+  }, [
+    isDragging,
+    direction,
+    translateX,
+    translateY,
+    velocity,
+    config,
+    onDismiss,
+    startMomentumAnimation,
+  ]);
 
   // Touch handlers
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    handleStart(touch.clientX, touch.clientY);
-  }, [handleStart]);
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      handleStart(touch.clientX, touch.clientY);
+    },
+    [handleStart],
+  );
 
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    // Don't call preventDefault() to avoid passive event listener warning
-    // The CSS touch-action property handles scroll prevention
-    const touch = e.touches[0];
-    if (!touch) return;
-    handleMove(touch.clientX, touch.clientY, false);
-  }, [handleMove]);
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      // Don't call preventDefault() to avoid passive event listener warning
+      // The CSS touch-action property handles scroll prevention
+      const touch = e.touches[0];
+      if (!touch) return;
+      handleMove(touch.clientX, touch.clientY, false);
+    },
+    [handleMove],
+  );
 
   const onTouchEnd = useCallback(() => {
     handleEnd();
   }, [handleEnd]);
 
   // Mouse handlers for desktop support
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    handleStart(e.clientX, e.clientY, true);
-  }, [handleStart]);
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      handleStart(e.clientX, e.clientY, true);
+    },
+    [handleStart],
+  );
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isMouseRef.current) return;
-    handleMove(e.clientX, e.clientY);
-  }, [handleMove]);
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isMouseRef.current) return;
+      handleMove(e.clientX, e.clientY);
+    },
+    [handleMove],
+  );
 
   const onMouseUp = useCallback(() => {
     if (!isMouseRef.current) return;

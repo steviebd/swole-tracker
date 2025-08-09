@@ -15,17 +15,15 @@ export default async function ConnectWhoopPage() {
       <div className="container mx-auto px-4 py-6">
         <div className="mb-8">
           <div className="mb-4">
-            <Link 
+            <Link
               href="/"
-              className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors"
+              className="inline-flex items-center text-blue-400 transition-colors hover:text-blue-300"
             >
               ← Go Back
             </Link>
           </div>
           <h1 className="text-3xl font-bold">Whoop Workouts</h1>
-          <p className="text-gray-400">
-            View and sync your Whoop workout data
-          </p>
+          <p className="text-gray-400">View and sync your Whoop workout data</p>
         </div>
 
         <WhoopWorkouts />
