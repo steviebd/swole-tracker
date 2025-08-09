@@ -96,10 +96,11 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
       mockEnv.VERCEL_AI_GATEWAY_API_KEY = "";
       mockEnv.AI_GATEWAY_ENABLED = false;
 
-      // Import after mocks are set
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      // Import after mocks are set and create a caller to test the procedure
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.generateNew.mutationFn({ ctx: mockCtx });
+      const result = await caller.jokes.generateNew();
 
       expect(mockGenerateText).not.toHaveBeenCalled();
       expect(result.joke).toContain("Vercel AI Gateway not configured");
@@ -124,9 +125,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
         text: "  A trimmed joke \n",
       });
 
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.generateNew.mutationFn({ ctx: mockCtx });
+      const result = await caller.jokes.generateNew();
 
       expect(mockGenerateText).toHaveBeenCalledWith({
         model: "openai/gpt-4o-mini",
@@ -152,9 +154,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
       
       mockGenerateText.mockResolvedValue({ text: "New joke" });
 
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      await jokesRouter.generateNew.mutationFn({ ctx: mockCtx });
+      await caller.jokes.generateNew();
 
       expect(mockGenerateText).toHaveBeenCalledWith({
         model: "openai/gpt-4o-mini",
@@ -165,9 +168,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
     it("gracefully handles AI errors", async () => {
       mockGenerateText.mockRejectedValue(new Error("AI down"));
 
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.generateNew.mutationFn({ ctx: mockCtx });
+      const result = await caller.jokes.generateNew();
 
       expect(result.joke).toContain("AI generation failed");
       expect(result.joke).toContain("AI down");
@@ -177,9 +181,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
     it("throws specific error when AI returns empty text", async () => {
       mockGenerateText.mockResolvedValue({ text: "" });
 
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.generateNew.mutationFn({ ctx: mockCtx });
+      const result = await caller.jokes.generateNew();
 
       expect(result.joke).toContain("No content generated from AI Gateway");
     });
@@ -187,9 +192,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
 
   describe("clearCache", () => {
     it("deletes all jokes for user", async () => {
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.clearCache.mutationFn({ ctx: mockCtx });
+      const result = await caller.jokes.clearCache();
 
       expect(result).toEqual({ success: true });
       expect(mockDb.delete).toHaveBeenCalled();
@@ -204,9 +210,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
       mockEnv.AI_GATEWAY_ENABLED = true;
       mockGenerateText.mockRejectedValue(new Error("AI busted"));
 
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.getCurrent.queryFn({ ctx: mockCtx });
+      const result = await caller.jokes.getCurrent();
 
       expect(result.joke).toContain("Error loading joke");
       expect(result.isFromCache).toBe(false);
@@ -221,9 +228,10 @@ describe("jokes.ts enhanced coverage (rewritten)", () => {
       mockEnv.VERCEL_AI_GATEWAY_API_KEY = "";
       mockEnv.AI_GATEWAY_ENABLED = false;
 
-      const { jokesRouter } = await import("~/server/api/routers/jokes");
+      const { createCaller } = await import("~/server/api/root");
+      const caller = createCaller(mockCtx);
       
-      const result = await jokesRouter.getCurrent.queryFn({ ctx: mockCtx });
+      const result = await caller.jokes.getCurrent();
 
       expect(result.joke).toContain("Vercel AI Gateway not configured");
       expect(result.isFromCache).toBe(false);

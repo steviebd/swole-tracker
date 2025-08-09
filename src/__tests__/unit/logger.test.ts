@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-// Force test environment for logger initialization
-process.env.NODE_ENV = 'test';
+// Use vi.stubEnv instead of directly assigning to process.env.NODE_ENV
+vi.stubEnv('NODE_ENV', 'test');
 
 import { logger, logApiCall, logSecurityEvent, logWebhook } from "~/lib/logger";
 
@@ -53,7 +53,7 @@ describe("logger", () => {
   it("should log in production environment (warn/error only)", async () => {
     // Mock production environment
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
     
     // Re-import logger to pick up new env
     vi.resetModules();
@@ -83,13 +83,13 @@ describe("logger", () => {
     prodWarnSpy.mockRestore();
     prodErrorSpy.mockRestore();
     prodLogSpy.mockRestore();
-    process.env.NODE_ENV = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("should log everything in development environment", async () => {
     // Mock development environment
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
     
     // Re-import logger to pick up new env
     vi.resetModules();
@@ -116,13 +116,13 @@ describe("logger", () => {
     devWarnSpy.mockRestore();
     devErrorSpy.mockRestore();
     devLogSpy.mockRestore();
-    process.env.NODE_ENV = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("should sanitize long strings in production", async () => {
     // Mock production environment
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
     
     // Re-import logger to pick up new env
     vi.resetModules();
@@ -138,13 +138,13 @@ describe("logger", () => {
     }));
     
     prodWarnSpy.mockRestore();
-    process.env.NODE_ENV = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("should handle webhook logging in development vs production", async () => {
     // Test development webhook logging
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
     
     vi.resetModules();
     const devLogger = (await import("~/lib/logger")).logger;
@@ -159,7 +159,7 @@ describe("logger", () => {
     devLogSpy.mockRestore();
     
     // Test production webhook logging
-    process.env.NODE_ENV = 'production';
+    vi.stubEnv('NODE_ENV', 'production');
     vi.resetModules();
     const prodLogger = (await import("~/lib/logger")).logger;
     const prodLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -169,7 +169,7 @@ describe("logger", () => {
     expect(prodLogSpy).not.toHaveBeenCalled();
     
     prodLogSpy.mockRestore();
-    process.env.NODE_ENV = originalEnv;
+    vi.unstubAllEnvs();
   });
 
   it("error logs non-Error payloads too in test env", () => {

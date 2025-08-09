@@ -481,8 +481,8 @@ describe("supabase-browser.ts comprehensive coverage", () => {
       );
 
       // Capture the fetch function and test it
-      const options = mockCreateClient.mock.calls[0][2];
-      capturedFetch.mockImplementation(options.global.fetch);
+      const options = mockCreateClient.mock.calls[0]?.[2];
+      capturedFetch.mockImplementation(options?.global?.fetch);
       
       await capturedFetch("https://api.test.com", {});
 
@@ -527,7 +527,7 @@ describe("supabase-browser.ts comprehensive coverage", () => {
 
       expect(client).toEqual(mockClient);
       expect(typeof client.from).toBe("function");
-      expect(typeof client.auth.signIn).toBe("function");
+      expect(typeof client.auth.signInWithPassword).toBe("function");
       expect(typeof client.storage.from).toBe("function");
     });
   });

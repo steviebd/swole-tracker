@@ -148,6 +148,11 @@ type SimpleQuery<T> = {
   findMany: (_args?: unknown) => Promise<T[]>;
 };
 
+// Partial versions for overrides - allow providing only some methods
+type PartialWorkoutTemplatesQuery = Partial<WorkoutTemplatesQuery>;
+type PartialWorkoutSessionsQuery = Partial<WorkoutSessionsQuery>;
+type PartialSimpleQuery<T> = Partial<SimpleQuery<T>>;
+
 type QueryNamespace = {
   _workoutTemplates: Record<string, unknown>;
   _templateExercises: Record<string, unknown>;
@@ -499,9 +504,50 @@ export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
     },
   };
 
+  // Properly merge query objects with their nested properties
+  const mergedQuery = { ...defaultDb.query };
+  if (overrides.query) {
+    // For each query property, ensure both findFirst and findMany are available
+    if (overrides.query.exerciseLinks) {
+      const override = overrides.query.exerciseLinks;
+      mergedQuery.exerciseLinks = {
+        findFirst: override.findFirst || mergedQuery.exerciseLinks.findFirst,
+        findMany: override.findMany || mergedQuery.exerciseLinks.findMany,
+      };
+    }
+    if (overrides.query.templateExercises) {
+      const override = overrides.query.templateExercises;
+      mergedQuery.templateExercises = {
+        findFirst: override.findFirst || mergedQuery.templateExercises.findFirst,
+        findMany: override.findMany || mergedQuery.templateExercises.findMany,
+      };
+    }
+    if (overrides.query.workoutSessions) {
+      const override = overrides.query.workoutSessions;
+      mergedQuery.workoutSessions = {
+        findFirst: override.findFirst || mergedQuery.workoutSessions.findFirst,
+        findMany: override.findMany || mergedQuery.workoutSessions.findMany,
+      };
+    }
+    if (overrides.query.masterExercises) {
+      const override = overrides.query.masterExercises;
+      mergedQuery.masterExercises = {
+        findFirst: override.findFirst || mergedQuery.masterExercises.findFirst,
+        findMany: override.findMany || mergedQuery.masterExercises.findMany,
+      };
+    }
+    // Handle any other query properties that don't need the dual interface
+    for (const [key, value] of Object.entries(overrides.query)) {
+      if (!['exerciseLinks', 'templateExercises', 'workoutSessions', 'masterExercises'].includes(key)) {
+        (mergedQuery as any)[key] = value;
+      }
+    }
+  }
+
   const db: MockDb = {
     ...defaultDb,
     ...overrides,
+    query: mergedQuery,
   };
 
   return db;

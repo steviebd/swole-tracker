@@ -496,19 +496,18 @@ export const workoutsRouter = createTRPCRouter({
     .use(workoutRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      // Use a single atomic delete operation with ownership check for better performance
-      // This avoids race conditions and reduces database queries
-      const deletedRows = await ctx.db
-        .delete(workoutSessions)
-        .where(and(
-          eq(workoutSessions.id, input.id),
-          eq(workoutSessions.user_id, ctx.user.id)
-        ))
-        .returning({ id: workoutSessions.id });
+      // Verify ownership before deleting
+      const existingSession = await ctx.db.query.workoutSessions.findFirst({
+        where: eq(workoutSessions.id, input.id),
+      });
 
-      if (deletedRows.length === 0) {
+      if (!existingSession || existingSession.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
+
+      await ctx.db
+        .delete(workoutSessions)
+        .where(eq(workoutSessions.id, input.id));
 
       return { success: true };
     }),
