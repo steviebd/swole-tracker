@@ -5,30 +5,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Key Development Commands
 
 **Development workflow:**
-- `pnpm dev` - Start Next.js dev server with Turbopack
-- `pnpm build` - Build the application
-- `pnpm preview` - Build and start locally
-- `pnpm check` - Run lint + typecheck (use before commits)
-- `pnpm typecheck` - TypeScript type checking only
-- `pnpm lint` / `pnpm lint:fix` - ESLint checking/fixing
+- `bun dev` - Start Next.js dev server with Turbopack
+- `bun build` - Build the application
+- `bun preview` - Build and start locally
+- `bun check` - Run lint + typecheck (use before commits)
+- `bun typecheck` - TypeScript type checking only
+- `bun lint` / `bun lint:fix` - ESLint checking/fixing
 
 **Testing:**
-- `pnpm test` - Run Vitest unit tests
-- `pnpm test:ci` - Run tests with coverage
-- `pnpm test:watch` - Watch mode testing
-- `pnpm coverage` - Generate coverage report
-- `pnpm e2e` - Run Playwright e2e tests
-- `pnpm test:e2e:ui` - Run e2e tests with UI
+- `bun test` - Run Vitest unit tests
+- `bun test:ci` - Run tests with coverage
+- `bun test:watch` - Watch mode testing
+- `bun coverage` - Generate coverage report
+- `bun e2e` - Run Playwright e2e tests
+- `bun test:e2e:ui` - Run e2e tests with UI
 
 **Database (Drizzle):**
-- `pnpm db:push` - Push schema changes (development)
-- `pnpm db:generate` - Generate migration files
-- `pnpm db:migrate` - Run migrations
-- `pnpm db:studio` - Open Drizzle Studio
+- `bun db:push` - Push schema changes (development)
+- `bun db:generate` - Generate migration files
+- `bun db:migrate` - Run migrations
+- `bun db:studio` - Open Drizzle Studio
 
 **Code formatting:**
-- `pnpm format:write` - Format code with Prettier
-- `pnpm format:check` - Check formatting
+- `bun format:write` - Format code with Prettier
+- `bun format:check` - Check formatting
 
 ## Core Architecture
 
@@ -60,6 +60,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Environment Variables:**
 - Schema defined in `src/env.js` with @t3-oss/env-nextjs
+- Create a `.env.local` file from `.env.example` with your environment variables
 - Required: Clerk keys, DATABASE_URL, Supabase keys, PostHog keys
 - Optional: WHOOP integration, AI Gateway, rate limiting configs
 
@@ -94,8 +95,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Notes
 
-- Uses pnpm as package manager (pinned in package.json)
+- Uses bun as package manager (pinned in package.json)
 - Node.js version pinned to 20.19.4 via Volta
+- Create `.env.local` file with required environment variables
 - Mobile-first design with offline capabilities
 - Progressive Web App with service worker
 - Tailwind CSS v4 for styling

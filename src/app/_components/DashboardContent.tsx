@@ -6,6 +6,7 @@ import { QuickActionCards } from "./QuickActionCards";
 import { WeeklyProgressSection } from "./WeeklyProgressSection";
 import { RecentWorkoutsSection } from "./RecentWorkoutsSection";
 import { HomePageFooter } from "./HomePageFooter";
+import { JokeOfTheDay } from "./joke-of-the-day";
 
 export function DashboardContent() {
   return (
@@ -21,6 +22,11 @@ export function DashboardContent() {
 
       {/* Recent Workouts - List of recent workout sessions */}
       <RecentWorkoutsSection />
+
+      {/* Joke of the Day - Moved to bottom */}
+      <div className="mb-8">
+        <JokeOfTheDay />
+      </div>
 
       {/* Homepage Footer */}
       <HomePageFooter />

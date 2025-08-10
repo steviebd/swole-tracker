@@ -3,7 +3,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 // Use vi.stubEnv instead of directly assigning to process.env.NODE_ENV
 vi.stubEnv("NODE_ENV", "test");
 
-import { logger, logApiCall, logSecurityEvent, logWebhook } from "~/lib/logger";
+// Re-import logger after setting NODE_ENV to ensure it picks up the test environment
+vi.resetModules();
+const loggerModule = await import("~/lib/logger");
+const { logger, logApiCall, logSecurityEvent, logWebhook } = loggerModule;
 
 describe("logger", () => {
   const getEnv = () => process.env.NODE_ENV;
@@ -41,7 +44,8 @@ describe("logger", () => {
 
   it("emits warn/error via console with sanitized context in test env", () => {
     // In vitest (NODE_ENV=test), shouldLog returns false for debug/info/warn/error.
-    logger.info("hello", { userId: "u1", accessToken: "secret123" });
+    logger.debug("debug msg", { userId: "u1", accessToken: "secret123" });
+    logger.info("info msg", { userId: "u1", accessToken: "secret123" });
     logger.warn("careful", { password: "p", extra: "value" });
     logger.error("boom", new Error("crash"), { refreshToken: "r" });
 

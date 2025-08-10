@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTheme } from "~/providers/ThemeProvider";
-import { JokeOfTheDay } from "./joke-of-the-day";
 
 export function QuickActionCards() {
   const { theme, resolvedTheme } = useTheme();
@@ -59,10 +58,37 @@ export function QuickActionCards() {
         </div>
       </Link>
 
-      {/* Joke of the Day Card - Reuse existing component */}
-      <div className="rounded-2xl overflow-hidden">
-        <JokeOfTheDay />
-      </div>
+      {/* Progress Dashboard Card */}
+      <Link href="/progress" className={cardClass}>
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div 
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-300"
+              style={{ 
+                backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "var(--color-success)" 
+                  : "#10B981"
+              }}
+            >
+              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+            <svg className={`w-5 h-5 transition-colors duration-300 ${
+              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                ? "text-gray-500 group-hover:text-gray-300" 
+                : "text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
+            }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <h3 className={titleClass}>View Progress</h3>
+          <p className={descClass}>Track your strength gains and consistency</p>
+          <div className="w-full bg-gradient-to-r from-orange-400 to-pink-400 hover:from-orange-500 hover:to-pink-500 text-white font-medium py-3 rounded-xl shadow-sm transition-all duration-300 text-center">
+            Open
+          </div>
+        </div>
+      </Link>
 
       {/* Manage Templates Card */}
       <Link href="/templates" className={cardClass}>

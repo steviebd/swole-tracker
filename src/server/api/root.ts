@@ -7,6 +7,7 @@ import { whoopRouter } from "~/server/api/routers/whoop";
 import { webhooksRouter } from "~/server/api/routers/webhooks";
 import { insightsRouter } from "~/server/api/routers/insights";
 import { exercisesRouter } from "~/server/api/routers/exercises";
+import { progressRouter } from "~/server/api/routers/progress";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -24,6 +25,7 @@ export const appRouter = createTRPCRouter({
   webhooks: webhooksRouter,
   exercises: exercisesRouter,
   insights: insightsRouter,
+  progress: progressRouter,
 });
 
 // export type definition of API

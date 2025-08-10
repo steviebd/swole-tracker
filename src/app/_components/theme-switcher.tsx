@@ -5,6 +5,7 @@ import { useTheme } from "~/providers/ThemeProvider";
 
 type Theme =
   | "system"
+  | "light"
   | "dark"
   | "CalmDark"
   | "BoldDark"
@@ -35,15 +36,17 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
   const label =
     theme === "system"
       ? `System (${resolvedTheme})`
-      : theme === "dark"
-        ? "Dark"
-        : theme === "CalmDark"
-          ? "Calm Dark"
-          : theme === "BoldDark"
-            ? "Bold Dark"
-            : theme === "PlayfulDark"
-              ? "Playful Dark"
-              : String(theme);
+      : theme === "light"
+        ? "Light"
+        : theme === "dark"
+          ? "Dark"
+          : theme === "CalmDark"
+            ? "Calm Dark"
+            : theme === "BoldDark"
+              ? "Bold Dark"
+              : theme === "PlayfulDark"
+                ? "Playful Dark"
+                : String(theme);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -83,6 +86,16 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
             }}
           >
             System
+          </MenuItem>
+          <MenuItem
+            current={theme}
+            value="light"
+            onSelect={(t) => {
+              setTheme(t);
+              setOpen(false);
+            }}
+          >
+            Light
           </MenuItem>
           <MenuItem
             current={theme}

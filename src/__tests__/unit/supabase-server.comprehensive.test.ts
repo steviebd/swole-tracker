@@ -17,6 +17,13 @@ describe("supabase-server.ts comprehensive coverage", () => {
 
   describe("environment variable handling", () => {
     it("should use environment variables from env module", async () => {
+      // Mock Clerk auth to avoid server-only import issues
+      vi.doMock("@clerk/nextjs/server", () => ({
+        auth: vi.fn().mockResolvedValue({
+          getToken: vi.fn().mockResolvedValue("token"),
+        }),
+      }));
+
       vi.doMock("~/env", () => ({
         env: {
           NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
