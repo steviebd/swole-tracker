@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./tokens/base.css";
+@import "./tokens/light.css";
 @import "./tokens/dark.css";
 @import "./tokens/calmdark.css";
 @import "./tokens/bolddark.css";
@@ -47,42 +48,29 @@
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  background-color: var(--color-bg-app);
+  color: var(--color-text);
 }
 
 html.dark {
   color-scheme: dark;
 }
 
-html.dark body {
-  background-color: var(--color-bg-app);
-  color: var(--color-text);
-}
-
 /* Cards and surfaces */
 .card {
-  @apply rounded-lg border bg-white text-gray-900 border-gray-200;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-xs);
-}
-html.dark .card {
-  background-color: var(--color-bg-surface);
+  @apply rounded-lg border;
+  background-color: var(--color-card);
   color: var(--color-text);
   border-color: var(--color-border);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-xs);
 }
 
 /* Text utilities */
 .text-secondary {
-  @apply text-gray-600;
-}
-.text-muted {
-  @apply text-gray-500;
-}
-html.dark .text-secondary {
   color: var(--color-text-secondary);
 }
-html.dark .text-muted {
+.text-muted {
   color: var(--color-text-muted);
 }
 

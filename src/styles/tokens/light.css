@@ -1,0 +1,119 @@
+/* Light Theme - Based on v1-dark design */
+@import "tailwindcss";
+
+/* Apply theme when data-theme="light" */
+[data-theme="light"] {
+  /* Core colors - light theme palette using OKLCH values from v1-dark */
+  --color-bg-app: oklch(1 0 0);                    /* Pure white background */
+  --color-bg-surface: oklch(1 0 0);                /* White surface */
+  --color-border: oklch(0.922 0 0);                /* Light gray border */
+  
+  /* Text hierarchy */
+  --color-text: oklch(0.145 0 0);                  /* Dark text */
+  --color-text-secondary: oklch(0.556 0 0);        /* Medium gray text */
+  --color-text-muted: oklch(0.708 0 0);            /* Light gray text */
+  
+  /* Primary accent - dark for light theme */
+  --color-primary: oklch(0.205 0 0);               /* Dark primary */
+  --color-primary-hover: oklch(0.145 0 0);         /* Darker on hover */
+  --color-primary-active: oklch(0.1 0 0);          /* Even darker when active */
+  
+  /* Secondary colors */
+  --color-secondary: oklch(0.97 0 0);              /* Very light gray */
+  --color-secondary-hover: oklch(0.95 0 0);        /* Slightly darker gray */
+  
+  /* Semantic colors - keeping similar to v1-dark but adjusted for light theme */
+  --color-success: oklch(0.646 0.222 142.5);       /* Green success */
+  --color-warning: oklch(0.828 0.189 84.429);      /* Orange warning */
+  --color-danger: oklch(0.577 0.245 27.325);       /* Red danger */
+  --color-info: oklch(0.6 0.118 264.376);          /* Blue info */
+  
+  /* Chart colors for data visualization */
+  --color-chart-1: oklch(0.646 0.222 41.116);      /* Orange */
+  --color-chart-2: oklch(0.6 0.118 184.704);       /* Teal */
+  --color-chart-3: oklch(0.398 0.07 227.392);      /* Blue */
+  --color-chart-4: oklch(0.828 0.189 84.429);      /* Yellow */
+  --color-chart-5: oklch(0.769 0.188 70.08);       /* Green */
+  
+  /* Component-specific */
+  --color-input: oklch(0.922 0 0);                 /* Light input background */
+  --color-ring: oklch(0.708 0 0);                  /* Focus ring */
+  
+  /* Light theme shadows - softer and more subtle */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.08);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.12);
+  --shadow-md: 0 6px 18px rgba(0,0,0,.15);
+  --shadow-lg: 0 12px 30px rgba(0,0,0,.18);
+  
+  /* Focus shadow with primary color */
+  --shadow-focus: 0 0 0 2px color-mix(in oklab, oklch(0.205 0 0) 30%, transparent);
+  
+  /* Button overrides for light theme */
+  --btn-primary-bg-color: oklch(0.205 0 0);
+  --btn-primary-fg: oklch(0.985 0 0);              /* White text on dark button */
+  --btn-primary-bg-hover: oklch(0.145 0 0);
+  --btn-primary-bg-active: oklch(0.1 0 0);
+  
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: oklch(0.145 0 0);
+  --btn-secondary-border: oklch(0.922 0 0);
+  --btn-secondary-bg-hover: oklch(0.97 0 0);
+  
+  --btn-ghost-fg: oklch(0.556 0 0);
+}
+
+/* Ensure light mode is active for light theme */
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Glass effects specific to light theme - more subtle */
+[data-theme="light"] .glass-surface {
+  background:
+    radial-gradient(1200px 600px at 20% -10%, oklch(0.145 0 0 / 0.02) 0%, transparent 60%),
+    radial-gradient(800px 400px at 110% 0%, oklch(0.6 0.118 264.376 / 0.05) 0%, transparent 60%),
+    color-mix(in oklab, oklch(1 0 0) 90%, oklch(0.922 0 0) 10%);
+  border: 1px solid color-mix(in oklab, oklch(0.922 0 0) 70%, oklch(0.145 0 0) 30%);
+}
+
+[data-theme="light"] .glass-header {
+  background:
+    linear-gradient(180deg, oklch(0.145 0 0 / 0.01) 0%, transparent 100%),
+    color-mix(in oklab, oklch(1 0 0) 85%, oklch(0.922 0 0) 15%);
+  border-bottom: 1px solid color-mix(in oklab, oklch(0.922 0 0) 70%, oklch(0.145 0 0) 30%);
+}
+
+/* Light theme horizon background - bright and airy */
+[data-theme="light"] .bg-horizon {
+  background:
+    radial-gradient(1200px 800px at -10% -20%, oklch(0.6 0.118 264.376 / 0.03) 0%, transparent 60%),
+    radial-gradient(1000px 700px at 110% -20%, oklch(0.646 0.222 142.5 / 0.04) 0%, transparent 65%),
+    radial-gradient(1200px 900px at 50% 120%, oklch(0.828 0.189 84.429 / 0.03) 0%, transparent 60%),
+    linear-gradient(180deg, oklch(0.99 0 0) 0%, oklch(0.97 0 0) 60%, oklch(0.94 0 0) 100%);
+}
+
+/* Card styling for light */
+[data-theme="light"] .card {
+  background-color: oklch(1 0 0);
+  color: oklch(0.145 0 0);
+  border-color: oklch(0.922 0 0);
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+/* Text utilities for light */
+[data-theme="light"] .text-secondary {
+  color: oklch(0.556 0 0);
+}
+
+[data-theme="light"] .text-muted {
+  color: oklch(0.708 0 0);
+}
+
+/* Link colors */
+[data-theme="light"] .link-primary {
+  color: oklch(0.205 0 0);
+}
+
+[data-theme="light"] .link-primary:hover {
+  color: oklch(0.145 0 0);
+}

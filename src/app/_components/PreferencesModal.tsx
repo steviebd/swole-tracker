@@ -64,7 +64,12 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   }, [isLoading, prefs]);
 
   const saveDisabled = useMemo(() => {
-    if (!prefs) return false; // allow initial save
+    // Always disable if we're currently saving
+    if (saving) return true;
+    
+    // If no prefs loaded yet, allow initial save
+    if (!prefs) return false;
+    
     const pe =
       "predictive_defaults_enabled" in prefs
         ? Boolean(prefs.predictive_defaults_enabled ?? false)
@@ -81,12 +86,14 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       estimatedOneRmFactor.trim() === ""
         ? undefined
         : Number(estimatedOneRmFactor);
+    
+    // Only disable if nothing has changed
     return (
       pe === predictiveEnabled &&
       rs === rightSwipeAction &&
       (pf ?? undefined) === (uiPf ?? undefined)
     );
-  }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor]);
+  }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor, saving]);
 
   const handleSave = () => {
     setSaving(true);
@@ -126,18 +133,9 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="preferences-title"
+      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
       style={{ 
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        right: '0',
-        bottom: '0',
-        zIndex: 50000,
-        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? '#000000' : '#111827',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
+        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? 'rgba(0, 0, 0, 0.8)' : 'rgba(17, 24, 39, 0.8)',
       }}
       onClick={() => {
         restoreFocus();
@@ -153,18 +151,11 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         preventScroll
       >
         <div
-          className={`rounded-xl border shadow-2xl transition-colors duration-300 ${
+          className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl transition-colors duration-300 ${
             theme !== "system" || (theme === "system" && resolvedTheme === "dark")
               ? "bg-gray-900 border-gray-800" 
               : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
           }`}
-          style={{
-            width: '100%',
-            maxWidth: '28rem',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            position: 'relative'
-          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className={`border-b px-6 py-4 transition-colors duration-300 ${
@@ -240,6 +231,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: "system", label: "System" },
+                  { value: "light", label: "Light" },
                   { value: "dark", label: "Dark" },
                   { value: "CalmDark", label: "Calm Dark" },
                   { value: "BoldDark", label: "Bold Dark" },
@@ -250,19 +242,15 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     onClick={() => setTheme(themeOption.value as any)}
                     className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-300 ${
                       theme === themeOption.value
-                        ? "text-white"
-                        : theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                        ? // Selected button: use theme-appropriate colors
+                          themeOption.value === "light"
+                            ? "bg-white text-gray-900 border-gray-300"
+                            : "bg-gray-900 text-white border-gray-700"
+                        : // Unselected buttons: use current theme colors
+                          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
                           ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
                           : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
                     }`}
-                    style={theme === themeOption.value ? {
-                      backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                        ? "var(--color-primary)"
-                        : "#9333EA",
-                      borderColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                        ? "var(--color-primary)"
-                        : "#9333EA"
-                    } : {}}
                     aria-pressed={
                       theme === themeOption.value ? "true" : "false"
                     }

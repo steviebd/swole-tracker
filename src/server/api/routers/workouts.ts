@@ -8,7 +8,7 @@ import {
   templateExercises,
   exerciseLinks,
 } from "~/server/db/schema";
-import { eq, desc, and, ne, inArray } from "drizzle-orm";
+import { eq, desc, and, ne, inArray, gte } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -398,6 +398,40 @@ export const workoutsRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       try {
         debugLog("start: input", input);
+        
+        // Check for recent duplicate session (within last 2 minutes)
+        const recentSession = await ctx.db.query.workoutSessions.findFirst({
+          where: and(
+            eq(workoutSessions.user_id, ctx.user.id),
+            eq(workoutSessions.templateId, input.templateId),
+            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)) // Within last 2 minutes
+          ),
+          orderBy: [desc(workoutSessions.workoutDate)],
+          with: {
+            exercises: true,
+          },
+        });
+
+        // If we found a recent session with the same template and no exercises (just started), return it
+        if (recentSession && recentSession.exercises.length === 0) {
+          debugLog("start: returning existing recent session", recentSession.id);
+          
+          // Get the template info for the response
+          const template = await ctx.db.query.workoutTemplates.findFirst({
+            where: eq(workoutTemplates.id, input.templateId),
+            with: {
+              exercises: {
+                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+              },
+            },
+          });
+
+          return {
+            sessionId: recentSession.id,
+            template,
+          };
+        }
+        
         // Verify template ownership
         const template = await ctx.db.query.workoutTemplates.findFirst({
           where: eq(workoutTemplates.id, input.templateId),

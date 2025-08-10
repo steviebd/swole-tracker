@@ -104,7 +104,10 @@ export function useWorkoutSessionState({
   } | null>(null);
 
   const utils = api.useUtils();
-  const { data: session } = api.workouts.getById.useQuery({ id: sessionId });
+  const { data: session } = api.workouts.getById.useQuery(
+    { id: sessionId },
+    { enabled: sessionId > 0 } // Only run query if we have a valid session ID
+  );
   const { data: preferences } = api.preferences.get.useQuery();
   const updatePreferencesMutation = api.preferences.update.useMutation();
   // Strongly type the input using the router's inferred type to avoid union misinference

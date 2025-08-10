@@ -322,6 +322,9 @@ describe("workoutsRouter enhanced coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
         insert: vi.fn().mockReturnValue(insertChain),
       });
@@ -345,6 +348,9 @@ describe("workoutsRouter enhanced coverage", () => {
         query: {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(null),
+          },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
           },
         },
       });
@@ -372,6 +378,9 @@ describe("workoutsRouter enhanced coverage", () => {
         query: {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
+          },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
           },
         },
       });
@@ -404,6 +413,9 @@ describe("workoutsRouter enhanced coverage", () => {
         query: {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
+          },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
           },
         },
         insert: vi.fn().mockReturnValue(insertChain),

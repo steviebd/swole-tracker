@@ -5,6 +5,7 @@ import { useTheme } from "~/providers/ThemeProvider";
 
 const THEME_LABELS: Record<string, string> = {
   system: "System",
+  light: "Light",
   dark: "Dark",
   CalmDark: "Calm Dark",
   BoldDark: "Bold Dark",
@@ -13,6 +14,7 @@ const THEME_LABELS: Record<string, string> = {
 
 const THEME_OPTIONS = [
   "system",
+  "light",
   "dark",
   "CalmDark",
   "BoldDark",

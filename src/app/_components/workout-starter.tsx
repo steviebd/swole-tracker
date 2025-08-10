@@ -1,22 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
-import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 
 interface WorkoutStarterProps {
   initialTemplateId?: number;
 }
 
 export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
-  const router = useRouter();
-  const { onWorkoutStart } = useCacheInvalidation();
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     initialTemplateId ?? null,
   );
+  const [isStarting, setIsStarting] = useState(false);
+  const [recentlyCreated, setRecentlyCreated] = useState<Set<number>>(new Set());
   const [workoutDate, setWorkoutDate] = useState(() => {
     // Default to current date/time in local timezone
     const now = new Date();
@@ -28,23 +27,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
 
+  const router = useRouter();
   const { data: templates, isLoading: templatesLoading } =
     api.templates.getAll.useQuery();
-
-  const startWorkout = api.workouts.start.useMutation({
-    onSuccess: (data) => {
-      const template = templates?.find((t) => t.id === selectedTemplateId);
-      analytics.workoutStarted(
-        selectedTemplateId?.toString() ?? "unknown",
-        template?.name ?? "Unknown Template",
-      );
-
-      // Immediately invalidate cache for instant UI updates
-      onWorkoutStart();
-
-      router.push(`/workout/session/${data.sessionId}`);
-    },
-  });
+  const createWorkoutMutation = api.workouts.start.useMutation();
 
   const handleStart = async () => {
     if (!selectedTemplateId) {
@@ -52,18 +38,71 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       return;
     }
 
+    if (isStarting) {
+      console.log("Already starting workout, ignoring duplicate request");
+      return;
+    }
+
+    // Check if we recently created this template (client-side deduplication)
+    if (recentlyCreated.has(selectedTemplateId)) {
+      alert("You just started this workout! Check your workout history or refresh the page.");
+      return;
+    }
+
+    setIsStarting(true);
+
     try {
-      await startWorkout.mutateAsync({
+      // Create session directly on server
+      const result = await createWorkoutMutation.mutateAsync({
         templateId: selectedTemplateId,
         workoutDate: new Date(workoutDate),
+        device_type: "desktop", // Could be detected
+        theme_used: "system", // Could be from theme context
       });
+
+      // Track analytics
+      const template = templates?.find((t) => t.id === selectedTemplateId);
+      analytics.workoutStarted(
+        selectedTemplateId.toString(),
+        template?.name ?? "Unknown Template",
+      );
+
+      // Mark this template as recently created
+      setRecentlyCreated(prev => new Set([...prev, selectedTemplateId]));
+      
+      // Clear the recent creation flag after 2 minutes
+      setTimeout(() => {
+        setRecentlyCreated(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedTemplateId);
+          return newSet;
+        });
+      }, 120000); // 2 minutes
+
+      // Navigate to session with better error handling
+      try {
+        router.push(`/workout/session/${result.sessionId}`);
+      } catch (navigationError) {
+        console.error("Navigation failed:", navigationError);
+        // Don't show error to user - they can find the workout in history
+        // Just log for debugging
+      }
+
     } catch (error) {
-      console.error("Error starting workout:", error);
+      console.error("Error creating workout session:", error);
       analytics.error(error as Error, {
         context: "workout_start",
-        templateId: selectedTemplateId?.toString(),
+        templateId: selectedTemplateId.toString(),
       });
-      alert("Error starting workout. Please try again.");
+      
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      if (errorMessage.includes("Recent session found")) {
+        alert("You already have a recent workout with this template. Check your workout history!");
+      } else {
+        alert("Error starting workout. Please try again.");
+      }
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -205,12 +244,13 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
                 {/* Start Button */}
                 <button
-                  onClick={handleStart}
-                  disabled={startWorkout.isPending}
-                  className="btn-primary w-full py-3 text-lg font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleStart}
+                disabled={isStarting || createWorkoutMutation.isPending}
+                className="btn-primary w-full py-3 text-lg font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
                 >
-                  {startWorkout.isPending ? "Starting..." : "Start Workout"}
-                </button>
+                {isStarting || createWorkoutMutation.isPending ? "Starting..." : "Start Workout"}
+                 </button>
               </>
             ) : null;
           })()}

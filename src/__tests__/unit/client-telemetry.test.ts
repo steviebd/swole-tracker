@@ -286,6 +286,124 @@ describe("client-telemetry", () => {
     });
   });
 
+  describe("Input Latency", () => {
+    const originalPerformance = global.performance;
+
+    beforeEach(() => {
+      const performance = {
+        now: vi.fn(),
+      };
+      Object.defineProperty(global, "performance", {
+        value: performance,
+        writable: true,
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(global, "performance", {
+        value: originalPerformance,
+        writable: true,
+      });
+    });
+
+    it("should record and snapshot input latency", () => {
+      let counter = 0;
+      vi.mocked(global.performance.now).mockImplementation(() => counter++);
+
+      const start = recordInputLatencyStart();
+      recordInputLatencyEnd(start);
+      const result = snapshotInputLatency();
+
+      expect(result.samples).toHaveLength(1);
+      expect(result.avg).toBeCloseTo(1);
+      expect(result.p95).toBeCloseTo(1);
+    });
+
+    it("should handle multiple input latency samples", () => {
+      let counter = 0;
+      vi.mocked(global.performance.now).mockImplementation(() => counter++);
+
+      // Record 5 samples
+      for (let i = 0; i < 5; i++) {
+        const start = recordInputLatencyStart();
+        recordInputLatencyEnd(start);
+      }
+
+      const result = snapshotInputLatency();
+      expect(result.samples).toHaveLength(5);
+      expect(result.avg).toBeCloseTo(1);
+      expect(result.p95).toBeCloseTo(1);
+    });
+
+    it("should handle empty input latency samples", () => {
+      const result = snapshotInputLatency();
+      expect(result.samples).toHaveLength(0);
+      expect(result.avg).toBeUndefined();
+      expect(result.p95).toBeUndefined();
+    });
+
+    it("should handle null start token", () => {
+      recordInputLatencyEnd(null);
+      const result = snapshotInputLatency();
+      expect(result.samples).toHaveLength(0);
+    });
+
+    it("should calculate correct p95 for larger sample set", () => {
+      const times = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+      let callCount = 0;
+      vi.mocked(global.performance.now).mockImplementation(() => {
+        return callCount < times.length * 2 
+          ? times[Math.floor(callCount / 2)] + (callCount % 2) 
+          : Date.now();
+      });
+
+      // Record 10 samples with increasing durations
+      for (let i = 0; i < 10; i++) {
+        callCount = i * 2;
+        const start = recordInputLatencyStart();
+        callCount = i * 2 + 1;
+        recordInputLatencyEnd(start);
+      }
+
+      const result = snapshotInputLatency();
+      expect(result.samples).toHaveLength(10);
+      // All samples should have duration of 1 (end - start = 1)
+      expect(result.avg).toBeCloseTo(1);
+      expect(result.p95).toBeCloseTo(1);
+    });
+  });
+
+  describe("snapshotMetricsBlob", () => {
+    const originalPerformance = global.performance;
+
+    beforeEach(() => {
+      const performance = {
+        getEntriesByType: vi.fn().mockReturnValue([]),
+        now: vi.fn().mockReturnValue(500),
+      };
+      Object.defineProperty(global, "performance", {
+        value: performance,
+        writable: true,
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(global, "performance", {
+        value: originalPerformance,
+        writable: true,
+      });
+    });
+
+    it("should return metrics blob with timestamp", () => {
+      const result = snapshotMetricsBlob();
+      expect(result).toHaveProperty("tti");
+      expect(result).toHaveProperty("tbt");
+      expect(result).toHaveProperty("inputLatency");
+      expect(result).toHaveProperty("ts");
+      expect(typeof result.ts).toBe("number");
+    });
+  });
+
   describe("vibrate", () => {
     it("should not throw when navigator is undefined", () => {
       const originalNavigator = global.navigator;
@@ -309,6 +427,37 @@ describe("client-telemetry", () => {
       });
       vibrate(200);
       expect(vibrateMock).toHaveBeenCalledWith(200);
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        writable: true,
+      });
+    });
+
+    it("should handle vibrate errors gracefully", () => {
+      const vibrateMock = vi.fn().mockImplementation(() => {
+        throw new Error("Vibration not supported");
+      });
+      const originalNavigator = global.navigator;
+      Object.defineProperty(global, "navigator", {
+        value: { ...originalNavigator, vibrate: vibrateMock },
+        writable: true,
+      });
+      expect(() => vibrate([100, 50, 100])).not.toThrow();
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        writable: true,
+      });
+    });
+
+    it("should handle array pattern", () => {
+      const vibrateMock = vi.fn();
+      const originalNavigator = global.navigator;
+      Object.defineProperty(global, "navigator", {
+        value: { ...originalNavigator, vibrate: vibrateMock },
+        writable: true,
+      });
+      vibrate([100, 50, 100]);
+      expect(vibrateMock).toHaveBeenCalledWith([100, 50, 100]);
       Object.defineProperty(global, "navigator", {
         value: originalNavigator,
         writable: true,

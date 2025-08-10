@@ -73,7 +73,7 @@ describe("tRPC workouts router additional coverage", () => {
       id: 1,
       user_id: user.id,
       name: "Test Template",
-      exercises: [{ id: 11, exerciseName: "Bench Press", orderIndex: 0 }],
+      exercises: [],
     };
 
     const sessionRow = {
@@ -87,6 +87,9 @@ describe("tRPC workouts router additional coverage", () => {
       query: {
         workoutTemplates: {
           findFirst: vi.fn().mockResolvedValueOnce(templateRow),
+        },
+        workoutSessions: {
+          findFirst: vi.fn().mockResolvedValueOnce(null), // No recent duplicate session
         },
       },
     });

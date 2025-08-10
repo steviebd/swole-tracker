@@ -271,7 +271,7 @@ async function getLinkedExerciseNames(ctx: any, templateExerciseId: number): Pro
       },
     });
 
-    return linkedExercises.map(link => link.templateExercise.exerciseName);
+    return linkedExercises.map((link: typeof linkedExercises[0]) => link.templateExercise.exerciseName);
   } else {
     // Fallback to getting exercise name from templateExerciseId
     const templateExercise = await ctx.db.query.templateExercises.findFirst({
@@ -301,7 +301,7 @@ function processTopSets(progressData: any[]): Array<{
     return acc;
   }, {} as Record<string, any[]>);
 
-  const topSets = Object.values(grouped).map(group => {
+  const topSets = (Object.values(grouped) as any[][]).map((group) => {
     // Sort by weight descending and get the top set
     const sortedByWeight = group.sort((a, b) => {
       const weightA = parseFloat(a.weight || "0");
@@ -483,13 +483,13 @@ async function calculatePersonalRecords(
 
     if (exerciseData.length === 0) continue;
 
-    const weightPR = exerciseData.reduce((max, current) => {
+    const weightPR = exerciseData.reduce((max: any, current: any) => {
       const currentWeight = parseFloat(current.weight || "0");
       const maxWeight = parseFloat(max.weight || "0");
       return currentWeight > maxWeight ? current : max;
     });
 
-    const volumePR = exerciseData.reduce((max, current) => {
+    const volumePR = exerciseData.reduce((max: any, current: any) => {
       const currentVolume = parseFloat(current.weight || "0") * (current.reps || 0) * (current.sets || 1);
       const maxVolume = parseFloat(max.weight || "0") * (max.reps || 0) * (max.sets || 1);
       return currentVolume > maxVolume ? current : max;
@@ -551,13 +551,13 @@ async function getVolumeAndStrengthData(ctx: any, startDate: Date, endDate: Date
       )
     );
 
-  const totalVolume = data.reduce((sum, row) => {
+  const totalVolume = data.reduce((sum: number, row: any) => {
     return sum + (parseFloat(row.weight || "0") * (row.reps || 0) * (row.sets || 1));
   }, 0);
 
-  const totalSets = data.reduce((sum, row) => sum + (row.sets || 1), 0);
-  const totalReps = data.reduce((sum, row) => sum + ((row.reps || 0) * (row.sets || 1)), 0);
-  const uniqueExercises = new Set(data.map(row => row.exerciseName)).size;
+  const totalSets = data.reduce((sum: number, row: any) => sum + (row.sets || 1), 0);
+  const totalReps = data.reduce((sum: number, row: any) => sum + ((row.reps || 0) * (row.sets || 1)), 0);
+  const uniqueExercises = new Set(data.map((row: any) => row.exerciseName)).size;
 
   return {
     totalVolume,

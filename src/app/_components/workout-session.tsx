@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
@@ -33,6 +33,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   } = useCacheInvalidation();
 
   // Move complex state and effects into a dedicated hook to reduce component size.
+  // This MUST be called before any conditional returns to follow Rules of Hooks
   const {
     exercises,
     setExercises,
@@ -75,6 +76,24 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     setLastAction,
   } = useWorkoutSessionState({ sessionId });
 
+  // Additional hooks that must be called before conditional returns
+  const [scrollY, setScrollY] = useState(0);
+  const _listContainerRef = useRef<HTMLDivElement | null>(null);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  
+  // Accessibility live region
+  const announce = useLiveRegion();
+  useAttachLiveRegion(announce);
+  
+  // Focus restore for inline modals
+  const { restoreFocus: restoreFocusInline } = useReturnFocus();
+
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY || 0);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Generate unique ID for sets
   // id generation handled in hook
 
@@ -92,17 +111,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const VIRTUALIZE_THRESHOLD = 20;
   const WINDOW_BEFORE = 6;
   const WINDOW_AFTER = 6;
-
-  const [scrollY, setScrollY] = useState(0);
-  const _listContainerRef = useRef<HTMLDivElement | null>(null);
-  const progressionInProgressRef = useRef(false);
-  const lastProgressionIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY || 0);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const _getItemTop = (_index: number) => {
     // Approximate per-card height; lightweight and avoids layout thrash. Cards are fairly uniform in this view.
@@ -125,10 +133,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       )
     : totalCount - 1;
 
-  // Accessibility live region
-  const announce = useLiveRegion();
-  useAttachLiveRegion(announce);
-
   // previous data loading handled in hook
 
   // session initialization handled in hook
@@ -136,9 +140,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // auto-progression modal logic handled in hook
 
   // ===== COMPLETE WORKOUT MODAL STATE =====
-  const [showCompleteModal, setShowCompleteModal] = useState(false);
-  // Focus restore for inline modals
-  const { restoreFocus: restoreFocusInline } = useReturnFocus();
 
   type BestMetrics = {
     bestWeight?: {
@@ -252,59 +253,41 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const applyProgressionToAll = () => {
-    const callTime = Date.now();
-    console.log(`[DEBUG] applyProgressionToAll called at ${callTime}`);
+    if (!progressionScopeModal) return;
 
-    if (!progressionScopeModal) {
-      console.log("[DEBUG] No progressionScopeModal, returning");
-      return;
-    }
-
-    if (progressionInProgressRef.current) {
-      console.log(
-        "[DEBUG] progressionInProgressRef.current is true, returning",
-      );
-      return;
-    }
-
-    progressionInProgressRef.current = true;
-    console.log("[DEBUG] Set progressionInProgressRef.current to true");
-
-    // Capture the modal data before closing it
-    const modalData = { ...progressionScopeModal };
-    const { exerciseIndex, progressionType, previousBest } = modalData;
-    console.log("[DEBUG] Modal data captured:", {
-      exerciseIndex,
-      progressionType,
-    });
+    const { exerciseIndex, progressionType, previousBest } =
+      progressionScopeModal;
 
     // Close the modal first to prevent double-execution
     setProgressionScopeModal(null);
-    console.log("[DEBUG] Modal closed");
 
-    setExercises((prev) => {
-      const newExercises = [...prev];
+    // Get current exercises state
+    setExercises((currentExercises) => {
+      const newExercises = [...currentExercises];
       const exercise = newExercises[exerciseIndex];
 
       if (exercise) {
-        console.log(
-          "[DEBUG] Exercise sets before progression:",
-          exercise.sets.map((s) => ({
-            id: s.id,
-            weight: s.weight,
-            reps: s.reps,
-          })),
-        );
-
-        // Apply progression to ALL sets
+        // Apply progression to ALL sets - but only if not already applied
         exercise.sets = exercise.sets.map((set) => {
           const updatedSet = { ...set };
 
           if (progressionType === "weight" && updatedSet.weight) {
             const increment = updatedSet.unit === "kg" ? 2.5 : 5;
-            updatedSet.weight += increment;
+            // Check if progression was already applied by looking at the weight
+            const expectedOriginalWeight = previousBest.weight || 0;
+            const expectedNewWeight = expectedOriginalWeight + increment;
+            
+            // Only apply if we haven't already applied this progression
+            if (Math.abs(updatedSet.weight - expectedOriginalWeight) < 0.1) {
+              updatedSet.weight += increment;
+            }
           } else if (progressionType === "reps" && updatedSet.reps) {
-            updatedSet.reps += 1;
+            const expectedOriginalReps = previousBest.reps || 0;
+            
+            // Only apply if we haven't already applied this progression
+            if (updatedSet.reps === expectedOriginalReps) {
+              updatedSet.reps += 1;
+            }
           }
 
           return updatedSet;
@@ -321,15 +304,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       }
       return prev;
     });
-
-    // Reset the progression guard after a brief delay to ensure state updates complete
-    setTimeout(() => {
-      console.log(
-        "[DEBUG] Resetting progressionInProgressRef.current to false",
-      );
-      progressionInProgressRef.current = false;
-      lastProgressionIdRef.current = null;
-    }, 500);
   };
 
   const applyProgressionToHighest = () => {
@@ -460,7 +434,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       console.error("Error saving workout:", error);
       analytics.error(error as Error, {
         context: "workout_save",
-        sessionId: sessionId.toString(),
+        sessionId: sessionId?.toString() || "unknown",
       });
 
       // If likely a network error, enqueue for offline
@@ -536,7 +510,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       console.error("Unexpected error during workout deletion:", error);
       analytics.error(error as Error, {
         context: "workout_delete",
-        sessionId: sessionId.toString(),
+        sessionId: sessionId?.toString() || "unknown",
       });
 
       // Even on error, close dialog and navigate away since the optimistic update already happened

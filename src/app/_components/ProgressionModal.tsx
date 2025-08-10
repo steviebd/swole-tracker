@@ -29,18 +29,9 @@ export function ProgressionModal({ open, onClose, exerciseName = "Exercise" }: P
       role="dialog"
       aria-modal="true"
       aria-labelledby="progression-title"
+      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
       style={{ 
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        right: '0',
-        bottom: '0',
-        zIndex: 50000,
-        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? '#000000' : '#111827',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
+        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? 'rgba(0, 0, 0, 0.8)' : 'rgba(17, 24, 39, 0.8)',
       }}
       onClick={() => {
         restoreFocus();
@@ -56,18 +47,11 @@ export function ProgressionModal({ open, onClose, exerciseName = "Exercise" }: P
         preventScroll
       >
         <div
-          className={`rounded-xl border shadow-2xl transition-colors duration-300 ${
+          className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl transition-colors duration-300 ${
             theme !== "system" || (theme === "system" && resolvedTheme === "dark")
               ? "bg-gray-900 border-gray-800" 
               : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
           }`}
-          style={{
-            width: '100%',
-            maxWidth: '42rem',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            position: 'relative'
-          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

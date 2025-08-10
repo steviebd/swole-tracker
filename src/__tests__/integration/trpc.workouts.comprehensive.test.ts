@@ -239,6 +239,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
@@ -284,6 +287,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
@@ -313,6 +319,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(null),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
@@ -338,6 +347,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
         query: {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
+          },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
           },
         },
       });
