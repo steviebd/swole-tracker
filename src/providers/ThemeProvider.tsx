@@ -9,8 +9,10 @@ import React, {
 } from "react";
 
 type Theme =
-  | "system"
+  | "light"
   | "dark"
+  | "system"
+  | "v1dark"
   | "CalmDark"
   | "BoldDark"
   | "PlayfulDark";
@@ -34,10 +36,11 @@ function applyThemeClass(theme: Theme) {
     window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
 
   // Determine dark mode for class toggling
-  // All themes are dark-first except system which follows system preference
   const shouldDark =
-    (theme === "system" && prefersDark) ||
     theme === "dark" ||
+    (theme === "system" && prefersDark) ||
+    // All custom dark themes are dark-first
+    theme === "v1dark" ||
     theme === "CalmDark" ||
     theme === "BoldDark" ||
     theme === "PlayfulDark";
@@ -62,8 +65,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const resolvedTheme: "light" | "dark" = useMemo(() => {
     if (typeof window === "undefined") return "dark";
     const prefersDark = systemDark;
-    // All themes are dark except when system theme uses light preference
-    return (theme === "system" && !prefersDark) ? "light" : "dark";
+    return theme === "dark" || (theme === "system" && prefersDark)
+      ? "dark"
+      : "light";
   }, [theme, systemDark]);
 
   // initial load from localStorage
@@ -98,7 +102,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggle = useCallback(() => {
-    setTheme(theme === "system" ? "dark" : "system");
+    setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 
   const value = useMemo(

@@ -1,8 +1,8 @@
-/* Dark Theme - Based on mockup OKLCH colors */
+/* V1 Dark Theme - Based on mockup OKLCH colors */
 @import "tailwindcss";
 
-/* Apply theme when data-theme="dark" */
-[data-theme="dark"] {
+/* Apply theme when data-theme="v1dark" */
+[data-theme="v1dark"] {
   /* Core colors from mockup */
   --color-bg-app: oklch(0.145 0 0);           /* Deep black background */
   --color-bg-surface: oklch(0.205 0 0);       /* Slightly lighter surface */
@@ -62,13 +62,13 @@
   --btn-ghost-fg: oklch(0.708 0 0);
 }
 
-/* Ensure dark mode is active for dark theme */
-[data-theme="dark"] {
+/* Ensure dark mode is active for v1dark theme */
+[data-theme="v1dark"] {
   color-scheme: dark;
 }
 
-/* Glass effects specific to dark */
-[data-theme="dark"] .glass-surface {
+/* Glass effects specific to v1dark */
+[data-theme="v1dark"] .glass-surface {
   background:
     radial-gradient(1200px 600px at 20% -10%, oklch(0.985 0 0 / 0.05) 0%, transparent 60%),
     radial-gradient(800px 400px at 110% 0%, oklch(0.488 0.243 264.376 / 0.1) 0%, transparent 60%),
@@ -76,35 +76,35 @@
   border: 1px solid color-mix(in oklab, oklch(0.269 0 0) 70%, oklch(0.985 0 0) 30%);
 }
 
-[data-theme="dark"] .glass-header {
+[data-theme="v1dark"] .glass-header {
   background:
     linear-gradient(180deg, oklch(0.985 0 0 / 0.02) 0%, transparent 100%),
     color-mix(in oklab, oklch(0.205 0 0) 70%, oklch(0.145 0 0) 30%);
   border-bottom: 1px solid color-mix(in oklab, oklch(0.269 0 0) 70%, oklch(0.985 0 0) 30%);
 }
 
-/* Card styling for dark */
-[data-theme="dark"] .card {
+/* Card styling for v1dark */
+[data-theme="v1dark"] .card {
   background-color: oklch(0.205 0 0);
   color: oklch(0.985 0 0);
   border-color: oklch(0.269 0 0);
   box-shadow: 0 2px 8px rgba(0,0,0,.35);
 }
 
-/* Text utilities for dark */
-[data-theme="dark"] .text-secondary {
+/* Text utilities for v1dark */
+[data-theme="v1dark"] .text-secondary {
   color: oklch(0.708 0 0);
 }
 
-[data-theme="dark"] .text-muted {
+[data-theme="v1dark"] .text-muted {
   color: oklch(0.556 0 0);
 }
 
 /* Link colors */
-[data-theme="dark"] .link-primary {
+[data-theme="v1dark"] .link-primary {
   color: oklch(0.985 0 0);
 }
 
-[data-theme="dark"] .link-primary:hover {
+[data-theme="v1dark"] .link-primary:hover {
   color: oklch(0.9 0 0);
 }

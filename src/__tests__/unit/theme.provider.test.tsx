@@ -65,7 +65,7 @@ function TestConsumer() {
     <div>
       <div data-testid="theme">{theme}</div>
       <div data-testid="resolved">{resolvedTheme}</div>
-      <button onClick={() => setTheme("dark")}>set-dark2</button>
+      <button onClick={() => setTheme("light")}>set-light</button>
       <button onClick={() => setTheme("dark")}>set-dark</button>
       <button onClick={() => setTheme("system")}>set-system</button>
       <button onClick={() => setTheme("CalmDark")}>set-calm</button>
