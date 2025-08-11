@@ -201,6 +201,67 @@ export const progressRouter = createTRPCRouter({
       return comparison;
     }),
 
+  // Get volume breakdown by exercise
+  getVolumeByExercise: protectedProcedure
+    .input(timeRangeInputSchema)
+    .query(async ({ input, ctx }) => {
+      const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+      
+      const volumeData = await ctx.db
+        .select({
+          exerciseName: sessionExercises.exerciseName,
+          weight: sessionExercises.weight,
+          reps: sessionExercises.reps,
+          sets: sessionExercises.sets,
+          unit: sessionExercises.unit,
+          workoutDate: workoutSessions.workoutDate,
+        })
+        .from(sessionExercises)
+        .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+        .where(
+          and(
+            eq(sessionExercises.user_id, ctx.user.id),
+            gte(workoutSessions.workoutDate, startDate),
+            lte(workoutSessions.workoutDate, endDate)
+          )
+        )
+        .orderBy(desc(workoutSessions.workoutDate));
+
+      // Calculate volume metrics by exercise
+      const volumeByExercise = calculateVolumeByExercise(volumeData);
+      
+      return volumeByExercise;
+    }),
+
+  // Get set/rep distribution analytics
+  getSetRepDistribution: protectedProcedure
+    .input(timeRangeInputSchema)
+    .query(async ({ input, ctx }) => {
+      const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+      
+      const rawData = await ctx.db
+        .select({
+          sets: sessionExercises.sets,
+          reps: sessionExercises.reps,
+          weight: sessionExercises.weight,
+          exerciseName: sessionExercises.exerciseName,
+        })
+        .from(sessionExercises)
+        .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+        .where(
+          and(
+            eq(sessionExercises.user_id, ctx.user.id),
+            gte(workoutSessions.workoutDate, startDate),
+            lte(workoutSessions.workoutDate, endDate)
+          )
+        );
+
+      // Calculate set/rep distribution
+      const distribution = calculateSetRepDistribution(rawData);
+      
+      return distribution;
+    }),
+
   // Get exercise list for dropdown/selection
   getExerciseList: protectedProcedure
     .query(async ({ ctx }) => {
@@ -589,6 +650,152 @@ function calculateChanges(current: any, previous: any): {
     volumeChange: Math.round(volumeChange * 10) / 10,
     setsChange: Math.round(setsChange * 10) / 10,
     repsChange: Math.round(repsChange * 10) / 10,
+  };
+}
+
+function calculateVolumeByExercise(volumeData: any[]): Array<{
+  exerciseName: string;
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  sessions: number;
+  averageVolume: number;
+  percentOfTotal: number;
+}> {
+  // Group by exercise name
+  const grouped = volumeData.reduce((acc, row) => {
+    if (!acc[row.exerciseName]) {
+      acc[row.exerciseName] = {
+        exerciseName: row.exerciseName,
+        totalVolume: 0,
+        totalSets: 0,
+        totalReps: 0,
+        sessionDates: new Set(),
+      };
+    }
+    
+    const weight = parseFloat(row.weight || "0");
+    const reps = row.reps || 0;
+    const sets = row.sets || 1;
+    
+    acc[row.exerciseName].totalVolume += weight * reps * sets;
+    acc[row.exerciseName].totalSets += sets;
+    acc[row.exerciseName].totalReps += reps * sets;
+    acc[row.exerciseName].sessionDates.add(row.workoutDate.toDateString());
+    
+    return acc;
+  }, {} as Record<string, any>);
+
+  const exercises = Object.values(grouped).map((exercise: any) => ({
+    exerciseName: exercise.exerciseName,
+    totalVolume: exercise.totalVolume,
+    totalSets: exercise.totalSets,
+    totalReps: exercise.totalReps,
+    sessions: exercise.sessionDates.size,
+    averageVolume: exercise.totalVolume / exercise.sessionDates.size,
+  }));
+
+  // Calculate total volume across all exercises for percentage calculation
+  const totalVolumeAll = exercises.reduce((sum, ex) => sum + ex.totalVolume, 0);
+
+  return exercises
+    .map(exercise => ({
+      ...exercise,
+      percentOfTotal: totalVolumeAll > 0 ? (exercise.totalVolume / totalVolumeAll) * 100 : 0,
+    }))
+    .sort((a, b) => b.totalVolume - a.totalVolume); // Sort by total volume descending
+}
+
+function calculateSetRepDistribution(rawData: any[]): {
+  setDistribution: Array<{ sets: number; count: number; percentage: number }>;
+  repDistribution: Array<{ reps: number; count: number; percentage: number }>;
+  repRangeDistribution: Array<{ range: string; count: number; percentage: number }>;
+  mostCommonSetRep: Array<{ sets: number; reps: number; count: number; percentage: number }>;
+} {
+  const totalEntries = rawData.length;
+
+  // Sets distribution
+  const setsCount = rawData.reduce((acc, row) => {
+    const sets = row.sets || 1;
+    acc[sets] = (acc[sets] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+
+  const setDistribution = Object.entries(setsCount)
+    .map(([sets, count]) => ({
+      sets: parseInt(sets),
+      count: count as number,
+      percentage: ((count as number) / totalEntries) * 100,
+    }))
+    .sort((a, b) => a.sets - b.sets);
+
+  // Reps distribution
+  const repsCount = rawData.reduce((acc, row) => {
+    const reps = row.reps || 0;
+    acc[reps] = (acc[reps] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+
+  const repDistribution = Object.entries(repsCount)
+    .map(([reps, count]) => ({
+      reps: parseInt(reps),
+      count: count as number,
+      percentage: ((count as number) / totalEntries) * 100,
+    }))
+    .sort((a, b) => (b.count as number) - (a.count as number))
+    .slice(0, 10); // Top 10 most common rep counts
+
+  // Rep range distribution
+  const repRanges = rawData.reduce((acc, row) => {
+    const reps = row.reps || 0;
+    let range: string;
+    
+    if (reps <= 5) range = "1-5 reps (Strength)";
+    else if (reps <= 8) range = "6-8 reps (Strength-Hypertrophy)";
+    else if (reps <= 12) range = "9-12 reps (Hypertrophy)";
+    else if (reps <= 15) range = "13-15 reps (Hypertrophy-Endurance)";
+    else range = "16+ reps (Endurance)";
+    
+    acc[range] = (acc[range] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const repRangeDistribution = Object.entries(repRanges)
+    .map(([range, count]) => ({
+      range,
+      count: count as number,
+      percentage: ((count as number) / totalEntries) * 100,
+    }))
+    .sort((a, b) => (b.count as number) - (a.count as number));
+
+  // Most common set/rep combinations
+  const setRepCombos = rawData.reduce((acc, row) => {
+    const key = `${row.sets || 1}x${row.reps || 0}`;
+    const sets = row.sets || 1;
+    const reps = row.reps || 0;
+    
+    if (!acc[key]) {
+      acc[key] = { sets, reps, count: 0 };
+    }
+    acc[key].count++;
+    return acc;
+  }, {} as Record<string, { sets: number; reps: number; count: number }>);
+
+  const mostCommonSetRep = Object.values(setRepCombos)
+    .map(combo => ({
+      sets: combo.sets,
+      reps: combo.reps,
+      count: combo.count,
+      percentage: (combo.count / totalEntries) * 100,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8); // Top 8 most common combinations
+
+  return {
+    setDistribution,
+    repDistribution,
+    repRangeDistribution,
+    mostCommonSetRep,
   };
 }
 
