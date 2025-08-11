@@ -21,7 +21,6 @@ This document defines the project-specific workflow, commands, architecture, and
 Notes:
 - Package manager is pinned: `bun@1.1.42` (required).
 - Node.js 20.19.4 recommended (pinned via Volta).
-- Environment management: All commands automatically inject secrets using Infisical CLI.
 
 ## Architecture
 - Stack: Next.js 15 App Router + tRPC v11 + Drizzle ORM + Clerk + Tailwind CSS v4

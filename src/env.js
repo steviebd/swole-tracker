@@ -14,6 +14,7 @@ export const env = createEnv({
       .default("development"),
     // Vercel AI Gateway configuration (AI SDK 5 beta)
     VERCEL_AI_GATEWAY_API_KEY: z.string().optional(),
+    AI_GATEWAY_API_KEY: z.string().optional(),
     // Supported models: xai/grok-3-mini, google/gemini-2.0-flash-lite, openai/gpt-4o, etc.
     AI_GATEWAY_MODEL: z.string().default("xai/grok-3-mini"),
     AI_GATEWAY_PROMPT: z
@@ -22,6 +23,9 @@ export const env = createEnv({
         "Tell me a short, funny programming or tech joke. Keep it clean and under 100 words.",
       ),
     AI_GATEWAY_JOKE_MEMORY_NUMBER: z.coerce.number().default(3),
+    // Health/Readiness Feature AI configuration
+    AI_GATEWAY_MODEL_HEALTH: z.string().default("xai/grok-3-mini"),
+    AI_GATEWAY_PROMPT_HEALTH: z.string().optional(),
     // Whoop Integration
     WHOOP_CLIENT_ID: z.string().optional(),
     WHOOP_CLIENT_SECRET: z.string().optional(),
@@ -72,9 +76,12 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     AI_GATEWAY_MODEL: process.env.AI_GATEWAY_MODEL,
     AI_GATEWAY_PROMPT: process.env.AI_GATEWAY_PROMPT,
     AI_GATEWAY_JOKE_MEMORY_NUMBER: process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER,
+    AI_GATEWAY_MODEL_HEALTH: process.env.AI_GATEWAY_MODEL_HEALTH,
+    AI_GATEWAY_PROMPT_HEALTH: process.env.AI_GATEWAY_PROMPT_HEALTH,
     WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID,
     WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
     WHOOP_SYNC_RATE_LIMIT_PER_HOUR: process.env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,

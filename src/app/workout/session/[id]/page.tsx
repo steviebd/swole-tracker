@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { api, HydrateClient } from "~/trpc/server";
-import { WorkoutSession } from "~/app/_components/workout-session";
+import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
 
 interface WorkoutSessionPageProps {
   params: Promise<{ id: string }>;
@@ -54,8 +54,8 @@ export default async function WorkoutSessionPage({
             </div>
           </div>
 
-          {/* Workout Session */}
-          <WorkoutSession sessionId={sessionId} />
+          {/* Workout Session with Health Advice */}
+          <WorkoutSessionWithHealthAdvice sessionId={sessionId} />
         </div>
       </main>
     </HydrateClient>
