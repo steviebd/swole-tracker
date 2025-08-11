@@ -53,28 +53,32 @@ export function ProgressDashboard() {
       {/* Header with Navigation */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link 
                 href="/"
                 className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to Dashboard
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Back</span>
               </Link>
-              <span className="text-gray-300 dark:text-gray-600">/</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">Progress Dashboard</span>
+              <span className="hidden sm:inline text-gray-300 dark:text-gray-600">/</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                <span className="hidden sm:inline">Progress Dashboard</span>
+                <span className="sm:hidden">Progress</span>
+              </span>
             </div>
             
             {/* Time Range Selector */}
-            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 self-start sm:self-center">
               {(["week", "month", "year"] as TimeRange[]).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                     timeRange === range
                       ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                       : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -184,12 +188,12 @@ export function ProgressDashboard() {
         </div>
 
         {/* Volume Tracking Section */}
-        <div className="mt-8">
+        <div id="volume" className="mt-8">
           <VolumeTrackingSection />
         </div>
 
         {/* Consistency Section */}
-        <div className="mt-8">
+        <div id="consistency" className="mt-8">
           <ConsistencySection />
         </div>
 

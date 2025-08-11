@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
-import { useMockProgress } from "~/hooks/useMockData";
+import { api } from "~/trpc/react";
+import Link from "next/link";
 
 interface ProgressBarProps {
   value: number;
@@ -33,8 +34,51 @@ function ProgressBar({ value, className = "", theme }: ProgressBarProps) {
 
 export function WeeklyProgressSection() {
   const { theme, resolvedTheme } = useTheme();
-  const [selectedPeriod, setSelectedPeriod] = useState("week");
-  const { data: progress } = useMockProgress();
+  const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month">("week");
+  
+  // Get real data from ProgressDashboard API
+  const { data: consistencyData, isLoading: consistencyLoading } = api.progress.getConsistencyStats.useQuery({
+    timeRange: selectedPeriod,
+  });
+  
+  const { data: volumeData, isLoading: volumeLoading } = api.progress.getVolumeProgression.useQuery({
+    timeRange: selectedPeriod,
+  });
+
+  const isLoading = consistencyLoading || volumeLoading;
+
+  // Calculate progress data from real API data
+  const calculateProgress = () => {
+    const targetWorkouts = selectedPeriod === "week" ? 3 : 12;
+    const totalWorkouts = consistencyData?.totalWorkouts || 0;
+    const workoutGoal = {
+      current: totalWorkouts,
+      target: targetWorkouts,
+      percentage: Math.min(100, (totalWorkouts / targetWorkouts) * 100)
+    };
+
+    // Calculate total volume from volume data
+    const totalVolume = volumeData?.reduce((sum, session) => sum + session.totalVolume, 0) || 0;
+    const targetVolume = selectedPeriod === "week" ? 15000 : 60000; // 15k per week, 60k per month
+    const volumeGoal = {
+      current: `${(totalVolume / 1000).toFixed(1)}k`,
+      target: `${(targetVolume / 1000).toFixed(0)}k`,
+      percentage: Math.min(100, (totalVolume / targetVolume) * 100)
+    };
+
+    const consistency = {
+      percentage: consistencyData?.consistencyScore || 0,
+      message: (consistencyData?.consistencyScore || 0) >= 80 
+        ? "Great consistency!" 
+        : (consistencyData?.consistencyScore || 0) >= 60 
+        ? "Good progress, keep it up!" 
+        : "Let's improve consistency"
+    };
+
+    return { workoutGoal, volumeGoal, consistency };
+  };
+
+  const progress = calculateProgress();
 
   const cardClass = `transition-all duration-300 border rounded-xl hover:shadow-xl ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
@@ -111,42 +155,74 @@ export function WeeklyProgressSection() {
       </div>
       
       <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Workout Goal */}
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className={labelClass}>Workout Goal</span>
-              <span className={valueClass}>
-                {progress.workoutGoal.current}/{progress.workoutGoal.target}
-              </span>
-            </div>
-            <ProgressBar value={progress.workoutGoal.percentage} theme={theme} />
-            <p className={subtextClass}>
-              {progress.workoutGoal.target - progress.workoutGoal.current} more to reach your goal
-            </p>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <div className="flex justify-between">
+                  <div className="h-5 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-5 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                </div>
+                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              </div>
+            ))}
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Workout Goal - Links to Consistency section */}
+            <Link href="/progress#consistency" className="space-y-3 hover:opacity-80 transition-opacity">
+              <div className="flex justify-between">
+                <span className={labelClass}>Workout Goal</span>
+                <span className={valueClass}>
+                  {progress.workoutGoal.current}/{progress.workoutGoal.target}
+                </span>
+              </div>
+              <ProgressBar value={progress.workoutGoal.percentage} theme={theme} />
+              <p className={subtextClass}>
+                {Math.max(0, progress.workoutGoal.target - progress.workoutGoal.current)} more to reach your goal
+              </p>
+            </Link>
 
-          {/* Volume Goal */}
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className={labelClass}>Volume Goal</span>
-              <span className={valueClass}>{progress.volumeGoal.current}/{progress.volumeGoal.target}</span>
-            </div>
-            <ProgressBar value={progress.volumeGoal.percentage} theme={theme} />
-            <p className={subtextClass}>
-              {(parseFloat(progress.volumeGoal.target.replace(/[^\d.]/g, '')) - parseFloat(progress.volumeGoal.current.replace(/[^\d.]/g, ''))).toFixed(1)}k kg remaining
-            </p>
-          </div>
+            {/* Volume Goal - Links to Volume Tracking section */}
+            <Link href="/progress#volume" className="space-y-3 hover:opacity-80 transition-opacity">
+              <div className="flex justify-between">
+                <span className={labelClass}>Volume Goal</span>
+                <span className={valueClass}>{progress.volumeGoal.current}/{progress.volumeGoal.target}</span>
+              </div>
+              <ProgressBar value={progress.volumeGoal.percentage} theme={theme} />
+              <p className={subtextClass}>
+                {(parseFloat(progress.volumeGoal.target.replace(/[^\d.]/g, '')) - parseFloat(progress.volumeGoal.current.replace(/[^\d.]/g, ''))).toFixed(1)}k kg remaining
+              </p>
+            </Link>
 
-          {/* Consistency */}
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className={labelClass}>Consistency</span>
-              <span className={valueClass}>{progress.consistency.percentage}%</span>
-            </div>
-            <ProgressBar value={progress.consistency.percentage} theme={theme} />
-            <p className={subtextClass}>{progress.consistency.message}</p>
+            {/* Consistency - Links to Consistency section */}
+            <Link href="/progress#consistency" className="space-y-3 hover:opacity-80 transition-opacity">
+              <div className="flex justify-between">
+                <span className={labelClass}>Consistency</span>
+                <span className={valueClass}>{progress.consistency.percentage}%</span>
+              </div>
+              <ProgressBar value={progress.consistency.percentage} theme={theme} />
+              <p className={subtextClass}>{progress.consistency.message}</p>
+            </Link>
           </div>
+        )}
+
+        {/* View Full Progress Dashboard Button */}
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Link 
+            href="/progress"
+            className={`inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+            }`}
+          >
+            View Full Progress Dashboard
+            <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
       </div>
     </div>

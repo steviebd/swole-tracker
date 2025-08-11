@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
+import { PRHistoryModal } from "./PRHistoryModal";
 
 type TimeRange = "week" | "month" | "year";
 type RecordType = "weight" | "volume" | "both";
@@ -11,6 +12,7 @@ export function PersonalRecordsSection() {
   const { theme, resolvedTheme } = useTheme();
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
   const [recordType, setRecordType] = useState<RecordType>("both");
+  const [showModal, setShowModal] = useState(false);
   
   const isDark = theme !== "system" || (theme === "system" && resolvedTheme === "dark");
   
@@ -151,7 +153,19 @@ export function PersonalRecordsSection() {
 
           {/* PR Timeline */}
           <div>
-            <h3 className={subtitleClass}>Recent Achievements Timeline</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className={subtitleClass}>Recent Achievements Timeline</h3>
+              <button
+                onClick={() => setShowModal(true)}
+                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  isDark
+                    ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                }`}
+              >
+                View All History
+              </button>
+            </div>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {personalRecords.map((record, index) => (
                 <div
@@ -229,6 +243,12 @@ export function PersonalRecordsSection() {
           </p>
         </div>
       )}
+      
+      {/* PR History Modal */}
+      <PRHistoryModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      />
     </div>
   );
 }

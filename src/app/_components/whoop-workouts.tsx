@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
@@ -8,6 +9,7 @@ import { useLocalStorage } from "~/hooks/use-local-storage";
 import { useWorkoutUpdates } from "~/hooks/use-workout-updates";
 
 export function WhoopWorkouts() {
+  const searchParams = useSearchParams();
   const [syncLoading, setSyncLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -47,6 +49,62 @@ export function WhoopWorkouts() {
     refetch: refetchWorkouts,
     isLoading: workoutsLoading,
   } = api.whoop.getWorkouts.useQuery();
+
+  // Handle OAuth flow results
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+
+    if (success === "true") {
+      setMessage({
+        type: "success",
+        text: "🎉 Successfully connected to Whoop! You can now sync your workouts.",
+      });
+    } else if (error) {
+      let errorMessage = "Failed to connect to Whoop. Please try again.";
+      
+      switch (error) {
+        case "whoop_not_configured":
+          errorMessage = "Whoop integration is not configured. Please contact support.";
+          break;
+        case "unauthorized":
+          errorMessage = "You must be logged in to connect Whoop.";
+          break;
+        case "invalid_state":
+          errorMessage = "Security validation failed. Please try connecting again.";
+          break;
+        case "no_code":
+          errorMessage = "Authorization was cancelled or failed. Please try again.";
+          break;
+        case "token_exchange_failed":
+          errorMessage = "Failed to complete Whoop connection. Please try again.";
+          break;
+        case "access_denied":
+          errorMessage = "You denied access to Whoop. Please grant access to sync workouts.";
+          break;
+        default:
+          errorMessage = `Connection failed: ${error}. Please try again.`;
+      }
+      
+      setMessage({
+        type: "error",
+        text: errorMessage,
+      });
+    }
+
+    // Clear the URL parameters after showing the message
+    if (success || error) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("success");
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+      
+      // Auto-hide message after 10 seconds
+      setTimeout(() => {
+        setMessage(null);
+      }, 10000);
+    }
+  }, [searchParams]);
 
   // Listen for real-time workout updates via SSE
   useWorkoutUpdates(() => {
@@ -189,7 +247,7 @@ export function WhoopWorkouts() {
                 ❌ Not connected to Whoop
               </div>
               <Link
-                href="/connect-whoop"
+                href="/api/auth/whoop/authorize"
                 className="btn-primary block w-full px-6 py-3 text-center"
               >
                 Connect Whoop Now
@@ -209,7 +267,20 @@ export function WhoopWorkouts() {
                 : "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100"
             }`}
           >
-            {message.text}
+            <div className="flex items-start justify-between">
+              <p className="text-sm">{message.text}</p>
+              <button
+                onClick={() => setMessage(null)}
+                className={`ml-4 text-lg leading-none ${
+                  message.type === "success"
+                    ? "text-green-500 hover:text-green-700"
+                    : "text-red-500 hover:text-red-700"
+                }`}
+                aria-label="Dismiss message"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
       )}

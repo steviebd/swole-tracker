@@ -22,7 +22,7 @@ export function VolumeTrackingSection() {
   });
 
   // Get exercise-specific volume data
-  const { data: exerciseList, isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
+  const { isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
   
   // Get volume breakdown by exercise
   const { data: volumeByExercise, isLoading: volumeByExerciseLoading } = api.progress.getVolumeByExercise.useQuery({

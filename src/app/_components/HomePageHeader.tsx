@@ -7,8 +7,6 @@ import { useTheme } from "~/providers/ThemeProvider";
 import { PreferencesModal } from "./PreferencesModal";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
-import { ConnectWhoopButton } from "./ConnectWhoopButton";
-import { ThemeToggleDropdown } from "./ThemeToggleDropdown";
 
 export function HomePageHeader() {
   const { user } = useUser();
@@ -46,10 +44,7 @@ export function HomePageHeader() {
           </div>
 
           {/* Right side - Controls */}
-          <div className="flex items-center gap-4">
-            <ConnectWhoopButton />
-            <ThemeToggleDropdown />
-            
+          <div className="flex items-center gap-4">            
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
               {/* Progression Button */}
@@ -109,7 +104,7 @@ export function HomePageHeader() {
       
       {/* Modals */}
       <PreferencesModal open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
-      <ProgressionModal open={progressionOpen} onClose={() => setProgressionOpen(false)} exerciseName="Bench Press" />
+      <ProgressionModal open={progressionOpen} onClose={() => setProgressionOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </header>
   );

@@ -33,6 +33,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     },
     onError: (error) => {
       console.error("Failed to save preferences", error);
+      alert("Failed to save preferences. Please try again.");
     },
     onSettled: () => {
       setSaving(false);
@@ -110,7 +111,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     if (trimmed !== "") {
       const n = Number(trimmed);
       if (!Number.isNaN(n)) {
-        payload.estimated_one_rm_factor = Math.min(0.05, Math.max(0.02, n));
+        payload.estimated_one_rm_factor = Math.max(0.02, Math.min(0.05, n));
       }
     }
     updateMutation.mutate(payload);
@@ -371,26 +372,6 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
               </a>
             </section>
 
-            {/* Asymmetric swipe thresholds placeholder */}
-            <section className={`rounded-md border border-dashed p-3 transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "border-gray-700" 
-                : "border-gray-300 dark:border-gray-700"
-            }`}>
-              <div className={`font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Asymmetric swipe thresholds</div>
-              <div className={`text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
-                Coming soon: configure different swipe distances for left/right
-                actions.
-              </div>
-            </section>
           </div>
 
           <div className={`flex justify-end gap-2 border-t px-6 py-4 transition-colors duration-300 ${

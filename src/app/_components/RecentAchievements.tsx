@@ -148,7 +148,7 @@ export function RecentAchievements() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className={titleClass}>This Month's Achievements</h2>
-          <p className={subtitleClass}>Your progress highlights for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+          <p className={subtitleClass} suppressHydrationWarning>Your progress highlights for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
         </div>
         
         {motivationalMessage && (

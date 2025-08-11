@@ -1,11 +1,53 @@
 "use client";
 
 import { useTheme } from "~/providers/ThemeProvider";
-import { useMockStats } from "~/hooks/useMockData";
+import { api } from "~/trpc/react";
 
 export function StatsCards() {
   const { theme, resolvedTheme } = useTheme();
-  const { data: stats } = useMockStats();
+  
+  // Get real data from ProgressDashboard API
+  const { isLoading: consistencyLoading } = api.progress.getConsistencyStats.useQuery({
+    timeRange: "week",
+  });
+  
+  const { data: volumeData, isLoading: volumeLoading } = api.progress.getVolumeProgression.useQuery({
+    timeRange: "week",
+  });
+
+  const { data: workoutDates, isLoading: workoutDatesLoading } = api.progress.getWorkoutDates.useQuery({
+    timeRange: "week",
+  });
+
+  const isLoading = consistencyLoading || volumeLoading || workoutDatesLoading;
+
+  // Calculate stats from real data
+  const calculateStats = () => {
+    const workoutsThisWeek = workoutDates?.length || 0;
+    
+    // Calculate average duration from volume data (estimate based on exercises and sets)
+    let avgDuration = "0 min";
+    if (volumeData && volumeData.length > 0) {
+      const avgSets = volumeData.reduce((sum, session) => sum + session.totalSets, 0) / volumeData.length;
+      // Estimate 3-4 minutes per set including rest
+      const estimatedMinutes = Math.round(avgSets * 3.5);
+      avgDuration = `${estimatedMinutes} min`;
+    }
+    
+    // Weekly goal progress (target 3 workouts per week)
+    const weeklyGoal = {
+      current: workoutsThisWeek,
+      target: 3
+    };
+    
+    return {
+      workoutsThisWeek,
+      avgDuration,
+      weeklyGoal
+    };
+  };
+
+  const stats = calculateStats();
 
   const cardClass = `transition-all duration-300 border rounded-xl hover:shadow-xl ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
@@ -34,6 +76,26 @@ export function StatsCards() {
       ? "text-white" 
       : "text-gray-900 dark:text-white"
   }`;
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className={cardClass}>
+            <div className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

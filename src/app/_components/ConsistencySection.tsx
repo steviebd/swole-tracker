@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
+import { ConsistencyAnalysisModal } from "./ConsistencyAnalysisModal";
 
 type TimeRange = "week" | "month" | "year";
 
 export function ConsistencySection() {
   const { theme, resolvedTheme } = useTheme();
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
+  const [showModal, setShowModal] = useState(false);
   
   const isDark = theme !== "system" || (theme === "system" && resolvedTheme === "dark");
   
@@ -184,7 +186,7 @@ export function ConsistencySection() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Workout Calendar */}
             <div>
-              <h3 className={subtitleClass}>Workout Calendar - {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+              <h3 className={subtitleClass} suppressHydrationWarning>Workout Calendar - {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
               <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
                 {/* Calendar Header */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
@@ -236,7 +238,19 @@ export function ConsistencySection() {
 
             {/* Target Progress & Trends */}
             <div>
-              <h3 className={subtitleClass}>3x/Week Target Progress</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className={subtitleClass}>3x/Week Target Progress</h3>
+                <button
+                  onClick={() => setShowModal(true)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    isDark
+                      ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  View Details
+                </button>
+              </div>
               <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"} space-y-4`}>
                 {/* Progress Bar */}
                 <div>
@@ -336,6 +350,13 @@ export function ConsistencySection() {
           </p>
         </div>
       )}
+      
+      {/* Detailed Analysis Modal */}
+      <ConsistencyAnalysisModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        timeRange={timeRange}
+      />
     </div>
   );
 }

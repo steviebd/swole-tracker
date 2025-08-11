@@ -64,12 +64,12 @@ export function useMockFeed(limit = 3): {
           { id: i * 10 + 3, exerciseName: "Deadlifts", orderIndex: 2 },
         ]
       },
-      exercises: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, (_, j) => ({
+      exercises: Array.from({ length: [4, 5, 3, 6, 4][i % 5] ?? 4 }, (_, j) => ({
         id: i * 100 + j,
         exerciseName: ["Bench Press", "Squats", "Deadlifts", "Pull-ups", "Overhead Press", "Rows"][j] || "Exercise",
-        weight: (60 + Math.random() * 40).toFixed(1),
-        reps: Math.floor(Math.random() * 8) + 8,
-        sets: Math.floor(Math.random() * 3) + 3,
+        weight: (60 + ((i + j) * 7) % 40).toFixed(1),
+        reps: 8 + ((i + j) * 3) % 8,
+        sets: 3 + ((i + j) * 2) % 3,
         unit: "kg"
       }))
     }));
