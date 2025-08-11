@@ -23,11 +23,17 @@ export function useLiveRegion() {
   }
 
   // Expose a setter for the provider to attach
-  (announce as unknown as { __attach?: (fn: (msg: string, opts?: Options) => void) => void }).__attach = (fn: (msg: string, opts?: Options) => void) => {
+  (
+    announce as unknown as {
+      __attach?: (fn: (msg: string, opts?: Options) => void) => void;
+    }
+  ).__attach = (fn: (msg: string, opts?: Options) => void) => {
     ref.current = fn;
   };
 
-  return announce as ((msg: string, opts?: Options) => void) & { __attach?: (fn: (msg: string, opts?: Options) => void) => void };
+  return announce as ((msg: string, opts?: Options) => void) & {
+    __attach?: (fn: (msg: string, opts?: Options) => void) => void;
+  };
 }
 
 export default function LiveRegionProvider({
@@ -85,18 +91,10 @@ export default function LiveRegionProvider({
   return (
     <>
       {/* Invisible live regions */}
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
         {polite}
       </div>
-      <div
-        aria-live="assertive"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
         {assertive}
       </div>
       {/* Context bridge: place function on window for hooks to attach in absence of React Context to keep it tiny */}
@@ -110,12 +108,22 @@ export default function LiveRegionProvider({
  * Tiny bridge that exposes a global setter to attach the announce function to hook instances.
  * Avoids pulling in React Context plumbing in multiple files.
  */
-function LiveRegionBridge({ onAnnouncerReady }: { onAnnouncerReady: (msg: string, opts?: Options) => void }) {
+function LiveRegionBridge({
+  onAnnouncerReady,
+}: {
+  onAnnouncerReady: (msg: string, opts?: Options) => void;
+}) {
   useEffect(() => {
     // Provide a global for hooks to attach (scoped to app tab)
-    (window as unknown as { __liveRegionAnnounce?: (msg: string, opts?: Options) => void }).__liveRegionAnnounce = onAnnouncerReady;
+    (
+      window as unknown as {
+        __liveRegionAnnounce?: (msg: string, opts?: Options) => void;
+      }
+    ).__liveRegionAnnounce = onAnnouncerReady;
     return () => {
-      const w = window as unknown as { __liveRegionAnnounce?: (msg: string, opts?: Options) => void };
+      const w = window as unknown as {
+        __liveRegionAnnounce?: (msg: string, opts?: Options) => void;
+      };
       if (w.__liveRegionAnnounce === onAnnouncerReady) {
         delete w.__liveRegionAnnounce;
       }
@@ -128,12 +136,20 @@ function LiveRegionBridge({ onAnnouncerReady }: { onAnnouncerReady: (msg: string
 /**
  * Hook attach effect helper: call in any component once to connect hook announce with provider.
  */
-export function useAttachLiveRegion(announce: ReturnType<typeof useLiveRegion>) {
+export function useAttachLiveRegion(
+  announce: ReturnType<typeof useLiveRegion>,
+) {
   useEffect(() => {
-    const w = window as unknown as { __liveRegionAnnounce?: (msg: string, opts?: Options) => void };
+    const w = window as unknown as {
+      __liveRegionAnnounce?: (msg: string, opts?: Options) => void;
+    };
     const fn = w.__liveRegionAnnounce;
     if (fn && typeof announce === "function") {
-      const attach = (announce as unknown as { __attach?: (fn: (msg: string, opts?: Options) => void) => void }).__attach;
+      const attach = (
+        announce as unknown as {
+          __attach?: (fn: (msg: string, opts?: Options) => void) => void;
+        }
+      ).__attach;
       if (typeof attach === "function") {
         attach(fn);
       }

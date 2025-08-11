@@ -97,7 +97,7 @@ describe("tRPC jokes router additional coverage", () => {
 
   it("clearCache handles case when no jokes exist to delete", async () => {
     const user = createMockUser({ id: "user_joke_4" })!;
-    
+
     const where = vi.fn().mockResolvedValue([]);
     const del = vi.fn().mockReturnValue({ where });
 

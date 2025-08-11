@@ -22,7 +22,7 @@ export function useDragReorder<T>(
   items: T[],
   onReorder: (newItems: T[]) => void,
   onStartDrag?: (index: number) => void,
-  onEndDrag?: () => void
+  onEndDrag?: () => void,
 ): [DragReorderState, DragReorderHandlers] {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -36,19 +36,20 @@ export function useDragReorder<T>(
       setDraggedIndex(index);
       setIsDragging(true);
       dragStartPosRef.current = { x: e.clientX, y: e.clientY };
-      
+
       // Set drag image to be invisible so we can control the visual feedback
       const img = new Image();
-      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
+      img.src =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=";
       e.dataTransfer.setDragImage(img, 0, 0);
-      
+
       // Set the data for the drag operation
-      e.dataTransfer.setData('text/plain', index.toString());
-      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData("text/plain", index.toString());
+      e.dataTransfer.effectAllowed = "move";
 
       onStartDrag?.(index);
     },
-    [onStartDrag]
+    [onStartDrag],
   );
 
   const onDragEnd = useCallback(
@@ -59,52 +60,52 @@ export function useDragReorder<T>(
       setDragOffset({ x: 0, y: 0 });
       onEndDrag?.();
     },
-    [onEndDrag]
+    [onEndDrag],
   );
 
   const onDragOver = useCallback(
     (index: number) => (e: React.DragEvent) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      
+      e.dataTransfer.dropEffect = "move";
+
       // Update drag offset for visual feedback
       const deltaX = e.clientX - dragStartPosRef.current.x;
       const deltaY = e.clientY - dragStartPosRef.current.y;
       setDragOffset({ x: deltaX, y: deltaY });
-      
+
       if (draggedIndex !== null && index !== draggedIndex) {
         setDragOverIndex(index);
       }
     },
-    [draggedIndex]
+    [draggedIndex],
   );
 
   const onDrop = useCallback(
     (index: number) => (e: React.DragEvent) => {
       e.preventDefault();
-      
+
       if (draggedIndex !== null && draggedIndex !== index) {
         const newItems = [...items];
         const draggedItem = newItems[draggedIndex];
-        
+
         if (draggedItem) {
           // Remove the dragged item
           newItems.splice(draggedIndex, 1);
-          
+
           // Insert at the new position
           const targetIndex = draggedIndex < index ? index - 1 : index;
           newItems.splice(targetIndex, 0, draggedItem);
-          
+
           onReorder(newItems);
         }
       }
-      
+
       setDraggedIndex(null);
       setDragOverIndex(null);
       setIsDragging(false);
       setDragOffset({ x: 0, y: 0 });
     },
-    [draggedIndex, items, onReorder]
+    [draggedIndex, items, onReorder],
   );
 
   const onDragEnter = useCallback(
@@ -114,7 +115,7 @@ export function useDragReorder<T>(
         setDragOverIndex(index);
       }
     },
-    [draggedIndex]
+    [draggedIndex],
   );
 
   const onDragLeave = useCallback((e: React.DragEvent) => {
@@ -124,7 +125,7 @@ export function useDragReorder<T>(
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-    
+
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       setDragOverIndex(null);
     }

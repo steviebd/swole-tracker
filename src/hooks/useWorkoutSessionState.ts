@@ -17,7 +17,9 @@ export interface UseWorkoutSessionStateArgs {
   sessionId: number;
 }
 
-export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs) {
+export function useWorkoutSessionState({
+  sessionId,
+}: UseWorkoutSessionStateArgs) {
   const [exercises, setExercises] = useState<ExerciseData[]>([]);
   const [expandedExercises, setExpandedExercises] = useState<number[]>([0]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,10 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     Map<string, { best?: PreviousBest; sets?: SetData[] }>
   >(new Map());
   const [previousDataLoaded, setPreviousDataLoaded] = useState(false);
-  const [notification, setNotification] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [notification, setNotification] = useState<{
+    type: "error" | "success";
+    message: string;
+  } | null>(null);
   const [collapsedIndexes, setCollapsedIndexes] = useState<number[]>([]);
   // Track last reversible action for persistent Undo behavior
   type HistoryAction =
@@ -99,13 +104,20 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   } | null>(null);
 
   const utils = api.useUtils();
-  const { data: session } = api.workouts.getById.useQuery({ id: sessionId });
+  const { data: session } = api.workouts.getById.useQuery(
+    { id: sessionId },
+    { enabled: sessionId > 0 } // Only run query if we have a valid session ID
+  );
   const { data: preferences } = api.preferences.get.useQuery();
   const updatePreferencesMutation = api.preferences.update.useMutation();
   // Strongly type the input using the router's inferred type to avoid union misinference
   type UpdatePrefsInput = { defaultWeightUnit: "kg" | "lbs" };
   const updatePreferences = (input: UpdatePrefsInput) => {
-    updatePreferencesMutation.mutate(input as unknown as Parameters<typeof updatePreferencesMutation.mutate>[0]);
+    updatePreferencesMutation.mutate(
+      input as unknown as Parameters<
+        typeof updatePreferencesMutation.mutate
+      >[0],
+    );
   };
 
   const { enqueue } = useOfflineSaveQueue();
@@ -136,7 +148,10 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     displayOrder,
     (newDisplayOrder) => {
       // Capture previous order for Undo
-      const prevOrder = exercises.map((ex) => ({ name: ex.exerciseName, templateExerciseId: ex.templateExerciseId }));
+      const prevOrder = exercises.map((ex) => ({
+        name: ex.exerciseName,
+        templateExerciseId: ex.templateExerciseId,
+      }));
       const newExercises = newDisplayOrder.map((item) => item.exercise);
       setExercises(newExercises);
 
@@ -147,7 +162,8 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       });
 
       // maintain collapsed by identity
-      const idFor = (ex: ExerciseData) => ex.templateExerciseId ?? `name:${ex.exerciseName}`;
+      const idFor = (ex: ExerciseData) =>
+        ex.templateExerciseId ?? `name:${ex.exerciseName}`;
       const collapsedIdSet = new Set(
         collapsedIndexes
           .map((i) => exercises[i])
@@ -167,7 +183,9 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       const newExpandedIndexes = expandedExercises
         .map((oldIndex) => {
           const exerciseId = exercises[oldIndex]?.templateExerciseId;
-          return newExercises.findIndex((ex) => ex.templateExerciseId === exerciseId);
+          return newExercises.findIndex(
+            (ex) => ex.templateExerciseId === exerciseId,
+          );
         })
         .filter((index) => index !== -1);
       setExpandedExercises(newExpandedIndexes);
@@ -175,9 +193,11 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     (draggedDisplayIndex) => {
       const originalIndex = displayOrder[draggedDisplayIndex]?.originalIndex;
       if (originalIndex !== undefined) {
-        setExpandedExercises((prev) => prev.filter((index) => index !== originalIndex));
+        setExpandedExercises((prev) =>
+          prev.filter((index) => index !== originalIndex),
+        );
       }
-    }
+    },
   );
 
   const saveWorkout = api.workouts.save.useMutation({
@@ -216,7 +236,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
               is_estimate: false,
               is_default_applied: false,
               createdAt: new Date(),
-            }))
+            })),
           ),
         } as const;
 
@@ -229,7 +249,10 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     },
     onError: (_err, _newWorkout, context) => {
       if (context?.previousWorkouts) {
-        utils.workouts.getRecent.setData({ limit: 5 }, context.previousWorkouts);
+        utils.workouts.getRecent.setData(
+          { limit: 5 },
+          context.previousWorkouts,
+        );
       }
     },
     onSettled: () => {
@@ -257,16 +280,21 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     },
     onError: (_err, variables, context) => {
       console.error("Failed to delete workout:", _err.message);
-      
+
       // For new/unsaved workouts, treat "not found" as success
       if (_err.message === "Workout session not found") {
-        console.log("Workout not found in database - likely an unsaved session, treating as successful deletion");
+        console.log(
+          "Workout not found in database - likely an unsaved session, treating as successful deletion",
+        );
         return; // Don't restore cache, deletion was conceptually successful
       }
-      
+
       // Only restore cache for actual server errors
       if (context?.previousWorkouts) {
-        utils.workouts.getRecent.setData({ limit: 5 }, context.previousWorkouts);
+        utils.workouts.getRecent.setData(
+          { limit: 5 },
+          context.previousWorkouts,
+        );
       }
     },
     onSettled: () => {
@@ -302,7 +330,12 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     };
 
     void loadPreviousData();
-  }, [session?.template, isReadOnly, utils.workouts.getLastExerciseData, sessionId]);
+  }, [
+    session?.template,
+    isReadOnly,
+    utils.workouts.getLastExerciseData,
+    sessionId,
+  ]);
 
   // session init
   useEffect(() => {
@@ -316,23 +349,25 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         exerciseGroups.get(key)!.push(sessionExercise);
       });
 
-      const existingExercises: ExerciseData[] = Array.from(exerciseGroups.entries()).map(
-        ([exerciseName, exerciseData]) => {
-          exerciseData.sort((a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0));
-          return {
-            templateExerciseId: exerciseData[0]?.templateExerciseId ?? undefined,
-            exerciseName,
-            sets: exerciseData.map((sessionExercise) => ({
-              id: `existing-${sessionExercise.id}`,
-              weight: sessionExercise.weight ? parseFloat(sessionExercise.weight) : undefined,
-              reps: sessionExercise.reps ?? undefined,
-              sets: sessionExercise.sets ?? 1,
-              unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
-            })),
-            unit: (exerciseData[0]?.unit as "kg" | "lbs") ?? "kg",
-          };
-        }
-      );
+      const existingExercises: ExerciseData[] = Array.from(
+        exerciseGroups.entries(),
+      ).map(([exerciseName, exerciseData]) => {
+        exerciseData.sort((a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0));
+        return {
+          templateExerciseId: exerciseData[0]?.templateExerciseId ?? undefined,
+          exerciseName,
+          sets: exerciseData.map((sessionExercise) => ({
+            id: `existing-${sessionExercise.id}`,
+            weight: sessionExercise.weight
+              ? parseFloat(sessionExercise.weight)
+              : undefined,
+            reps: sessionExercise.reps ?? undefined,
+            sets: sessionExercise.sets ?? 1,
+            unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
+          })),
+          unit: (exerciseData[0]?.unit as "kg" | "lbs") ?? "kg",
+        };
+      });
 
       setExercises(existingExercises);
       setIsReadOnly(true);
@@ -340,8 +375,12 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     } else {
       const initialExercises: ExerciseData[] = session.template.exercises.map(
         (templateExercise: { id: number; exerciseName: string }) => {
-          const previousData = previousExerciseData.get(templateExercise.exerciseName);
-          const defaultUnit = (preferences?.defaultWeightUnit ?? "kg") as "kg" | "lbs";
+          const previousData = previousExerciseData.get(
+            templateExercise.exerciseName,
+          );
+          const defaultUnit = (preferences?.defaultWeightUnit ?? "kg") as
+            | "kg"
+            | "lbs";
 
           let sets: SetData[] = [];
           if (previousData?.sets) {
@@ -378,17 +417,33 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     }
 
     setLoading(false);
-  }, [session?.template, session?.exercises, preferences?.defaultWeightUnit, previousExerciseData, previousDataLoaded, session]);
+  }, [
+    session?.template,
+    session?.exercises,
+    preferences?.defaultWeightUnit,
+    previousExerciseData,
+    previousDataLoaded,
+    session,
+  ]);
 
   // auto-progression modal
   useEffect(() => {
     const isNewWorkout = !session?.exercises || session.exercises.length === 0;
     const safeToShowModal = session && !isReadOnly && previousDataLoaded;
 
-    if (!loading && safeToShowModal && isNewWorkout && exercises.length > 0 && !progressionModal && !hasShownAutoProgression) {
+    if (
+      !loading &&
+      safeToShowModal &&
+      isNewWorkout &&
+      exercises.length > 0 &&
+      !progressionModal &&
+      !hasShownAutoProgression
+    ) {
       for (let i = 0; i < exercises.length; i++) {
         const exercise = exercises[i];
-        const previousData = previousExerciseData.get(exercise?.exerciseName ?? "");
+        const previousData = previousExerciseData.get(
+          exercise?.exerciseName ?? "",
+        );
         if (exercise && previousData?.best?.weight && previousData.best.sets) {
           setProgressionModal({
             isOpen: true,
@@ -406,7 +461,16 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         }
       }
     }
-  }, [loading, isReadOnly, exercises, previousExerciseData, progressionModal, hasShownAutoProgression, session, previousDataLoaded]);
+  }, [
+    loading,
+    isReadOnly,
+    exercises,
+    previousExerciseData,
+    progressionModal,
+    hasShownAutoProgression,
+    session,
+    previousDataLoaded,
+  ]);
 
   // helpers exposed to component
 
@@ -423,8 +487,11 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     if (lastAction.type === "swipeToEnd") {
       // Move the exercise back to original index
       setExercises((prev) => {
-        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
-        const srcIndex = prev.findIndex((ex) => idFor(ex) === lastAction.exerciseId);
+        const idFor = (ex: ExerciseData) =>
+          (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const srcIndex = prev.findIndex(
+          (ex) => idFor(ex) === lastAction.exerciseId,
+        );
         if (srcIndex === -1) return prev;
         const next = [...prev];
         const [item] = next.splice(srcIndex, 1);
@@ -432,12 +499,16 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         return next;
       });
       // Also clear collapsed flag for correctness
-      setCollapsedIndexes((prevCollapsed) => prevCollapsed.filter((i) => i !== -1));
+      setCollapsedIndexes((prevCollapsed) =>
+        prevCollapsed.filter((i) => i !== -1),
+      );
     } else if (lastAction.type === "toggleCollapse") {
       // Restore previous expanded state
       setExpandedExercises((prev) => {
         const exerciseIndex = exercises.findIndex(
-          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === lastAction.exerciseId,
+          (ex) =>
+            (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() ===
+            lastAction.exerciseId,
         );
         if (exerciseIndex === -1) return prev;
         const isCurrentlyExpanded = prev.includes(exerciseIndex);
@@ -452,11 +523,14 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     } else if (lastAction.type === "dragReorder") {
       // Restore previous order based on identity
       setExercises((prev) => {
-        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const idFor = (ex: ExerciseData) =>
+          (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
         const byId = new Map(prev.map((ex) => [idFor(ex), ex]));
         const restored: ExerciseData[] = [];
         for (const item of lastAction.previousOrder) {
-          const key = (item.templateExerciseId ?? `name:${item.name}`).toString();
+          const key = (
+            item.templateExerciseId ?? `name:${item.name}`
+          ).toString();
           const ex = byId.get(key);
           if (ex) restored.push(ex);
         }
@@ -485,7 +559,10 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         const next = [...prev];
         const ex = next[lastAction.exerciseIndex];
         if (!ex) return prev;
-        const insertAt = Math.min(Math.max(0, lastAction.deletedSet.index), ex.sets.length);
+        const insertAt = Math.min(
+          Math.max(0, lastAction.deletedSet.index),
+          ex.sets.length,
+        );
         ex.sets.splice(insertAt, 0, lastAction.deletedSet.data);
         return next;
       });
@@ -520,7 +597,6 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
 
   // DEBUG helpers
   const debugLog = (...args: unknown[]) => {
-     
     console.log("[WorkoutSessionState]", ...args);
   };
 
@@ -531,17 +607,36 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   const lastAddedSetIdRef = useRef<string | null>(null);
   const deleteOperationIdRef = useRef<string | null>(null);
 
-  const updateSet = (exerciseIndex: number, setIndex: number, field: keyof SetData, value: string | number | undefined) => {
-    debugLog("updateSet:start", { exerciseIndex, setIndex, field, value, len: exercises[exerciseIndex]?.sets.length });
+  const updateSet = (
+    exerciseIndex: number,
+    setIndex: number,
+    field: keyof SetData,
+    value: string | number | undefined,
+  ) => {
+    debugLog("updateSet:start", {
+      exerciseIndex,
+      setIndex,
+      field,
+      value,
+      len: exercises[exerciseIndex]?.sets.length,
+    });
     const newExercises = [...exercises];
     const target = newExercises[exerciseIndex]?.sets[setIndex];
     if (target) {
-      const before: Partial<SetData> = { [field]: target[field] } as Partial<SetData>;
-       
+      const before: Partial<SetData> = {
+        [field]: target[field],
+      } as Partial<SetData>;
+
       (target as any)[field] = value;
       const after: Partial<SetData> = { [field]: value } as Partial<SetData>;
       setExercises(newExercises);
-      debugLog("updateSet:applied", { exerciseIndex, setIndex, field, before, after });
+      debugLog("updateSet:applied", {
+        exerciseIndex,
+        setIndex,
+        field,
+        before,
+        after,
+      });
       // push history
       setLastAction({
         type: "editSetFields",
@@ -568,7 +663,9 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     setRedoStack([]);
     updateSet(exerciseIndex, setIndex, "unit", newUnit);
     // preferences mutation expects object shape { defaultWeightUnit }
-    updatePreferences({ defaultWeightUnit: (newUnit as unknown) as "kg" | "lbs" });
+    updatePreferences({
+      defaultWeightUnit: newUnit as unknown as "kg" | "lbs",
+    });
   };
 
   const addSet = (exerciseIndex: number) => {
@@ -578,17 +675,17 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     }
     addSetInFlightRef.current = true;
     debugLog("addSet:start", { exerciseIndex });
-    
+
     // Pre-generate the new set ID outside the state update
     const newId = generateSetId();
-    
+
     setExercises((prev) => {
       // Double-check if we've already added a set with this exact ID
       if (lastAddedSetIdRef.current === newId) {
         debugLog("addSet:suppressedDuplicateId", { exerciseIndex, newId });
         return prev;
       }
-      
+
       const next = [...prev];
       const exercise = next[exerciseIndex];
       if (!exercise) {
@@ -597,7 +694,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       }
 
       // Additional check: see if this exact set ID already exists in the exercise
-      if (exercise.sets.some(set => set.id === newId)) {
+      if (exercise.sets.some((set) => set.id === newId)) {
         debugLog("addSet:suppressedExistingId", { exerciseIndex, newId });
         return prev;
       }
@@ -605,16 +702,19 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       const lastSet = exercise.sets[exercise.sets.length - 1];
 
       // Phase 3: Predictive defaults engine (simple strategy v1)
-      const predictiveEnabled = (preferences as any)?.predictive_defaults_enabled === true;
+      const predictiveEnabled =
+        (preferences as any)?.predictive_defaults_enabled === true;
 
       // Determine base values
       let nextWeight: number | undefined = undefined;
       let nextReps: number | undefined = undefined;
       let nextSetsCount: number | undefined = 1;
-      const unitToUse = (lastSet?.unit ?? exercise.unit);
+      const unitToUse = lastSet?.unit ?? exercise.unit;
 
       if (predictiveEnabled) {
-        const recent = [...exercise.sets].reverse().find(s => (s.weight ?? s.reps ?? s.sets) !== undefined);
+        const recent = [...exercise.sets]
+          .reverse()
+          .find((s) => (s.weight ?? s.reps ?? s.sets) !== undefined);
         if (recent) {
           nextWeight = recent.weight;
           nextReps = recent.reps;
@@ -631,22 +731,28 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       };
 
       // Replace sets array reference to force reconciliation
-      const beforeIds = exercise.sets.map(s => s.id);
+      const beforeIds = exercise.sets.map((s) => s.id);
       exercise.sets = [...exercise.sets, newSet];
-      const afterIds = exercise.sets.map(s => s.id);
+      const afterIds = exercise.sets.map((s) => s.id);
 
       // Track the last added set ID
       lastAddedSetIdRef.current = newId;
 
-      debugLog("addSet:added", { exerciseIndex, newId, beforeIds, afterIds, totalSets: exercise.sets.length });
-      
+      debugLog("addSet:added", {
+        exerciseIndex,
+        newId,
+        beforeIds,
+        afterIds,
+        totalSets: exercise.sets.length,
+      });
+
       return next;
     });
-    
+
     // Set the last action and clear redo stack after state update
     setLastAction({ type: "addSet", exerciseIndex, newSetId: newId });
     setRedoStack([]);
-    
+
     // Release guard immediately after state update is queued
     addSetInFlightRef.current = false;
   };
@@ -658,21 +764,29 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     }
     deleteSetInFlightRef.current = true;
 
-    debugLog("deleteSet:click", { exerciseIndex, setIndex, lenBefore: exercises[exerciseIndex]?.sets.length });
-    
+    debugLog("deleteSet:click", {
+      exerciseIndex,
+      setIndex,
+      lenBefore: exercises[exerciseIndex]?.sets.length,
+    });
+
     // Generate unique operation ID for this specific delete operation
     const operationId = `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     let removedSet: SetData | null = null;
     let clampedIndex = -1;
-    
+
     setExercises((prev) => {
       // Check if we've already processed this exact operation to prevent duplicate executions
       if (deleteOperationIdRef.current === operationId) {
-        debugLog("deleteSet:suppressedDuplicateOperation", { exerciseIndex, setIndex, operationId });
+        debugLog("deleteSet:suppressedDuplicateOperation", {
+          exerciseIndex,
+          setIndex,
+          operationId,
+        });
         return prev;
       }
-      
+
       const next = [...prev];
       const exercise = next[exerciseIndex];
       if (!exercise) {
@@ -685,7 +799,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         deleteSetInFlightRef.current = false;
         return prev;
       }
-      
+
       // Defensive clamp of index to current bounds
       clampedIndex = Math.max(0, Math.min(setIndex, exercise.sets.length - 1));
       const removed = exercise.sets[clampedIndex];
@@ -694,27 +808,38 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         deleteSetInFlightRef.current = false;
         return prev;
       }
-      
+
       // Mark this operation as processed to prevent duplicate executions
       deleteOperationIdRef.current = operationId;
-      
+
       // Store the removed set for undo functionality
       removedSet = removed;
-      
+
       const beforeIds = exercise.sets.map((s) => s.id);
       exercise.sets = exercise.sets.filter((_, i) => i !== clampedIndex); // replace array ref for React reconciliation
       const afterIds = exercise.sets.map((s) => s.id);
-      debugLog("deleteSet:removed", { exerciseIndex, setIndex: clampedIndex, removedId: removed.id, beforeIds, afterIds, lenAfter: exercise.sets.length });
-      
+      debugLog("deleteSet:removed", {
+        exerciseIndex,
+        setIndex: clampedIndex,
+        removedId: removed.id,
+        beforeIds,
+        afterIds,
+        lenAfter: exercise.sets.length,
+      });
+
       return next;
     });
-    
+
     // Set the last action and clear redo stack after state update
     if (removedSet && clampedIndex !== -1) {
-      setLastAction({ type: "deleteSet", exerciseIndex, deletedSet: { index: clampedIndex, data: removedSet } });
+      setLastAction({
+        type: "deleteSet",
+        exerciseIndex,
+        deletedSet: { index: clampedIndex, data: removedSet },
+      });
       setRedoStack([]);
     }
-    
+
     // Release guard immediately after state update is queued
     deleteSetInFlightRef.current = false;
   };
@@ -725,13 +850,17 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
 
     const wasExpanded = expandedExercises.includes(exerciseIndex);
     setExpandedExercises((prev) =>
-      wasExpanded ? prev.filter((i) => i !== exerciseIndex) : [...prev, exerciseIndex],
+      wasExpanded
+        ? prev.filter((i) => i !== exerciseIndex)
+        : [...prev, exerciseIndex],
     );
 
     // record undo action
     setLastAction({
       type: "toggleCollapse",
-      exerciseId: (exercise.templateExerciseId ?? `name:${exercise.exerciseName}`).toString(),
+      exerciseId: (
+        exercise.templateExerciseId ?? `name:${exercise.exerciseName}`
+      ).toString(),
       previousExpanded: wasExpanded,
     });
   };
@@ -748,7 +877,9 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       // record undo action
       setLastAction({
         type: "swipeToEnd",
-        exerciseId: (item.templateExerciseId ?? `name:${item.exerciseName}`).toString(),
+        exerciseId: (
+          item.templateExerciseId ?? `name:${item.exerciseName}`
+        ).toString(),
         fromIndex: exerciseIndex,
         toIndex,
       });
@@ -770,7 +901,10 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         ...exercise,
         sets: exercise.sets
           .filter(
-            (set) => set.weight !== undefined || set.reps !== undefined || (set.sets && set.sets > 0),
+            (set) =>
+              set.weight !== undefined ||
+              set.reps !== undefined ||
+              (set.sets && set.sets > 0),
           )
           .map((set) => ({
             ...set,
@@ -789,23 +923,36 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
   };
 
   // Move sets within an exercise using simple up/down operations
-  const moveSet = (exerciseIndex: number, setIndex: number, direction: 'up' | 'down') => {
+  const moveSet = (
+    exerciseIndex: number,
+    setIndex: number,
+    direction: "up" | "down",
+  ) => {
     const operationKey = `${exerciseIndex}-${setIndex}-${direction}`;
-    console.log('[moveSet] Called with:', { exerciseIndex, setIndex, direction, operationKey });
-    
+    console.log("[moveSet] Called with:", {
+      exerciseIndex,
+      setIndex,
+      direction,
+      operationKey,
+    });
+
     if (reorderInProgressRef.current) {
-      console.log('[moveSet] Operation already in progress, skipping');
+      console.log("[moveSet] Operation already in progress, skipping");
       return;
     }
-    
+
     reorderInProgressRef.current = true;
-    console.log('[moveSet] Starting move operation', { exerciseIndex, setIndex, direction });
-    
+    console.log("[moveSet] Starting move operation", {
+      exerciseIndex,
+      setIndex,
+      direction,
+    });
+
     // Add a small delay to allow React to process any pending updates
     setTimeout(() => {
       reorderInProgressRef.current = false;
     }, 100);
-    
+
     setExercises((prev) => {
       const next = [...prev];
       const ex = next[exerciseIndex];
@@ -813,39 +960,42 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         reorderInProgressRef.current = false;
         return prev;
       }
-      
-      const newIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
-      
+
+      const newIndex = direction === "up" ? setIndex - 1 : setIndex + 1;
+
       // Check bounds
       if (newIndex < 0 || newIndex >= ex.sets.length) {
-        console.log('[moveSet] Move out of bounds, skipping');
+        console.log("[moveSet] Move out of bounds, skipping");
         reorderInProgressRef.current = false;
         return prev;
       }
-      
+
       // Simple swap operation with proper type safety and forced re-render
       const setsCopy = [...ex.sets];
       const setA = setsCopy[setIndex];
       const setB = setsCopy[newIndex];
-      
+
       if (!setA || !setB) {
-        console.log('[moveSet] Invalid sets for swap, skipping');
+        console.log("[moveSet] Invalid sets for swap, skipping");
         reorderInProgressRef.current = false;
         return prev;
       }
-      
+
       // Create new objects to force React re-render
       setsCopy[setIndex] = { ...setB };
       setsCopy[newIndex] = { ...setA };
-      
+
       // Replace the entire exercise object to ensure React sees the change
       next[exerciseIndex] = {
         ...ex,
-        sets: setsCopy
+        sets: setsCopy,
       };
-      
-      console.log('[moveSet] Successfully moved set', direction, { from: setIndex, to: newIndex });
-      
+
+      console.log("[moveSet] Successfully moved set", direction, {
+        from: setIndex,
+        to: newIndex,
+      });
+
       // history for undo: store move operation
       setLastAction({
         type: "editSetFields",
@@ -855,7 +1005,7 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         after: {},
       });
       setRedoStack([]);
-      
+
       // Trigger auto-save after move
       const savePayload = {
         sessionId: session?.id || 0,
@@ -863,16 +1013,26 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
           .map((exercise) => ({
             ...exercise,
             sets: exercise.sets
-              .filter((set) => set.weight !== undefined || set.reps !== undefined || set.sets !== undefined)
-              .map((set) => ({ ...set, unit: set.unit || "kg" }))
+              .filter(
+                (set) =>
+                  set.weight !== undefined ||
+                  set.reps !== undefined ||
+                  set.sets !== undefined,
+              )
+              .map((set) => ({ ...set, unit: set.unit || "kg" })),
           }))
-          .filter((exercise) => exercise.sets.length > 0)
+          .filter((exercise) => exercise.sets.length > 0),
       };
-      console.log('[moveSet] Enqueuing save after move');
+      console.log("[moveSet] Enqueuing save after move");
       enqueue(savePayload);
-      
-      debugLog("moveSet:applied", { exerciseIndex, setIndex, direction, newIndex });
-      
+
+      debugLog("moveSet:applied", {
+        exerciseIndex,
+        setIndex,
+        direction,
+        newIndex,
+      });
+
       return next;
     });
   };
@@ -886,8 +1046,11 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     // Re-apply the action we undid
     if (action.type === "swipeToEnd") {
       setExercises((prev) => {
-        const idFor = (ex: ExerciseData) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
-        const srcIndex = prev.findIndex((ex) => idFor(ex) === action.exerciseId);
+        const idFor = (ex: ExerciseData) =>
+          (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString();
+        const srcIndex = prev.findIndex(
+          (ex) => idFor(ex) === action.exerciseId,
+        );
         if (srcIndex === -1) return prev;
         const next = [...prev];
         const [item] = next.splice(srcIndex, 1);
@@ -897,7 +1060,9 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
     } else if (action.type === "toggleCollapse") {
       setExpandedExercises((prev) => {
         const exerciseIndex = exercises.findIndex(
-          (ex) => (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() === action.exerciseId,
+          (ex) =>
+            (ex.templateExerciseId ?? `name:${ex.exerciseName}`).toString() ===
+            action.exerciseId,
         );
         if (exerciseIndex === -1) return prev;
         const isCurrentlyExpanded = prev.includes(exerciseIndex);
@@ -935,7 +1100,9 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
         const next = [...prev];
         const ex = next[action.exerciseIndex];
         if (!ex) return prev;
-        const idx = ex.sets.findIndex((s) => s.id === action.deletedSet.data.id);
+        const idx = ex.sets.findIndex(
+          (s) => s.id === action.deletedSet.data.id,
+        );
         if (idx !== -1) {
           ex.sets.splice(idx, 1);
         }
@@ -967,7 +1134,6 @@ export function useWorkoutSessionState({ sessionId }: UseWorkoutSessionStateArgs
       });
     }
   };
-
 
   return {
     // state

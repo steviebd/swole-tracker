@@ -4,7 +4,7 @@ import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
 export async function GET(request: NextRequest) {
   const user = await currentUser();
-  
+
   if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -20,7 +20,11 @@ export async function GET(request: NextRequest) {
 
   // Send initial connection message
   const encoder = new TextEncoder();
-  await writer.write(encoder.encode(`data: ${JSON.stringify({ type: "connected", timestamp: Date.now() })}\n\n`));
+  await writer.write(
+    encoder.encode(
+      `data: ${JSON.stringify({ type: "connected", timestamp: Date.now() })}\n\n`,
+    ),
+  );
 
   // Clean up when connection closes
   request.signal.addEventListener("abort", () => {
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Cache-Control",
     },

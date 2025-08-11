@@ -113,13 +113,21 @@ describe("offline-queue", () => {
     const id1 = mod.enqueueWorkoutSave({
       sessionId: 1,
       exercises: [
-        { exerciseName: "OHP", unit: "kg", sets: [{ id: "s1", weight: 40, reps: 8, unit: "kg" }] },
+        {
+          exerciseName: "OHP",
+          unit: "kg",
+          sets: [{ id: "s1", weight: 40, reps: 8, unit: "kg" }],
+        },
       ],
     });
     const id2 = mod.enqueueWorkoutSave({
       sessionId: 2,
       exercises: [
-        { exerciseName: "Row", unit: "kg", sets: [{ id: "s1", weight: 60, reps: 10, unit: "kg" }] },
+        {
+          exerciseName: "Row",
+          unit: "kg",
+          sets: [{ id: "s1", weight: 60, reps: 10, unit: "kg" }],
+        },
       ],
     });
 
@@ -143,15 +151,33 @@ describe("offline-queue", () => {
     const ids = [
       mod.enqueueWorkoutSave({
         sessionId: 11,
-        exercises: [{ exerciseName: "A", unit: "kg", sets: [{ id: "s1", reps: 5, unit: "kg" }] }],
+        exercises: [
+          {
+            exerciseName: "A",
+            unit: "kg",
+            sets: [{ id: "s1", reps: 5, unit: "kg" }],
+          },
+        ],
       }),
       mod.enqueueWorkoutSave({
         sessionId: 22,
-        exercises: [{ exerciseName: "B", unit: "kg", sets: [{ id: "s1", reps: 5, unit: "kg" }] }],
+        exercises: [
+          {
+            exerciseName: "B",
+            unit: "kg",
+            sets: [{ id: "s1", reps: 5, unit: "kg" }],
+          },
+        ],
       }),
       mod.enqueueWorkoutSave({
         sessionId: 33,
-        exercises: [{ exerciseName: "C", unit: "kg", sets: [{ id: "s1", reps: 5, unit: "kg" }] }],
+        exercises: [
+          {
+            exerciseName: "C",
+            unit: "kg",
+            sets: [{ id: "s1", reps: 5, unit: "kg" }],
+          },
+        ],
       }),
     ];
 
@@ -171,7 +197,13 @@ describe("offline-queue", () => {
     const mod = await import("~/lib/offline-queue");
     mod.enqueueWorkoutSave({
       sessionId: 1,
-      exercises: [{ exerciseName: "Bench", unit: "kg", sets: [{ id: "s1", reps: 5, unit: "kg" }] }],
+      exercises: [
+        {
+          exerciseName: "Bench",
+          unit: "kg",
+          sets: [{ id: "s1", reps: 5, unit: "kg" }],
+        },
+      ],
     });
     expect(mod.getQueueLength()).toBe(1);
     mod.clearQueue();
@@ -187,7 +219,10 @@ describe("offline-queue", () => {
     expect(mod.getQueue()).toEqual([]);
 
     // Put JSON that is not an array
-    window.localStorage.setItem("offline.queue.v1", JSON.stringify({ hello: "world" }));
+    window.localStorage.setItem(
+      "offline.queue.v1",
+      JSON.stringify({ hello: "world" }),
+    );
     expect(mod.getQueue()).toEqual([]);
 
     // Put an empty array string

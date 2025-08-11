@@ -11,9 +11,16 @@ export interface UniversalDragState {
 }
 
 export interface UniversalDragHandlers {
-  onPointerDown: (index: number, opts?: { force?: boolean }) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
-  onPointerMove: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
-  onPointerUp: (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
+  onPointerDown: (
+    index: number,
+    opts?: { force?: boolean },
+  ) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
+  onPointerMove: (
+    e: React.PointerEvent | React.MouseEvent | React.TouchEvent,
+  ) => void;
+  onPointerUp: (
+    e: React.PointerEvent | React.MouseEvent | React.TouchEvent,
+  ) => void;
   setCardElement: (index: number, element: HTMLElement | null) => void;
 }
 
@@ -21,7 +28,7 @@ export function useUniversalDragReorder<T>(
   items: T[],
   onReorder: (newItems: T[]) => void,
   onStartDrag?: (index: number) => void,
-  onEndDrag?: () => void
+  onEndDrag?: () => void,
 ): [UniversalDragState, UniversalDragHandlers] {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -49,11 +56,17 @@ export function useUniversalDragReorder<T>(
 
   // Get pointer position from different event types
   const getPointerPos = (
-    e: React.PointerEvent | React.MouseEvent | React.TouchEvent | PointerEvent | MouseEvent | TouchEvent,
+    e:
+      | React.PointerEvent
+      | React.MouseEvent
+      | React.TouchEvent
+      | PointerEvent
+      | MouseEvent
+      | TouchEvent,
   ): { x: number; y: number } => {
     // TouchEvent path
     if ("touches" in e) {
-      const t = (e).touches;
+      const t = e.touches;
       if (t && t.length > 0) {
         return { x: t[0]!.clientX, y: t[0]!.clientY };
       }
@@ -67,50 +80,53 @@ export function useUniversalDragReorder<T>(
   };
 
   // Find the insertion point based on pointer position
-  const findDropTarget = useCallback((x: number, y: number, excludeIndex?: number) => {
-    let insertionIndex = 0;
-    let closestDistance = Infinity;
-    let closestIndex = 0;
-    
-    for (let i = 0; i < cardElements.current.length; i++) {
-      const element = cardElements.current[i];
-      if (!element || i === excludeIndex) continue;
-      
-      const rect = element.getBoundingClientRect();
-      const centerY = rect.top + rect.height / 2;
-      const distance = Math.abs(y - centerY);
-      
-      // Track the closest element for fallback
-      if (x >= rect.left && x <= rect.right && distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = i;
-      }
-      
-      // If the pointer is within horizontal bounds and above the center of this card
-      if (x >= rect.left && x <= rect.right && y < centerY) {
-        // We want to insert before this card
-        return i;
-      }
-      
-      // If we're past this card, the insertion point is after it
-      if (x >= rect.left && x <= rect.right) {
-        insertionIndex = i + 1;
-      }
-    }
-    
-    // If we're between elements or in a gap, use the closest element as reference
-    if (closestDistance < Infinity) {
-      const closestElement = cardElements.current[closestIndex];
-      if (closestElement) {
-        const rect = closestElement.getBoundingClientRect();
+  const findDropTarget = useCallback(
+    (x: number, y: number, excludeIndex?: number) => {
+      let insertionIndex = 0;
+      let closestDistance = Infinity;
+      let closestIndex = 0;
+
+      for (let i = 0; i < cardElements.current.length; i++) {
+        const element = cardElements.current[i];
+        if (!element || i === excludeIndex) continue;
+
+        const rect = element.getBoundingClientRect();
         const centerY = rect.top + rect.height / 2;
-        // If we're below the closest element, insert after it
-        return y >= centerY ? closestIndex + 1 : closestIndex;
+        const distance = Math.abs(y - centerY);
+
+        // Track the closest element for fallback
+        if (x >= rect.left && x <= rect.right && distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = i;
+        }
+
+        // If the pointer is within horizontal bounds and above the center of this card
+        if (x >= rect.left && x <= rect.right && y < centerY) {
+          // We want to insert before this card
+          return i;
+        }
+
+        // If we're past this card, the insertion point is after it
+        if (x >= rect.left && x <= rect.right) {
+          insertionIndex = i + 1;
+        }
       }
-    }
-    
-    return insertionIndex;
-  }, []);
+
+      // If we're between elements or in a gap, use the closest element as reference
+      if (closestDistance < Infinity) {
+        const closestElement = cardElements.current[closestIndex];
+        if (closestElement) {
+          const rect = closestElement.getBoundingClientRect();
+          const centerY = rect.top + rect.height / 2;
+          // If we're below the closest element, insert after it
+          return y >= centerY ? closestIndex + 1 : closestIndex;
+        }
+      }
+
+      return insertionIndex;
+    },
+    [],
+  );
 
   // Auto-scroll when dragging near viewport edges
   const handleAutoScroll = useCallback((clientY: number) => {
@@ -124,14 +140,20 @@ export function useUniversalDragReorder<T>(
       const ratio = Math.max(0, Math.min(1, dist / AUTOSCROLL_ZONE));
       // Ease-in curve for precision control
       const eased = Math.pow(ratio, 1.2);
-      newScrollSpeed = -Math.max(0, Math.round(eased * AUTOSCROLL_MAX_PX_PER_FRAME));
+      newScrollSpeed = -Math.max(
+        0,
+        Math.round(eased * AUTOSCROLL_MAX_PX_PER_FRAME),
+      );
     }
     // Bottom zone
     else if (clientY > viewportHeight - AUTOSCROLL_ZONE) {
       const dist = clientY - (viewportHeight - AUTOSCROLL_ZONE);
       const ratio = Math.max(0, Math.min(1, dist / AUTOSCROLL_ZONE));
       const eased = Math.pow(ratio, 1.2);
-      newScrollSpeed = Math.max(0, Math.round(eased * AUTOSCROLL_MAX_PX_PER_FRAME));
+      newScrollSpeed = Math.max(
+        0,
+        Math.round(eased * AUTOSCROLL_MAX_PX_PER_FRAME),
+      );
     }
 
     scrollSpeed.current = newScrollSpeed;
@@ -163,68 +185,102 @@ export function useUniversalDragReorder<T>(
   }, []);
 
   const onPointerDown = useCallback(
-    (index: number, opts?: { force?: boolean }) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
-      // Prevent dragging when clicking on interactive elements (except explicit drag handles)
-      const target = e.target as HTMLElement;
-      const isHandle = !!target.closest('[data-drag-handle="true"]');
-      console.log('[useUniversalDragReorder] onPointerDown called', { index, isHandle, targetTag: target.tagName, opts });
+    (index: number, opts?: { force?: boolean }) =>
+      (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
+        // Prevent dragging when clicking on interactive elements (except explicit drag handles)
+        const target = e.target as HTMLElement;
+        const isHandle = !!target.closest('[data-drag-handle="true"]');
+        console.log("[useUniversalDragReorder] onPointerDown called", {
+          index,
+          isHandle,
+          targetTag: target.tagName,
+          opts,
+        });
 
-      // IMPORTANT: Do NOT call preventDefault on React synthetic event here (React may mark as passive).
-      // Instead, immediately add a non-passive native listener on the currentTarget to prevent default for the next move.
-      const currentTarget = (e as React.SyntheticEvent).currentTarget as HTMLElement | null;
+        // IMPORTANT: Do NOT call preventDefault on React synthetic event here (React may mark as passive).
+        // Instead, immediately add a non-passive native listener on the currentTarget to prevent default for the next move.
+        const currentTarget = (e as React.SyntheticEvent)
+          .currentTarget as HTMLElement | null;
 
-      if (currentTarget) {
-        const nonPassiveMove = (ev: Event) => {
-          try { ev.preventDefault(); } catch {}
-        };
-        // Add once to block the first move which typically starts scroll/text selection on touch
-        currentTarget.addEventListener('touchmove', nonPassiveMove, { passive: false, once: true });
-        currentTarget.addEventListener('pointermove', nonPassiveMove, { passive: false, once: true });
-        currentTarget.addEventListener('mousemove', nonPassiveMove, { passive: false, once: true });
-      }
-
-      if (!isHandle && (target.closest('button') || target.closest('input') || target.closest('select'))) {
-        return;
-      }
-
-      // iOS/Safari robustness: attempt to capture pointer if available
-      const evt = e;
-      const ct = (evt as React.SyntheticEvent).currentTarget as HTMLElement | null;
-      // Only PointerEvent has pointerId
-      if ("pointerId" in evt && ct && typeof (ct as HTMLElement & { setPointerCapture?: (pointerId: number) => void }).setPointerCapture === "function") {
-        try {
-          (ct as HTMLElement & { setPointerCapture: (pointerId: number) => void }).setPointerCapture(
-            (evt).pointerId,
-          );
-        } catch {
-          // ignore capture errors
+        if (currentTarget) {
+          const nonPassiveMove = (ev: Event) => {
+            try {
+              ev.preventDefault();
+            } catch {}
+          };
+          // Add once to block the first move which typically starts scroll/text selection on touch
+          currentTarget.addEventListener("touchmove", nonPassiveMove, {
+            passive: false,
+            once: true,
+          });
+          currentTarget.addEventListener("pointermove", nonPassiveMove, {
+            passive: false,
+            once: true,
+          });
+          currentTarget.addEventListener("mousemove", nonPassiveMove, {
+            passive: false,
+            once: true,
+          });
         }
-      }
 
-      const pos = getPointerPos(e);
-      setDragStartPos(pos);
-      setDraggedIndex(index);
-      dragStartTime.current = Date.now();
-      axisLockedToY.current = false;
-      lastInsertionIndexRef.current = null;
+        if (
+          !isHandle &&
+          (target.closest("button") ||
+            target.closest("input") ||
+            target.closest("select"))
+        ) {
+          return;
+        }
 
-      // If initiated from the drag handle OR force requested, start immediately with vertical lock
-      if (isHandle || opts?.force) {
-        hasDragStarted.current = true;
-        axisLockedToY.current = true;
-        setIsDragging(true);
-        onStartDrag?.(index);
-      } else {
-        hasDragStarted.current = false;
-      }
+        // iOS/Safari robustness: attempt to capture pointer if available
+        const evt = e;
+        const ct = (evt as React.SyntheticEvent)
+          .currentTarget as HTMLElement | null;
+        // Only PointerEvent has pointerId
+        if (
+          "pointerId" in evt &&
+          ct &&
+          typeof (
+            ct as HTMLElement & {
+              setPointerCapture?: (pointerId: number) => void;
+            }
+          ).setPointerCapture === "function"
+        ) {
+          try {
+            (
+              ct as HTMLElement & {
+                setPointerCapture: (pointerId: number) => void;
+              }
+            ).setPointerCapture(evt.pointerId);
+          } catch {
+            // ignore capture errors
+          }
+        }
 
-      // Capture initial scroll position for offset calculations
-      initialScrollY.current = window.scrollY;
-      currentScrollY.current = window.scrollY;
+        const pos = getPointerPos(e);
+        setDragStartPos(pos);
+        setDraggedIndex(index);
+        dragStartTime.current = Date.now();
+        axisLockedToY.current = false;
+        lastInsertionIndexRef.current = null;
 
-      // Do not call preventDefault here; rely on CSS touch-action to manage scrolling behavior.
-    },
-    [onStartDrag]
+        // If initiated from the drag handle OR force requested, start immediately with vertical lock
+        if (isHandle || opts?.force) {
+          hasDragStarted.current = true;
+          axisLockedToY.current = true;
+          setIsDragging(true);
+          onStartDrag?.(index);
+        } else {
+          hasDragStarted.current = false;
+        }
+
+        // Capture initial scroll position for offset calculations
+        initialScrollY.current = window.scrollY;
+        currentScrollY.current = window.scrollY;
+
+        // Do not call preventDefault here; rely on CSS touch-action to manage scrolling behavior.
+      },
+    [onStartDrag],
   );
 
   const onPointerMove = useCallback(
@@ -256,7 +312,13 @@ export function useUniversalDragReorder<T>(
       }
 
       if (hasDragStarted.current && axisLockedToY.current) {
-        console.log('[useUniversalDragReorder] onPointerMove - drag active', { draggedIndex, deltaX, deltaY, distance, dragOverIndex });
+        console.log("[useUniversalDragReorder] onPointerMove - drag active", {
+          draggedIndex,
+          deltaX,
+          deltaY,
+          distance,
+          dragOverIndex,
+        });
         // Use requestAnimationFrame for smooth 60fps updates
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
@@ -281,11 +343,20 @@ export function useUniversalDragReorder<T>(
             const insertionIndex = findDropTarget(pos.x, pos.y, draggedIndex);
 
             // Apply tolerance to reduce jitter/flicker
-            if (lastInsertionIndexRef.current === null || insertionIndex !== lastInsertionIndexRef.current) {
+            if (
+              lastInsertionIndexRef.current === null ||
+              insertionIndex !== lastInsertionIndexRef.current
+            ) {
               // Only switch if pointer moved past tolerance relative to previous target
               let allowSwitch = true;
               if (lastInsertionIndexRef.current !== null) {
-                const prevEl = cardElements.current[Math.min(Math.max(lastInsertionIndexRef.current, 0), cardElements.current.length - 1)];
+                const prevEl =
+                  cardElements.current[
+                    Math.min(
+                      Math.max(lastInsertionIndexRef.current, 0),
+                      cardElements.current.length - 1,
+                    )
+                  ];
                 if (prevEl) {
                   const rect = prevEl.getBoundingClientRect();
                   const centerY = rect.top + rect.height / 2;
@@ -306,39 +377,57 @@ export function useUniversalDragReorder<T>(
         // Use CSS (e.g., 'touch-none') on the draggable element while dragging to prevent scroll.
       }
     },
-    [draggedIndex, dragStartPos, dragOverIndex, findDropTarget, onStartDrag, handleAutoScroll]
+    [
+      draggedIndex,
+      dragStartPos,
+      dragOverIndex,
+      findDropTarget,
+      onStartDrag,
+      handleAutoScroll,
+    ],
   );
 
   const onPointerUp = useCallback(
     (_e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => {
       if (draggedIndex === null) return;
 
-      if (hasDragStarted.current && dragOverIndex !== null && dragOverIndex !== draggedIndex) {
-        console.log('[useUniversalDragReorder] onPointerUp - performing reorder', { draggedIndex, dragOverIndex });
+      if (
+        hasDragStarted.current &&
+        dragOverIndex !== null &&
+        dragOverIndex !== draggedIndex
+      ) {
+        console.log(
+          "[useUniversalDragReorder] onPointerUp - performing reorder",
+          { draggedIndex, dragOverIndex },
+        );
         // Perform reorder
         const newItems = [...items];
         const draggedItem = newItems[draggedIndex];
-        
+
         if (draggedItem) {
           // Remove the dragged item first
           newItems.splice(draggedIndex, 1);
-          
+
           // Calculate the correct insertion point after removal
           // If we're moving to a position after where we removed the item, adjust by -1
-          const adjustedInsertionIndex = dragOverIndex > draggedIndex ? dragOverIndex - 1 : dragOverIndex;
-          
+          const adjustedInsertionIndex =
+            dragOverIndex > draggedIndex ? dragOverIndex - 1 : dragOverIndex;
+
           // Insert at the calculated position
           newItems.splice(adjustedInsertionIndex, 0, draggedItem);
-          
-          console.log('[useUniversalDragReorder] onReorder called with newItems', newItems.map(item => {
-            const typedItem = item as Record<string, unknown>;
-            return typedItem.identity ?? typedItem.originalIndex;
-          }));
+
+          console.log(
+            "[useUniversalDragReorder] onReorder called with newItems",
+            newItems.map((item) => {
+              const typedItem = item as Record<string, unknown>;
+              return typedItem.identity ?? typedItem.originalIndex;
+            }),
+          );
           onReorder(newItems);
         }
       }
 
-      console.log('[useUniversalDragReorder] onPointerUp - resetting state');
+      console.log("[useUniversalDragReorder] onPointerUp - resetting state");
       // Reset state
       setDraggedIndex(null);
       setDragOverIndex(null);
@@ -346,19 +435,19 @@ export function useUniversalDragReorder<T>(
       setDragOffset({ x: 0, y: 0 });
       setDragStartPos({ x: 0, y: 0 });
       hasDragStarted.current = false;
-      
+
       // Clean up animation frame and auto-scroll
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = undefined;
       }
       stopAutoScroll();
-      
+
       onEndDrag?.();
 
       // Do not call preventDefault on pointer/touch end.
     },
-    [draggedIndex, dragOverIndex, items, onReorder, onEndDrag, stopAutoScroll]
+    [draggedIndex, dragOverIndex, items, onReorder, onEndDrag, stopAutoScroll],
   );
 
   // Global pointer move and up handlers
@@ -375,27 +464,36 @@ export function useUniversalDragReorder<T>(
     };
 
     // Add listeners to document to capture events outside the element
-    document.addEventListener('pointermove', handlePointerMove, { passive: false });
-    document.addEventListener('pointerup', handlePointerUp, { passive: false });
-    document.addEventListener('mousemove', handlePointerMove, { passive: false });
-    document.addEventListener('mouseup', handlePointerUp, { passive: false });
-    document.addEventListener('touchmove', handlePointerMove, { passive: false });
-    document.addEventListener('touchend', handlePointerUp, { passive: false });
+    document.addEventListener("pointermove", handlePointerMove, {
+      passive: false,
+    });
+    document.addEventListener("pointerup", handlePointerUp, { passive: false });
+    document.addEventListener("mousemove", handlePointerMove, {
+      passive: false,
+    });
+    document.addEventListener("mouseup", handlePointerUp, { passive: false });
+    document.addEventListener("touchmove", handlePointerMove, {
+      passive: false,
+    });
+    document.addEventListener("touchend", handlePointerUp, { passive: false });
 
     return () => {
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-      document.removeEventListener('mousemove', handlePointerMove);
-      document.removeEventListener('mouseup', handlePointerUp);
-      document.removeEventListener('touchmove', handlePointerMove);
-      document.removeEventListener('touchend', handlePointerUp);
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("mousemove", handlePointerMove);
+      document.removeEventListener("mouseup", handlePointerUp);
+      document.removeEventListener("touchmove", handlePointerMove);
+      document.removeEventListener("touchend", handlePointerUp);
     };
   }, [draggedIndex, onPointerMove, onPointerUp]);
 
   // Store card element references
-  const setCardElement = useCallback((index: number, element: HTMLElement | null) => {
-    cardElements.current[index] = element;
-  }, []);
+  const setCardElement = useCallback(
+    (index: number, element: HTMLElement | null) => {
+      cardElements.current[index] = element;
+    },
+    [],
+  );
 
   const state: UniversalDragState = {
     draggedIndex,

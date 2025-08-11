@@ -11,10 +11,12 @@ export const paginationSchema = z.object({
   cursor: z.union([z.string(), z.number()]).optional(),
 });
 
-export const dateRangeSchema = z.object({
-  from: z.coerce.date(),
-  to: z.coerce.date(),
-}).refine((v) => v.from <= v.to, { message: "from must be before to" });
+export const dateRangeSchema = z
+  .object({
+    from: z.coerce.date(),
+    to: z.coerce.date(),
+  })
+  .refine((v) => v.from <= v.to, { message: "from must be before to" });
 
 export const booleanFlagSchema = z.coerce.boolean();
 

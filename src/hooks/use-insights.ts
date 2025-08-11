@@ -31,7 +31,13 @@ export function useExerciseInsights(params: {
       query.data ?? {
         unit,
         bestSet: undefined as
-          | { weight?: number; reps?: number; unit?: "kg" | "lbs"; sets?: number; rpe?: number }
+          | {
+              weight?: number;
+              reps?: number;
+              unit?: "kg" | "lbs";
+              sets?: number;
+              rpe?: number;
+            }
           | undefined,
         best1RM: undefined as number | undefined,
         volumeSparkline: [] as Array<{ date: Date; volume: number }>,
@@ -44,7 +50,10 @@ export function useExerciseInsights(params: {
               unit: "kg" | "lbs";
             }
           | undefined,
-        suggestions: [] as Array<{ kind: "rest" | "rpe" | "volume"; message: string }>,
+        suggestions: [] as Array<{
+          kind: "rest" | "rpe" | "volume";
+          message: string;
+        }>,
       }
     );
   }, [query.data, unit]);
@@ -53,7 +62,10 @@ export function useExerciseInsights(params: {
 }
 
 // Session-level insights
-export function useSessionInsights(sessionId: number, unit: "kg" | "lbs" = "kg") {
+export function useSessionInsights(
+  sessionId: number,
+  unit: "kg" | "lbs" = "kg",
+) {
   const query = api.insights.getSessionInsights.useQuery(
     { sessionId, unit },
     {
@@ -70,7 +82,11 @@ export function useSessionInsights(sessionId: number, unit: "kg" | "lbs" = "kg")
         bestSets: [] as Array<{
           exerciseName: string;
           volume: number;
-          bestSet?: { weight?: number; reps?: number | null; unit: "kg" | "lbs" };
+          bestSet?: {
+            weight?: number;
+            reps?: number | null;
+            unit: "kg" | "lbs";
+          };
         }>,
       }
     );
@@ -80,7 +96,10 @@ export function useSessionInsights(sessionId: number, unit: "kg" | "lbs" = "kg")
 }
 
 // Export CSV
-export function useExportWorkoutsCSV(params?: { since?: Date; limit?: number }) {
+export function useExportWorkoutsCSV(params?: {
+  since?: Date;
+  limit?: number;
+}) {
   const since = params?.since;
   const limit = params?.limit ?? 50;
 

@@ -13,17 +13,38 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     const userId = "user_1";
     const prefixRows = [
       { id: 1, name: "Row", normalizedName: "row", createdAt: new Date() },
-      { id: 2, name: "Row Machine", normalizedName: "row machine", createdAt: new Date() },
+      {
+        id: 2,
+        name: "Row Machine",
+        normalizedName: "row machine",
+        createdAt: new Date(),
+      },
     ];
     const containsRows = [
-      { id: 2, name: "Row Machine", normalizedName: "row machine", createdAt: new Date() }, // dup
-      { id: 3, name: "Bent Over Row", normalizedName: "bent over row", createdAt: new Date() },
-      { id: 4, name: "Seated Row", normalizedName: "seated row", createdAt: new Date() },
+      {
+        id: 2,
+        name: "Row Machine",
+        normalizedName: "row machine",
+        createdAt: new Date(),
+      }, // dup
+      {
+        id: 3,
+        name: "Bent Over Row",
+        normalizedName: "bent over row",
+        createdAt: new Date(),
+      },
+      {
+        id: 4,
+        name: "Seated Row",
+        normalizedName: "seated row",
+        createdAt: new Date(),
+      },
     ];
 
     // Minimal chain stub: first select().from(...).where(...).orderBy(...).limit(...) => prefix
     // Second chain => contains
-    const select = vi.fn()
+    const select = vi
+      .fn()
       .mockReturnValueOnce({
         from: vi.fn(() => ({
           where: vi.fn(() => ({
@@ -44,9 +65,16 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
       });
 
     const db = { select } as unknown;
-    const caller = createCaller({ user: { id: userId }, db } as { user: { id: string }; db: unknown });
+    const caller = createCaller({ user: { id: userId }, db } as {
+      user: { id: string };
+      db: unknown;
+    });
 
-    const res = await caller.exercises.searchMaster({ q: "row", limit: 2, cursor: 0 });
+    const res = await caller.exercises.searchMaster({
+      q: "row",
+      limit: 2,
+      cursor: 0,
+    });
     expect(res.items.map((i: { id: number }) => i.id)).toEqual([1, 2]); // page filled by prefix, no contains fallback needed
     expect(res.nextCursor).toBe(2);
   });
@@ -69,13 +97,21 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
-    const out = await caller.exercises.createOrGetMaster({ name: "  Bench   Press  " });
-    expect(out).toMatchObject({ id: undefined, user_id: userId, name: "  Bench   Press  ", normalizedName: "bench press" });
+    const out = await caller.exercises.createOrGetMaster({
+      name: "  Bench   Press  ",
+    });
+    expect(out).toMatchObject({
+      id: undefined,
+      user_id: userId,
+      name: "  Bench   Press  ",
+      normalizedName: "bench press",
+    });
   });
 
   it("linkToMaster throws when template exercise not found", async () => {
     const userId = "user_1";
-    const select = vi.fn()
+    const select = vi
+      .fn()
       // templateExercise lookup -> empty
       .mockReturnValueOnce({
         from: vi.fn(() => ({
@@ -88,13 +124,17 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     const db = { select } as unknown;
     const caller = createCaller({ user: { id: userId }, db });
     await expect(
-      caller.exercises.linkToMaster({ templateExerciseId: 10, masterExerciseId: 1 }),
+      caller.exercises.linkToMaster({
+        templateExerciseId: 10,
+        masterExerciseId: 1,
+      }),
     ).rejects.toThrow(/Template exercise not found/i);
   });
 
   it("linkToMaster throws when master exercise not found", async () => {
     const userId = "user_1";
-    const select = vi.fn()
+    const select = vi
+      .fn()
       // templateExercise lookup -> found
       .mockReturnValueOnce({
         from: vi.fn(() => ({
@@ -115,7 +155,10 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     const db = { select } as unknown;
     const caller = createCaller({ user: { id: userId }, db });
     await expect(
-      caller.exercises.linkToMaster({ templateExerciseId: 10, masterExerciseId: 999 }),
+      caller.exercises.linkToMaster({
+        templateExerciseId: 10,
+        masterExerciseId: 999,
+      }),
     ).rejects.toThrow(/Master exercise not found/i);
   });
 
@@ -132,7 +175,9 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
-    const res = await caller.exercises.getLatestPerformance({ masterExerciseId: 42 });
+    const res = await caller.exercises.getLatestPerformance({
+      masterExerciseId: 42,
+    });
     expect(res).toBeNull();
   });
 
@@ -176,7 +221,8 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
 
   it("isLinkingRejected returns false when missing and true when flag present", async () => {
     const userId = "user_1";
-    const select = vi.fn()
+    const select = vi
+      .fn()
       // missing
       .mockReturnValueOnce({
         from: vi.fn(() => ({
@@ -197,9 +243,13 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     const db = { select } as any;
     const caller = createCaller({ user: { id: userId }, db });
 
-    const a = await caller.exercises.isLinkingRejected({ templateExerciseId: 1 });
+    const a = await caller.exercises.isLinkingRejected({
+      templateExerciseId: 1,
+    });
     expect(a).toBe(false);
-    const b = await caller.exercises.isLinkingRejected({ templateExerciseId: 1 });
+    const b = await caller.exercises.isLinkingRejected({
+      templateExerciseId: 1,
+    });
     expect(b).toBe(true);
   });
 
@@ -221,7 +271,9 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     } as any;
 
     const caller = createCaller({ user: { id: userId }, db });
-    const out = await caller.exercises.rejectLinking({ templateExerciseId: 10 });
+    const out = await caller.exercises.rejectLinking({
+      templateExerciseId: 10,
+    });
     expect(out).toEqual({ success: true });
   });
 
@@ -230,7 +282,8 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     // First call: no master -> throw
     {
       const db = {
-        select: vi.fn()
+        select: vi
+          .fn()
           // linkedExercises
           .mockReturnValueOnce({
             from: vi.fn(() => ({
@@ -265,13 +318,33 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
 
     // Second call: valid master, mix of potential links sorted by similarity
     {
-      const linked = [{ templateExerciseId: 10, exerciseName: "Row", templateId: 1, templateName: "T1" }];
+      const linked = [
+        {
+          templateExerciseId: 10,
+          exerciseName: "Row",
+          templateId: 1,
+          templateName: "T1",
+        },
+      ];
       const unlinked = [
-        { templateExerciseId: 11, exerciseName: "Bent Over Row", templateId: 1, templateName: "T1", linkingRejected: false },
-        { templateExerciseId: 12, exerciseName: "Seated Row", templateId: 2, templateName: "T2", linkingRejected: false },
+        {
+          templateExerciseId: 11,
+          exerciseName: "Bent Over Row",
+          templateId: 1,
+          templateName: "T1",
+          linkingRejected: false,
+        },
+        {
+          templateExerciseId: 12,
+          exerciseName: "Seated Row",
+          templateId: 2,
+          templateName: "T2",
+          linkingRejected: false,
+        },
       ];
       const db = {
-        select: vi.fn()
+        select: vi
+          .fn()
           // linkedExercises
           .mockReturnValueOnce({
             from: vi.fn(() => ({
@@ -292,20 +365,26 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           .mockReturnValueOnce({
             from: vi.fn(() => ({
               where: vi.fn(() => ({
-                limit: vi.fn(() => Promise.resolve([{ name: "Row", normalizedName: "row" }])),
+                limit: vi.fn(() =>
+                  Promise.resolve([{ name: "Row", normalizedName: "row" }]),
+                ),
               })),
             })),
           }),
       } as unknown;
 
       const caller = createCaller({ user: { id: userId }, db });
-      const res = await caller.exercises.getLinkingDetails({ masterExerciseId: 1 });
+      const res = await caller.exercises.getLinkingDetails({
+        masterExerciseId: 1,
+      });
       expect(res.masterExerciseName).toBe("Row");
       expect(res.linkedExercises).toEqual(linked);
       // Potential links sorted by similarity descending; we at least expect presence and length
       expect(Array.isArray(res.potentialLinks)).toBe(true);
       expect(res.potentialLinks.length).toBe(2);
-      expect((res.potentialLinks?.[0]?.similarity ?? 0)).toBeGreaterThanOrEqual(res.potentialLinks?.[1]?.similarity ?? 0);
+      expect(res.potentialLinks?.[0]?.similarity ?? 0).toBeGreaterThanOrEqual(
+        res.potentialLinks?.[1]?.similarity ?? 0,
+      );
     }
   });
 
@@ -314,17 +393,21 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     const db = {
       query: {
         masterExercises: {
-          findFirst: vi.fn(() => Promise.resolve({ id: 1, normalizedName: "row" })),
+          findFirst: vi.fn(() =>
+            Promise.resolve({ id: 1, normalizedName: "row" }),
+          ),
         },
       },
       select: vi.fn(() => ({
         from: vi.fn(() => ({
           leftJoin: vi.fn(() => ({
-            where: vi.fn(() => Promise.resolve([
-              { id: 10, exerciseName: "Row" },
-              { id: 11, exerciseName: "Bent Over Row" },
-              { id: 12, exerciseName: "Curl" },
-            ])),
+            where: vi.fn(() =>
+              Promise.resolve([
+                { id: 10, exerciseName: "Row" },
+                { id: 11, exerciseName: "Bent Over Row" },
+                { id: 12, exerciseName: "Curl" },
+              ]),
+            ),
           })),
         })),
       })),
@@ -334,7 +417,10 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
     } as unknown;
 
     const caller = createCaller({ user: { id: userId }, db });
-    const res = await caller.exercises.bulkLinkSimilar({ masterExerciseId: 1, minimumSimilarity: 0.5 });
+    const res = await caller.exercises.bulkLinkSimilar({
+      masterExerciseId: 1,
+      minimumSimilarity: 0.5,
+    });
     expect(res.linkedCount).toBeGreaterThan(0);
   });
 
@@ -356,15 +442,18 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
   it("migrateExistingExercises creates masters and links; returns counts", async () => {
     const userId = "user_1";
     const db = {
-      select: vi.fn()
+      select: vi
+        .fn()
         // unlinked exercises
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             leftJoin: vi.fn(() => ({
-              where: vi.fn(() => Promise.resolve([
-                { id: 10, exerciseName: "Row" },
-                { id: 11, exerciseName: "Bent Over Row" },
-              ])),
+              where: vi.fn(() =>
+                Promise.resolve([
+                  { id: 10, exerciseName: "Row" },
+                  { id: 11, exerciseName: "Bent Over Row" },
+                ]),
+              ),
             })),
           })),
         })
@@ -372,7 +461,11 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
         .mockReturnValueOnce({
           from: vi.fn(() => ({
             where: vi.fn(() => ({
-              limit: vi.fn(() => Promise.resolve([{ id: 1, user_id: userId, normalizedName: "row" }])),
+              limit: vi.fn(() =>
+                Promise.resolve([
+                  { id: 1, user_id: userId, normalizedName: "row" },
+                ]),
+              ),
             })),
           })),
         })
@@ -389,7 +482,13 @@ describe("tRPC exercises router additional branches (integration, mocked ctx/db)
           returning: vi.fn(() => {
             // If inserting into masterExercises, return the row
             if (v && (Array.isArray(v) ? v[0] : v).name) {
-              return Promise.resolve([{ id: 2, name: "Bent Over Row", normalizedName: "bent over row" }]);
+              return Promise.resolve([
+                {
+                  id: 2,
+                  name: "Bent Over Row",
+                  normalizedName: "bent over row",
+                },
+              ]);
             }
             // Otherwise linking insert (return ignored)
             return Promise.resolve([{ id: 100 }]);

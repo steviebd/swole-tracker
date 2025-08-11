@@ -18,18 +18,27 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     enabled: open,
   });
 
-  const updateMutation = api.preferences.update.useMutation({
-    onSuccess: async () => {
-      await utils.preferences.get.invalidate();
-    },
-  });
-
   const { theme, resolvedTheme, setTheme } = useTheme();
 
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
-  const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
+  const [rightSwipeAction, setRightSwipeAction] =
+    useState<RightSwipeAction>("collapse_expand");
   const [estimatedOneRmFactor, setEstimatedOneRmFactor] = useState<string>(""); // text to allow blank => default
   const [saving, setSaving] = useState(false);
+
+  const updateMutation = api.preferences.update.useMutation({
+    onSuccess: async () => {
+      await utils.preferences.get.invalidate();
+      onClose();
+    },
+    onError: (error) => {
+      console.error("Failed to save preferences", error);
+      alert("Failed to save preferences. Please try again.");
+    },
+    onSettled: () => {
+      setSaving(false);
+    },
+  });
 
   useEffect(() => {
     if (!isLoading && prefs) {
@@ -56,7 +65,12 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   }, [isLoading, prefs]);
 
   const saveDisabled = useMemo(() => {
-    if (!prefs) return false; // allow initial save
+    // Always disable if we're currently saving
+    if (saving) return true;
+    
+    // If no prefs loaded yet, allow initial save
+    if (!prefs) return false;
+    
     const pe =
       "predictive_defaults_enabled" in prefs
         ? Boolean(prefs.predictive_defaults_enabled ?? false)
@@ -70,34 +84,37 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         ? prefs.estimated_one_rm_factor
         : undefined;
     const uiPf =
-      estimatedOneRmFactor.trim() === "" ? undefined : Number(estimatedOneRmFactor);
-    return pe === predictiveEnabled && rs === rightSwipeAction && (pf ?? undefined) === (uiPf ?? undefined);
-  }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor]);
+      estimatedOneRmFactor.trim() === ""
+        ? undefined
+        : Number(estimatedOneRmFactor);
+    
+    // Only disable if nothing has changed
+    return (
+      pe === predictiveEnabled &&
+      rs === rightSwipeAction &&
+      (pf ?? undefined) === (uiPf ?? undefined)
+    );
+  }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor, saving]);
 
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      const payload: {
-        predictive_defaults_enabled?: boolean;
-        right_swipe_action?: RightSwipeAction;
-        estimated_one_rm_factor?: number;
-      } = {
-        predictive_defaults_enabled: predictiveEnabled,
-        right_swipe_action: rightSwipeAction,
-      };
-      // Only send factor if the input is not blank and within bounds; otherwise omit to keep default
-      const trimmed = estimatedOneRmFactor.trim();
-      if (trimmed !== "") {
-        const n = Number(trimmed);
-        if (!Number.isNaN(n)) {
-          payload.estimated_one_rm_factor = Math.min(0.05, Math.max(0.02, n));
-        }
+  const handleSave = () => {
+    setSaving(true);
+    const payload: {
+      predictive_defaults_enabled?: boolean;
+      right_swipe_action?: RightSwipeAction;
+      estimated_one_rm_factor?: number;
+    } = {
+      predictive_defaults_enabled: predictiveEnabled,
+      right_swipe_action: rightSwipeAction,
+    };
+    // Only send factor if the input is not blank and within bounds; otherwise omit to keep default
+    const trimmed = estimatedOneRmFactor.trim();
+    if (trimmed !== "") {
+      const n = Number(trimmed);
+      if (!Number.isNaN(n)) {
+        payload.estimated_one_rm_factor = Math.max(0.02, Math.min(0.05, n));
       }
-      await updateMutation.mutateAsync(payload);
-      onClose();
-    } finally {
-      setSaving(false);
     }
+    updateMutation.mutate(payload);
   };
 
   // Always call hooks in the same order; avoid returning early before hooks.
@@ -114,10 +131,13 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60"
       role="dialog"
       aria-modal="true"
       aria-labelledby="preferences-title"
+      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
+      style={{ 
+        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? 'rgba(0, 0, 0, 0.8)' : 'rgba(17, 24, 39, 0.8)',
+      }}
       onClick={() => {
         restoreFocus();
         onClose();
@@ -132,166 +152,256 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         preventScroll
       >
         <div
-          className="w-full sm:max-w-md sm:rounded-xl sm:shadow-2xl bg-[var(--background)] sm:border sm:border-[var(--border)] border-t border-[var(--border)]"
+          className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl transition-colors duration-300 ${
+            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+              ? "bg-gray-900 border-gray-800" 
+              : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)]">
-            <h2 id="preferences-title" className="text-lg font-bold">
+          <div className={`border-b px-6 py-4 transition-colors duration-300 ${
+            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+              ? "border-gray-800" 
+              : "border-gray-200 dark:border-gray-800"
+          }`}>
+            <h2 id="preferences-title" className={`text-lg font-bold transition-colors duration-300 ${
+              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                ? "text-white" 
+                : "text-gray-900 dark:text-white"
+            }`}>
               Preferences
             </h2>
           </div>
 
-        <div className="px-4 py-3 sm:px-6 sm:py-5 space-y-6">
-          {/* Predictive defaults toggle */}
-          <section>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Predictive defaults</div>
-                <div className="text-sm text-muted">
-                  Prefill new sets with your most recent values for the exercise.
+          <div className="space-y-6 px-6 py-5">
+            {/* Predictive defaults toggle */}
+            <section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className={`font-medium transition-colors duration-300 ${
+                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                      ? "text-white" 
+                      : "text-gray-900 dark:text-white"
+                  }`}>Predictive defaults</div>
+                  <div className={`text-sm transition-colors duration-300 ${
+                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                      ? "text-gray-400" 
+                      : "text-gray-600 dark:text-gray-400"
+                  }`}>
+                    Prefill new sets with your most recent values for the
+                    exercise.
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  aria-pressed={predictiveEnabled ? "true" : "false"}
+                  onClick={() => setPredictiveEnabled((v) => !v)}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors"
+                  style={{
+                    backgroundColor: predictiveEnabled 
+                      ? (theme !== "system" || (theme === "system" && resolvedTheme === "dark") 
+                          ? "var(--color-primary)" 
+                          : "#9333EA")
+                      : "#6B7280"
+                  }}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                      predictiveEnabled ? "translate-x-7" : "translate-x-1"
+                    }`}
+                  />
+                  <span className="sr-only">Toggle predictive defaults</span>
+                </button>
               </div>
-              <button
-                type="button"
-                aria-pressed={predictiveEnabled ? "true" : "false"}
-                onClick={() => setPredictiveEnabled((v) => !v)}
-                className={`inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                  predictiveEnabled ? "bg-purple-600" : "bg-gray-600"
+            </section>
+
+            {/* Theme selector */}
+            <section>
+              <div className={`mb-1 font-medium transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>Theme</div>
+              <div className={`mb-2 text-sm transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-gray-400" 
+                  : "text-gray-600 dark:text-gray-400"
+              }`}>
+                Choose your preferred color theme for the app.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "system", label: "System" },
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                  { value: "CalmDark", label: "Calm Dark" },
+                  { value: "BoldDark", label: "Bold Dark" },
+                  { value: "PlayfulDark", label: "Playful Dark" },
+                ].map((themeOption) => (
+                  <button
+                    key={themeOption.value}
+                    onClick={() => setTheme(themeOption.value as any)}
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-300 ${
+                      theme === themeOption.value
+                        ? // Selected button: use theme-appropriate colors
+                          themeOption.value === "light"
+                            ? "bg-white text-gray-900 border-gray-300"
+                            : "bg-gray-900 text-white border-gray-700"
+                        : // Unselected buttons: use current theme colors
+                          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                          ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                          : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                    }`}
+                    aria-pressed={
+                      theme === themeOption.value ? "true" : "false"
+                    }
+                  >
+                    {themeOption.label}
+                    {theme === themeOption.value &&
+                      themeOption.value === "system" && (
+                        <span className="ml-1 text-xs opacity-70">
+                          ({resolvedTheme})
+                        </span>
+                      )}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Estimated 1RM factor */}
+            <section>
+              <div className={`mb-1 font-medium transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>Estimated 1RM factor</div>
+              <div className={`mb-2 text-sm transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-gray-400" 
+                  : "text-gray-600 dark:text-gray-400"
+              }`}>
+                Used in 1RM estimation formula: weight × (1 + reps × factor).
+                Leave blank to use default 0.0333 (1/30).
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  step="0.0001"
+                  min={0.02}
+                  max={0.05}
+                  inputMode="decimal"
+                  aria-label="Estimated 1RM factor"
+                  className={`w-32 rounded-md border px-3 py-2 transition-colors duration-300 ${
+                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                      ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" 
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  }`}
+                  placeholder="0.0333"
+                  value={estimatedOneRmFactor}
+                  onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
+                />
+                <div className={`text-xs transition-colors duration-300 ${
+                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                    ? "text-gray-400" 
+                    : "text-gray-600 dark:text-gray-400"
+                }`}>Default: 0.0333</div>
+              </div>
+            </section>
+
+            {/* Right swipe action selector */}
+            <section>
+              <div className={`mb-1 font-medium transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>Right-swipe action</div>
+              <div className={`mb-2 text-sm transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-gray-400" 
+                  : "text-gray-600 dark:text-gray-400"
+              }`}>
+                Choose what happens when you right-swipe an exercise card.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(["collapse_expand", "none"] as RightSwipeAction[]).map(
+                  (opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setRightSwipeAction(opt)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-300 ${
+                        rightSwipeAction === opt
+                          ? theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                            ? "bg-blue-500 border-blue-500 text-white"
+                            : "bg-purple-600 border-purple-600 text-white"
+                          : theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                            ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                            : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                      }`}
+                      aria-pressed={rightSwipeAction === opt ? "true" : "false"}
+                    >
+                      {opt === "collapse_expand" ? "Collapse/Expand" : "None"}
+                    </button>
+                  ),
+                )}
+              </div>
+            </section>
+
+            {/* Connect Whoop */}
+            <section>
+              <div className={`mb-1 font-medium transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>Connect Whoop</div>
+              <div className={`mb-2 text-sm transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-gray-400" 
+                  : "text-gray-600 dark:text-gray-400"
+              }`}>
+                Connect your Whoop device to sync recovery and strain data.
+              </div>
+              <a
+                href="/connect-whoop"
+                className={`inline-block px-4 py-2 text-sm font-medium rounded-lg border transition-colors duration-300 ${
+                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                    ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
                 }`}
               >
-                <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                    predictiveEnabled ? "translate-x-7" : "translate-x-1"
-                  }`}
-                />
-                <span className="sr-only">Toggle predictive defaults</span>
-              </button>
-            </div>
-          </section>
+                Connect Whoop
+              </a>
+            </section>
 
-          {/* Theme selector */}
-          <section>
-            <div className="font-medium mb-1">Theme</div>
-            <div className="text-sm text-muted mb-2">
-              Choose your preferred color theme for the app.
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: "light", label: "Light" },
-                { value: "dark", label: "Dark" },
-                { value: "system", label: "System" },
-                { value: "CalmDark", label: "Calm Dark" },
-                { value: "BoldDark", label: "Bold Dark" },
-                { value: "PlayfulDark", label: "Playful Dark" },
-              ].map((themeOption) => (
-                <button
-                  key={themeOption.value}
-                  onClick={() => setTheme(themeOption.value as any)}
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    theme === themeOption.value
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                  aria-pressed={theme === themeOption.value ? "true" : "false"}
-                >
-                  {themeOption.label}
-                  {theme === themeOption.value && themeOption.value === "system" && (
-                    <span className="ml-1 text-xs opacity-70">
-                      ({resolvedTheme})
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
+          </div>
 
-          {/* Estimated 1RM factor */}
-          <section>
-            <div className="font-medium mb-1">Estimated 1RM factor</div>
-            <div className="text-sm text-muted mb-2">
-              Used in 1RM estimation formula: weight × (1 + reps × factor). Leave blank to use default 0.0333 (1/30).
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                step="0.0001"
-                min={0.02}
-                max={0.05}
-                inputMode="decimal"
-                aria-label="Estimated 1RM factor"
-                className="w-32 rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2"
-                placeholder="0.0333"
-                value={estimatedOneRmFactor}
-                onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
-              />
-              <div className="text-xs text-muted">
-                Default: 0.0333
-              </div>
-            </div>
-          </section>
-
-          {/* Right swipe action selector */}
-          <section>
-            <div className="font-medium mb-1">Right-swipe action</div>
-            <div className="text-sm text-muted mb-2">
-              Choose what happens when you right-swipe an exercise card.
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {(["collapse_expand", "none"] as RightSwipeAction[]).map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => setRightSwipeAction(opt)}
-                  className={`rounded-lg border px-3 py-2 text-sm ${
-                    rightSwipeAction === opt
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                  aria-pressed={rightSwipeAction === opt ? "true" : "false"}
-                >
-                  {opt === "collapse_expand" ? "Collapse/Expand" : "None"}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Connect Whoop */}
-          <section>
-            <div className="font-medium mb-1">Connect Whoop</div>
-            <div className="text-sm text-muted mb-2">
-              Connect your Whoop device to sync recovery and strain data.
-            </div>
-            <a
-              href="/connect-whoop"
-              className="btn-secondary px-4 py-2 text-sm inline-block"
-            >
-              Connect Whoop
-            </a>
-          </section>
-
-          {/* Asymmetric swipe thresholds placeholder */}
-          <section className="rounded-md border border-dashed border-[var(--border)] p-3">
-            <div className="font-medium">Asymmetric swipe thresholds</div>
-            <div className="text-sm text-muted">
-              Coming soon: configure different swipe distances for left/right actions.
-            </div>
-          </section>
-        </div>
-
-          <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-[var(--border)] flex gap-2 justify-end">
+          <div className={`flex justify-end gap-2 border-t px-6 py-4 transition-colors duration-300 ${
+            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+              ? "border-gray-800" 
+              : "border-gray-200 dark:border-gray-800"
+          }`}>
             <button
               ref={firstFocusRef}
               onClick={() => {
                 restoreFocus();
                 onClose();
               }}
-              className="btn-secondary px-4 py-2"
+              className={`px-4 py-2 rounded-lg border font-medium transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                  : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+              }`}
               disabled={saving}
             >
               Cancel
             </button>
             <button
               onClick={() => void handleSave()}
-              className="btn-primary px-4 py-2 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg font-medium transition-colors duration-300 disabled:opacity-50 text-white"
+              style={{
+                backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "var(--color-primary)"
+                  : "#9333EA"
+              }}
               disabled={saving || saveDisabled}
               aria-busy={saving ? "true" : "false"}
             >

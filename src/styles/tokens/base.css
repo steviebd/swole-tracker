@@ -39,33 +39,29 @@
   --motion-spring: cubic-bezier(0.2, 0.8, 0.2, 1.2);
 }
 
-/* Global color-scheme and dark class */
-:root { color-scheme: dark; }
+/* Global color-scheme - light by default */
+:root { 
+  color-scheme: light;
+  /* Default light theme colors */
+  --color-bg-app: oklch(1 0 0);
+  --color-bg-surface: oklch(1 0 0);
+  --color-border: oklch(0.922 0 0);
+  --color-text: oklch(0.145 0 0);
+  --color-text-secondary: oklch(0.556 0 0);
+  --color-text-muted: oklch(0.708 0 0);
+  --color-primary: oklch(0.205 0 0);
+  --color-primary-hover: oklch(0.145 0 0);
+  --color-primary-active: oklch(0.1 0 0);
+  --color-card: oklch(1 0 0);
+}
+
 html.dark { color-scheme: dark; }
 
-html.dark body {
+body {
   background-color: var(--color-bg-app);
   color: var(--color-text);
 }
 
-/* Cards and surfaces */
-.card {
-  @apply rounded-lg border bg-white text-gray-900 border-gray-200;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-xs);
-}
-html.dark .card {
-  background-color: var(--color-bg-surface);
-  color: var(--color-text);
-  border-color: var(--color-border);
-  box-shadow: var(--shadow-sm);
-}
-
-/* Text utilities */
-.text-secondary { @apply text-gray-600; }
-.text-muted { @apply text-gray-500; }
-html.dark .text-secondary { color: var(--color-text-secondary); }
-html.dark .text-muted { color: var(--color-text-muted); }
 
 /* Buttons */
 .btn-primary {

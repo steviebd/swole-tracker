@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
@@ -12,7 +12,12 @@ import { FocusTrap, useReturnFocus } from "./focus-trap";
 
 import { analytics } from "~/lib/analytics";
 import posthog from "posthog-js";
-import { vibrate, getDeviceType, getThemeUsed, snapshotMetricsBlob } from "~/lib/client-telemetry";
+import {
+  vibrate,
+  getDeviceType,
+  getThemeUsed,
+  snapshotMetricsBlob,
+} from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 
@@ -22,9 +27,13 @@ interface WorkoutSessionProps {
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const router = useRouter();
-  const { onWorkoutSave: _onWorkoutSave, invalidateWorkouts: _invalidateWorkouts } = useCacheInvalidation();
+  const {
+    onWorkoutSave: _onWorkoutSave,
+    invalidateWorkouts: _invalidateWorkouts,
+  } = useCacheInvalidation();
 
   // Move complex state and effects into a dedicated hook to reduce component size.
+  // This MUST be called before any conditional returns to follow Rules of Hooks
   const {
     exercises,
     setExercises,
@@ -67,6 +76,24 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     setLastAction,
   } = useWorkoutSessionState({ sessionId });
 
+  // Additional hooks that must be called before conditional returns
+  const [scrollY, setScrollY] = useState(0);
+  const _listContainerRef = useRef<HTMLDivElement | null>(null);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  
+  // Accessibility live region
+  const announce = useLiveRegion();
+  useAttachLiveRegion(announce);
+  
+  // Focus restore for inline modals
+  const { restoreFocus: restoreFocusInline } = useReturnFocus();
+
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY || 0);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Generate unique ID for sets
   // id generation handled in hook
 
@@ -85,17 +112,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const WINDOW_BEFORE = 6;
   const WINDOW_AFTER = 6;
 
-  const [scrollY, setScrollY] = useState(0);
-  const _listContainerRef = useRef<HTMLDivElement | null>(null);
-  const progressionInProgressRef = useRef(false);
-  const lastProgressionIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY || 0);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const _getItemTop = (_index: number) => {
     // Approximate per-card height; lightweight and avoids layout thrash. Cards are fairly uniform in this view.
     const approx = 120; // px
@@ -105,13 +121,17 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const totalCount = displayOrder.length;
   const shouldVirtualize = totalCount >= VIRTUALIZE_THRESHOLD;
 
-  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 800;
-  const startIndex = shouldVirtualize ? Math.max(0, Math.floor(scrollY / 120) - WINDOW_BEFORE) : 0;
-  const endIndex = shouldVirtualize ? Math.min(totalCount - 1, Math.ceil((scrollY + viewportHeight) / 120) + WINDOW_AFTER) : totalCount - 1;
-
-  // Accessibility live region
-  const announce = useLiveRegion();
-  useAttachLiveRegion(announce);
+  const viewportHeight =
+    typeof window !== "undefined" ? window.innerHeight : 800;
+  const startIndex = shouldVirtualize
+    ? Math.max(0, Math.floor(scrollY / 120) - WINDOW_BEFORE)
+    : 0;
+  const endIndex = shouldVirtualize
+    ? Math.min(
+        totalCount - 1,
+        Math.ceil((scrollY + viewportHeight) / 120) + WINDOW_AFTER,
+      )
+    : totalCount - 1;
 
   // previous data loading handled in hook
 
@@ -120,33 +140,54 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // auto-progression modal logic handled in hook
 
   // ===== COMPLETE WORKOUT MODAL STATE =====
-  const [showCompleteModal, setShowCompleteModal] = useState(false);
-  // Focus restore for inline modals
-  const { restoreFocus: restoreFocusInline } = useReturnFocus();
 
   type BestMetrics = {
-    bestWeight?: { weight: number; reps?: number; sets?: number; unit: "kg" | "lbs" };
-    bestVolume?: { volume: number; weight?: number; reps?: number; unit: "kg" | "lbs" };
+    bestWeight?: {
+      weight: number;
+      reps?: number;
+      sets?: number;
+      unit: "kg" | "lbs";
+    };
+    bestVolume?: {
+      volume: number;
+      weight?: number;
+      reps?: number;
+      unit: "kg" | "lbs";
+    };
   };
 
   const computeCurrentBest = (ex: ExerciseData): BestMetrics => {
     if (!ex.sets || ex.sets.length === 0) return {};
     // Max weight, tie-break by reps
     const maxWeight = Math.max(...ex.sets.map((s) => s.weight ?? 0));
-    const weightCandidates = ex.sets.filter((s) => (s.weight ?? 0) === maxWeight);
-    const bestByWeight = weightCandidates.sort((a, b) => (b.reps ?? 0) - (a.reps ?? 0))[0];
+    const weightCandidates = ex.sets.filter(
+      (s) => (s.weight ?? 0) === maxWeight,
+    );
+    const bestByWeight = weightCandidates.sort(
+      (a, b) => (b.reps ?? 0) - (a.reps ?? 0),
+    )[0];
     // Max volume (weight * reps)
     const withVolume = ex.sets
       .map((s) => ({ ...s, volume: (s.weight ?? 0) * (s.reps ?? 0) }))
       .filter((s) => s.volume && s.volume > 0);
-    const bestByVolume = withVolume.sort((a, b) => (b.volume - a.volume))[0];
+    const bestByVolume = withVolume.sort((a, b) => b.volume - a.volume)[0];
 
     return {
       bestWeight: bestByWeight?.weight
-        ? { weight: bestByWeight.weight, reps: bestByWeight.reps, sets: bestByWeight.sets, unit: bestByWeight.unit }
+        ? {
+            weight: bestByWeight.weight,
+            reps: bestByWeight.reps,
+            sets: bestByWeight.sets,
+            unit: bestByWeight.unit,
+          }
         : undefined,
       bestVolume: bestByVolume
-        ? { volume: bestByVolume.volume, weight: bestByVolume.weight, reps: bestByVolume.reps, unit: bestByVolume.unit }
+        ? {
+            volume: bestByVolume.volume,
+            weight: bestByVolume.weight,
+            reps: bestByVolume.reps,
+            unit: bestByVolume.unit,
+          }
         : undefined,
     };
   };
@@ -178,12 +219,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     if (!progressionModal) {
       return;
     }
-    
+
     const { exerciseIndex, previousBest: _previousBest } = progressionModal;
-    
+
     if (type === "none") {
       // No progression, just expand and close
-      setExpandedExercises(prev => {
+      setExpandedExercises((prev) => {
         if (!prev.includes(exerciseIndex)) {
           return [...prev, exerciseIndex];
         }
@@ -192,12 +233,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       setProgressionModal(null);
       return;
     }
-    
+
     // For weight/reps progression, show scope selection modal
-    const increment = type === "weight" 
-      ? `+${_previousBest.unit === "kg" ? "2.5" : "5"}${_previousBest.unit}`
-      : "+1 rep";
-    
+    const increment =
+      type === "weight"
+        ? `+${_previousBest.unit === "kg" ? "2.5" : "5"}${_previousBest.unit}`
+        : "+1 rep";
+
     setProgressionScopeModal({
       isOpen: true,
       exerciseIndex,
@@ -205,117 +247,106 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       increment,
       previousBest: _previousBest,
     });
-    
+
     // Close first modal
     setProgressionModal(null);
   };
 
   const applyProgressionToAll = () => {
-    const callTime = Date.now();
-    console.log(`[DEBUG] applyProgressionToAll called at ${callTime}`);
-    
-    if (!progressionScopeModal) {
-      console.log('[DEBUG] No progressionScopeModal, returning');
-      return;
-    }
-    
-    if (progressionInProgressRef.current) {
-      console.log('[DEBUG] progressionInProgressRef.current is true, returning');
-      return;
-    }
-    
-    progressionInProgressRef.current = true;
-    console.log('[DEBUG] Set progressionInProgressRef.current to true');
-    
-    // Capture the modal data before closing it
-    const modalData = { ...progressionScopeModal };
-    const { exerciseIndex, progressionType, previousBest } = modalData;
-    console.log('[DEBUG] Modal data captured:', { exerciseIndex, progressionType });
-    
+    if (!progressionScopeModal) return;
+
+    const { exerciseIndex, progressionType, previousBest } =
+      progressionScopeModal;
+
     // Close the modal first to prevent double-execution
     setProgressionScopeModal(null);
-    console.log('[DEBUG] Modal closed');
-    
-    setExercises(prev => {
-      const newExercises = [...prev];
+
+    // Get current exercises state
+    setExercises((currentExercises) => {
+      const newExercises = [...currentExercises];
       const exercise = newExercises[exerciseIndex];
-      
+
       if (exercise) {
-        console.log('[DEBUG] Exercise sets before progression:', exercise.sets.map(s => ({ id: s.id, weight: s.weight, reps: s.reps })));
-        
-        // Apply progression to ALL sets
-        exercise.sets = exercise.sets.map(set => {
+        // Apply progression to ALL sets - but only if not already applied
+        exercise.sets = exercise.sets.map((set) => {
           const updatedSet = { ...set };
-          
+
           if (progressionType === "weight" && updatedSet.weight) {
             const increment = updatedSet.unit === "kg" ? 2.5 : 5;
-            updatedSet.weight += increment;
+            // Check if progression was already applied by looking at the weight
+            const expectedOriginalWeight = previousBest.weight || 0;
+            const expectedNewWeight = expectedOriginalWeight + increment;
+            
+            // Only apply if we haven't already applied this progression
+            if (Math.abs(updatedSet.weight - expectedOriginalWeight) < 0.1) {
+              updatedSet.weight += increment;
+            }
           } else if (progressionType === "reps" && updatedSet.reps) {
-            updatedSet.reps += 1;
+            const expectedOriginalReps = previousBest.reps || 0;
+            
+            // Only apply if we haven't already applied this progression
+            if (updatedSet.reps === expectedOriginalReps) {
+              updatedSet.reps += 1;
+            }
           }
-          
+
           return updatedSet;
         });
       }
-      
+
       return newExercises;
     });
-    
+
     // Expand the exercise
-    setExpandedExercises(prev => {
+    setExpandedExercises((prev) => {
       if (!prev.includes(exerciseIndex)) {
         return [...prev, exerciseIndex];
       }
       return prev;
     });
-    
-    // Reset the progression guard after a brief delay to ensure state updates complete
-    setTimeout(() => {
-      console.log('[DEBUG] Resetting progressionInProgressRef.current to false');
-      progressionInProgressRef.current = false;
-      lastProgressionIdRef.current = null;
-    }, 500);
   };
 
   const applyProgressionToHighest = () => {
     if (!progressionScopeModal) return;
-    
-    const { exerciseIndex, progressionType, previousBest } = progressionScopeModal;
-    
+
+    const { exerciseIndex, progressionType, previousBest } =
+      progressionScopeModal;
+
     // Close the modal first to prevent double-execution
     setProgressionScopeModal(null);
-    
-    setExercises(prev => {
+
+    setExercises((prev) => {
       const newExercises = [...prev];
       const exercise = newExercises[exerciseIndex];
-      
+
       if (exercise) {
         // Find the set that matches the previous best performance
-        const bestSetIndex = exercise.sets.findIndex(set => 
-          set.weight === previousBest.weight &&
-          set.reps === previousBest.reps &&
-          set.sets === previousBest.sets
+        const bestSetIndex = exercise.sets.findIndex(
+          (set) =>
+            set.weight === previousBest.weight &&
+            set.reps === previousBest.reps &&
+            set.sets === previousBest.sets,
         );
-        
+
         if (bestSetIndex !== -1) {
           const updatedSet = { ...exercise.sets[bestSetIndex]! };
-          
+
           if (progressionType === "weight" && updatedSet.weight) {
             const increment = updatedSet.unit === "kg" ? 2.5 : 5;
             updatedSet.weight += increment;
           } else if (progressionType === "reps" && updatedSet.reps) {
             updatedSet.reps += 1;
           }
-          
+
           exercise.sets[bestSetIndex] = updatedSet;
         }
       }
-      
+
       return newExercises;
     });
-    
+
     // Expand the exercise
-    setExpandedExercises(prev => {
+    setExpandedExercises((prev) => {
       if (!prev.includes(exerciseIndex)) {
         return [...prev, exerciseIndex];
       }
@@ -328,21 +359,39 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const handleSave = async () => {
     // Validate that exercises have required data
     const validationErrors: string[] = [];
-    
+
     exercises.forEach((exercise, _exerciseIndex) => {
       exercise.sets.forEach((set, setIndex) => {
-        const hasData = set.weight !== undefined || set.reps !== undefined || (set.sets && set.sets > 0);
-        
+        const hasData =
+          set.weight !== undefined ||
+          set.reps !== undefined ||
+          (set.sets && set.sets > 0);
+
         if (hasData) {
           // If the set has some data, validate that numeric fields are proper numbers
-          if (set.weight !== undefined && (set.weight === null || isNaN(set.weight))) {
-            validationErrors.push(`${exercise.exerciseName}, Set ${setIndex + 1}: Weight must be a valid number`);
+          if (
+            set.weight !== undefined &&
+            (set.weight === null || isNaN(set.weight))
+          ) {
+            validationErrors.push(
+              `${exercise.exerciseName}, Set ${setIndex + 1}: Weight must be a valid number`,
+            );
           }
-          if (set.reps !== undefined && (set.reps === null || isNaN(set.reps) || set.reps <= 0)) {
-            validationErrors.push(`${exercise.exerciseName}, Set ${setIndex + 1}: Reps must be a valid positive number`);
+          if (
+            set.reps !== undefined &&
+            (set.reps === null || isNaN(set.reps) || set.reps <= 0)
+          ) {
+            validationErrors.push(
+              `${exercise.exerciseName}, Set ${setIndex + 1}: Reps must be a valid positive number`,
+            );
           }
-          if (set.sets !== undefined && (set.sets === null || isNaN(set.sets) || set.sets <= 0)) {
-            validationErrors.push(`${exercise.exerciseName}, Set ${setIndex + 1}: Sets must be a valid positive number`);
+          if (
+            set.sets !== undefined &&
+            (set.sets === null || isNaN(set.sets) || set.sets <= 0)
+          ) {
+            validationErrors.push(
+              `${exercise.exerciseName}, Set ${setIndex + 1}: Sets must be a valid positive number`,
+            );
           }
         }
       });
@@ -351,7 +400,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     if (validationErrors.length > 0) {
       setNotification({
         type: "error",
-        message: `Please fix the following errors before saving:\n${validationErrors.join('\n')}`
+        message: `Please fix the following errors before saving:\n${validationErrors.join("\n")}`,
       });
       setTimeout(() => setNotification(null), 8000); // Auto-dismiss after 8 seconds
       return;
@@ -385,7 +434,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       console.error("Error saving workout:", error);
       analytics.error(error as Error, {
         context: "workout_save",
-        sessionId: sessionId.toString(),
+        sessionId: sessionId?.toString() || "unknown",
       });
 
       // If likely a network error, enqueue for offline
@@ -411,7 +460,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       }
 
       // Otherwise surface validation/unknown error
-      if (message.includes("Expected number, received null") || message.includes("invalid_type")) {
+      if (
+        message.includes("Expected number, received null") ||
+        message.includes("invalid_type")
+      ) {
         setNotification({
           type: "error",
           message:
@@ -443,25 +495,24 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
     try {
       console.log("Attempting to delete workout session:", sessionId);
-      
+
       // Try to delete from database
       await deleteWorkout.mutateAsync({ id: sessionId });
-      
+
       // If we get here, deletion succeeded (either database delete or handled as unsaved session)
       console.log("Workout deletion completed successfully");
-      
+
       // Navigate to home after successful deletion
       setShowDeleteConfirm(false);
       router.push("/");
-      
     } catch (error) {
       // This should rarely happen now due to our error handling in the mutation
       console.error("Unexpected error during workout deletion:", error);
       analytics.error(error as Error, {
         context: "workout_delete",
-        sessionId: sessionId.toString(),
+        sessionId: sessionId?.toString() || "unknown",
       });
-      
+
       // Even on error, close dialog and navigate away since the optimistic update already happened
       setShowDeleteConfirm(false);
       router.push("/");
@@ -494,9 +545,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           aria-live={notification.type === "error" ? "assertive" : "polite"}
           aria-atomic="true"
           className={`sticky top-4 z-50 rounded-lg p-4 shadow-lg ${
-            notification.type === "error" 
-              ? "bg-red-900 border border-red-700 text-red-100" 
-              : "bg-green-900 border border-green-700 text-green-100"
+            notification.type === "error"
+              ? "border border-red-700 bg-red-900 text-red-100"
+              : "border border-green-700 bg-green-900 text-green-100"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -522,8 +573,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               lastAction.type === "swipeToEnd"
                 ? "Exercise moved to end"
                 : lastAction.type === "toggleCollapse"
-                ? "Exercise expanded state changed"
-                : "Order changed"
+                  ? "Exercise expanded state changed"
+                  : "Order changed"
             }
             onUndo={() => {
               undoLastAction();
@@ -535,22 +586,25 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
-        <div className="text-center text-sm text-muted mb-2">
-          💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to reorder & move between sections • Works on mobile & desktop
+        <div className="text-muted mb-2 text-center text-sm">
+          💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to
+          reorder & move between sections • Works on mobile & desktop
         </div>
       )}
 
       {/* Exercise Cards */}
       {(shouldVirtualize
-        ? displayOrder.slice(startIndex, endIndex + 1).map((entry, i) => ({ ...entry, windowIndex: startIndex + i }))
+        ? displayOrder
+            .slice(startIndex, endIndex + 1)
+            .map((entry, i) => ({ ...entry, windowIndex: startIndex + i }))
         : displayOrder.map((entry, i) => ({ ...entry, windowIndex: i }))
       ).map(({ exercise, originalIndex, windowIndex }) => {
         const displayIndex = windowIndex;
         // Collapsed state is derived from collapsedIndexes mapped to current order
         const isCollapsed = collapsedIndexes.includes(displayIndex);
-        const isExpandedNow = !isCollapsed && expandedExercises.includes(originalIndex);
+        const isExpandedNow =
+          !isCollapsed && expandedExercises.includes(originalIndex);
 
-        
         return (
           <div
             key={exercise.templateExerciseId ?? originalIndex}
@@ -567,18 +621,29 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               onMoveSet={moveSet}
               isExpanded={isExpandedNow}
               onToggleExpansion={toggleExpansion}
-              previousBest={previousExerciseData.get(exercise.exerciseName)?.best}
-              previousSets={previousExerciseData.get(exercise.exerciseName)?.sets}
+              previousBest={
+                previousExerciseData.get(exercise.exerciseName)?.best
+              }
+              previousSets={
+                previousExerciseData.get(exercise.exerciseName)?.sets
+              }
               readOnly={isReadOnly}
               onSwipeToBottom={handleSwipeToBottom}
               swipeSettings={swipeSettings}
               isSwiped={isCollapsed}
               draggable={!isReadOnly}
-              isDraggedOver={dragState.dragOverIndex === displayIndex || dragState.dragOverIndex === displayIndex + 1}
-              isDragging={dragState.isDragging && dragState.draggedIndex === displayIndex}
+              isDraggedOver={
+                dragState.dragOverIndex === displayIndex ||
+                dragState.dragOverIndex === displayIndex + 1
+              }
+              isDragging={
+                dragState.isDragging && dragState.draggedIndex === displayIndex
+              }
               dragOffset={dragState.dragOffset}
               onPointerDown={dragHandlers.onPointerDown(displayIndex)}
-              setCardElement={(element) => dragHandlers.setCardElement?.(displayIndex, element)}
+              setCardElement={(element) =>
+                dragHandlers.setCardElement?.(displayIndex, element)
+              }
             />
           </div>
         );
@@ -593,7 +658,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Bottom action bar - editable only */}
       {!isReadOnly && (
-        <div className="sticky bottom-4 z-50 pt-6" role="region" aria-label="Workout actions">
+        <div
+          className="sticky bottom-4 z-50 pt-6"
+          role="region"
+          aria-label="Workout actions"
+        >
           <div className="glass-surface glass-hairline rounded-xl p-3 shadow-lg">
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -606,7 +675,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
                   // Add a set to the first expanded exercise, or first exercise as fallback
                   const targetIndex =
-                    expandedExercises[0] !== undefined ? expandedExercises[0] : 0;
+                    expandedExercises[0] !== undefined
+                      ? expandedExercises[0]
+                      : 0;
                   if (typeof targetIndex === "number") {
                     addSet(targetIndex);
                     // clear undo since a new action happened
@@ -622,7 +693,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     } catch {}
                     // Smooth scroll to bottom to keep newly added set visible
                     try {
-                      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                      window.scrollTo({
+                        top: document.body.scrollHeight,
+                        behavior: "smooth",
+                      });
                     } catch {}
                   }
                 }}
@@ -684,7 +758,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 Complete
               </button>
             </div>
-
 
             {/* Delete is secondary; keep outside the primary row */}
             <div className="mt-2 text-center">
@@ -754,13 +827,19 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="w-full max-w-md card p-6 shadow-2xl"
+              className="card w-full max-w-md p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 id="delete-workout-title" className="mb-4 text-xl font-bold text-rose-600 dark:text-rose-400">
+              <h3
+                id="delete-workout-title"
+                className="mb-4 text-xl font-bold text-rose-600 dark:text-rose-400"
+              >
                 Delete Workout
               </h3>
-              <p id="delete-workout-desc" className="mb-6 leading-relaxed text-secondary">
+              <p
+                id="delete-workout-desc"
+                className="text-secondary mb-6 leading-relaxed"
+              >
                 Are you sure you want to delete this workout?
                 <br />
                 <strong className="text-red-400">
@@ -838,20 +917,29 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="w-full max-w-lg card p-6 shadow-2xl"
+              className="card w-full max-w-lg p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 id="complete-workout-title" className="mb-1 text-xl font-bold text-purple-700 dark:text-purple-300">
+              <h3
+                id="complete-workout-title"
+                className="mb-1 text-xl font-bold text-purple-700 dark:text-purple-300"
+              >
                 Complete Workout
               </h3>
-              <p id="complete-workout-desc" className="mb-4 text-sm text-secondary">
-                Review your performance compared to your previous best for each exercise.
+              <p
+                id="complete-workout-desc"
+                className="text-secondary mb-4 text-sm"
+              >
+                Review your performance compared to your previous best for each
+                exercise.
               </p>
               <div className="max-h-[50vh] overflow-y-auto pr-1">
                 <div className="space-y-3">
                   {exercises.map((ex, idx) => {
                     const curr = computeCurrentBest(ex);
-                    const prev = previousExerciseData.get(ex.exerciseName)?.best;
+                    const prev = previousExerciseData.get(
+                      ex.exerciseName,
+                    )?.best;
 
                     // helpers to compare
                     const currWeight = curr.bestWeight?.weight ?? 0;
@@ -862,8 +950,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                         ? weightDelta > 0
                           ? "text-green-300"
                           : weightDelta < 0
-                          ? "text-red-300"
-                          : "text-gray-300"
+                            ? "text-red-300"
+                            : "text-gray-300"
                         : "text-gray-300";
 
                     const currVol = curr.bestVolume?.volume ?? 0;
@@ -874,29 +962,58 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                         ? volDelta > 0
                           ? "text-green-300"
                           : volDelta < 0
-                          ? "text-red-300"
-                          : "text-gray-300"
+                            ? "text-red-300"
+                            : "text-gray-300"
                         : "text-gray-300";
 
-                    const fmtSet = (w?: number, r?: number, u?: "kg" | "lbs") =>
-                      w ? `${w}${u ?? "kg"}${r ? ` × ${r}` : ""}` : "N/A";
+                    const fmtSet = (
+                      w?: number,
+                      r?: number,
+                      u?: "kg" | "lbs",
+                    ) => (w ? `${w}${u ?? "kg"}${r ? ` × ${r}` : ""}` : "N/A");
 
                     return (
-                      <div key={`${ex.exerciseName}-${idx}`} className="card p-3">
-                        <div className="mb-2 text-sm font-semibold">{ex.exerciseName}</div>
+                      <div
+                        key={`${ex.exerciseName}-${idx}`}
+                        className="card p-3"
+                      >
+                        <div className="mb-2 text-sm font-semibold">
+                          {ex.exerciseName}
+                        </div>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <div className="text-xs text-muted mb-1">Previous Best</div>
-                            <div>Weight: {fmtSet(prev?.weight, prev?.reps, prev?.unit)}</div>
-                            <div>Volume: {prev ? (prev.weight ?? 0) * (prev.reps ?? 0) : "N/A"}</div>
+                            <div className="text-muted mb-1 text-xs">
+                              Previous Best
+                            </div>
+                            <div>
+                              Weight:{" "}
+                              {fmtSet(prev?.weight, prev?.reps, prev?.unit)}
+                            </div>
+                            <div>
+                              Volume:{" "}
+                              {prev
+                                ? (prev.weight ?? 0) * (prev.reps ?? 0)
+                                : "N/A"}
+                            </div>
                           </div>
                           <div>
-                            <div className="text-xs text-muted mb-1">Current Best</div>
+                            <div className="text-muted mb-1 text-xs">
+                              Current Best
+                            </div>
                             <div className={weightBadge}>
-                              Weight: {fmtSet(curr.bestWeight?.weight, curr.bestWeight?.reps, curr.bestWeight?.unit)}
+                              Weight:{" "}
+                              {fmtSet(
+                                curr.bestWeight?.weight,
+                                curr.bestWeight?.reps,
+                                curr.bestWeight?.unit,
+                              )}
                               {prev && curr.bestWeight?.weight !== undefined ? (
                                 <span className="ml-2 text-xs opacity-80">
-                                  {weightDelta > 0 ? `(+${weightDelta})` : weightDelta < 0 ? `(${weightDelta})` : "(=)"}
+                                  {weightDelta > 0
+                                    ? `(+${weightDelta})`
+                                    : weightDelta < 0
+                                      ? `(${weightDelta})`
+                                      : "(=)"}
                                 </span>
                               ) : null}
                             </div>
@@ -904,7 +1021,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                               Volume: {curr.bestVolume?.volume ?? "N/A"}
                               {prev ? (
                                 <span className="ml-2 text-xs opacity-80">
-                                  {volDelta > 0 ? `(+${volDelta})` : volDelta < 0 ? `(${volDelta})` : "(=)"}
+                                  {volDelta > 0
+                                    ? `(+${volDelta})`
+                                    : volDelta < 0
+                                      ? `(${volDelta})`
+                                      : "(=)"}
                                 </span>
                               ) : null}
                             </div>
@@ -928,7 +1049,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 </button>
                 <button
                   onClick={closeCompleteModal}
-                  className="flex-1 rounded-lg bg-gray-200 py-3 text-lg font-medium transition-colors hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="flex-1 rounded-lg bg-gray-200 py-3 text-lg font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                 >
                   Continue Workout
                 </button>

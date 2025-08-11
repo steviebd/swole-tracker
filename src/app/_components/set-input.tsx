@@ -8,8 +8,8 @@ export interface SetData {
   reps?: number;
   sets: number;
   unit: "kg" | "lbs";
-  rpe?: number;   // 6–10
-  rest?: number;  // seconds
+  rpe?: number; // 6–10
+  rest?: number; // seconds
 }
 
 interface SetInputProps {
@@ -90,7 +90,7 @@ export function SetInput({
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-lg p-3 select-none glass-surface glass-hairline text-gray-900 dark:text-white">
+    <div className="glass-surface glass-hairline flex items-center gap-3 rounded-lg p-3 text-gray-900 select-none dark:text-white">
       {/* Set Number */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-white">
         {setIndex + 1}
@@ -100,7 +100,7 @@ export function SetInput({
       <div className="flex flex-1 flex-wrap gap-3">
         {/* Weight */}
         <div className="min-w-[120px] flex-1">
-          <label className="mb-1 block text-xs text-secondary">Weight</label>
+          <label className="text-secondary mb-1 block text-xs">Weight</label>
           <div className="flex items-center gap-1">
             <input
               ref={weightInputRef}
@@ -119,7 +119,10 @@ export function SetInput({
                 // select content and make sure the field is visible above the keyboard
                 e.target.select();
                 try {
-                  e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                  e.currentTarget.scrollIntoView({
+                    block: "center",
+                    behavior: "smooth",
+                  });
                 } catch {}
               }}
               placeholder="0"
@@ -130,7 +133,7 @@ export function SetInput({
               type="button"
               onClick={() => !readOnly && onToggleUnit(exerciseIndex, setIndex)}
               disabled={readOnly}
-              className={`px-2 text-xs btn-secondary ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+              className={`btn-secondary px-2 text-xs ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
               title="Toggle unit"
             >
               {set.unit}
@@ -140,7 +143,7 @@ export function SetInput({
 
         {/* Reps */}
         <div className="min-w-[100px] flex-1">
-          <label className="mb-1 block text-xs text-secondary">Reps</label>
+          <label className="text-secondary mb-1 block text-xs">Reps</label>
           <input
             ref={repsInputRef}
             type="number"
@@ -148,13 +151,18 @@ export function SetInput({
             pattern="[0-9]*"
             value={set.reps ?? ""}
             onChange={(e) => {
-              const value = e.target.value ? parseInt(e.target.value) : undefined;
+              const value = e.target.value
+                ? parseInt(e.target.value)
+                : undefined;
               handleRepsChange(value);
             }}
             onFocus={(e) => {
               e.target.select();
               try {
-                e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                e.currentTarget.scrollIntoView({
+                  block: "center",
+                  behavior: "smooth",
+                });
               } catch {}
             }}
             placeholder="0"
@@ -165,7 +173,7 @@ export function SetInput({
 
         {/* Sets */}
         <div className="min-w-[100px] flex-1">
-          <label className="mb-1 block text-xs text-secondary">Sets</label>
+          <label className="text-secondary mb-1 block text-xs">Sets</label>
           <input
             type="number"
             inputMode="numeric"
@@ -178,7 +186,10 @@ export function SetInput({
             onFocus={(e) => {
               e.target.select();
               try {
-                e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                e.currentTarget.scrollIntoView({
+                  block: "center",
+                  behavior: "smooth",
+                });
               } catch {}
             }}
             placeholder="1"
@@ -189,9 +200,9 @@ export function SetInput({
         </div>
         {/* RPE segmented [6-10] */}
         <div className="min-w-[160px]">
-          <label className="mb-1 block text-xs text-secondary">RPE</label>
+          <label className="text-secondary mb-1 block text-xs">RPE</label>
           <div className="flex items-center gap-1">
-            {[6,7,8,9,10].map((r) => {
+            {[6, 7, 8, 9, 10].map((r) => {
               const active = set.rpe === r;
               return (
                 <button
@@ -199,11 +210,7 @@ export function SetInput({
                   type="button"
                   disabled={readOnly}
                   onClick={() => !readOnly && handleRpeChange(r)}
-                  className={`
-                    px-2 py-1 rounded-md text-xs 
-                    ${active ? "btn-primary" : "btn-secondary"}
-                    ${readOnly ? "opacity-60 cursor-not-allowed" : ""}
-                  `}
+                  className={`rounded-md px-2 py-1 text-xs ${active ? "btn-primary" : "btn-secondary"} ${readOnly ? "cursor-not-allowed opacity-60" : ""} `}
                 >
                   {r}
                 </button>
@@ -214,7 +221,7 @@ export function SetInput({
 
         {/* Rest with quick chips */}
         <div className="min-w-[160px] flex-1">
-          <label className="mb-1 block text-xs text-secondary">Rest (s)</label>
+          <label className="text-secondary mb-1 block text-xs">Rest (s)</label>
           <div className="flex items-center gap-1">
             <input
               ref={restInputRef}
@@ -223,26 +230,31 @@ export function SetInput({
               pattern="[0-9]*"
               value={set.rest ?? ""}
               onChange={(e) => {
-                const value = e.target.value ? parseInt(e.target.value) : undefined;
+                const value = e.target.value
+                  ? parseInt(e.target.value)
+                  : undefined;
                 handleRestChange(value);
               }}
               onFocus={(e) => {
                 e.target.select();
                 try {
-                  e.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" });
+                  e.currentTarget.scrollIntoView({
+                    block: "center",
+                    behavior: "smooth",
+                  });
                 } catch {}
               }}
               placeholder="60"
               disabled={readOnly}
               className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
-            {[30,60,90].map((sec) => (
+            {[30, 60, 90].map((sec) => (
               <button
                 key={sec}
                 type="button"
                 disabled={readOnly}
                 onClick={() => !readOnly && handleRestChange(sec)}
-                className={`px-2 py-1 rounded-md text-xs btn-secondary ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
+                className={`btn-secondary rounded-md px-2 py-1 text-xs ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
               >
                 {sec}
               </button>
@@ -253,16 +265,19 @@ export function SetInput({
 
       {/* Up/Down arrow buttons for reordering sets */}
       {!readOnly && (onMoveUp || onMoveDown) && (
-        <div className="flex flex-col gap-1 ml-1 mr-1">
+        <div className="mr-1 ml-1 flex flex-col gap-1">
           {/* Move Up Button */}
           <button
             type="button"
             onClick={() => {
-              console.log('[SetInput] Move Up button clicked', { exerciseIndex, setIndex });
+              console.log("[SetInput] Move Up button clicked", {
+                exerciseIndex,
+                setIndex,
+              });
               onMoveUp?.();
             }}
             disabled={!onMoveUp}
-            className="px-1 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="px-1 py-1 text-gray-500 transition-colors hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:text-gray-100"
             title="Move set up"
             aria-label="Move set up"
           >
@@ -270,16 +285,19 @@ export function SetInput({
               <path d="M7 14l5-5 5 5z" />
             </svg>
           </button>
-          
+
           {/* Move Down Button */}
           <button
             type="button"
             onClick={() => {
-              console.log('[SetInput] Move Down button clicked', { exerciseIndex, setIndex });
+              console.log("[SetInput] Move Down button clicked", {
+                exerciseIndex,
+                setIndex,
+              });
               onMoveDown?.();
             }}
             disabled={!onMoveDown}
-            className="px-1 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="px-1 py-1 text-gray-500 transition-colors hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:text-gray-100"
             title="Move set down"
             aria-label="Move set down"
           >
@@ -301,7 +319,7 @@ export function SetInput({
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          className="flex h-8 w-8 items-center justify-center rounded-full btn-destructive"
+          className="btn-destructive flex h-8 w-8 items-center justify-center rounded-full"
           title="Delete set"
         >
           ×

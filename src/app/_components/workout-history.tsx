@@ -9,7 +9,11 @@ export function WorkoutHistory() {
     limit: 50,
   });
 
-  const { data: exportData, isFetching: isExporting, refetch: refetchExport } = useExportWorkoutsCSV();
+  const {
+    data: exportData,
+    isFetching: isExporting,
+    refetch: refetchExport,
+  } = useExportWorkoutsCSV();
 
   if (isLoading) {
     return (
@@ -47,11 +51,13 @@ export function WorkoutHistory() {
     <div className="space-y-4">
       {/* Export / Share */}
       <div className="flex items-center justify-end">
-        { }
-        <span className="sr-only">{exportData ? "Export data ready" : "No export data"}</span>
+        {}
+        <span className="sr-only">
+          {exportData ? "Export data ready" : "No export data"}
+        </span>
         <button
           type="button"
-          className="rounded bg-gray-700 px-3 py-1.5 text-sm hover:bg-gray-600 transition-colors"
+          className="rounded bg-gray-700 px-3 py-1.5 text-sm transition-colors hover:bg-gray-600"
           aria-label="Export recent workouts as CSV"
           onClick={async () => {
             const res = await refetchExport();
@@ -60,7 +66,9 @@ export function WorkoutHistory() {
             if (!content) return;
 
             // Trigger a client-side download
-            const blob = new Blob([content], { type: res.data?.mimeType ?? "text/csv" });
+            const blob = new Blob([content], {
+              type: res.data?.mimeType ?? "text/csv",
+            });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -99,7 +107,10 @@ export function WorkoutHistory() {
             ) : (
               (() => {
                 // Group exercises by name and calculate summary
-                const exerciseGroups = new Map<string, typeof workout.exercises>();
+                const exerciseGroups = new Map<
+                  string,
+                  typeof workout.exercises
+                >();
                 workout.exercises.forEach((exercise) => {
                   if (!exerciseGroups.has(exercise.exerciseName)) {
                     exerciseGroups.set(exercise.exerciseName, []);
@@ -107,32 +118,43 @@ export function WorkoutHistory() {
                   exerciseGroups.get(exercise.exerciseName)!.push(exercise);
                 });
 
-                return Array.from(exerciseGroups.entries()).map(([exerciseName, sets]) => {
-                  // Find the best set (highest weight)
-                  const bestSet = sets.reduce((best, current) => {
-                    const currentWeight = current.weight ? parseFloat(current.weight) : 0;
-                    const bestWeight = best.weight ? parseFloat(best.weight) : 0;
-                    return currentWeight > bestWeight ? current : best;
-                  });
+                return Array.from(exerciseGroups.entries()).map(
+                  ([exerciseName, sets]) => {
+                    // Find the best set (highest weight)
+                    const bestSet = sets.reduce((best, current) => {
+                      const currentWeight = current.weight
+                        ? parseFloat(current.weight)
+                        : 0;
+                      const bestWeight = best.weight
+                        ? parseFloat(best.weight)
+                        : 0;
+                      return currentWeight > bestWeight ? current : best;
+                    });
 
-                  const totalSets = sets.reduce((sum, set) => sum + (set.sets ?? 0), 0);
+                    const totalSets = sets.reduce(
+                      (sum, set) => sum + (set.sets ?? 0),
+                      0,
+                    );
 
-                  return (
-                    <div key={exerciseName} className="text-sm">
-                      <span className="text-gray-300">{exerciseName}:</span>{" "}
-                      {bestSet.weight && (
-                        <span>
-                          {bestSet.weight}
-                          {bestSet.unit}
-                        </span>
-                      )}
-                      {bestSet.weight && bestSet.reps && " × "}
-                      {bestSet.reps && <span>{bestSet.reps} reps</span>}
-                      {(bestSet.reps ?? bestSet.weight) && totalSets > 0 && " × "}
-                      {totalSets > 0 && <span>{totalSets} sets</span>}
-                    </div>
-                  );
-                });
+                    return (
+                      <div key={exerciseName} className="text-sm">
+                        <span className="text-gray-300">{exerciseName}:</span>{" "}
+                        {bestSet.weight && (
+                          <span>
+                            {bestSet.weight}
+                            {bestSet.unit}
+                          </span>
+                        )}
+                        {bestSet.weight && bestSet.reps && " × "}
+                        {bestSet.reps && <span>{bestSet.reps} reps</span>}
+                        {(bestSet.reps ?? bestSet.weight) &&
+                          totalSets > 0 &&
+                          " × "}
+                        {totalSets > 0 && <span>{totalSets} sets</span>}
+                      </div>
+                    );
+                  },
+                );
               })()
             )}
           </div>

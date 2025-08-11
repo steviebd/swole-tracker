@@ -91,7 +91,9 @@ export const sessionExercises = createTable(
       .integer()
       .notNull()
       .references(() => workoutSessions.id, { onDelete: "cascade" }),
-    templateExerciseId: d.integer().references(() => templateExercises.id, { onDelete: "set null" }),
+    templateExerciseId: d
+      .integer()
+      .references(() => templateExercises.id, { onDelete: "set null" }),
     exerciseName: d.varchar({ length: 256 }).notNull(),
     setOrder: d.integer().notNull().default(0),
     weight: decimal("weight", { precision: 6, scale: 2 }),
@@ -125,7 +127,10 @@ export const userPreferences = createTable(
     defaultWeightUnit: d.varchar({ length: 10 }).notNull().default("kg"),
     // Phase 2 additions
     predictive_defaults_enabled: d.boolean().notNull().default(false),
-    right_swipe_action: d.varchar({ length: 32 }).notNull().default("collapse_expand"),
+    right_swipe_action: d
+      .varchar({ length: 32 })
+      .notNull()
+      .default("collapse_expand"),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -304,7 +309,10 @@ export const masterExercises = createTable(
     index("master_exercise_user_id_idx").on(t.user_id),
     index("master_exercise_name_idx").on(t.name),
     index("master_exercise_normalized_name_idx").on(t.normalizedName),
-    index("master_exercise_user_normalized_idx").on(t.user_id, t.normalizedName),
+    index("master_exercise_user_normalized_idx").on(
+      t.user_id,
+      t.normalizedName,
+    ),
     // Unique constraint: prevent duplicate master exercise names per user
     unique("master_exercise_user_name_unique").on(t.user_id, t.normalizedName),
   ],
@@ -363,19 +371,16 @@ export const masterExercisesRelations = relations(
   }),
 );
 
-export const exerciseLinksRelations = relations(
-  exerciseLinks,
-  ({ one }) => ({
-    templateExercise: one(templateExercises, {
-      fields: [exerciseLinks.templateExerciseId],
-      references: [templateExercises.id],
-    }),
-    masterExercise: one(masterExercises, {
-      fields: [exerciseLinks.masterExerciseId],
-      references: [masterExercises.id],
-    }),
+export const exerciseLinksRelations = relations(exerciseLinks, ({ one }) => ({
+  templateExercise: one(templateExercises, {
+    fields: [exerciseLinks.templateExerciseId],
+    references: [templateExercises.id],
   }),
-);
+  masterExercise: one(masterExercises, {
+    fields: [exerciseLinks.masterExerciseId],
+    references: [masterExercises.id],
+  }),
+}));
 
 // Webhook Events Log (for debugging and audit trail)
 export const webhookEvents = createTable(
@@ -389,7 +394,7 @@ export const webhookEvents = createTable(
     externalEntityId: d.varchar({ length: 256 }), // Workout ID, etc.
     payload: d.json(), // Full webhook payload
     headers: d.json(), // Webhook headers for debugging
-    status: d.varchar({ length: 20 }).notNull().default('received'), // 'received', 'processed', 'failed', 'ignored'
+    status: d.varchar({ length: 20 }).notNull().default("received"), // 'received', 'processed', 'failed', 'ignored'
     error: d.text(), // Error message if processing failed
     processingTime: d.integer(), // Processing time in ms
     createdAt: d

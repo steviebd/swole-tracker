@@ -3,7 +3,7 @@
  * Reduces verbosity in production while maintaining essential error tracking
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogContext {
   userId?: string;
@@ -13,8 +13,9 @@ interface LogContext {
 }
 
 class Logger {
-  private readonly isDevelopment: boolean = process.env.NODE_ENV === 'development';
-  private readonly isTest: boolean = process.env.NODE_ENV === 'test';
+  private readonly isDevelopment: boolean =
+    process.env.NODE_ENV === "development";
+  private readonly isTest: boolean = process.env.NODE_ENV === "test";
 
   private shouldLog(level: LogLevel): boolean {
     // In tests, suppress all non-security logs
@@ -24,61 +25,61 @@ class Logger {
 
     // In production, only log warnings and errors
     if (!this.isDevelopment) {
-      return level === 'warn' || level === 'error';
+      return level === "warn" || level === "error";
     }
-    
+
     // In development, log everything
     return true;
   }
 
   private sanitizeContext(context: LogContext): LogContext {
     const sanitized = { ...context };
-    
+
     // Remove sensitive data from logs
     delete sanitized.accessToken;
     delete sanitized.refreshToken;
     delete sanitized.password;
     delete sanitized.secret;
-    
+
     // Truncate long strings in production
     if (!this.isDevelopment) {
       Object.keys(sanitized).forEach((key) => {
         const v = sanitized[key];
-        if (typeof v === 'string' && v.length > 100) {
-          sanitized[key] = v.substring(0, 97) + '...';
+        if (typeof v === "string" && v.length > 100) {
+          sanitized[key] = v.substring(0, 97) + "...";
         }
       });
     }
-    
+
     return sanitized;
   }
 
   debug(message: string, context?: LogContext): void {
-    if (!this.shouldLog('debug')) return;
-    
+    if (!this.shouldLog("debug")) return;
+
     const sanitizedContext = context ? this.sanitizeContext(context) : {};
     console.log(`[DEBUG] ${message}`, sanitizedContext);
   }
 
   info(message: string, context?: LogContext): void {
-    if (!this.shouldLog('info')) return;
-    
+    if (!this.shouldLog("info")) return;
+
     const sanitizedContext = context ? this.sanitizeContext(context) : {};
     console.log(`[INFO] ${message}`, sanitizedContext);
   }
 
   warn(message: string, context?: LogContext): void {
-    if (!this.shouldLog('warn')) return;
-    
+    if (!this.shouldLog("warn")) return;
+
     const sanitizedContext = context ? this.sanitizeContext(context) : {};
     console.warn(`[WARN] ${message}`, sanitizedContext);
   }
 
   error(message: string, error?: unknown, context?: LogContext): void {
-    if (!this.shouldLog('error')) return;
-    
+    if (!this.shouldLog("error")) return;
+
     const sanitizedContext = context ? this.sanitizeContext(context) : {};
-    
+
     if (error instanceof Error) {
       console.error(`[ERROR] ${message}`, {
         error: error.message,
@@ -104,7 +105,7 @@ class Logger {
   // API timing logging (development only)
   timing(endpoint: string, duration: number, context?: LogContext): void {
     if (!this.isDevelopment) return;
-    
+
     this.debug(`${endpoint} took ${duration}ms`, context);
   }
 
@@ -121,7 +122,11 @@ class Logger {
 export const logger = new Logger();
 
 // Convenience functions for common patterns
-export const logApiCall = (endpoint: string, userId: string, duration?: number) => {
+export const logApiCall = (
+  endpoint: string,
+  userId: string,
+  duration?: number,
+) => {
   if (duration !== undefined) {
     logger.timing(endpoint, duration, { userId, endpoint });
   } else {
@@ -129,10 +134,22 @@ export const logApiCall = (endpoint: string, userId: string, duration?: number) 
   }
 };
 
-export const logWebhook = (eventType: string, userId?: string, workoutId?: string) => {
-  logger.webhook(`Processing ${eventType}`, undefined, { userId, workoutId, eventType });
+export const logWebhook = (
+  eventType: string,
+  userId?: string,
+  workoutId?: string,
+) => {
+  logger.webhook(`Processing ${eventType}`, undefined, {
+    userId,
+    workoutId,
+    eventType,
+  });
 };
 
-export const logSecurityEvent = (event: string, userId?: string, details?: Record<string, unknown>) => {
+export const logSecurityEvent = (
+  event: string,
+  userId?: string,
+  details?: Record<string, unknown>,
+) => {
   logger.security(event, { userId, ...details });
 };

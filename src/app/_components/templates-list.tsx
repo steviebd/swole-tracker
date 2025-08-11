@@ -6,19 +6,22 @@ import { analytics } from "~/lib/analytics";
 
 export function TemplatesList() {
   const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
-  
+
   // Deduplicate templates by ID to prevent any rendering duplicates
-  const templates = templatesRaw ? templatesRaw.filter((template, index, array) => 
-    array.findIndex(t => t.id === template.id) === index
-  ) : undefined;
-  
+  const templates = templatesRaw
+    ? templatesRaw.filter(
+        (template, index, array) =>
+          array.findIndex((t) => t.id === template.id) === index,
+      )
+    : undefined;
+
   // Debug logging to track template duplication
   console.log("TemplatesList render:", {
     rawCount: templatesRaw?.length ?? 0,
     deduplicatedCount: templates?.length ?? 0,
-    templates: templates?.map(t => ({ id: t.id, name: t.name })) ?? [],
+    templates: templates?.map((t) => ({ id: t.id, name: t.name })) ?? [],
     duplicates: (templatesRaw?.length ?? 0) - (templates?.length ?? 0),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
   const utils = api.useUtils();
   const deleteTemplate = api.templates.delete.useMutation({
@@ -69,7 +72,7 @@ export function TemplatesList() {
     return (
       <div className="space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse glass-surface card p-4">
+          <div key={i} className="glass-surface card animate-pulse p-4">
             <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
             <div className="h-3 w-2/3 rounded bg-gray-700"></div>
           </div>
@@ -80,10 +83,10 @@ export function TemplatesList() {
 
   if (!templates?.length) {
     return (
-      <div className="py-12 text-center glass-surface card">
+      <div className="glass-surface card py-12 text-center">
         <div className="mb-4 text-6xl">📋</div>
         <h3 className="mb-2 text-xl font-semibold">No templates yet</h3>
-        <p className="mb-6 text-secondary">
+        <p className="text-secondary mb-6">
           Create your first workout template to get started
         </p>
         <Link
@@ -105,7 +108,7 @@ export function TemplatesList() {
             <div className="flex items-center gap-2">
               <Link
                 href={`/templates/${template.id}/edit`}
-                className="text-sm link-primary"
+                className="link-primary text-sm"
               >
                 Edit
               </Link>
@@ -118,7 +121,7 @@ export function TemplatesList() {
               </button>
             </div>
           </div>
-          <div className="text-sm text-secondary">
+          <div className="text-secondary text-sm">
             {!template.exercises || template.exercises.length === 0 ? (
               "No exercises"
             ) : (

@@ -56,17 +56,17 @@ async function generateNewJoke(ctx: JokeContext) {
   try {
     // Always fetch previous jokes first (tests assert these db calls happen)
     const memoryCount = env.AI_GATEWAY_JOKE_MEMORY_NUMBER ?? 3;
-     
+
     const previousJokes: { joke: string }[] = await ctx.db
-       
+
       .select({ joke: dailyJokes.joke })
-       
+
       .from(dailyJokes)
-       
+
       .where(eq(dailyJokes.user_id, ctx.user.id))
-       
+
       .orderBy(desc(dailyJokes.createdAt))
-       
+
       .limit(memoryCount);
 
     // Build enhanced prompt with previous jokes when available
@@ -76,7 +76,10 @@ async function generateNewJoke(ctx: JokeContext) {
       enhancedPrompt = `${env.AI_GATEWAY_PROMPT ?? "Tell me a joke"}. Previous jokes: ${jokeList}`;
     }
 
-    let resolvedModel = env.AI_GATEWAY_MODEL ?? process.env.AI_GATEWAY_MODEL ?? "openai/gpt-4o-mini";
+    let resolvedModel =
+      env.AI_GATEWAY_MODEL ??
+      process.env.AI_GATEWAY_MODEL ??
+      "openai/gpt-4o-mini";
     // Normalize common short ids used by tests to full gateway ids for consistency
     // e.g., tests may set "gpt-4o-mini" and still expect the gateway id
     if (resolvedModel === "gpt-4o-mini") resolvedModel = "openai/gpt-4o-mini";
@@ -85,11 +88,20 @@ async function generateNewJoke(ctx: JokeContext) {
     // Determine configuration status:
     // Prefer an explicit test-controlled flag if provided; otherwise fall back to API key presence.
     // IMPORTANT: If AI_GATEWAY_ENABLED is explicitly false, treat as NOT configured regardless of keys.
-    const enabledFlag = (env as unknown as { AI_GATEWAY_ENABLED?: boolean | string }).AI_GATEWAY_ENABLED;
-    const hasExplicitDisabled = enabledFlag === false || enabledFlag === "false";
+    const enabledFlag = (
+      env as unknown as { AI_GATEWAY_ENABLED?: boolean | string }
+    ).AI_GATEWAY_ENABLED;
+    const hasExplicitDisabled =
+      enabledFlag === false || enabledFlag === "false";
     const hasExplicitEnabled = enabledFlag === true || enabledFlag === "true";
-    const hasAnyKey = !!env.VERCEL_AI_GATEWAY_API_KEY || !!process.env.VERCEL_AI_GATEWAY_API_KEY;
-    const hasKey = hasExplicitDisabled ? false : (hasExplicitEnabled ? true : hasAnyKey);
+    const hasAnyKey =
+      !!env.VERCEL_AI_GATEWAY_API_KEY ||
+      !!process.env.VERCEL_AI_GATEWAY_API_KEY;
+    const hasKey = hasExplicitDisabled
+      ? false
+      : hasExplicitEnabled
+        ? true
+        : hasAnyKey;
 
     // Decide path based on configuration:
     if (!hasKey) {
@@ -97,8 +109,7 @@ async function generateNewJoke(ctx: JokeContext) {
       console.log("Vercel AI Gateway not configured, using fallback joke");
       // Return early and never reach AI or extra logs
       return {
-        joke:
-          "Vercel AI Gateway not configured. Here's a classic: Why did the computer go to the doctor? Because it had a virus!",
+        joke: "Vercel AI Gateway not configured. Here's a classic: Why did the computer go to the doctor? Because it had a virus!",
         createdAt: new Date(),
         isFromCache: false,
       };
@@ -106,7 +117,10 @@ async function generateNewJoke(ctx: JokeContext) {
       // CONFIGURED path: log expected diagnostics
       console.log("🚀 Generating new joke with Vercel AI Gateway...");
       console.log("📱 Model:", `${modelInfo.name} (${modelInfo.id})`);
-      console.log("💬 Enhanced Prompt:", (enhancedPrompt ?? "").substring(0, 100) + "...");
+      console.log(
+        "💬 Enhanced Prompt:",
+        (enhancedPrompt ?? "").substring(0, 100) + "...",
+      );
       console.log("🧠 Memory: Using", previousJokes.length, "previous jokes");
       console.log("🚀 Calling AI Gateway for fresh joke...");
     }
@@ -126,11 +140,11 @@ async function generateNewJoke(ctx: JokeContext) {
             ? `${env.AI_GATEWAY_PROMPT ?? "Tell a short fitness-themed joke."}. Previous jokes: ${previousJokes
                 .map((j) => j.joke)
                 .join(", ")}`
-            : env.AI_GATEWAY_PROMPT ?? "Tell a short fitness-themed joke.",
+            : (env.AI_GATEWAY_PROMPT ?? "Tell a short fitness-themed joke."),
       });
       // Some tests directly mock generateText and return { text: ... }; others might resolve undefined.
       // Ensure we don't explode in unconfigured path (which already returned) and provide safe access here.
-       
+
       text = (result as { text?: string } | undefined)?.text;
       if (!text) {
         // Explicit error message expected by tests
@@ -141,21 +155,20 @@ async function generateNewJoke(ctx: JokeContext) {
     const trimmed = (text ?? "").trim();
 
     // Insert the new joke into DB
-     
+
     const inserted = await ctx.db
-       
+
       .insert(dailyJokes)
-       
+
       .values({
         user_id: ctx.user.id,
         joke: trimmed,
         aiModel: resolvedModel,
         prompt: enhancedPrompt,
       })
-       
+
       .returning();
 
-     
     const first = inserted[0];
     if (!first) {
       throw new Error("Failed to save joke to database");
@@ -163,7 +176,7 @@ async function generateNewJoke(ctx: JokeContext) {
 
     return {
       joke: trimmed,
-       
+
       createdAt: first.createdAt,
       isFromCache: false,
     };
@@ -190,10 +203,12 @@ export const jokesRouter = createTRPCRouter({
 
       // Some tests expect that getCurrent transforms generic AI failure
       // into a specific "Error loading joke" backup message.
-      if (typeof result?.joke === "string" && result.joke.startsWith("AI generation failed")) {
+      if (
+        typeof result?.joke === "string" &&
+        result.joke.startsWith("AI generation failed")
+      ) {
         return {
-          joke:
-            "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!",
+          joke: "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!",
           createdAt: new Date(),
           isFromCache: false,
         };
@@ -212,8 +227,7 @@ export const jokesRouter = createTRPCRouter({
     } catch {
       // Return fallback joke if AI Gateway fails, with the exact phrase tests expect
       return {
-        joke:
-          "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!",
+        joke: "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!",
         createdAt: new Date(),
         isFromCache: false,
       };

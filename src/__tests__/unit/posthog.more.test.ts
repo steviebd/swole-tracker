@@ -83,7 +83,7 @@ describe("PostHogClient wrapper basic coverage", () => {
 
     expect(PHCtor).toHaveBeenCalledWith(
       "ph_test_key",
-      expect.objectContaining({ host: "https://app.posthog.com" })
+      expect.objectContaining({ host: "https://app.posthog.com" }),
     );
     expect(client).toBeTruthy();
 
@@ -125,7 +125,7 @@ describe("PostHogClient wrapper basic coverage", () => {
   it("getServerClient returns existing nodeClient if already set", async () => {
     // Reset modules to get fresh import
     vi.resetModules();
-    
+
     // Set up environment for server client creation
     process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://app.posthog.com";
     process.env.NEXT_PUBLIC_POSTHOG_KEY = "ph_test_key";
@@ -138,7 +138,7 @@ describe("PostHogClient wrapper basic coverage", () => {
     };
 
     const PHCtor = vi.fn().mockImplementation(() => mockClient);
-    
+
     const posthogMod = await import("~/lib/posthog");
     posthogMod.__setTestPosthogCtor(PHCtor as any);
 
@@ -148,7 +148,7 @@ describe("PostHogClient wrapper basic coverage", () => {
 
     // Second call should return the same client
     const client2 = posthogMod.default();
-    
+
     expect(client1).toBe(client2);
   });
 
@@ -219,7 +219,7 @@ describe("PostHogClient wrapper basic coverage", () => {
 
     expect(PHFactory).toHaveBeenCalledWith(
       "ph_test_key",
-      expect.objectContaining({ host: "https://app.posthog.com" })
+      expect.objectContaining({ host: "https://app.posthog.com" }),
     );
     expect(client).toBeTruthy();
 
@@ -242,7 +242,7 @@ describe("PostHogClient wrapper basic coverage", () => {
       global.window = {}; // Simulate browser environment
       const { getServerPosthog } = await import("~/lib/posthog");
       expect(() => getServerPosthog()).toThrow(
-        "getServerPosthog() must only be called on the server"
+        "getServerPosthog() must only be called on the server",
       );
     });
 

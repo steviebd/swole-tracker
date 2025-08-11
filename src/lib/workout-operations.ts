@@ -55,7 +55,6 @@ export class WorkoutOperationsClient {
     userId: string,
     name: string,
   ): Promise<WorkoutTemplate> {
-     
     const { data, error } = await this.client
       .from("swole-tracker_workout_template")
       .insert({
@@ -100,7 +99,6 @@ export class WorkoutOperationsClient {
     userId: string,
     sessionId: number,
   ): Promise<WorkoutSession> {
-     
     const { data, error } = await this.client
       .from("swole-tracker_workout_session")
       .select("*")
@@ -117,7 +115,6 @@ export class WorkoutOperationsClient {
     templateId: number,
     workoutDate: string,
   ): Promise<WorkoutSession> {
-     
     const { data, error } = await this.client
       .from("swole-tracker_workout_session")
       .insert({
@@ -155,7 +152,6 @@ export class WorkoutOperationsClient {
       "id" | "user_id" | "sessionId" | "createdAt"
     >,
   ): Promise<SessionExercise> {
-     
     const { data, error } = await this.client
       .from("swole-tracker_session_exercise")
       .insert({
@@ -198,7 +194,6 @@ export class WorkoutOperationsServer {
   ): Promise<WorkoutTemplate> {
     const client = await this.getClient();
 
-     
     const { data, error } = await client
       .from("swole-tracker_workout_template")
       .insert({

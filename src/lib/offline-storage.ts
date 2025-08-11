@@ -48,10 +48,10 @@ export function clearOfflineCache() {
  */
 export function getCacheSize(): string {
   if (typeof window === "undefined") return "0 KB";
-  
+
   const cache = localStorage.getItem("swole-tracker-cache");
   if (!cache) return "0 KB";
-  
+
   const sizeInBytes = new Blob([cache]).size;
   if (sizeInBytes < 1024) return `${sizeInBytes} B`;
   if (sizeInBytes < 1024 * 1024) return `${(sizeInBytes / 1024).toFixed(1)} KB`;

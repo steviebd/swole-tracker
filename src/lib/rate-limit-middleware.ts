@@ -17,7 +17,10 @@ export interface RateLimitOptions {
  * Matches: const mw = rateLimitMiddleware(opts); await mw({ ctx, next })
  */
 type MiddlewareNext = () => Promise<unknown>;
-type RateLimitHandler = (args: { ctx: TRPCContext; next: MiddlewareNext }) => Promise<unknown>;
+type RateLimitHandler = (args: {
+  ctx: TRPCContext;
+  next: MiddlewareNext;
+}) => Promise<unknown>;
 
 /**
  * Factory that returns a plain async handler usable in tests and in routers.
@@ -36,7 +39,12 @@ export const rateLimitMiddleware = ({
       return next();
     }
     try {
-      const result = await checkRateLimit(ctx.user.id, endpoint, limit, windowMs);
+      const result = await checkRateLimit(
+        ctx.user.id,
+        endpoint,
+        limit,
+        windowMs,
+      );
       if (!result.allowed) {
         logSecurityEvent(`Rate limit exceeded for ${endpoint}`, ctx.user.id, {
           endpoint,

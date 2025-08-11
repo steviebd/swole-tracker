@@ -9,7 +9,7 @@ export const CACHE_TIMES = {
     staleTime: 60 * 60 * 1000, // 60 minutes
     gcTime: 2 * 60 * 60 * 1000, // 2 hours
   },
-  // Medium-lived data (workout history) - changes occasionally  
+  // Medium-lived data (workout history) - changes occasionally
   MEDIUM: {
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
@@ -33,7 +33,7 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchInterval: 30 * 60 * 1000, // Background refresh every 30 min
   });
 
-  // Preferences - static data, cache aggressively  
+  // Preferences - static data, cache aggressively
   queryClient.setQueryDefaults(["preferences"], {
     staleTime: CACHE_TIMES.STATIC.staleTime,
     gcTime: CACHE_TIMES.STATIC.gcTime,

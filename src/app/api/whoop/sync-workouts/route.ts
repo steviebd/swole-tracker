@@ -31,8 +31,11 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
   // Check if token is expired or will expire in next 5 minutes
   const expiryBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
   const now = new Date();
-  
-  if (integration.expiresAt && new Date(integration.expiresAt).getTime() - now.getTime() < expiryBuffer) {
+
+  if (
+    integration.expiresAt &&
+    new Date(integration.expiresAt).getTime() - now.getTime() < expiryBuffer
+  ) {
     if (!integration.refreshToken) {
       throw new Error("Access token expired and no refresh token available");
     }
@@ -42,7 +45,6 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       authorization_endpoint: "https://api.prod.whoop.com/oauth/oauth2/auth",
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
-
 
     // Make refresh token request directly
     const refreshRequest = {
@@ -56,14 +58,16 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
       body: new URLSearchParams(refreshRequest).toString(),
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      throw new Error(`Token refresh failed: ${tokenResponse.status} - ${errorText}`);
+      throw new Error(
+        `Token refresh failed: ${tokenResponse.status} - ${errorText}`,
+      );
     }
 
     const tokens: unknown = await tokenResponse.json();
@@ -77,7 +81,7 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       expires_in?: number;
     };
 
-    const expiresAt = t.expires_in 
+    const expiresAt = t.expires_in
       ? new Date(Date.now() + t.expires_in * 1000)
       : null;
 
@@ -110,7 +114,7 @@ export async function POST(_request: NextRequest) {
       user.id,
       "whoop_sync",
       env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
-      60 * 60 * 1000 // 1 hour
+      60 * 60 * 1000, // 1 hour
     );
 
     if (!rateLimit.allowed) {
@@ -121,15 +125,17 @@ export async function POST(_request: NextRequest) {
           retryAfter: rateLimit.retryAfter,
           resetTime: rateLimit.resetTime.toISOString(),
         },
-        { 
+        {
           status: 429,
           headers: {
             "Retry-After": rateLimit.retryAfter!.toString(),
             "X-RateLimit-Limit": env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR.toString(),
             "X-RateLimit-Remaining": rateLimit.remaining.toString(),
-            "X-RateLimit-Reset": Math.floor(rateLimit.resetTime.getTime() / 1000).toString(),
-          }
-        }
+            "X-RateLimit-Reset": Math.floor(
+              rateLimit.resetTime.getTime() / 1000,
+            ).toString(),
+          },
+        },
       );
     }
 
@@ -141,12 +147,15 @@ export async function POST(_request: NextRequest) {
         and(
           eq(userIntegrations.user_id, user.id),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true)
-        )
+          eq(userIntegrations.isActive, true),
+        ),
       );
 
     if (!integration) {
-      return NextResponse.json({ error: "Whoop integration not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Whoop integration not found" },
+        { status: 404 },
+      );
     }
 
     // Refresh token if needed
@@ -154,19 +163,22 @@ export async function POST(_request: NextRequest) {
 
     // Fetch workouts from Whoop API (v2 endpoint) with pagination
     // Try to get more historical workouts by adding limit parameter
-    const whoopResponse = await fetch("https://api.prod.whoop.com/developer/v2/activity/workout?limit=25", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+    const whoopResponse = await fetch(
+      "https://api.prod.whoop.com/developer/v2/activity/workout?limit=25",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (!whoopResponse.ok) {
       const errorText = await whoopResponse.text();
       console.error("Whoop API error:", whoopResponse.status, errorText);
       return NextResponse.json(
         { error: `Whoop API error: ${whoopResponse.status} - ${errorText}` },
-        { status: whoopResponse.status }
+        { status: whoopResponse.status },
       );
     }
 
@@ -189,7 +201,13 @@ export async function POST(_request: NextRequest) {
     });
 
     // v2 API might use 'data' instead of 'records'
-    const workoutsRaw = (Array.isArray(dataArr) ? dataArr : Array.isArray(recordsArr) ? recordsArr : []) as unknown[];
+    const workoutsRaw = (
+      Array.isArray(dataArr)
+        ? dataArr
+        : Array.isArray(recordsArr)
+          ? recordsArr
+          : []
+    ) as unknown[];
 
     const workouts: WhoopWorkout[] = workoutsRaw.map((w) => {
       const o = w as Record<string, unknown>;
@@ -258,15 +276,20 @@ export async function POST(_request: NextRequest) {
         headers: {
           "X-RateLimit-Limit": env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR.toString(),
           "X-RateLimit-Remaining": rateLimit.remaining.toString(),
-          "X-RateLimit-Reset": Math.floor(rateLimit.resetTime.getTime() / 1000).toString(),
-        }
-      }
+          "X-RateLimit-Reset": Math.floor(
+            rateLimit.resetTime.getTime() / 1000,
+          ).toString(),
+        },
+      },
     );
   } catch (error) {
     console.error("Sync workouts error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to sync workouts" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to sync workouts",
+      },
+      { status: 500 },
     );
   }
 }

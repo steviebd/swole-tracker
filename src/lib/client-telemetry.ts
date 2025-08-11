@@ -11,7 +11,11 @@ type DeviceType = "android" | "ios" | "ipad" | "desktop" | "other";
 
 export function getDeviceType(): DeviceType {
   if (typeof navigator === "undefined") return "other";
-  const uaParts: Array<unknown> = [navigator.userAgent, (navigator as unknown as { vendor?: string }).vendor, (window as unknown as { opera?: string | undefined }).opera];
+  const uaParts: Array<unknown> = [
+    navigator.userAgent,
+    (navigator as unknown as { vendor?: string }).vendor,
+    (window as unknown as { opera?: string | undefined }).opera,
+  ];
   const ua = uaParts.find((p): p is string => typeof p === "string") ?? "";
   const uaLower = ua.toLowerCase();
 
@@ -20,7 +24,9 @@ export function getDeviceType(): DeviceType {
   // iPadOS on iPad can report as Mac; check for touch support
   const isIpad =
     uaLower.includes("ipad") ||
-    ((uaLower.includes("macintosh") || uaLower.includes("mac os x")) && typeof document !== "undefined" && "ontouchend" in document);
+    ((uaLower.includes("macintosh") || uaLower.includes("mac os x")) &&
+      typeof document !== "undefined" &&
+      "ontouchend" in document);
   if (isIpad) return "ipad";
   if (uaLower.includes("iphone") || uaLower.includes("ipod")) return "ios";
 
@@ -51,7 +57,8 @@ let longTaskTotal = 0;
 let longTaskObserverStarted = false;
 
 export function startLongTaskObserver() {
-  if (typeof PerformanceObserver === "undefined" || longTaskObserverStarted) return;
+  if (typeof PerformanceObserver === "undefined" || longTaskObserverStarted)
+    return;
   try {
     const obs = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
@@ -59,7 +66,10 @@ export function startLongTaskObserver() {
         longTaskTotal += entry.duration;
       }
     });
-    obs.observe({ type: "longtask", buffered: true } as PerformanceObserverInit);
+    obs.observe({
+      type: "longtask",
+      buffered: true,
+    } as PerformanceObserverInit);
     longTaskObserverStarted = true;
   } catch {
     // noop
@@ -69,9 +79,12 @@ export function startLongTaskObserver() {
 export function collectTTI_TBT(): { tti?: number; tbt?: number } {
   if (typeof performance === "undefined") return {};
   const navEntry = performance.getEntriesByType("navigation")[0];
-  const nav = (navEntry && typeof (navEntry as PerformanceNavigationTiming).domContentLoadedEventEnd === "number"
-    ? (navEntry as PerformanceNavigationTiming)
-    : undefined);
+  const nav =
+    navEntry &&
+    typeof (navEntry as PerformanceNavigationTiming)
+      .domContentLoadedEventEnd === "number"
+      ? (navEntry as PerformanceNavigationTiming)
+      : undefined;
   const tbt = Math.round(longTaskTotal);
 
   // TTI proxy:
@@ -81,7 +94,8 @@ export function collectTTI_TBT(): { tti?: number; tbt?: number } {
     const paints = performance.getEntriesByType("paint") as PerformanceEntry[];
     const fcp = paints.find((p) => p.name === "first-contentful-paint");
     const navStart = nav?.startTime ?? 0;
-    const ready = (nav?.domContentLoadedEventEnd ?? nav?.loadEventEnd ?? performance.now());
+    const ready =
+      nav?.domContentLoadedEventEnd ?? nav?.loadEventEnd ?? performance.now();
     const fcpTime = fcp ? fcp.startTime : navStart;
     // take max(fcp, ready) as naive readiness
     tti = Math.round(Math.max(fcpTime, ready));
@@ -110,7 +124,11 @@ export function recordInputLatencyEnd(startToken: number | null) {
   inputSamples.push({ start: startToken, end });
 }
 
-export function snapshotInputLatency(): { samples: number[]; avg?: number; p95?: number } {
+export function snapshotInputLatency(): {
+  samples: number[];
+  avg?: number;
+  p95?: number;
+} {
   const durations = inputSamples.map((s) => Math.max(0, s.end - s.start));
   inputSamples.length = 0;
   if (durations.length === 0) return { samples: [] };
@@ -119,8 +137,12 @@ export function snapshotInputLatency(): { samples: number[]; avg?: number; p95?:
   const sum = sorted.reduce((a, b) => a + b, 0);
   const avg = Math.round((sum / sorted.length) * 100) / 100;
   const p95Index = Math.floor(sorted.length * 0.95);
-  const p95Base = sorted.length > 0 ? sorted[Math.min(sorted.length - 1, p95Index)] : undefined;
-  const p95 = typeof p95Base === "number" ? Math.round(p95Base * 100) / 100 : undefined;
+  const p95Base =
+    sorted.length > 0
+      ? sorted[Math.min(sorted.length - 1, p95Index)]
+      : undefined;
+  const p95 =
+    typeof p95Base === "number" ? Math.round(p95Base * 100) / 100 : undefined;
 
   return { samples: durations, avg, p95 };
 }
@@ -144,7 +166,9 @@ export function snapshotMetricsBlob(): Record<string, unknown> {
  */
 export function vibrate(pattern: number | number[]) {
   if (typeof navigator === "undefined") return;
-  const vib = (navigator as unknown as { vibrate?: (p: number | number[]) => boolean }).vibrate;
+  const vib = (
+    navigator as unknown as { vibrate?: (p: number | number[]) => boolean }
+  ).vibrate;
   if (typeof vib !== "function") return;
   try {
     vib(pattern);

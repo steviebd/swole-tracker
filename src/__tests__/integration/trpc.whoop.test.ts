@@ -10,7 +10,7 @@ describe("tRPC whoop router", () => {
   describe("getIntegrationStatus", () => {
     it("returns connected status when integration exists and is active", async () => {
       const user = createMockUser({ id: "user_1" })!;
-      
+
       const mockIntegration = {
         isActive: true,
         createdAt: new Date("2024-01-01"),
@@ -82,7 +82,7 @@ describe("tRPC whoop router", () => {
 
     it("returns workouts sorted by start date descending", async () => {
       const user = createMockUser({ id: "user_5" })!;
-      
+
       const mockWorkouts = [
         {
           id: 1,
@@ -125,7 +125,9 @@ describe("tRPC whoop router", () => {
       const result = await caller.whoop.getWorkouts();
 
       expect(result).toEqual(mockWorkouts);
-      expect(result[0].start.getTime()).toBeGreaterThan(result[1].start.getTime());
+      expect(result[0].start.getTime()).toBeGreaterThan(
+        result[1].start.getTime(),
+      );
     });
   });
 
@@ -152,7 +154,7 @@ describe("tRPC whoop router", () => {
   describe("getWebhookInfo", () => {
     it("returns webhook info with VERCEL_URL", async () => {
       const user = createMockUser({ id: "user_7" })!;
-      
+
       process.env.VERCEL_URL = "swole-tracker.vercel.app";
       process.env.WHOOP_WEBHOOK_SECRET = "test-secret";
 
@@ -173,7 +175,7 @@ describe("tRPC whoop router", () => {
 
     it("returns webhook info with fallback URL when VERCEL_URL not set", async () => {
       const user = createMockUser({ id: "user_8" })!;
-      
+
       delete process.env.VERCEL_URL;
       process.env.NEXTAUTH_URL = "http://localhost:3000";
       process.env.WHOOP_WEBHOOK_SECRET = "test-secret";

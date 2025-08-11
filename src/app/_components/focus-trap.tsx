@@ -29,7 +29,9 @@ function getFocusable(container: HTMLElement | null): HTMLElement[] {
     "[tabindex]:not([tabindex='-1'])",
     "[contenteditable='true']",
   ];
-  const list = Array.from(container.querySelectorAll<HTMLElement>(selectors.join(",")));
+  const list = Array.from(
+    container.querySelectorAll<HTMLElement>(selectors.join(",")),
+  );
   // Only include visible, focusable
   return list.filter((el) => {
     const style = window.getComputedStyle(el);
@@ -52,7 +54,12 @@ type FocusTrapProps = {
  * FocusTrap: traps tab focus within its subtree and closes via Escape.
  * Must be mounted inside a portal/container that overlays the page.
  */
-export function FocusTrap({ children, onEscape, initialFocusRef, preventScroll }: FocusTrapProps) {
+export function FocusTrap({
+  children,
+  onEscape,
+  initialFocusRef,
+  preventScroll,
+}: FocusTrapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // On mount, move focus into the dialog
@@ -78,7 +85,11 @@ export function FocusTrap({ children, onEscape, initialFocusRef, preventScroll }
     }
 
     return () => {
-      if (preventScroll && typeof document !== "undefined" && originalOverflow !== null) {
+      if (
+        preventScroll &&
+        typeof document !== "undefined" &&
+        originalOverflow !== null
+      ) {
         document.body.style.overflow = originalOverflow;
       }
     };

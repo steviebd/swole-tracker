@@ -21,13 +21,27 @@ describe("tRPC workouts router comprehensive coverage", () => {
             name: "Upper Body",
             exercises: [
               { id: 1, exerciseName: "Bench Press", orderIndex: 0 },
-              { id: 2, exerciseName: "Shoulder Press", orderIndex: 1 }
-            ]
+              { id: 2, exerciseName: "Shoulder Press", orderIndex: 1 },
+            ],
           },
           exercises: [
-            { id: 1, exerciseName: "Bench Press", weight: "100", reps: 10, sets: 3, unit: "kg" },
-            { id: 2, exerciseName: "Shoulder Press", weight: "50", reps: 8, sets: 3, unit: "kg" }
-          ]
+            {
+              id: 1,
+              exerciseName: "Bench Press",
+              weight: "100",
+              reps: 10,
+              sets: 3,
+              unit: "kg",
+            },
+            {
+              id: 2,
+              exerciseName: "Shoulder Press",
+              weight: "50",
+              reps: 8,
+              sets: 3,
+              unit: "kg",
+            },
+          ],
         },
         {
           id: 2,
@@ -36,12 +50,19 @@ describe("tRPC workouts router comprehensive coverage", () => {
           template: {
             id: 2,
             name: "Lower Body",
-            exercises: [{ id: 3, exerciseName: "Squats", orderIndex: 0 }]
+            exercises: [{ id: 3, exerciseName: "Squats", orderIndex: 0 }],
           },
           exercises: [
-            { id: 3, exerciseName: "Squats", weight: "120", reps: 8, sets: 4, unit: "kg" }
-          ]
-        }
+            {
+              id: 3,
+              exerciseName: "Squats",
+              weight: "120",
+              reps: 8,
+              sets: 4,
+              unit: "kg",
+            },
+          ],
+        },
       ];
 
       const db = createMockDb({
@@ -64,7 +85,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
         where: expect.any(Object),
         orderBy: expect.any(Array),
         limit: 10,
-        with: expect.any(Object)
+        with: expect.any(Object),
       });
     });
 
@@ -75,7 +96,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
         user_id: user.id,
         workoutDate: new Date(`2024-01-${i + 1}`),
         template: { id: i + 1, name: `Template ${i + 1}`, exercises: [] },
-        exercises: []
+        exercises: [],
       }));
 
       const db = createMockDb({
@@ -91,7 +112,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
       expect(result).toHaveLength(3);
       expect(db.query.workoutSessions.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 3 })
+        expect.objectContaining({ limit: 3 }),
       );
     });
   });
@@ -108,13 +129,27 @@ describe("tRPC workouts router comprehensive coverage", () => {
           name: "Full Body",
           exercises: [
             { id: 10, exerciseName: "Deadlift", orderIndex: 0 },
-            { id: 11, exerciseName: "Pull-ups", orderIndex: 1 }
-          ]
+            { id: 11, exerciseName: "Pull-ups", orderIndex: 1 },
+          ],
         },
         exercises: [
-          { id: 100, exerciseName: "Deadlift", weight: "140", reps: 5, sets: 3, unit: "kg" },
-          { id: 101, exerciseName: "Pull-ups", weight: "0", reps: 10, sets: 3, unit: "kg" }
-        ]
+          {
+            id: 100,
+            exerciseName: "Deadlift",
+            weight: "140",
+            reps: 5,
+            sets: 3,
+            unit: "kg",
+          },
+          {
+            id: 101,
+            exerciseName: "Pull-ups",
+            weight: "0",
+            reps: 10,
+            sets: 3,
+            unit: "kg",
+          },
+        ],
       };
 
       const db = createMockDb({
@@ -134,7 +169,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       expect(result.exercises).toHaveLength(2);
       expect(db.query.workoutSessions.findFirst).toHaveBeenCalledWith({
         where: expect.any(Object),
-        with: expect.any(Object)
+        with: expect.any(Object),
       });
     });
 
@@ -149,7 +184,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.getById({ id: 999 })).rejects.toThrow("Workout not found");
+      await expect(trpc.workouts.getById({ id: 999 })).rejects.toThrow(
+        "Workout not found",
+      );
     });
 
     it("throws error when workout belongs to different user", async () => {
@@ -159,7 +196,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
         user_id: "different_user",
         workoutDate: new Date(),
         template: { id: 1, name: "Test", exercises: [] },
-        exercises: []
+        exercises: [],
       };
 
       const db = createMockDb({
@@ -171,7 +208,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.getById({ id: 43 })).rejects.toThrow("Workout not found");
+      await expect(trpc.workouts.getById({ id: 43 })).rejects.toThrow(
+        "Workout not found",
+      );
     });
   });
 
@@ -184,15 +223,15 @@ describe("tRPC workouts router comprehensive coverage", () => {
         name: "Push Day",
         exercises: [
           { id: 1, exerciseName: "Bench Press", orderIndex: 0 },
-          { id: 2, exerciseName: "Tricep Extensions", orderIndex: 1 }
-        ]
+          { id: 2, exerciseName: "Tricep Extensions", orderIndex: 1 },
+        ],
       };
 
       const mockSession = {
         id: 123,
         user_id: user.id,
         templateId: 1,
-        workoutDate: new Date("2024-01-20")
+        workoutDate: new Date("2024-01-20"),
       };
 
       const db = createMockDb({
@@ -200,27 +239,30 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
       // Mock insert chain
       db.insert = vi.fn().mockReturnValue({
         values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([mockSession])
-        })
+          returning: vi.fn().mockResolvedValue([mockSession]),
+        }),
       });
 
       const trpc = await buildCaller({ db, user });
       const result = await trpc.workouts.start({
         templateId: 1,
-        workoutDate: new Date("2024-01-20")
+        workoutDate: new Date("2024-01-20"),
       });
 
       expect(result.sessionId).toBe(123);
       expect(result.template).toEqual(mockTemplate);
       expect(db.query.workoutTemplates.findFirst).toHaveBeenCalledWith({
         where: expect.any(Object),
-        with: expect.any(Object)
+        with: expect.any(Object),
       });
     });
 
@@ -230,14 +272,14 @@ describe("tRPC workouts router comprehensive coverage", () => {
         id: 2,
         user_id: user.id,
         name: "Leg Day",
-        exercises: []
+        exercises: [],
       };
 
       const mockSession = {
         id: 124,
         user_id: user.id,
         templateId: 2,
-        workoutDate: new Date("2024-01-21")
+        workoutDate: new Date("2024-01-21"),
       };
 
       const db = createMockDb({
@@ -245,13 +287,16 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
       db.insert = vi.fn().mockReturnValue({
         values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([mockSession])
-        })
+          returning: vi.fn().mockResolvedValue([mockSession]),
+        }),
       });
 
       const trpc = await buildCaller({ db, user });
@@ -260,7 +305,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
         workoutDate: new Date("2024-01-21"),
         theme_used: "dark",
         device_type: "ios",
-        perf_metrics: { loadTime: 1500 }
+        perf_metrics: { loadTime: 1500 },
       });
 
       expect(result.sessionId).toBe(124);
@@ -274,14 +319,19 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(null),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.start({
-        templateId: 999,
-        workoutDate: new Date()
-      })).rejects.toThrow("Template not found");
+      await expect(
+        trpc.workouts.start({
+          templateId: 999,
+          workoutDate: new Date(),
+        }),
+      ).rejects.toThrow("Template not found");
     });
 
     it("throws error when template belongs to different user", async () => {
@@ -290,7 +340,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
         id: 3,
         user_id: "different_user",
         name: "Not Mine",
-        exercises: []
+        exercises: [],
       };
 
       const db = createMockDb({
@@ -298,14 +348,19 @@ describe("tRPC workouts router comprehensive coverage", () => {
           workoutTemplates: {
             findFirst: vi.fn().mockResolvedValue(mockTemplate),
           },
+          workoutSessions: {
+            findFirst: vi.fn().mockResolvedValue(null), // No recent duplicate session
+          },
         },
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.start({
-        templateId: 3,
-        workoutDate: new Date()
-      })).rejects.toThrow("Template not found");
+      await expect(
+        trpc.workouts.start({
+          templateId: 3,
+          workoutDate: new Date(),
+        }),
+      ).rejects.toThrow("Template not found");
     });
   });
 
@@ -324,7 +379,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
       // Mock delete and insert chains
       db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([])
+        where: vi.fn().mockResolvedValue([]),
       });
 
       db.insert = vi.fn().mockReturnValue({
@@ -340,23 +395,21 @@ describe("tRPC workouts router comprehensive coverage", () => {
             exerciseName: "Bench Press",
             sets: [
               { id: "set-1", weight: 100, reps: 10, sets: 3, unit: "kg" },
-              { id: "set-2", weight: 105, reps: 8, sets: 2, unit: "kg" }
+              { id: "set-2", weight: 105, reps: 8, sets: 2, unit: "kg" },
             ],
-            unit: "kg"
+            unit: "kg",
           },
           {
             exerciseName: "Push-ups",
-            sets: [
-              { id: "set-3", reps: 15, sets: 3, unit: "kg" }
-            ],
-            unit: "kg"
-          }
-        ]
+            sets: [{ id: "set-3", reps: 15, sets: 3, unit: "kg" }],
+            unit: "kg",
+          },
+        ],
       });
 
       expect(result.success).toBe(true);
       expect(db.query.workoutSessions.findFirst).toHaveBeenCalledWith({
-        where: expect.any(Object)
+        where: expect.any(Object),
       });
       expect(db.delete).toHaveBeenCalled();
       expect(db.insert).toHaveBeenCalled();
@@ -375,7 +428,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([])
+        where: vi.fn().mockResolvedValue([]),
       });
 
       db.insert = vi.fn().mockReturnValue({
@@ -399,12 +452,12 @@ describe("tRPC workouts router comprehensive coverage", () => {
                 rpe: 8,
                 rest: 90,
                 isEstimate: true,
-                isDefaultApplied: false
-              }
+                isDefaultApplied: false,
+              },
             ],
-            unit: "kg"
-          }
-        ]
+            unit: "kg",
+          },
+        ],
       });
 
       expect(db.insert).toHaveBeenCalledWith(expect.any(Object));
@@ -423,7 +476,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([])
+        where: vi.fn().mockResolvedValue([]),
       });
 
       db.insert = vi.fn().mockReturnValue({
@@ -439,11 +492,11 @@ describe("tRPC workouts router comprehensive coverage", () => {
             sets: [
               { id: "set-1", weight: 140, reps: 5, sets: 3, unit: "kg" },
               { id: "set-2" }, // Empty set should be filtered out
-              { id: "set-3", weight: 145, reps: 3, sets: 2, unit: "kg" }
+              { id: "set-3", weight: 145, reps: 3, sets: 2, unit: "kg" },
             ],
-            unit: "kg"
-          }
-        ]
+            unit: "kg",
+          },
+        ],
       });
 
       // Should only insert 2 sets (filtered out the empty one)
@@ -463,7 +516,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([])
+        where: vi.fn().mockResolvedValue([]),
       });
 
       db.insert = vi.fn().mockReturnValue({
@@ -473,7 +526,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       const trpc = await buildCaller({ db, user });
       const result = await trpc.workouts.save({
         sessionId: 203,
-        exercises: []
+        exercises: [],
       });
 
       expect(result.success).toBe(true);
@@ -494,7 +547,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([])
+        where: vi.fn().mockResolvedValue([]),
       });
 
       db.insert = vi.fn().mockReturnValue({
@@ -503,8 +556,8 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
       db.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([])
-        })
+          where: vi.fn().mockResolvedValue([]),
+        }),
       });
 
       const trpc = await buildCaller({ db, user });
@@ -513,7 +566,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
         exercises: [],
         theme_used: "light",
         device_type: "android",
-        perf_metrics: { loadTime: 1200 }
+        perf_metrics: { loadTime: 1200 },
       });
 
       expect(db.update).toHaveBeenCalled();
@@ -530,10 +583,12 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.save({
-        sessionId: 999,
-        exercises: []
-      })).rejects.toThrow("Workout session not found");
+      await expect(
+        trpc.workouts.save({
+          sessionId: 999,
+          exercises: [],
+        }),
+      ).rejects.toThrow("Workout session not found");
     });
 
     it("throws error when session belongs to different user", async () => {
@@ -549,10 +604,12 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.save({
-        sessionId: 205,
-        exercises: []
-      })).rejects.toThrow("Workout session not found");
+      await expect(
+        trpc.workouts.save({
+          sessionId: 205,
+          exercises: [],
+        }),
+      ).rejects.toThrow("Workout session not found");
     });
   });
 
@@ -570,7 +627,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([])
+        where: vi.fn().mockResolvedValue([]),
       });
 
       const trpc = await buildCaller({ db, user });
@@ -578,7 +635,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
       expect(result.success).toBe(true);
       expect(db.query.workoutSessions.findFirst).toHaveBeenCalledWith({
-        where: expect.any(Object)
+        where: expect.any(Object),
       });
       expect(db.delete).toHaveBeenCalled();
     });
@@ -594,7 +651,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.delete({ id: 999 })).rejects.toThrow("Workout session not found");
+      await expect(trpc.workouts.delete({ id: 999 })).rejects.toThrow(
+        "Workout session not found",
+      );
     });
 
     it("throws error when session belongs to different user", async () => {
@@ -610,7 +669,9 @@ describe("tRPC workouts router comprehensive coverage", () => {
       });
 
       const trpc = await buildCaller({ db, user });
-      await expect(trpc.workouts.delete({ id: 301 })).rejects.toThrow("Workout session not found");
+      await expect(trpc.workouts.delete({ id: 301 })).rejects.toThrow(
+        "Workout session not found",
+      );
     });
   });
 
@@ -627,7 +688,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
       const trpc = await buildCaller({ db, user });
       const result = await trpc.workouts.getLastExerciseData({
-        exerciseName: "Non-existent Exercise"
+        exerciseName: "Non-existent Exercise",
       });
 
       expect(result).toBeNull();
@@ -648,7 +709,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
               reps: 10,
               sets: 3,
               unit: "kg",
-              setOrder: 0
+              setOrder: 0,
             },
             {
               id: 2,
@@ -657,10 +718,10 @@ describe("tRPC workouts router comprehensive coverage", () => {
               reps: 8,
               sets: 2,
               unit: "kg",
-              setOrder: 1
-            }
-          ]
-        }
+              setOrder: 1,
+            },
+          ],
+        },
       ];
 
       const db = createMockDb({
@@ -673,7 +734,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
       const trpc = await buildCaller({ db, user });
       const result = await trpc.workouts.getLastExerciseData({
-        exerciseName: "Bench Press"
+        exerciseName: "Bench Press",
       });
 
       expect(result).toBeDefined();
@@ -693,24 +754,24 @@ describe("tRPC workouts router comprehensive coverage", () => {
           exerciseLinks: {
             findFirst: vi.fn().mockResolvedValue({
               masterExerciseId: 1,
-              masterExercise: { id: 1, exerciseName: "Master Bench Press" }
+              masterExercise: { id: 1, exerciseName: "Master Bench Press" },
             }),
             findMany: vi.fn().mockResolvedValue([
               {
-                templateExercise: { exerciseName: "Bench Press" }
+                templateExercise: { exerciseName: "Bench Press" },
               },
               {
-                templateExercise: { exerciseName: "DB Bench Press" }
-              }
-            ])
-          }
+                templateExercise: { exerciseName: "DB Bench Press" },
+              },
+            ]),
+          },
         },
       });
 
       const trpc = await buildCaller({ db, user });
       await trpc.workouts.getLastExerciseData({
         exerciseName: "Bench Press",
-        templateExerciseId: 1
+        templateExerciseId: 1,
       });
 
       expect(db.query.exerciseLinks.findFirst).toHaveBeenCalled();
@@ -720,7 +781,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
   describe("getLatestPerformanceForTemplateExercise", () => {
     it("returns null when no template exercise found", async () => {
       const user = { id: "user_comp_23" } as const;
-      
+
       let callCount = 0;
       const db = createMockDb({
         select: vi.fn(() => {
@@ -735,23 +796,24 @@ describe("tRPC workouts router comprehensive coverage", () => {
               if (callCount === 1) return resolve([]); // No exercise link
               if (callCount === 2) return resolve([]); // No template exercise
               return resolve([]);
-            })
+            }),
           };
           return chain;
         }),
       });
 
       const trpc = await buildCaller({ db, user });
-      const result = await trpc.workouts.getLatestPerformanceForTemplateExercise({
-        templateExerciseId: 999
-      });
+      const result =
+        await trpc.workouts.getLatestPerformanceForTemplateExercise({
+          templateExerciseId: 999,
+        });
 
       expect(result).toBeNull();
     });
 
     it("returns performance by exercise name when no link exists", async () => {
       const user = { id: "user_comp_24" } as const;
-      
+
       let callCount = 0;
       const db = createMockDb({
         select: vi.fn(() => {
@@ -765,19 +827,30 @@ describe("tRPC workouts router comprehensive coverage", () => {
             then: vi.fn(async (resolve: any) => {
               if (callCount === 1) return resolve([]); // No exercise link
               if (callCount === 2) return resolve([{ exerciseName: "Squats" }]); // Template exercise found
-              if (callCount === 3) return resolve([{ sessionId: 500, workoutDate: new Date() }]); // Latest workout
-              if (callCount === 4) return resolve([{ weight: "150", reps: 8, sets: 4, unit: "kg", workoutDate: new Date() }]); // Performance
+              if (callCount === 3)
+                return resolve([{ sessionId: 500, workoutDate: new Date() }]); // Latest workout
+              if (callCount === 4)
+                return resolve([
+                  {
+                    weight: "150",
+                    reps: 8,
+                    sets: 4,
+                    unit: "kg",
+                    workoutDate: new Date(),
+                  },
+                ]); // Performance
               return resolve([]);
-            })
+            }),
           };
           return chain;
         }),
       });
 
       const trpc = await buildCaller({ db, user });
-      const result = await trpc.workouts.getLatestPerformanceForTemplateExercise({
-        templateExerciseId: 1
-      });
+      const result =
+        await trpc.workouts.getLatestPerformanceForTemplateExercise({
+          templateExerciseId: 1,
+        });
 
       expect(result).toBeDefined();
       expect(result?.weight).toBe("150");
@@ -786,7 +859,7 @@ describe("tRPC workouts router comprehensive coverage", () => {
 
     it("handles excludeSessionId parameter correctly", async () => {
       const user = { id: "user_comp_25" } as const;
-      
+
       let callCount = 0;
       const db = createMockDb({
         select: vi.fn(() => {
@@ -799,20 +872,22 @@ describe("tRPC workouts router comprehensive coverage", () => {
             limit: vi.fn(() => chain),
             then: vi.fn(async (resolve: any) => {
               if (callCount === 1) return resolve([]); // No exercise link
-              if (callCount === 2) return resolve([{ exerciseName: "Deadlift" }]); // Template exercise
+              if (callCount === 2)
+                return resolve([{ exerciseName: "Deadlift" }]); // Template exercise
               if (callCount === 3) return resolve([]); // No workouts excluding session 100
               return resolve([]);
-            })
+            }),
           };
           return chain;
         }),
       });
 
       const trpc = await buildCaller({ db, user });
-      const result = await trpc.workouts.getLatestPerformanceForTemplateExercise({
-        templateExerciseId: 1,
-        excludeSessionId: 100
-      });
+      const result =
+        await trpc.workouts.getLatestPerformanceForTemplateExercise({
+          templateExerciseId: 1,
+          excludeSessionId: 100,
+        });
 
       expect(result).toBeNull();
     });

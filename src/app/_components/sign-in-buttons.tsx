@@ -22,11 +22,9 @@ export function SignInButtons() {
   return (
     <div className="flex flex-col gap-3">
       <SignInButton mode="modal">
-        <button className="btn-primary px-8 py-3 font-semibold">
-          Sign in
-        </button>
+        <button className="btn-primary px-8 py-3 font-semibold">Sign in</button>
       </SignInButton>
-      <div className="text-xs text-secondary text-center">
+      <div className="text-secondary text-center text-xs">
         Welcome to the Calm Dark experience
       </div>
     </div>

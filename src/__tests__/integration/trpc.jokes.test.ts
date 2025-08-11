@@ -21,9 +21,9 @@ describe("tRPC jokes router", () => {
       limit: vi.fn().mockResolvedValue([] as { joke: string }[]),
     };
 
-    const returningInsert = vi.fn().mockResolvedValue([
-      { id: 1, createdAt: new Date() },
-    ]);
+    const returningInsert = vi
+      .fn()
+      .mockResolvedValue([{ id: 1, createdAt: new Date() }]);
 
     const insertChain = {
       values: vi.fn().mockReturnThis(),
@@ -62,9 +62,9 @@ describe("tRPC jokes router", () => {
       orderBy: vi.fn().mockReturnThis(),
       limit: vi.fn().mockResolvedValue([] as { joke: string }[]),
     };
-    const returningInsert = vi.fn().mockResolvedValue([
-      { id: 2, createdAt: new Date() },
-    ]);
+    const returningInsert = vi
+      .fn()
+      .mockResolvedValue([{ id: 2, createdAt: new Date() }]);
     const insertChain = {
       values: vi.fn().mockReturnThis(),
       returning: returningInsert,

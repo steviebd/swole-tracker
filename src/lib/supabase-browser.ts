@@ -73,9 +73,13 @@ export function createClerkSupabaseClient(
   // Polyfill for tests/mocks: ensure auth.signInWithPassword exists
   // Some tests mock createClient and only provide auth.signIn. They still expect signInWithPassword to exist.
   const anyClient = client as any;
-  if (anyClient?.auth && typeof anyClient.auth.signInWithPassword !== "function") {
+  if (
+    anyClient?.auth &&
+    typeof anyClient.auth.signInWithPassword !== "function"
+  ) {
     anyClient.auth.signInWithPassword = (...args: any[]) => {
       if (typeof anyClient.auth.signIn === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return anyClient.auth.signIn(...(args as [any]));
       }
       return Promise.resolve({ data: null, error: null });

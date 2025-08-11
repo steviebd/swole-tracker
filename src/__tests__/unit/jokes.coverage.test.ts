@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { buildCaller, createMockDb, createMockUser } from "../integration/trpc-harness";
+import {
+  buildCaller,
+  createMockDb,
+  createMockUser,
+} from "../integration/trpc-harness";
 import { dailyJokes } from "~/server/db/schema";
 
 // Mock the AI SDK
@@ -21,10 +25,13 @@ describe("jokes.ts coverage tests", () => {
     it("should contain SUPPORTED_MODELS with all expected AI models", async () => {
       const fs = await import("fs");
       const path = await import("path");
-      
-      const modulePath = path.resolve(process.cwd(), "src/server/api/routers/jokes.ts");
+
+      const modulePath = path.resolve(
+        process.cwd(),
+        "src/server/api/routers/jokes.ts",
+      );
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
-      
+
       // Check that all expected models are defined
       expect(moduleContent).toContain("xai/grok-3-mini");
       expect(moduleContent).toContain("xai/grok-beta");
@@ -40,10 +47,13 @@ describe("jokes.ts coverage tests", () => {
     it("should contain model name mappings", async () => {
       const fs = await import("fs");
       const path = await import("path");
-      
-      const modulePath = path.resolve(process.cwd(), "src/server/api/routers/jokes.ts");
+
+      const modulePath = path.resolve(
+        process.cwd(),
+        "src/server/api/routers/jokes.ts",
+      );
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
-      
+
       expect(moduleContent).toContain("XAI Grok 3 Mini");
       expect(moduleContent).toContain("Google Gemini 2.0 Flash Lite");
       expect(moduleContent).toContain("OpenAI GPT-4o");
@@ -54,10 +64,13 @@ describe("jokes.ts coverage tests", () => {
     it("should have getModelInfo function with unknown model handling", async () => {
       const fs = await import("fs");
       const path = await import("path");
-      
-      const modulePath = path.resolve(process.cwd(), "src/server/api/routers/jokes.ts");
+
+      const modulePath = path.resolve(
+        process.cwd(),
+        "src/server/api/routers/jokes.ts",
+      );
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
-      
+
       expect(moduleContent).toContain("function getModelInfo");
       expect(moduleContent).toContain("Unknown Model");
       expect(moduleContent).toContain("isSupported");
@@ -66,10 +79,13 @@ describe("jokes.ts coverage tests", () => {
     it("should have generateNewJoke function with proper error handling", async () => {
       const fs = await import("fs");
       const path = await import("path");
-      
-      const modulePath = path.resolve(process.cwd(), "src/server/api/routers/jokes.ts");
+
+      const modulePath = path.resolve(
+        process.cwd(),
+        "src/server/api/routers/jokes.ts",
+      );
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
-      
+
       expect(moduleContent).toContain("async function generateNewJoke");
       expect(moduleContent).toContain("try {");
       expect(moduleContent).toContain("catch (error)");
@@ -80,7 +96,7 @@ describe("jokes.ts coverage tests", () => {
   describe("jokesRouter procedures", () => {
     it("should have getCurrent procedure that calls generateNewJoke", async () => {
       const user = createMockUser({ id: "user_get_current" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -107,7 +123,7 @@ describe("jokes.ts coverage tests", () => {
 
     it("should have generateNew procedure", async () => {
       const user = createMockUser({ id: "user_generate_new" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -133,7 +149,7 @@ describe("jokes.ts coverage tests", () => {
 
     it("should have clearCache procedure that deletes user jokes", async () => {
       const user = createMockUser({ id: "user_clear_cache" })!;
-      
+
       const whereChain = vi.fn().mockResolvedValue([]);
       const deleteChain = vi.fn().mockReturnValue({ where: whereChain });
 
@@ -180,7 +196,7 @@ describe("jokes.ts coverage tests", () => {
   describe("database operations", () => {
     it("should query previous jokes with correct structure", async () => {
       const user = createMockUser({ id: "user_db_query" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -209,12 +225,14 @@ describe("jokes.ts coverage tests", () => {
 
     it("should handle database errors gracefully", async () => {
       const user = createMockUser({ id: "user_db_error" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockRejectedValue(new Error("Database connection failed")),
+        limit: vi
+          .fn()
+          .mockRejectedValue(new Error("Database connection failed")),
       };
 
       const db = createMockDb({
@@ -238,7 +256,7 @@ describe("jokes.ts coverage tests", () => {
   describe("error handling and fallbacks", () => {
     it("should return fallback joke when AI Gateway is not configured", async () => {
       const user = createMockUser({ id: "user_fallback" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -260,7 +278,7 @@ describe("jokes.ts coverage tests", () => {
       expect(result.joke).toContain("Vercel AI Gateway not configured");
       expect(result.joke).toContain("classic");
       expect(result.isFromCache).toBe(false);
-      
+
       // Get the mocked generateText function
       const { generateText } = await import("ai");
       expect(generateText).not.toHaveBeenCalled();
@@ -268,7 +286,7 @@ describe("jokes.ts coverage tests", () => {
 
     it("should handle getCurrent errors with fallback", async () => {
       const user = createMockUser({ id: "user_get_current_error" })!;
-      
+
       // Mock database to throw error
       const selectChain = {
         from: vi.fn().mockReturnThis(),
@@ -293,13 +311,13 @@ describe("jokes.ts coverage tests", () => {
       expect(typeof result.joke).toBe("string");
       expect(result.isFromCache).toBe(false);
       expect(result.joke).toContain(
-        "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!"
+        "Error loading joke. Here's a backup: Why don't programmers like nature? It has too many bugs!",
       );
     });
 
     it("should handle various error types", async () => {
       const user = createMockUser({ id: "user_error_types" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -327,9 +345,9 @@ describe("jokes.ts coverage tests", () => {
   describe("logging and debugging", () => {
     it("should log appropriate messages", async () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-      
+
       const user = createMockUser({ id: "user_logging" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -351,10 +369,10 @@ describe("jokes.ts coverage tests", () => {
       // Should log user ID and refresh message
       expect(consoleSpy).toHaveBeenCalledWith(
         "jokesRouter.getCurrent called for user:",
-        user.id
+        user.id,
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        "🔄 Generating fresh joke on browser refresh..."
+        "🔄 Generating fresh joke on browser refresh...",
       );
 
       consoleSpy.mockRestore();
@@ -362,9 +380,9 @@ describe("jokes.ts coverage tests", () => {
 
     it("should log AI Gateway status", async () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-      
+
       const user = createMockUser({ id: "user_ai_status" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -384,7 +402,7 @@ describe("jokes.ts coverage tests", () => {
       await caller.jokes.generateNew();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        "Vercel AI Gateway not configured, using fallback joke"
+        "Vercel AI Gateway not configured, using fallback joke",
       );
 
       consoleSpy.mockRestore();
@@ -394,7 +412,7 @@ describe("jokes.ts coverage tests", () => {
   describe("memory and performance considerations", () => {
     it("should handle empty previous jokes array", async () => {
       const user = createMockUser({ id: "user_empty_jokes" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -419,7 +437,7 @@ describe("jokes.ts coverage tests", () => {
 
     it("should handle multiple previous jokes", async () => {
       const user = createMockUser({ id: "user_multiple_jokes" })!;
-      
+
       const previousJokes = [
         { joke: "Previous joke 1" },
         { joke: "Previous joke 2" },
@@ -452,7 +470,7 @@ describe("jokes.ts coverage tests", () => {
   describe("data validation and types", () => {
     it("should return properly typed response objects", async () => {
       const user = createMockUser({ id: "user_types" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -479,7 +497,7 @@ describe("jokes.ts coverage tests", () => {
 
     it("should handle clearCache return type", async () => {
       const user = createMockUser({ id: "user_clear_types" })!;
-      
+
       const whereChain = vi.fn().mockResolvedValue([]);
       const deleteChain = vi.fn().mockReturnValue({ where: whereChain });
 
@@ -508,7 +526,7 @@ describe("jokes.ts coverage tests", () => {
   describe("integration with external services", () => {
     it("should not call AI service when not configured", async () => {
       const user = createMockUser({ id: "user_no_ai" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -534,7 +552,7 @@ describe("jokes.ts coverage tests", () => {
 
     it("should handle database schema correctly", async () => {
       const user = createMockUser({ id: "user_schema" })!;
-      
+
       const selectChain = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -556,11 +574,11 @@ describe("jokes.ts coverage tests", () => {
       });
 
       const caller = await buildCaller({ db, user });
-      
+
       // Test individual operations
       await caller.jokes.generateNew();
       expect(db.select).toHaveBeenCalled();
-      
+
       await caller.jokes.clearCache();
       expect(db.delete).toHaveBeenCalledWith(dailyJokes);
       expect(deleteChain.where).toHaveBeenCalled();

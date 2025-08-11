@@ -21,7 +21,9 @@ describe("API Routes smoke tests", () => {
   vi.setConfig?.({ testTimeout: 5000 });
   it("GET /api/joke returns a Response", async () => {
     // Import lazily to allow test setup/mocks to run first if any
-    const mod = (await import("~/app/api/joke/route")) as { GET: () => Promise<Response> };
+    const mod = (await import("~/app/api/joke/route")) as {
+      GET: () => Promise<Response>;
+    };
     expect(typeof mod.GET).toBe("function");
 
     const res: Response = await mod.GET();
@@ -44,7 +46,9 @@ describe("API Routes smoke tests", () => {
       currentUser: async () => ({ id: "user_sse_test" }),
     }));
     // Import route after mock is set up
-    const mod = (await import("~/app/api/sse/workout-updates/route")) as { GET: (req: Request) => Promise<Response> };
+    const mod = (await import("~/app/api/sse/workout-updates/route")) as {
+      GET: (req: Request) => Promise<Response>;
+    };
     expect(typeof mod.GET).toBe("function");
 
     const req = new Request("http://localhost/api/sse/workout-updates", {
@@ -54,18 +58,21 @@ describe("API Routes smoke tests", () => {
     // Add a timeout guard: SSE handlers may never resolve body streaming, so only inspect headers and return.
     const controller = new AbortController();
     const resPromise = mod.GET(req);
-    const res: Response = (await Promise.race([
+    const res: Response = await Promise.race([
       resPromise,
-      new Promise<Response>((_, reject) => setTimeout(() => reject(new Error("SSE handler timeout")), 1000)),
+      new Promise<Response>((_, reject) =>
+        setTimeout(() => reject(new Error("SSE handler timeout")), 1000),
+      ),
     ]).catch(() => {
       // If the handler doesn't resolve quickly, fabricate a minimal Response-like object to finish the smoke test gracefully.
       return new Response("", {
         headers: { "content-type": "text/event-stream; charset=utf-8" },
       });
-    }));
+    });
 
     expect(res).toBeInstanceOf(Response);
-    const contentType = res.headers.get("content-type") ?? res.headers.get("Content-Type");
+    const contentType =
+      res.headers.get("content-type") ?? res.headers.get("Content-Type");
     expect(contentType?.includes("text/event-stream")).toBe(true);
 
     controller.abort();

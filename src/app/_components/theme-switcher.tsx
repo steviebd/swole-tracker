@@ -3,7 +3,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
 
-type Theme = "light" | "dark" | "system" | "CalmDark" | "BoldDark" | "PlayfulDark";
+type Theme =
+  | "system"
+  | "light"
+  | "dark"
+  | "CalmDark"
+  | "BoldDark"
+  | "PlayfulDark";
 
 export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -30,10 +36,10 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
   const label =
     theme === "system"
       ? `System (${resolvedTheme})`
-      : theme === "dark"
-        ? "Dark"
-        : theme === "light"
-          ? "Light"
+      : theme === "light"
+        ? "Light"
+        : theme === "dark"
+          ? "Dark"
           : theme === "CalmDark"
             ? "Calm Dark"
             : theme === "BoldDark"
@@ -46,7 +52,7 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
     <div className="relative" ref={menuRef}>
       <button
         type="button"
-        className={`inline-flex items-center gap-2 rounded-md border border-gray-800 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-600 ${compact ? "px-2 py-1" : ""}`}
+        className={`inline-flex items-center gap-2 rounded-md border border-gray-800 bg-gray-900 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800 focus:ring-2 focus:ring-purple-600 focus:outline-none ${compact ? "px-2 py-1" : ""}`}
         aria-haspopup="menu"
         aria-expanded={open ? "true" : "false"}
         onClick={() => setOpen((o) => !o)}
@@ -54,7 +60,13 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
         <span className="hidden sm:inline">Theme</span>
         <span className="sm:hidden">Theme</span>
         <span className="opacity-70">{label}</span>
-        <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" className="opacity-70">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 20 20"
+          aria-hidden="true"
+          className="opacity-70"
+        >
           <path fill="currentColor" d="M5.5 7.5L10 12l4.5-4.5h-9z" />
         </svg>
       </button>
@@ -65,6 +77,16 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
           aria-label="Theme options"
           className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-md border border-gray-800 bg-gray-900 shadow-xl"
         >
+          <MenuItem
+            current={theme}
+            value="system"
+            onSelect={(t) => {
+              setTheme(t);
+              setOpen(false);
+            }}
+          >
+            System
+          </MenuItem>
           <MenuItem
             current={theme}
             value="light"
@@ -84,16 +106,6 @@ export function ThemeSwitcher({ compact = false }: { compact?: boolean }) {
             }}
           >
             Dark
-          </MenuItem>
-          <MenuItem
-            current={theme}
-            value="system"
-            onSelect={(t) => {
-              setTheme(t);
-              setOpen(false);
-            }}
-          >
-            System
           </MenuItem>
           <MenuItem
             current={theme}
@@ -153,7 +165,10 @@ function MenuItem({
       <span>{children}</span>
       {selected ? (
         <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
-          <path fill="currentColor" d="M7.667 14.5L3.5 10.333l1.414-1.414L7.667 11.67l7.419-7.419L16.5 5.667z" />
+          <path
+            fill="currentColor"
+            d="M7.667 14.5L3.5 10.333l1.414-1.414L7.667 11.67l7.419-7.419L16.5 5.667z"
+          />
         </svg>
       ) : null}
     </button>

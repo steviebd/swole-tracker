@@ -41,7 +41,9 @@ describe("lib/analytics.ts coverage", () => {
     vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "ph_test_key");
     // Simulate browser environment with a location object
     const originalWindow = (globalThis as any).window;
-    (globalThis as any).window = { location: { href: "http://localhost/test" } } as any;
+    (globalThis as any).window = {
+      location: { href: "http://localhost/test" },
+    } as any;
 
     const mod = await import("~/lib/analytics");
     const { analytics } = mod as typeof import("~/lib/analytics");

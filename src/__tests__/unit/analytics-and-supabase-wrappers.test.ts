@@ -22,30 +22,38 @@ vi.mock("~/env", () => ({
   },
 }));
 
- // Defer imports until after mocks
+// Defer imports until after mocks
 const { analytics } = await import("~/lib/analytics");
 
 /**
  * Supabase wrappers: set required env and mock libs
  * These modules read from process.env directly, so set before importing wrappers.
  */
-process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://localhost:54321";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "anon-test-key";
-process.env.NEXT_PUBLIC_SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_KEY ?? "anon-test-key";
-process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "service-test-key";
+process.env.NEXT_PUBLIC_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://localhost:54321";
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "anon-test-key";
+process.env.NEXT_PUBLIC_SUPABASE_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_KEY ?? "anon-test-key";
+process.env.SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? "service-test-key";
 
 vi.mock("@supabase/ssr", () => ({
-  createBrowserClient: vi.fn().mockImplementation(() => ({ auth: { getSession: vi.fn() } })),
-  createServerClient: vi.fn().mockImplementation((_url, _key, _opts) => ({ from: vi.fn() })),
+  createBrowserClient: vi
+    .fn()
+    .mockImplementation(() => ({ auth: { getSession: vi.fn() } })),
+  createServerClient: vi
+    .fn()
+    .mockImplementation((_url, _key, _opts) => ({ from: vi.fn() })),
   createServerComponentClient: vi.fn(),
 }));
 
 vi.mock("@supabase/supabase-js", () => {
   return {
-    createClient: vi.fn().mockImplementation(() => ({ 
+    createClient: vi.fn().mockImplementation(() => ({
       from: vi.fn(),
       auth: { getSession: vi.fn() },
-      channel: vi.fn()
+      channel: vi.fn(),
     })),
   };
 });
@@ -95,8 +103,10 @@ describe("supabase wrappers", () => {
 
   it("createServerSupabaseClientFactory handles test environment behavior", async () => {
     // Mock server-only importers used by supabase-server path to avoid Client Component restrictions
-    vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn(async () => ({ getToken: vi.fn(async () => "token") })) }));
-    
+    vi.mock("@clerk/nextjs/server", () => ({
+      auth: vi.fn(async () => ({ getToken: vi.fn(async () => "token") })),
+    }));
+
     try {
       const factory = supabaseServer.createServerSupabaseClientFactory();
       const client = await factory();

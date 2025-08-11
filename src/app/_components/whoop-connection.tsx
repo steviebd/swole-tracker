@@ -7,11 +7,18 @@ import { api } from "~/trpc/react";
 export function WhoopConnection() {
   const [isLoading, setIsLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [rateLimit, setRateLimit] = useState<{ remaining: number; resetTime: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [rateLimit, setRateLimit] = useState<{
+    remaining: number;
+    resetTime: string;
+  } | null>(null);
   const searchParams = useSearchParams();
 
-  const { data: integrationStatus, refetch: refetchStatus } = api.whoop.getIntegrationStatus.useQuery();
+  const { data: integrationStatus, refetch: refetchStatus } =
+    api.whoop.getIntegrationStatus.useQuery();
   const { refetch: refetchWorkouts } = api.whoop.getWorkouts.useQuery();
 
   useEffect(() => {
@@ -37,7 +44,8 @@ export function WhoopConnection() {
           errorMessage = "Failed to exchange authorization code";
           break;
         case "whoop_not_configured":
-          errorMessage = "Whoop integration is not configured. Please check environment variables.";
+          errorMessage =
+            "Whoop integration is not configured. Please check environment variables.";
           break;
         case "oauth2_validation_failed":
           errorMessage = "OAuth2 validation failed. Please try again.";
@@ -74,17 +82,18 @@ export function WhoopConnection() {
         setRateLimit(result.rateLimit);
         void refetchWorkouts();
       } else if (response.status === 429) {
-        setMessage({ 
-          type: "error", 
-          text: result.message || "Rate limit exceeded. Please try again later." 
+        setMessage({
+          type: "error",
+          text:
+            result.message || "Rate limit exceeded. Please try again later.",
         });
         setRateLimit({ remaining: 0, resetTime: result.resetTime });
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
-  } catch {
-    setMessage({ type: "error", text: "Network error during sync" });
-  } finally {
+    } catch {
+      setMessage({ type: "error", text: "Network error during sync" });
+    } finally {
       setSyncLoading(false);
     }
   };
@@ -99,21 +108,19 @@ export function WhoopConnection() {
     }).format(date);
   };
 
-
-
   return (
     <div className="space-y-8">
       {/* Connection Status & Controls */}
       <div className="flex justify-center">
         <div className="card max-w-md p-8 text-center">
           <h2 className="mb-4 text-xl font-semibold">Whoop Integration</h2>
-          
+
           {integrationStatus?.isConnected ? (
             <div className="space-y-4">
               <div className="text-emerald-400">
                 Connected to Whoop
                 {integrationStatus.connectedAt && (
-                  <div className="text-sm text-muted">
+                  <div className="text-muted text-sm">
                     Since {formatDate(new Date(integrationStatus.connectedAt))}
                   </div>
                 )}
@@ -121,18 +128,16 @@ export function WhoopConnection() {
               <div className="space-y-2">
                 <button
                   onClick={handleSync}
-                  disabled={syncLoading || (rateLimit?.remaining === 0)}
+                  disabled={syncLoading || rateLimit?.remaining === 0}
                   className="btn-primary w-full px-6 py-3 font-semibold disabled:opacity-50"
                 >
                   {syncLoading ? "Syncing..." : "Sync with Whoop"}
                 </button>
                 {rateLimit && (
-                  <div className="mt-2 text-center text-xs text-muted">
-                    {rateLimit.remaining > 0 ? (
-                      `${rateLimit.remaining} syncs remaining this hour`
-                    ) : (
-                      `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`
-                    )}
+                  <div className="text-muted mt-2 text-center text-xs">
+                    {rateLimit.remaining > 0
+                      ? `${rateLimit.remaining} syncs remaining this hour`
+                      : `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`}
                   </div>
                 )}
                 <button
@@ -147,8 +152,8 @@ export function WhoopConnection() {
           ) : (
             <div className="space-y-4">
               <p className="text-secondary">
-                Sync your Whoop workout metrics with your workout data to optimize
-                your training schedule.
+                Sync your Whoop workout metrics with your workout data to
+                optimize your training schedule.
               </p>
               <button
                 onClick={handleConnect}
@@ -168,14 +173,18 @@ export function WhoopConnection() {
           <div
             className={`card max-w-md p-4 ${message.type === "success" ? "border-emerald-700" : "border-rose-700"}`}
           >
-            <div className={message.type === "success" ? "text-emerald-300" : "text-rose-300"}>
+            <div
+              className={
+                message.type === "success"
+                  ? "text-emerald-300"
+                  : "text-rose-300"
+              }
+            >
               {message.text}
             </div>
           </div>
         </div>
       )}
-
-
     </div>
   );
 }

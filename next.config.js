@@ -5,9 +5,6 @@
 import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - next-pwa has no types in JS config; safe to import
-import withPWA from "next-pwa";
 
 const baseConfig = {
   eslint: {
@@ -69,35 +66,9 @@ const baseConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-// Configure next-pwa with conservative defaults
-const withPWAWrapped = withPWA({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-  register: true,
-  skipWaiting: true,
-  runtimeCaching: [
-    // Static assets - cache-first
-    {
-      urlPattern: /^https?.*\.(?:js|css|png|jpg|jpeg|svg|ico|woff2?)$/i,
-      handler: "CacheFirst",
-      options: {
-        cacheName: "static-assets",
-        expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
-      },
-    },
-    // API routes (Next/tRPC) - network-first with fallback
-    {
-      urlPattern: /^https?:\/\/[^/]+\/api\/.*$/i,
-      handler: "NetworkFirst",
-      options: {
-        cacheName: "api-cache",
-        networkTimeoutSeconds: 4,
-        expiration: { maxEntries: 200, maxAgeSeconds: 60 * 10 }, // 10 minutes
-      },
-    },
-  ],
-});
+// PWA support removed due to incompatibility with Next.js 15 App Router
+// next-pwa v5.6.0 uses Pages Router architecture which conflicts with App Router
 
-const config = withPWAWrapped(baseConfig);
+const config = baseConfig;
 
 export default config;

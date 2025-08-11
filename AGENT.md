@@ -3,24 +3,25 @@
 This document defines the project-specific workflow, commands, architecture, and conventions for maintainers and automation.
 
 ## Commands
-- Dev: `pnpm dev` (Next.js 15 with turbopack)
-- Build: `pnpm build`
-- Preview (prod locally): `pnpm preview` (alias: `next build && next start`)
-- Start: `pnpm start` (serve built app)
-- Lint: `pnpm lint`
-- Lint:Fix: `pnpm lint:fix`
-- Type Check: `pnpm typecheck`
-- Check (lint + typecheck): `pnpm check`
-- Format (write): `pnpm format:write`
-- Format (check): `pnpm format:check`
-- DB: Generate: `pnpm db:generate`
-- DB: Migrate: `pnpm db:migrate`
-- DB: Push (dev): `pnpm db:push`
-- DB: Studio (UI): `pnpm db:studio`
+- Dev: `bun dev` (Next.js 15 with turbopack, automatically injects secrets from Infisical)
+- Build: `bun build` (automatically injects secrets from Infisical)
+- Preview (prod locally): `bun preview` (alias: `next build && next start`, automatically injects secrets from Infisical)
+- Start: `bun start` (serve built app, automatically injects secrets from Infisical)
+- Lint: `bun lint`
+- Lint:Fix: `bun lint:fix`
+- Type Check: `bun typecheck`
+- Check (lint + typecheck): `bun check`
+- Format (write): `bun format:write`
+- Format (check): `bun format:check`
+- DB: Generate: `bun db:generate` (automatically injects secrets from Infisical)
+- DB: Migrate: `bun db:migrate` (automatically injects secrets from Infisical)
+- DB: Push (dev): `bun db:push` (automatically injects secrets from Infisical)
+- DB: Studio (UI): `bun db:studio` (automatically injects secrets from Infisical)
 
 Notes:
-- Package manager is pinned: `pnpm@10.13.1` (required).
-- Node.js 18+ recommended (Next 15).
+- Package manager is pinned: `bun@1.1.42` (required).
+- Node.js 20.19.4 recommended (pinned via Volta).
+- Environment management: All commands automatically inject secrets using Infisical CLI.
 
 ## Architecture
 - Stack: Next.js 15 App Router + tRPC v11 + Drizzle ORM + Clerk + Tailwind CSS v4
@@ -63,7 +64,15 @@ Notes:
 - Linting: ESLint flat config with Next.js core-web-vitals + typescript-eslint
 
 ## Environment
-Create `.env` from `.env.example`. Required keys (see README for details):
+**Environment management via Infisical:** All scripts automatically inject secrets using `infisical run --`. No manual `.env` file management needed.
+
+**Setup Requirements:**
+1. Install Infisical CLI: `npm install -g @infisical/cli` or `brew install infisical/get-cli/infisical`
+2. Login: `infisical login`
+3. Verify access to project: `infisical user`
+4. All `bun` commands will now automatically inject environment variables from Infisical
+
+**Required Environment Variables (managed in Infisical):**
 - DATABASE_URL
 - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 - CLERK_SECRET_KEY
@@ -71,9 +80,9 @@ Create `.env` from `.env.example`. Required keys (see README for details):
 
 ## Database
 - Use Drizzle Kit:
-  - Local dev: `pnpm db:push`
+  - Local dev: `bun db:push` (automatically injects secrets from Infisical)
   - SQL changes live in `src/server/db/schema.ts`
-  - Studio: `pnpm db:studio`
+  - Studio: `bun db:studio` (automatically injects secrets from Infisical)
 - Row-level security handled at application level via Clerk user id.
 - Always filter by `user_id = ctx.user.id` in queries.
 - Use indexes defined in schema to keep queries performant.
@@ -91,39 +100,41 @@ Create `.env` from `.env.example`. Required keys (see README for details):
 - App router pages live under `src/app/.../page.tsx`
 
 ## Local Development Workflow
-1) Install: `pnpm install`
-2) Configure `.env`
-3) Initialize DB: `pnpm db:push`
-4) Dev server: `pnpm dev`
-5) Lint/typecheck prior to commit: `pnpm check`
-6) Format code: `pnpm format:write`
+1) Install: `bun install`
+2) Setup Infisical: `infisical login` and verify access
+3) Initialize DB: `bun db:push` (automatically injects secrets from Infisical)
+4) Dev server: `bun dev` (automatically injects secrets from Infisical)
+5) Lint/typecheck prior to commit: `bun check`
+6) Format code: `bun format:write`
 
 ## Commit & PR Checklist
-- [ ] `pnpm format:write` clean
-- [ ] `pnpm check` passes (lint + typecheck)
-- [ ] DB changes reviewed; `pnpm db:push` run locally if schema changed
+- [ ] `bun format:write` clean
+- [ ] `bun check` passes (lint + typecheck)
+- [ ] DB changes reviewed; `bun db:push` run locally if schema changed
 - [ ] No direct updates/deletes without `where` clauses
 - [ ] Added/updated tRPC procedures include Zod validation
 - [ ] Protected routes use `protectedProcedure` where required
 - [ ] UI follows mobile-first and Tailwind class ordering conventions
 
 ## Production & Preview
-- Preview locally: `pnpm preview`
+- Preview locally: `bun preview` (automatically injects secrets from Infisical)
 - Vercel deployment:
-  - Build: `pnpm build`
+  - Build: `bun build` (automatically injects secrets from Infisical)
   - Output: `.next`
-  - Install: `pnpm install`
-  - Env vars configured in dashboard
+  - Install: `bun install`
+  - Env vars: Managed via Infisical integration or Vercel dashboard
 - After deploy, push schema to production DB as needed:
-  - `DATABASE_URL` set to production
-  - `pnpm db:push`
+  - Ensure Infisical configured for production environment
+  - `bun db:push` (automatically injects secrets from Infisical)
 
 ## Troubleshooting
+- **Infisical issues:** Verify login status with `infisical user`, ensure project access, check workspace ID in `.infisical.json`
 - Clerk auth issues: verify publishable and secret keys, redirect URLs, and middleware matcher
 - DB connection: confirm `DATABASE_URL` and SSL params for Supabase pooler
 - tRPC type errors: ensure Zod schemas match input usage
 - Rate limit: ensure `WHOOP_SYNC_RATE_LIMIT_PER_HOUR` is set, see `~/src/lib/rate-limit.ts`
 - Styling anomalies: Tailwind v4 + Prettier plugin alignment
+- **Environment variables not loading:** Ensure Infisical CLI is installed, logged in, and commands are prefixed with `infisical run --`
 
 ## Test Strategy
 - No formal test framework configured yet. Unit/integration tests TBD.

@@ -1,6 +1,6 @@
-import crypto from 'crypto';
-import { env } from '~/env';
-import { logger } from '~/lib/logger';
+import crypto from "crypto";
+import { env } from "~/env";
+import { logger } from "~/lib/logger";
 
 export interface WhoopWebhookPayload {
   user_id: number;
@@ -19,31 +19,31 @@ export interface WhoopWebhookPayload {
 export function verifyWhoopWebhook(
   payload: string,
   signature: string,
-  timestamp: string
+  timestamp: string,
 ): boolean {
   if (!env.WHOOP_WEBHOOK_SECRET) {
-    logger.error('WHOOP_WEBHOOK_SECRET not configured');
+    logger.error("WHOOP_WEBHOOK_SECRET not configured");
     return false;
   }
 
   try {
     // Create the message to sign: timestamp + raw request body
     const message = timestamp + payload;
-    
+
     // Generate HMAC-SHA256 signature
-    const hmac = crypto.createHmac('sha256', env.WHOOP_WEBHOOK_SECRET);
-    hmac.update(message, 'utf8');
-    
+    const hmac = crypto.createHmac("sha256", env.WHOOP_WEBHOOK_SECRET);
+    hmac.update(message, "utf8");
+
     // Base64 encode the signature
-    const calculatedSignature = hmac.digest('base64');
-    
+    const calculatedSignature = hmac.digest("base64");
+
     // Compare signatures using constant-time comparison
     return crypto.timingSafeEqual(
-      Buffer.from(signature, 'base64'),
-      Buffer.from(calculatedSignature, 'base64')
+      Buffer.from(signature, "base64"),
+      Buffer.from(calculatedSignature, "base64"),
     );
   } catch (error) {
-    logger.error('Error verifying webhook signature', error);
+    logger.error("Error verifying webhook signature", error);
     return false;
   }
 }
@@ -54,21 +54,21 @@ export function verifyWhoopWebhook(
  * @returns Object with signature and timestamp, or null if invalid
  */
 export function extractWebhookHeaders(headers: Headers) {
-  const signature = headers.get('X-WHOOP-Signature');
-  const timestamp = headers.get('X-WHOOP-Signature-Timestamp');
+  const signature = headers.get("X-WHOOP-Signature");
+  const timestamp = headers.get("X-WHOOP-Signature-Timestamp");
 
   if (!signature || !timestamp) {
-    logger.warn('Missing required webhook headers');
+    logger.warn("Missing required webhook headers");
     return null;
   }
 
   // Validate timestamp (should be within last 5 minutes to prevent replay attacks)
   const timestampMs = parseInt(timestamp, 10);
   const now = Date.now();
-  const fiveMinutesAgo = now - (5 * 60 * 1000);
+  const fiveMinutesAgo = now - 5 * 60 * 1000;
 
   if (timestampMs < fiveMinutesAgo || timestampMs > now) {
-    logger.warn('Webhook timestamp outside acceptable range', {
+    logger.warn("Webhook timestamp outside acceptable range", {
       timestamp,
       now,
       fiveMinutesAgo,

@@ -43,8 +43,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().default("pk_test_dummy"),
     NEXT_PUBLIC_POSTHOG_KEY: z.string().default("phc_test_dummy"),
-    NEXT_PUBLIC_POSTHOG_HOST: z.string().url().default("https://us.i.posthog.com"),
-    NEXT_PUBLIC_SUPABASE_URL: z.string().url().default("https://test.supabase.co"),
+    NEXT_PUBLIC_POSTHOG_HOST: z
+      .string()
+      .url()
+      .default("https://us.i.posthog.com"),
+    NEXT_PUBLIC_SUPABASE_URL: z
+      .string()
+      .url()
+      .default("https://test.supabase.co"),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default("supabase_test_key"),
     NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   },
@@ -73,9 +79,12 @@ export const env = createEnv({
     WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
     WHOOP_SYNC_RATE_LIMIT_PER_HOUR: process.env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
     WHOOP_WEBHOOK_SECRET: process.env.WHOOP_WEBHOOK_SECRET,
-    RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR: process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR,
-    RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR,
-    RATE_LIMIT_API_CALLS_PER_MINUTE: process.env.RATE_LIMIT_API_CALLS_PER_MINUTE,
+    RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR:
+      process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR,
+    RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR:
+      process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR,
+    RATE_LIMIT_API_CALLS_PER_MINUTE:
+      process.env.RATE_LIMIT_API_CALLS_PER_MINUTE,
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
   },
   /**

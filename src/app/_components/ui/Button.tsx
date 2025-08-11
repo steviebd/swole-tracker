@@ -7,10 +7,16 @@ function cx(...args: Array<string | false | null | undefined>) {
   return args.filter(Boolean).join(" ");
 }
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "success" | "destructive";
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "success"
+  | "destructive";
 type ButtonSize = "sm" | "md" | "lg";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   block?: boolean;
@@ -30,20 +36,22 @@ const sizeClass: Record<ButtonSize, string> = {
   lg: "px-5 py-3 text-base",
 };
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "secondary", size = "md", block = false, className, ...props },
-  ref
-) {
-  return (
-    <button
-      ref={ref}
-      className={cx(
-        variantClass[variant],
-        sizeClass[size],
-        block ? "w-full" : "",
-        className ?? ""
-      )}
-      {...props}
-    />
-  );
-});
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    { variant = "secondary", size = "md", block = false, className, ...props },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        className={cx(
+          variantClass[variant],
+          sizeClass[size],
+          block ? "w-full" : "",
+          className ?? "",
+        )}
+        {...props}
+      />
+    );
+  },
+);

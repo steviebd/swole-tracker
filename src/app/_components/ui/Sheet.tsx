@@ -16,7 +16,14 @@ export interface SheetProps {
 }
 
 /* Token-driven sheet/overlay with backdrop blur and focus management */
-export function Sheet({ isOpen, onClose, title, footer, children, className }: SheetProps) {
+export function Sheet({
+  isOpen,
+  onClose,
+  title,
+  footer,
+  children,
+  className,
+}: SheetProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +48,7 @@ export function Sheet({ isOpen, onClose, title, footer, children, className }: S
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center modal-backdrop p-0 sm:p-4"
+      className="modal-backdrop fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -49,23 +56,29 @@ export function Sheet({ isOpen, onClose, title, footer, children, className }: S
       <div
         ref={contentRef}
         className={cx(
-          "card w-full sm:max-w-lg max-h-[90vh] overflow-auto rounded-t-xl sm:rounded-xl",
+          "card max-h-[90vh] w-full overflow-auto rounded-t-xl sm:max-w-lg sm:rounded-xl",
           "animate-[scaleIn_var(--motion-duration-base)_var(--motion-ease)]",
-          className
+          className,
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || true) && (
-          <div className="glass-header rounded-t-xl p-4 border-b border-[color:var(--color-border)] flex items-center justify-between">
+          <div className="glass-header flex items-center justify-between rounded-t-xl border-b border-[color:var(--color-border)] p-4">
             <div className="font-semibold">{title}</div>
-            <button className="btn-ghost px-2 py-1" aria-label="Close" onClick={onClose}>✕</button>
+            <button
+              className="btn-ghost px-2 py-1"
+              aria-label="Close"
+              onClick={onClose}
+            >
+              ✕
+            </button>
           </div>
         )}
 
         <div className="p-4">{children}</div>
 
         {footer && (
-          <div className="glass-footer rounded-b-xl p-3 border-t border-[color:var(--color-border)]">
+          <div className="glass-footer rounded-b-xl border-t border-[color:var(--color-border)] p-3">
             {footer}
           </div>
         )}

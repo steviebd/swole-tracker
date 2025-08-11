@@ -9,7 +9,7 @@ describe("tRPC whoop router additional coverage", () => {
 
   it("getIntegrationStatus handles inactive integration", async () => {
     const user = createMockUser({ id: "user_whoop_1" })!;
-    
+
     const mockIntegration = {
       isActive: false,
       createdAt: new Date("2024-01-01"),
@@ -74,7 +74,7 @@ describe("tRPC whoop router additional coverage", () => {
 
   it("getWebhookInfo handles missing environment variables", async () => {
     const user = createMockUser({ id: "user_whoop_4" })!;
-    
+
     // Clear environment variables
     delete process.env.VERCEL_URL;
     delete process.env.NEXTAUTH_URL;
@@ -88,7 +88,7 @@ describe("tRPC whoop router additional coverage", () => {
     expect(result).toEqual({
       webhookUrl: "http://localhost:3000/api/webhooks/whoop",
       isConfigured: false,
-      supportedEvents: ['workout.updated'],
+      supportedEvents: ["workout.updated"],
       instructions: expect.arrayContaining([
         expect.stringContaining("Go to your Whoop Developer Dashboard"),
       ]),
@@ -97,7 +97,7 @@ describe("tRPC whoop router additional coverage", () => {
 
   it("getWebhookInfo handles configured webhook", async () => {
     const user = createMockUser({ id: "user_whoop_5" })!;
-    
+
     process.env.VERCEL_URL = "swole-tracker.vercel.app";
     process.env.WHOOP_WEBHOOK_SECRET = "test-secret";
 
@@ -109,7 +109,7 @@ describe("tRPC whoop router additional coverage", () => {
     expect(result).toEqual({
       webhookUrl: "https://swole-tracker.vercel.app/api/webhooks/whoop",
       isConfigured: true,
-      supportedEvents: ['workout.updated'],
+      supportedEvents: ["workout.updated"],
       instructions: expect.arrayContaining([
         expect.stringContaining("Go to your Whoop Developer Dashboard"),
       ]),

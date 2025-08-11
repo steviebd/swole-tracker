@@ -53,7 +53,10 @@ export function ExerciseLinkPicker({
       // Ensure both IDs are concrete numbers; avoid any accidental widening to undefined
       const masterId = Number(master.id);
       const tmplId = Number(templateExerciseId);
-      linkToMaster.mutate({ templateExerciseId: tmplId, masterExerciseId: masterId });
+      linkToMaster.mutate({
+        templateExerciseId: tmplId,
+        masterExerciseId: masterId,
+      });
     },
   });
 
@@ -161,7 +164,10 @@ export function ExerciseLinkPicker({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4" onKeyDown={onKeyDown}>
+    <div
+      className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4"
+      onKeyDown={onKeyDown}
+    >
       <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-700 p-3">
           <div className="text-sm font-medium text-gray-200">Link exercise</div>
@@ -231,7 +237,7 @@ export function ExerciseLinkPicker({
           )}
 
           <div className="mt-3 flex items-center justify-between">
-              <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-400">
               Can't find it? Create a new master exercise and link.
             </div>
             <button
@@ -239,7 +245,9 @@ export function ExerciseLinkPicker({
               className="rounded bg-gray-700 px-3 py-1 text-xs text-gray-100 hover:bg-gray-600 disabled:opacity-50"
               disabled={createOrGetMaster.isPending || q.trim().length === 0}
             >
-              {createOrGetMaster.isPending ? "Creating…" : `Create “${q.trim()}”`}
+              {createOrGetMaster.isPending
+                ? "Creating…"
+                : `Create “${q.trim()}”`}
             </button>
           </div>
         </div>

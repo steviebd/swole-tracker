@@ -7,15 +7,22 @@ function cx(...args: Array<string | false | null | undefined>) {
 }
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  glass?: boolean;   /* apply glass-surface */
-  hairline?: boolean; /* apply glass-hairline */
+  glass?: boolean /* apply glass-surface */;
+  hairline?: boolean /* apply glass-hairline */;
   as?: keyof React.JSX.IntrinsicElements;
 }
 
 /**
  * Token-driven Card surface. Uses .card plus optional glass variants.
  */
-export function Card({ className, children, glass = false, hairline = false, as = "div", ...rest }: CardProps) {
+export function Card({
+  className,
+  children,
+  glass = false,
+  hairline = false,
+  as = "div",
+  ...rest
+}: CardProps) {
   const Comp = as as any;
   return (
     <Comp
@@ -23,7 +30,7 @@ export function Card({ className, children, glass = false, hairline = false, as 
         "card",
         glass ? "glass-surface" : "",
         hairline ? "glass-hairline" : "",
-        className
+        className,
       )}
       {...rest}
     >

@@ -52,7 +52,7 @@ export default function RootLayout({
         var key = 'theme';
         var t = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var dark = (t === 'dark') || (t === 'system' && prefersDark) || (t === 'CalmDark') || (t === 'BoldDark') || (t === 'PlayfulDark');
+        var dark = (t === 'system' && prefersDark) || (t === 'dark') || (t === 'CalmDark') || (t === 'BoldDark') || (t === 'PlayfulDark');
         var root = document.documentElement;
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
         // Only apply data-theme for client. Do not set this attribute in SSR markup to avoid hydration warnings.
@@ -72,13 +72,13 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}
       >
-        <body className="min-h-screen flex flex-col text-gray-900 dark:text-white page-shell">
+        <body className="page-shell flex min-h-screen flex-col text-gray-900 dark:text-white">
           {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
           <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
           {/* Skip to content link */}
           <a
             href="#main-content"
-            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000] btn-primary px-3 py-1.5 text-sm"
+            className="btn-primary sr-only px-3 py-1.5 text-sm focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000]"
           >
             Skip to main content
           </a>
@@ -92,85 +92,91 @@ export default function RootLayout({
                 <TRPCReactProvider>
                   <SyncIndicator />
 
-                <main id="main-content" className="flex-1 container-default py-6" role="main" tabIndex={-1}>
-                  <div className="grid gap-6">
-                    {children}
-                  </div>
-                </main>
+                  <main
+                    id="main-content"
+                    className="container-default flex-1 py-6"
+                    role="main"
+                    tabIndex={-1}
+                  >
+                    <div className="grid gap-6">{children}</div>
+                  </main>
 
-                {/* Mobile Bottom Tab Bar */}
-                <nav
-                  className="md:hidden fixed inset-x-0 bottom-0 app-footer text-gray-300"
-                  role="navigation"
-                  aria-label="Primary"
-                >
-                  <div className="mx-auto grid grid-cols-3">
-                    <Link
-                      href="/"
-                      className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
-                      aria-label="Home"
-                      prefetch
-                      aria-current={
-                        typeof window !== "undefined" && window.location?.pathname === "/"
-                          ? "page"
-                          : undefined
-                      }
-                    >
-                      <span>Home</span>
-                    </Link>
-                    <Link
-                      href="/workout/start"
-                      className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
-                      aria-label="Start a workout"
-                      prefetch
-                      aria-current={
-                        typeof window !== "undefined" && window.location?.pathname.startsWith("/workout/start")
-                          ? "page"
-                          : undefined
-                      }
-                    >
-                      <span>Start</span>
-                    </Link>
-                    <Link
-                      href="/templates"
-                      className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
-                      aria-label="Manage templates"
-                      prefetch
-                      aria-current={
-                        typeof window !== "undefined" && window.location?.pathname.startsWith("/templates")
-                          ? "page"
-                          : undefined
-                      }
-                    >
-                      <span>Templates</span>
-                    </Link>
-                  </div>
-                </nav>
-
-                <footer className="mt-auto py-6 app-footer">
-                  <div className="container mx-auto px-4 text-center">
-                    <div className="flex justify-center space-x-6 text-sm text-gray-300">
-                      <Link 
-                        href="/privacy" 
-                        className="hover:text-white transition-colors duration-200 link-primary"
+                  {/* Mobile Bottom Tab Bar */}
+                  <nav
+                    className="app-footer fixed inset-x-0 bottom-0 text-gray-300 md:hidden"
+                    role="navigation"
+                    aria-label="Primary"
+                  >
+                    <div className="mx-auto grid grid-cols-3">
+                      <Link
+                        href="/"
+                        className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
+                        aria-label="Home"
                         prefetch
+                        aria-current={
+                          typeof window !== "undefined" &&
+                          window.location?.pathname === "/"
+                            ? "page"
+                            : undefined
+                        }
                       >
-                        Privacy Policy
+                        <span>Home</span>
                       </Link>
-                      <Link 
-                        href="/terms" 
-                        className="hover:text-white transition-colors duration-200 link-primary"
+                      <Link
+                        href="/workout/start"
+                        className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
+                        aria-label="Start a workout"
                         prefetch
+                        aria-current={
+                          typeof window !== "undefined" &&
+                          window.location?.pathname.startsWith("/workout/start")
+                            ? "page"
+                            : undefined
+                        }
                       >
-                        Terms of Service
+                        <span>Start</span>
+                      </Link>
+                      <Link
+                        href="/templates"
+                        className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
+                        aria-label="Manage templates"
+                        prefetch
+                        aria-current={
+                          typeof window !== "undefined" &&
+                          window.location?.pathname.startsWith("/templates")
+                            ? "page"
+                            : undefined
+                        }
+                      >
+                        <span>Templates</span>
                       </Link>
                     </div>
-                    <div className="mt-3 text-xs text-gray-500">
-                      © 2025 Steven Duong. All rights reserved.
+                  </nav>
+
+                  <footer className="app-footer mt-auto py-6">
+                    <div className="container mx-auto px-4 text-center">
+                      <div className="flex justify-center space-x-6 text-sm text-gray-300">
+                        <Link
+                          href="/privacy"
+                          className="link-primary transition-colors duration-200 hover:text-white"
+                          prefetch
+                        >
+                          Privacy Policy
+                        </Link>
+                        <Link
+                          href="/terms"
+                          className="link-primary transition-colors duration-200 hover:text-white"
+                          prefetch
+                        >
+                          Terms of Service
+                        </Link>
+                      </div>
+                      <div className="mt-3 text-xs text-gray-500">
+                        © 2025 Steven Duong. All rights reserved.
+                      </div>
                     </div>
-                  </div>
-                </footer>
-              </TRPCReactProvider>
+                  </footer>
+                </TRPCReactProvider>
               </LiveRegionProvider>
             </ThemeProvider>
           </PostHogProvider>
