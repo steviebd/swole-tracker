@@ -4,4 +4,3 @@
   "devCommand": "bun run dev",
   "framework": "nextjs"
 }
-// update to bun run
