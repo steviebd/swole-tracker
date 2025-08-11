@@ -676,7 +676,7 @@ function calculateChanges(current: any, previous: any): {
   };
 }
 
-function calculateVolumeByExercise(volumeData: any[]): Array<{
+export function calculateVolumeByExercise(volumeData: any[]): Array<{
   exerciseName: string;
   totalVolume: number;
   totalSets: number;
@@ -729,7 +729,7 @@ function calculateVolumeByExercise(volumeData: any[]): Array<{
     .sort((a, b) => b.totalVolume - a.totalVolume); // Sort by total volume descending
 }
 
-function calculateSetRepDistribution(rawData: any[]): {
+export function calculateSetRepDistribution(rawData: any[]): {
   setDistribution: Array<{ sets: number; count: number; percentage: number }>;
   repDistribution: Array<{ reps: number; count: number; percentage: number }>;
   repRangeDistribution: Array<{ range: string; count: number; percentage: number }>;
@@ -822,7 +822,7 @@ function calculateSetRepDistribution(rawData: any[]): {
   };
 }
 
-function calculateOneRM(weight: number, reps: number): number {
+export function calculateOneRM(weight: number, reps: number): number {
   if (reps === 1) return weight;
   // Epley formula: 1RM = weight * (1 + reps/30)
   return Math.round(weight * (1 + reps / 30) * 10) / 10;
