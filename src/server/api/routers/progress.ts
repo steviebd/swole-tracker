@@ -781,7 +781,7 @@ function calculateSetRepDistribution(rawData: any[]): {
     return acc;
   }, {} as Record<string, { sets: number; reps: number; count: number }>);
 
-  const mostCommonSetRep = Object.values(setRepCombos)
+  const mostCommonSetRep = (Object.values(setRepCombos) as { sets: number; reps: number; count: number }[])
     .map(combo => ({
       sets: combo.sets,
       reps: combo.reps,
