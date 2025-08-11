@@ -36,6 +36,13 @@
       "when": 1754623297331,
       "tag": "0004_bumpy_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1754954764298,
+      "tag": "0005_skinny_jackal",
+      "breakpoints": true
     }
   ]
 }

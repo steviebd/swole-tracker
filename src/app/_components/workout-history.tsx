@@ -19,10 +19,10 @@ export function WorkoutHistory() {
     return (
       <div className="space-y-4">
         {[...(Array(5) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg bg-gray-800 p-4">
-            <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
-            <div className="mb-2 h-3 w-1/2 rounded bg-gray-700"></div>
-            <div className="h-3 w-2/3 rounded bg-gray-700"></div>
+          <div key={i} className="glass-surface animate-pulse rounded-lg p-4">
+            <div className="mb-2 h-4 w-1/3 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+            <div className="mb-2 h-3 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+            <div className="h-3 w-2/3 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
           </div>
         ))}
       </div>
@@ -34,12 +34,12 @@ export function WorkoutHistory() {
       <div className="py-12 text-center">
         <div className="mb-4 text-6xl">🏋️</div>
         <h3 className="mb-2 text-xl font-semibold">No workouts yet</h3>
-        <p className="mb-6 text-gray-400">
+        <p className="mb-6" style={{ color: "var(--color-text-secondary)" }}>
           Start your first workout to see your history here
         </p>
         <Link
           href="/workout/start"
-          className="rounded-lg bg-purple-600 px-6 py-3 font-medium transition-colors hover:bg-purple-700"
+          className="btn-primary px-6 py-3"
         >
           Start First Workout
         </Link>
@@ -57,7 +57,7 @@ export function WorkoutHistory() {
         </span>
         <button
           type="button"
-          className="rounded bg-gray-700 px-3 py-1.5 text-sm transition-colors hover:bg-gray-600"
+          className="btn-secondary px-3 py-1.5 text-sm rounded"
           aria-label="Export recent workouts as CSV"
           onClick={async () => {
             const res = await refetchExport();
@@ -85,15 +85,15 @@ export function WorkoutHistory() {
       </div>
 
       {workouts.map((workout) => (
-        <div key={workout.id} className="rounded-lg bg-gray-800 p-4">
+        <div key={workout.id} className="glass-surface rounded-lg p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-semibold">{workout.template.name}</h3>
-            <div className="text-sm text-gray-400">
+            <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
               {new Date(workout.workoutDate).toLocaleDateString()}
             </div>
           </div>
 
-          <div className="mb-3 text-sm text-gray-400">
+          <div className="mb-3 text-sm" style={{ color: "var(--color-text-secondary)" }}>
             {new Date(workout.workoutDate).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -103,7 +103,7 @@ export function WorkoutHistory() {
           {/* Exercise Summary */}
           <div className="mb-4 space-y-1">
             {workout.exercises.length === 0 ? (
-              <p className="text-sm text-gray-500">No exercises logged</p>
+              <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>No exercises logged</p>
             ) : (
               (() => {
                 // Group exercises by name and calculate summary
@@ -138,7 +138,7 @@ export function WorkoutHistory() {
 
                     return (
                       <div key={exerciseName} className="text-sm">
-                        <span className="text-gray-300">{exerciseName}:</span>{" "}
+                        <span style={{ color: "var(--color-text-secondary)" }}>{exerciseName}:</span>{" "}
                         {bestSet.weight && (
                           <span>
                             {bestSet.weight}
@@ -163,13 +163,13 @@ export function WorkoutHistory() {
           <div className="flex items-center gap-3">
             <Link
               href={`/workout/session/${workout.id}`}
-              className="text-sm text-purple-400 hover:text-purple-300"
+              className="link-primary text-sm"
             >
               View Details
             </Link>
             <Link
               href={`/workout/start?templateId=${workout.templateId}`}
-              className="rounded bg-purple-600 px-3 py-1 text-sm transition-colors hover:bg-purple-700"
+              className="btn-primary px-3 py-1 text-sm rounded"
             >
               Repeat Workout
             </Link>

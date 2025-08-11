@@ -88,7 +88,7 @@ export default function SystemDebugPage() {
         <KV k="typescript" v={data.versions.typescript} />
       </Section>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted">
         This page intentionally avoids printing secrets. Use it to quickly
         verify environment configuration and feature flags. For webhook
         debugging use /debug/webhooks.
@@ -105,8 +105,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-gray-700 p-3">
-      <h2 className="mb-2 text-sm font-medium text-gray-300">{title}</h2>
+    <section className="card p-3">
+      <h2 className="mb-2 text-sm font-medium text-secondary">{title}</h2>
       <div className="space-y-1">{children}</div>
     </section>
   );
@@ -115,8 +115,8 @@ function Section({
 function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
-      <span className="text-gray-400">{k}</span>
-      <span className="font-mono text-gray-100">{v}</span>
+      <span className="text-muted">{k}</span>
+      <span className="font-mono">{v}</span>
     </div>
   );
 }

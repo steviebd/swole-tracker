@@ -1,12 +1,30 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { HealthAdviceRequest, HealthAdviceResponse } from '~/server/api/schemas/health-advice';
 import { trackHealthAdviceUsage, trackHealthAdviceError, trackHealthAdvicePerformance } from '~/lib/analytics/health-advice';
+import { api } from '~/trpc/react';
 
-export function useHealthAdvice() {
+export function useHealthAdvice(sessionId?: number) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [advice, setAdvice] = useState<HealthAdviceResponse | null>(null);
+  const [acceptedSuggestions, setAcceptedSuggestions] = useState<number>(0);
+
+  // tRPC mutations and queries
+  const saveHealthAdvice = api.healthAdvice.save.useMutation();
+  const updateAcceptedCount = api.healthAdvice.updateAcceptedSuggestions.useMutation();
+  const { data: existingAdvice } = api.healthAdvice.getBySessionId.useQuery(
+    { sessionId: sessionId! },
+    { enabled: !!sessionId }
+  );
+
+  // Load existing advice if available
+  useEffect(() => {
+    if (existingAdvice && !advice) {
+      setAdvice(existingAdvice.response as HealthAdviceResponse);
+      setAcceptedSuggestions(existingAdvice.user_accepted_suggestions);
+    }
+  }, [existingAdvice, advice]);
 
   const fetchAdvice = useCallback(async (request: HealthAdviceRequest) => {
     setLoading(true);
@@ -43,6 +61,22 @@ export function useHealthAdvice() {
       const data = await response.json();
       setAdvice(data);
       
+      // Save to database
+      if (sessionId) {
+        try {
+          await saveHealthAdvice.mutateAsync({
+            sessionId,
+            request,
+            response: data,
+            responseTimeMs: totalDuration,
+            modelUsed: 'health-model',
+          });
+        } catch (dbError) {
+          console.error('Failed to save health advice to database:', dbError);
+          // Don't fail the entire operation if database save fails
+        }
+      }
+      
       // Track successful usage
       const totalSuggestions = data.per_exercise.reduce((sum: number, ex: HealthAdviceResponse['per_exercise'][0]) => sum + ex.sets.length, 0);
       
@@ -50,9 +84,9 @@ export function useHealthAdvice() {
         sessionId: request.session_id,
         readiness: data.readiness.rho,
         overloadMultiplier: data.readiness.overload_multiplier,
-        userAcceptedSuggestions: 0, // Will be updated when user interacts
+        userAcceptedSuggestions: acceptedSuggestions,
         totalSuggestions,
-        modelUsed: 'health-model', // Could be extracted from response if needed
+        modelUsed: 'health-model',
         responseTime: totalDuration,
         hasWhoopData: Object.keys(request.whoop).length > 0,
         experienceLevel: request.user_profile.experience_level,
@@ -84,12 +118,61 @@ export function useHealthAdvice() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sessionId, saveHealthAdvice, acceptedSuggestions]);
 
   const clearAdvice = useCallback(() => {
     setAdvice(null);
     setError(null);
+    setAcceptedSuggestions(0);
   }, []);
 
-  return { advice, loading, error, fetchAdvice, clearAdvice };
+  const acceptSuggestion = useCallback(async () => {
+    const newCount = acceptedSuggestions + 1;
+    setAcceptedSuggestions(newCount);
+    
+    if (sessionId) {
+      try {
+        await updateAcceptedCount.mutateAsync({
+          sessionId,
+          acceptedCount: newCount,
+        });
+      } catch (dbError) {
+        console.error('Failed to update accepted suggestions count:', dbError);
+        // Revert on error
+        setAcceptedSuggestions(acceptedSuggestions);
+      }
+    }
+  }, [sessionId, acceptedSuggestions, updateAcceptedCount]);
+
+  const rejectSuggestion = useCallback(async () => {
+    if (acceptedSuggestions > 0) {
+      const newCount = acceptedSuggestions - 1;
+      setAcceptedSuggestions(newCount);
+      
+      if (sessionId) {
+        try {
+          await updateAcceptedCount.mutateAsync({
+            sessionId,
+            acceptedCount: newCount,
+          });
+        } catch (dbError) {
+          console.error('Failed to update accepted suggestions count:', dbError);
+          // Revert on error
+          setAcceptedSuggestions(acceptedSuggestions);
+        }
+      }
+    }
+  }, [sessionId, acceptedSuggestions, updateAcceptedCount]);
+
+  return { 
+    advice, 
+    loading, 
+    error, 
+    acceptedSuggestions,
+    fetchAdvice, 
+    clearAdvice, 
+    acceptSuggestion, 
+    rejectSuggestion,
+    hasExistingAdvice: !!existingAdvice,
+  };
 }

@@ -9,6 +9,7 @@ interface ExerciseInputProps {
   onChange: (value: string) => void;
   placeholder: string;
   className?: string;
+  style?: React.CSSProperties;
   templateExerciseId?: number; // For existing template exercises
 }
 
@@ -17,6 +18,7 @@ export function ExerciseInputWithLinking({
   onChange,
   placeholder,
   className,
+  style,
   templateExerciseId,
 }: ExerciseInputProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -64,12 +66,24 @@ export function ExerciseInputWithLinking({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           className={className}
+          style={style}
         />
         {!linkingRejected && (
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="shrink-0 rounded border border-blue-700 bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+            className="shrink-0 rounded px-2 py-1 text-xs transition-colors"
+            style={{
+              backgroundColor: "var(--color-primary)",
+              border: "1px solid var(--color-primary)",
+              color: "var(--btn-primary-fg)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-primary)";
+            }}
             title="Link to existing exercise"
           >
             Link
@@ -78,7 +92,7 @@ export function ExerciseInputWithLinking({
       </div>
 
       {linkingRejected && (
-        <div className="mt-1 flex items-center gap-2 text-xs text-orange-400">
+        <div className="mt-1 flex items-center gap-2 text-xs" style={{ color: "var(--color-warning)" }}>
           <span>🔗</span>
           <span>Not linked - will create as new exercise</span>
         </div>
@@ -90,7 +104,14 @@ export function ExerciseInputWithLinking({
             type="button"
             onClick={handleRejectLinking}
             disabled={rejectLinking.isPending}
-            className="text-xs text-gray-400 hover:text-gray-300"
+            className="text-xs transition-colors"
+            style={{ color: "var(--color-text-muted)" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--color-text-secondary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--color-text-muted)";
+            }}
           >
             {rejectLinking.isPending ? "Saving..." : "Don’t link this exercise"}
           </button>
@@ -160,15 +181,29 @@ function InlineSearchFallback({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-700 p-3">
-          <div className="text-sm font-medium text-gray-200">
+    <div className="fixed inset-0 z-40 flex items-start justify-center p-4" style={{
+      backgroundColor: "rgba(0, 0, 0, 0.4)"
+    }}>
+      <div className="w-full max-w-lg rounded-lg shadow-xl" style={{
+        backgroundColor: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border)"
+      }}>
+        <div className="flex items-center justify-between p-3" style={{
+          borderBottom: "1px solid var(--color-border)"
+        }}>
+          <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
             Search exercises
           </div>
           <button
             onClick={onClose}
-            className="rounded px-2 py-1 text-sm text-gray-300 hover:bg-gray-700"
+            className="rounded px-2 py-1 text-sm transition-colors"
+            style={{ color: "var(--color-text-secondary)" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
           >
             Close
           </button>
@@ -178,22 +213,46 @@ function InlineSearchFallback({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search master exercises"
-            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm outline-none placeholder:text-gray-500 focus:border-gray-500"
+            className="w-full rounded-md px-3 py-2 text-sm outline-none"
+            style={{
+              backgroundColor: "var(--color-bg-surface)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text)"
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-text-muted)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-border)";
+            }}
           />
-          <div className="mt-3 max-h-72 overflow-y-auto rounded border border-gray-700">
+          <div className="mt-3 max-h-72 overflow-y-auto rounded" style={{
+            border: "1px solid var(--color-border)"
+          }}>
             {items.length === 0 ? (
-              <div className="p-3 text-sm text-gray-400">No results</div>
+              <div className="p-3 text-sm" style={{ color: "var(--color-text-muted)" }}>No results</div>
             ) : (
               <ul>
                 {items.map((it) => (
                   <li
                     key={it.id}
-                    className="flex items-center justify-between border-b border-gray-800 p-3 last:border-b-0"
+                    className="flex items-center justify-between p-3 last:border-b-0"
+                    style={{ borderBottom: "1px solid var(--color-border)" }}
                   >
-                    <span className="text-sm text-gray-200">{it.name}</span>
+                    <span className="text-sm" style={{ color: "var(--color-text)" }}>{it.name}</span>
                     <button
                       onClick={() => onChooseName(it.name)}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+                      className="rounded px-2 py-1 text-xs transition-colors"
+                      style={{
+                        backgroundColor: "var(--color-primary)",
+                        color: "var(--btn-primary-fg)"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "var(--color-primary)";
+                      }}
                     >
                       Use name
                     </button>
@@ -210,7 +269,17 @@ function InlineSearchFallback({
                   setCursor(next);
                   if (next != null) void search.refetch();
                 }}
-                className="w-full rounded border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+                className="w-full rounded px-3 py-2 text-sm transition-colors"
+                style={{
+                  border: "1px solid var(--color-border)",
+                  color: "var(--color-text)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
               >
                 Load more
               </button>

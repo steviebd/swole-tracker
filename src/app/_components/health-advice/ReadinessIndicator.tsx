@@ -34,7 +34,7 @@ export function ReadinessIndicator({ rho, flags, overloadMultiplier }: Readiness
   return (
     <Card className="p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Readiness Score</h3>
+        <h3 className="text-lg font-semibold" style={{color: 'var(--color-text)'}}>Readiness Score</h3>
         <span className={cx(
           "text-2xl font-bold",
           colorClasses[readinessLevel].split(' ')[0]
@@ -44,7 +44,7 @@ export function ReadinessIndicator({ rho, flags, overloadMultiplier }: Readiness
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-gray-200 rounded-full h-3">
+      <div className="w-full rounded-full h-3" style={{backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 50%, var(--color-border) 50%)'}}>
         <div
           className={cx(
             "h-3 rounded-full transition-all duration-300",
@@ -56,7 +56,7 @@ export function ReadinessIndicator({ rho, flags, overloadMultiplier }: Readiness
 
       {/* Overload multiplier */}
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-600">Load Adjustment:</span>
+        <span className="text-muted">Load Adjustment:</span>
         <span className={cx(
           "font-semibold",
           overloadMultiplier > 1 ? "text-blue-600" : 
@@ -70,7 +70,7 @@ export function ReadinessIndicator({ rho, flags, overloadMultiplier }: Readiness
       {/* Flags */}
       {flags.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700">Status Flags:</h4>
+          <h4 className="text-sm font-medium text-secondary">Status Flags:</h4>
           <div className="flex flex-wrap gap-1">
             {flags.map((flag, index) => (
               <span

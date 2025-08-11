@@ -12,6 +12,7 @@
   --color-text: oklch(0.985 0 0);             /* Near white */
   --color-text-secondary: oklch(0.708 0 0);   /* Muted text */
   --color-text-muted: oklch(0.556 0 0);       /* Even more muted */
+  --color-card: oklch(0.205 0 0);             /* Card background */
   
   /* Primary accent - high contrast white */
   --color-primary: oklch(0.985 0 0);

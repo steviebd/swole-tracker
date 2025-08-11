@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '~/app/_components/ui/Button';
 import { WorkoutSession } from '~/app/_components/workout-session';
 import { ReadinessIndicator } from '~/app/_components/health-advice/ReadinessIndicator';
@@ -40,7 +40,13 @@ export function WorkoutSessionWithHealthAdvice({
 }: WorkoutSessionWithHealthAdviceProps) {
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [_acceptedSuggestions, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
-  const { advice, loading, error, fetchAdvice } = useHealthAdvice();
+  const { 
+    advice, 
+    loading, 
+    error, 
+    fetchAdvice, 
+    hasExistingAdvice 
+  } = useHealthAdvice(sessionId);
 
   // Mock data for demonstration - in real implementation, this would come from props
   const mockWhoopData = whoopData || {
@@ -97,6 +103,13 @@ export function WorkoutSessionWithHealthAdvice({
     }
   };
 
+  // Show existing advice automatically
+  React.useEffect(() => {
+    if (hasExistingAdvice && advice) {
+      setShowHealthAdvice(true);
+    }
+  }, [hasExistingAdvice, advice]);
+
   const handleGetHealthAdvice = async () => {
     const request: HealthAdviceRequest = {
       session_id: sessionId.toString(),
@@ -134,13 +147,18 @@ export function WorkoutSessionWithHealthAdvice({
           disabled={loading}
           className="btn-primary"
         >
-          {loading ? 'Getting AI Advice...' : '🤖 Get Health Advice'}
+          {loading 
+            ? 'Getting AI Advice...' 
+            : hasExistingAdvice 
+              ? '🔄 Refresh Health Advice' 
+              : '🤖 Get Health Advice'
+          }
         </Button>
       </div>
 
       {/* Health Advice Panel */}
       {showHealthAdvice && advice && (
-        <div className="space-y-4 glass-surface p-4">
+        <div className="space-y-4 glass-surface p-4" style={{backgroundColor: 'var(--color-bg-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)'}}>
           <h2 className="text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

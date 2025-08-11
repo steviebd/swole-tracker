@@ -1,38 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useTheme } from "~/providers/ThemeProvider";
 
 export function HomePageFooter() {
-  const { theme, resolvedTheme } = useTheme();
-
   return (
-    <footer className={`border-t mt-12 pt-8 pb-6 transition-colors duration-300 ${
-      theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-        ? "border-gray-800" 
-        : "border-gray-200 dark:border-gray-800"
-    }`}>
+    <footer className="glass-footer mt-12 pt-8 pb-6"
+      style={{ borderTopColor: "var(--color-border)" }}>
       <div className="container mx-auto px-6">
         {/* Top Section - Links */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           {/* Product */}
           <div>
-            <h3 className={`font-semibold mb-3 transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+            <h3 className="font-semibold mb-3" style={{ color: "var(--color-text)" }}>
               Product
             </h3>
             <ul className="space-y-2">
               <li>
                 <Link 
                   href="/workouts" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Workouts
                 </Link>
@@ -40,11 +27,8 @@ export function HomePageFooter() {
               <li>
                 <Link 
                   href="/templates" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Templates
                 </Link>
@@ -52,11 +36,8 @@ export function HomePageFooter() {
               <li>
                 <Link 
                   href="/analytics" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Analytics
                 </Link>
@@ -66,22 +47,15 @@ export function HomePageFooter() {
 
           {/* Resources */}
           <div>
-            <h3 className={`font-semibold mb-3 transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+            <h3 className="font-semibold mb-3" style={{ color: "var(--color-text)" }}>
               Resources
             </h3>
             <ul className="space-y-2">
               <li>
                 <Link 
                   href="/help" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Help Center
                 </Link>
@@ -89,11 +63,8 @@ export function HomePageFooter() {
               <li>
                 <Link 
                   href="/support" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Support
                 </Link>
@@ -101,11 +72,8 @@ export function HomePageFooter() {
               <li>
                 <Link 
                   href="/guides" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Guides
                 </Link>
@@ -115,22 +83,15 @@ export function HomePageFooter() {
 
           {/* Company */}
           <div>
-            <h3 className={`font-semibold mb-3 transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+            <h3 className="font-semibold mb-3" style={{ color: "var(--color-text)" }}>
               Company
             </h3>
             <ul className="space-y-2">
               <li>
                 <Link 
                   href="/about" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   About
                 </Link>
@@ -138,11 +99,8 @@ export function HomePageFooter() {
               <li>
                 <Link 
                   href="/contact" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Contact
                 </Link>
@@ -152,22 +110,15 @@ export function HomePageFooter() {
 
           {/* Legal */}
           <div>
-            <h3 className={`font-semibold mb-3 transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+            <h3 className="font-semibold mb-3" style={{ color: "var(--color-text)" }}>
               Legal
             </h3>
             <ul className="space-y-2">
               <li>
                 <Link 
                   href="/privacy" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Privacy Policy
                 </Link>
@@ -175,11 +126,8 @@ export function HomePageFooter() {
               <li>
                 <Link 
                   href="/terms" 
-                  className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400 hover:text-white" 
-                      : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                  }`}
+                  className="text-sm transition-colors hover:text-[var(--color-text)]"
+                  style={{ color: "var(--color-text-secondary)" }}
                 >
                   Terms of Service
                 </Link>
@@ -189,18 +137,11 @@ export function HomePageFooter() {
         </div>
 
         {/* Bottom Section - Branding & Copyright */}
-        <div className={`flex flex-col md:flex-row justify-between items-center pt-6 border-t transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "border-gray-800" 
-            : "border-gray-200 dark:border-gray-800"
-        }`}>
+        <div className="flex flex-col md:flex-row justify-between items-center pt-6 border-t"
+          style={{ borderTopColor: "var(--color-border)" }}>
           {/* Logo/Brand */}
           <div className="flex items-center mb-4 md:mb-0">
-            <div className={`text-xl font-bold transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+            <div className="text-xl font-bold" style={{ color: "var(--color-text)" }}>
               💪 Swole Tracker
             </div>
           </div>
@@ -213,11 +154,7 @@ export function HomePageFooter() {
                 href="https://twitter.com" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className={`p-2 rounded-lg transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-400 hover:text-white hover:bg-gray-800" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-                }`}
+                className="btn-ghost p-2 rounded-lg"
                 aria-label="Follow on Twitter"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -228,11 +165,7 @@ export function HomePageFooter() {
                 href="https://github.com" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className={`p-2 rounded-lg transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-400 hover:text-white hover:bg-gray-800" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-                }`}
+                className="btn-ghost p-2 rounded-lg"
                 aria-label="View on GitHub"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -242,11 +175,7 @@ export function HomePageFooter() {
             </div>
 
             {/* Copyright */}
-            <div className={`text-sm transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-gray-400" 
-                : "text-gray-600 dark:text-gray-400"
-            }`}>
+            <div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
               © 2025 Steven Duong. All rights reserved.
             </div>
           </div>

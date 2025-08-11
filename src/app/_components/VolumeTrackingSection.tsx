@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 import { VolumeAnalysisModal } from "./VolumeAnalysisModal";
 
@@ -9,12 +8,9 @@ type TimeRange = "week" | "month" | "year";
 type VolumeMetric = "totalVolume" | "totalSets" | "totalReps" | "uniqueExercises";
 
 export function VolumeTrackingSection() {
-  const { theme, resolvedTheme } = useTheme();
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
   const [selectedMetric, setSelectedMetric] = useState<VolumeMetric>("totalVolume");
   const [showModal, setShowModal] = useState(false);
-  
-  const isDark = theme !== "system" || (theme === "system" && resolvedTheme === "dark");
   
   // Get volume progression data
   const { data: volumeData, isLoading: volumeLoading } = api.progress.getVolumeProgression.useQuery({
@@ -34,31 +30,12 @@ export function VolumeTrackingSection() {
     timeRange,
   });
 
-  const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
-    isDark
-      ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
-  }`;
-
-  const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
-  }`;
-
-  const subtitleClass = `text-sm font-medium mb-2 ${
-    isDark ? "text-gray-300" : "text-gray-700 dark:text-gray-300"
-  }`;
-
-  const buttonClass = `px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-    isDark
-      ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
-  }`;
-
-  const selectClass = `px-3 py-2 text-sm rounded-lg border transition-colors ${
-    isDark
-      ? "bg-gray-800 border-gray-700 text-white focus:border-blue-500"
-      : "bg-white border-gray-300 text-gray-900 focus:border-blue-500"
-  }`;
+  // Use theme-aware CSS custom properties instead of conditional classes
+  const cardClass = "transition-all duration-300 rounded-xl border shadow-sm glass-surface";
+  const titleClass = "text-xl font-bold mb-4" + " " + "text-[var(--color-text)]";
+  const subtitleClass = "text-sm font-medium mb-2" + " " + "text-[var(--color-text-secondary)]";
+  const buttonClass = "btn-secondary";
+  const selectClass = "px-3 py-2 text-sm rounded-lg border transition-colors bg-[var(--color-bg-surface)] border-[var(--color-border)] text-[var(--color-text)] focus:border-[var(--color-primary)]";
 
   // Calculate chart data
   const chartData = volumeData ? [...volumeData].reverse() : [];
@@ -94,10 +71,10 @@ export function VolumeTrackingSection() {
   const trendPercentage = calculateTrend();
 
   const metricConfig = {
-    totalVolume: { label: "Total Volume", unit: "kg", color: "#3B82F6" },
-    totalSets: { label: "Total Sets", unit: "", color: "#10B981" },
-    totalReps: { label: "Total Reps", unit: "", color: "#F59E0B" },
-    uniqueExercises: { label: "Unique Exercises", unit: "", color: "#8B5CF6" },
+    totalVolume: { label: "Total Volume", unit: "kg", color: "var(--color-primary)" },
+    totalSets: { label: "Total Sets", unit: "", color: "var(--color-success)" },
+    totalReps: { label: "Total Reps", unit: "", color: "var(--color-warning)" },
+    uniqueExercises: { label: "Unique Exercises", unit: "", color: "var(--color-info)" },
   };
 
   return (
@@ -106,15 +83,15 @@ export function VolumeTrackingSection() {
         <h2 className={titleClass}>Volume Analysis</h2>
         
         {/* Time Range Selector */}
-        <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+        <div className="flex space-x-1 bg-[var(--color-bg-surface)] rounded-lg p-1 border border-[var(--color-border)]">
           {(["week", "month", "year"] as TimeRange[]).map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
               className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
                 timeRange === range
-                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  ? "bg-[var(--color-primary)] text-white shadow-sm"
+                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
               {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -144,10 +121,10 @@ export function VolumeTrackingSection() {
 
       {volumeLoading ? (
         <div className="space-y-4">
-          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-64 rounded-lg"></div>
+          <div className="animate-pulse bg-[var(--color-bg-surface)] h-64 rounded-lg"></div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-20 rounded-lg"></div>
+              <div key={i} className="animate-pulse bg-[var(--color-bg-surface)] h-20 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -158,14 +135,12 @@ export function VolumeTrackingSection() {
             <h3 className={subtitleClass}>
               {metricConfig[selectedMetric].label} Over Time
             </h3>
-            <div className={`relative h-64 p-4 rounded-lg ${
-              isDark ? "bg-gray-800" : "bg-gray-50"
-            }`}>
+            <div className="relative h-64 p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
               <svg className="w-full h-full" viewBox="0 0 400 200">
                 {/* Grid lines */}
                 <defs>
                   <pattern id="volume-grid" width="40" height="20" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke={isDark ? "#374151" : "#E5E7EB"} strokeWidth="0.5"/>
+                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke="var(--color-border)" strokeWidth="0.5"/>
                   </pattern>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#volume-grid)" />
@@ -223,9 +198,8 @@ export function VolumeTrackingSection() {
                         x={x}
                         y={y - 10}
                         textAnchor="middle"
-                        className={`text-xs font-medium ${
-                          isDark ? "fill-gray-300" : "fill-gray-700"
-                        }`}
+                        className="text-xs font-medium"
+                        fill="var(--color-text-secondary)"
                       >
                         {point[selectedMetric]}{metricConfig[selectedMetric].unit}
                       </text>
@@ -234,10 +208,10 @@ export function VolumeTrackingSection() {
                 })}
                 
                 {/* Y-axis labels */}
-                <text x="10" y="20" className={`text-xs ${isDark ? "fill-gray-400" : "fill-gray-600"}`}>
+                <text x="10" y="20" className="text-xs" fill="var(--color-text-muted)">
                   {maxValue}{metricConfig[selectedMetric].unit}
                 </text>
-                <text x="10" y="190" className={`text-xs ${isDark ? "fill-gray-400" : "fill-gray-600"}`}>
+                <text x="10" y="190" className="text-xs" fill="var(--color-text-muted)">
                   {minValue}{metricConfig[selectedMetric].unit}
                 </text>
               </svg>
@@ -246,43 +220,35 @@ export function VolumeTrackingSection() {
 
           {/* Volume Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className={`p-4 rounded-lg ${
-              isDark ? "bg-gray-800" : "bg-gray-50"
-            }`}>
+            <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
               <p className={subtitleClass}>Total {metricConfig[selectedMetric].label}</p>
-              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+              <p className="text-xl font-bold text-[var(--color-primary)]">
                 {totalValue.toLocaleString()}{metricConfig[selectedMetric].unit}
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg ${
-              isDark ? "bg-gray-800" : "bg-gray-50"
-            }`}>
+            <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
               <p className={subtitleClass}>Average per Workout</p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-400">
+              <p className="text-xl font-bold text-[var(--color-success)]">
                 {averageValue.toFixed(1)}{metricConfig[selectedMetric].unit}
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg ${
-              isDark ? "bg-gray-800" : "bg-gray-50"
-            }`}>
+            <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
               <p className={subtitleClass}>Workouts</p>
-              <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+              <p className="text-xl font-bold text-[var(--color-info)]">
                 {chartData.length}
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg ${
-              isDark ? "bg-gray-800" : "bg-gray-50"
-            }`}>
+            <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
               <p className={subtitleClass}>Trend</p>
               <p className={`text-xl font-bold ${
                 trendPercentage > 0
-                  ? "text-green-600 dark:text-green-400"
+                  ? "text-[var(--color-success)]"
                   : trendPercentage < 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-gray-600 dark:text-gray-400"
+                  ? "text-[var(--color-danger)]"
+                  : "text-[var(--color-text-muted)]"
               }`}>
                 {trendPercentage > 0 ? '+' : ''}{trendPercentage.toFixed(1)}%
               </p>
@@ -297,9 +263,7 @@ export function VolumeTrackingSection() {
             ) : volumeByExercise && volumeByExercise.length > 0 ? (
               <div className="space-y-4">
                 {/* Donut Chart */}
-                <div className={`relative h-80 p-4 rounded-lg ${
-                  isDark ? "bg-gray-800" : "bg-gray-50"
-                }`}>
+                <div className="relative h-80 p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
                   <svg className="w-full h-full" viewBox="0 0 400 300">
                     <g transform="translate(200, 150)">
                       {/* Donut chart segments */}
@@ -336,8 +300,8 @@ export function VolumeTrackingSection() {
                         ].join(' ');
                         
                         const colors = [
-                          "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", 
-                          "#EF4444", "#14B8A6", "#F97316", "#84CC16"
+                          "var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-info)", 
+                          "var(--color-danger)", "#14B8A6", "#F97316", "#84CC16"
                         ];
                         
                         return (
@@ -368,8 +332,8 @@ export function VolumeTrackingSection() {
                     <g transform="translate(20, 20)">
                       {volumeByExercise.slice(0, 8).map((exercise, index) => {
                         const colors = [
-                          "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", 
-                          "#EF4444", "#14B8A6", "#F97316", "#84CC16"
+                          "var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-info)", 
+                          "var(--color-danger)", "#14B8A6", "#F97316", "#84CC16"
                         ];
                         
                         return (
@@ -383,9 +347,8 @@ export function VolumeTrackingSection() {
                             <text
                               x="20"
                               y="9"
-                              className={`text-xs font-medium ${
-                                isDark ? "fill-gray-300" : "fill-gray-700"
-                              }`}
+                              className="text-xs font-medium"
+                              fill="var(--color-text-secondary)"
                             >
                               {exercise.exerciseName} ({exercise.percentOfTotal.toFixed(1)}%)
                             </text>
@@ -397,14 +360,8 @@ export function VolumeTrackingSection() {
                 </div>
                 
                 {/* Exercise Volume Table */}
-                <div className={`rounded-lg border ${
-                  isDark ? "border-gray-700" : "border-gray-200"
-                } overflow-hidden`}>
-                  <div className={`grid grid-cols-6 gap-4 px-4 py-3 text-sm font-medium border-b ${
-                    isDark
-                      ? "text-gray-400 border-gray-700 bg-gray-800"
-                      : "text-gray-600 border-gray-200 bg-gray-50"
-                  }`}>
+                <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+                  <div className="grid grid-cols-6 gap-4 px-4 py-3 text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
                     <div>Exercise</div>
                     <div>Volume</div>
                     <div>Sets</div>
@@ -418,26 +375,26 @@ export function VolumeTrackingSection() {
                       key={exercise.exerciseName} 
                       className={`grid grid-cols-6 gap-4 px-4 py-3 text-sm ${
                         index !== Math.min(9, volumeByExercise.length - 1)
-                          ? `border-b ${isDark ? "border-gray-700" : "border-gray-200"}`
+                          ? "border-b border-[var(--color-border)]"
                           : ""
                       }`}
                     >
-                      <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <div className="font-medium text-[var(--color-text)]">
                         {exercise.exerciseName}
                       </div>
-                      <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                      <div className="text-[var(--color-text-secondary)]">
                         {exercise.totalVolume.toLocaleString()}kg
                       </div>
-                      <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                      <div className="text-[var(--color-text-secondary)]">
                         {exercise.totalSets}
                       </div>
-                      <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                      <div className="text-[var(--color-text-secondary)]">
                         {exercise.totalReps}
                       </div>
-                      <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                      <div className="text-[var(--color-text-secondary)]">
                         {exercise.sessions}
                       </div>
-                      <div className={`font-medium ${isDark ? "text-blue-400" : "text-blue-600"}`}>
+                      <div className="font-medium text-[var(--color-primary)]">
                         {exercise.percentOfTotal.toFixed(1)}%
                       </div>
                     </div>
@@ -446,7 +403,7 @@ export function VolumeTrackingSection() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                <p className="text-sm text-[var(--color-text-muted)]">
                   No exercise volume data available for the selected time range.
                 </p>
               </div>
@@ -457,12 +414,12 @@ export function VolumeTrackingSection() {
           <div className="mb-6">
             <h3 className={subtitleClass}>Set/Rep Distribution Analysis</h3>
             {setRepLoading ? (
-              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-64 rounded-lg"></div>
+              <div className="animate-pulse bg-[var(--color-bg-surface)] h-64 rounded-lg"></div>
             ) : setRepData ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Rep Range Distribution */}
-                <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
-                  <h4 className={`text-sm font-semibold mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                  <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Training Style Distribution
                   </h4>
                   <div className="space-y-2">
@@ -473,15 +430,15 @@ export function VolumeTrackingSection() {
                             className="w-3 h-3 rounded-full"
                             style={{ 
                               backgroundColor: [
-                                "#EF4444", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6"
+                                "var(--color-danger)", "var(--color-warning)", "var(--color-success)", "var(--color-primary)", "var(--color-info)"
                               ][index % 5] 
                             }}
                           />
-                          <span className={`text-xs ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                          <span className="text-xs text-[var(--color-text-secondary)]">
                             {range.range}
                           </span>
                         </div>
-                        <span className={`text-xs font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <span className="text-xs font-medium text-[var(--color-text)]">
                           {range.percentage.toFixed(1)}%
                         </span>
                       </div>
@@ -490,20 +447,20 @@ export function VolumeTrackingSection() {
                 </div>
 
                 {/* Most Common Set/Rep Combinations */}
-                <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
-                  <h4 className={`text-sm font-semibold mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                  <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Most Common Set × Rep Combinations
                   </h4>
                   <div className="space-y-2">
                     {setRepData.mostCommonSetRep.slice(0, 6).map((combo, index) => (
                       <div key={`${combo.sets}x${combo.reps}`} className="flex items-center justify-between">
-                        <span className={`text-xs font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <span className="text-xs font-medium text-[var(--color-text)]">
                           {combo.sets} × {combo.reps}
                         </span>
                         <div className="flex items-center space-x-2">
-                          <div className={`h-2 rounded-full bg-blue-500`} 
+                          <div className="h-2 rounded-full bg-[var(--color-primary)]" 
                                style={{ width: `${Math.max(combo.percentage * 2, 8)}px` }} />
-                          <span className={`text-xs ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                          <span className="text-xs text-[var(--color-text-secondary)]">
                             {combo.percentage.toFixed(1)}%
                           </span>
                         </div>
@@ -513,8 +470,8 @@ export function VolumeTrackingSection() {
                 </div>
 
                 {/* Sets Distribution Chart */}
-                <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
-                  <h4 className={`text-sm font-semibold mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                  <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Sets per Exercise Distribution
                   </h4>
                   <div className="relative h-32">
@@ -534,14 +491,15 @@ export function VolumeTrackingSection() {
                               y={y}
                               width={barWidth}
                               height={barHeight}
-                              fill="#10B981"
+                              fill="var(--color-success)"
                               rx="2"
                             />
                             <text
                               x={x + barWidth/2}
                               y={95}
                               textAnchor="middle"
-                              className={`text-xs ${isDark ? "fill-gray-400" : "fill-gray-600"}`}
+                              className="text-xs"
+                              fill="var(--color-text-muted)"
                             >
                               {item.sets}
                             </text>
@@ -549,7 +507,8 @@ export function VolumeTrackingSection() {
                               x={x + barWidth/2}
                               y={y - 5}
                               textAnchor="middle"
-                              className={`text-xs ${isDark ? "fill-gray-300" : "fill-gray-700"}`}
+                              className="text-xs"
+                              fill="var(--color-text-secondary)"
                             >
                               {item.percentage.toFixed(0)}%
                             </text>
@@ -561,20 +520,20 @@ export function VolumeTrackingSection() {
                 </div>
 
                 {/* Top Rep Counts */}
-                <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
-                  <h4 className={`text-sm font-semibold mb-3 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                  <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Most Common Rep Counts
                   </h4>
                   <div className="space-y-2">
                     {setRepData.repDistribution.slice(0, 6).map((item, index) => (
                       <div key={item.reps} className="flex items-center justify-between">
-                        <span className={`text-xs font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <span className="text-xs font-medium text-[var(--color-text)]">
                           {item.reps} reps
                         </span>
                         <div className="flex items-center space-x-2">
-                          <div className={`h-2 rounded-full bg-yellow-500`} 
+                          <div className="h-2 rounded-full bg-[var(--color-warning)]" 
                                style={{ width: `${Math.max(item.percentage * 2, 8)}px` }} />
-                          <span className={`text-xs ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                          <span className="text-xs text-[var(--color-text-secondary)]">
                             {item.percentage.toFixed(1)}%
                           </span>
                         </div>
@@ -585,7 +544,7 @@ export function VolumeTrackingSection() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                <p className="text-sm text-[var(--color-text-muted)]">
                   No set/rep distribution data available for the selected time range.
                 </p>
               </div>
@@ -604,14 +563,8 @@ export function VolumeTrackingSection() {
               </button>
             </div>
             
-            <div className={`rounded-lg border ${
-              isDark ? "border-gray-700" : "border-gray-200"
-            } overflow-hidden`}>
-              <div className={`grid grid-cols-5 gap-4 px-4 py-3 text-sm font-medium border-b ${
-                isDark
-                  ? "text-gray-400 border-gray-700 bg-gray-800"
-                  : "text-gray-600 border-gray-200 bg-gray-50"
-              }`}>
+            <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+              <div className="grid grid-cols-5 gap-4 px-4 py-3 text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
                 <div>Date</div>
                 <div>Volume</div>
                 <div>Sets</div>
@@ -624,26 +577,26 @@ export function VolumeTrackingSection() {
                   key={index} 
                   className={`grid grid-cols-5 gap-4 px-4 py-3 text-sm ${
                     index !== Math.min(4, chartData.length - 1)
-                      ? `border-b ${isDark ? "border-gray-700" : "border-gray-200"}`
+                      ? "border-b border-[var(--color-border)]"
                       : ""
                   }`}
                 >
-                  <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                  <div className="text-[var(--color-text-secondary)]">
                     {new Date(workout.workoutDate).toLocaleDateString('en-US', { 
                       month: 'short', 
                       day: 'numeric' 
                     })}
                   </div>
-                  <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                  <div className="font-medium text-[var(--color-text)]">
                     {workout.totalVolume.toLocaleString()}kg
                   </div>
-                  <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                  <div className="text-[var(--color-text-secondary)]">
                     {workout.totalSets}
                   </div>
-                  <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                  <div className="text-[var(--color-text-secondary)]">
                     {workout.totalReps}
                   </div>
-                  <div className={isDark ? "text-gray-300" : "text-gray-700"}>
+                  <div className="text-[var(--color-text-secondary)]">
                     {workout.uniqueExercises}
                   </div>
                 </div>
@@ -656,10 +609,10 @@ export function VolumeTrackingSection() {
           <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
-          <p className={`text-lg font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+          <p className="text-lg font-medium mb-2 text-[var(--color-text-secondary)]">
             No volume data found
           </p>
-          <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+          <p className="text-sm text-[var(--color-text-muted)]">
             Complete some workouts to see your volume progression and analysis.
           </p>
         </div>

@@ -35,7 +35,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       aria-labelledby="settings-title"
       className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
       style={{ 
-        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? 'rgba(0, 0, 0, 0.8)' : 'rgba(17, 24, 39, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
       }}
       onClick={() => {
         restoreFocus();
@@ -51,24 +51,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         preventScroll
       >
         <div
-          className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "bg-gray-900 border-gray-800" 
-              : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
-          }`}
+          className="w-full max-w-lg max-h-[90vh] overflow-y-auto glass-surface shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className={`border-b px-6 py-4 transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "border-gray-800" 
-              : "border-gray-200 dark:border-gray-800"
-          }`}>
-            <h2 id="settings-title" className={`text-lg font-bold transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+          <div className="glass-hairline border-b px-6 py-4">
+            <h2 id="settings-title" className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
               App Settings
             </h2>
           </div>
@@ -79,16 +67,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <section>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className={`font-medium transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-white" 
-                      : "text-gray-900 dark:text-white"
-                  }`}>Push Notifications</div>
-                  <div className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400" 
-                      : "text-gray-600 dark:text-gray-400"
-                  }`}>
+                  <div className="font-medium" style={{ color: 'var(--color-text)' }}>Push Notifications</div>
+                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
                     Receive notifications about your workouts
                   </div>
                 </div>
@@ -124,11 +104,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       ? "text-white" 
                       : "text-gray-900 dark:text-white"
                   }`}>Workout Reminders</div>
-                  <div className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400" 
-                      : "text-gray-600 dark:text-gray-400"
-                  }`}>
+                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
                     Get reminded when it's time to work out
                   </div>
                 </div>

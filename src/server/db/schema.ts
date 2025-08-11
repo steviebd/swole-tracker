@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTableCreator, decimal, unique } from "drizzle-orm/pg-core";
+import { index, pgTableCreator, unique } from "drizzle-orm/pg-core";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -96,7 +96,7 @@ export const sessionExercises = createTable(
       .references(() => templateExercises.id, { onDelete: "set null" }),
     exerciseName: d.varchar({ length: 256 }).notNull(),
     setOrder: d.integer().notNull().default(0),
-    weight: decimal("weight", { precision: 6, scale: 2 }),
+    weight: d.numeric("weight", { precision: 6, scale: 2 }),
     reps: d.integer(),
     sets: d.integer(),
     unit: d.varchar({ length: 10 }).notNull().default("kg"),
@@ -178,6 +178,10 @@ export const workoutSessionsRelations = relations(
       references: [workoutTemplates.id],
     }),
     exercises: many(sessionExercises),
+    healthAdvice: one(healthAdvice, {
+      fields: [workoutSessions.id],
+      references: [healthAdvice.sessionId],
+    }),
   }),
 );
 
@@ -382,6 +386,44 @@ export const exerciseLinksRelations = relations(exerciseLinks, ({ one }) => ({
   }),
 }));
 
+// AI Health Advice - Store AI advice responses for historical tracking
+export const healthAdvice = createTable(
+  "health_advice",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    sessionId: d
+      .integer()
+      .notNull()
+      .references(() => workoutSessions.id, { onDelete: "cascade" }),
+    // Store the full request and response for historical tracking
+    request: d.json().notNull(), // HealthAdviceRequest object
+    response: d.json().notNull(), // HealthAdviceResponse object
+    // Extract key metrics for easy querying
+    readiness_rho: d.numeric({ precision: 3, scale: 2 }), // 0.00-1.00
+    overload_multiplier: d.numeric({ precision: 3, scale: 2 }), // 0.90-1.10
+    session_predicted_chance: d.numeric({ precision: 3, scale: 2 }), // 0.00-1.00
+    // Track user interaction
+    user_accepted_suggestions: d.integer().notNull().default(0),
+    total_suggestions: d.integer().notNull(),
+    // Performance tracking
+    response_time_ms: d.integer(),
+    model_used: d.varchar({ length: 100 }),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("health_advice_user_id_idx").on(t.user_id),
+    index("health_advice_session_id_idx").on(t.sessionId),
+    index("health_advice_created_at_idx").on(t.createdAt),
+    index("health_advice_user_created_idx").on(t.user_id, t.createdAt),
+    // Unique constraint: one advice per session per user
+    unique("health_advice_user_session_unique").on(t.user_id, t.sessionId),
+  ],
+); // RLS disabled - using Clerk auth with application-level security
+
 // Webhook Events Log (for debugging and audit trail)
 export const webhookEvents = createTable(
   "webhook_event",
@@ -412,3 +454,11 @@ export const webhookEvents = createTable(
     index("webhook_event_created_at_idx").on(t.createdAt),
   ],
 ); // RLS disabled - using Clerk auth with application-level security
+
+// Health Advice Relations
+export const healthAdviceRelations = relations(healthAdvice, ({ one }) => ({
+  session: one(workoutSessions, {
+    fields: [healthAdvice.sessionId],
+    references: [workoutSessions.id],
+  }),
+}));
