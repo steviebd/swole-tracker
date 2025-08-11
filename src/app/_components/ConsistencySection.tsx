@@ -17,6 +17,11 @@ export function ConsistencySection() {
     timeRange,
   });
 
+  // Get workout dates for calendar
+  const { data: workoutDatesData, isLoading: workoutDatesLoading } = api.progress.getWorkoutDates.useQuery({
+    timeRange,
+  });
+
   const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
     isDark
       ? "bg-gray-900 border-gray-800 shadow-lg" 
@@ -59,10 +64,10 @@ export function ConsistencySection() {
 
   const calendar = generateCalendar();
   
-  // Mock workout dates (this would come from API)
-  const workoutDates = new Set([
-    "2024-01-05", "2024-01-08", "2024-01-10", "2024-01-12", "2024-01-15"
-  ].map(date => new Date(date).toDateString()));
+  // Convert workout dates from API to Set for quick lookup
+  const workoutDates = new Set(
+    (workoutDatesData || []).map(dateStr => new Date(dateStr).toDateString())
+  );
 
   const isWorkoutDay = (date: Date) => {
     return workoutDates.has(date.toDateString());
@@ -103,7 +108,7 @@ export function ConsistencySection() {
         </div>
       </div>
 
-      {consistencyLoading ? (
+      {consistencyLoading || workoutDatesLoading ? (
         <div className="space-y-6">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"></div>

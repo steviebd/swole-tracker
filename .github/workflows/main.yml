@@ -17,34 +17,36 @@ jobs:
       NEXT_PUBLIC_POSTHOG_HOST: https://us.i.posthog.com
       NEXT_PUBLIC_SUPABASE_URL: https://test.supabase.co
       NEXT_PUBLIC_SUPABASE_KEY: supabase_test_key
+      # Additional environment variables for CI
+      CLERK_SECRET_KEY: sk_test_dummy
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/test_db
+      NODE_ENV: test
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 10.13.1
+          bun-version: latest
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Lint and typecheck
         run: |
-          pnpm format:check || true
-          pnpm check || pnpm run -r check || true
-          pnpm typecheck || true
+          bun run format:check || true
+          bun check || bun run check || true
+          bun run typecheck || true
 
       - name: Run tests with coverage
-        run: pnpm run test:ci
+        run: bun run test:ci
 
       - name: Upload coverage artifact
         if: always()

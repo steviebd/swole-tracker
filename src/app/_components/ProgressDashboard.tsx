@@ -7,6 +7,9 @@ import { api } from "~/trpc/react";
 import { StrengthProgressSection } from "./StrengthProgressSection";
 import { VolumeTrackingSection } from "./VolumeTrackingSection";
 import { ConsistencySection } from "./ConsistencySection";
+import { PersonalRecordsSection } from "./PersonalRecordsSection";
+import { RecentAchievements } from "./RecentAchievements";
+import { WhoopIntegrationSection } from "./WhoopIntegrationSection";
 
 type TimeRange = "week" | "month" | "year";
 
@@ -26,11 +29,6 @@ export function ProgressDashboard() {
   });
   
   const { data: exerciseList, isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
-  
-  const { data: personalRecords, isLoading: prLoading } = api.progress.getPersonalRecords.useQuery({
-    timeRange,
-    recordType: "both",
-  });
 
   const cardClass = `transition-all duration-300 rounded-2xl border shadow-sm ${
     isDark
@@ -136,80 +134,48 @@ export function ProgressDashboard() {
           </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Personal Records Section */}
-          <div className={cardClass + " p-6"}>
-            <h2 className={titleClass}>Recent Personal Records</h2>
-            {prLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-16 rounded"></div>
-                ))}
-              </div>
-            ) : personalRecords && personalRecords.length > 0 ? (
-              <div className="space-y-4">
-                {personalRecords.slice(0, 5).map((record, index) => (
-                  <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{record.exerciseName}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {record.recordType === "weight" ? "Weight PR" : "Volume PR"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900 dark:text-white">
-                        {record.weight}kg × {record.reps}
-                      </p>
-                      {record.recordType === "weight" && record.oneRMEstimate && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          ~{record.oneRMEstimate}kg 1RM
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                No personal records found for this period.
-              </p>
-            )}
-          </div>
+        {/* Recent Achievements Section */}
+        <div className="mb-8">
+          <RecentAchievements />
+        </div>
 
-          {/* Exercise List */}
-          <div className={cardClass + " p-6"}>
-            <h2 className={titleClass}>Your Exercises</h2>
-            {exerciseListLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-12 rounded"></div>
-                ))}
-              </div>
-            ) : exerciseList && exerciseList.length > 0 ? (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {exerciseList.map((exercise, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{exercise.exerciseName}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Last used: {new Date(exercise.lastUsed).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {exercise.totalSets} sets
-                      </p>
-                    </div>
+        {/* Exercise List */}
+        <div className={cardClass + " p-6 mb-8"}>
+          <h2 className={titleClass}>Your Exercises</h2>
+          {exerciseListLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-12 rounded"></div>
+              ))}
+            </div>
+          ) : exerciseList && exerciseList.length > 0 ? (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {exerciseList.map((exercise, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{exercise.exerciseName}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Last used: {new Date(exercise.lastUsed).toLocaleDateString()}
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                No exercises found. Complete some workouts to see your progress!
-              </p>
-            )}
-          </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {exercise.totalSets} sets
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+              No exercises found. Complete some workouts to see your progress!
+            </p>
+          )}
+        </div>
+
+        {/* Personal Records Section */}
+        <div className="mt-8">
+          <PersonalRecordsSection />
         </div>
 
         {/* Strength Progression Section */}
@@ -225,6 +191,11 @@ export function ProgressDashboard() {
         {/* Consistency Section */}
         <div className="mt-8">
           <ConsistencySection />
+        </div>
+
+        {/* WHOOP Integration Section */}
+        <div className="mt-8">
+          <WhoopIntegrationSection />
         </div>
       </div>
     </div>

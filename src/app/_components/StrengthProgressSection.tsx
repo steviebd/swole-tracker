@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
+import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 
 type TimeRange = "week" | "month" | "year";
 
@@ -319,25 +320,13 @@ export function StrengthProgressSection() {
         </div>
       )}
       
-      {/* Modal for detailed analysis would go here - placeholder for Phase 3 task 6 */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`max-w-2xl w-full rounded-xl ${cardClass} p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={titleClass}>Detailed Analysis - {selectedExercise}</h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className={buttonClass}
-              >
-                Close
-              </button>
-            </div>
-            <p className={isDark ? "text-gray-400" : "text-gray-600"}>
-              Detailed strength analysis modal coming soon in Phase 3...
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Detailed Analysis Modal */}
+      <StrengthAnalysisModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        exerciseName={selectedExercise}
+        timeRange={timeRange}
+      />
     </div>
   );
 }

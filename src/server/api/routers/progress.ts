@@ -138,6 +138,29 @@ export const progressRouter = createTRPCRouter({
       return consistency;
     }),
 
+  // Get workout dates for calendar display
+  getWorkoutDates: protectedProcedure
+    .input(timeRangeInputSchema)
+    .query(async ({ input, ctx }) => {
+      const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+      
+      const workoutDates = await ctx.db
+        .select({
+          workoutDate: workoutSessions.workoutDate,
+        })
+        .from(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.user_id, ctx.user.id),
+            gte(workoutSessions.workoutDate, startDate),
+            lte(workoutSessions.workoutDate, endDate)
+          )
+        )
+        .orderBy(desc(workoutSessions.workoutDate));
+      
+      return workoutDates.map(w => w.workoutDate.toISOString().split('T')[0] as string);
+    }),
+
   // Get personal records (weight and volume PRs)
   getPersonalRecords: protectedProcedure
     .input(exerciseProgressInputSchema.extend({
