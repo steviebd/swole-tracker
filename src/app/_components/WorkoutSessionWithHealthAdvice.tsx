@@ -132,7 +132,7 @@ export function WorkoutSessionWithHealthAdvice({
         <Button
           onClick={handleGetHealthAdvice}
           disabled={loading}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
+          className="btn-primary"
         >
           {loading ? 'Getting AI Advice...' : '🤖 Get Health Advice'}
         </Button>
@@ -140,8 +140,8 @@ export function WorkoutSessionWithHealthAdvice({
 
       {/* Health Advice Panel */}
       {showHealthAdvice && advice && (
-        <div className="space-y-4 border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
-          <h2 className="text-2xl font-bold text-center">🏋️ Today's Workout Intelligence</h2>
+        <div className="space-y-4 glass-surface p-4">
+          <h2 className="text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Readiness and Overall Chance */}
@@ -167,7 +167,7 @@ export function WorkoutSessionWithHealthAdvice({
 
           {/* Exercise-specific suggestions */}
           <div className="space-y-4">
-            <h3 className="text-xl font-semibold">Exercise Recommendations</h3>
+            <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Exercise Recommendations</h3>
             {advice.per_exercise.map((exercise) => (
               <SetSuggestions
                 key={exercise.exercise_id}
@@ -183,7 +183,7 @@ export function WorkoutSessionWithHealthAdvice({
 
       {/* Error display */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+        <div className="p-4 rounded-lg glass-surface" style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}>
           <h3 className="font-semibold">Health Advice Error</h3>
           <p>{error}</p>
         </div>
