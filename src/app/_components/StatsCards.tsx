@@ -79,15 +79,15 @@ export function StatsCards() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {[...Array(3)].map((_, i) => (
           <div key={i} className={cardClass}>
-            <div className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
                 <div className="space-y-2">
-                  <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                  <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-3 sm:h-4 w-14 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-5 sm:h-6 w-16 sm:w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
                 </div>
               </div>
             </div>
@@ -98,19 +98,23 @@ export function StatsCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       {/* This Week Workouts */}
       <div className={cardClass}>
-        <div className="p-6">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBgClass("green")}`}>
-              <svg className={`w-6 h-6 ${iconClass("green")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${iconBgClass("green")}`}>
+              <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${iconClass("green")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className={labelClass}>This Week</p>
-              <p className={valueClass}>{stats.workoutsThisWeek} Workouts</p>
+              <p className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>{stats.workoutsThisWeek} Workouts</p>
             </div>
           </div>
         </div>
@@ -118,16 +122,20 @@ export function StatsCards() {
 
       {/* Average Duration */}
       <div className={cardClass}>
-        <div className="p-6">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBgClass("blue")}`}>
-              <svg className={`w-6 h-6 ${iconClass("blue")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${iconBgClass("blue")}`}>
+              <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${iconClass("blue")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className={labelClass}>Avg Duration</p>
-              <p className={valueClass}>{stats.avgDuration}</p>
+              <p className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>{stats.avgDuration}</p>
             </div>
           </div>
         </div>
@@ -135,16 +143,20 @@ export function StatsCards() {
 
       {/* Weekly Goal */}
       <div className={cardClass}>
-        <div className="p-6">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBgClass("purple")}`}>
-              <svg className={`w-6 h-6 ${iconClass("purple")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${iconBgClass("purple")}`}>
+              <svg className={`w-5 h-5 sm:w-6 sm:h-6 ${iconClass("purple")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className={labelClass}>Weekly Goal</p>
-              <p className={valueClass}>{stats.weeklyGoal.current}/{stats.weeklyGoal.target}</p>
+              <p className={`text-lg sm:text-2xl font-bold transition-colors duration-300 ${
+                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
+                  ? "text-white" 
+                  : "text-gray-900 dark:text-white"
+              }`}>{stats.weeklyGoal.current}/{stats.weeklyGoal.target}</p>
             </div>
           </div>
         </div>

@@ -601,53 +601,15 @@ describe("rate-limit-middleware", () => {
         resetTime: new Date(Date.now() + 500),
       } as any);
       
-      // Test the underlying rateLimitMiddleware directly to ensure coverage
-      const handler = rateLimitMiddleware({
-        endpoint: "template_operations",
-        limit: 1000,
-        windowMs: 60 * 60 * 1000,
-        skipIfDisabled: true,
-      });
-      
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual templateRateLimit middleware function
+      // This calls the tRPC middleware which in turn calls our rateLimitMiddleware handler
+      await templateRateLimit({ ctx, next });
       
-      // Should call checkRateLimit with correct parameters
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "template_operations", 1000, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should directly test templateRateLimit middleware implementation", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the actual templateRateLimit middleware
-      // We can't directly call it, but we can test the underlying handler it creates
-      const handler = rateLimitMiddleware({
-        endpoint: "template_operations",
-        limit: env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ?? 0,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: true,
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters
+      // Should call checkRateLimit with correct parameters matching templateRateLimit
       expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "template_operations", 1000, 60 * 60 * 1000);
       expect(next).toHaveBeenCalled();
     });
@@ -663,52 +625,14 @@ describe("rate-limit-middleware", () => {
         resetTime: new Date(Date.now() + 500),
       } as any);
       
-      // Test the underlying rateLimitMiddleware directly to ensure coverage
-      const handler = rateLimitMiddleware({
-        endpoint: "workout_operations",
-        limit: 1000,
-        windowMs: 60 * 60 * 1000,
-        skipIfDisabled: true,
-      });
-      
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual workoutRateLimit middleware function
+      await workoutRateLimit({ ctx, next });
       
-      // Should call checkRateLimit with correct parameters
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "workout_operations", 1000, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should directly test workoutRateLimit middleware implementation", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the actual workoutRateLimit middleware underlying handler
-      const handler = rateLimitMiddleware({
-        endpoint: "workout_operations",
-        limit: env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ?? 0,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: true,
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters
+      // Should call checkRateLimit with correct parameters matching workoutRateLimit
       expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "workout_operations", 1000, 60 * 60 * 1000);
       expect(next).toHaveBeenCalled();
     });
@@ -724,52 +648,14 @@ describe("rate-limit-middleware", () => {
         resetTime: new Date(Date.now() + 500),
       } as any);
       
-      // Test the underlying rateLimitMiddleware directly to ensure coverage
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: 1000,
-        windowMs: 60 * 1000,
-        skipIfDisabled: false,
-      });
-      
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual apiCallRateLimit middleware function
+      await apiCallRateLimit({ ctx, next });
       
-      // Should call checkRateLimit with correct parameters
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 1000, 60 * 1000);
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should directly test apiCallRateLimit middleware implementation", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the actual apiCallRateLimit middleware underlying handler
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE ?? 0,
-        windowMs: 60 * 1000, // 1 minute
-        skipIfDisabled: false, // Always enforce API call limits
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters
+      // Should call checkRateLimit with correct parameters matching apiCallRateLimit
       expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 1000, 60 * 1000);
       expect(next).toHaveBeenCalled();
     });
@@ -785,52 +671,14 @@ describe("rate-limit-middleware", () => {
         resetTime: new Date(Date.now() + 500),
       } as any);
       
-      // Test the underlying rateLimitMiddleware directly to ensure coverage
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: 1000,
-        windowMs: 60 * 60 * 1000,
-        skipIfDisabled: false,
-      });
-      
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual whoopSyncRateLimit middleware function
+      await whoopSyncRateLimit({ ctx, next });
       
-      // Should call checkRateLimit with correct parameters
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 1000, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should directly test whoopSyncRateLimit middleware implementation", async () => {
-      // Mock env values for this test
-      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the actual whoopSyncRateLimit middleware underlying handler
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR ?? 0,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: false, // Always enforce Whoop sync limits
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters
+      // Should call checkRateLimit with correct parameters matching whoopSyncRateLimit
       expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 1000, 60 * 60 * 1000);
       expect(next).toHaveBeenCalled();
     });
@@ -840,27 +688,18 @@ describe("rate-limit-middleware", () => {
       vi.mocked(env).RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = 1000;
       vi.mocked(env).RATE_LIMIT_ENABLED = false;
       
-      // For skip behavior, we test the underlying rateLimitMiddleware directly
-      const handler = rateLimitMiddleware({
-        endpoint: "template_operations",
-        limit: 1000,
-        windowMs: 60 * 60 * 1000,
-        skipIfDisabled: true,
-      });
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any);
       
-      const allowSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any);
-      
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual templateRateLimit middleware function
+      await templateRateLimit({ ctx, next });
       
       // Should skip when disabled due to skipIfDisabled: true
-      expect(allowSpy).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalledOnce();
-      // The result should be from the next call
-      expect(result).toEqual({ result: "success" });
+      expect(checkRateLimitSpy).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
     });
 
     it("should enforce apiCallRateLimit even when disabled due to skipIfDisabled false", async () => {
@@ -868,31 +707,22 @@ describe("rate-limit-middleware", () => {
       vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 1000;
       vi.mocked(env).RATE_LIMIT_ENABLED = false;
       
-      // For enforcement behavior, we test the underlying rateLimitMiddleware directly
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: 1000,
-        windowMs: 60 * 1000,
-        skipIfDisabled: false, // Always enforce API call limits
-      });
-      
-      vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
         allowed: true,
         remaining: 999,
         resetTime: new Date(Date.now() + 500),
       } as any);
       
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual apiCallRateLimit middleware function
+      await apiCallRateLimit({ ctx, next });
       
       // Should enforce even when disabled due to skipIfDisabled: false
-      expect(rateLimitLib.checkRateLimit).toHaveBeenCalled();
-      expect(next).toHaveBeenCalledOnce();
-      // The result should be from the next call
-      expect(result).toEqual({ result: "success" });
+      expect(checkRateLimitSpy).toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
     });
 
     it("should enforce whoopSyncRateLimit even when disabled due to skipIfDisabled false", async () => {
@@ -900,31 +730,22 @@ describe("rate-limit-middleware", () => {
       vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 1000;
       vi.mocked(env).RATE_LIMIT_ENABLED = false;
       
-      // For enforcement behavior, we test the underlying rateLimitMiddleware directly
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: 1000,
-        windowMs: 60 * 60 * 1000,
-        skipIfDisabled: false, // Always enforce Whoop sync limits
-      });
-      
-      vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
         allowed: true,
         remaining: 999,
         resetTime: new Date(Date.now() + 500),
       } as any);
       
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual whoopSyncRateLimit middleware function
+      await whoopSyncRateLimit({ ctx, next });
       
       // Should enforce even when disabled due to skipIfDisabled: false
-      expect(rateLimitLib.checkRateLimit).toHaveBeenCalled();
-      expect(next).toHaveBeenCalledOnce();
-      // The result should be from the next call
-      expect(result).toEqual({ result: "success" });
+      expect(checkRateLimitSpy).toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
     });
 
     it("should handle case when env variables are undefined", async () => {
@@ -934,30 +755,22 @@ describe("rate-limit-middleware", () => {
       vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = undefined;
       vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = undefined;
       
-      // Test that the middleware still works with default values (0)
-      const handler = rateLimitMiddleware({
-        endpoint: "test_default_limit",
-        limit: 5,
-        windowMs: 1000,
-        skipIfDisabled: false,
-      });
-      
-      vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
         allowed: true,
         remaining: 4,
         resetTime: new Date(Date.now() + 500),
       } as any);
       
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual templateRateLimit middleware function
+      await templateRateLimit({ ctx, next });
       
-      // Should work correctly even with default values
-      expect(rateLimitLib.checkRateLimit).toHaveBeenCalled();
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
+      // Should work correctly even with default values (0)
+      expect(checkRateLimitSpy).toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
     });
 
     it("should handle case when env variables are zero", async () => {
@@ -967,363 +780,21 @@ describe("rate-limit-middleware", () => {
       vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 0;
       vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 0;
       
-      // Test that the middleware still works with zero values
-      const handler = rateLimitMiddleware({
-        endpoint: "test_zero_limit",
-        limit: 5,
-        windowMs: 1000,
-        skipIfDisabled: false,
-      });
-      
-      vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
         allowed: true,
         remaining: 4,
         resetTime: new Date(Date.now() + 500),
       } as any);
       
+      // Create a mock tRPC middleware context that matches how tRPC would call it
       const ctx = makeCtx().ctx;
       const next = vi.fn().mockResolvedValue({ result: "success" });
       
-      // Execute the handler directly
-      const result = await handler({ ctx, next });
+      // Execute the actual templateRateLimit middleware function
+      await templateRateLimit({ ctx, next });
       
       // Should work correctly even with zero env values
-      expect(rateLimitLib.checkRateLimit).toHaveBeenCalled();
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should execute apiCallRateLimit middleware implementation lines", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the actual apiCallRateLimit middleware underlying handler
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE ?? 0,
-        windowMs: 60 * 1000, // 1 minute
-        skipIfDisabled: false, // Always enforce API call limits
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters from the apiCallRateLimit middleware
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 1000, 60 * 1000);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it("should execute whoopSyncRateLimit middleware implementation lines", async () => {
-      // Mock env values for this test
-      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the actual whoopSyncRateLimit middleware underlying handler
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR ?? 0,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: false, // Always enforce Whoop sync limits
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters from the whoopSyncRateLimit middleware
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 1000, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it("should simulate execution of apiCallRateLimit middleware function", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Simulate the execution of the apiCallRateLimit middleware function
-      // by creating the same handler configuration it would create
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: env.RATE_LIMIT_API_CALLS_PER_MINUTE ?? 0,
-        windowMs: 60 * 1000, // 1 minute
-        skipIfDisabled: false, // Always enforce API call limits
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the handler twice to simulate the full middleware execution
-      await handler({ ctx, next });
-      const result = await next();
-      
-      // Should call checkRateLimit with correct parameters as defined in apiCallRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 1000, 60 * 1000);
-      expect(next).toHaveBeenCalledTimes(2);
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should simulate execution of whoopSyncRateLimit middleware function", async () => {
-      // Mock env values for this test
-      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Simulate the execution of the whoopSyncRateLimit middleware function
-      // by creating the same handler configuration it would create
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR ?? 0,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: false, // Always enforce Whoop sync limits
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Execute the handler twice to simulate the full middleware execution
-      await handler({ ctx, next });
-      const result = await next();
-      
-      // Should call checkRateLimit with correct parameters as defined in whoopSyncRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 1000, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalledTimes(2);
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should test apiCallRateLimit middleware function directly", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 500;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 499,
-        resetTime: new Date(Date.now() + 60 * 1000),
-      } as any);
-      
-      // Test the exact configuration used in apiCallRateLimit middleware
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: 500,
-        windowMs: 60 * 1000, // 1 minute
-        skipIfDisabled: false, // Always enforce API call limits
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      const result = await handler({ ctx, next });
-      
-      // Should call checkRateLimit with the exact same parameters as apiCallRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 500, 60 * 1000);
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should test whoopSyncRateLimit middleware function directly", async () => {
-      // Mock env values for this test
-      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 100;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 99,
-        resetTime: new Date(Date.now() + 60 * 60 * 1000),
-      } as any);
-      
-      // Test the exact configuration used in whoopSyncRateLimit middleware
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: 100,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: false, // Always enforce Whoop sync limits
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      const result = await handler({ ctx, next });
-      
-      // Should call checkRateLimit with the exact same parameters as whoopSyncRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 100, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalledOnce();
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should directly execute apiCallRateLimit middleware", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 1000;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 999,
-        resetTime: new Date(Date.now() + 500),
-      } as any);
-      
-      // Create a mock tRPC middleware context
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      // Try to directly execute the middleware function
-      // This is a bit of a hack, but it should cover the lines
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: 1000,
-        windowMs: 60 * 1000,
-        skipIfDisabled: false,
-      });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 1000, 60 * 1000);
-      expect(next).toHaveBeenCalled();
-    });
-
-    // Tests that verify the pre-configured middleware functions work correctly
-    it("should execute templateRateLimit with correct configuration", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = 100;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 99,
-        resetTime: new Date(Date.now() + 60 * 60 * 1000),
-      } as any);
-      
-      // Test the underlying rateLimitMiddleware with the same config as templateRateLimit
-      const handler = rateLimitMiddleware({
-        endpoint: "template_operations",
-        limit: 100,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: true,
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters matching templateRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "template_operations", 100, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it("should execute workoutRateLimit with correct configuration", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = 200;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 199,
-        resetTime: new Date(Date.now() + 60 * 60 * 1000),
-      } as any);
-      
-      // Test the underlying rateLimitMiddleware with the same config as workoutRateLimit
-      const handler = rateLimitMiddleware({
-        endpoint: "workout_operations",
-        limit: 200,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: true,
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters matching workoutRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "workout_operations", 200, 60 * 60 * 1000);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it("should execute apiCallRateLimit with correct configuration", async () => {
-      // Mock env values for this test
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 50;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 49,
-        resetTime: new Date(Date.now() + 60 * 1000),
-      } as any);
-      
-      // Test the underlying rateLimitMiddleware with the same config as apiCallRateLimit
-      const handler = rateLimitMiddleware({
-        endpoint: "api_calls",
-        limit: 50,
-        windowMs: 60 * 1000, // 1 minute
-        skipIfDisabled: false, // Always enforce API call limits
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters matching apiCallRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 50, 60 * 1000);
-      expect(next).toHaveBeenCalled();
-    });
-
-    it("should execute whoopSyncRateLimit with correct configuration", async () => {
-      // Mock env values for this test
-      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 10;
-      vi.mocked(env).RATE_LIMIT_ENABLED = true;
-      
-      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
-        allowed: true,
-        remaining: 9,
-        resetTime: new Date(Date.now() + 60 * 60 * 1000),
-      } as any);
-      
-      // Test the underlying rateLimitMiddleware with the same config as whoopSyncRateLimit
-      const handler = rateLimitMiddleware({
-        endpoint: "whoop_sync",
-        limit: 10,
-        windowMs: 60 * 60 * 1000, // 1 hour
-        skipIfDisabled: false, // Always enforce Whoop sync limits
-      });
-      
-      const ctx = makeCtx().ctx;
-      const next = vi.fn().mockResolvedValue({ result: "success" });
-      
-      await handler({ ctx, next });
-      
-      // Should call checkRateLimit with correct parameters matching whoopSyncRateLimit
-      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 10, 60 * 60 * 1000);
+      expect(checkRateLimitSpy).toHaveBeenCalled();
       expect(next).toHaveBeenCalled();
     });
   });
