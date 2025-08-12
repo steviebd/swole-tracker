@@ -33,6 +33,26 @@ const baseConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https: blob:",
+              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com wss: ws:",
+              "font-src 'self' data:",
+              "object-src 'none'",
+              "media-src 'self'",
+              "frame-src 'none'",
+              "worker-src 'self' blob:",
+              "child-src 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "manifest-src 'self'"
+            ].join("; "),
+          },
         ],
       },
       {

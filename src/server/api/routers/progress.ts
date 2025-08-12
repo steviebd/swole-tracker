@@ -180,7 +180,7 @@ export const progressRouter = createTRPCRouter({
           )
           .orderBy(desc(workoutSessions.workoutDate));
         
-        return workoutDates.map(w => w.workoutDate.toISOString().split('T')[0] as string);
+        return workoutDates.map(w => w.workoutDate.toISOString().split('T')[0]!);
       } catch (error) {
         console.error("Error in getWorkoutDates:", error);
         return [];

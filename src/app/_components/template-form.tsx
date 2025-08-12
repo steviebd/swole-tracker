@@ -230,7 +230,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Template Name */}
       <div>
-        <label htmlFor="name" className="mb-2 block text-sm font-medium">
+        <label htmlFor="name" className="mb-2 block text-sm font-medium" style={{ color: "var(--color-text)" }}>
           Template Name
         </label>
         <input
@@ -239,8 +239,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g., Push Day, Pull Day, Legs"
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:outline-none"
-          style={{ outline: "none", boxShadow: "none" }}
+          className="w-full rounded-lg px-3 py-2 focus:ring-2 focus:outline-none"
+          style={{
+            backgroundColor: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text)",
+            outline: "none",
+            boxShadow: "none"
+          }}
           required
         />
       </div>
@@ -248,7 +254,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       {/* Exercises */}
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <label className="block text-sm font-medium">Exercises</label>
+          <label className="block text-sm font-medium" style={{ color: "var(--color-text)" }}>Exercises</label>
           <button
             type="button"
             onClick={addExercise}
@@ -266,14 +272,28 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   value={exercise}
                   onChange={(value) => updateExercise(index, value)}
                   placeholder={`Exercise ${index + 1}`}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 focus:ring-2 focus:outline-none"
+                  style={{
+                    backgroundColor: "var(--color-bg-surface)",
+                    border: "1px solid var(--color-border)",
+                    color: "var(--color-text)"
+                  }}
+                  className="w-full rounded-lg px-3 py-2 focus:ring-2 focus:outline-none"
                 />
               </div>
               {exercises.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeExercise(index)}
-                  className="px-2 text-sm text-rose-400 hover:text-rose-300"
+                  className="px-2 text-sm transition-colors"
+                  style={{
+                    color: "var(--color-danger)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "0.8";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                  }}
                 >
                   Remove
                 </button>
@@ -286,7 +306,17 @@ export function TemplateForm({ template }: TemplateFormProps) {
           <button
             type="button"
             onClick={addExercise}
-            className="text-secondary w-full rounded-lg border-2 border-dashed border-gray-700 py-8 transition-colors hover:border-gray-600"
+            className="w-full rounded-lg border-2 border-dashed py-8 transition-colors"
+            style={{
+              borderColor: "var(--color-border)",
+              color: "var(--color-text-secondary)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-text-muted)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-border)";
+            }}
           >
             + Add your first exercise
           </button>
@@ -312,7 +342,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="text-muted px-4 py-2 transition-colors hover:text-white"
+          className="px-4 py-2 transition-colors"
+          style={{ color: "var(--color-text-muted)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--color-text)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--color-text-muted)";
+          }}
         >
           Cancel
         </button>

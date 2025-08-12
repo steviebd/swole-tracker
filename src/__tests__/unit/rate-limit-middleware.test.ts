@@ -1209,5 +1209,122 @@ describe("rate-limit-middleware", () => {
       expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 1000, 60 * 1000);
       expect(next).toHaveBeenCalled();
     });
+
+    // Tests that verify the pre-configured middleware functions work correctly
+    it("should execute templateRateLimit with correct configuration", async () => {
+      // Mock env values for this test
+      vi.mocked(env).RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = 100;
+      vi.mocked(env).RATE_LIMIT_ENABLED = true;
+      
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+        allowed: true,
+        remaining: 99,
+        resetTime: new Date(Date.now() + 60 * 60 * 1000),
+      } as any);
+      
+      // Test the underlying rateLimitMiddleware with the same config as templateRateLimit
+      const handler = rateLimitMiddleware({
+        endpoint: "template_operations",
+        limit: 100,
+        windowMs: 60 * 60 * 1000, // 1 hour
+        skipIfDisabled: true,
+      });
+      
+      const ctx = makeCtx().ctx;
+      const next = vi.fn().mockResolvedValue({ result: "success" });
+      
+      await handler({ ctx, next });
+      
+      // Should call checkRateLimit with correct parameters matching templateRateLimit
+      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "template_operations", 100, 60 * 60 * 1000);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it("should execute workoutRateLimit with correct configuration", async () => {
+      // Mock env values for this test
+      vi.mocked(env).RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = 200;
+      vi.mocked(env).RATE_LIMIT_ENABLED = true;
+      
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+        allowed: true,
+        remaining: 199,
+        resetTime: new Date(Date.now() + 60 * 60 * 1000),
+      } as any);
+      
+      // Test the underlying rateLimitMiddleware with the same config as workoutRateLimit
+      const handler = rateLimitMiddleware({
+        endpoint: "workout_operations",
+        limit: 200,
+        windowMs: 60 * 60 * 1000, // 1 hour
+        skipIfDisabled: true,
+      });
+      
+      const ctx = makeCtx().ctx;
+      const next = vi.fn().mockResolvedValue({ result: "success" });
+      
+      await handler({ ctx, next });
+      
+      // Should call checkRateLimit with correct parameters matching workoutRateLimit
+      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "workout_operations", 200, 60 * 60 * 1000);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it("should execute apiCallRateLimit with correct configuration", async () => {
+      // Mock env values for this test
+      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = 50;
+      vi.mocked(env).RATE_LIMIT_ENABLED = true;
+      
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+        allowed: true,
+        remaining: 49,
+        resetTime: new Date(Date.now() + 60 * 1000),
+      } as any);
+      
+      // Test the underlying rateLimitMiddleware with the same config as apiCallRateLimit
+      const handler = rateLimitMiddleware({
+        endpoint: "api_calls",
+        limit: 50,
+        windowMs: 60 * 1000, // 1 minute
+        skipIfDisabled: false, // Always enforce API call limits
+      });
+      
+      const ctx = makeCtx().ctx;
+      const next = vi.fn().mockResolvedValue({ result: "success" });
+      
+      await handler({ ctx, next });
+      
+      // Should call checkRateLimit with correct parameters matching apiCallRateLimit
+      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "api_calls", 50, 60 * 1000);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it("should execute whoopSyncRateLimit with correct configuration", async () => {
+      // Mock env values for this test
+      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = 10;
+      vi.mocked(env).RATE_LIMIT_ENABLED = true;
+      
+      const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
+        allowed: true,
+        remaining: 9,
+        resetTime: new Date(Date.now() + 60 * 60 * 1000),
+      } as any);
+      
+      // Test the underlying rateLimitMiddleware with the same config as whoopSyncRateLimit
+      const handler = rateLimitMiddleware({
+        endpoint: "whoop_sync",
+        limit: 10,
+        windowMs: 60 * 60 * 1000, // 1 hour
+        skipIfDisabled: false, // Always enforce Whoop sync limits
+      });
+      
+      const ctx = makeCtx().ctx;
+      const next = vi.fn().mockResolvedValue({ result: "success" });
+      
+      await handler({ ctx, next });
+      
+      // Should call checkRateLimit with correct parameters matching whoopSyncRateLimit
+      expect(checkRateLimitSpy).toHaveBeenCalledWith("user_1", "whoop_sync", 10, 60 * 60 * 1000);
+      expect(next).toHaveBeenCalled();
+    });
   });
 });

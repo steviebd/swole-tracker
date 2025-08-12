@@ -96,7 +96,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
   };
 
   const calculateSetRepStats = () => {
-    if (!setRepDistribution || !setRepDistribution.repDistribution || setRepDistribution.repDistribution.length === 0) return null;
+    if (!setRepDistribution?.repDistribution || setRepDistribution.repDistribution.length === 0) return null;
 
     const repData = setRepDistribution.repDistribution;
     const totalSets = repData.reduce((sum, item) => sum + item.count, 0);

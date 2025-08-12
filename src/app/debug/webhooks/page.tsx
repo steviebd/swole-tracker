@@ -43,15 +43,15 @@ function getStatusBadge(status: string) {
   const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
   switch (status) {
     case "processed":
-      return `${baseClasses} bg-green-100 text-green-800`;
+      return `${baseClasses} text-white` + " " + "bg-[color:var(--color-success)]";
     case "failed":
-      return `${baseClasses} bg-red-100 text-red-800`;
+      return `${baseClasses} text-white` + " " + "bg-[color:var(--color-danger)]";
     case "ignored":
-      return `${baseClasses} bg-yellow-100 text-yellow-800`;
+      return `${baseClasses} text-white` + " " + "bg-[color:var(--color-warning)]";
     case "received":
-      return `${baseClasses} bg-blue-100 text-blue-800`;
+      return `${baseClasses} text-white` + " " + "bg-[color:var(--color-info)]";
     default:
-      return `${baseClasses} bg-gray-100 text-gray-800`;
+      return `${baseClasses}` + " " + "bg-[color:var(--color-text-muted)] text-white";
   }
 }
 
@@ -66,21 +66,21 @@ export default async function WebhookDebugPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="mb-2 text-3xl font-bold">Webhook Debug Dashboard</h1>
-        <p className="text-gray-400">
+        <p className="text-muted">
           Last 50 webhook events received from external providers
         </p>
       </div>
 
       {events.length === 0 ? (
-        <div className="rounded-lg bg-gray-800 p-8 text-center">
+        <div className="card p-8 text-center">
           <h2 className="mb-2 text-xl font-semibold">
             No webhook events found
           </h2>
-          <p className="mb-4 text-gray-400">
+          <p className="mb-4 text-muted">
             No webhook events have been received yet. Make sure your webhook URL
             is configured correctly in the Whoop Developer Dashboard.
           </p>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted">
             <p>
               <strong>Webhook URL:</strong>{" "}
               https://your-domain.com/api/webhooks/whoop
@@ -95,18 +95,18 @@ export default async function WebhookDebugPage() {
           {events.map((event) => (
             <div
               key={event.id}
-              className="rounded-lg border border-gray-700 bg-gray-800 p-6"
+              className="card p-6"
             >
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center space-x-3">
-                  <span className="text-lg font-semibold text-blue-400">
+                  <span className="text-lg font-semibold" style={{color: "var(--color-primary)"}}>
                     {event.provider}.{event.eventType}
                   </span>
                   <span className={getStatusBadge(event.status)}>
                     {event.status}
                   </span>
                 </div>
-                <div className="text-right text-sm text-gray-400">
+                <div className="text-right text-sm text-muted">
                   <div>ID: {event.id}</div>
                   <div>{formatDate(event.createdAt)}</div>
                 </div>
@@ -114,26 +114,26 @@ export default async function WebhookDebugPage() {
 
               <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
-                  <h4 className="mb-1 text-sm font-medium text-gray-300">
+                  <h4 className="mb-1 text-sm font-medium text-secondary">
                     External User ID
                   </h4>
-                  <p className="text-sm text-gray-100">
+                  <p className="text-sm">
                     {event.externalUserId ?? "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h4 className="mb-1 text-sm font-medium text-gray-300">
+                  <h4 className="mb-1 text-sm font-medium text-secondary">
                     Entity ID
                   </h4>
-                  <p className="text-sm text-gray-100">
+                  <p className="text-sm">
                     {event.externalEntityId ?? "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h4 className="mb-1 text-sm font-medium text-gray-300">
+                  <h4 className="mb-1 text-sm font-medium text-secondary">
                     Processing Time
                   </h4>
-                  <p className="text-sm text-gray-100">
+                  <p className="text-sm">
                     {event.processingTime ? `${event.processingTime}ms` : "N/A"}
                   </p>
                 </div>
@@ -141,10 +141,10 @@ export default async function WebhookDebugPage() {
 
               {event.error && (
                 <div className="mb-4">
-                  <h4 className="mb-1 text-sm font-medium text-red-300">
+                  <h4 className="mb-1 text-sm font-medium" style={{color: "var(--color-danger)"}}>
                     Error
                   </h4>
-                  <p className="rounded bg-red-900/20 p-2 text-sm text-red-200">
+                  <p className="rounded p-2 text-sm text-white" style={{backgroundColor: "color-mix(in oklab, var(--color-danger) 20%, transparent)"}}>
                     {event.error}
                   </p>
                 </div>
@@ -155,7 +155,7 @@ export default async function WebhookDebugPage() {
                   <h4 className="mb-2 text-sm font-medium text-gray-300">
                     Payload
                   </h4>
-                  <pre className="max-h-40 overflow-auto rounded bg-gray-900 p-3 text-xs">
+                  <pre className="max-h-40 overflow-auto rounded p-3 text-xs" style={{backgroundColor: "var(--color-bg-surface)"}}>
                     {JSON.stringify(event.payload, null, 2)}
                   </pre>
                 </div>
@@ -163,7 +163,7 @@ export default async function WebhookDebugPage() {
                   <h4 className="mb-2 text-sm font-medium text-gray-300">
                     Headers
                   </h4>
-                  <pre className="max-h-40 overflow-auto rounded bg-gray-900 p-3 text-xs">
+                  <pre className="max-h-40 overflow-auto rounded p-3 text-xs" style={{backgroundColor: "var(--color-bg-surface)"}}>
                     {JSON.stringify(event.headers, null, 2)}
                   </pre>
                 </div>
@@ -173,30 +173,30 @@ export default async function WebhookDebugPage() {
         </div>
       )}
 
-      <div className="mt-8 rounded-lg border border-gray-700 bg-gray-800 p-6">
+      <div className="mt-8 card p-6">
         <h2 className="mb-4 text-xl font-semibold">Troubleshooting Guide</h2>
         <div className="space-y-3 text-sm">
           <div>
-            <strong className="text-green-400">✅ processed:</strong> Webhook
+            <strong style={{color: "var(--color-success)"}}>✅ processed:</strong> Webhook
             received and workout data updated successfully
           </div>
           <div>
-            <strong className="text-yellow-400">⚠️ ignored:</strong> Webhook
+            <strong style={{color: "var(--color-warning)"}}>⚠️ ignored:</strong> Webhook
             received but event type not processed (only workout.updated is
             processed)
           </div>
           <div>
-            <strong className="text-red-400">❌ failed:</strong> Webhook
+            <strong style={{color: "var(--color-danger)"}}>❌ failed:</strong> Webhook
             received but processing failed - check error message
           </div>
           <div>
-            <strong className="text-blue-400">🔄 received:</strong> Webhook
+            <strong style={{color: "var(--color-info)"}}>🔄 received:</strong> Webhook
             received but processing not completed yet
           </div>
         </div>
 
-        <div className="mt-4 border-t border-gray-700 pt-4">
-          <p className="text-sm text-gray-400">
+        <div className="mt-4 border-t pt-4" style={{borderColor: "var(--color-border)"}}>
+          <p className="text-sm text-muted">
             If you're not seeing any events, verify your webhook URL is
             configured in the Whoop Developer Dashboard and that you've
             triggered a workout update in your Whoop app.

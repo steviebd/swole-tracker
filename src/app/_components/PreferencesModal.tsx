@@ -136,7 +136,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       aria-labelledby="preferences-title"
       className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
       style={{ 
-        backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark") ? 'rgba(0, 0, 0, 0.8)' : 'rgba(17, 24, 39, 0.8)',
+        backgroundColor: 'color-mix(in oklab, black 80%, transparent)',
       }}
       onClick={() => {
         restoreFocus();
@@ -152,23 +152,11 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         preventScroll
       >
         <div
-          className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "bg-gray-900 border-gray-800" 
-              : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
-          }`}
+          className="w-full max-w-md max-h-[90vh] overflow-y-auto glass-surface shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className={`border-b px-6 py-4 transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "border-gray-800" 
-              : "border-gray-200 dark:border-gray-800"
-          }`}>
-            <h2 id="preferences-title" className={`text-lg font-bold transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+          <div className="glass-hairline border-b px-6 py-4">
+            <h2 id="preferences-title" className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
               Preferences
             </h2>
           </div>
@@ -178,16 +166,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
             <section>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className={`font-medium transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-white" 
-                      : "text-gray-900 dark:text-white"
-                  }`}>Predictive defaults</div>
-                  <div className={`text-sm transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-gray-400" 
-                      : "text-gray-600 dark:text-gray-400"
-                  }`}>
+                  <div className="font-medium" style={{ color: 'var(--color-text)' }}>Predictive defaults</div>
+                  <div className="text-sm text-muted">
                     Prefill new sets with your most recent values for the
                     exercise.
                   </div>
@@ -199,10 +179,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   className="inline-flex h-8 w-14 items-center rounded-full transition-colors"
                   style={{
                     backgroundColor: predictiveEnabled 
-                      ? (theme !== "system" || (theme === "system" && resolvedTheme === "dark") 
-                          ? "var(--color-primary)" 
-                          : "#9333EA")
-                      : "#6B7280"
+                      ? "var(--color-primary)"
+                      : "var(--color-border)"
                   }}
                 >
                   <span
@@ -217,16 +195,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
             {/* Theme selector */}
             <section>
-              <div className={`mb-1 font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Theme</div>
-              <div className={`mb-2 text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Theme</div>
+              <div className="mb-2 text-sm text-muted">
                 Choose your preferred color theme for the app.
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -241,17 +211,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   <button
                     key={themeOption.value}
                     onClick={() => setTheme(themeOption.value as any)}
-                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-300 ${
-                      theme === themeOption.value
-                        ? // Selected button: use theme-appropriate colors
-                          themeOption.value === "light"
-                            ? "bg-white text-gray-900 border-gray-300"
-                            : "bg-gray-900 text-white border-gray-700"
-                        : // Unselected buttons: use current theme colors
-                          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                          ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                          : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-                    }`}
+                    className={theme === themeOption.value ? "btn-primary" : "btn-secondary"}
                     aria-pressed={
                       theme === themeOption.value ? "true" : "false"
                     }
@@ -270,16 +230,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
             {/* Estimated 1RM factor */}
             <section>
-              <div className={`mb-1 font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Estimated 1RM factor</div>
-              <div className={`mb-2 text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Estimated 1RM factor</div>
+              <div className="mb-2 text-sm text-muted">
                 Used in 1RM estimation formula: weight × (1 + reps × factor).
                 Leave blank to use default 0.0333 (1/30).
               </div>
@@ -291,35 +243,24 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   max={0.05}
                   inputMode="decimal"
                   aria-label="Estimated 1RM factor"
-                  className={`w-32 rounded-md border px-3 py-2 transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500" 
-                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                  }`}
+                  className="w-32 rounded-md border px-3 py-2 transition-colors placeholder:text-muted"
+                  style={{
+                    backgroundColor: 'var(--color-bg-surface)',
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text)'
+                  }}
                   placeholder="0.0333"
                   value={estimatedOneRmFactor}
                   onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
                 />
-                <div className={`text-xs transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-400" 
-                    : "text-gray-600 dark:text-gray-400"
-                }`}>Default: 0.0333</div>
+                <div className="text-xs text-muted">Default: 0.0333</div>
               </div>
             </section>
 
             {/* Right swipe action selector */}
             <section>
-              <div className={`mb-1 font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Right-swipe action</div>
-              <div className={`mb-2 text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Right-swipe action</div>
+              <div className="mb-2 text-sm text-muted">
                 Choose what happens when you right-swipe an exercise card.
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -328,15 +269,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     <button
                       key={opt}
                       onClick={() => setRightSwipeAction(opt)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-300 ${
-                        rightSwipeAction === opt
-                          ? theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                            ? "bg-blue-500 border-blue-500 text-white"
-                            : "bg-purple-600 border-purple-600 text-white"
-                          : theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                            ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                            : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-                      }`}
+                      className={rightSwipeAction === opt ? "btn-primary" : "btn-secondary"}
                       aria-pressed={rightSwipeAction === opt ? "true" : "false"}
                     >
                       {opt === "collapse_expand" ? "Collapse/Expand" : "None"}
@@ -348,25 +281,13 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
             {/* Connect Whoop */}
             <section>
-              <div className={`mb-1 font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Connect Whoop</div>
-              <div className={`mb-2 text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Connect Whoop</div>
+              <div className="mb-2 text-sm text-muted">
                 Connect your Whoop device to sync recovery and strain data.
               </div>
               <a
                 href="/connect-whoop"
-                className={`inline-block px-4 py-2 text-sm font-medium rounded-lg border transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
+                className="btn-secondary"
               >
                 Connect Whoop
               </a>
@@ -374,34 +295,21 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
           </div>
 
-          <div className={`flex justify-end gap-2 border-t px-6 py-4 transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "border-gray-800" 
-              : "border-gray-200 dark:border-gray-800"
-          }`}>
+          <div className="flex justify-end gap-2 border-t px-6 py-4" style={{ borderColor: 'var(--color-border)' }}>
             <button
               ref={firstFocusRef}
               onClick={() => {
                 restoreFocus();
                 onClose();
               }}
-              className={`px-4 py-2 rounded-lg border font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                  : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
+              className="btn-secondary"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               onClick={() => void handleSave()}
-              className="px-4 py-2 rounded-lg font-medium transition-colors duration-300 disabled:opacity-50 text-white"
-              style={{
-                backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "var(--color-primary)"
-                  : "#9333EA"
-              }}
+              className="btn-primary disabled:opacity-50"
               disabled={saving || saveDisabled}
               aria-busy={saving ? "true" : "false"}
             >

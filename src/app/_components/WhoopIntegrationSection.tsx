@@ -1,30 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 
 export function WhoopIntegrationSection() {
-  const { theme, resolvedTheme } = useTheme();
-  const isDark = theme !== "system" || (theme === "system" && resolvedTheme === "dark");
 
   // Check if WHOOP is connected (this would be a real API call)
   const { data: whoopStatus, isLoading } = api.whoop.getIntegrationStatus.useQuery();
   const isConnected = whoopStatus?.isConnected ?? false;
 
-  const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
-    isDark
-      ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
-  }`;
+  const cardClass = "glass-surface transition-all duration-300 rounded-xl";
 
-  const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
-  }`;
+  const titleClass = "text-xl font-bold mb-4";
 
-  const subtitleClass = `text-sm font-medium mb-2 ${
-    isDark ? "text-gray-300" : "text-gray-700 dark:text-gray-300"
-  }`;
+  const subtitleClass = "text-sm font-medium mb-2";
 
   // Mock data for demonstration
   const mockRecoveryData = {
@@ -48,9 +37,9 @@ export function WhoopIntegrationSection() {
   ];
 
   const getRecoveryColor = (recovery: number) => {
-    if (recovery >= 67) return "text-green-500";
-    if (recovery >= 34) return "text-yellow-500";
-    return "text-red-500";
+    if (recovery >= 67) return 'var(--color-success)';
+    if (recovery >= 34) return 'var(--color-warning)';
+    return 'var(--color-danger)';
   };
 
   const getRecoveryEmoji = (recovery: number) => {
@@ -70,13 +59,31 @@ export function WhoopIntegrationSection() {
     <div className={cardClass + " p-6"}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className={titleClass}>WHOOP Integration</h2>
-          <p className={subtitleClass}>Recovery and performance insights</p>
+          <h2 
+            className={titleClass}
+            style={{ color: 'var(--color-text)' }}
+          >
+            WHOOP Integration
+          </h2>
+          <p 
+            className={subtitleClass}
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            Recovery and performance insights
+          </p>
         </div>
         
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'} animate-pulse`}></div>
-          <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+          <div 
+            className="w-3 h-3 rounded-full animate-pulse"
+            style={{
+              backgroundColor: isConnected ? 'var(--color-success)' : 'var(--color-text-muted)'
+            }}
+          ></div>
+          <span 
+            className="text-sm font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             {isLoading ? 'Checking...' : isConnected ? 'Connected' : 'Not Connected'}
           </span>
         </div>
@@ -89,35 +96,74 @@ export function WhoopIntegrationSection() {
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
               <span className="text-white text-2xl font-bold">W</span>
             </div>
-            <h3 className={`text-lg font-semibold mb-2 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+            <h3 
+              className="text-lg font-semibold mb-2"
+              style={{ color: 'var(--color-text)' }}
+            >
               Connect Your WHOOP Device
             </h3>
-            <p className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+            <p 
+              className="text-sm mb-6"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
               Sync your recovery, strain, and sleep data to get personalized workout insights.
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+            <div 
+              className="p-4 rounded-lg"
+              style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+            >
               <div className="text-2xl mb-2">💤</div>
-              <h4 className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>Sleep Tracking</h4>
-              <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+              <h4 
+                className="font-medium"
+                style={{ color: 'var(--color-text)' }}
+              >
+                Sleep Tracking
+              </h4>
+              <p 
+                className="text-xs"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 Monitor sleep quality and recovery
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+            <div 
+              className="p-4 rounded-lg"
+              style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+            >
               <div className="text-2xl mb-2">❤️</div>
-              <h4 className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>Heart Rate Zones</h4>
-              <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+              <h4 
+                className="font-medium"
+                style={{ color: 'var(--color-text)' }}
+              >
+                Heart Rate Zones
+              </h4>
+              <p 
+                className="text-xs"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 Optimize training intensity
               </p>
             </div>
             
-            <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+            <div 
+              className="p-4 rounded-lg"
+              style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+            >
               <div className="text-2xl mb-2">🔋</div>
-              <h4 className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>Recovery Insights</h4>
-              <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+              <h4 
+                className="font-medium"
+                style={{ color: 'var(--color-text)' }}
+              >
+                Recovery Insights
+              </h4>
+              <p 
+                className="text-xs"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
                 Know when to push or recover
               </p>
             </div>
@@ -135,68 +181,121 @@ export function WhoopIntegrationSection() {
         <>
           {/* Recovery Overview */}
           <div className="mb-6">
-            <h3 className={subtitleClass}>Today's Recovery</h3>
+            <h3 
+              className={subtitleClass}
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Today's Recovery
+            </h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Recovery Score */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div 
+                className="p-4 rounded-lg"
+                style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+              >
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">{getRecoveryEmoji(mockRecoveryData.recovery)}</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 
+                    className="text-xs font-medium"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
                     Recovery
                   </h4>
                 </div>
-                <p className={`text-2xl font-bold ${getRecoveryColor(mockRecoveryData.recovery)}`}>
+                <p 
+                  className="text-2xl font-bold"
+                  style={{ color: getRecoveryColor(mockRecoveryData.recovery) }}
+                >
                   {mockRecoveryData.recovery}%
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                <p 
+                  className="text-xs"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
                   Ready to train
                 </p>
               </div>
 
               {/* Strain */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div 
+                className="p-4 rounded-lg"
+                style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+              >
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">{getStrainEmoji(mockRecoveryData.strain)}</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 
+                    className="text-xs font-medium"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
                     Strain
                   </h4>
                 </div>
-                <p className="text-2xl font-bold text-orange-500">
+                <p 
+                  className="text-2xl font-bold"
+                  style={{ color: 'var(--color-warning)' }}
+                >
                   {mockRecoveryData.strain}
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                <p 
+                  className="text-xs"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
                   Target: 15-18
                 </p>
               </div>
 
               {/* Sleep Score */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div 
+                className="p-4 rounded-lg"
+                style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+              >
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">😴</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 
+                    className="text-xs font-medium"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
                     Sleep
                   </h4>
                 </div>
-                <p className="text-2xl font-bold text-blue-500">
+                <p 
+                  className="text-2xl font-bold"
+                  style={{ color: 'var(--color-info)' }}
+                >
                   {mockRecoveryData.sleep.score}%
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                <p 
+                  className="text-xs"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
                   {mockRecoveryData.sleep.hours}h slept
                 </p>
               </div>
 
               {/* HRV */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div 
+                className="p-4 rounded-lg"
+                style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+              >
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">📊</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 
+                    className="text-xs font-medium"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
                     HRV
                   </h4>
                 </div>
-                <p className="text-2xl font-bold text-purple-500">
+                <p 
+                  className="text-2xl font-bold"
+                  style={{ color: 'var(--color-primary)' }}
+                >
                   {mockRecoveryData.hrv}
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                <p 
+                  className="text-xs"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
                   milliseconds
                 </p>
               </div>
@@ -205,18 +304,32 @@ export function WhoopIntegrationSection() {
 
           {/* Heart Rate Zones */}
           <div className="mb-6">
-            <h3 className={subtitleClass}>Heart Rate Zones (Last Workout)</h3>
-            <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+            <h3 
+              className={subtitleClass}
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Heart Rate Zones (Last Workout)
+            </h3>
+            <div 
+              className="p-4 rounded-lg"
+              style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)' }}
+            >
               <div className="space-y-3">
                 {mockHeartRateZones.map((zone, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 flex-1">
                       <div className={`w-4 h-4 rounded ${zone.color}`}></div>
                       <div>
-                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <p 
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--color-text)' }}
+                        >
                           {zone.zone}
                         </p>
-                        <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                        <p 
+                          className="text-xs"
+                          style={{ color: 'var(--color-text-secondary)' }}
+                        >
                           {zone.label}
                         </p>
                       </div>
@@ -228,7 +341,10 @@ export function WhoopIntegrationSection() {
                           style={{ width: `${zone.percentage}%` }}
                         ></div>
                       </div>
-                      <span className={`text-sm font-medium w-10 text-right ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                      <span 
+                        className="text-sm font-medium w-10 text-right"
+                        style={{ color: 'var(--color-text-secondary)' }}
+                      >
                         {zone.percentage}%
                       </span>
                     </div>
@@ -240,29 +356,58 @@ export function WhoopIntegrationSection() {
 
           {/* Performance Correlation */}
           <div>
-            <h3 className={subtitleClass}>Performance Insights</h3>
+            <h3 
+              className={subtitleClass}
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Performance Insights
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className={`p-4 rounded-lg border-l-4 border-green-500 ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div 
+                className="p-4 rounded-lg border-l-4"
+                style={{
+                  backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)',
+                  borderLeftColor: 'var(--color-success)'
+                }}
+              >
                 <div className="flex items-center space-x-2 mb-2">
                   <span className="text-xl">💡</span>
-                  <h4 className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                  <h4 
+                    className="font-medium"
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     Training Recommendation
                   </h4>
                 </div>
-                <p className={`text-sm ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                <p 
+                  className="text-sm"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
                   Your recovery is good (68%). Today is a great day for strength training. 
                   Consider targeting 15-18 strain for optimal adaptation.
                 </p>
               </div>
 
-              <div className={`p-4 rounded-lg border-l-4 border-blue-500 ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div 
+                className="p-4 rounded-lg border-l-4"
+                style={{
+                  backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 95%, var(--color-border) 5%)',
+                  borderLeftColor: 'var(--color-info)'
+                }}
+              >
                 <div className="flex items-center space-x-2 mb-2">
                   <span className="text-xl">📈</span>
-                  <h4 className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                  <h4 
+                    className="font-medium"
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     Weekly Trend
                   </h4>
                 </div>
-                <p className={`text-sm ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                <p 
+                  className="text-sm"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
                   Your average recovery this week is 64%, up 8% from last week. 
                   Great improvement in sleep consistency!
                 </p>
@@ -273,10 +418,16 @@ export function WhoopIntegrationSection() {
       )}
 
       {/* Coming Soon Banner */}
-      <div className={`mt-6 p-3 rounded-lg border-2 border-dashed ${isDark ? "border-gray-600" : "border-gray-300"}`}>
+      <div 
+        className="mt-6 p-3 rounded-lg border-2 border-dashed"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
         <div className="flex items-center justify-center space-x-2">
           <span className="text-lg">🚧</span>
-          <p className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+          <p 
+            className="text-sm font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             WHOOP Integration coming in a future update. This is a preview of planned features.
           </p>
         </div>

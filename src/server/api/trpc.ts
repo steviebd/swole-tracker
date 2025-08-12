@@ -66,10 +66,40 @@ export const t = initTRPC.context<TRPCContext>().create({
   errorFormatter({ shape, error, ctx, path, type }) {
     // Attach requestId and normalized error info for easier troubleshooting
     const requestId = ctx?.requestId;
+    const isProduction = process.env.NODE_ENV === "production";
+    
+    // Sanitize error messages for production to prevent information disclosure
+    const sanitizeMessage = (message: string): string => {
+      if (!isProduction) return message;
+      
+      // In production, sanitize potentially sensitive error messages
+      const sensitivePatterns = [
+        /invalid input syntax for type/i,
+        /duplicate key value violates/i,
+        /relation ".*" does not exist/i,
+        /column ".*" does not exist/i,
+        /database connection/i,
+        /connection terminated/i,
+        /authentication failed/i,
+        /role ".*" does not exist/i,
+      ];
+      
+      for (const pattern of sensitivePatterns) {
+        if (pattern.test(message)) {
+          return "Database operation failed. Please contact support.";
+        }
+      }
+      
+      // Remove potential file paths and internal references
+      return message
+        .replace(/\/[a-zA-Z0-9_\-./]+\.(js|ts|tsx|jsx)/g, "[file]")
+        .replace(/at [a-zA-Z0-9_\-.]+\./g, "at [function].")
+        .replace(/Error: /g, "");
+    };
 
     const formatted = {
       ...shape,
-      message: shape.message,
+      message: sanitizeMessage(shape.message),
       data: {
         ...shape.data,
         requestId,

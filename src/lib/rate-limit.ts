@@ -1,6 +1,6 @@
 import { db } from "~/server/db";
 import { rateLimits } from "~/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -75,7 +75,7 @@ export async function checkRateLimit(
 }
 
 export async function cleanupExpiredRateLimits(): Promise<void> {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const cutoffTime = new Date(Date.now() - 60 * 60 * 1000);
 
-  await db.delete(rateLimits).where(eq(rateLimits.windowStart, oneHourAgo));
+  await db.delete(rateLimits).where(lt(rateLimits.windowStart, cutoffTime));
 }

@@ -117,10 +117,13 @@ export function WhoopConnection() {
 
           {integrationStatus?.isConnected ? (
             <div className="space-y-4">
-              <div className="text-emerald-400">
+              <div style={{ color: 'var(--color-success)' }}>
                 Connected to Whoop
                 {integrationStatus.connectedAt && (
-                  <div className="text-muted text-sm">
+                  <div 
+                    className="text-sm"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
                     Since {formatDate(new Date(integrationStatus.connectedAt))}
                   </div>
                 )}
@@ -134,7 +137,10 @@ export function WhoopConnection() {
                   {syncLoading ? "Syncing..." : "Sync with Whoop"}
                 </button>
                 {rateLimit && (
-                  <div className="text-muted mt-2 text-center text-xs">
+                  <div 
+                    className="mt-2 text-center text-xs"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
                     {rateLimit.remaining > 0
                       ? `${rateLimit.remaining} syncs remaining this hour`
                       : `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`}
@@ -151,7 +157,7 @@ export function WhoopConnection() {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-secondary">
+              <p style={{ color: 'var(--color-text-secondary)' }}>
                 Sync your Whoop workout metrics with your workout data to
                 optimize your training schedule.
               </p>
@@ -171,14 +177,19 @@ export function WhoopConnection() {
       {message && (
         <div className="flex justify-center">
           <div
-            className={`card max-w-md p-4 ${message.type === "success" ? "border-emerald-700" : "border-rose-700"}`}
+            className="card max-w-md p-4"
+            style={{
+              borderColor: message.type === "success" 
+                ? 'var(--color-success)'
+                : 'var(--color-danger)'
+            }}
           >
             <div
-              className={
-                message.type === "success"
-                  ? "text-emerald-300"
-                  : "text-rose-300"
-              }
+              style={{
+                color: message.type === "success"
+                  ? 'var(--color-success)'
+                  : 'var(--color-danger)'
+              }}
             >
               {message.text}
             </div>

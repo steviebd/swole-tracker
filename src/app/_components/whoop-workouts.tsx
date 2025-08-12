@@ -223,7 +223,7 @@ export function WhoopWorkouts() {
         <div className="card max-w-md rounded-lg p-6 text-center">
           {integrationStatus?.isConnected ? (
             <div className="space-y-4">
-              <div className="text-green-700 dark:text-green-400">
+              <div style={{ color: 'var(--color-success)' }}>
                 ✅ Connected to Whoop
               </div>
               <button
@@ -243,7 +243,7 @@ export function WhoopWorkouts() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-red-600 dark:text-red-400">
+              <div style={{ color: 'var(--color-danger)' }}>
                 ❌ Not connected to Whoop
               </div>
               <Link
@@ -261,21 +261,35 @@ export function WhoopWorkouts() {
       {message && (
         <div className="flex justify-center">
           <div
-            className={`max-w-md rounded-lg border p-4 ${
-              message.type === "success"
-                ? "border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-100"
-                : "border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100"
-            }`}
+            className="max-w-md rounded-lg border p-4"
+            style={{
+              backgroundColor: message.type === "success" 
+                ? 'color-mix(in oklab, var(--color-success) 15%, var(--color-bg-surface) 85%)'
+                : 'color-mix(in oklab, var(--color-danger) 15%, var(--color-bg-surface) 85%)',
+              borderColor: message.type === "success" 
+                ? 'var(--color-success)'
+                : 'var(--color-danger)',
+              color: message.type === "success" 
+                ? 'var(--color-success)'
+                : 'var(--color-danger)'
+            }}
           >
             <div className="flex items-start justify-between">
               <p className="text-sm">{message.text}</p>
               <button
                 onClick={() => setMessage(null)}
-                className={`ml-4 text-lg leading-none ${
-                  message.type === "success"
-                    ? "text-green-500 hover:text-green-700"
-                    : "text-red-500 hover:text-red-700"
-                }`}
+                className="ml-4 text-lg leading-none transition-colors"
+                style={{
+                  color: message.type === "success" 
+                    ? 'var(--color-success)'
+                    : 'var(--color-danger)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
                 aria-label="Dismiss message"
               >
                 ×
@@ -316,7 +330,19 @@ export function WhoopWorkouts() {
                   id="sport-filter"
                   value={sportFilter}
                   onChange={(e) => setSportFilter(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  className="rounded-lg border px-3 py-2 text-sm transition-colors focus:outline-none"
+                  style={{
+                    backgroundColor: 'var(--color-bg-surface)',
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text)',
+                    boxShadow: '0 0 0 2px color-mix(in oklab, var(--color-primary) 50%, transparent)'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = 'var(--shadow-focus)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
                   <option value="all">All Sports</option>
                   {uniqueSports.map((sport) => (
@@ -327,7 +353,18 @@ export function WhoopWorkouts() {
                 </select>
                 <button
                   onClick={clearPreferences}
-                  className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/30"
+                  className="rounded border px-2 py-1 text-xs transition-colors"
+                  style={{
+                    borderColor: 'var(--color-danger)',
+                    color: 'var(--color-danger)',
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'color-mix(in oklab, var(--color-danger) 15%, transparent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                   title="Clear corrupted localStorage data"
                 >
                   Reset Prefs

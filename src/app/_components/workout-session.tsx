@@ -523,12 +523,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     return (
       <div className="space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg bg-gray-800 p-4">
-            <div className="mb-4 h-4 w-1/2 rounded bg-gray-700"></div>
+          <div key={i} className="animate-pulse rounded-lg p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
+            <div className="mb-4 h-4 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="h-10 rounded bg-gray-700"></div>
-              <div className="h-10 rounded bg-gray-700"></div>
-              <div className="h-10 rounded bg-gray-700"></div>
+              <div className="h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+              <div className="h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+              <div className="h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
             </div>
           </div>
         ))}
@@ -546,8 +546,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           aria-atomic="true"
           className={`sticky top-4 z-50 rounded-lg p-4 shadow-lg ${
             notification.type === "error"
-              ? "border border-red-700 bg-red-900 text-red-100"
-              : "border border-green-700 bg-green-900 text-green-100"
+              ? `border-red-700 bg-red-900 text-red-100`
+              : `border-green-700 bg-green-900 text-green-100`
+          }"
+          style={{
+            borderColor: notification.type === "error" ? "var(--color-danger)" : "var(--color-success)",
+            backgroundColor: notification.type === "error" 
+              ? "color-mix(in oklch, var(--color-danger) 20%, var(--color-bg-surface) 80%)"
+              : "color-mix(in oklch, var(--color-success) 20%, var(--color-bg-surface) 80%)",
+            color: "var(--color-text)"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -768,7 +775,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   vibrateSafe(10);
                 }}
                 disabled={deleteWorkout.isPending}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold transition-colors hover:bg-red-700 disabled:opacity-50"
+                className="btn-destructive px-4 py-2 text-sm font-semibold disabled:opacity-50"
                 aria-describedby="delete-workout-help"
               >
                 {deleteWorkout.isPending ? "Deleting…" : "Delete Workout"}
@@ -793,13 +800,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={deleteWorkout.isPending}
-            className="w-full rounded-lg bg-red-600 py-3 text-lg font-medium transition-colors hover:bg-red-700 disabled:opacity-50"
+            className="btn-destructive w-full py-3 text-lg font-medium disabled:opacity-50"
           >
             {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
           <button
             onClick={() => router.back()}
-            className="w-full rounded-lg bg-gray-700 py-3 text-lg font-medium transition-colors hover:bg-gray-600"
+            className="btn-secondary w-full py-3 text-lg font-medium"
           >
             Back to History
           </button>
@@ -832,7 +839,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             >
               <h3
                 id="delete-workout-title"
-                className="mb-4 text-xl font-bold text-rose-600 dark:text-rose-400"
+                className="mb-4 text-xl font-bold"
+                style={{ color: "var(--color-danger)" }}
               >
                 Delete Workout
               </h3>
@@ -842,7 +850,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               >
                 Are you sure you want to delete this workout?
                 <br />
-                <strong className="text-red-400">
+                <strong style={{ color: "var(--color-danger)" }}>
                   This action cannot be undone.
                 </strong>
               </p>
@@ -852,7 +860,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     restoreFocusInline();
                     setShowDeleteConfirm(false);
                   }}
-                  className="flex-1 rounded-lg bg-gray-200 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="btn-secondary flex-1 py-3 font-medium"
                 >
                   Cancel
                 </button>
@@ -863,7 +871,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     void handleDelete();
                   }}
                   disabled={deleteWorkout.isPending}
-                  className="flex-1 rounded-lg bg-red-600 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                  className="btn-destructive flex-1 py-3 font-medium disabled:opacity-50"
                 >
                   {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
                 </button>
@@ -922,7 +930,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             >
               <h3
                 id="complete-workout-title"
-                className="mb-1 text-xl font-bold text-purple-700 dark:text-purple-300"
+                className="mb-1 text-xl font-bold"
+                style={{ color: "var(--color-primary)" }}
               >
                 Complete Workout
               </h3>
@@ -945,26 +954,24 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     const currWeight = curr.bestWeight?.weight ?? 0;
                     const prevWeight = prev?.weight ?? 0;
                     const weightDelta = currWeight - prevWeight;
-                    const weightBadge =
-                      curr.bestWeight && prev
-                        ? weightDelta > 0
-                          ? "text-green-300"
-                          : weightDelta < 0
-                            ? "text-red-300"
-                            : "text-gray-300"
-                        : "text-gray-300";
+                    const weightBadgeStyle = curr.bestWeight && prev
+                      ? weightDelta > 0
+                        ? { color: "var(--color-success)" }
+                        : weightDelta < 0
+                          ? { color: "var(--color-danger)" }
+                          : { color: "var(--color-text-muted)" }
+                      : { color: "var(--color-text-muted)" };
 
                     const currVol = curr.bestVolume?.volume ?? 0;
                     const prevVol = (prev?.weight ?? 0) * (prev?.reps ?? 0);
                     const volDelta = currVol - prevVol;
-                    const volBadge =
-                      currVol && prev
-                        ? volDelta > 0
-                          ? "text-green-300"
-                          : volDelta < 0
-                            ? "text-red-300"
-                            : "text-gray-300"
-                        : "text-gray-300";
+                    const volBadgeStyle = currVol && prev
+                      ? volDelta > 0
+                        ? { color: "var(--color-success)" }
+                        : volDelta < 0
+                          ? { color: "var(--color-danger)" }
+                          : { color: "var(--color-text-muted)" }
+                      : { color: "var(--color-text-muted)" };
 
                     const fmtSet = (
                       w?: number,
@@ -1000,7 +1007,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                             <div className="text-muted mb-1 text-xs">
                               Current Best
                             </div>
-                            <div className={weightBadge}>
+                            <div style={weightBadgeStyle}>
                               Weight:{" "}
                               {fmtSet(
                                 curr.bestWeight?.weight,
@@ -1017,7 +1024,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                                 </span>
                               ) : null}
                             </div>
-                            <div className={volBadge}>
+                            <div style={volBadgeStyle}>
                               Volume: {curr.bestVolume?.volume ?? "N/A"}
                               {prev ? (
                                 <span className="ml-2 text-xs opacity-80">
@@ -1049,7 +1056,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 </button>
                 <button
                   onClick={closeCompleteModal}
-                  className="flex-1 rounded-lg bg-gray-200 py-3 text-lg font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="btn-secondary flex-1 py-3 text-lg font-medium"
                 >
                   Continue Workout
                 </button>

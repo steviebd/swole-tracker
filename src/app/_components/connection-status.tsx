@@ -15,9 +15,20 @@ export function ConnectionStatus() {
   }
 
   return (
-    <div className="fixed top-0 right-0 left-0 z-50 bg-yellow-600 px-4 py-2 text-center text-sm text-white">
+    <div 
+      className="fixed top-0 right-0 left-0 z-50 px-4 py-2 text-center text-sm"
+      style={{
+        backgroundColor: 'var(--color-warning)',
+        color: '#0b0b0b'
+      }}
+    >
       <span className="inline-flex items-center gap-2">
-        <div className="h-2 w-2 animate-pulse rounded-full bg-yellow-200"></div>
+        <div 
+          className="h-2 w-2 animate-pulse rounded-full"
+          style={{
+            backgroundColor: 'color-mix(in oklab, var(--color-warning) 40%, white 60%)'
+          }}
+        ></div>
         You&apos;re offline. Changes will sync when connection is restored.
       </span>
     </div>

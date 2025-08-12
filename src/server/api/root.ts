@@ -8,6 +8,7 @@ import { webhooksRouter } from "~/server/api/routers/webhooks";
 import { insightsRouter } from "~/server/api/routers/insights";
 import { exercisesRouter } from "~/server/api/routers/exercises";
 import { progressRouter } from "~/server/api/routers/progress";
+import { healthAdviceRouter } from "~/server/api/routers/health-advice";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -26,6 +27,7 @@ export const appRouter = createTRPCRouter({
   exercises: exercisesRouter,
   insights: insightsRouter,
   progress: progressRouter,
+  healthAdvice: healthAdviceRouter,
 });
 
 // export type definition of API

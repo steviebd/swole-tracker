@@ -3,14 +3,12 @@
 import { useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
-import { useTheme } from "~/providers/ThemeProvider";
 import { PreferencesModal } from "./PreferencesModal";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
 
 export function HomePageHeader() {
   const { user } = useUser();
-  const { theme, resolvedTheme } = useTheme();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [progressionOpen, setProgressionOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -18,27 +16,16 @@ export function HomePageHeader() {
   if (!user) return null;
 
   return (
-    <header className={`border-b sticky top-0 z-40 backdrop-blur-md transition-colors duration-300 ${
-      theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-        ? "bg-gray-900/95 border-gray-800" 
-        : "bg-white/95 border-gray-200 dark:bg-gray-950/95 dark:border-gray-800"
-    }`}>
+    <header className="glass-header sticky top-0 z-40"
+      style={{ borderBottomColor: "var(--color-border)" }}>
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Left side - App branding */}
           <div>
-            <h1 className={`text-2xl font-bold transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-white" 
-                : "text-gray-900 dark:text-white"
-            }`}>
+            <h1 className="text-2xl font-bold" style={{ color: "var(--color-text)" }}>
               Swole Tracker
             </h1>
-            <p className={`text-base transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-gray-400" 
-                : "text-gray-600 dark:text-gray-400"
-            }`}>
+            <p className="text-base" style={{ color: "var(--color-text-secondary)" }}>
               Welcome back, {user.firstName ?? user.username}
             </p>
           </div>
@@ -50,11 +37,7 @@ export function HomePageHeader() {
               {/* Progression Button */}
               <button
                 onClick={() => setProgressionOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-                }`}
+                className="btn-ghost p-2 text-sm font-medium rounded-lg"
                 aria-label="View Progression"
                 title="Progression"
               >
@@ -66,11 +49,7 @@ export function HomePageHeader() {
               {/* Settings Button */}
               <button
                 onClick={() => setSettingsOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-                }`}
+                className="btn-ghost p-2 text-sm font-medium rounded-lg"
                 aria-label="Open Settings"
                 title="Settings"
               >
@@ -82,11 +61,7 @@ export function HomePageHeader() {
               {/* Preferences Button */}
               <button
                 onClick={() => setPreferencesOpen(true)}
-                className={`p-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-                }`}
+                className="btn-ghost p-2 text-sm font-medium rounded-lg"
                 aria-label="Open Preferences"
                 title="Preferences"
               >

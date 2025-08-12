@@ -11,7 +11,6 @@ import { SyncIndicator } from "~/app/_components/sync-indicator";
 import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
-import { ThemeSwitcher } from "~/app/_components/theme-switcher";
 import ClientPerfInit from "@/app/_components/ClientPerfInit";
 import LiveRegionProvider from "~/app/_components/LiveRegion";
 
@@ -72,7 +71,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}
       >
-        <body className="page-shell flex min-h-screen flex-col text-gray-900 dark:text-white">
+        <body className="page-shell flex min-h-screen flex-col" style={{ color: "var(--color-text)" }}>
           {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
           <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
           {/* Skip to content link */}
@@ -103,14 +102,16 @@ export default function RootLayout({
 
                   {/* Mobile Bottom Tab Bar */}
                   <nav
-                    className="app-footer fixed inset-x-0 bottom-0 text-gray-300 md:hidden"
+                    className="app-footer fixed inset-x-0 bottom-0 md:hidden"
                     role="navigation"
                     aria-label="Primary"
+                    style={{ color: "var(--color-text-secondary)" }}
                   >
                     <div className="mx-auto grid grid-cols-3">
                       <Link
                         href="/"
-                        className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
+                        className="flex flex-col items-center justify-center py-2 text-xs transition-colors hover:text-[var(--color-text)]"
+                        style={{ color: "var(--color-text-secondary)" }}
                         aria-label="Home"
                         prefetch
                         aria-current={
@@ -124,7 +125,8 @@ export default function RootLayout({
                       </Link>
                       <Link
                         href="/workout/start"
-                        className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
+                        className="flex flex-col items-center justify-center py-2 text-xs transition-colors hover:text-[var(--color-text)]"
+                        style={{ color: "var(--color-text-secondary)" }}
                         aria-label="Start a workout"
                         prefetch
                         aria-current={
@@ -138,7 +140,8 @@ export default function RootLayout({
                       </Link>
                       <Link
                         href="/templates"
-                        className="flex flex-col items-center justify-center py-2 text-xs hover:text-gray-900 dark:hover:text-white"
+                        className="flex flex-col items-center justify-center py-2 text-xs transition-colors hover:text-[var(--color-text)]"
+                        style={{ color: "var(--color-text-secondary)" }}
                         aria-label="Manage templates"
                         prefetch
                         aria-current={
@@ -155,23 +158,23 @@ export default function RootLayout({
 
                   <footer className="app-footer mt-auto py-6">
                     <div className="container mx-auto px-4 text-center">
-                      <div className="flex justify-center space-x-6 text-sm text-gray-300">
+                      <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
                         <Link
                           href="/privacy"
-                          className="link-primary transition-colors duration-200 hover:text-white"
+                          className="link-primary"
                           prefetch
                         >
                           Privacy Policy
                         </Link>
                         <Link
                           href="/terms"
-                          className="link-primary transition-colors duration-200 hover:text-white"
+                          className="link-primary"
                           prefetch
                         >
                           Terms of Service
                         </Link>
                       </div>
-                      <div className="mt-3 text-xs text-gray-500">
+                      <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
                         © 2025 Steven Duong. All rights reserved.
                       </div>
                     </div>
