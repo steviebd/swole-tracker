@@ -63,6 +63,14 @@ export const healthAdviceResponseSchema = z.object({
   warnings: z.array(z.string()),
 });
 
+// Subjective wellness data schema (for users without WHOOP)
+export const subjectiveWellnessSchema = z.object({
+  energyLevel: z.number().min(1).max(10),        // 1-10 subjective energy
+  sleepQuality: z.number().min(1).max(10),       // 1-10 subjective sleep quality
+  recoveryFeeling: z.number().min(1).max(10),    // 1-10 subjective recovery feeling
+  stressLevel: z.number().min(1).max(10),        // 1-10 subjective stress level
+});
+
 // WHOOP metrics schema for utility functions
 export const whoopMetricsSchema = z.object({
   recovery_score: z.number().min(0).max(100).optional(),
@@ -77,4 +85,5 @@ export const whoopMetricsSchema = z.object({
 // TypeScript types inferred from Zod schemas
 export type HealthAdviceRequest = z.infer<typeof healthAdviceRequestSchema>;
 export type HealthAdviceResponse = z.infer<typeof healthAdviceResponseSchema>;
+export type SubjectiveWellnessData = z.infer<typeof subjectiveWellnessSchema>;
 export type WhoopMetrics = z.infer<typeof whoopMetricsSchema>;

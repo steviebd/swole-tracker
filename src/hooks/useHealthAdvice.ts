@@ -3,6 +3,8 @@ import { useState, useCallback, useEffect } from 'react';
 import type { HealthAdviceRequest, HealthAdviceResponse } from '~/server/api/schemas/health-advice';
 import { trackHealthAdviceUsage, trackHealthAdviceError, trackHealthAdvicePerformance } from '~/lib/analytics/health-advice';
 import { api } from '~/trpc/react';
+import type { SubjectiveWellnessData } from '~/lib/subjective-wellness-mapper';
+import { createWhoopDataWithDefaults } from '~/lib/subjective-wellness-mapper';
 
 export function useHealthAdvice(sessionId?: number) {
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,9 @@ export function useHealthAdvice(sessionId?: number) {
     { sessionId: sessionId! },
     { enabled: !!sessionId }
   );
+  
+  // WHOOP integration status
+  const { data: whoopStatus } = api.whoop.getIntegrationStatus.useQuery();
 
   // Load existing advice if available
   useEffect(() => {
@@ -25,6 +30,19 @@ export function useHealthAdvice(sessionId?: number) {
       setAcceptedSuggestions(existingAdvice.user_accepted_suggestions);
     }
   }, [existingAdvice, advice]);
+
+  const fetchAdviceWithSubjectiveData = useCallback(async (
+    request: Omit<HealthAdviceRequest, 'whoop'>,
+    subjectiveData: SubjectiveWellnessData
+  ) => {
+    const whoopData = createWhoopDataWithDefaults(subjectiveData);
+    const fullRequest: HealthAdviceRequest = {
+      ...request,
+      whoop: whoopData,
+    };
+    
+    return fetchAdvice(fullRequest);
+  }, [sessionId, saveHealthAdvice, acceptedSuggestions]);
 
   const fetchAdvice = useCallback(async (request: HealthAdviceRequest) => {
     setLoading(true);
@@ -170,9 +188,15 @@ export function useHealthAdvice(sessionId?: number) {
     error, 
     acceptedSuggestions,
     fetchAdvice, 
+    fetchAdviceWithSubjectiveData,
     clearAdvice, 
     acceptSuggestion, 
     rejectSuggestion,
     hasExistingAdvice: !!existingAdvice,
+    whoopStatus: {
+      isConnected: whoopStatus?.isConnected ?? false,
+      hasIntegration: !!whoopStatus,
+      connectedAt: whoopStatus?.connectedAt ?? null,
+    },
   };
 }

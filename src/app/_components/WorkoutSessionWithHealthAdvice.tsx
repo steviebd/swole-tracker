@@ -7,8 +7,10 @@ import { ReadinessIndicator } from '~/app/_components/health-advice/ReadinessInd
 import { SetSuggestions } from '~/app/_components/health-advice/SetSuggestions';
 import { ProbabilityGauge } from '~/app/_components/health-advice/ProbabilityGauge';
 import { AISummary } from '~/app/_components/health-advice/AISummary';
+import { SubjectiveWellnessModal } from '~/app/_components/health-advice/SubjectiveWellnessModal';
 import { useHealthAdvice } from '~/hooks/useHealthAdvice';
 import type { HealthAdviceRequest } from '~/server/api/schemas/health-advice';
+import type { SubjectiveWellnessData } from '~/lib/subjective-wellness-mapper';
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -39,13 +41,17 @@ export function WorkoutSessionWithHealthAdvice({
   priorBests
 }: WorkoutSessionWithHealthAdviceProps) {
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
+  const [showWellnessModal, setShowWellnessModal] = useState(false);
   const [_acceptedSuggestions, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
+  
   const { 
     advice, 
     loading, 
     error, 
     fetchAdvice, 
-    hasExistingAdvice 
+    fetchAdviceWithSubjectiveData,
+    hasExistingAdvice,
+    whoopStatus
   } = useHealthAdvice(sessionId);
 
   // Mock data for demonstration - in real implementation, this would come from props
@@ -111,16 +117,42 @@ export function WorkoutSessionWithHealthAdvice({
   }, [hasExistingAdvice, advice]);
 
   const handleGetHealthAdvice = async () => {
-    const request: HealthAdviceRequest = {
+    // Check if user has WHOOP connected
+    if (whoopStatus.isConnected) {
+      // User has WHOOP - use actual WHOOP data
+      const request: HealthAdviceRequest = {
+        session_id: sessionId.toString(),
+        user_profile: mockUserProfile,
+        whoop: mockWhoopData,
+        workout_plan: mockWorkoutPlan,
+        prior_bests: mockPriorBests
+      };
+
+      await fetchAdvice(request);
+      setShowHealthAdvice(true);
+    } else {
+      // User doesn't have WHOOP - show wellness modal
+      setShowWellnessModal(true);
+    }
+  };
+
+  const handleSubjectiveWellnessSubmit = async (subjectiveData: SubjectiveWellnessData) => {
+    setShowWellnessModal(false);
+    
+    const request = {
       session_id: sessionId.toString(),
       user_profile: mockUserProfile,
-      whoop: mockWhoopData,
       workout_plan: mockWorkoutPlan,
       prior_bests: mockPriorBests
     };
 
-    await fetchAdvice(request);
+    await fetchAdviceWithSubjectiveData(request, subjectiveData);
     setShowHealthAdvice(true);
+  };
+
+  const handleConnectWhoop = () => {
+    // Redirect to WHOOP connection page
+    window.open('/connect-whoop', '_blank');
   };
 
   const handleAcceptSuggestion = (setId: string, suggestion: { weight?: number; reps?: number }) => {
@@ -150,8 +182,8 @@ export function WorkoutSessionWithHealthAdvice({
           {loading 
             ? 'Getting AI Advice...' 
             : hasExistingAdvice 
-              ? '🔄 Refresh Health Advice' 
-              : '🤖 Get Health Advice'
+              ? '🔄 Refresh Workout Intelligence' 
+              : '🤖 Get Workout Intelligence'
           }
         </Button>
       </div>
@@ -206,6 +238,16 @@ export function WorkoutSessionWithHealthAdvice({
           <p>{error}</p>
         </div>
       )}
+
+      {/* Subjective Wellness Modal */}
+      <SubjectiveWellnessModal
+        isOpen={showWellnessModal}
+        onClose={() => setShowWellnessModal(false)}
+        onSubmit={handleSubjectiveWellnessSubmit}
+        hasWhoopIntegration={whoopStatus.hasIntegration}
+        isWhoopConnected={whoopStatus.isConnected}
+        onConnectWhoop={handleConnectWhoop}
+      />
 
       {/* Original Workout Session */}
       <WorkoutSession sessionId={sessionId} />
