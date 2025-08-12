@@ -18,16 +18,16 @@ export default async function ExercisesPage() {
   return (
     <HydrateClient>
       <main className="min-h-screen">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container-default py-6">
           {/* Header */}
-          <div className="mb-6 flex items-center gap-4">
+          <div className="mb-6 flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 gap-4">
             <Link
               href="/templates"
               className="text-purple-400 hover:text-purple-300"
             >
               ← Back to Templates
             </Link>
-            <h1 className="text-2xl font-bold">Exercise Management</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Exercise Management</h1>
           </div>
 
           {/* Exercise Manager */}
