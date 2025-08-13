@@ -1,6 +1,7 @@
 import { vibrate as navigatorVibrate } from "~/lib/navigator-api";
-import { getDeviceType as detectDeviceType } from "~/lib/device-detection";
-import { getThemePreference as detectThemePreference } from "~/lib/theme-detection";
+// Unused imports for potential future use
+// import { getDeviceType as detectDeviceType } from "~/lib/device-detection";
+// import { getThemePreference as detectThemePreference } from "~/lib/theme-detection";
 
 // Input latency tracking state
 let inputLatencySamples: number[] = [];

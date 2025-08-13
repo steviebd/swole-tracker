@@ -13,7 +13,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const router = useRouter();
+  const _router = useRouter();
 
   const supabase = createBrowserSupabaseClient();
 
@@ -52,7 +52,7 @@ export default function RegisterPage() {
       setMessage(
         "Check your email for a verification link to complete your registration."
       );
-    } catch (err) {
+    } catch (_err) {
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);

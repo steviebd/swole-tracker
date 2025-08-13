@@ -115,8 +115,8 @@ export function useWorkoutSessionState({
   };
 
   // display order
-  const getDisplayOrder = () =>
-    exercises.map((exercise, index) => ({ exercise, originalIndex: index }));
+  const getDisplayOrder = useCallback(() =>
+    exercises.map((exercise, index) => ({ exercise, originalIndex: index })), [exercises]);
 
   // drag + reorder
   const displayOrder = useMemo(() => getDisplayOrder(), [getDisplayOrder]);

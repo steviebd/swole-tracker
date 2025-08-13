@@ -99,7 +99,7 @@ export default function RootLayout({
                     role="main"
                     tabIndex={-1}
                   >
-                    <div className="grid gap-3 sm:gap-4 md:gap-6 w-full min-w-0">{children}</div>
+                    <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
                   </main>
 
                   {/* Mobile Bottom Tab Bar */}

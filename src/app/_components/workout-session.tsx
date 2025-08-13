@@ -34,9 +34,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // This MUST be called before any conditional returns to follow Rules of Hooks
   const {
     exercises,
-    setExercises,
+    setExercises: _setExercises,
     expandedExercises,
-    setExpandedExercises,
+    setExpandedExercises: _setExpandedExercises,
     loading,
     isReadOnly,
     showDeleteConfirm,

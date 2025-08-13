@@ -27,10 +27,15 @@ describe("tRPC progress router additional coverage (integration, mocked ctx/db)"
     });
 
     it("should handle database errors gracefully", async () => {
+      const mockQuery = {
+        from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockRejectedValue(new Error("Database error")),
+      };
+
       const db = {
-        select: vi.fn(() => {
-          throw new Error("Database error");
-        }),
+        select: vi.fn().mockReturnValue(mockQuery),
       } as any;
 
       const caller = createCaller({ user: { id: mockUserId }, db });
@@ -85,10 +90,15 @@ describe("tRPC progress router additional coverage (integration, mocked ctx/db)"
 
   describe("getVolumeProgression edge cases", () => {
     it("should handle database errors gracefully", async () => {
+      const mockQuery = {
+        from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockRejectedValue(new Error("Database error")),
+      };
+
       const db = {
-        select: vi.fn(() => {
-          throw new Error("Database error");
-        }),
+        select: vi.fn().mockReturnValue(mockQuery),
       } as any;
 
       const caller = createCaller({ user: { id: mockUserId }, db });
@@ -125,10 +135,14 @@ describe("tRPC progress router additional coverage (integration, mocked ctx/db)"
 
   describe("getConsistencyStats edge cases", () => {
     it("should handle database errors gracefully", async () => {
+      const mockQuery = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockRejectedValue(new Error("Database error")),
+      };
+
       const db = {
-        select: vi.fn(() => {
-          throw new Error("Database error");
-        }),
+        select: vi.fn().mockReturnValue(mockQuery),
       } as any;
 
       const caller = createCaller({ user: { id: mockUserId }, db });

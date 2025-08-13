@@ -95,12 +95,13 @@ export function useAuth() {
 if (typeof window !== 'undefined') {
   (window as any).debugAuth = {
     clearAuth: () => {
-      const { clearSupabaseAuth } = require('~/lib/supabase-browser');
-      clearSupabaseAuth();
-      window.location.reload();
+      import('~/lib/supabase-browser').then(({ clearSupabaseAuth }) => {
+        clearSupabaseAuth();
+        window.location.reload();
+      });
     },
     checkAuth: async () => {
-      const { createBrowserSupabaseClient } = require('~/lib/supabase-browser');
+      const { createBrowserSupabaseClient } = await import('~/lib/supabase-browser');
       const supabase = createBrowserSupabaseClient();
       const { data, error } = await supabase.auth.getSession();
       console.log('Current auth state:', { data, error });
@@ -108,7 +109,7 @@ if (typeof window !== 'undefined') {
     },
     migrateToSSR: async () => {
       console.log('Migrating auth from localStorage to SSR cookies...');
-      const { createBrowserSupabaseClient, clearSupabaseAuth } = require('~/lib/supabase-browser');
+      const { createBrowserSupabaseClient, clearSupabaseAuth } = await import('~/lib/supabase-browser');
       
       // Get current session from localStorage
       const oldSupabase = await import('@supabase/supabase-js');

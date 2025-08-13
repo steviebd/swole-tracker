@@ -458,7 +458,7 @@ export function VolumeTrackingSection() {
                     Most Common Set × Rep Combinations
                   </h4>
                   <div className="space-y-2">
-                    {setRepData.mostCommonSetRep.slice(0, 6).map((combo, index) => (
+                    {setRepData.mostCommonSetRep.slice(0, 6).map((combo) => (
                       <div key={`${combo.sets}x${combo.reps}`} className="flex items-center justify-between">
                         <span className="text-xs font-medium text-[var(--color-text)]">
                           {combo.sets} × {combo.reps}
@@ -531,7 +531,7 @@ export function VolumeTrackingSection() {
                     Most Common Rep Counts
                   </h4>
                   <div className="space-y-2">
-                    {setRepData.repDistribution.slice(0, 6).map((item, index) => (
+                    {setRepData.repDistribution.slice(0, 6).map((item) => (
                       <div key={item.reps} className="flex items-center justify-between">
                         <span className="text-xs font-medium text-[var(--color-text)]">
                           {item.reps} reps

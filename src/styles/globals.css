@@ -135,6 +135,38 @@ html.dark {
   @apply min-w-max w-full;
 }
 
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 640px) {
+  .grid {
+    min-width: 0;
+  }
+  
+  .flex {
+    min-width: 0;
+  }
+  
+  /* Ensure text truncates properly on mobile */
+  .mobile-truncate {
+    @apply truncate;
+    max-width: 0;
+    min-width: 0;
+    flex: 1;
+  }
+  
+  /* Mobile-first gap adjustments for cards */
+  .mobile-grid {
+    @apply grid gap-2;
+  }
+  
+  .mobile-grid.sm\\:gap-3 {
+    gap: 0.5rem;
+  }
+  
+  .mobile-grid.md\\:gap-4 {
+    gap: 0.75rem;
+  }
+}
+
 /* Reduce motion respect */
 @media (prefers-reduced-motion: reduce) {
   * {

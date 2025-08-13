@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useTheme } from "~/providers/ThemeProvider";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
 
 interface SettingsModalProps {
@@ -10,7 +9,6 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const { theme } = useTheme();
   const { restoreFocus } = useReturnFocus();
   const firstFocusRef = useRef<HTMLButtonElement>(null);
   const [notifications, setNotifications] = useState(true);

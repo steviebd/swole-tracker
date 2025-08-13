@@ -439,14 +439,14 @@ export async function getLinkedExerciseNames(db: any, templateExerciseId: number
           },
         });
 
-        return linkedExercises.map((link: typeof linkedExercises[0]) => link.templateExercise.exerciseName);
+        return linkedExercises.map((link: typeof linkedExercises[0]) => link.templateExercise.exerciseName as string);
       } else {
         // Fallback to getting exercise name from templateExerciseId using queryOne if available (for mocks)
         if (typeof db.queryOne === 'function') {
           try {
             const templateExercise = await db.queryOne();
-            return templateExercise ? [templateExercise.exerciseName] : [];
-          } catch (error) {
+            return templateExercise ? [templateExercise.exerciseName as string] : [];
+          } catch (_error) {
             // If queryOne fails, continue to normal query
           }
         }
@@ -457,8 +457,8 @@ export async function getLinkedExerciseNames(db: any, templateExerciseId: number
             where: eq(templateExercises.id, templateExerciseId),
           });
           
-          return templateExercise ? [templateExercise.exerciseName] : [];
-        } catch (error) {
+          return templateExercise ? [templateExercise.exerciseName as string] : [];
+        } catch (_error) {
           // If normal query fails, return empty array
           return [];
         }
@@ -473,7 +473,17 @@ export async function getLinkedExerciseNames(db: any, templateExerciseId: number
   }
 }
 
-export function processTopSets(progressData: any[]): Array<{
+type ProgressDataRow = {
+  workoutDate: Date;
+  exerciseName: string;
+  weight: number;
+  reps: number;
+  sets: number;
+  unit: string;
+  oneRMEstimate: number;
+};
+
+export function processTopSets(progressData: ProgressDataRow[]): Array<{
   workoutDate: Date;
   exerciseName: string;
   weight: number;
@@ -490,9 +500,9 @@ export function processTopSets(progressData: any[]): Array<{
     }
     acc[key].push(row);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, ProgressDataRow[]>);
 
-  const topSets = (Object.values(grouped) as any[][]).map((group) => {
+  const topSets = Object.values(grouped).map((group) => {
     // Sort by weight descending and get the top set
     const sortedByWeight = group.sort((a, b) => {
       const weightA = parseFloat(a.weight || "0");
@@ -685,13 +695,13 @@ export async function calculatePersonalRecords(
     if (exerciseData.length === 0) continue;
 
     // Only when exerciseData has data (even with empty values) do we return default records
-    const weightPR = exerciseData.reduce((max: any, current: any) => {
+    const weightPR = exerciseData.reduce((max: typeof exerciseData[0], current: typeof exerciseData[0]) => {
       const currentWeight = parseFloat(current.weight || "0");
       const maxWeight = parseFloat(max.weight || "0");
       return currentWeight > maxWeight ? current : max;
     });
 
-    const volumePR = exerciseData.reduce((max: any, current: any) => {
+    const volumePR = exerciseData.reduce((max: typeof exerciseData[0], current: typeof exerciseData[0]) => {
       const currentVolume = parseFloat(current.weight || "0") * (current.reps || 0) * (current.sets || 1);
       const maxVolume = parseFloat(max.weight || "0") * (max.reps || 0) * (max.sets || 1);
       return currentVolume > maxVolume ? current : max;
