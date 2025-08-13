@@ -71,11 +71,7 @@ export function StatsCards() {
       : "text-gray-600 dark:text-gray-400"
   }`;
 
-  const valueClass = `text-2xl font-bold transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-white" 
-      : "text-gray-900 dark:text-white"
-  }`;
+  
 
   if (isLoading) {
     return (

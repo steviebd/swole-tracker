@@ -22,7 +22,7 @@ const THEME_OPTIONS = [
 ] as const;
 
 export function ThemeToggleDropdown() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

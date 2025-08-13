@@ -621,8 +621,8 @@ export const workoutsRouter = createTRPCRouter({
         console.log(`Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`);
         
         // Parse setId to extract set index (format: "{exercise_name}_set_{index}")
-        const setIdMatch = update.setId.match(/_set_(\d+)$/);
-        if (!setIdMatch || !setIdMatch[1]) {
+        const setIdMatch = /_set_(\d+)$/.exec(update.setId);
+        if (!setIdMatch?.[1]) {
           console.warn(`Invalid setId format: ${update.setId}`);
           continue;
         }

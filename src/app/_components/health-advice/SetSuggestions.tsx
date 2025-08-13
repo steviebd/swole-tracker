@@ -28,8 +28,8 @@ function cx(...args: Array<string | false | null | undefined>) {
 
 export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggestion, sessionId }: SetSuggestionsProps) {
   const [acceptedSets, setAcceptedSets] = useState<Set<string>>(new Set());
-  const [progressionPreference, setProgressionPreference] = useState<ProgressionPreference>('ai_recommended');
-  const [showAlternatives, setShowAlternatives] = useState<{ [setId: string]: boolean }>({});
+  const [, setProgressionPreference] = useState<ProgressionPreference>('ai_recommended');
+  const [showAlternatives, setShowAlternatives] = useState<Record<string, boolean>>({});
 
   // Generate alternative suggestions based on progression preference
   const generateAlternatives = (originalWeight: number, originalReps: number): AlternativeSuggestion[] => {

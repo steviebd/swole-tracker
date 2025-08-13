@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
   const redirectTo = requestUrl.searchParams.get("redirect_to") ?? "/";
 
   if (code) {
-    let response = NextResponse.redirect(`${origin}${redirectTo}`);
-    let cookiesSet: Array<{name: string, value: string, options?: any}> = [];
+    const response = NextResponse.redirect(`${origin}${redirectTo}`);
+    const cookiesSet: Array<{name: string, value: string, options?: any}> = [];
 
     const supabase = createServerClient(
       env.NEXT_PUBLIC_SUPABASE_URL,

@@ -12,7 +12,7 @@ export async function createServerSupabaseClient(): Promise<SupabaseClient> {
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // In test, avoid importing real server auth behaviors; just construct a client
-  if (process.env.NODE_ENV === "test") {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST) {
     const { createClient } = await import("@supabase/supabase-js");
     return createClient(supabaseUrl, supabaseAnonKey);
   }

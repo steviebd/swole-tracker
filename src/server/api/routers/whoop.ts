@@ -184,6 +184,11 @@ export const whoopRouter = createTRPCRouter({
         },
       };
     } catch (error) {
+      // Re-throw TRPC errors as-is
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+      
       console.error("Failed to fetch WHOOP recovery data:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",

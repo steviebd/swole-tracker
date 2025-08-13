@@ -83,13 +83,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
     });
   };
 
-  const getPRIcon = (recordType: string) => {
-    switch (recordType) {
-      case "weight": return "🏋️";
-      case "volume": return "📊";
-      default: return "🏆";
-    }
-  };
+  
 
   const getPRBadgeColor = (recordType: string) => {
     switch (recordType) {

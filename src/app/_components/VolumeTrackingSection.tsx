@@ -18,7 +18,7 @@ export function VolumeTrackingSection() {
   });
 
   // Get exercise-specific volume data
-  const { isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
+  const { } = api.progress.getExerciseList.useQuery();
   
   // Get volume breakdown by exercise
   const { data: volumeByExercise, isLoading: volumeByExerciseLoading } = api.progress.getVolumeByExercise.useQuery({
@@ -166,19 +166,19 @@ export function VolumeTrackingSection() {
                 )}
                 
                 {/* Data line and points */}
-                {chartData.map((point, index) => {
-                  const x = (index / Math.max(1, chartData.length - 1)) * 360 + 20;
+                {chartData.map((point, _index) => {
+                  const x = (_index / Math.max(1, chartData.length - 1)) * 360 + 20;
                   const y = 180 - ((point[selectedMetric] - minValue) / range) * 160;
                   
                   return (
-                    <g key={index}>
+                    <g key={_index}>
                       {/* Line to next point */}
-                      {index < chartData.length - 1 && (
+                      {_index < chartData.length - 1 && (
                         <line
                           x1={x}
                           y1={y}
-                          x2={(index + 1) / Math.max(1, chartData.length - 1) * 360 + 20}
-                          y2={180 - ((chartData[index + 1]![selectedMetric] - minValue) / range) * 160}
+                          x2={(_index + 1) / Math.max(1, chartData.length - 1) * 360 + 20}
+                          y2={180 - ((chartData[_index + 1]![selectedMetric] - minValue) / range) * 160}
                           stroke={metricConfig[selectedMetric].color}
                           strokeWidth="3"
                         />
