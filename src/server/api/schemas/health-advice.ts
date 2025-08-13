@@ -24,16 +24,16 @@ export const healthAdviceRequestSchema = z.object({
       tags: z.array(z.enum(['strength', 'hypertrophy', 'endurance'])),
       sets: z.array(z.object({
         set_id: z.string(),
-        target_reps: z.number().positive().optional(),
-        target_weight_kg: z.number().positive().optional(),
-        target_rpe: z.number().min(1).max(10).optional(),
+        target_reps: z.number().positive().optional().nullable(),
+        target_weight_kg: z.number().positive().optional().nullable(),
+        target_rpe: z.number().min(1).max(10).optional().nullable(),
       })),
     })),
   }),
   prior_bests: z.object({
     by_exercise_id: z.record(z.object({
-      best_total_volume_kg: z.number().positive().optional(),
-      best_e1rm_kg: z.number().positive().optional(),
+      best_total_volume_kg: z.number().positive().optional().nullable(),
+      best_e1rm_kg: z.number().positive().optional().nullable(),
     })),
   }),
 });
@@ -49,18 +49,25 @@ export const healthAdviceResponseSchema = z.object({
   per_exercise: z.array(z.object({
     exercise_id: z.string(),
     predicted_chance_to_beat_best: z.number().min(0).max(1),  // 0-1
-    planned_volume_kg: z.number().positive().optional(),
-    best_volume_kg: z.number().positive().optional(),
+    planned_volume_kg: z.number().positive().optional().nullable(),
+    best_volume_kg: z.number().positive().optional().nullable(),
     sets: z.array(z.object({
       set_id: z.string(),
-      suggested_weight_kg: z.number().positive().optional(),
-      suggested_reps: z.number().positive().optional(),
+      suggested_weight_kg: z.number().positive().optional().nullable(),
+      suggested_reps: z.number().positive().optional().nullable(),
+      suggested_rest_seconds: z.number().positive().optional().nullable(),
       rationale: z.string(),
     })),
   })),
   session_predicted_chance: z.number().min(0).max(1),  // 0-1
   summary: z.string(),
   warnings: z.array(z.string()),
+  recovery_recommendations: z.object({
+    recommended_rest_between_sets: z.string(),
+    recommended_rest_between_sessions: z.string(),
+    session_duration_estimate: z.string().optional().nullable(),
+    additional_recovery_notes: z.array(z.string()),
+  }).optional().nullable(),
 });
 
 // Subjective wellness data schema (for users without WHOOP)

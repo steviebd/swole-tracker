@@ -9,6 +9,7 @@ import { ProbabilityGauge } from '~/app/_components/health-advice/ProbabilityGau
 import { AISummary } from '~/app/_components/health-advice/AISummary';
 import { SubjectiveWellnessModal } from '~/app/_components/health-advice/SubjectiveWellnessModal';
 import { useHealthAdvice } from '~/hooks/useHealthAdvice';
+import { api } from '~/trpc/react';
 import type { HealthAdviceRequest } from '~/server/api/schemas/health-advice';
 import type { SubjectiveWellnessData } from '~/lib/subjective-wellness-mapper';
 
@@ -54,6 +55,12 @@ export function WorkoutSessionWithHealthAdvice({
     whoopStatus
   } = useHealthAdvice(sessionId);
 
+  // Fetch the actual workout session to get template exercises
+  const { data: workoutSession } = api.workouts.getById.useQuery(
+    { id: sessionId },
+    { enabled: !!sessionId }
+  );
+
   // Mock data for demonstration - in real implementation, this would come from props
   const mockWhoopData = whoopData || {
     recovery_score: 75,
@@ -71,30 +78,45 @@ export function WorkoutSessionWithHealthAdvice({
     preferred_rpe: 8
   };
 
-  const mockWorkoutPlan = workoutPlan || {
-    exercises: [
-      {
-        exercise_id: 'bench_press',
-        name: 'Bench Press',
-        tags: ['strength', 'hypertrophy'],
-        sets: [
-          { set_id: 'set_1', target_reps: 5, target_weight_kg: 80, target_rpe: 8 },
-          { set_id: 'set_2', target_reps: 5, target_weight_kg: 80, target_rpe: 8 },
-          { set_id: 'set_3', target_reps: 5, target_weight_kg: 80, target_rpe: 8 }
-        ]
-      },
-      {
-        exercise_id: 'squat',
-        name: 'Back Squat',
-        tags: ['strength', 'hypertrophy'],
-        sets: [
-          { set_id: 'set_4', target_reps: 8, target_weight_kg: 100, target_rpe: 7 },
-          { set_id: 'set_5', target_reps: 8, target_weight_kg: 100, target_rpe: 7 },
-          { set_id: 'set_6', target_reps: 8, target_weight_kg: 100, target_rpe: 7 }
-        ]
-      }
-    ]
-  };
+  // Build dynamic workout plan from actual session template data
+  const dynamicWorkoutPlan = React.useMemo(() => {
+    if (!workoutSession?.template?.exercises) {
+      return workoutPlan || {
+        exercises: []
+      };
+    }
+
+    // Create workout plan from template exercises
+    const exercises = workoutSession.template.exercises.map((templateExercise, index) => {
+      // Get existing session exercises for this template exercise to determine set count
+      const existingSessionSets = workoutSession.exercises?.filter(
+        ex => ex.exerciseName === templateExercise.exerciseName
+      ) || [];
+
+      // Determine how many sets to generate (use existing data or default to 3)
+      const setCount = existingSessionSets.length > 0 ? existingSessionSets.length : 3;
+
+      // Generate sets with data from existing session exercises or defaults
+      const sets = Array.from({ length: setCount }, (_, setIndex) => {
+        const existingSet = existingSessionSets[setIndex];
+        return {
+          set_id: `${templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_')}_set_${setIndex + 1}`,
+          target_reps: existingSet?.reps || null,
+          target_weight_kg: existingSet?.weight ? parseFloat(existingSet.weight) : null,
+          target_rpe: existingSet?.rpe || null,
+        };
+      });
+
+      return {
+        exercise_id: templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_'),
+        name: templateExercise.exerciseName,
+        tags: ['strength'] as ('strength' | 'hypertrophy' | 'endurance')[], // Default tag, could be enhanced with template metadata
+        sets,
+      };
+    });
+
+    return { exercises };
+  }, [workoutSession, workoutPlan]);
 
   const mockPriorBests = priorBests || {
     by_exercise_id: {
@@ -124,7 +146,7 @@ export function WorkoutSessionWithHealthAdvice({
         session_id: sessionId.toString(),
         user_profile: mockUserProfile,
         whoop: mockWhoopData,
-        workout_plan: mockWorkoutPlan,
+        workout_plan: dynamicWorkoutPlan,
         prior_bests: mockPriorBests
       };
 
@@ -142,7 +164,7 @@ export function WorkoutSessionWithHealthAdvice({
     const request = {
       session_id: sessionId.toString(),
       user_profile: mockUserProfile,
-      workout_plan: mockWorkoutPlan,
+      workout_plan: dynamicWorkoutPlan,
       prior_bests: mockPriorBests
     };
 
@@ -155,10 +177,54 @@ export function WorkoutSessionWithHealthAdvice({
     window.open('/connect-whoop', '_blank');
   };
 
-  const handleAcceptSuggestion = (setId: string, suggestion: { weight?: number; reps?: number }) => {
+  const updateSessionSets = api.workouts.updateSessionSets.useMutation({
+    onSuccess: () => {
+      console.log('Successfully updated session sets');
+      // Could trigger a refresh of workout session data here
+    },
+    onError: (error) => {
+      console.error('Failed to update session sets:', error);
+    },
+  });
+
+  const handleAcceptSuggestion = async (setId: string, suggestion: { weight?: number; reps?: number }) => {
     setAcceptedSuggestions(prev => new Map(prev).set(setId, suggestion));
-    // Here you would integrate with the actual workout session to update the values
-    console.log('Accepted suggestion for set', setId, ':', suggestion);
+    
+    // Find the exercise name for this set ID
+    let exerciseName = '';
+    if (advice?.per_exercise) {
+      for (const exercise of advice.per_exercise) {
+        const set = exercise.sets.find(s => s.set_id === setId);
+        if (set) {
+          exerciseName = exercise.exercise_id;
+          break;
+        }
+      }
+    }
+
+    if (exerciseName) {
+      try {
+        await updateSessionSets.mutateAsync({
+          sessionId,
+          updates: [{
+            setId,
+            exerciseName,
+            weight: suggestion.weight,
+            reps: suggestion.reps,
+            unit: 'kg', // Default to kg, could be made configurable
+          }],
+        });
+        console.log('Accepted and applied suggestion for set', setId, ':', suggestion);
+      } catch (error) {
+        console.error('Failed to apply suggestion:', error);
+        // Revert the UI state if the backend update failed
+        setAcceptedSuggestions(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(setId);
+          return newMap;
+        });
+      }
+    }
   };
 
   const handleOverrideSuggestion = (setId: string) => {

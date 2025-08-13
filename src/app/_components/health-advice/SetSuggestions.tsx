@@ -6,6 +6,15 @@ import { Button } from '~/app/_components/ui/Button';
 import type { HealthAdviceResponse } from '~/server/api/schemas/health-advice';
 import { trackSuggestionInteraction } from '~/lib/analytics/health-advice';
 
+type ProgressionPreference = 'weight_focus' | 'reps_focus' | 'balanced' | 'ai_recommended';
+
+interface AlternativeSuggestion {
+  weight_kg: number;
+  reps: number;
+  rationale: string;
+  progression_type: ProgressionPreference;
+}
+
 interface SetSuggestionsProps {
   exercise: HealthAdviceResponse['per_exercise'][0];
   onAcceptSuggestion: (setId: string, suggestion: { weight?: number; reps?: number }) => void;
@@ -19,8 +28,41 @@ function cx(...args: Array<string | false | null | undefined>) {
 
 export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggestion, sessionId }: SetSuggestionsProps) {
   const [acceptedSets, setAcceptedSets] = useState<Set<string>>(new Set());
+  const [progressionPreference, setProgressionPreference] = useState<ProgressionPreference>('ai_recommended');
+  const [showAlternatives, setShowAlternatives] = useState<{ [setId: string]: boolean }>({});
 
-  const handleAcceptSet = (setId: string, suggestion: { weight?: number; reps?: number }) => {
+  // Generate alternative suggestions based on progression preference
+  const generateAlternatives = (originalWeight: number, originalReps: number): AlternativeSuggestion[] => {
+    const alternatives: AlternativeSuggestion[] = [];
+    
+    // Weight-focused progression (increase weight, maintain or slightly reduce reps)
+    alternatives.push({
+      weight_kg: Math.round((originalWeight + 2.5) * 10) / 10,
+      reps: Math.max(originalReps - 1, originalReps),
+      rationale: "Weight-focused: Prioritize strength gains through load increases",
+      progression_type: 'weight_focus'
+    });
+    
+    // Reps-focused progression (maintain weight, increase reps)
+    alternatives.push({
+      weight_kg: originalWeight,
+      reps: originalReps + 1,
+      rationale: "Reps-focused: Build endurance and volume tolerance",
+      progression_type: 'reps_focus'
+    });
+    
+    // Balanced progression (moderate increases in both)
+    alternatives.push({
+      weight_kg: Math.round((originalWeight + 1.25) * 10) / 10,
+      reps: originalReps,
+      rationale: "Balanced: Steady progression in both strength and volume",
+      progression_type: 'balanced'
+    });
+    
+    return alternatives;
+  };
+  
+  const handleAcceptSet = (setId: string, suggestion: { weight?: number; reps?: number }, progressionType: ProgressionPreference = 'ai_recommended') => {
     setAcceptedSets(prev => new Set(prev).add(setId));
     onAcceptSuggestion(setId, suggestion);
     
@@ -35,7 +77,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
             setId,
             action: 'accepted',
             suggestionType: 'weight',
-            suggestedValue: set.suggested_weight_kg,
+            suggestedValue: set.suggested_weight_kg ?? undefined,
             acceptedValue: suggestion.weight
           });
         }
@@ -46,7 +88,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
             setId,
             action: 'accepted',
             suggestionType: 'reps',
-            suggestedValue: set.suggested_reps,
+            suggestedValue: set.suggested_reps ?? undefined,
             acceptedValue: suggestion.reps
           });
         }
@@ -73,7 +115,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
             setId,
             action: 'overridden',
             suggestionType: 'weight',
-            suggestedValue: set.suggested_weight_kg
+            suggestedValue: set.suggested_weight_kg ?? undefined
           });
         }
         if (set.suggested_reps !== undefined) {
@@ -83,7 +125,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
             setId,
             action: 'overridden',
             suggestionType: 'reps',
-            suggestedValue: set.suggested_reps
+            suggestedValue: set.suggested_reps ?? undefined
           });
         }
       }
@@ -152,16 +194,29 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                 <span className="text-sm font-medium">Set {index + 1}</span>
                 <div className="flex gap-2">
                   {!isAccepted ? (
-                    <Button
-                      size="sm"
-                      onClick={() => handleAcceptSet(set.set_id, {
-                        weight: set.suggested_weight_kg || undefined,
-                        reps: set.suggested_reps || undefined
-                      })}
-                      className="btn-primary"
-                    >
-                      Accept
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAcceptSet(set.set_id, {
+                          weight: set.suggested_weight_kg || undefined,
+                          reps: set.suggested_reps || undefined
+                        }, 'ai_recommended')}
+                        className="btn-primary"
+                      >
+                        Accept AI
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setShowAlternatives(prev => ({
+                          ...prev,
+                          [set.set_id]: !prev[set.set_id]
+                        }))}
+                        className="btn-secondary"
+                      >
+                        {showAlternatives[set.set_id] ? 'Hide' : 'Options'}
+                      </Button>
+                    </>
                   ) : (
                     <Button
                       size="sm"
@@ -191,9 +246,47 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                 )}
               </div>
 
+              {/* Rest period suggestion */}
+              {(set as any).suggested_rest_seconds && (
+                <div className="mb-2">
+                  <div className="text-xs text-muted">Suggested Rest</div>
+                  <div className="font-semibold">{Math.round((set as any).suggested_rest_seconds / 60)} minutes</div>
+                </div>
+              )}
+              
+              {/* Alternative suggestions based on progression preference */}
+              {showAlternatives[set.set_id] && !isAccepted && set.suggested_weight_kg && set.suggested_reps && (
+                <div className="mt-3 p-3 rounded-lg" style={{backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-bg-app) 30%)', borderColor: 'var(--color-border)'}}>
+                  <div className="text-xs text-muted mb-2">Alternative Progressions</div>
+                  <div className="space-y-2">
+                    {generateAlternatives(set.suggested_weight_kg, set.suggested_reps).map((alt, altIndex) => (
+                      <div key={altIndex} className="flex items-center justify-between p-2 rounded" style={{backgroundColor: 'var(--color-bg-surface)'}}>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">
+                            {alt.weight_kg}kg × {alt.reps} reps
+                          </div>
+                          <div className="text-xs text-muted">{alt.rationale}</div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleAcceptSet(set.set_id, {
+                            weight: alt.weight_kg,
+                            reps: alt.reps
+                          }, alt.progression_type)}
+                          className="btn-secondary ml-2"
+                        >
+                          Use This
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               {/* Rationale */}
               <div className="text-sm p-2 rounded" style={{backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 50%, var(--color-bg-app) 50%)', color: 'var(--color-text-secondary)'}}>
-                <div className="text-xs text-muted mb-1">Rationale</div>
+                <div className="text-xs text-muted mb-1">AI Rationale</div>
                 {set.rationale}
               </div>
             </div>

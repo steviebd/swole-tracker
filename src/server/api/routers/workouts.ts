@@ -582,6 +582,59 @@ export const workoutsRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Update specific sets in a workout session (for accepting AI suggestions)
+  updateSessionSets: protectedProcedure
+    .use(workoutRateLimit)
+    .input(
+      z.object({
+        sessionId: z.number(),
+        updates: z.array(
+          z.object({
+            setId: z.string(),
+            exerciseName: z.string(),
+            weight: z.number().optional(),
+            reps: z.number().int().positive().optional(),
+            unit: z.enum(["kg", "lbs"]).default("kg"),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Verify session ownership
+      const session = await ctx.db.query.workoutSessions.findFirst({
+        where: eq(workoutSessions.id, input.sessionId),
+        with: {
+          exercises: true,
+        },
+      });
+
+      if (!session || session.user_id !== ctx.user.id) {
+        throw new Error("Workout session not found");
+      }
+
+      // Apply updates to session exercises
+      for (const update of input.updates) {
+        // Find the specific set to update
+        const targetExercise = session.exercises.find(
+          (ex) => ex.exerciseName === update.exerciseName && ex.id.toString() === update.setId
+        );
+
+        if (targetExercise) {
+          // Update the existing set
+          await ctx.db
+            .update(sessionExercises)
+            .set({
+              weight: update.weight?.toString(),
+              reps: update.reps,
+              unit: update.unit,
+            })
+            .where(eq(sessionExercises.id, targetExercise.id));
+        }
+      }
+
+      return { success: true, updatedCount: input.updates.length };
+    }),
+
   // Delete a workout session
   delete: protectedProcedure
     .use(workoutRateLimit)

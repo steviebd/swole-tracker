@@ -50,7 +50,7 @@ describe("workout-operations client and server wrappers", () => {
     // WorkoutOperationsClient stores the returned object directly as `this.client`,
     // then calls this.client.from(...). So we must return { from }.
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => {
+      createBrowserSupabaseClient: () => {
         return { from: clientMock.from };
       },
     }));
@@ -63,7 +63,7 @@ describe("workout-operations client and server wrappers", () => {
       "~/lib/workout-operations"
     );
 
-    const inst = new WorkoutOperationsClient({ getToken: async () => "t" });
+    const inst = new WorkoutOperationsClient();
     const res = await inst.getWorkoutTemplates("user_1");
 
     expect(clientMock.from).toHaveBeenCalledWith(
@@ -82,7 +82,7 @@ describe("workout-operations client and server wrappers", () => {
 
     vi.resetModules();
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({ from: clientMock.from }),
+      createBrowserSupabaseClient: () => ({ from: clientMock.from }),
     }));
     vi.doMock("~/lib/supabase-server", () => ({
       createServerSupabaseClient: async () => ({ from: clientMock.from }),
@@ -91,7 +91,7 @@ describe("workout-operations client and server wrappers", () => {
     const { WorkoutOperationsClient } = await import(
       "~/lib/workout-operations"
     );
-    const inst = new WorkoutOperationsClient(null);
+    const inst = new WorkoutOperationsClient();
     const created = await inst.createWorkoutTemplate("user_2", "Leg Day");
 
     expect(clientMock.from).toHaveBeenCalledWith(
@@ -121,7 +121,7 @@ describe("workout-operations client and server wrappers", () => {
 
     vi.resetModules();
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({ from: clientMock.from }),
+      createBrowserSupabaseClient: () => ({ from: clientMock.from }),
     }));
     vi.doMock("~/lib/supabase-server", () => ({
       createServerSupabaseClient: async () => ({ from: clientMock.from }),
@@ -130,7 +130,7 @@ describe("workout-operations client and server wrappers", () => {
     const { WorkoutOperationsClient } = await import(
       "~/lib/workout-operations"
     );
-    const inst = new WorkoutOperationsClient(null);
+    const inst = new WorkoutOperationsClient();
     const recent = await inst.getRecentWorkouts("user_3", 7);
 
     expect(clientMock.from).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe("workout-operations client and server wrappers", () => {
 
     vi.resetModules();
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({ from: clientMock.from }),
+      createBrowserSupabaseClient: () => ({ from: clientMock.from }),
     }));
     vi.doMock("~/lib/supabase-server", () => ({
       createServerSupabaseClient: async () => ({ from: clientMock.from }),
@@ -162,7 +162,7 @@ describe("workout-operations client and server wrappers", () => {
     const { WorkoutOperationsClient } = await import(
       "~/lib/workout-operations"
     );
-    const inst = new WorkoutOperationsClient({ getToken: async () => null });
+    const inst = new WorkoutOperationsClient();
     const sess = await inst.getWorkoutSession("user_4", 55);
 
     expect(clientMock.from).toHaveBeenCalledWith(
@@ -182,13 +182,13 @@ describe("workout-operations client and server wrappers", () => {
 
     vi.resetModules();
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({ from: clientMock.from }),
+      createBrowserSupabaseClient: () => ({ from: clientMock.from }),
     }));
 
     const { WorkoutOperationsClient } = await import(
       "~/lib/workout-operations"
     );
-    const inst = new WorkoutOperationsClient(null);
+    const inst = new WorkoutOperationsClient();
     const out = await inst.createWorkoutSession("user_5", 2, "2025-01-01");
 
     expect(clientMock.from).toHaveBeenCalledWith(
@@ -212,13 +212,13 @@ describe("workout-operations client and server wrappers", () => {
 
     vi.resetModules();
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({ from: clientMock.from }),
+      createBrowserSupabaseClient: () => ({ from: clientMock.from }),
     }));
 
     const { WorkoutOperationsClient } = await import(
       "~/lib/workout-operations"
     );
-    const inst = new WorkoutOperationsClient(null);
+    const inst = new WorkoutOperationsClient();
     const list = await inst.getSessionExercises("user_6", 99);
 
     expect(clientMock.from).toHaveBeenCalledWith(
@@ -240,7 +240,7 @@ describe("workout-operations client and server wrappers", () => {
 
     vi.resetModules();
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({
+      createBrowserSupabaseClient: () => ({
         from: clientMock.from,
       }),
     }));
@@ -251,7 +251,7 @@ describe("workout-operations client and server wrappers", () => {
     const { WorkoutOperationsClient } = await import(
       "~/lib/workout-operations"
     );
-    const inst = new WorkoutOperationsClient(null);
+    const inst = new WorkoutOperationsClient();
     const ex = await inst.addSessionExercise("user_7", 1, {
       templateExerciseId: null,
       exerciseName: "Row",
@@ -315,7 +315,7 @@ describe("workout-operations client and server wrappers", () => {
   it("useWorkoutOperations returns a client instance; getServerWorkoutOperations returns server instance", async () => {
     // Mock both factories to prevent real imports side effects
     vi.doMock("~/lib/supabase-client", () => ({
-      createClerkSupabaseClient: (_session: any) => ({ from: vi.fn() }),
+      createBrowserSupabaseClient: () => ({ from: vi.fn() }),
     }));
     vi.doMock("~/lib/supabase-server", () => ({
       createServerSupabaseClient: async () => ({ from: vi.fn() }),
@@ -328,7 +328,7 @@ describe("workout-operations client and server wrappers", () => {
       WorkoutOperationsServer,
     } = await import("~/lib/workout-operations");
 
-    const client = useWorkoutOperations(null);
+    const client = useWorkoutOperations();
     expect(client).toBeInstanceOf(WorkoutOperationsClient);
 
     const server = getServerWorkoutOperations();

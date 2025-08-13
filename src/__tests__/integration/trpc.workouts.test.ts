@@ -7,7 +7,6 @@ import {
 } from "./trpc-harness";
 
 // Ensure required public env vars exist BEFORE importing modules that may load src/env.js
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= "pk_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_KEY ||= "phc_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_HOST ||= "https://us.i.posthog.com";
 process.env.NEXT_PUBLIC_SUPABASE_URL ||= "https://test.supabase.co";

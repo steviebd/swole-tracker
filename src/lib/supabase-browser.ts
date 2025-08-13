@@ -12,6 +12,3 @@ export function createBrowserSupabaseClient(): SupabaseClient {
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 }
-
-// Legacy export for backward compatibility - now points to standard Supabase auth
-export const createClerkSupabaseClient = createBrowserSupabaseClient;

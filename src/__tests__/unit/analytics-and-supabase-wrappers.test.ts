@@ -45,7 +45,10 @@ vi.mock("@supabase/ssr", () => ({
   createServerClient: vi
     .fn()
     .mockImplementation((_url, _key, _opts) => ({ from: vi.fn() })),
-  createServerComponentClient: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(() => ({}))
 }));
 
 vi.mock("@supabase/supabase-js", () => {
@@ -84,11 +87,11 @@ describe("analytics thin wrapper", () => {
 });
 
 describe("supabase wrappers", () => {
-  it("createClerkSupabaseClient handles test environment behavior", () => {
+  it("createBrowserSupabaseClient handles test environment behavior", () => {
     // In test env, the function is designed to throw when env validation fails
     // or return undefined due to mock configuration - both are acceptable test behaviors
     try {
-      const client = supabaseBrowser.createClerkSupabaseClient(null);
+      const client = supabaseBrowser.createBrowserSupabaseClient();
       if (client) {
         expect(client).toBeDefined();
       } else {
@@ -102,11 +105,6 @@ describe("supabase wrappers", () => {
   });
 
   it("createServerSupabaseClientFactory handles test environment behavior", async () => {
-    // Mock server-only importers used by supabase-server path to avoid Client Component restrictions
-    vi.mock("@clerk/nextjs/server", () => ({
-      auth: vi.fn(async () => ({ getToken: vi.fn(async () => "token") })),
-    }));
-
     try {
       const factory = supabaseServer.createServerSupabaseClientFactory();
       const client = await factory();

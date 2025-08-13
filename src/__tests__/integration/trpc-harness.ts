@@ -2,7 +2,6 @@
  * Ensure PUBLIC env is present before any imports that transitively load src/env.js,
  * which validates runtime env via @t3-oss/env-nextjs.
  */
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??= "pk_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_KEY ??= "phc_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_HOST ??= "https://us.i.posthog.com";
 process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://test.supabase.co";
@@ -55,8 +54,7 @@ vi.mock("~/env.js", async () => {
   return {
     env: {
       // Public vars (unused in server code paths here, but keep for completeness)
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
-        process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!,
+      // No Clerk publishable key needed - using Supabase auth
       NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY!,
       NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST!,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -858,7 +856,7 @@ export function createLoggedMockDb(overrides: Partial<MockDb> = {}) {
   return wrap(base as Record<string, unknown>, "db") as unknown as MockDb;
 }
 
-// Create a mocked Clerk user or anonymous
+// Create a mocked Supabase user or anonymous
 export function createMockUser(
   arg:
     | boolean
@@ -894,10 +892,17 @@ const mockState: {
   user: null,
 };
 
-// Hoisted mocks
-vi.mock("@clerk/nextjs/server", () => {
+// Hoisted mocks - using Supabase auth instead of Clerk
+vi.mock("~/lib/supabase-server", async () => {
   return {
-    currentUser: async () => mockState.user,
+    createServerSupabaseClient: async () => ({
+      auth: {
+        getUser: async () => ({
+          data: { user: mockState.user },
+          error: mockState.user ? null : new Error("Not authenticated"),
+        }),
+      },
+    }),
   };
 });
 

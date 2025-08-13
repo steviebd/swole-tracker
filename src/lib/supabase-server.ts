@@ -1,44 +1,42 @@
-import { createServerClient } from "@supabase/ssr";
-import { type SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
 import { env } from "~/env";
 
 /**
- * Server-side Supabase with auth from cookies/request context.
- * Use in Server Components, Route Handlers, and Server Actions.
+ * Server-side Supabase client with auth from cookies.
+ * Use in Server Components and API routes.
  */
-export async function createServerSupabaseClient(): Promise<SupabaseClient> {
+export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
+  return createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
       },
-    }
-  );
+      set(name: string, value: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value, ...options });
+        } catch (error) {
+          // The `set` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value: "", ...options });
+        } catch (error) {
+          // The `delete` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+    },
+  });
 }
 
-/**
- * Server factory for per-request clients reading current auth from cookies.
- */
 export function createServerSupabaseClientFactory() {
-  return async (): Promise<SupabaseClient> => {
-    return createServerSupabaseClient();
-  };
+  return createServerSupabaseClient;
 }

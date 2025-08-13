@@ -1,11 +1,8 @@
 // Complete refactor of jokes router tests with proper module mocking
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-/**
- * Ensure PUBLIC env is present before any imports that transitively load src/env.js,
- * which validates runtime env via @t3-oss/env-nextjs.
- */
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??= "pk_test_dummy";
+// Ensure PUBLIC env is present before any imports that transitively load src/env.js,
+// which validates runtime env via @t3-oss/env-nextjs.
 process.env.NEXT_PUBLIC_POSTHOG_KEY ??= "phc_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_HOST ??= "https://us.i.posthog.com";
 process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://test.supabase.co";
@@ -26,8 +23,7 @@ const mockEnv = {
   AI_GATEWAY_JOKE_MEMORY_NUMBER: 3,
   AI_GATEWAY_ENABLED: false,
   // Public vars (unused in server code paths here, but keep for completeness)
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY!,
+  // No Clerk publishable key needed - using Supabase auth
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY!,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST!,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -82,10 +78,17 @@ vi.mock("~/lib/rate-limit-middleware", async () => {
   };
 });
 
-// Mock Clerk currentUser
-vi.mock("@clerk/nextjs/server", () => {
+// Mock Supabase auth
+vi.mock("~/lib/supabase-server", async () => {
   return {
-    currentUser: async () => ({ id: "test-user" }),
+    createServerSupabaseClient: async () => ({
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: "test-user" } },
+          error: null,
+        }),
+      },
+    }),
   };
 });
 
