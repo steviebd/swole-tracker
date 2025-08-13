@@ -10,7 +10,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { db } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
@@ -42,16 +42,28 @@ export type TRPCContext = {
 export const createTRPCContext = async (opts: {
   headers: Headers;
 }): Promise<TRPCContext> => {
-  const user = await currentUser();
   // Generate a requestId for correlating logs across middlewares/routers
   const requestId = randomUUID();
 
-  return {
-    db,
-    user: user ? { id: user.id } : null,
-    requestId,
-    headers: opts.headers,
-  };
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    return {
+      db,
+      user: (!error && user) ? { id: user.id } : null,
+      requestId,
+      headers: opts.headers,
+    };
+  } catch {
+    // In case of any auth errors, return context with no user
+    return {
+      db,
+      user: null,
+      requestId,
+      headers: opts.headers,
+    };
+  }
 };
 
 /**

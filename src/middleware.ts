@@ -1,16 +1,52 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { env } from "~/env";
 
-const isProtectedRoute = createRouteMatcher([
-  "/workout(.*)",
-  "/templates(.*)",
-  "/workouts(.*)",
-]);
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  });
 
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect();
+  const supabase = createServerClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value);
+          });
+          supabaseResponse = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
+  // This will refresh session if expired - required for Server Components
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Protected routes that require authentication
+  const isProtectedRoute = request.nextUrl.pathname.match(
+    /^\/workout|^\/templates|^\/workouts/
+  );
+
+  if (isProtectedRoute && !user) {
+    // Redirect to login page
+    const redirectUrl = new URL("/auth/login", request.url);
+    redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
   }
-});
+
+  return supabaseResponse;
+}
 
 export const config = {
   matcher: [

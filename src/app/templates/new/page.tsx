@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { TemplateForm } from "~/app/_components/template-form";
 
 export default async function NewTemplatePage() {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/sign-in");

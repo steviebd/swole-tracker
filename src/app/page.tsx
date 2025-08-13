@@ -1,4 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
 import { PreferencesStatusBar } from "~/app/_components/PreferencesStatusBar";
@@ -13,7 +13,8 @@ import {
 } from "~/trpc/prefetch";
 
 export default async function Home() {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   // SSR prefetch + hydrate for faster first paint when signed in
   const qc = getQueryClient();

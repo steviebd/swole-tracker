@@ -1,11 +1,12 @@
 "use client";
 
-import { SignInButton, useUser } from "@clerk/nextjs";
+import { useAuth } from "~/providers/AuthProvider";
+import Link from "next/link";
 
 export function SignInButtons() {
-  const { isSignedIn, isLoaded } = useUser();
+  const { user, isLoading } = useAuth();
 
-  if (!isLoaded) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
         <button className="btn-primary px-8 py-3 font-semibold">
@@ -15,15 +16,15 @@ export function SignInButtons() {
     );
   }
 
-  if (isSignedIn) {
+  if (user) {
     return null;
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <SignInButton mode="modal">
+      <Link href="/auth/login">
         <button className="btn-primary px-8 py-3 font-semibold">Sign in</button>
-      </SignInButton>
+      </Link>
       <div className="text-secondary text-center text-xs">
         Welcome to the Calm Dark experience
       </div>

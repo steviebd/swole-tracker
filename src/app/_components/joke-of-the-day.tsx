@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "~/providers/AuthProvider";
 import { api } from "~/trpc/react";
 
 export function JokeOfTheDay() {
-  const { user, isLoaded } = useUser();
+  const { user } = useAuth();
   const [isDismissed, setIsDismissed] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   const [joke, setJoke] = useState<string>("");
@@ -28,7 +28,7 @@ export function JokeOfTheDay() {
     isLoading: isJokeLoading,
     error: jokeError,
   } = api.jokes.getCurrent.useQuery(undefined, {
-    enabled: isLoaded && !!user,
+    enabled: !!user,
     retry: false,
   });
   // No longer need cache mutations since we always fetch fresh jokes
@@ -57,8 +57,8 @@ export function JokeOfTheDay() {
   // Fresh joke is fetched automatically on each browser refresh via tRPC query
   // No caching logic needed - every page load gets a new joke from AI Gateway
 
-  // Don't render if not loaded or user not authenticated
-  if (!isLoaded || !user) return null;
+  // Don't render if user not authenticated
+  if (!user) return null;
   if (isDismissed) return null;
 
   const handleClick = () => {

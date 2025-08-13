@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutHistory } from "~/app/_components/workout-history";
 
 export default async function WorkoutsPage() {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/sign-in");

@@ -3,14 +3,14 @@
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "~/providers/AuthProvider";
 
 interface PostHogProviderProps {
   children: React.ReactNode;
 }
 
 export function PostHogProvider({ children }: PostHogProviderProps) {
-  const { user, isLoaded } = useUser();
+  const { user } = useAuth();
 
   useEffect(() => {
     posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
@@ -24,22 +24,20 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      if (user) {
-        posthog.identify(user.id, {
-          email: user.emailAddresses[0]?.emailAddress,
-          name: user.fullName,
-          createdAt: user.createdAt,
-        });
-        posthog.capture("user_signed_in", {
-          userId: user.id,
-          email: user.emailAddresses[0]?.emailAddress,
-        });
-      } else {
-        posthog.reset();
-      }
+    if (user) {
+      posthog.identify(user.id, {
+        email: user.email,
+        name: user.user_metadata?.full_name || user.email,
+        createdAt: user.created_at,
+      });
+      posthog.capture("user_signed_in", {
+        userId: user.id,
+        email: user.email,
+      });
+    } else {
+      posthog.reset();
     }
-  }, [user, isLoaded]);
+  }, [user]);
 
   return <PHProvider client={posthog}>{children}</PHProvider>;
 }

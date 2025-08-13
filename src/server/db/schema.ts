@@ -26,7 +26,7 @@ export const workoutTemplates = createTable(
     index("template_user_id_idx").on(t.user_id),
     index("template_name_idx").on(t.name),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Template Exercises
 export const templateExercises = createTable(
@@ -51,7 +51,7 @@ export const templateExercises = createTable(
     index("template_exercise_template_id_idx").on(t.templateId),
     index("template_exercise_order_idx").on(t.templateId, t.orderIndex),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Workout Sessions
 export const workoutSessions = createTable(
@@ -79,7 +79,7 @@ export const workoutSessions = createTable(
     index("session_template_id_idx").on(t.templateId),
     index("session_workout_date_idx").on(t.workoutDate),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Session Exercises
 export const sessionExercises = createTable(
@@ -116,7 +116,7 @@ export const sessionExercises = createTable(
     index("session_exercise_template_exercise_id_idx").on(t.templateExerciseId),
     index("session_exercise_name_idx").on(t.exerciseName),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // User Preferences
 export const userPreferences = createTable(
@@ -138,13 +138,35 @@ export const userPreferences = createTable(
     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
   }),
   (t) => [index("user_preferences_user_id_idx").on(t.user_id)],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
-// Note: With Clerk, we don't need users table as Clerk handles user management
-// Instead, we reference Clerk user IDs directly in our app tables
+// Note: With Supabase Auth, we don't need users table as Supabase handles user management
+// Instead, we reference Supabase user IDs directly in our app tables
 
 // User Isolation: All data access is controlled by user_id = ctx.user.id
 // This ensures complete data isolation between users at the application level
+
+// User Migration Mapping (temporary table for Clerk -> Supabase migration)
+export const userMigrationMapping = createTable(
+  "user_migration_mapping",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    clerk_user_id: d.varchar({ length: 256 }).notNull().unique(), // Old Clerk user ID
+    supabase_user_id: d.varchar({ length: 256 }).notNull().unique(), // New Supabase Auth user ID
+    email: d.varchar({ length: 256 }).notNull(), // Email to help with matching
+    migrated_at: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    migration_status: d.varchar({ length: 50 }).notNull().default("pending"), // pending, completed, failed
+    migration_notes: d.text(), // Any notes about the migration
+  }),
+  (t) => [
+    index("user_migration_clerk_id_idx").on(t.clerk_user_id),
+    index("user_migration_supabase_id_idx").on(t.supabase_user_id),
+    index("user_migration_email_idx").on(t.email),
+  ],
+);
 
 // Relations
 export const workoutTemplatesRelations = relations(
@@ -218,7 +240,7 @@ export const dailyJokes = createTable(
     index("daily_joke_created_at_idx").on(t.createdAt),
     index("daily_joke_user_date_idx").on(t.user_id, t.createdAt),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // User Integrations (OAuth tokens for external services)
 export const userIntegrations = createTable(
@@ -243,7 +265,7 @@ export const userIntegrations = createTable(
     index("user_integration_provider_idx").on(t.provider),
     index("user_integration_user_provider_idx").on(t.user_id, t.provider),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // External Workouts from Whoop
 export const externalWorkoutsWhoop = createTable(
@@ -272,7 +294,7 @@ export const externalWorkoutsWhoop = createTable(
     index("external_workout_whoop_start_idx").on(t.start),
     index("external_workout_whoop_user_start_idx").on(t.user_id, t.start),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Rate Limiting for API requests
 export const rateLimits = createTable(
@@ -293,7 +315,7 @@ export const rateLimits = createTable(
     index("rate_limit_user_endpoint_idx").on(t.user_id, t.endpoint),
     index("rate_limit_window_idx").on(t.windowStart),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Master Exercises - Shared exercises across templates
 export const masterExercises = createTable(
@@ -320,7 +342,7 @@ export const masterExercises = createTable(
     // Unique constraint: prevent duplicate master exercise names per user
     unique("master_exercise_user_name_unique").on(t.user_id, t.normalizedName),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Exercise Links - Maps template exercises to master exercises
 export const exerciseLinks = createTable(
@@ -348,7 +370,7 @@ export const exerciseLinks = createTable(
     // Unique constraint: each template exercise can only be linked to one master exercise
     unique("exercise_link_template_exercise_unique").on(t.templateExerciseId),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Relations for new tables
 export const userIntegrationsRelations = relations(
@@ -422,7 +444,7 @@ export const healthAdvice = createTable(
     // Unique constraint: one advice per session per user
     unique("health_advice_user_session_unique").on(t.user_id, t.sessionId),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Webhook Events Log (for debugging and audit trail)
 export const webhookEvents = createTable(
@@ -453,7 +475,7 @@ export const webhookEvents = createTable(
     index("webhook_event_status_idx").on(t.status),
     index("webhook_event_created_at_idx").on(t.createdAt),
   ],
-); // RLS disabled - using Clerk auth with application-level security
+); // RLS disabled - using Supabase auth with application-level security
 
 // Health Advice Relations
 export const healthAdviceRelations = relations(healthAdvice, ({ one }) => ({

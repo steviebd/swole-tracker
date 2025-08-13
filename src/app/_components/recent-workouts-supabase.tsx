@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, useUser } from "@clerk/nextjs";
-import { createClerkSupabaseClient } from "~/lib/supabase-client";
+import { useAuth } from "~/providers/AuthProvider";
+import { createBrowserSupabaseClient } from "~/lib/supabase-client";
 import Link from "next/link";
 
 interface WorkoutWithTemplate {
@@ -20,20 +20,19 @@ export function RecentWorkoutsSupabase() {
   const [workouts, setWorkouts] = useState<WorkoutWithTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
-  const { session } = useSession();
+  const { user } = useAuth();
 
   // We'll create the client inside the useEffect with the session
 
   useEffect(() => {
-    if (!user || !session) return;
+    if (!user?.id) return;
 
     async function loadWorkouts() {
       setLoading(true);
       setError(null);
 
       try {
-        const client = createClerkSupabaseClient(session ?? null);
+        const client = createBrowserSupabaseClient();
 
         // Query recent workout sessions first
         const { data: workoutData, error: workoutError } = await client
@@ -91,7 +90,7 @@ export function RecentWorkoutsSupabase() {
     }
 
     void loadWorkouts();
-  }, [user, session]);
+  }, [user]);
 
   if (loading) {
     return (
@@ -160,7 +159,7 @@ export function RecentWorkoutsSupabase() {
         </div>
       ))}
       <div className="pt-2 text-center text-xs text-gray-500">
-        ✨ Powered by Supabase + Clerk
+        ✨ Powered by Supabase
       </div>
     </div>
   );

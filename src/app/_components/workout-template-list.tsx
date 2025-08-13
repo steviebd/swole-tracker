@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, useUser } from "@clerk/nextjs";
+import { useAuth } from "~/providers/AuthProvider";
 import {
   useWorkoutOperations,
   type WorkoutTemplate,
@@ -12,12 +12,11 @@ export function WorkoutTemplateList() {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
-  const { session } = useSession();
-  const workoutOps = useWorkoutOperations(session ?? null);
+  const { user } = useAuth();
+  const workoutOps = useWorkoutOperations();
 
   useEffect(() => {
-    if (!user || !session) return;
+    if (!user?.id) return;
 
     async function loadTemplates() {
       setIsLoading(true);
@@ -37,7 +36,7 @@ export function WorkoutTemplateList() {
     }
 
     void loadTemplates();
-  }, [user, session, workoutOps]);
+  }, [user, workoutOps]);
 
   if (isLoading) {
     return (
@@ -106,7 +105,7 @@ export function WorkoutTemplateList() {
         </div>
       ))}
       <div className="pt-2 text-center text-xs text-gray-500">
-        ✨ Powered by Supabase + Clerk
+        ✨ Powered by Supabase
       </div>
     </div>
   );
