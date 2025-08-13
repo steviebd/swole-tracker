@@ -35,7 +35,7 @@ function LoginForm() {
 
       router.push(redirectTo);
       router.refresh();
-    } catch (err) {
+    } catch (_err) {
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);

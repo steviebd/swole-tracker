@@ -18,12 +18,13 @@ export const metadata: Metadata = {
   title: "Swole Tracker",
   description: "Simple workout tracking application",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 const geist = Geist({

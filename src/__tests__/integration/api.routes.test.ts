@@ -41,10 +41,6 @@ describe("API Routes smoke tests", () => {
   });
 
   it("GET /api/sse/workout-updates returns Response with event-stream header", async () => {
-    // Mock Clerk first to avoid server-only import error
-    vi.mock("@clerk/nextjs/server", () => ({
-      currentUser: async () => ({ id: "user_sse_test" }),
-    }));
     // Import route after mock is set up
     const mod = (await import("~/app/api/sse/workout-updates/route")) as {
       GET: (req: Request) => Promise<Response>;
