@@ -42,8 +42,8 @@ export default async function StartWorkoutPage({
 
   return (
     <ClientHydrate state={state}>
-      <main className="min-h-screen">
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <main className="min-h-screen overflow-x-hidden">
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
           {/* Header */}
           <div className="mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4">
             <Link href="/" className="text-purple-400 hover:text-purple-300 text-sm sm:text-base">

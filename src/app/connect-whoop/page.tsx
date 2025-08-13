@@ -12,8 +12,8 @@ export default async function ConnectWhoopPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <div className="container mx-auto px-4 py-6">
+    <main className="min-h-screen overflow-x-hidden">
+      <div className="container mx-auto px-4 py-6 w-full min-w-0">
         <div className="mb-8">
           <div className="mb-4">
             <Link

@@ -206,17 +206,18 @@ export function ProgressionModal({ open, onClose, exerciseName }: ProgressionMod
                     <div className="space-y-3">
                       <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text)' }}>Recent Sessions</h3>
                       
-                      <div className="rounded-lg glass-hairline max-h-64 overflow-y-auto">
-                        <div className="grid grid-cols-6 gap-4 px-4 py-3 text-sm font-medium border-b sticky top-0 glass-header" style={{ color: 'var(--color-text-muted)' }}>
-                          <div>Date</div>
-                          <div>Weight</div>
-                          <div>Reps</div>
-                          <div>Sets</div>
-                          <div>Volume</div>
-                          <div>1RM Est.</div>
-                        </div>
-                        {strengthData.slice(0, 10).map((session, index) => (
-                          <div key={index} className={`grid grid-cols-6 gap-4 px-4 py-3 text-sm ${
+                      <div className="rounded-lg glass-hairline max-h-64 overflow-y-auto mobile-table-container">
+                        <div className="mobile-table">
+                          <div className="grid grid-cols-6 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b sticky top-0 glass-header" style={{ color: 'var(--color-text-muted)' }}>
+                            <div>Date</div>
+                            <div>Weight</div>
+                            <div>Reps</div>
+                            <div>Sets</div>
+                            <div>Volume</div>
+                            <div>1RM Est.</div>
+                          </div>
+                          {strengthData.slice(0, 10).map((session, index) => (
+                            <div key={index} className={`grid grid-cols-6 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm ${
                             index !== Math.min(9, strengthData.length - 1)
                               ? "glass-hairline border-b"
                               : ""
@@ -234,7 +235,8 @@ export function ProgressionModal({ open, onClose, exerciseName }: ProgressionMod
                             <div className="font-medium" style={{ color: 'var(--color-text)' }}>{(session.weight * session.reps * session.sets).toLocaleString()}kg</div>
                             <div className="font-medium" style={{ color: 'var(--color-text)' }}>{session.oneRMEstimate}kg</div>
                           </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </>

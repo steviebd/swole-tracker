@@ -110,6 +110,31 @@ html.dark {
   @apply w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
 }
 
+/* Mobile-responsive utilities */
+.mobile-table-container {
+  @apply overflow-x-auto;
+  min-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.mobile-table-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.mobile-table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-table-container::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
+}
+
+.mobile-table {
+  @apply min-w-max w-full;
+}
+
 /* Reduce motion respect */
 @media (prefers-reduced-motion: reduce) {
   * {
