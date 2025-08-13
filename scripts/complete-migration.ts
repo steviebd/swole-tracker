@@ -33,10 +33,10 @@ const isQuiet = args.includes('--quiet');
 let envFile = '.env';
 let targetEnv = 'development';
 
-if (envFileArg !== -1) {
+if (envFileArg !== -1 && args[envFileArg + 1]) {
   envFile = args[envFileArg + 1];
   targetEnv = envFile.includes('production') ? 'production' : 'development';
-} else if (envArg !== -1) {
+} else if (envArg !== -1 && args[envArg + 1]) {
   targetEnv = args[envArg + 1];
   envFile = targetEnv === 'production' ? '.env.production' : '.env';
 }

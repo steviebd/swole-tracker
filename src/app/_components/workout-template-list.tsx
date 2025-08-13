@@ -23,7 +23,7 @@ export function WorkoutTemplateList() {
       setError(null);
 
       try {
-        const templatesData = await workoutOps.getWorkoutTemplates(user.id);
+        const templatesData = await workoutOps.getWorkoutTemplates(user!.id);
         setTemplates(templatesData);
       } catch (err: unknown) {
         console.error("Error loading templates:", err);

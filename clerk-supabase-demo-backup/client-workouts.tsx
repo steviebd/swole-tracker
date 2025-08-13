@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, useUser } from "@clerk/nextjs";
-import { createClerkSupabaseClient } from "~/lib/supabase-client";
+import { useAuth } from "~/providers/AuthProvider";
+import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
 
 interface WorkoutSession {
   id: number;
@@ -17,18 +17,15 @@ interface WorkoutSession {
 export function ClientWorkouts() {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useUser();
-  const { session } = useSession();
-
-  // We'll create the client inside the useEffect with the session
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!user || !session) return;
+    if (!user) return;
 
     async function loadWorkouts() {
       setLoading(true);
 
-      const client = createClerkSupabaseClient(session ?? null);
+      const client = createBrowserSupabaseClient();
 
       // Query recent workout sessions first
       const { data: workoutData, error } = await client
@@ -71,7 +68,7 @@ export function ClientWorkouts() {
     }
 
     void loadWorkouts();
-  }, [user, session]);
+  }, [user]);
 
   if (loading) {
     return (
