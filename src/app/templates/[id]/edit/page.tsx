@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api } from "~/trpc/server";
 import { TemplateForm } from "~/app/_components/template-form";
@@ -12,7 +12,8 @@ interface EditTemplatePageProps {
 export default async function EditTemplatePage({
   params,
 }: EditTemplatePageProps) {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const { id } = await params;
 
   if (!user) {

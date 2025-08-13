@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api } from "~/trpc/server";
 import ClientHydrate from "~/trpc/HydrateClient";
@@ -18,7 +18,8 @@ interface StartWorkoutPageProps {
 export default async function StartWorkoutPage({
   searchParams,
 }: StartWorkoutPageProps) {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const { templateId } = await searchParams;
 
   if (!user) {

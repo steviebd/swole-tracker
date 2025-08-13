@@ -1,10 +1,11 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 
 export default async function ConnectWhoopPage() {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/");

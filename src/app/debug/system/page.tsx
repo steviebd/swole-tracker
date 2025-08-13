@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "~/providers/AuthProvider";
 import nextPackage from "next/package.json";
 import pkg from "../../../../package.json";
 
@@ -12,7 +12,7 @@ import pkg from "../../../../package.json";
  * Route: /debug/system
  */
 export default function SystemDebugPage() {
-  const { user, isLoaded } = useUser();
+  const { user } = useAuth();
 
   const data = useMemo(() => {
     // Expose only non-sensitive values. Never show secrets or full URLs with keys.
@@ -52,9 +52,9 @@ export default function SystemDebugPage() {
       <h1 className="text-xl font-semibold">System Diagnostics</h1>
 
       <Section title="User">
-        <KV k="isLoaded" v={String(isLoaded)} />
+        <KV k="isAuthenticated" v={String(!!user)} />
         <KV k="userId" v={user?.id ?? "anonymous"} />
-        <KV k="email" v={user?.primaryEmailAddress?.emailAddress ?? "n/a"} />
+        <KV k="email" v={user?.email ?? "n/a"} />
       </Section>
 
       <Section title="Features">

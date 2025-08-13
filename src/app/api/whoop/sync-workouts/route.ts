@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
@@ -104,7 +104,8 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
 
 export async function POST(_request: NextRequest) {
   try {
-    const user = await currentUser();
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

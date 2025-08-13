@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Core Architecture
 
-**Stack:** Next.js 15 + React 19 + TypeScript + T3 Stack (tRPC v11 + Drizzle + Clerk)
+**Stack:** Next.js 15 + React 19 + TypeScript + T3 Stack (tRPC v11 + Drizzle + Supabase Auth)
 
 **Key directories:**
 - `src/app/` - Next.js App Router pages and components
@@ -42,7 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/hooks/` - Custom React hooks
 - `src/providers/` - React context providers (PostHog, Theme)
 
-**Authentication:** Clerk middleware protects `/workout*`, `/templates*`, `/workouts*` routes
+**Authentication:** Supabase Auth middleware protects `/workout*`, `/templates*`, `/workouts*` routes
 
 **Database:** PostgreSQL with Drizzle ORM, uses Supabase. All queries filtered by `user_id` for security.
 
@@ -54,14 +54,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Input validation with Zod schemas in `src/server/api/schemas/`
 
 **Database Security:**
-- Always include `where` clauses filtering by `ctx.user.id` (Clerk user ID)
-- Schema uses `user_id` VARCHAR(256) for Clerk integration
+- Always include `where` clauses filtering by `ctx.user.id` (Supabase Auth user ID)
+- Schema uses `user_id` VARCHAR(256) for Supabase Auth integration
 - Tables prefixed with `swole-tracker_` via `createTable` helper
 
 **Environment Variables:**
 - Schema defined in `src/env.js` with @t3-oss/env-nextjs
 - Create a `.env.local` file from `.env.example` with your environment variables
-- Required: Clerk keys, DATABASE_URL, Supabase keys, PostHog keys
+- Required: DATABASE_URL, Supabase keys, PostHog keys
 - Optional: WHOOP integration, AI Gateway, rate limiting configs
 
 **Offline-First Features:**

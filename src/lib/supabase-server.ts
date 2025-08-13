@@ -1,54 +1,44 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { auth } from "@clerk/nextjs/server";
+import { createServerClient } from "@supabase/ssr";
+import { type SupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 import { env } from "~/env";
 
 /**
- * Server-side Supabase with Clerk auth from request context.
+ * Server-side Supabase with auth from cookies/request context.
  * Use in Server Components, Route Handlers, and Server Actions.
  */
 export async function createServerSupabaseClient(): Promise<SupabaseClient> {
-  const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const cookieStore = await cookies();
 
-  // In test, avoid importing real server auth behaviors; just construct a client
-  if (process.env.NODE_ENV === "test") {
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-
-  const { getToken } = await auth();
-  const token = await getToken();
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : "",
+  return createServerClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
       },
-    },
-  });
+    }
+  );
 }
 
 /**
- * Server factory for per-request clients reading current Clerk auth on call.
+ * Server factory for per-request clients reading current auth from cookies.
  */
 export function createServerSupabaseClientFactory() {
   return async (): Promise<SupabaseClient> => {
-    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    // In test, simply return a client without server auth headers
-    if (process.env.NODE_ENV === "test") {
-      return createClient(supabaseUrl, supabaseAnonKey);
-    }
-
-    const { getToken } = await auth();
-    const token = await getToken();
-
-    return createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      },
-    });
+    return createServerSupabaseClient();
   };
 }

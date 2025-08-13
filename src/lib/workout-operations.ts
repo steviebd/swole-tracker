@@ -1,4 +1,4 @@
-import { createClerkSupabaseClient } from "./supabase-client";
+import { createBrowserSupabaseClient } from "./supabase-client";
 import { createServerSupabaseClient } from "./supabase-server";
 
 // Types for workout data
@@ -34,10 +34,10 @@ export interface SessionExercise {
 
 // Client-side operations (use in React components)
 export class WorkoutOperationsClient {
-  private client: ReturnType<typeof createClerkSupabaseClient>;
+  private client: ReturnType<typeof createBrowserSupabaseClient>;
 
-  constructor(session: { getToken?: () => Promise<string | null> } | null) {
-    this.client = createClerkSupabaseClient(session);
+  constructor() {
+    this.client = createBrowserSupabaseClient();
   }
 
   async getWorkoutTemplates(userId: string) {
@@ -238,10 +238,8 @@ export class WorkoutOperationsServer {
 }
 
 // Convenience hooks and functions
-export function useWorkoutOperations(
-  session: { getToken?: () => Promise<string | null> } | null,
-) {
-  return new WorkoutOperationsClient(session);
+export function useWorkoutOperations() {
+  return new WorkoutOperationsClient();
 }
 
 export function getServerWorkoutOperations() {

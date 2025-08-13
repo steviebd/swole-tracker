@@ -1,0 +1,14 @@
+{
+  "environment": "development",
+  "timestamp": "2025-08-13T01:50:13.305Z",
+  "database": "aws-0-ap-southeast-2.pooler.supabase.com:5432",
+  "users": [
+    {
+      "user_id": "user_30UTddgrZccacdW9CRPmkBw8BLC",
+      "tables": {},
+      "total_records": 0,
+      "first_activity": null,
+      "last_activity": null
+    }
+  ]
+}

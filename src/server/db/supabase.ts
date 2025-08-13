@@ -1,17 +1,18 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { currentUser } from "@clerk/nextjs/server";
+import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { env } from "~/env";
 import * as schema from "./schema";
 
 /**
- * Create a database connection with Clerk user context for RLS
+ * Create a database connection with Supabase user context for RLS
  */
 export async function getSupabaseDb() {
-  const user = await currentUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (error || !user) {
     throw new Error("User not authenticated");
   }
 

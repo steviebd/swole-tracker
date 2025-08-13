@@ -3,7 +3,6 @@ import "~/styles/globals.css";
 import { type Metadata } from "next";
 import { Geist, Inter, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
-import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { ConnectionStatus } from "~/app/_components/connection-status";
@@ -11,6 +10,7 @@ import { SyncIndicator } from "~/app/_components/sync-indicator";
 import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
+import { AuthProvider } from "~/providers/AuthProvider";
 import ClientPerfInit from "@/app/_components/ClientPerfInit";
 import LiveRegionProvider from "~/app/_components/LiveRegion";
 
@@ -60,27 +60,22 @@ export default function RootLayout({
     })();
   `;
   return (
-    <ClerkProvider
-      signInFallbackRedirectUrl="/"
-      signUpFallbackRedirectUrl="/"
-      telemetry={false}
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}
     >
-      {/* Do not set data-theme or dark class on the server to avoid hydration mismatches */}
-      <html
-        lang="en"
-        suppressHydrationWarning
-        className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable}`}
-      >
-        <body className="page-shell flex min-h-screen flex-col" style={{ color: "var(--color-text)" }}>
-          {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
-          <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
-          {/* Skip to content link */}
-          <a
-            href="#main-content"
-            className="btn-primary sr-only px-3 py-1.5 text-sm focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000]"
-          >
-            Skip to main content
-          </a>
+      <body className="page-shell flex min-h-screen flex-col" style={{ color: "var(--color-text)" }}>
+        {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
+        <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
+        {/* Skip to content link */}
+        <a
+          href="#main-content"
+          className="btn-primary sr-only px-3 py-1.5 text-sm focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000]"
+        >
+          Skip to main content
+        </a>
+        <AuthProvider>
           <PostHogProvider>
             <ThemeProvider>
               <LiveRegionProvider>
@@ -183,8 +178,8 @@ export default function RootLayout({
               </LiveRegionProvider>
             </ThemeProvider>
           </PostHogProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </AuthProvider>
+      </body>
+    </html>
   );
 }
