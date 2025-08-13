@@ -1,5 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr";
-import { type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "~/env";
 
 /**
@@ -7,7 +6,7 @@ import { env } from "~/env";
  * Use in Client Components. Handles auth state automatically via cookies.
  */
 export function createBrowserSupabaseClient(): SupabaseClient {
-  return createBrowserClient(
+  return createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );

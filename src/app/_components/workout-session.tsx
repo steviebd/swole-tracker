@@ -710,7 +710,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
-                className="btn-secondary py-3"
+                className="btn-secondary py-2 sm:py-3 text-sm sm:text-base"
                 aria-label="Add set to current exercise"
               >
                 Add Set
@@ -744,7 +744,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   } catch {}
                 }}
                 disabled={saveWorkout.isPending}
-                className="btn-secondary py-3 disabled:opacity-50"
+                className="btn-secondary py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50"
                 aria-busy={saveWorkout.isPending ? "true" : "false"}
                 aria-label="Save workout"
               >
@@ -760,7 +760,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     posthog.capture("haptic_action", { kind: "save" });
                   } catch {}
                 }}
-                className="btn-primary py-3"
+                className="btn-primary py-2 sm:py-3 text-sm sm:text-base"
               >
                 Complete
               </button>
@@ -790,23 +790,23 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Read-only Actions */}
       {isReadOnly && (
-        <div className="sticky bottom-4 space-y-3 pt-6">
+        <div className="sticky bottom-4 space-y-2 sm:space-y-3 pt-6">
           <Link
             href={`/workout/start?templateId=${session?.templateId}`}
-            className="btn-primary block w-full py-3 text-center text-lg font-medium"
+            className="btn-primary block w-full py-2.5 sm:py-3 text-center text-base sm:text-lg font-medium"
           >
             Repeat This Workout
           </Link>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={deleteWorkout.isPending}
-            className="btn-destructive w-full py-3 text-lg font-medium disabled:opacity-50"
+            className="btn-destructive w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium disabled:opacity-50"
           >
             {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
           <button
             onClick={() => router.back()}
-            className="btn-secondary w-full py-3 text-lg font-medium"
+            className="btn-secondary w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium"
           >
             Back to History
           </button>
@@ -834,19 +834,19 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="card w-full max-w-md p-6 shadow-2xl"
+              className="card w-full max-w-md p-4 sm:p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h3
                 id="delete-workout-title"
-                className="mb-4 text-xl font-bold"
+                className="mb-3 sm:mb-4 text-lg sm:text-xl font-bold"
                 style={{ color: "var(--color-danger)" }}
               >
                 Delete Workout
               </h3>
               <p
                 id="delete-workout-desc"
-                className="text-secondary mb-6 leading-relaxed"
+                className="text-secondary mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base"
               >
                 Are you sure you want to delete this workout?
                 <br />
@@ -860,7 +860,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     restoreFocusInline();
                     setShowDeleteConfirm(false);
                   }}
-                  className="btn-secondary flex-1 py-3 font-medium"
+                  className="btn-secondary flex-1 py-2.5 sm:py-3 font-medium text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -871,7 +871,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     void handleDelete();
                   }}
                   disabled={deleteWorkout.isPending}
-                  className="btn-destructive flex-1 py-3 font-medium disabled:opacity-50"
+                  className="btn-destructive flex-1 py-2.5 sm:py-3 font-medium text-sm sm:text-base disabled:opacity-50"
                 >
                   {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
                 </button>
@@ -925,19 +925,19 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="card w-full max-w-lg p-6 shadow-2xl"
+              className="card w-full max-w-lg p-4 sm:p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h3
                 id="complete-workout-title"
-                className="mb-1 text-xl font-bold"
+                className="mb-1 text-lg sm:text-xl font-bold"
                 style={{ color: "var(--color-primary)" }}
               >
                 Complete Workout
               </h3>
               <p
                 id="complete-workout-desc"
-                className="text-secondary mb-4 text-sm"
+                className="text-secondary mb-3 sm:mb-4 text-xs sm:text-sm"
               >
                 Review your performance compared to your previous best for each
                 exercise.
@@ -1043,20 +1043,20 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   })}
                 </div>
               </div>
-              <div className="mt-5 flex items-center gap-3">
+              <div className="mt-4 sm:mt-5 flex items-center gap-3">
                 <button
                   onClick={async () => {
                     closeCompleteModal();
                     await handleSave();
                     // Navigate to history immediately after existing save flow handles navigation/notifications
                   }}
-                  className="btn-primary flex-1 py-3 text-lg font-semibold"
+                  className="btn-primary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-semibold"
                 >
                   Complete Workout
                 </button>
                 <button
                   onClick={closeCompleteModal}
-                  className="btn-secondary flex-1 py-3 text-lg font-medium"
+                  className="btn-secondary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-medium"
                 >
                   Continue Workout
                 </button>

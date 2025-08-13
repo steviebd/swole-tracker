@@ -25,21 +25,21 @@ export default async function TemplatesPage() {
 
   return (
     <ClientHydrate state={state}>
-      <main className="container-default min-h-screen py-6">
+      <main className="container-default min-h-screen py-4 sm:py-6">
         {/* Header */}
-        <div className="glass-header mb-6 rounded-xl px-3 sm:px-4 py-3">
+        <div className="glass-header mb-4 sm:mb-6 rounded-xl px-3 sm:px-4 py-3">
           <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="link-primary">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <Link href="/" className="link-primary text-sm sm:text-base flex-shrink-0">
                 ← Back
               </Link>
-              <h1 className="text-xl sm:text-2xl font-bold">Workout Templates</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Workout Templates</h1>
             </div>
-            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-3">
-              <Link href="/exercises" className="btn-secondary text-center">
+            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-3 flex-shrink-0">
+              <Link href="/exercises" className="btn-secondary text-center text-sm sm:text-base py-2">
                 Manage Exercises
               </Link>
-              <Link href="/templates/new" className="btn-primary text-center">
+              <Link href="/templates/new" className="btn-primary text-center text-sm sm:text-base py-2">
                 New Template
               </Link>
             </div>

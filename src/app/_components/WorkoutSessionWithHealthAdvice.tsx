@@ -237,13 +237,13 @@ export function WorkoutSessionWithHealthAdvice({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Health Advice Toggle */}
       <div className="flex justify-center">
         <Button
           onClick={handleGetHealthAdvice}
           disabled={loading}
-          className="btn-primary"
+          className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
         >
           {loading 
             ? 'Getting AI Advice...' 
@@ -256,10 +256,10 @@ export function WorkoutSessionWithHealthAdvice({
 
       {/* Health Advice Panel */}
       {showHealthAdvice && advice && (
-        <div className="space-y-4 glass-surface p-4" style={{backgroundColor: 'var(--color-bg-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)'}}>
-          <h2 className="text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
+        <div className="space-y-3 sm:space-y-4 glass-surface p-3 sm:p-4" style={{backgroundColor: 'var(--color-bg-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)'}}>
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {/* Readiness and Overall Chance */}
             <div className="space-y-4">
               <ReadinessIndicator 
@@ -282,8 +282,8 @@ export function WorkoutSessionWithHealthAdvice({
           </div>
 
           {/* Exercise-specific suggestions */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Exercise Recommendations</h3>
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Exercise Recommendations</h3>
             {advice.per_exercise.map((exercise) => (
               <SetSuggestions
                 key={exercise.exercise_id}

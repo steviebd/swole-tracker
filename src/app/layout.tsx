@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   title: "Swole Tracker",
   description: "Simple workout tracking application",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
 };
 
 const geist = Geist({
@@ -88,11 +94,11 @@ export default function RootLayout({
 
                   <main
                     id="main-content"
-                    className="container-default flex-1 py-6 pb-20 md:pb-6"
+                    className="container-default flex-1 py-4 sm:py-6 pb-20 md:pb-6"
                     role="main"
                     tabIndex={-1}
                   >
-                    <div className="grid gap-4 sm:gap-6">{children}</div>
+                    <div className="grid gap-3 sm:gap-4 md:gap-6">{children}</div>
                   </main>
 
                   {/* Mobile Bottom Tab Bar */}
