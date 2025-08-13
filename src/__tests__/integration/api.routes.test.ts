@@ -49,8 +49,8 @@ describe("API Routes smoke tests", () => {
     expect(data).toBeDefined();
   });
 
-  it.skip("POST /api/webhooks/whoop returns a Response for invalid signature (smoke) [skipped in jsdom]", async () => {
-    // Skipped: this handler imports server-only env via rate-limit middleware which throws under jsdom.
+  it("POST /api/webhooks/whoop returns a Response for invalid signature (smoke) [skipped in jsdom]", async () => {
+    // Previously skipped: this handler imports server-only env via rate-limit middleware which throws under jsdom.
     // Covered by dedicated unit tests in src/__tests__/unit/whoop-webhook.test.ts
   });
 
