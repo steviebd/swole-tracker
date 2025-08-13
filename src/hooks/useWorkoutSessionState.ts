@@ -78,30 +78,6 @@ export function useWorkoutSessionState({
   const [lastAction, setLastAction] = useState<HistoryAction | null>(null);
   const [redoStack, setRedoStack] = useState<HistoryAction[]>([]);
   const REDO_LIMIT = 30;
-  const [progressionModal, setProgressionModal] = useState<{
-    isOpen: boolean;
-    exerciseIndex: number;
-    exerciseName: string;
-    previousBest: {
-      weight?: number;
-      reps?: number;
-      sets: number;
-      unit: "kg" | "lbs";
-    };
-  } | null>(null);
-  const [hasShownAutoProgression, setHasShownAutoProgression] = useState(false);
-  const [progressionScopeModal, setProgressionScopeModal] = useState<{
-    isOpen: boolean;
-    exerciseIndex: number;
-    progressionType: "weight" | "reps";
-    increment: string;
-    previousBest: {
-      weight?: number;
-      reps?: number;
-      sets: number;
-      unit: "kg" | "lbs";
-    };
-  } | null>(null);
 
   const utils = api.useUtils();
   const { data: session } = api.workouts.getById.useQuery(
@@ -426,51 +402,6 @@ export function useWorkoutSessionState({
     session,
   ]);
 
-  // auto-progression modal
-  useEffect(() => {
-    const isNewWorkout = !session?.exercises || session.exercises.length === 0;
-    const safeToShowModal = session && !isReadOnly && previousDataLoaded;
-
-    if (
-      !loading &&
-      safeToShowModal &&
-      isNewWorkout &&
-      exercises.length > 0 &&
-      !progressionModal &&
-      !hasShownAutoProgression
-    ) {
-      for (let i = 0; i < exercises.length; i++) {
-        const exercise = exercises[i];
-        const previousData = previousExerciseData.get(
-          exercise?.exerciseName ?? "",
-        );
-        if (exercise && previousData?.best?.weight && previousData.best.sets) {
-          setProgressionModal({
-            isOpen: true,
-            exerciseIndex: i,
-            exerciseName: exercise.exerciseName,
-            previousBest: {
-              weight: previousData.best.weight,
-              reps: previousData.best.reps,
-              sets: previousData.best.sets,
-              unit: previousData.best.unit,
-            },
-          });
-          setHasShownAutoProgression(true);
-          break;
-        }
-      }
-    }
-  }, [
-    loading,
-    isReadOnly,
-    exercises,
-    previousExerciseData,
-    progressionModal,
-    hasShownAutoProgression,
-    session,
-    previousDataLoaded,
-  ]);
 
   // helpers exposed to component
 
@@ -1149,12 +1080,6 @@ export function useWorkoutSessionState({
     notification,
     setNotification,
     collapsedIndexes,
-    progressionModal,
-    setProgressionModal,
-    hasShownAutoProgression,
-    setHasShownAutoProgression,
-    progressionScopeModal,
-    setProgressionScopeModal,
 
     // trpc utils and prefs
     utils,
