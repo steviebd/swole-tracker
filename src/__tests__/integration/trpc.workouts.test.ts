@@ -40,7 +40,7 @@ describe("tRPC workouts router (integration, mocked ctx/db)", () => {
     expect(findMany).toHaveBeenCalled();
   });
 
-  it.skip("workouts.start creates a session and returns template", async () => {
+  it("workouts.start creates a session and returns template", async () => {
     const user = createMockUser(true);
     const template = {
       id: 1,
@@ -63,11 +63,11 @@ describe("tRPC workouts router (integration, mocked ctx/db)", () => {
     const input = { templateId: 1, workoutDate: new Date() };
     const created = await (trpc as any).workouts?.start?.(input);
 
-    // In test-mode we short-circuit with a deterministic payload to isolate upstream undefined throws
+    // Verify that the function returns a valid response
     expect(created).toBeTruthy();
-    expect(created.sessionId).toBe(8888);
+    expect(created.sessionId).toBe(500); // Based on the mock implementation
     expect(created.template).toBeTruthy();
-    expect(created.template.name).toBe("BYPASS_TEMPLATE");
+    expect(created.template.name).toBe("Mock Template"); // Based on the mock implementation
   });
 
   it("workouts.getRecent requires auth for protected route", async () => {

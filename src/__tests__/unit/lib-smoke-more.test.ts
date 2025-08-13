@@ -12,8 +12,8 @@ describe("lib smoke extended", () => {
     process.env = { ...envBackup };
   });
 
-  it.skip("rate-limit-middleware loads without throwing (module shape check)", async () => {
-    // Skipped: this module pulls server env/db indirectly and crashes in jsdom
+  it("rate-limit-middleware loads without throwing (module shape check)", async () => {
+    // Previously skipped: this module pulls server env/db indirectly and crashes in jsdom
     const mod = await import("~/lib/rate-limit-middleware");
     expect(mod).toBeTruthy();
     expect(typeof mod).toBe("object");

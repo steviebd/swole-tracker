@@ -36,7 +36,7 @@ describe("tRPC templates router (integration, mocked ctx/db)", () => {
     expect((db as any).query?.workoutTemplates?.findMany).toHaveBeenCalled();
   });
 
-  it.skip("create inserts template and links master exercises", async () => {
+  it("create inserts template and links master exercises", async () => {
     const user = createMockUser(true);
     const insertedTemplate = {
       id: 42,

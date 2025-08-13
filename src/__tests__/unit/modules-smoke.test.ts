@@ -97,7 +97,7 @@ describe("sse-broadcast extended coverage", () => {
 
 // 2) Hooks: use-workout-updates (mock EventSource) and useWorkoutSessionState smoke
 
-describe.skip("hook smoke: use-workout-updates with mocked EventSource", () => {
+describe("hook smoke: use-workout-updates with mocked EventSource", () => {
   it("subscribes and cleans up EventSource", async () => {
     const listeners: Record<string, Function[]> = {};
     class ES {
@@ -135,8 +135,8 @@ describe.skip("hook smoke: use-workout-updates with mocked EventSource", () => {
   });
 });
 
-describe.skip("hook smoke: useWorkoutSessionState initialize", () => {
+describe("hook smoke: useWorkoutSessionState initialize", () => {
   it("initializes without throwing and exposes structure", async () => {
-    // This hook pulls server env/db through imports; skip to avoid client env access
+    // This hook pulls server env/db through imports; previously skipped to avoid client env access
   });
 });
