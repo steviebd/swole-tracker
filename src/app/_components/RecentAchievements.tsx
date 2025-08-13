@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+// Removed unused import
 import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 

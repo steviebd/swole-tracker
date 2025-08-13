@@ -34,9 +34,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Protected routes that require authentication
-  const isProtectedRoute = request.nextUrl.pathname.match(
-    /^\/workout|^\/templates|^\/workouts/
-  );
+  const isProtectedRoute = /^\/workout|^\/templates|^\/workouts/.exec(request.nextUrl.pathname);
 
   if (isProtectedRoute && !user) {
     // Redirect to login page

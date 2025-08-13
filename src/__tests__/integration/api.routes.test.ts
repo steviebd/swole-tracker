@@ -1,5 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
 
+// Mock Supabase auth before importing route handlers
+vi.mock("~/lib/supabase-server", async () => {
+  return {
+    createServerSupabaseClient: async () => ({
+      auth: {
+        getUser: async () => ({
+          data: { user: { id: "test-user" } },
+          error: null,
+        }),
+      },
+    }),
+  };
+});
+
 // Minimal smoke tests for Next.js route handlers by invoking exported functions directly.
 // We assert a Response is returned and key headers/status where reasonable.
 

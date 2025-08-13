@@ -43,7 +43,7 @@ export function WorkoutSessionWithHealthAdvice({
 }: WorkoutSessionWithHealthAdviceProps) {
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
-  const [_acceptedSuggestions, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
+  const [, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
   
   const { 
     advice, 
@@ -204,7 +204,7 @@ export function WorkoutSessionWithHealthAdvice({
     setAcceptedSuggestions(prev => new Map(prev).set(setId, suggestion));
     
     // Extract normalized exercise name from setId format: "{exercise_name}_set_{index}"
-    const match = setId.match(/^(.+)_set_\d+$/);
+    const match = /^(.+)_set_\d+$/.exec(setId);
     if (!match) {
       console.error('Invalid setId format:', setId);
       return;

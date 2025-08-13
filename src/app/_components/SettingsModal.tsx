@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const { theme, resolvedTheme } = useTheme();
+  const { theme } = useTheme();
   const { restoreFocus } = useReturnFocus();
   const firstFocusRef = useRef<HTMLButtonElement>(null);
   const [notifications, setNotifications] = useState(true);

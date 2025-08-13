@@ -140,7 +140,7 @@ export function WhoopWorkouts() {
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
-    } catch (_error) {
+          } catch {
       setMessage({ type: "error", text: "Network error during sync" });
     } finally {
       setSyncLoading(false);

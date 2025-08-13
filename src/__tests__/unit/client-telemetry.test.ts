@@ -9,6 +9,7 @@ import {
   snapshotInputLatency,
   snapshotMetricsBlob,
   vibrate,
+  resetInputLatencySamples,
 } from "~/lib/client-telemetry";
 
 describe("client-telemetry", () => {
@@ -290,6 +291,7 @@ describe("client-telemetry", () => {
     const originalPerformance = global.performance;
 
     beforeEach(() => {
+      resetInputLatencySamples();
       const performance = {
         now: vi.fn(),
       };
