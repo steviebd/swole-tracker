@@ -18,8 +18,8 @@ export default async function ExercisesPage() {
 
   return (
     <HydrateClient>
-      <main className="min-h-screen">
-        <div className="container-default py-6">
+      <main className="min-h-screen overflow-x-hidden">
+        <div className="container-default py-6 w-full min-w-0">
           {/* Header */}
           <div className="mb-6 flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 gap-4">
             <Link

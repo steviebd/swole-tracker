@@ -373,12 +373,13 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
               <h4 className={subtitleClass}>Complete PR Timeline</h4>
               <div className={`rounded-lg border ${
                 isDark ? "border-gray-700" : "border-gray-200"
-              } max-h-96 overflow-y-auto`}>
-                <div className={`grid grid-cols-7 gap-4 px-4 py-3 text-xs font-medium border-b sticky top-0 ${
-                  isDark
-                    ? "text-gray-400 border-gray-700 bg-gray-800"
-                    : "text-gray-600 border-gray-200 bg-gray-50"
-                }`}>
+              } max-h-96 overflow-y-auto mobile-table-container`}>
+                <div className="mobile-table">
+                  <div className={`grid grid-cols-7 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs font-medium border-b sticky top-0 ${
+                    isDark
+                      ? "text-gray-400 border-gray-700 bg-gray-800"
+                      : "text-gray-600 border-gray-200 bg-gray-50"
+                  }`}>
                   <div>Date</div>
                   <div>Exercise</div>
                   <div>Type</div>
@@ -393,7 +394,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                   .map((record, index) => (
                     <div 
                       key={index} 
-                      className={`grid grid-cols-7 gap-4 px-4 py-3 text-sm ${
+                      className={`grid grid-cols-7 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm ${
                         index !== filteredRecords.length - 1
                           ? `border-b ${isDark ? "border-gray-700" : "border-gray-200"}`
                           : ""
@@ -428,6 +429,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                       </div>
                     </div>
                   ))}
+                </div>
               </div>
             </div>
           </>

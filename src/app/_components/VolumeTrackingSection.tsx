@@ -364,8 +364,9 @@ export function VolumeTrackingSection() {
                 </div>
                 
                 {/* Exercise Volume Table */}
-                <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
-                  <div className="grid grid-cols-6 gap-4 px-4 py-3 text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
+                <div className="rounded-lg border border-[var(--color-border)] overflow-hidden mobile-table-container">
+                  <div className="mobile-table">
+                    <div className="grid grid-cols-6 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
                     <div>Exercise</div>
                     <div>Volume</div>
                     <div>Sets</div>
@@ -377,7 +378,7 @@ export function VolumeTrackingSection() {
                   {volumeByExercise.slice(0, 10).map((exercise, index) => (
                     <div 
                       key={exercise.exerciseName} 
-                      className={`grid grid-cols-6 gap-4 px-4 py-3 text-sm ${
+                      className={`grid grid-cols-6 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm ${
                         index !== Math.min(9, volumeByExercise.length - 1)
                           ? "border-b border-[var(--color-border)]"
                           : ""
@@ -403,6 +404,7 @@ export function VolumeTrackingSection() {
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -567,8 +569,9 @@ export function VolumeTrackingSection() {
               </button>
             </div>
             
-            <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
-              <div className="grid grid-cols-5 gap-4 px-4 py-3 text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
+            <div className="rounded-lg border border-[var(--color-border)] overflow-hidden mobile-table-container">
+              <div className="mobile-table">
+                <div className="grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
                 <div>Date</div>
                 <div>Volume</div>
                 <div>Sets</div>
@@ -579,7 +582,7 @@ export function VolumeTrackingSection() {
               {volumeData?.slice(0, 5).map((workout, index) => (
                 <div 
                   key={index} 
-                  className={`grid grid-cols-5 gap-4 px-4 py-3 text-sm ${
+                  className={`grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm ${
                     index !== Math.min(4, chartData.length - 1)
                       ? "border-b border-[var(--color-border)]"
                       : ""
@@ -605,6 +608,7 @@ export function VolumeTrackingSection() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </div>
         </>

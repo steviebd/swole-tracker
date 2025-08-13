@@ -33,8 +33,8 @@ export default async function EditTemplatePage({
   }
 
   return (
-    <main className="min-h-screen">
-      <div className="container mx-auto px-4 py-6">
+    <main className="min-h-screen overflow-x-hidden">
+      <div className="container mx-auto px-4 py-6 w-full min-w-0">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Link

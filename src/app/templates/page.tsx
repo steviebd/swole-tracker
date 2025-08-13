@@ -25,7 +25,7 @@ export default async function TemplatesPage() {
 
   return (
     <ClientHydrate state={state}>
-      <main className="container-default min-h-screen py-4 sm:py-6">
+      <main className="container-default min-h-screen py-4 sm:py-6 overflow-x-hidden w-full min-w-0">
         {/* Header */}
         <div className="glass-header mb-4 sm:mb-6 rounded-xl px-3 sm:px-4 py-3">
           <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
