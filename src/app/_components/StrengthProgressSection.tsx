@@ -35,6 +35,9 @@ export function StrengthProgressSection() {
   const maxWeight = strengthData ? Math.max(...strengthData.map(d => d.weight)) : 0;
   const minWeight = strengthData ? Math.min(...strengthData.map(d => d.weight)) : 0;
   const range = maxWeight - minWeight || 1;
+  
+  // Reverse data for chart display (earliest to latest, left to right)
+  const chartData = strengthData ? [...strengthData].reverse() : [];
 
   return (
     <div className={cardClass + " p-6"}>
@@ -106,19 +109,19 @@ export function StrengthProgressSection() {
                     <rect width="100%" height="100%" fill="url(#grid)" />
                     
                     {/* Data points and line */}
-                    {strengthData.map((point, index) => {
-                      const x = (index / Math.max(1, strengthData.length - 1)) * 360 + 20;
+                    {chartData.map((point, index) => {
+                      const x = (index / Math.max(1, chartData.length - 1)) * 360 + 20;
                       const y = 180 - ((point.weight - minWeight) / range) * 160;
                       
                       return (
                         <g key={index}>
                           {/* Line to next point */}
-                          {index < strengthData.length - 1 && (
+                          {index < chartData.length - 1 && (
                             <line
                               x1={x}
                               y1={y}
-                              x2={(index + 1) / Math.max(1, strengthData.length - 1) * 360 + 20}
-                              y2={180 - ((strengthData[index + 1]!.weight - minWeight) / range) * 160}
+                              x2={(index + 1) / Math.max(1, chartData.length - 1) * 360 + 20}
+                              y2={180 - ((chartData[index + 1]!.weight - minWeight) / range) * 160}
                               stroke="var(--color-primary)"
                               strokeWidth="2"
                             />

@@ -880,7 +880,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   onClick={async () => {
                     closeCompleteModal();
                     await handleSave();
-                    // Navigate to history immediately after existing save flow handles navigation/notifications
+                    // Navigate to main page after successful workout completion
+                    router.push("/");
                   }}
                   className="btn-primary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-semibold"
                 >

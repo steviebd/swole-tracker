@@ -109,9 +109,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   if (templatesLoading) {
     return (
       <div className="space-y-3 sm:space-y-4">
-        <div className="animate-pulse rounded-lg bg-gray-800 p-3 sm:p-4">
-          <div className="mb-3 sm:mb-4 h-3 sm:h-4 w-1/3 rounded bg-gray-700"></div>
-          <div className="h-8 sm:h-10 rounded bg-gray-700"></div>
+        <div className="animate-pulse rounded-lg p-3 sm:p-4" style={{ backgroundColor: 'var(--color-bg-surface)' }}>
+          <div className="mb-3 sm:mb-4 h-3 sm:h-4 w-1/3 rounded" style={{ backgroundColor: 'var(--color-border)' }}></div>
+          <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: 'var(--color-border)' }}></div>
         </div>
       </div>
     );
@@ -145,19 +145,33 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
             <button
               key={template.id}
               onClick={() => setSelectedTemplateId(template.id)}
-              className={`rounded-lg border-2 p-3 sm:p-4 text-left transition-all ${
-                selectedTemplateId === template.id
-                  ? "border-[#0A84FF] bg-[#0A84FF]/10"
-                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700"
-              }`}
+              className="rounded-lg border-2 p-3 sm:p-4 text-left transition-all"
+              style={{
+                borderColor: selectedTemplateId === template.id ? 'var(--color-primary)' : 'var(--color-border)',
+                backgroundColor: selectedTemplateId === template.id 
+                  ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' 
+                  : 'var(--color-bg-surface)',
+              }}
+              onMouseEnter={(e) => {
+                if (selectedTemplateId !== template.id) {
+                  e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--color-border) 80%, var(--color-text-muted) 20%)';
+                  e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-surface) 90%, var(--color-text-muted) 10%)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedTemplateId !== template.id) {
+                  e.currentTarget.style.borderColor = 'var(--color-border)';
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
+                }
+              }}
             >
               <h3 className="mb-1 sm:mb-2 truncate font-semibold text-sm sm:text-base">{template.name}</h3>
-              <p className="text-secondary text-xs sm:text-sm">
+              <p className="text-xs sm:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                 {template.exercises.length} exercise
                 {template.exercises.length !== 1 ? "s" : ""}
               </p>
               {template.exercises.length > 0 && (
-                <div className="text-muted mt-1 sm:mt-2 text-xs">
+                <div className="mt-1 sm:mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {template.exercises
                     .slice(0, 3)
                     .map((ex) => ex.exerciseName)
@@ -181,14 +195,14 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                   <h3 className="mb-2 text-base sm:text-lg font-semibold">
                     Selected: {template.name}
                   </h3>
-                  <div className="text-xs sm:text-sm text-gray-400">
+                  <div className="text-xs sm:text-sm" style={{ color: 'var(--color-text-muted)' }}>
                     {template.exercises.length === 0 ? (
                       "No exercises in this template"
                     ) : (
                       <div className="space-y-1">
                         {template.exercises.map((exercise, index) => (
                           <div key={exercise.id} className="flex items-center">
-                            <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#0A84FF] text-xs text-black">
+                            <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full text-xs" style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
                               {index + 1}
                             </span>
                             <span className="text-xs sm:text-sm">{exercise.exerciseName}</span>
@@ -237,7 +251,12 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                     id="workoutDate"
                     value={workoutDate}
                     onChange={(e) => setWorkoutDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm sm:text-base text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    className="w-full rounded-lg border px-3 py-2 text-sm sm:text-base focus:ring-2 focus:outline-none"
+                    style={{
+                      backgroundColor: 'var(--color-bg-surface)',
+                      borderColor: 'var(--color-border)',
+                      color: 'var(--color-text)',
+                    } as React.CSSProperties}
                     required
                   />
                 </div>
@@ -260,7 +279,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       {/* No Selection State */}
       {!selectedTemplateId && (
         <div className="py-6 sm:py-8 text-center">
-          <p className="text-secondary text-sm sm:text-base">
+          <p className="text-sm sm:text-base" style={{ color: 'var(--color-text-secondary)' }}>
             Select a workout template above to continue
           </p>
         </div>

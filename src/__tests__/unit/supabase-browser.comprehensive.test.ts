@@ -132,12 +132,10 @@ describe("supabase-browser.ts comprehensive coverage", () => {
   describe("function type and export validation", () => {
     it("should export createBrowserSupabaseClient as a function", async () => {
       const module = await import("~/lib/supabase-browser");
-
       expect(typeof module.createBrowserSupabaseClient).toBe("function");
       expect(module.createBrowserSupabaseClient).toBeInstanceOf(Function);
-      // Legacy export should still exist for backward compatibility
-      expect(typeof module.createClerkSupabaseClient).toBe("function");
-      expect(module.createClerkSupabaseClient).toBeInstanceOf(Function);
+      // After migrating from Clerk to Supabase, the legacy export no longer exists
+      expect(module.createClerkSupabaseClient).toBeUndefined();
     });
 
     it("should return a SupabaseClient-like object with required methods", async () => {

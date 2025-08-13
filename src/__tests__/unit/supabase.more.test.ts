@@ -113,10 +113,7 @@ describe("supabase browser/server helpers coverage", () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role");
 
     const createClient = vi.fn().mockReturnValue({ server: true });
-    vi.doMock("@supabase/ssr", () => ({ createServerClient: createClient }));
-    vi.doMock("next/headers", () => ({
-      cookies: vi.fn(() => ({ getAll: vi.fn(() => [])})),
-    }));
+    vi.doMock("@supabase/supabase-js", () => ({ createClient }));
 
     // Import fresh after mocks (stubs declared above already). Reset modules so env is read now.
     vi.resetModules();

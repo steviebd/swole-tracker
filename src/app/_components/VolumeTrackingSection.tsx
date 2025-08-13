@@ -37,7 +37,7 @@ export function VolumeTrackingSection() {
   const buttonClass = "btn-secondary";
   const selectClass = "px-3 py-2 text-sm rounded-lg border transition-colors bg-[var(--color-bg-surface)] border-[var(--color-border)] text-[var(--color-text)] focus:border-[var(--color-primary)]";
 
-  // Calculate chart data
+  // Calculate chart data (reverse to earliest to latest for graph display)
   const chartData = volumeData ? [...volumeData].reverse() : [];
   
   // Get metric-specific data for visualization
@@ -259,7 +259,7 @@ export function VolumeTrackingSection() {
           <div className="mb-6">
             <h3 className={subtitleClass}>Volume by Exercise</h3>
             {volumeByExerciseLoading ? (
-              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-64 rounded-lg"></div>
+              <div className="animate-pulse h-64 rounded-lg" style={{ backgroundColor: 'var(--color-bg-surface)' }}></div>
             ) : volumeByExercise && volumeByExercise.length > 0 ? (
               <div className="space-y-4">
                 {/* Donut Chart */}
@@ -301,7 +301,9 @@ export function VolumeTrackingSection() {
                         
                         const colors = [
                           "var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-info)", 
-                          "var(--color-danger)", "#14B8A6", "#F97316", "#84CC16"
+                          "var(--color-danger)", "color-mix(in srgb, var(--color-success) 80%, var(--color-info) 20%)", 
+                          "color-mix(in srgb, var(--color-warning) 70%, var(--color-danger) 30%)", 
+                          "color-mix(in srgb, var(--color-success) 60%, var(--color-warning) 40%)"
                         ];
                         
                         return (
@@ -333,7 +335,9 @@ export function VolumeTrackingSection() {
                       {volumeByExercise.slice(0, 8).map((exercise, index) => {
                         const colors = [
                           "var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-info)", 
-                          "var(--color-danger)", "#14B8A6", "#F97316", "#84CC16"
+                          "var(--color-danger)", "color-mix(in srgb, var(--color-success) 80%, var(--color-info) 20%)", 
+                          "color-mix(in srgb, var(--color-warning) 70%, var(--color-danger) 30%)", 
+                          "color-mix(in srgb, var(--color-success) 60%, var(--color-warning) 40%)"
                         ];
                         
                         return (
@@ -572,7 +576,7 @@ export function VolumeTrackingSection() {
                 <div>Exercises</div>
               </div>
               
-              {chartData.slice(0, 5).map((workout, index) => (
+              {volumeData?.slice(0, 5).map((workout, index) => (
                 <div 
                   key={index} 
                   className={`grid grid-cols-5 gap-4 px-4 py-3 text-sm ${
@@ -606,7 +610,7 @@ export function VolumeTrackingSection() {
         </>
       ) : (
         <div className="text-center py-12">
-          <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="var(--color-text-muted)">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
           <p className="text-lg font-medium mb-2 text-[var(--color-text-secondary)]">

@@ -56,7 +56,7 @@ export function WorkoutSessionWithHealthAdvice({
   } = useHealthAdvice(sessionId);
 
   // Fetch the actual workout session to get template exercises
-  const { data: workoutSession } = api.workouts.getById.useQuery(
+  const { data: workoutSession, refetch: refetchWorkoutSession } = api.workouts.getById.useQuery(
     { id: sessionId },
     { enabled: !!sessionId }
   );
@@ -109,7 +109,7 @@ export function WorkoutSessionWithHealthAdvice({
 
       return {
         exercise_id: templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_'),
-        name: templateExercise.exerciseName,
+        name: templateExercise.exerciseName, // Include original name for later reference
         tags: ['strength'] as ('strength' | 'hypertrophy' | 'endurance')[], // Default tag, could be enhanced with template metadata
         sets,
       };
@@ -178,52 +178,71 @@ export function WorkoutSessionWithHealthAdvice({
   };
 
   const updateSessionSets = api.workouts.updateSessionSets.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('Successfully updated session sets');
-      // Could trigger a refresh of workout session data here
+      // Refresh the workout session data to show updated values
+      await refetchWorkoutSession();
     },
     onError: (error) => {
       console.error('Failed to update session sets:', error);
     },
   });
 
+  // Create a mapping from normalized exercise names to original names
+  const exerciseNameMapping = React.useMemo(() => {
+    const mapping: Record<string, string> = {};
+    if (workoutSession?.template?.exercises) {
+      for (const exercise of workoutSession.template.exercises) {
+        const normalizedName = exercise.exerciseName.toLowerCase().replace(/\s+/g, '_');
+        mapping[normalizedName] = exercise.exerciseName;
+      }
+    }
+    return mapping;
+  }, [workoutSession?.template?.exercises]);
+
   const handleAcceptSuggestion = async (setId: string, suggestion: { weight?: number; reps?: number }) => {
     setAcceptedSuggestions(prev => new Map(prev).set(setId, suggestion));
     
-    // Find the exercise name for this set ID
-    let exerciseName = '';
-    if (advice?.per_exercise) {
-      for (const exercise of advice.per_exercise) {
-        const set = exercise.sets.find(s => s.set_id === setId);
-        if (set) {
-          exerciseName = exercise.exercise_id;
-          break;
-        }
-      }
+    // Extract normalized exercise name from setId format: "{exercise_name}_set_{index}"
+    const match = setId.match(/^(.+)_set_\d+$/);
+    if (!match) {
+      console.error('Invalid setId format:', setId);
+      return;
+    }
+    
+    const normalizedName = match[1];
+    if (!normalizedName) {
+      console.error('No normalized name captured from setId:', setId);
+      return;
+    }
+    
+    const actualExerciseName = exerciseNameMapping[normalizedName];
+
+    if (!actualExerciseName) {
+      console.error('Could not find exercise name for normalized name:', normalizedName, 'Available mappings:', exerciseNameMapping);
+      return;
     }
 
-    if (exerciseName) {
-      try {
-        await updateSessionSets.mutateAsync({
-          sessionId,
-          updates: [{
-            setId,
-            exerciseName,
-            weight: suggestion.weight,
-            reps: suggestion.reps,
-            unit: 'kg', // Default to kg, could be made configurable
-          }],
-        });
-        console.log('Accepted and applied suggestion for set', setId, ':', suggestion);
-      } catch (error) {
-        console.error('Failed to apply suggestion:', error);
-        // Revert the UI state if the backend update failed
-        setAcceptedSuggestions(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(setId);
-          return newMap;
-        });
-      }
+    try {
+      await updateSessionSets.mutateAsync({
+        sessionId,
+        updates: [{
+          setId,
+          exerciseName: actualExerciseName,
+          weight: suggestion.weight,
+          reps: suggestion.reps,
+          unit: 'kg', // Default to kg, could be made configurable
+        }],
+      });
+      console.log('Accepted and applied suggestion for set', setId, ':', suggestion, 'Exercise:', actualExerciseName);
+    } catch (error) {
+      console.error('Failed to apply suggestion:', error);
+      // Revert the UI state if the backend update failed
+      setAcceptedSuggestions(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(setId);
+        return newMap;
+      });
     }
   };
 

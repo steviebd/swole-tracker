@@ -60,18 +60,16 @@ describe("supabase-server.ts comprehensive coverage", () => {
 
   describe("createServerSupabaseClient - test environment", () => {
     it("should create client in test environment without auth", async () => {
+      // Mock NODE_ENV to test
       vi.stubEnv("NODE_ENV", "test");
+      // Clear module cache to re-import with new env
+      vi.resetModules();
 
-      const mockCreateServerClient = vi.fn().mockReturnValue({ testClient: true });
-      vi.doMock("@supabase/ssr", () => ({
-        createServerClient: mockCreateServerClient,
-      }));
-      vi.doMock("next/headers", () => ({
-        cookies: vi.fn(() => ({
-          getAll: vi.fn(() => []),
-          set: vi.fn(),
-          get: vi.fn(() => ({ value: ""})),
-        })),
+      const mockCreateClient = vi
+        .fn()
+        .mockReturnValue({ testClient: true });
+      vi.doMock("@supabase/supabase-js", () => ({
+        createClient: mockCreateClient,
       }));
       vi.doMock("~/env", () => ({
         env: {
@@ -85,7 +83,7 @@ describe("supabase-server.ts comprehensive coverage", () => {
       );
       const client = await createServerSupabaseClient();
 
-      expect(mockCreateServerClient).toHaveBeenCalled();
+      expect(mockCreateClient).toHaveBeenCalled();
       expect(client).toEqual({ testClient: true });
     });
   });
@@ -126,19 +124,13 @@ describe("supabase-server.ts comprehensive coverage", () => {
   describe("createServerSupabaseClientFactory", () => {
     it("should return a function that creates clients in test environment", async () => {
       vi.stubEnv("NODE_ENV", "test");
+      vi.resetModules();
 
-      const mockCreateServerClient = vi
+      const mockCreateClient = vi
         .fn()
         .mockReturnValue({ factoryTestClient: true });
-      vi.doMock("@supabase/ssr", () => ({
-        createServerClient: mockCreateServerClient,
-      }));
-      vi.doMock("next/headers", () => ({
-        cookies: vi.fn(() => ({
-          getAll: vi.fn(() => []),
-          set: vi.fn(),
-          get: vi.fn(() => ({ value: ""})),
-        })),
+      vi.doMock("@supabase/supabase-js", () => ({
+        createClient: mockCreateClient,
       }));
       vi.doMock("~/env", () => ({
         env: {
@@ -152,10 +144,8 @@ describe("supabase-server.ts comprehensive coverage", () => {
       );
       const factory = createServerSupabaseClientFactory();
 
-      expect(typeof factory).toBe("function");
-
       const client = await factory();
-      expect(mockCreateServerClient).toHaveBeenCalled();
+      expect(mockCreateClient).toHaveBeenCalled();
       expect(client).toEqual({ factoryTestClient: true });
     });
 
@@ -243,15 +233,8 @@ describe("supabase-server.ts comprehensive coverage", () => {
       };
 
       vi.stubEnv("NODE_ENV", "test");
-      vi.doMock("@supabase/ssr", () => ({
-        createServerClient: vi.fn().mockReturnValue(mockClient),
-      }));
-      vi.doMock("next/headers", () => ({
-        cookies: vi.fn(() => ({
-          getAll: vi.fn(() => []),
-          set: vi.fn(),
-          get: vi.fn(() => ({ value: ""})),
-        })),
+      vi.doMock("@supabase/supabase-js", () => ({
+        createClient: vi.fn().mockReturnValue(mockClient),
       }));
       vi.doMock("~/env", () => ({
         env: {
@@ -276,13 +259,10 @@ describe("supabase-server.ts comprehensive coverage", () => {
     it("should handle createClient throwing an error", async () => {
       vi.stubEnv("NODE_ENV", "test");
 
-      vi.doMock("@supabase/ssr", () => ({
-        createServerClient: vi.fn().mockImplementation(() => {
+      vi.doMock("@supabase/supabase-js", () => ({
+        createClient: vi.fn().mockImplementation(() => {
           throw new Error("Client creation failed");
         }),
-      }));
-      vi.doMock("next/headers", () => ({
-        cookies: vi.fn(() => ({})),
       }));
       vi.doMock("~/env", () => ({
         env: {
@@ -291,9 +271,7 @@ describe("supabase-server.ts comprehensive coverage", () => {
         },
       }));
 
-      const { createServerSupabaseClient } = await import(
-        "~/lib/supabase-server"
-      );
+      const { createServerSupabaseClient } = await import("~/lib/supabase-server");
 
       await expect(createServerSupabaseClient()).rejects.toThrow(
         "Client creation failed",

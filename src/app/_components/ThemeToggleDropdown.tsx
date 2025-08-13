@@ -43,18 +43,22 @@ export function ThemeToggleDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-        }`}
+        className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-300"
+        style={{
+          color: 'var(--color-text-secondary)',
+          backgroundColor: 'transparent',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--color-text)';
+          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-surface) 60%, transparent)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--color-text-secondary)';
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
       >
         <span>Theme</span>
-        <span className={`transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "text-white" 
-            : "text-gray-900 dark:text-white"
-        }`}>
+        <span className="transition-colors duration-300" style={{ color: 'var(--color-text)' }}>
           {currentThemeLabel}
         </span>
         <svg 
@@ -68,11 +72,11 @@ export function ThemeToggleDropdown() {
       </button>
 
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-48 py-2 rounded-lg shadow-lg border z-50 transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "bg-gray-900 border-gray-700" 
-            : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700"
-        }`}>
+        <div className="absolute right-0 mt-2 w-48 py-2 rounded-lg shadow-lg border z-50 transition-colors duration-300"
+             style={{
+               backgroundColor: 'var(--color-bg-surface)',
+               borderColor: 'var(--color-border)',
+             }}>
           {THEME_OPTIONS.map((themeOption) => (
             <button
               key={themeOption}
@@ -80,15 +84,23 @@ export function ThemeToggleDropdown() {
                 setTheme(themeOption);
                 setIsOpen(false);
               }}
-              className={`w-full px-4 py-2 text-left text-sm transition-colors duration-300 ${
-                theme === themeOption
-                  ? theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "bg-gray-800 text-white"
-                    : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
-                  : theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "text-gray-300 hover:text-white hover:bg-gray-800"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800"
-              }`}
+              className="w-full px-4 py-2 text-left text-sm transition-colors duration-300"
+              style={{
+                backgroundColor: theme === themeOption ? 'var(--color-primary)' : 'transparent',
+                color: theme === themeOption ? 'white' : 'var(--color-text-secondary)',
+              }}
+              onMouseEnter={(e) => {
+                if (theme !== themeOption) {
+                  e.currentTarget.style.color = 'var(--color-text)';
+                  e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-surface) 60%, transparent)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (theme !== themeOption) {
+                  e.currentTarget.style.color = 'var(--color-text-secondary)';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
             >
               {THEME_LABELS[themeOption]}
             </button>
