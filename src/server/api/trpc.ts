@@ -49,13 +49,18 @@ export const createTRPCContext = async (opts: {
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error } = await supabase.auth.getUser();
 
+    if (error) {
+      console.log('tRPC context: Server-side auth failed:', error.message);
+    }
+
     return {
       db,
       user: (!error && user) ? { id: user.id } : null,
       requestId,
       headers: opts.headers,
     };
-  } catch {
+  } catch (error) {
+    console.error('tRPC context: Failed to get user:', error);
     // In case of any auth errors, return context with no user
     return {
       db,

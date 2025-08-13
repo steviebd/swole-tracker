@@ -1,20 +1,22 @@
-Phase 1: 
+  1. Offline/Sync System Gaps
 
-Progress/ changes
+  - Offline queue in src/lib/offline-queue.ts:45 lacks proper retry backoff
+  - No conflict resolution for simultaneous edits
+  - Missing background sync when app regains connectivity
+  - WHOOP sync rate limits may cause data loss during poor connectivity
+  - Note we have had breakages (cookies and auth session) that have been refactored previously to local storage which shouldn't happen again.
 
-1. Recent Personal Records - Make the display bigger so it displays up to 3 personal records at a time. Make sure that it's sorted by date from latest.
-2. Charts should go from left to right for weight and timeline. Check to see if this is correct as it seems like it's from right to left. 
-3. Remove 🚧 WHOOP Integration coming in a future update. This is a preview of planned features.
-4. Remove Achievement Badges feature
+  2. Mobile Performance Bottlenecks
 
-Phase 2:
+  - Bundle analysis shows potential code splitting opportunities in workout components
+  - React Query cache persistence could be optimized for mobile storage constraints
+  - Database queries in src/server/api/routers/workouts.ts could benefit from pagination
 
-Look at /workout/session/id and look at refactoring the following:
+  Questions for You
 
-1. In Today's Workout Intelligence - Exercise Recommendations - The reccommendations should display the exercises that are relevant for this workout. Right now it's displaying all exercises.
-2. Remove progression suggestion pop-up on the main page
-3. Progression suggestion should be a button after "Exercise Recommendations" that you click.
-4. Functionality should be the same, where it pops up a modal with the progression suggestion when clicked.
-5. Look at the progression suggestion as right now when you select Add 2.5kg or Add 1 rep to all sets, it only adds it to the largest set but not all sets. 
-6. When you look at it, write down the steps to fix it to PROGRESSION_FIX.MD only.
+  1. Current Pain Points: What specific performance issues do users report most? (slow loading, sync failures, app crashes?) Slow loading and unresponsiveness
+  2. Most Used Features: Which features do users access most frequently at the gym? (workout logging, template selection, timer?) Workout logging and /workout/session/id as the highest trafficked area.
+  3. Sync Expectations: When users go offline mid-workout, should changes sync immediately when connection returns or wait for manual trigger? Immediately when the connection returns
+  4. Performance Budget: What's your target for initial page load time and workout entry response time? 2 seconds
+  5. Device Constraints: Are you seeing issues on older Android devices or low-memory phones? No
 

@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
-import { ProgressionModal } from "./progression-modal";
-import { ProgressionScopeModal } from "./progression-scope-modal";
 import { Toast } from "./ui/Toast";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
@@ -47,12 +45,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     notification,
     setNotification,
     collapsedIndexes,
-    progressionModal,
-    setProgressionModal,
-    hasShownAutoProgression: _hasShownAutoProgression,
-    setHasShownAutoProgression: _setHasShownAutoProgression,
-    progressionScopeModal,
-    setProgressionScopeModal,
     saveWorkout,
     deleteWorkout,
     enqueue,
@@ -215,144 +207,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // use handler from hook
   // handleSwipeToBottom provided by hook
 
-  const handleProgressionChoice = (type: "weight" | "reps" | "none") => {
-    if (!progressionModal) {
-      return;
-    }
-
-    const { exerciseIndex, previousBest: _previousBest } = progressionModal;
-
-    if (type === "none") {
-      // No progression, just expand and close
-      setExpandedExercises((prev) => {
-        if (!prev.includes(exerciseIndex)) {
-          return [...prev, exerciseIndex];
-        }
-        return prev;
-      });
-      setProgressionModal(null);
-      return;
-    }
-
-    // For weight/reps progression, show scope selection modal
-    const increment =
-      type === "weight"
-        ? `+${_previousBest.unit === "kg" ? "2.5" : "5"}${_previousBest.unit}`
-        : "+1 rep";
-
-    setProgressionScopeModal({
-      isOpen: true,
-      exerciseIndex,
-      progressionType: type,
-      increment,
-      previousBest: _previousBest,
-    });
-
-    // Close first modal
-    setProgressionModal(null);
-  };
-
-  const applyProgressionToAll = () => {
-    if (!progressionScopeModal) return;
-
-    const { exerciseIndex, progressionType, previousBest } =
-      progressionScopeModal;
-
-    // Close the modal first to prevent double-execution
-    setProgressionScopeModal(null);
-
-    // Get current exercises state
-    setExercises((currentExercises) => {
-      const newExercises = [...currentExercises];
-      const exercise = newExercises[exerciseIndex];
-
-      if (exercise) {
-        // Apply progression to ALL sets - but only if not already applied
-        exercise.sets = exercise.sets.map((set) => {
-          const updatedSet = { ...set };
-
-          if (progressionType === "weight" && updatedSet.weight) {
-            const increment = updatedSet.unit === "kg" ? 2.5 : 5;
-            // Check if progression was already applied by looking at the weight
-            const expectedOriginalWeight = previousBest.weight || 0;
-            const expectedNewWeight = expectedOriginalWeight + increment;
-            
-            // Only apply if we haven't already applied this progression
-            if (Math.abs(updatedSet.weight - expectedOriginalWeight) < 0.1) {
-              updatedSet.weight += increment;
-            }
-          } else if (progressionType === "reps" && updatedSet.reps) {
-            const expectedOriginalReps = previousBest.reps || 0;
-            
-            // Only apply if we haven't already applied this progression
-            if (updatedSet.reps === expectedOriginalReps) {
-              updatedSet.reps += 1;
-            }
-          }
-
-          return updatedSet;
-        });
-      }
-
-      return newExercises;
-    });
-
-    // Expand the exercise
-    setExpandedExercises((prev) => {
-      if (!prev.includes(exerciseIndex)) {
-        return [...prev, exerciseIndex];
-      }
-      return prev;
-    });
-  };
-
-  const applyProgressionToHighest = () => {
-    if (!progressionScopeModal) return;
-
-    const { exerciseIndex, progressionType, previousBest } =
-      progressionScopeModal;
-
-    // Close the modal first to prevent double-execution
-    setProgressionScopeModal(null);
-
-    setExercises((prev) => {
-      const newExercises = [...prev];
-      const exercise = newExercises[exerciseIndex];
-
-      if (exercise) {
-        // Find the set that matches the previous best performance
-        const bestSetIndex = exercise.sets.findIndex(
-          (set) =>
-            set.weight === previousBest.weight &&
-            set.reps === previousBest.reps &&
-            set.sets === previousBest.sets,
-        );
-
-        if (bestSetIndex !== -1) {
-          const updatedSet = { ...exercise.sets[bestSetIndex]! };
-
-          if (progressionType === "weight" && updatedSet.weight) {
-            const increment = updatedSet.unit === "kg" ? 2.5 : 5;
-            updatedSet.weight += increment;
-          } else if (progressionType === "reps" && updatedSet.reps) {
-            updatedSet.reps += 1;
-          }
-
-          exercise.sets[bestSetIndex] = updatedSet;
-        }
-      }
-
-      return newExercises;
-    });
-
-    // Expand the exercise
-    setExpandedExercises((prev) => {
-      if (!prev.includes(exerciseIndex)) {
-        return [...prev, exerciseIndex];
-      }
-      return prev;
-    });
-  };
 
   // buildSavePayload provided by hook
 
@@ -521,14 +375,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
   if (loading || !session) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
-            <div className="mb-4 h-4 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-              <div className="h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-              <div className="h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+          <div key={i} className="animate-pulse rounded-lg p-3 sm:p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
+            <div className="mb-3 sm:mb-4 h-3 sm:h-4 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
             </div>
           </div>
         ))}
@@ -537,14 +391,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Notification */}
       {notification && (
         <div
           role="status"
           aria-live={notification.type === "error" ? "assertive" : "polite"}
           aria-atomic="true"
-          className={`sticky top-4 z-50 rounded-lg p-4 shadow-lg ${
+          className={`sticky top-2 sm:top-4 z-50 rounded-lg p-3 sm:p-4 shadow-lg ${
             notification.type === "error"
               ? `border-red-700 bg-red-900 text-red-100`
               : `border-green-700 bg-green-900 text-green-100`
@@ -557,12 +411,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             color: "var(--color-text)"
           }`}
         >
-          <div className="flex items-center justify-between">
-            <div className="whitespace-pre-line">{notification.message}</div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="whitespace-pre-line text-sm sm:text-base min-w-0 flex-1">{notification.message}</div>
             <button
               onClick={() => setNotification(null)}
               aria-label="Dismiss notification"
-              className="ml-4 text-lg font-bold opacity-70 hover:opacity-100"
+              className="text-lg sm:text-xl font-bold opacity-70 hover:opacity-100 flex-shrink-0"
             >
               ×
             </button>
@@ -593,7 +447,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
-        <div className="text-muted mb-2 text-center text-sm">
+        <div className="text-muted mb-2 text-center text-xs sm:text-sm px-2">
           💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to
           reorder & move between sections • Works on mobile & desktop
         </div>
@@ -658,20 +512,20 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* No Exercises State */}
       {exercises.length === 0 && (
-        <div className="py-8 text-center">
-          <p className="text-secondary">No exercises in this template</p>
+        <div className="py-6 sm:py-8 text-center">
+          <p className="text-secondary text-sm sm:text-base">No exercises in this template</p>
         </div>
       )}
 
       {/* Bottom action bar - editable only */}
       {!isReadOnly && (
         <div
-          className="sticky bottom-4 z-50 pt-6"
+          className="sticky bottom-2 sm:bottom-4 z-50 pt-4 sm:pt-6"
           role="region"
           aria-label="Workout actions"
         >
-          <div className="glass-surface glass-hairline rounded-xl p-3 shadow-lg">
-            <div className="grid grid-cols-3 gap-2">
+          <div className="glass-surface glass-hairline rounded-xl p-2 sm:p-3 shadow-lg">
+            <div className="grid grid-cols-3 gap-1 sm:gap-2">
               <button
                 onClick={(e) => {
                   // Avoid double-fire from multiple pointer/mouse handlers or event bubbling
@@ -710,7 +564,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
-                className="btn-secondary py-3"
+                className="btn-secondary py-2 sm:py-3 text-sm sm:text-base"
                 aria-label="Add set to current exercise"
               >
                 Add Set
@@ -744,7 +598,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   } catch {}
                 }}
                 disabled={saveWorkout.isPending}
-                className="btn-secondary py-3 disabled:opacity-50"
+                className="btn-secondary py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50"
                 aria-busy={saveWorkout.isPending ? "true" : "false"}
                 aria-label="Save workout"
               >
@@ -760,14 +614,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     posthog.capture("haptic_action", { kind: "save" });
                   } catch {}
                 }}
-                className="btn-primary py-3"
+                className="btn-primary py-2 sm:py-3 text-sm sm:text-base"
               >
                 Complete
               </button>
             </div>
 
             {/* Delete is secondary; keep outside the primary row */}
-            <div className="mt-2 text-center">
+            <div className="mt-1.5 sm:mt-2 text-center">
               <button
                 onClick={() => {
                   setShowDeleteConfirm(true);
@@ -775,7 +629,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   vibrateSafe(10);
                 }}
                 disabled={deleteWorkout.isPending}
-                className="btn-destructive px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                className="btn-destructive px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold disabled:opacity-50"
                 aria-describedby="delete-workout-help"
               >
                 {deleteWorkout.isPending ? "Deleting…" : "Delete Workout"}
@@ -790,23 +644,23 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Read-only Actions */}
       {isReadOnly && (
-        <div className="sticky bottom-4 space-y-3 pt-6">
+        <div className="sticky bottom-4 space-y-2 sm:space-y-3 pt-6">
           <Link
             href={`/workout/start?templateId=${session?.templateId}`}
-            className="btn-primary block w-full py-3 text-center text-lg font-medium"
+            className="btn-primary block w-full py-2.5 sm:py-3 text-center text-base sm:text-lg font-medium"
           >
             Repeat This Workout
           </Link>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={deleteWorkout.isPending}
-            className="btn-destructive w-full py-3 text-lg font-medium disabled:opacity-50"
+            className="btn-destructive w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium disabled:opacity-50"
           >
             {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
           <button
             onClick={() => router.back()}
-            className="btn-secondary w-full py-3 text-lg font-medium"
+            className="btn-secondary w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium"
           >
             Back to History
           </button>
@@ -834,19 +688,19 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="card w-full max-w-md p-6 shadow-2xl"
+              className="card w-full max-w-md p-4 sm:p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h3
                 id="delete-workout-title"
-                className="mb-4 text-xl font-bold"
+                className="mb-3 sm:mb-4 text-lg sm:text-xl font-bold"
                 style={{ color: "var(--color-danger)" }}
               >
                 Delete Workout
               </h3>
               <p
                 id="delete-workout-desc"
-                className="text-secondary mb-6 leading-relaxed"
+                className="text-secondary mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base"
               >
                 Are you sure you want to delete this workout?
                 <br />
@@ -860,7 +714,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     restoreFocusInline();
                     setShowDeleteConfirm(false);
                   }}
-                  className="btn-secondary flex-1 py-3 font-medium"
+                  className="btn-secondary flex-1 py-2.5 sm:py-3 font-medium text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -871,7 +725,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     void handleDelete();
                   }}
                   disabled={deleteWorkout.isPending}
-                  className="btn-destructive flex-1 py-3 font-medium disabled:opacity-50"
+                  className="btn-destructive flex-1 py-2.5 sm:py-3 font-medium text-sm sm:text-base disabled:opacity-50"
                 >
                   {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
                 </button>
@@ -881,28 +735,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
-      {/* Progression Modal */}
-      {progressionModal && (
-        <ProgressionModal
-          isOpen={progressionModal.isOpen}
-          onClose={() => setProgressionModal(null)}
-          exerciseName={progressionModal.exerciseName}
-          previousBest={progressionModal.previousBest}
-          onApplyProgression={handleProgressionChoice}
-        />
-      )}
-
-      {/* Progression Scope Modal */}
-      {progressionScopeModal && (
-        <ProgressionScopeModal
-          isOpen={progressionScopeModal.isOpen}
-          onClose={() => setProgressionScopeModal(null)}
-          progressionType={progressionScopeModal.progressionType}
-          increment={progressionScopeModal.increment}
-          onApplyToAll={applyProgressionToAll}
-          onApplyToHighest={applyProgressionToHighest}
-        />
-      )}
 
       {/* Complete Workout Modal */}
       {showCompleteModal && (
@@ -925,19 +757,19 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="card w-full max-w-lg p-6 shadow-2xl"
+              className="card w-full max-w-lg p-4 sm:p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h3
                 id="complete-workout-title"
-                className="mb-1 text-xl font-bold"
+                className="mb-1 text-lg sm:text-xl font-bold"
                 style={{ color: "var(--color-primary)" }}
               >
                 Complete Workout
               </h3>
               <p
                 id="complete-workout-desc"
-                className="text-secondary mb-4 text-sm"
+                className="text-secondary mb-3 sm:mb-4 text-xs sm:text-sm"
               >
                 Review your performance compared to your previous best for each
                 exercise.
@@ -1043,20 +875,21 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   })}
                 </div>
               </div>
-              <div className="mt-5 flex items-center gap-3">
+              <div className="mt-4 sm:mt-5 flex items-center gap-3">
                 <button
                   onClick={async () => {
                     closeCompleteModal();
                     await handleSave();
-                    // Navigate to history immediately after existing save flow handles navigation/notifications
+                    // Navigate to main page after successful workout completion
+                    router.push("/");
                   }}
-                  className="btn-primary flex-1 py-3 text-lg font-semibold"
+                  className="btn-primary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-semibold"
                 >
                   Complete Workout
                 </button>
                 <button
                   onClick={closeCompleteModal}
-                  className="btn-secondary flex-1 py-3 text-lg font-medium"
+                  className="btn-secondary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-medium"
                 >
                   Continue Workout
                 </button>

@@ -6,23 +6,7 @@
   --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-display: var(--font-display-internal, var(--font-ui));
 
-  /* Default fallbacks (overridden by theme variants) */
-  --color-bg-app: #0a0a0a;
-  --color-bg-surface: #111827;
-  --color-border: #1f2937;
-  --color-text: #ffffff;
-  --color-text-secondary: #d1d5db;
-  --color-text-muted: #9ca3af;
-
-  --color-primary: #0A84FF;
-  --color-primary-hover: #0a7ae6;
-  --color-primary-active: #0867c4;
-
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger:  #f43f5e;
-  --color-info:    #3b82f6;
-
+  /* Layout and design tokens (no color defaults - let themes handle colors) */
   --radius-card: 0.75rem;
   --shadow-focus: 0 0 0 2px color-mix(in oklab, var(--color-primary) 50%, transparent);
 

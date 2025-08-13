@@ -35,7 +35,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       aria-labelledby="settings-title"
       className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
       style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'color-mix(in srgb, var(--color-bg-app) 80%, transparent)',
       }}
       onClick={() => {
         restoreFocus();
@@ -79,10 +79,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   className="inline-flex h-8 w-14 items-center rounded-full transition-colors"
                   style={{
                     backgroundColor: notifications 
-                      ? (theme !== "system" || (theme === "system" && resolvedTheme === "dark") 
-                          ? "var(--color-primary)" 
-                          : "#3B82F6")
-                      : "#6B7280"
+                      ? "var(--color-primary)" 
+                      : "var(--color-text-muted)"
                   }}
                 >
                   <span
@@ -99,11 +97,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <section>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className={`font-medium transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "text-white" 
-                      : "text-gray-900 dark:text-white"
-                  }`}>Workout Reminders</div>
+                  <div className="font-medium" style={{ color: 'var(--color-text)' }}>Workout Reminders</div>
                   <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
                     Get reminded when it's time to work out
                   </div>
@@ -115,10 +109,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   className="inline-flex h-8 w-14 items-center rounded-full transition-colors"
                   style={{
                     backgroundColor: workoutReminders 
-                      ? (theme !== "system" || (theme === "system" && resolvedTheme === "dark") 
-                          ? "var(--color-primary)" 
-                          : "#3B82F6")
-                      : "#6B7280"
+                      ? "var(--color-primary)" 
+                      : "var(--color-text-muted)"
                   }}
                 >
                   <span
@@ -133,26 +125,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Data Export */}
             <section>
-              <div className={`mb-1 font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Data Export</div>
-              <div className={`mb-3 text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Data Export</div>
+              <div className="mb-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 Export your workout data as CSV or JSON
               </div>
               <button
                 onClick={handleExportData}
                 disabled={dataExport}
-                className={`px-4 py-2 rounded-lg border font-medium transition-colors duration-300 disabled:opacity-50 ${
-                  theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                    ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
+                className="px-4 py-2 rounded-lg border font-medium transition-colors duration-300 disabled:opacity-50"
+                style={{
+                  backgroundColor: 'var(--color-bg-surface)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text)',
+                }}
               >
                 {dataExport ? "Exporting..." : "Export Data"}
               </button>
@@ -160,30 +145,28 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Account */}
             <section>
-              <div className={`mb-1 font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>Account</div>
-              <div className={`mb-3 text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Account</div>
+              <div className="mb-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 Manage your account settings and data
               </div>
               <div className="space-y-2">
                 <button
-                  className={`block w-full text-left px-4 py-2 rounded-lg border font-medium transition-colors duration-300 ${
-                    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                      ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                      : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-                  }`}
+                  className="block w-full text-left px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+                  style={{
+                    backgroundColor: 'var(--color-bg-surface)',
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text)',
+                  }}
                 >
                   Change Password
                 </button>
                 <button
-                  className="block w-full text-left px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 font-medium transition-colors duration-300"
+                  className="block w-full text-left px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+                  style={{
+                    borderColor: 'var(--color-danger)',
+                    color: 'var(--color-danger)',
+                    backgroundColor: 'transparent',
+                  }}
                 >
                   Delete Account
                 </button>
@@ -191,16 +174,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </section>
 
             {/* App Info */}
-            <section className={`pt-4 border-t transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "border-gray-800" 
-                : "border-gray-200 dark:border-gray-800"
-            }`}>
-              <div className={`text-center text-sm transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-gray-400" 
-                  : "text-gray-600 dark:text-gray-400"
-              }`}>
+            <section className="pt-4 border-t transition-colors duration-300" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="text-center text-sm transition-colors duration-300" style={{ color: 'var(--color-text-muted)' }}>
                 Swole Tracker v1.0.0<br />
                 Built with Next.js & tRPC
               </div>
@@ -208,22 +183,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
 
           {/* Footer */}
-          <div className={`flex justify-end gap-2 border-t px-6 py-4 transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "border-gray-800" 
-              : "border-gray-200 dark:border-gray-800"
-          }`}>
+          <div className="flex justify-end gap-2 border-t px-6 py-4 transition-colors duration-300" style={{ borderColor: 'var(--color-border)' }}>
             <button
               ref={firstFocusRef}
               onClick={() => {
                 restoreFocus();
                 onClose();
               }}
-              className={`px-4 py-2 rounded-lg border font-medium transition-colors duration-300 ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
-                  : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
+              className="px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+              style={{
+                backgroundColor: 'var(--color-bg-surface)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text)',
+              }}
             >
               Close
             </button>

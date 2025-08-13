@@ -38,18 +38,18 @@ export default async function WorkoutSessionPage({
   return (
     <HydrateClient>
       <main className="min-h-screen">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
           {/* Header */}
-          <div className="mb-6 flex items-center gap-4">
-            <Link href="/" className="text-purple-400 hover:text-purple-300">
+          <div className="mb-4 sm:mb-6 flex items-start gap-3 sm:gap-4">
+            <Link href="/" className="text-purple-400 hover:text-purple-300 text-sm sm:text-base flex-shrink-0 mt-1">
               ← Back
             </Link>
-            <div>
-              <h1 className="text-2xl font-bold">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">
                 {workoutSession.exercises.length > 0 ? "View Workout: " : ""}
                 {workoutSession.template.name}
               </h1>
-              <p className="text-sm text-gray-400">
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 {new Date(workoutSession.workoutDate).toLocaleString()}
               </p>
             </div>

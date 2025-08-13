@@ -22,12 +22,12 @@ describe("client-telemetry", () => {
       });
     });
 
-    it('should return "other" when navigator is undefined', () => {
+    it('should return "unknown" when navigator is undefined', () => {
       Object.defineProperty(global, "navigator", {
         value: undefined,
         writable: true,
       });
-      expect(getDeviceType()).toBe("other");
+      expect(getDeviceType()).toBe("unknown");
     });
 
     it("should detect android", () => {

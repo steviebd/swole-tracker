@@ -582,6 +582,87 @@ export const workoutsRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Update specific sets in a workout session (for accepting AI suggestions)
+  updateSessionSets: protectedProcedure
+    .use(workoutRateLimit)
+    .input(
+      z.object({
+        sessionId: z.number(),
+        updates: z.array(
+          z.object({
+            setId: z.string(), // Format: "{exercise_name}_set_{index}"
+            exerciseName: z.string(),
+            weight: z.number().optional(),
+            reps: z.number().int().positive().optional(),
+            unit: z.enum(["kg", "lbs"]).default("kg"),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Verify session ownership
+      const session = await ctx.db.query.workoutSessions.findFirst({
+        where: eq(workoutSessions.id, input.sessionId),
+        with: {
+          exercises: {
+            orderBy: [sessionExercises.setOrder],
+          },
+        },
+      });
+
+      if (!session || session.user_id !== ctx.user.id) {
+        throw new Error("Workout session not found");
+      }
+
+      let updatedCount = 0;
+
+      // Apply updates to session exercises
+      for (const update of input.updates) {
+        console.log(`Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`);
+        
+        // Parse setId to extract set index (format: "{exercise_name}_set_{index}")
+        const setIdMatch = update.setId.match(/_set_(\d+)$/);
+        if (!setIdMatch || !setIdMatch[1]) {
+          console.warn(`Invalid setId format: ${update.setId}`);
+          continue;
+        }
+        
+        const setIndex = parseInt(setIdMatch[1]) - 1; // Convert to 0-based index
+        console.log(`Parsed setIndex: ${setIndex} (from ${setIdMatch[1]})`);
+
+        // Find exercises matching the exercise name
+        const exerciseMatches = session.exercises.filter(
+          (ex) => ex.exerciseName === update.exerciseName
+        );
+        console.log(`Found ${exerciseMatches.length} matching exercises for ${update.exerciseName}`);
+
+        // Find the specific set by index within the exercise
+        if (setIndex >= 0 && setIndex < exerciseMatches.length) {
+          const targetExercise = exerciseMatches[setIndex];
+          
+          if (targetExercise) {
+            console.log(`Updating exercise ID ${targetExercise.id} with weight: ${update.weight}, reps: ${update.reps}`);
+            // Update the existing set
+            await ctx.db
+              .update(sessionExercises)
+              .set({
+                weight: update.weight !== undefined ? update.weight.toString() : undefined,
+                reps: update.reps,
+                unit: update.unit,
+              })
+              .where(eq(sessionExercises.id, targetExercise.id));
+            
+            updatedCount++;
+            console.log(`Successfully updated set ${targetExercise.id}`);
+          }
+        } else {
+          console.warn(`Set index ${setIndex} out of range for exercise ${update.exerciseName}. Available sets: ${exerciseMatches.length}`);
+        }
+      }
+
+      return { success: true, updatedCount };
+    }),
+
   // Delete a workout session
   delete: protectedProcedure
     .use(workoutRateLimit)

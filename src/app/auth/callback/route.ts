@@ -9,6 +9,9 @@ export async function GET(request: NextRequest) {
   const redirectTo = requestUrl.searchParams.get("redirect_to") ?? "/";
 
   if (code) {
+    let response = NextResponse.redirect(`${origin}${redirectTo}`);
+    let cookiesSet: Array<{name: string, value: string, options?: any}> = [];
+
     const supabase = createServerClient(
       env.NEXT_PUBLIC_SUPABASE_URL,
       env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -19,24 +22,35 @@ export async function GET(request: NextRequest) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value);
+              console.log('Auth callback setting cookie:', { name, hasValue: !!value, options });
+              response.cookies.set(name, value, options);
+              cookiesSet.push({ name, value, options });
             });
           },
         },
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    console.log('Auth callback result:', {
+      success: !error,
+      error: error?.message,
+      hasUser: !!data.user,
+      userId: data.user?.id,
+      cookiesSetCount: cookiesSet.length,
+      cookieNames: cookiesSet.map(c => c.name),
+    });
 
     if (!error) {
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
       if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${redirectTo}`);
+        return response;
       } else if (forwardedHost) {
         return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
       } else {
-        return NextResponse.redirect(`${origin}${redirectTo}`);
+        return response;
       }
     }
   }

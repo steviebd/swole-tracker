@@ -22,9 +22,12 @@
   --color-secondary: oklch(0.97 0 0);              /* Very light gray */
   --color-secondary-hover: oklch(0.95 0 0);        /* Slightly darker gray */
   
+  /* Card background */
+  --color-card: oklch(1 0 0);                      /* White card background */
+  
   /* Semantic colors - keeping similar to v1-dark but adjusted for light theme */
   --color-success: oklch(0.646 0.222 142.5);       /* Green success */
-  --color-warning: oklch(0.828 0.189 84.429);      /* Orange warning */
+  --color-warning: oklch(0.828 0.189 84.429);      /* Orange warning */  
   --color-danger: oklch(0.577 0.245 27.325);       /* Red danger */
   --color-info: oklch(0.6 0.118 264.376);          /* Blue info */
   

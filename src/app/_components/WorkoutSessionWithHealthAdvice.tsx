@@ -9,6 +9,7 @@ import { ProbabilityGauge } from '~/app/_components/health-advice/ProbabilityGau
 import { AISummary } from '~/app/_components/health-advice/AISummary';
 import { SubjectiveWellnessModal } from '~/app/_components/health-advice/SubjectiveWellnessModal';
 import { useHealthAdvice } from '~/hooks/useHealthAdvice';
+import { api } from '~/trpc/react';
 import type { HealthAdviceRequest } from '~/server/api/schemas/health-advice';
 import type { SubjectiveWellnessData } from '~/lib/subjective-wellness-mapper';
 
@@ -54,6 +55,12 @@ export function WorkoutSessionWithHealthAdvice({
     whoopStatus
   } = useHealthAdvice(sessionId);
 
+  // Fetch the actual workout session to get template exercises
+  const { data: workoutSession, refetch: refetchWorkoutSession } = api.workouts.getById.useQuery(
+    { id: sessionId },
+    { enabled: !!sessionId }
+  );
+
   // Mock data for demonstration - in real implementation, this would come from props
   const mockWhoopData = whoopData || {
     recovery_score: 75,
@@ -71,30 +78,45 @@ export function WorkoutSessionWithHealthAdvice({
     preferred_rpe: 8
   };
 
-  const mockWorkoutPlan = workoutPlan || {
-    exercises: [
-      {
-        exercise_id: 'bench_press',
-        name: 'Bench Press',
-        tags: ['strength', 'hypertrophy'],
-        sets: [
-          { set_id: 'set_1', target_reps: 5, target_weight_kg: 80, target_rpe: 8 },
-          { set_id: 'set_2', target_reps: 5, target_weight_kg: 80, target_rpe: 8 },
-          { set_id: 'set_3', target_reps: 5, target_weight_kg: 80, target_rpe: 8 }
-        ]
-      },
-      {
-        exercise_id: 'squat',
-        name: 'Back Squat',
-        tags: ['strength', 'hypertrophy'],
-        sets: [
-          { set_id: 'set_4', target_reps: 8, target_weight_kg: 100, target_rpe: 7 },
-          { set_id: 'set_5', target_reps: 8, target_weight_kg: 100, target_rpe: 7 },
-          { set_id: 'set_6', target_reps: 8, target_weight_kg: 100, target_rpe: 7 }
-        ]
-      }
-    ]
-  };
+  // Build dynamic workout plan from actual session template data
+  const dynamicWorkoutPlan = React.useMemo(() => {
+    if (!workoutSession?.template?.exercises) {
+      return workoutPlan || {
+        exercises: []
+      };
+    }
+
+    // Create workout plan from template exercises
+    const exercises = workoutSession.template.exercises.map((templateExercise, index) => {
+      // Get existing session exercises for this template exercise to determine set count
+      const existingSessionSets = workoutSession.exercises?.filter(
+        ex => ex.exerciseName === templateExercise.exerciseName
+      ) || [];
+
+      // Determine how many sets to generate (use existing data or default to 3)
+      const setCount = existingSessionSets.length > 0 ? existingSessionSets.length : 3;
+
+      // Generate sets with data from existing session exercises or defaults
+      const sets = Array.from({ length: setCount }, (_, setIndex) => {
+        const existingSet = existingSessionSets[setIndex];
+        return {
+          set_id: `${templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_')}_set_${setIndex + 1}`,
+          target_reps: existingSet?.reps || null,
+          target_weight_kg: existingSet?.weight ? parseFloat(existingSet.weight) : null,
+          target_rpe: existingSet?.rpe || null,
+        };
+      });
+
+      return {
+        exercise_id: templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_'),
+        name: templateExercise.exerciseName, // Include original name for later reference
+        tags: ['strength'] as ('strength' | 'hypertrophy' | 'endurance')[], // Default tag, could be enhanced with template metadata
+        sets,
+      };
+    });
+
+    return { exercises };
+  }, [workoutSession, workoutPlan]);
 
   const mockPriorBests = priorBests || {
     by_exercise_id: {
@@ -124,7 +146,7 @@ export function WorkoutSessionWithHealthAdvice({
         session_id: sessionId.toString(),
         user_profile: mockUserProfile,
         whoop: mockWhoopData,
-        workout_plan: mockWorkoutPlan,
+        workout_plan: dynamicWorkoutPlan,
         prior_bests: mockPriorBests
       };
 
@@ -142,7 +164,7 @@ export function WorkoutSessionWithHealthAdvice({
     const request = {
       session_id: sessionId.toString(),
       user_profile: mockUserProfile,
-      workout_plan: mockWorkoutPlan,
+      workout_plan: dynamicWorkoutPlan,
       prior_bests: mockPriorBests
     };
 
@@ -155,10 +177,73 @@ export function WorkoutSessionWithHealthAdvice({
     window.open('/connect-whoop', '_blank');
   };
 
-  const handleAcceptSuggestion = (setId: string, suggestion: { weight?: number; reps?: number }) => {
+  const updateSessionSets = api.workouts.updateSessionSets.useMutation({
+    onSuccess: async () => {
+      console.log('Successfully updated session sets');
+      // Refresh the workout session data to show updated values
+      await refetchWorkoutSession();
+    },
+    onError: (error) => {
+      console.error('Failed to update session sets:', error);
+    },
+  });
+
+  // Create a mapping from normalized exercise names to original names
+  const exerciseNameMapping = React.useMemo(() => {
+    const mapping: Record<string, string> = {};
+    if (workoutSession?.template?.exercises) {
+      for (const exercise of workoutSession.template.exercises) {
+        const normalizedName = exercise.exerciseName.toLowerCase().replace(/\s+/g, '_');
+        mapping[normalizedName] = exercise.exerciseName;
+      }
+    }
+    return mapping;
+  }, [workoutSession?.template?.exercises]);
+
+  const handleAcceptSuggestion = async (setId: string, suggestion: { weight?: number; reps?: number }) => {
     setAcceptedSuggestions(prev => new Map(prev).set(setId, suggestion));
-    // Here you would integrate with the actual workout session to update the values
-    console.log('Accepted suggestion for set', setId, ':', suggestion);
+    
+    // Extract normalized exercise name from setId format: "{exercise_name}_set_{index}"
+    const match = setId.match(/^(.+)_set_\d+$/);
+    if (!match) {
+      console.error('Invalid setId format:', setId);
+      return;
+    }
+    
+    const normalizedName = match[1];
+    if (!normalizedName) {
+      console.error('No normalized name captured from setId:', setId);
+      return;
+    }
+    
+    const actualExerciseName = exerciseNameMapping[normalizedName];
+
+    if (!actualExerciseName) {
+      console.error('Could not find exercise name for normalized name:', normalizedName, 'Available mappings:', exerciseNameMapping);
+      return;
+    }
+
+    try {
+      await updateSessionSets.mutateAsync({
+        sessionId,
+        updates: [{
+          setId,
+          exerciseName: actualExerciseName,
+          weight: suggestion.weight,
+          reps: suggestion.reps,
+          unit: 'kg', // Default to kg, could be made configurable
+        }],
+      });
+      console.log('Accepted and applied suggestion for set', setId, ':', suggestion, 'Exercise:', actualExerciseName);
+    } catch (error) {
+      console.error('Failed to apply suggestion:', error);
+      // Revert the UI state if the backend update failed
+      setAcceptedSuggestions(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(setId);
+        return newMap;
+      });
+    }
   };
 
   const handleOverrideSuggestion = (setId: string) => {
@@ -171,13 +256,13 @@ export function WorkoutSessionWithHealthAdvice({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Health Advice Toggle */}
       <div className="flex justify-center">
         <Button
           onClick={handleGetHealthAdvice}
           disabled={loading}
-          className="btn-primary"
+          className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
         >
           {loading 
             ? 'Getting AI Advice...' 
@@ -190,10 +275,10 @@ export function WorkoutSessionWithHealthAdvice({
 
       {/* Health Advice Panel */}
       {showHealthAdvice && advice && (
-        <div className="space-y-4 glass-surface p-4" style={{backgroundColor: 'var(--color-bg-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)'}}>
-          <h2 className="text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
+        <div className="space-y-3 sm:space-y-4 glass-surface p-3 sm:p-4" style={{backgroundColor: 'var(--color-bg-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)'}}>
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {/* Readiness and Overall Chance */}
             <div className="space-y-4">
               <ReadinessIndicator 
@@ -216,8 +301,8 @@ export function WorkoutSessionWithHealthAdvice({
           </div>
 
           {/* Exercise-specific suggestions */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Exercise Recommendations</h3>
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Exercise Recommendations</h3>
             {advice.per_exercise.map((exercise) => (
               <SetSuggestions
                 key={exercise.exercise_id}

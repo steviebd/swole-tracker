@@ -11,16 +11,14 @@ describe("supabase browser/server helpers coverage", () => {
       (async () => {
         const mod = await import("~/lib/supabase-browser");
         // Access named export
-        const { createClerkSupabaseClient } = mod as unknown as {
-          createClerkSupabaseClient: (
-            session?: { getToken?: () => Promise<string | null> } | null,
-          ) => any;
+        const { createBrowserSupabaseClient } = mod as unknown as {
+          createBrowserSupabaseClient: () => any;
         };
         // Ensure env not present
         delete process.env.NEXT_PUBLIC_SUPABASE_URL;
         delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         // This should use defaults from env.js, not throw
-        const client = createClerkSupabaseClient(null);
+        const client = createBrowserSupabaseClient();
         return client;
       })(),
     ).resolves.toBeDefined();
@@ -44,22 +42,19 @@ describe("supabase browser/server helpers coverage", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
 
     const createClient = vi.fn().mockReturnValue({ ok: true });
-    vi.doMock("@supabase/supabase-js", () => ({ createClient }));
+    vi.doMock("@supabase/ssr", () => ({ createBrowserClient: createClient }));
 
     const mod2 = await import("~/lib/supabase-browser");
-    const { createClerkSupabaseClient } = mod2 as unknown as {
-      createClerkSupabaseClient: (
-        session?: { getToken?: () => Promise<string | null> } | null,
-      ) => any;
+    const { createBrowserSupabaseClient } = mod2 as unknown as {
+      createBrowserSupabaseClient: () => any;
     };
-    const client1 = createClerkSupabaseClient(null);
+    const client1 = createBrowserSupabaseClient();
     // Accept either our mocked sentinel or a real SupabaseClient depending on import timing.
     // If our mock didn't intercept (0 calls), just assert the function exists and client was created.
     if (createClient.mock.calls.length > 0) {
       expect(createClient).toHaveBeenCalledWith(
         "http://127.0.0.1:54321",
         "local-service-role-key",
-        expect.objectContaining({ auth: expect.any(Object) }),
       );
     }
     expect(typeof client1).toBe("object");
@@ -79,12 +74,11 @@ describe("supabase browser/server helpers coverage", () => {
           globalFetch: opts?.global?.fetch,
         };
       });
-    vi.doMock("@supabase/supabase-js", () => ({ createClient: createClient2 }));
+    vi.doMock("@supabase/ssr", () => ({ createBrowserClient: createClient2 }));
 
-    const session = { getToken: vi.fn().mockResolvedValue("tok_123") };
     const mod3 = await import("~/lib/supabase-browser");
-    const { createClerkSupabaseClient: createBrowserClient } = mod3 as any;
-    const client2 = createBrowserClient(session);
+    const { createBrowserSupabaseClient: createBrowserClient2 } = mod3 as any;
+    const client2 = createBrowserClient2();
     // In some environments the helper may return a real Supabase client instead of our sentinel.
     // Assert via createClient call args and presence of wrapped fetch.
     // If our mock didn't intercept due to import timing, skip strict arg assertion
@@ -92,39 +86,7 @@ describe("supabase browser/server helpers coverage", () => {
       expect(createClient2).toHaveBeenCalledWith(
         "https://project.supabase.co",
         "public-anon-key",
-        expect.objectContaining({ global: expect.any(Object) }),
       );
-    }
-
-    // Verify injected Authorization header
-    const wrappedFetch =
-      ((client2 as any)?.globalFetch as (
-        url: string,
-        init?: RequestInit,
-      ) => Promise<Response>) ??
-      // Fallback: if the helper attached fetch under options/global, retrieve from last call
-      (createClient2.mock.calls.at(-1)?.[2]?.global?.fetch as (
-        url: string,
-        init?: RequestInit,
-      ) => Promise<Response>);
-    if (typeof wrappedFetch === "function") {
-      const baseFetch = vi
-        .spyOn(globalThis, "fetch")
-        .mockResolvedValue(new Response(null, { status: 204 }));
-      await wrappedFetch("https://api.example.com/data", {
-        headers: { "x-one": "1" },
-      });
-      expect(session.getToken).toHaveBeenCalled();
-      expect(baseFetch).toHaveBeenCalledWith(
-        "https://api.example.com/data",
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: "Bearer tok_123",
-            "x-one": "1",
-          }),
-        }),
-      );
-      baseFetch.mockRestore();
     }
 
     // restore env
@@ -152,15 +114,6 @@ describe("supabase browser/server helpers coverage", () => {
 
     const createClient = vi.fn().mockReturnValue({ server: true });
     vi.doMock("@supabase/supabase-js", () => ({ createClient }));
-    // Stub server-only and Clerk modules before importing the server helper
-    vi.doMock("server-only", () => ({}));
-    vi.doMock("@clerk/nextjs", () => ({
-      auth: async () => ({ getToken: async () => "tok_server" }),
-    }));
-    // also stub the app-router server export path to avoid server-only importing
-    vi.doMock("@clerk/nextjs/server", () => ({
-      auth: async () => ({ getToken: async () => "tok_server" }),
-    }));
 
     // Import fresh after mocks (stubs declared above already). Reset modules so env is read now.
     vi.resetModules();

@@ -8,7 +8,6 @@ import {
 } from "./trpc-harness";
 
 // Seed public env in case this file is evaluated directly first
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= "pk_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_KEY ||= "phc_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_HOST ||= "https://us.i.posthog.com";
 process.env.NEXT_PUBLIC_SUPABASE_URL ||= "https://test.supabase.co";
