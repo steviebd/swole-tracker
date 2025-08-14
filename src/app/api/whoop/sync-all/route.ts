@@ -136,6 +136,8 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
   const expiryBuffer = 5 * 60 * 1000; // 5 minutes
   const now = new Date();
 
+  // Check if token needs refresh (5 minute buffer)
+
   if (
     integration.expiresAt &&
     new Date(integration.expiresAt).getTime() - now.getTime() < expiryBuffer
@@ -217,6 +219,7 @@ async function syncWorkouts(userId: string, accessToken: string): Promise<number
   try {
     const workouts = await fetchWhoopData<WhoopWorkout>("activity/workout", accessToken, 25);
     
+    // Fetched workouts from WHOOP API
     if (workouts.length === 0) return 0;
 
     // Check for existing workouts by both WHOOP ID and temporal overlap
@@ -272,6 +275,7 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
   try {
     const recoveries = await fetchWhoopData<WhoopRecovery>("recovery", accessToken, 25);
     
+    // Fetched recovery records from WHOOP API
     if (recoveries.length === 0) return 0;
 
     const existingRecoveries = await db
@@ -290,7 +294,15 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
     if (newRecoveries.length > 0) {
       await db.insert(whoopRecovery).values(
         newRecoveries.map(recovery => {
-          const date = recovery.created_at ? recovery.created_at.split('T')[0]! : new Date().toISOString().split('T')[0]!
+          // Ensure we have a valid date string
+          let date: string;
+          if (recovery.created_at && typeof recovery.created_at === 'string') {
+            const datePart = recovery.created_at.split('T')[0];
+            date = datePart || new Date().toISOString().split('T')[0]!;
+          } else {
+            date = new Date().toISOString().split('T')[0]!;
+          }
+          
           return {
             user_id: userId,
             whoop_recovery_id: recovery.id,
@@ -305,7 +317,7 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
             timezone_offset: null,
           };
         })
-      );
+      ).onConflictDoNothing();
     }
 
     return newRecoveries.length;
@@ -319,6 +331,7 @@ async function syncCycles(userId: string, accessToken: string): Promise<number> 
   try {
     const cycles = await fetchWhoopData<WhoopCycle>("cycle", accessToken, 25);
     
+    // Fetched cycles from WHOOP API
     if (cycles.length === 0) return 0;
 
     const existingCycles = await db
@@ -348,7 +361,7 @@ async function syncCycles(userId: string, accessToken: string): Promise<number> 
           kilojoule: cycle.score?.kilojoule?.toString() || null,
           raw_data: cycle,
         }))
-      );
+      ).onConflictDoNothing();
     }
 
     return newCycles.length;
@@ -362,6 +375,7 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
   try {
     const sleeps = await fetchWhoopData<WhoopSleep>("activity/sleep", accessToken, 25);
     
+    // Fetched sleep records from WHOOP API
     if (sleeps.length === 0) return 0;
 
     const existingSleeps = await db
@@ -397,7 +411,7 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
           sleep_latency_milli: null, // Not available in API data
           raw_data: sleep,
         }))
-      );
+      ).onConflictDoNothing();
     }
 
     return newSleeps.length;
@@ -467,6 +481,7 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
   try {
     const measurements = await fetchWhoopData<WhoopBodyMeasurement>("user/measurement/body", accessToken, 25);
     
+    // Fetched body measurements from WHOOP API
     if (measurements.length === 0) return 0;
 
     const existingMeasurements = await db
@@ -485,7 +500,15 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
     if (newMeasurements.length > 0) {
       await db.insert(whoopBodyMeasurement).values(
         newMeasurements.map(measurement => {
-          const measurementDate = measurement.created_at ? measurement.created_at.split('T')[0]! : new Date().toISOString().split('T')[0]!;
+          // Ensure we have a valid date string
+          let measurementDate: string;
+          if (measurement.created_at && typeof measurement.created_at === 'string') {
+            const datePart = measurement.created_at.split('T')[0];
+            measurementDate = datePart || new Date().toISOString().split('T')[0]!;
+          } else {
+            measurementDate = new Date().toISOString().split('T')[0]!;
+          }
+          
           return {
             user_id: userId,
             whoop_measurement_id: measurement.id,
@@ -496,7 +519,7 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
             raw_data: measurement,
           };
         })
-      );
+      ).onConflictDoNothing();
     }
 
     return newMeasurements.length;
@@ -539,6 +562,8 @@ export async function POST(_req: NextRequest) {
         )
       )
       .limit(1);
+
+    // Retrieved WHOOP integration from database
 
     if (!integration) {
       return NextResponse.json(

@@ -90,14 +90,22 @@ export const whoopRouter = createTRPCRouter({
     return {
       webhookUrl,
       isConfigured: !!process.env.WHOOP_WEBHOOK_SECRET,
-      supportedEvents: ["workout.updated"],
+      supportedEvents: [
+        "workout.updated",
+        "recovery.updated", 
+        "sleep.updated",
+        "cycle.updated",
+        "body_measurement.updated",
+        "user_profile.updated"
+      ],
       instructions: [
         "1. Go to your Whoop Developer Dashboard",
         "2. Navigate to your app settings",
         "3. Add the webhook URL above",
-        '4. Select "v2" model version for UUID support',
-        "5. Set your app secret as WHOOP_WEBHOOK_SECRET environment variable",
-        "6. Save the configuration",
+        '4. Select "v2" model version for UUID support and expanded event types',
+        "5. Subscribe to the events you want to receive (all supported events listed above)",
+        "6. Set your app secret as WHOOP_WEBHOOK_SECRET environment variable",
+        "7. Save the configuration",
       ],
     };
   }),

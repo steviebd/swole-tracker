@@ -4,10 +4,18 @@ import { logger } from "~/lib/logger";
 
 export interface WhoopWebhookPayload {
   user_id: number;
-  id: string | number; // UUID for v2, integer for v1
-  type: string;
+  id: string; // UUID for v2 API events
+  type: WhoopWebhookEventType;
   trace_id: string;
 }
+
+export type WhoopWebhookEventType = 
+  | "workout.updated"
+  | "recovery.updated" 
+  | "sleep.updated"
+  | "cycle.updated"
+  | "body_measurement.updated"
+  | "user_profile.updated";
 
 /**
  * Verifies that a webhook request is legitimate by validating the signature

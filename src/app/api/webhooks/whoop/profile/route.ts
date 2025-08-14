@@ -239,8 +239,8 @@ export async function POST(request: NextRequest) {
       // Continue processing even if logging fails
     }
 
-    // Only process profile.updated events
-    if (payload.type === "profile.updated") {
+    // Only process user_profile.updated events
+    if (payload.type === "user_profile.updated") {
       await processProfileUpdate(payload);
 
       // Update webhook event status
