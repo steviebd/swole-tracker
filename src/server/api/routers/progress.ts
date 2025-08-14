@@ -76,8 +76,14 @@ export const progressRouter = createTRPCRouter({
           .where(and(...whereConditions))
           .orderBy(desc(workoutSessions.workoutDate), desc(sessionExercises.weight));
 
+        // Add oneRMEstimate to progress data
+        const enhancedProgressData = progressData.map(item => ({
+          ...item,
+          oneRMEstimate: calculateOneRM(parseFloat(String(item.weight || "0")), item.reps || 1)
+        }));
+
         // Process data to get top set per workout per exercise
-        const topSets = processTopSets(progressData);
+        const topSets = processTopSets(enhancedProgressData);
         
         return topSets;
       } catch (error) {
@@ -476,9 +482,9 @@ export async function getLinkedExerciseNames(db: any, templateExerciseId: number
 type ProgressDataRow = {
   workoutDate: Date;
   exerciseName: string;
-  weight: number;
-  reps: number;
-  sets: number;
+  weight: string | null;
+  reps: number | null;
+  sets: number | null;
   unit: string;
   oneRMEstimate: number;
 };
@@ -505,22 +511,22 @@ export function processTopSets(progressData: ProgressDataRow[]): Array<{
   const topSets = Object.values(grouped).map((group) => {
     // Sort by weight descending and get the top set
     const sortedByWeight = group.sort((a, b) => {
-      const weightA = parseFloat(a.weight || "0");
-      const weightB = parseFloat(b.weight || "0");
+      const weightA = parseFloat(String(a.weight || "0"));
+      const weightB = parseFloat(String(b.weight || "0"));
       return weightB - weightA;
     });
     
-    return sortedByWeight[0];
+    return sortedByWeight[0]!;
   });
 
   return topSets.map(set => ({
     workoutDate: set.workoutDate,
     exerciseName: set.exerciseName,
-    weight: parseFloat(set.weight || "0"),
+    weight: parseFloat(String(set.weight || "0")),
     reps: set.reps || 0,
     sets: set.sets || 1,
     unit: set.unit,
-    oneRMEstimate: calculateOneRM(parseFloat(set.weight || "0"), set.reps || 1),
+    oneRMEstimate: calculateOneRM(parseFloat(String(set.weight || "0")), set.reps || 1),
   }));
 }
 
@@ -544,7 +550,7 @@ export function calculateVolumeMetrics(volumeData: any[]): Array<{
       };
     }
     
-    const weight = parseFloat(row.weight || "0");
+    const weight = parseFloat(String(row.weight || "0"));
     const reps = row.reps || 0;
     const sets = row.sets || 0; // Changed from || 1 to || 0 to preserve zero values
     
@@ -696,14 +702,14 @@ export async function calculatePersonalRecords(
 
     // Only when exerciseData has data (even with empty values) do we return default records
     const weightPR = exerciseData.reduce((max: typeof exerciseData[0], current: typeof exerciseData[0]) => {
-      const currentWeight = parseFloat(current.weight || "0");
-      const maxWeight = parseFloat(max.weight || "0");
+      const currentWeight = parseFloat(String(current.weight || "0"));
+      const maxWeight = parseFloat(String(max.weight || "0"));
       return currentWeight > maxWeight ? current : max;
     });
 
     const volumePR = exerciseData.reduce((max: typeof exerciseData[0], current: typeof exerciseData[0]) => {
-      const currentVolume = parseFloat(current.weight || "0") * (current.reps || 0) * (current.sets || 1);
-      const maxVolume = parseFloat(max.weight || "0") * (max.reps || 0) * (max.sets || 1);
+      const currentVolume = parseFloat(String(current.weight || "0")) * (current.reps || 0) * (current.sets || 1);
+      const maxVolume = parseFloat(String(max.weight || "0")) * (max.reps || 0) * (max.sets || 1);
       return currentVolume > maxVolume ? current : max;
     });
 
@@ -711,21 +717,21 @@ export async function calculatePersonalRecords(
       records.push({
         exerciseName,
         recordType: "weight" as const,
-        weight: parseFloat(weightPR.weight || "0"),
+        weight: parseFloat(String(weightPR.weight || "0")),
         reps: weightPR.reps,
         sets: weightPR.sets,
         unit: weightPR.unit,
         workoutDate: weightPR.workoutDate,
-        oneRMEstimate: calculateOneRM(parseFloat(weightPR.weight || "0"), weightPR.reps || 1),
+        oneRMEstimate: calculateOneRM(parseFloat(String(weightPR.weight || "0")), weightPR.reps || 1),
       });
     }
 
     if (recordType === "volume" || recordType === "both") {
-      const volume = parseFloat(volumePR.weight || "0") * (volumePR.reps || 0) * (volumePR.sets || 1);
+      const volume = parseFloat(String(volumePR.weight || "0")) * (volumePR.reps || 0) * (volumePR.sets || 1);
       records.push({
         exerciseName,
         recordType: "volume" as const,
-        weight: parseFloat(volumePR.weight || "0"),
+        weight: parseFloat(String(volumePR.weight || "0")),
         reps: volumePR.reps,
         sets: volumePR.sets,
         unit: volumePR.unit,
@@ -765,7 +771,7 @@ export async function getVolumeAndStrengthData(ctx: any, startDate: Date, endDat
       );
 
   const totalVolume = data.reduce((sum: number, row: any) => {
-      return sum + (parseFloat(row.weight || "0") * (row.reps || 0) * (row.sets || 1));
+      return sum + (parseFloat(String(row.weight || "0")) * (row.reps || 0) * (row.sets || 1));
     }, 0);
 
     const totalSets = data.reduce((sum: number, row: any) => sum + (row.sets || 1), 0);
@@ -836,7 +842,7 @@ export function calculateVolumeByExercise(volumeData: any[]): Array<{
       };
     }
     
-    const weight = parseFloat(row.weight || "0");
+    const weight = parseFloat(String(row.weight || "0"));
     const reps = row.reps || 0;
     const sets = row.sets || 1;
     

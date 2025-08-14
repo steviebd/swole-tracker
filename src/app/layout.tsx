@@ -25,6 +25,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover", // Better Android/iOS handling for devices with notches
 };
 
 const geist = Geist({

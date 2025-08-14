@@ -115,6 +115,8 @@ describe("hook smoke: use-workout-updates with mocked EventSource", () => {
       });
       close = vi.fn();
     }
+    // Ensure prototype methods exist
+    ES.prototype.close = vi.fn();
     // @ts-expect-error override global for jsdom
     global.EventSource = ES;
 

@@ -457,9 +457,9 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {(shouldVirtualize
         ? displayOrder
             .slice(startIndex, endIndex + 1)
-            .map((entry, i) => ({ ...entry, windowIndex: startIndex + i }))
-        : displayOrder.map((entry, i) => ({ ...entry, windowIndex: i }))
-      ).map(({ exercise, originalIndex, windowIndex }) => {
+            .map((entry: { exercise: any; originalIndex: number }, i: number) => ({ ...entry, windowIndex: startIndex + i }))
+        : displayOrder.map((entry: { exercise: any; originalIndex: number }, i: number) => ({ ...entry, windowIndex: i }))
+      ).map(({ exercise, originalIndex, windowIndex }: { exercise: any; originalIndex: number; windowIndex: number }) => {
         const displayIndex = windowIndex;
         // Collapsed state is derived from collapsedIndexes mapped to current order
         const isCollapsed = collapsedIndexes.includes(displayIndex);

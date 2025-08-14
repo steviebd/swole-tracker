@@ -249,6 +249,7 @@ export function WhoopWorkouts() {
               <Link
                 href="/api/auth/whoop/authorize"
                 className="btn-primary block w-full px-6 py-3 text-center"
+                prefetch={false}
               >
                 Connect Whoop Now
               </Link>

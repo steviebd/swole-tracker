@@ -4,6 +4,11 @@ import { env } from "~/env";
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if this is a prefetch request and return early to avoid CORS issues
+    const purpose = request.headers.get("Purpose") || request.headers.get("X-Purpose");
+    if (purpose === "prefetch" || request.nextUrl.searchParams.has("_rsc")) {
+      return new NextResponse(null, { status: 204 });
+    }
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {

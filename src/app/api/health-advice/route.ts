@@ -17,17 +17,20 @@ import { createServerSupabaseClient } from '~/lib/supabase-server';
 // Removed edge runtime since we need database access for enhanced features
 
 interface WorkoutSet {
-  weight: number;
-  reps: number;
+  weight: number | null;
+  reps: number | null;
+  volume?: number | null;
 }
 
 interface ExerciseSession {
+  workoutDate: Date;
   sets: WorkoutSet[];
   templateId?: string;
   sessionId?: string;
 }
 
 interface ExerciseHistory {
+  exerciseName: string;
   sessions: ExerciseSession[];
 }
 
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
     // Enhanced: Fetch dynamic template exercises from session ID
     const sessionId = parseInt(validatedInput.session_id);
     let templateExercises: Array<{ exerciseName: string }> = [];
-    let currentSession: { user_id: string } | null = null;
+    let currentSession: any = null;
     
     // Fetch real WHOOP data if user has integration
     let realWhoopData = validatedInput.whoop; // Fallback to request data
@@ -231,7 +234,7 @@ export async function POST(req: NextRequest) {
         
         if (exerciseHist && exerciseHist.sessions.length > 0) {
           const recentSession = exerciseHist.sessions[0];
-          if (recentSession?.sets.length > 0) {
+          if (recentSession?.sets && recentSession.sets.length > 0) {
             const bestSet = recentSession.sets.reduce((best: WorkoutSet, set: WorkoutSet) => {
               const setBest = best.weight || 0;
               const setWeight = set.weight || 0;
@@ -250,12 +253,12 @@ export async function POST(req: NextRequest) {
           suggested_weight_kg: roundToIncrement(baseWeight * delta),
           suggested_reps: Math.round(baseReps * delta),
           suggested_rest_seconds: restSeconds,
-          rationale: exerciseHist?.sessions.length > 0 
+          rationale: exerciseHist?.sessions && exerciseHist.sessions.length > 0 
             ? `Based on last session performance (${baseWeight}kg x ${baseReps}) with ${rho > 0.7 ? 'good' : rho > 0.5 ? 'moderate' : 'low'} readiness. Rest ${Math.round(restSeconds/60)} minutes between sets.`
             : `AI Gateway not configured - using conservative estimates with readiness adjustment. Rest ${Math.round(restSeconds/60)} minutes between sets.`
         }));
 
-        const bestVolume = exerciseHist?.sessions[0]?.sets.reduce((total: number, set: WorkoutSet & { volume?: number }) => 
+        const bestVolume = exerciseHist?.sessions[0]?.sets.reduce((total: number, set: any) => 
           total + (set.volume || 0), 0) || 0;
 
         return {
@@ -313,9 +316,9 @@ export async function POST(req: NextRequest) {
           let targetWeight = null;
           let targetReps = null;
           
-          if (exerciseHist?.sessions.length > 0) {
+          if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
             const lastSession = exerciseHist.sessions[0];
-            if (lastSession?.sets.length > 0) {
+            if (lastSession?.sets && lastSession.sets.length > 0) {
               const bestSet = lastSession.sets.reduce((best: WorkoutSet, set: WorkoutSet) => 
                 (set.weight || 0) > (best.weight || 0) ? set : best
               );
