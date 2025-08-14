@@ -1,5 +1,13 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
+import { 
+  userIntegrations, 
+  externalWorkoutsWhoop,
+  whoopRecovery,
+  whoopCycles,
+  whoopSleep,
+  whoopProfile,
+  whoopBodyMeasurement
+} from "~/server/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
@@ -195,5 +203,115 @@ export const whoopRouter = createTRPCRouter({
         message: "Failed to fetch WHOOP data. Please try again.",
       });
     }
+  }),
+
+  getRecovery: protectedProcedure.query(async ({ ctx }) => {
+    const recovery = await ctx.db
+      .select({
+        id: whoopRecovery.id,
+        whoop_recovery_id: whoopRecovery.whoop_recovery_id,
+        cycle_id: whoopRecovery.cycle_id,
+        date: whoopRecovery.date,
+        recovery_score: whoopRecovery.recovery_score,
+        hrv_rmssd_milli: whoopRecovery.hrv_rmssd_milli,
+        hrv_rmssd_baseline: whoopRecovery.hrv_rmssd_baseline,
+        resting_heart_rate: whoopRecovery.resting_heart_rate,
+        resting_heart_rate_baseline: whoopRecovery.resting_heart_rate_baseline,
+        raw_data: whoopRecovery.raw_data,
+        createdAt: whoopRecovery.createdAt,
+      })
+      .from(whoopRecovery)
+      .where(eq(whoopRecovery.user_id, ctx.user.id))
+      .orderBy(desc(whoopRecovery.date));
+
+    return recovery;
+  }),
+
+  getCycles: protectedProcedure.query(async ({ ctx }) => {
+    const cycles = await ctx.db
+      .select({
+        id: whoopCycles.id,
+        whoop_cycle_id: whoopCycles.whoop_cycle_id,
+        start: whoopCycles.start,
+        end: whoopCycles.end,
+        timezone_offset: whoopCycles.timezone_offset,
+        day_strain: whoopCycles.day_strain,
+        average_heart_rate: whoopCycles.average_heart_rate,
+        max_heart_rate: whoopCycles.max_heart_rate,
+        kilojoule: whoopCycles.kilojoule,
+        raw_data: whoopCycles.raw_data,
+        createdAt: whoopCycles.createdAt,
+      })
+      .from(whoopCycles)
+      .where(eq(whoopCycles.user_id, ctx.user.id))
+      .orderBy(desc(whoopCycles.start));
+
+    return cycles;
+  }),
+
+  getSleep: protectedProcedure.query(async ({ ctx }) => {
+    const sleep = await ctx.db
+      .select({
+        id: whoopSleep.id,
+        whoop_sleep_id: whoopSleep.whoop_sleep_id,
+        start: whoopSleep.start,
+        end: whoopSleep.end,
+        timezone_offset: whoopSleep.timezone_offset,
+        sleep_performance_percentage: whoopSleep.sleep_performance_percentage,
+        total_sleep_time_milli: whoopSleep.total_sleep_time_milli,
+        sleep_efficiency_percentage: whoopSleep.sleep_efficiency_percentage,
+        slow_wave_sleep_time_milli: whoopSleep.slow_wave_sleep_time_milli,
+        rem_sleep_time_milli: whoopSleep.rem_sleep_time_milli,
+        light_sleep_time_milli: whoopSleep.light_sleep_time_milli,
+        wake_time_milli: whoopSleep.wake_time_milli,
+        arousal_time_milli: whoopSleep.arousal_time_milli,
+        disturbance_count: whoopSleep.disturbance_count,
+        sleep_latency_milli: whoopSleep.sleep_latency_milli,
+        raw_data: whoopSleep.raw_data,
+        createdAt: whoopSleep.createdAt,
+      })
+      .from(whoopSleep)
+      .where(eq(whoopSleep.user_id, ctx.user.id))
+      .orderBy(desc(whoopSleep.start));
+
+    return sleep;
+  }),
+
+  getProfile: protectedProcedure.query(async ({ ctx }) => {
+    const [profile] = await ctx.db
+      .select({
+        id: whoopProfile.id,
+        whoop_user_id: whoopProfile.whoop_user_id,
+        email: whoopProfile.email,
+        first_name: whoopProfile.first_name,
+        last_name: whoopProfile.last_name,
+        raw_data: whoopProfile.raw_data,
+        last_updated: whoopProfile.last_updated,
+        createdAt: whoopProfile.createdAt,
+      })
+      .from(whoopProfile)
+      .where(eq(whoopProfile.user_id, ctx.user.id))
+      .limit(1);
+
+    return profile || null;
+  }),
+
+  getBodyMeasurements: protectedProcedure.query(async ({ ctx }) => {
+    const measurements = await ctx.db
+      .select({
+        id: whoopBodyMeasurement.id,
+        whoop_measurement_id: whoopBodyMeasurement.whoop_measurement_id,
+        height_meter: whoopBodyMeasurement.height_meter,
+        weight_kilogram: whoopBodyMeasurement.weight_kilogram,
+        max_heart_rate: whoopBodyMeasurement.max_heart_rate,
+        measurement_date: whoopBodyMeasurement.measurement_date,
+        raw_data: whoopBodyMeasurement.raw_data,
+        createdAt: whoopBodyMeasurement.createdAt,
+      })
+      .from(whoopBodyMeasurement)
+      .where(eq(whoopBodyMeasurement.user_id, ctx.user.id))
+      .orderBy(desc(whoopBodyMeasurement.measurement_date));
+
+    return measurements;
   }),
 });

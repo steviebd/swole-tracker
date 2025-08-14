@@ -7,6 +7,11 @@ import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 import { useWorkoutUpdates } from "~/hooks/use-workout-updates";
+import { WhoopRecovery } from "./whoop-recovery";
+import { WhoopSleep } from "./whoop-sleep";
+import { WhoopCycles } from "./whoop-cycles";
+import { WhoopProfile } from "./whoop-profile";
+import { WhoopBodyMeasurements } from "./whoop-body-measurements";
 
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
@@ -117,18 +122,39 @@ export function WhoopWorkouts() {
     setMessage(null);
 
     try {
-      const response = await fetch("/api/whoop/sync-workouts", {
+      // Use the comprehensive sync endpoint instead of just workouts
+      const response = await fetch("/api/whoop/sync-all", {
         method: "POST",
       });
 
       const result = await response.json();
 
       if (response.ok) {
+        const { synced, totalNewRecords } = result;
+        let syncSummary = "Comprehensive sync completed! ";
+        
+        if (totalNewRecords > 0) {
+          const parts = [];
+          if (synced.workouts > 0) parts.push(`${synced.workouts} workouts`);
+          if (synced.recovery > 0) parts.push(`${synced.recovery} recovery records`);
+          if (synced.cycles > 0) parts.push(`${synced.cycles} cycles`);
+          if (synced.sleep > 0) parts.push(`${synced.sleep} sleep records`);
+          if (synced.profile > 0) parts.push(`${synced.profile} profile update`);
+          if (synced.bodyMeasurements > 0) parts.push(`${synced.bodyMeasurements} measurements`);
+          
+          syncSummary += `New: ${parts.join(", ")}`;
+        } else {
+          syncSummary += "All data is up to date.";
+        }
+
+        if (result.synced.errors && result.synced.errors.length > 0) {
+          syncSummary += ` (${result.synced.errors.length} errors occurred)`;
+        }
+
         setMessage({
           type: "success",
-          text: `Sync completed! ${result.newWorkouts} new workouts, ${result.duplicates} duplicates skipped.`,
+          text: syncSummary,
         });
-        setRateLimit(result.rateLimit);
         void refetchWorkouts();
       } else if (response.status === 429) {
         setMessage({
@@ -140,7 +166,7 @@ export function WhoopWorkouts() {
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
-          } catch {
+    } catch {
       setMessage({ type: "error", text: "Network error during sync" });
     } finally {
       setSyncLoading(false);
@@ -231,7 +257,7 @@ export function WhoopWorkouts() {
                 disabled={syncLoading || rateLimit?.remaining === 0}
                 className="btn-primary w-full px-6 py-3 disabled:opacity-50"
               >
-                {syncLoading ? "Syncing..." : "Sync with Whoop"}
+                {syncLoading ? "Syncing All Data..." : "Sync All WHOOP Data"}
               </button>
               {rateLimit && (
                 <div className="text-secondary text-center text-xs">
@@ -415,6 +441,17 @@ export function WhoopWorkouts() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Additional WHOOP Data Types */}
+      {integrationStatus?.isConnected && (
+        <div className="mt-12 space-y-12">
+          <WhoopRecovery />
+          <WhoopSleep />
+          <WhoopCycles />
+          <WhoopProfile />
+          <WhoopBodyMeasurements />
         </div>
       )}
 

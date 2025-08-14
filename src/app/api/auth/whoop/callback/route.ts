@@ -121,6 +121,8 @@ export async function GET(request: NextRequest) {
         ),
       );
 
+    const isFirstConnection = existingIntegration.length === 0;
+
     if (existingIntegration.length > 0) {
       await db
         .update(userIntegrations)
@@ -148,6 +150,29 @@ export async function GET(request: NextRequest) {
         scope: tok.scope ?? "read:workout offline",
         isActive: true,
       });
+    }
+
+    // Trigger automatic comprehensive sync on first connection
+    if (isFirstConnection) {
+      try {
+        const syncResponse = await fetch(`${request.nextUrl.origin}/api/whoop/sync-all`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${tok.access_token}`,
+          },
+        });
+        
+        if (!syncResponse.ok) {
+          console.warn("Initial WHOOP sync failed:", await syncResponse.text());
+        } else {
+          const syncResult = await syncResponse.json();
+          console.log("Initial WHOOP sync completed:", syncResult);
+        }
+      } catch (error) {
+        console.error("Error during initial WHOOP sync:", error);
+        // Don't fail the OAuth flow if sync fails
+      }
     }
 
     // Clear state cookie and redirect to success page
