@@ -595,18 +595,33 @@ export function WhoopWorkouts() {
                     <span style={{ color: 'var(--color-success)' }}>✅</span>
                     <span>Rate Limiting</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: 'var(--color-success)' }}>✅</span>
+                    <span>Database Caching (No Live API)</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-bg-surface) 90%)', borderLeft: '4px solid var(--color-primary)' }}>
-              <h5 className="font-medium mb-2" style={{ color: 'var(--color-primary)' }}>🔮 Future Enhancements</h5>
-              <ul className="text-sm text-secondary space-y-1">
-                <li>• Add support for recovery/sleep webhook events</li>
-                <li>• Implement workout.deleted handling</li>
-                <li>• Add cycle data to webhook processing</li>
-                <li>• Expand OAuth scopes for additional data access</li>
-              </ul>
+            <div className="mt-6 space-y-4">
+              <div className="p-4 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-success) 10%, var(--color-bg-surface) 90%)', borderLeft: '4px solid var(--color-success)' }}>
+                <h5 className="font-medium mb-2" style={{ color: 'var(--color-success)' }}>✅ Recent Optimizations</h5>
+                <ul className="text-sm text-secondary space-y-1">
+                  <li>• Health advice now uses cached database data (no live API calls)</li>
+                  <li>• Fixed UNDEFINED_VALUE errors in recovery data insertion</li>
+                  <li>• Enhanced temporal deduplication for workout sync</li>
+                </ul>
+              </div>
+              
+              <div className="p-4 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-bg-surface) 90%)', borderLeft: '4px solid var(--color-primary)' }}>
+                <h5 className="font-medium mb-2" style={{ color: 'var(--color-primary)' }}>🔮 Future Enhancements</h5>
+                <ul className="text-sm text-secondary space-y-1">
+                  <li>• Add support for recovery/sleep webhook events</li>
+                  <li>• Implement workout.deleted handling</li>
+                  <li>• Add cycle data to webhook processing</li>
+                  <li>• Expand OAuth scopes for additional data access</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

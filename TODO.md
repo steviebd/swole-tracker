@@ -4,7 +4,7 @@
 - **Monorepo Structure**: Keep mobile in `apps/mobile/` with shared packages
 - **Navigation**: Expo Router (file-based routing like Next.js)
 - **UI Framework**: NativeWind (Tailwind for React Native)
-- **Priority Features**: Template Management ’ Workout Session ’ WHOOP ’ Health/AI ’ Progress ’ Offline
+- **Priority Features**: Template Management ï¿½ Workout Session ï¿½ WHOOP ï¿½ Health/AI ï¿½ Progress ï¿½ Offline
 - **Platform**: Android first, iOS later
 - **Testing**: Internal via Expo Development Build
 
@@ -27,6 +27,7 @@
 - [ ] Verify Supabase auth integration works with new setup
 - [ ] Create shared authentication hooks and utilities
 - [ ] Set up proper TypeScript configuration across monorepo
+- [ ] Create a login screen with Supabase auth which redirects to home screen on successful login
 
 ## Phase 2: Core Features (2-3 weeks)
 

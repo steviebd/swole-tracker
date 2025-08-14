@@ -102,12 +102,11 @@ export const whoopRouter = createTRPCRouter({
     };
   }),
 
-  // Get latest sleep and recovery data from WHOOP API
+  // Get latest sleep and recovery data from cached database
   getLatestRecoveryData: protectedProcedure.query(async ({ ctx }) => {
-    // Get user's WHOOP integration
+    // Check if user has active WHOOP integration
     const [integration] = await ctx.db
       .select({
-        accessToken: userIntegrations.accessToken,
         isActive: userIntegrations.isActive,
         expiresAt: userIntegrations.expiresAt,
       })
@@ -116,11 +115,10 @@ export const whoopRouter = createTRPCRouter({
         and(
           eq(userIntegrations.user_id, ctx.user.id),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true)
         ),
       );
 
-    if (!integration?.accessToken) {
+    if (!integration?.isActive) {
       throw new TRPCError({
         code: "NOT_FOUND",
         message: "WHOOP integration not found or inactive",
@@ -128,7 +126,12 @@ export const whoopRouter = createTRPCRouter({
     }
 
     // Check if token is expired
-    if (integration.expiresAt && new Date() > integration.expiresAt) {
+    const now = new Date();
+    const isExpired = integration.expiresAt 
+      ? new Date(integration.expiresAt).getTime() < now.getTime()
+      : false;
+
+    if (isExpired) {
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message: "WHOOP access token has expired. Please reconnect your WHOOP account.",
@@ -136,68 +139,41 @@ export const whoopRouter = createTRPCRouter({
     }
 
     try {
-      // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
+      // Get latest recovery data from database (most recent record)
+      const [latestRecovery] = await ctx.db
+        .select()
+        .from(whoopRecovery)
+        .where(eq(whoopRecovery.user_id, ctx.user.id))
+        .orderBy(desc(whoopRecovery.date))
+        .limit(1);
       
-      // Fetch recovery data from WHOOP API
-      const recoveryResponse = await fetch(
-        `https://api.prod.whoop.com/developer/v1/recovery?start=${today}&end=${today}`,
-        {
-          headers: {
-            Authorization: `Bearer ${integration.accessToken}`,
-            Accept: "application/json",
-          },
-        }
-      );
-
-      if (!recoveryResponse.ok) {
-        throw new Error(`WHOOP API error: ${recoveryResponse.status}`);
-      }
-
-      const recoveryData = await recoveryResponse.json();
-      
-      // Fetch sleep data from WHOOP API
-      const sleepResponse = await fetch(
-        `https://api.prod.whoop.com/developer/v1/activity/sleep?start=${today}&end=${today}`,
-        {
-          headers: {
-            Authorization: `Bearer ${integration.accessToken}`,
-            Accept: "application/json",
-          },
-        }
-      );
-
-      if (!sleepResponse.ok) {
-        throw new Error(`WHOOP Sleep API error: ${sleepResponse.status}`);
-      }
-
-      const sleepData = await sleepResponse.json();
-      
-      // Get the latest recovery record (most recent)
-      const latestRecovery = recoveryData.records?.[0];
-      const latestSleep = sleepData.records?.[0];
+      // Get latest sleep data from database (most recent record)
+      const [latestSleep] = await ctx.db
+        .select()
+        .from(whoopSleep)
+        .where(eq(whoopSleep.user_id, ctx.user.id))
+        .orderBy(desc(whoopSleep.start))
+        .limit(1);
       
       if (!latestRecovery) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "No recovery data found for today",
+          message: "No recovery data found. Try syncing your WHOOP data first.",
         });
       }
 
-      // Map WHOOP API response to our expected format
+      // Map database data to expected format
       return {
-        recovery_score: latestRecovery.score?.recovery_score || null,
-        sleep_performance: latestSleep?.score?.stage_summary?.total_sleep_time_milli 
-          ? Math.min(100, (latestSleep.score.stage_summary.total_sleep_time_milli / (8 * 60 * 60 * 1000)) * 100) // Convert to percentage of 8 hours
-          : null,
-        hrv_now_ms: latestRecovery.score?.hrv_rmssd_milli || null,
-        hrv_baseline_ms: latestRecovery.score?.baseline?.hrv_rmssd_milli || null,
-        rhr_now_bpm: latestRecovery.score?.resting_heart_rate || null,
-        rhr_baseline_bpm: latestRecovery.score?.baseline?.resting_heart_rate || null,
-        yesterday_strain: null, // Would need to fetch from workouts API
+        recovery_score: latestRecovery.recovery_score || null,
+        sleep_performance: latestSleep?.sleep_performance_percentage || null,
+        hrv_now_ms: latestRecovery.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : null,
+        hrv_baseline_ms: latestRecovery.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : null,
+        rhr_now_bpm: latestRecovery.resting_heart_rate || null,
+        rhr_baseline_bpm: latestRecovery.resting_heart_rate_baseline || null,
+        yesterday_strain: null, // Could be calculated from cycles table if needed
         raw_data: {
-          recovery: latestRecovery,
-          sleep: latestSleep,
+          recovery: latestRecovery.raw_data,
+          sleep: latestSleep?.raw_data || null,
         },
       };
     } catch (error) {
@@ -206,10 +182,10 @@ export const whoopRouter = createTRPCRouter({
         throw error;
       }
       
-      console.error("Failed to fetch WHOOP recovery data:", error);
+      console.error("Failed to fetch WHOOP recovery data from database:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch WHOOP data. Please try again.",
+        message: "Failed to fetch WHOOP data from database. Please try again.",
       });
     }
   }),
