@@ -34,7 +34,7 @@ export function PreferencesStatusBar() {
           <span 
             className="text-xs font-medium"
             style={{
-              color: '#0b0b0b'
+              color: 'var(--color-text)'
             }}
           >
             Syncing...

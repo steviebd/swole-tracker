@@ -19,7 +19,7 @@ export function ConnectionStatus() {
       className="fixed top-0 right-0 left-0 z-50 px-4 py-2 text-center text-sm"
       style={{
         backgroundColor: 'var(--color-warning)',
-        color: '#0b0b0b'
+        color: 'var(--color-text)'
       }}
     >
       <span className="inline-flex items-center gap-2">

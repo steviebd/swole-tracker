@@ -29,19 +29,19 @@ interface WhoopWorkout {
 }
 
 interface WhoopRecovery {
-  id: string;
-  cycle_id: string;
+  cycle_id: number;
   sleep_id: string;
   user_id: number;
   created_at: string;
   updated_at: string;
   score_state: string;
   score: {
+    user_calibrating: boolean;
     recovery_score: number;
+    resting_heart_rate: number;
     hrv_rmssd_milli: number;
-    resting_heart_rate_milli: number;
-    hr_baseline: number;
-    hrv_baseline: number;
+    spo2_percentage: number;
+    skin_temp_celsius: number;
   };
 }
 
@@ -190,12 +190,13 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
   return integration.accessToken;
 }
 
-async function fetchWhoopData<T>(
+// Fetch data using WHOOP API v2 collection endpoints
+async function fetchWhoopDataV2<T>(
   endpoint: string,
   accessToken: string,
   limit = 25
 ): Promise<T[]> {
-  const url = `https://api.prod.whoop.com/developer/v1/${endpoint}?limit=${limit}`;
+  const url = `https://api.prod.whoop.com/developer/v2/${endpoint}?limit=${limit}`;
   
   const response = await fetch(url, {
     headers: {
@@ -205,19 +206,22 @@ async function fetchWhoopData<T>(
   });
 
   if (!response.ok) {
-    const error = new Error(`WHOOP API error for ${endpoint}: ${response.status}`);
-    // Add response status to error for better error handling
+    const responseText = await response.text();
+    console.error(`[WHOOP API v2] Error for ${endpoint}: ${response.status} - ${responseText}`);
+    const error = new Error(`WHOOP API v2 error for ${endpoint}: ${response.status} - ${responseText}`);
     (error as any).status = response.status;
     throw error;
   }
 
   const data = await response.json();
-  return (data.records || data || []) as T[];
+  const records = (data.records || data || []) as T[];
+  console.log(`[WHOOP API v2] Successfully fetched ${records.length} records from ${endpoint}`);
+  return records;
 }
 
 async function syncWorkouts(userId: string, accessToken: string): Promise<number> {
   try {
-    const workouts = await fetchWhoopData<WhoopWorkout>("activity/workout", accessToken, 25);
+    const workouts = await fetchWhoopDataV2<WhoopWorkout>("activity/workout", accessToken, 25);
     
     // Fetched workouts from WHOOP API
     if (workouts.length === 0) return 0;
@@ -273,23 +277,32 @@ async function syncWorkouts(userId: string, accessToken: string): Promise<number
 
 async function syncRecovery(userId: string, accessToken: string): Promise<number> {
   try {
-    const recoveries = await fetchWhoopData<WhoopRecovery>("recovery", accessToken, 25);
+    console.log(`[Recovery Sync] Starting recovery sync for user ${userId}`);
     
-    // Fetched recovery records from WHOOP API
-    if (recoveries.length === 0) return 0;
+    // Use WHOOP API v2 recovery endpoint
+    const recoveries = await fetchWhoopDataV2<WhoopRecovery>("recovery", accessToken, 25);
+    
+    console.log(`[Recovery Sync] Fetched ${recoveries.length} recovery records from WHOOP API v2`);
+    if (recoveries.length === 0) {
+      console.log(`[Recovery Sync] No recovery data returned from API`);
+      return 0;
+    }
 
+    // Recovery records in v2 API use sleep_id as identifier, not a top-level id
+    const sleepIds = recoveries.map(r => r.sleep_id).filter(Boolean);
+    
     const existingRecoveries = await db
       .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
       .from(whoopRecovery)
       .where(
         and(
           eq(whoopRecovery.user_id, userId),
-          inArray(whoopRecovery.whoop_recovery_id, recoveries.map(r => r.id))
+          inArray(whoopRecovery.whoop_recovery_id, sleepIds)
         )
       );
 
     const existingIds = new Set(existingRecoveries.map(r => r.whoopRecoveryId));
-    const newRecoveries = recoveries.filter(r => !existingIds.has(r.id));
+    const newRecoveries = recoveries.filter(r => r.sleep_id && !existingIds.has(r.sleep_id));
 
     if (newRecoveries.length > 0) {
       await db.insert(whoopRecovery).values(
@@ -305,14 +318,14 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
           
           return {
             user_id: userId,
-            whoop_recovery_id: recovery.id,
-            cycle_id: recovery.cycle_id || null,
+            whoop_recovery_id: recovery.sleep_id, // Use sleep_id as identifier in v2 API
+            cycle_id: recovery.cycle_id?.toString() || null,
             date: date,
             recovery_score: recovery.score?.recovery_score || null,
             hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli?.toString() || null,
-            hrv_rmssd_baseline: recovery.score?.hrv_baseline?.toString() || null,
-            resting_heart_rate: recovery.score?.resting_heart_rate_milli || null,
-            resting_heart_rate_baseline: recovery.score?.hr_baseline || null,
+            hrv_rmssd_baseline: null, // hrv_baseline not available in v2 API structure
+            resting_heart_rate: recovery.score?.resting_heart_rate || null,
+            resting_heart_rate_baseline: null, // hr_baseline not available in v2 API structure  
             raw_data: recovery,
             timezone_offset: null,
           };
@@ -329,7 +342,7 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
 
 async function syncCycles(userId: string, accessToken: string): Promise<number> {
   try {
-    const cycles = await fetchWhoopData<WhoopCycle>("cycle", accessToken, 25);
+    const cycles = await fetchWhoopDataV2<WhoopCycle>("cycle", accessToken, 25);
     
     // Fetched cycles from WHOOP API
     if (cycles.length === 0) return 0;
@@ -373,7 +386,7 @@ async function syncCycles(userId: string, accessToken: string): Promise<number> 
 
 async function syncSleep(userId: string, accessToken: string): Promise<number> {
   try {
-    const sleeps = await fetchWhoopData<WhoopSleep>("activity/sleep", accessToken, 25);
+    const sleeps = await fetchWhoopDataV2<WhoopSleep>("activity/sleep", accessToken, 25);
     
     // Fetched sleep records from WHOOP API
     if (sleeps.length === 0) return 0;
@@ -423,7 +436,7 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
 
 async function syncProfile(userId: string, accessToken: string): Promise<number> {
   try {
-    const response = await fetch("https://api.prod.whoop.com/developer/v1/user/profile/basic", {
+    const response = await fetch("https://api.prod.whoop.com/developer/v2/user/profile/basic", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
@@ -479,50 +492,73 @@ async function syncProfile(userId: string, accessToken: string): Promise<number>
 
 async function syncBodyMeasurements(userId: string, accessToken: string): Promise<number> {
   try {
-    const measurements = await fetchWhoopData<WhoopBodyMeasurement>("user/measurement/body", accessToken, 25);
+    console.log(`[Body Measurements Sync] Starting sync for user ${userId}`);
     
-    // Fetched body measurements from WHOOP API
-    if (measurements.length === 0) return 0;
+    // Body measurements v2 API returns a single object, not an array
+    const url = `https://api.prod.whoop.com/developer/v2/user/measurement/body`;
+    
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
 
-    const existingMeasurements = await db
-      .select({ whoopMeasurementId: whoopBodyMeasurement.whoop_measurement_id })
-      .from(whoopBodyMeasurement)
-      .where(
-        and(
-          eq(whoopBodyMeasurement.user_id, userId),
-          inArray(whoopBodyMeasurement.whoop_measurement_id, measurements.map(m => m.id))
-        )
-      );
-
-    const existingIds = new Set(existingMeasurements.map(m => m.whoopMeasurementId));
-    const newMeasurements = measurements.filter(m => !existingIds.has(m.id));
-
-    if (newMeasurements.length > 0) {
-      await db.insert(whoopBodyMeasurement).values(
-        newMeasurements.map(measurement => {
-          // Ensure we have a valid date string
-          let measurementDate: string;
-          if (measurement.created_at && typeof measurement.created_at === 'string') {
-            const datePart = measurement.created_at.split('T')[0];
-            measurementDate = datePart || new Date().toISOString().split('T')[0]!;
-          } else {
-            measurementDate = new Date().toISOString().split('T')[0]!;
-          }
-          
-          return {
-            user_id: userId,
-            whoop_measurement_id: measurement.id,
-            height_meter: measurement.height_meter?.toString() || null,
-            weight_kilogram: measurement.weight_kilogram?.toString() || null,
-            max_heart_rate: measurement.max_heart_rate || null,
-            measurement_date: measurementDate,
-            raw_data: measurement,
-          };
-        })
-      ).onConflictDoNothing();
+    if (!response.ok) {
+      const responseText = await response.text();
+      console.error(`[Body Measurements Sync] API error: ${response.status} - ${responseText}`);
+      const error = new Error(`WHOOP API v2 error for user/measurement/body: ${response.status} - ${responseText}`);
+      (error as any).status = response.status;
+      throw error;
     }
 
-    return newMeasurements.length;
+    const measurement = await response.json();
+    console.log(`[Body Measurements Sync] Fetched measurement data:`, measurement);
+    
+    if (!measurement || (!measurement.height_meter && !measurement.weight_kilogram && !measurement.max_heart_rate)) {
+      console.log(`[Body Measurements Sync] No measurement data available`);
+      return 0;
+    }
+
+    // Check if we already have a measurement for this user
+    const [existingMeasurement] = await db
+      .select()
+      .from(whoopBodyMeasurement)
+      .where(eq(whoopBodyMeasurement.user_id, userId))
+      .limit(1);
+
+    const measurementDate = new Date().toISOString().split('T')[0]!;
+    const measurementData = {
+      user_id: userId,
+      whoop_measurement_id: `${userId}-${measurementDate}`, // Create synthetic ID
+      height_meter: measurement.height_meter?.toString() || null,
+      weight_kilogram: measurement.weight_kilogram?.toString() || null,
+      max_heart_rate: measurement.max_heart_rate || null,
+      measurement_date: measurementDate,
+      raw_data: measurement,
+    };
+
+    if (existingMeasurement) {
+      // Update existing measurement
+      console.log(`[Body Measurements Sync] Updating existing measurement for user ${userId}`);
+      await db
+        .update(whoopBodyMeasurement)
+        .set({
+          height_meter: measurementData.height_meter,
+          weight_kilogram: measurementData.weight_kilogram,
+          max_heart_rate: measurementData.max_heart_rate,
+          measurement_date: measurementData.measurement_date,
+          raw_data: measurementData.raw_data,
+          updatedAt: new Date(),
+        })
+        .where(eq(whoopBodyMeasurement.user_id, userId));
+      return 0; // Updated, not new
+    } else {
+      // Insert new measurement
+      console.log(`[Body Measurements Sync] Inserting new measurement for user ${userId}`);
+      await db.insert(whoopBodyMeasurement).values(measurementData);
+      return 1; // New record
+    }
   } catch (error) {
     console.error("Error syncing body measurements:", error);
     throw error;

@@ -44,7 +44,7 @@ export function ProgressionModal({ open, onClose, exerciseName }: ProgressionMod
       aria-labelledby="progression-title"
       className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
       style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
       }}
       onClick={() => {
         restoreFocus();
