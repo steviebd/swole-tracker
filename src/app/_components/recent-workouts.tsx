@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "~/providers/AuthProvider";
-import { createBrowserSupabaseClient } from "~/lib/supabase-client";
+import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
 import Link from "next/link";
 
 interface WorkoutWithTemplate {

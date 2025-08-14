@@ -1,7 +1,8 @@
 /* Light Theme - Based on v1-dark design */
 @import "tailwindcss";
 
-/* Apply theme when data-theme="light" */
+/* Apply theme when data-theme="light" or as fallback default */
+:root,
 [data-theme="light"] {
   /* Core colors - light theme palette using OKLCH values from v1-dark */
   --color-bg-app: oklch(1 0 0);                    /* Pure white background */
@@ -66,11 +67,13 @@
 }
 
 /* Ensure light mode is active for light theme */
+:root,
 [data-theme="light"] {
   color-scheme: light;
 }
 
 /* Glass effects specific to light theme - more subtle */
+:root .glass-surface,
 [data-theme="light"] .glass-surface {
   background:
     radial-gradient(1200px 600px at 20% -10%, oklch(0.145 0 0 / 0.02) 0%, transparent 60%),
@@ -79,6 +82,7 @@
   border: 1px solid color-mix(in oklab, oklch(0.922 0 0) 70%, oklch(0.145 0 0) 30%);
 }
 
+:root .glass-header,
 [data-theme="light"] .glass-header {
   background:
     linear-gradient(180deg, oklch(0.145 0 0 / 0.01) 0%, transparent 100%),
@@ -87,6 +91,7 @@
 }
 
 /* Light theme horizon background - bright and airy */
+:root .bg-horizon,
 [data-theme="light"] .bg-horizon {
   background:
     radial-gradient(1200px 800px at -10% -20%, oklch(0.6 0.118 264.376 / 0.03) 0%, transparent 60%),
@@ -96,6 +101,7 @@
 }
 
 /* Card styling for light */
+:root .card,
 [data-theme="light"] .card {
   background-color: oklch(1 0 0);
   color: oklch(0.145 0 0);
@@ -104,19 +110,23 @@
 }
 
 /* Text utilities for light */
+:root .text-secondary,
 [data-theme="light"] .text-secondary {
   color: oklch(0.556 0 0);
 }
 
+:root .text-muted,
 [data-theme="light"] .text-muted {
   color: oklch(0.708 0 0);
 }
 
 /* Link colors */
+:root .link-primary,
 [data-theme="light"] .link-primary {
   color: oklch(0.205 0 0);
 }
 
+:root .link-primary:hover,
 [data-theme="light"] .link-primary:hover {
   color: oklch(0.145 0 0);
 }

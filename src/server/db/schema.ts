@@ -131,6 +131,8 @@ export const userPreferences = createTable(
       .varchar({ length: 32 })
       .notNull()
       .default("collapse_expand"),
+    // Wellness feature
+    enable_manual_wellness: d.boolean().notNull().default(false),
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)

@@ -29,19 +29,21 @@ export const ThemeContext = createContext<ThemeContextValue | undefined>(
 
 const THEME_STORAGE_KEY = "theme";
 
-function applyThemeClass(theme: Theme) {
+function applyThemeClass(theme: Theme, systemDark: boolean) {
   const root = document.documentElement;
-  const prefersDark =
-    window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
+
+  // For system theme, use the actual light/dark theme based on system preference
+  let effectiveTheme = theme;
+  if (theme === "system") {
+    effectiveTheme = systemDark ? "dark" : "light";
+  }
 
   // Determine dark mode for class toggling
-  // All themes are dark-first except system which follows system preference and light which is always light
-  const shouldDark =
-    (theme === "system" && prefersDark) ||
-    (theme !== "system" && theme !== "light");
+  // All themes are dark-first except light which is always light
+  const shouldDark = effectiveTheme !== "light";
 
   // data-theme is the source of truth for CSS variables/themes
-  root.dataset.theme = theme;
+  root.dataset.theme = effectiveTheme;
 
   // Toggle Tailwind's dark class for components that rely on it
   root.classList.toggle("dark", shouldDark);
@@ -72,30 +74,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const stored =
       (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "system";
     setThemeState(stored);
-    applyThemeClass(stored);
+    
+    // Get initial system preference
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const initialSystemDark = mq.matches;
+    setSystemDark(initialSystemDark);
+    applyThemeClass(stored, initialSystemDark);
 
     // respond to system changes; update state so consumers re-render
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => {
       setSystemDark(e.matches);
-      // keep DOM in sync when in system mode
-      if ((stored ?? "system") === "system") {
-        applyThemeClass("system");
-      }
     };
-    // initialize state from current matches to be safe
-    setSystemDark(mq.matches);
+    
     mq.addEventListener?.("change", handler);
     return () => mq.removeEventListener?.("change", handler);
   }, []);
+
+  // Apply theme changes whenever theme or systemDark changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    applyThemeClass(theme, systemDark);
+  }, [theme, systemDark]);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, t);
     } catch {}
-    applyThemeClass(t);
-  }, []);
+    applyThemeClass(t, systemDark);
+  }, [systemDark]);
 
   const toggle = useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark");
