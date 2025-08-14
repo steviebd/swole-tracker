@@ -6,16 +6,33 @@ import {
   calculateReadiness, 
   calculateOverloadMultiplier,
   getExerciseHistory,
-  calculateProgressionSuggestions,
   roundToIncrement
 } from '~/lib/health-calculations';
 import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-advice';
 import { db } from '~/server/db';
-import { workoutSessions, sessionExercises, templateExercises, userIntegrations, exerciseLinks } from '~/server/db/schema';
+import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks } from '~/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createServerSupabaseClient } from '~/lib/supabase-server';
 
 // Removed edge runtime since we need database access for enhanced features
+
+interface WorkoutSet {
+  weight: number | null;
+  reps: number | null;
+  volume?: number | null;
+}
+
+interface ExerciseSession {
+  workoutDate: Date;
+  sets: WorkoutSet[];
+  templateId?: string;
+  sessionId?: string;
+}
+
+interface ExerciseHistory {
+  exerciseName: string;
+  sessions: ExerciseSession[];
+}
 
 function getApiKey(): string {
   const key = env.AI_GATEWAY_API_KEY || env.VERCEL_AI_GATEWAY_API_KEY;
@@ -43,7 +60,7 @@ export async function POST(req: NextRequest) {
     
     // Enhanced: Fetch dynamic template exercises from session ID
     const sessionId = parseInt(validatedInput.session_id);
-    let templateExercises: any[] = [];
+    let templateExercises: Array<{ exerciseName: string }> = [];
     let currentSession: any = null;
     
     // Fetch real WHOOP data if user has integration
@@ -166,7 +183,7 @@ export async function POST(req: NextRequest) {
 
     // Enhanced: Get historical data for template exercises
     const exerciseNames = templateExercises.map(ex => ex.exerciseName);
-    let exerciseHistory: any[] = [];
+    let exerciseHistory: ExerciseHistory[] = [];
     
     if (exerciseNames.length > 0 && currentSession) {
       try {
@@ -217,8 +234,8 @@ export async function POST(req: NextRequest) {
         
         if (exerciseHist && exerciseHist.sessions.length > 0) {
           const recentSession = exerciseHist.sessions[0];
-          if (recentSession?.sets.length > 0) {
-            const bestSet = recentSession.sets.reduce((best: any, set: any) => {
+          if (recentSession?.sets && recentSession.sets.length > 0) {
+            const bestSet = recentSession.sets.reduce((best: WorkoutSet, set: WorkoutSet) => {
               const setBest = best.weight || 0;
               const setWeight = set.weight || 0;
               return setWeight > setBest ? set : best;
@@ -236,7 +253,7 @@ export async function POST(req: NextRequest) {
           suggested_weight_kg: roundToIncrement(baseWeight * delta),
           suggested_reps: Math.round(baseReps * delta),
           suggested_rest_seconds: restSeconds,
-          rationale: exerciseHist?.sessions.length > 0 
+          rationale: exerciseHist?.sessions && exerciseHist.sessions.length > 0 
             ? `Based on last session performance (${baseWeight}kg x ${baseReps}) with ${rho > 0.7 ? 'good' : rho > 0.5 ? 'moderate' : 'low'} readiness. Rest ${Math.round(restSeconds/60)} minutes between sets.`
             : `AI Gateway not configured - using conservative estimates with readiness adjustment. Rest ${Math.round(restSeconds/60)} minutes between sets.`
         }));
@@ -299,10 +316,10 @@ export async function POST(req: NextRequest) {
           let targetWeight = null;
           let targetReps = null;
           
-          if (exerciseHist?.sessions.length > 0) {
+          if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
             const lastSession = exerciseHist.sessions[0];
-            if (lastSession?.sets.length > 0) {
-              const bestSet = lastSession.sets.reduce((best: any, set: any) => 
+            if (lastSession?.sets && lastSession.sets.length > 0) {
+              const bestSet = lastSession.sets.reduce((best: WorkoutSet, set: WorkoutSet) => 
                 (set.weight || 0) > (best.weight || 0) ? set : best
               );
               targetWeight = bestSet.weight;
@@ -397,7 +414,7 @@ export async function POST(req: NextRequest) {
       raw_exercise_history: exerciseHistory.map(hist => ({
         ...hist,
         // Add cross-template tracking info
-        sessions: hist.sessions.map((session: any) => ({
+        sessions: hist.sessions.map((session: ExerciseSession) => ({
           ...session,
           template_info: {
             template_id: session.templateId,

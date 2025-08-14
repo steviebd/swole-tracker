@@ -73,9 +73,9 @@ export function ProgressDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           {/* Total Volume */}
           <div className={cardClass + " p-6"}>
             <h3 className="text-sm font-medium mb-2" style={{ color: 'var(--color-text-secondary)' }}>Total Volume</h3>

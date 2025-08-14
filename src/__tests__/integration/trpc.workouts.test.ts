@@ -59,6 +59,21 @@ describe("tRPC workouts router (integration, mocked ctx/db)", () => {
       exercises: [],
     }));
 
+    // Mock workoutSessions.findFirst to return null so a new session gets created
+    (db.query.workoutSessions.findFirst as any) = vi.fn(async () => null);
+
+    // Ensure the insert mock returns a proper session
+    const mockReturning = vi.fn(async () => [
+      {
+        id: 500,
+        user_id: user!.id,
+        templateId: 1,
+        workoutDate: new Date(),
+      },
+    ]);
+    const mockValues = vi.fn(() => ({ returning: mockReturning }));
+    (db.insert as any) = vi.fn(() => ({ values: mockValues }));
+
     const trpc = buildCaller({ db, user });
     const input = { templateId: 1, workoutDate: new Date() };
     const created = await (trpc as any).workouts?.start?.(input);

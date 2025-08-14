@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 
@@ -225,25 +225,30 @@ export async function POST(_request: NextRequest) {
       };
     });
 
+    // Optimize: Use batch query to check for existing workouts instead of N+1 queries
+    const workoutIds = workouts.map(w => w.id);
+    
+    // Single query to get all existing workout IDs
+    const existingWorkouts = await db
+      .select({ whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId })
+      .from(externalWorkoutsWhoop)
+      .where(
+        and(
+          eq(externalWorkoutsWhoop.user_id, user.id),
+          inArray(externalWorkoutsWhoop.whoopWorkoutId, workoutIds)
+        )
+      );
+
+    const existingIds = new Set(existingWorkouts.map(w => w.whoopWorkoutId));
+    const newWorkoutData = workouts.filter(w => !existingIds.has(w.id));
+    
     let newWorkouts = 0;
-    let duplicates = 0;
+    const duplicates = workouts.length - newWorkoutData.length;
 
-    // Process each workout
-    for (const workout of workouts) {
+    // Batch insert new workouts
+    if (newWorkoutData.length > 0) {
       try {
-        // Check if workout already exists
-        const [existingWorkout] = await db
-          .select()
-          .from(externalWorkoutsWhoop)
-          .where(eq(externalWorkoutsWhoop.whoopWorkoutId, workout.id));
-
-        if (existingWorkout) {
-          duplicates++;
-          continue;
-        }
-
-        // Insert new workout
-        await db.insert(externalWorkoutsWhoop).values({
+        const workoutValues = newWorkoutData.map(workout => ({
           user_id: user.id,
           whoopWorkoutId: workout.id,
           start: new Date(workout.start),
@@ -254,11 +259,33 @@ export async function POST(_request: NextRequest) {
           score: workout.score ?? null,
           during: workout.during ?? null,
           zone_duration: workout.zone_duration ?? null,
-        });
+        }));
 
-        newWorkouts++;
+        await db.insert(externalWorkoutsWhoop).values(workoutValues);
+        newWorkouts = newWorkoutData.length;
       } catch (error) {
-        console.error(`Error processing workout ${workout.id}:`, error);
+        console.error("Error during batch insert, falling back to individual inserts:", error);
+        
+        // Fallback to individual inserts if batch fails
+        for (const workout of newWorkoutData) {
+          try {
+            await db.insert(externalWorkoutsWhoop).values({
+              user_id: user.id,
+              whoopWorkoutId: workout.id,
+              start: new Date(workout.start),
+              end: new Date(workout.end),
+              timezone_offset: workout.timezone_offset,
+              sport_name: workout.sport_name,
+              score_state: workout.score_state,
+              score: workout.score ?? null,
+              during: workout.during ?? null,
+              zone_duration: workout.zone_duration ?? null,
+            });
+            newWorkouts++;
+          } catch (individualError) {
+            console.error(`Error processing workout ${workout.id}:`, individualError);
+          }
+        }
       }
     }
 

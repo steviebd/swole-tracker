@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+// Unused imports - available for future use
+// import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Shared env guards

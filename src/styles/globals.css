@@ -107,7 +107,36 @@ html.dark {
   @apply py-6 md:py-8;
 }
 .container-default {
-  @apply w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
+  @apply w-full mx-auto;
+  /* Mobile-first with safe area handling and viewport protection */
+  max-width: min(theme(maxWidth.7xl), calc(100vw - 2rem));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Enhanced responsive breakpoints for container */
+@media (min-width: 640px) {
+  .container-default {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+    max-width: min(theme(maxWidth.7xl), calc(100vw - 3rem));
+  }
+}
+
+@media (min-width: 768px) {
+  .container-default {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+    max-width: min(theme(maxWidth.7xl), calc(100vw - 3rem));
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-default {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+    max-width: theme(maxWidth.7xl);
+  }
 }
 
 /* Mobile-responsive utilities */
@@ -133,6 +162,60 @@ html.dark {
 
 .mobile-table {
   @apply min-w-max w-full;
+}
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 640px) {
+  .grid {
+    min-width: 0;
+  }
+  
+  .flex {
+    min-width: 0;
+  }
+  
+  /* Mobile-safe grid system to prevent content bleeding */
+  .mobile-safe-grid {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Enhanced grid gap safety for mobile cards */
+  .grid[class*="gap-"] {
+    gap: max(0.75rem, var(--grid-gap-mobile, 0.75rem));
+  }
+  
+  /* Ensure all grid items respect container bounds */
+  .grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  
+  /* Ensure text truncates properly on mobile */
+  .mobile-truncate {
+    @apply truncate;
+    max-width: 0;
+    min-width: 0;
+    flex: 1;
+  }
+  
+  /* Mobile-first gap adjustments for cards */
+  .mobile-grid {
+    @apply grid gap-2;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-grid {
+      gap: 0.75rem;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .mobile-grid {
+      gap: 1rem;
+    }
+  }
 }
 
 /* Reduce motion respect */

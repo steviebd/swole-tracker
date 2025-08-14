@@ -31,19 +31,6 @@ export function useHealthAdvice(sessionId?: number) {
     }
   }, [existingAdvice, advice]);
 
-  const fetchAdviceWithSubjectiveData = useCallback(async (
-    request: Omit<HealthAdviceRequest, 'whoop'>,
-    subjectiveData: SubjectiveWellnessData
-  ) => {
-    const whoopData = createWhoopDataWithDefaults(subjectiveData);
-    const fullRequest: HealthAdviceRequest = {
-      ...request,
-      whoop: whoopData,
-    };
-    
-    return fetchAdvice(fullRequest);
-  }, [sessionId, saveHealthAdvice, acceptedSuggestions]);
-
   const fetchAdvice = useCallback(async (request: HealthAdviceRequest) => {
     setLoading(true);
     setError(null);
@@ -137,6 +124,19 @@ export function useHealthAdvice(sessionId?: number) {
       setLoading(false);
     }
   }, [sessionId, saveHealthAdvice, acceptedSuggestions]);
+
+  const fetchAdviceWithSubjectiveData = useCallback(async (
+    request: Omit<HealthAdviceRequest, 'whoop'>,
+    subjectiveData: SubjectiveWellnessData
+  ) => {
+    const whoopData = createWhoopDataWithDefaults(subjectiveData);
+    const fullRequest: HealthAdviceRequest = {
+      ...request,
+      whoop: whoopData,
+    };
+    
+    return fetchAdvice(fullRequest);
+  }, [fetchAdvice]);
 
   const clearAdvice = useCallback(() => {
     setAdvice(null);

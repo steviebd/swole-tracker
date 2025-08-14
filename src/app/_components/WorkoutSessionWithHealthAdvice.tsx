@@ -87,7 +87,7 @@ export function WorkoutSessionWithHealthAdvice({
     }
 
     // Create workout plan from template exercises
-    const exercises = workoutSession.template.exercises.map((templateExercise, index) => {
+    const exercises = workoutSession.template.exercises.map((templateExercise) => {
       // Get existing session exercises for this template exercise to determine set count
       const existingSessionSets = workoutSession.exercises?.filter(
         ex => ex.exerciseName === templateExercise.exerciseName

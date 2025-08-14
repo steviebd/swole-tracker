@@ -146,27 +146,6 @@ export const userPreferences = createTable(
 // User Isolation: All data access is controlled by user_id = ctx.user.id
 // This ensures complete data isolation between users at the application level
 
-// User Migration Mapping (temporary table for Clerk -> Supabase migration)
-export const userMigrationMapping = createTable(
-  "user_migration_mapping",
-  (d) => ({
-    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-    clerk_user_id: d.varchar({ length: 256 }).notNull().unique(), // Old Clerk user ID
-    supabase_user_id: d.varchar({ length: 256 }).notNull().unique(), // New Supabase Auth user ID
-    email: d.varchar({ length: 256 }).notNull(), // Email to help with matching
-    migrated_at: d
-      .timestamp({ withTimezone: true })
-      .default(sql`CURRENT_TIMESTAMP`)
-      .notNull(),
-    migration_status: d.varchar({ length: 50 }).notNull().default("pending"), // pending, completed, failed
-    migration_notes: d.text(), // Any notes about the migration
-  }),
-  (t) => [
-    index("user_migration_clerk_id_idx").on(t.clerk_user_id),
-    index("user_migration_supabase_id_idx").on(t.supabase_user_id),
-    index("user_migration_email_idx").on(t.email),
-  ],
-);
 
 // Relations
 export const workoutTemplatesRelations = relations(
@@ -293,6 +272,7 @@ export const externalWorkoutsWhoop = createTable(
     index("external_workout_whoop_workout_id_idx").on(t.whoopWorkoutId),
     index("external_workout_whoop_start_idx").on(t.start),
     index("external_workout_whoop_user_start_idx").on(t.user_id, t.start),
+    index("external_workout_whoop_user_workout_id_idx").on(t.user_id, t.whoopWorkoutId),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 

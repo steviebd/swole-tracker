@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
@@ -115,8 +115,8 @@ export function useWorkoutSessionState({
   };
 
   // display order
-  const getDisplayOrder = () =>
-    exercises.map((exercise, index) => ({ exercise, originalIndex: index }));
+  const getDisplayOrder = useCallback(() =>
+    exercises.map((exercise, index) => ({ exercise, originalIndex: index })), [exercises]);
 
   // drag + reorder
   const displayOrder = useMemo(() => getDisplayOrder(), [getDisplayOrder]);
@@ -128,7 +128,7 @@ export function useWorkoutSessionState({
         name: ex.exerciseName,
         templateExerciseId: ex.templateExerciseId,
       }));
-      const newExercises = newDisplayOrder.map((item) => item.exercise);
+      const newExercises = newDisplayOrder.map((item: { exercise: ExerciseData; originalIndex: number }) => item.exercise);
       setExercises(newExercises);
 
       // record undo action
@@ -297,7 +297,7 @@ export function useWorkoutSessionState({
           if (data) {
             previousDataMap.set(templateExercise.exerciseName, data);
           }
-        } catch (_error) {
+        } catch {
           // noop
         }
       }

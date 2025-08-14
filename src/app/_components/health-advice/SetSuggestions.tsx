@@ -28,7 +28,7 @@ function cx(...args: Array<string | false | null | undefined>) {
 
 export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggestion, sessionId }: SetSuggestionsProps) {
   const [acceptedSets, setAcceptedSets] = useState<Set<string>>(new Set());
-  const [, setProgressionPreference] = useState<ProgressionPreference>('ai_recommended');
+  const [, _setProgressionPreference] = useState<ProgressionPreference>('ai_recommended');
   const [showAlternatives, setShowAlternatives] = useState<Record<string, boolean>>({});
 
   // Generate alternative suggestions based on progression preference
@@ -62,7 +62,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
     return alternatives;
   };
   
-  const handleAcceptSet = (setId: string, suggestion: { weight?: number; reps?: number }, progressionType: ProgressionPreference = 'ai_recommended') => {
+  const handleAcceptSet = (setId: string, suggestion: { weight?: number; reps?: number }, _progressionType: ProgressionPreference = 'ai_recommended') => {
     setAcceptedSets(prev => new Set(prev).add(setId));
     onAcceptSuggestion(setId, suggestion);
     
