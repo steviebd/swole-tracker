@@ -100,11 +100,8 @@ export async function getExerciseHistory(
     orderBy: [desc(db.schema.workoutSessions.workoutDate)],
     with: {
       exercises: {
-        where: (exercises: any, { inArray }: any): any => inArray(exercises.exerciseName, exerciseNames),
-        orderBy: (exercises: any, { asc }: any) => {
-          const result = [asc(exercises.setOrder)];
-          return result as any[];
-        },
+        where: (exercises: any, { inArray }: any) => inArray(exercises.exerciseName, exerciseNames),
+        orderBy: (exercises: any, { asc }: any) => [asc(exercises.setOrder)],
       },
       template: {
         columns: {

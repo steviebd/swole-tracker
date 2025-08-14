@@ -228,19 +228,26 @@ export async function POST(_request: NextRequest) {
     // Optimize: Use batch query to check for existing workouts instead of N+1 queries
     const workoutIds = workouts.map(w => w.id);
     
-    // Single query to get all existing workout IDs
+    // Check for existing workouts by both WHOOP ID and temporal overlap
     const existingWorkouts = await db
-      .select({ whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId })
+      .select({ 
+        whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
+        start: externalWorkoutsWhoop.start,
+        end: externalWorkoutsWhoop.end
+      })
       .from(externalWorkoutsWhoop)
-      .where(
-        and(
-          eq(externalWorkoutsWhoop.user_id, user.id),
-          inArray(externalWorkoutsWhoop.whoopWorkoutId, workoutIds)
-        )
-      );
+      .where(eq(externalWorkoutsWhoop.user_id, user.id));
 
     const existingIds = new Set(existingWorkouts.map(w => w.whoopWorkoutId));
-    const newWorkoutData = workouts.filter(w => !existingIds.has(w.id));
+    const existingTimes = new Set(
+      existingWorkouts.map(w => `${w.start.toISOString()}_${w.end.toISOString()}`)
+    );
+
+    // Filter out workouts that already exist by ID or temporal match
+    const newWorkoutData = workouts.filter(w => {
+      const timeKey = `${new Date(w.start).toISOString()}_${new Date(w.end).toISOString()}`;
+      return !existingIds.has(w.id) && !existingTimes.has(timeKey);
+    });
     
     let newWorkouts = 0;
     const duplicates = workouts.length - newWorkoutData.length;

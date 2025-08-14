@@ -286,6 +286,8 @@ export const externalWorkoutsWhoop = createTable(
     index("external_workout_whoop_start_idx").on(t.start),
     index("external_workout_whoop_user_start_idx").on(t.user_id, t.start),
     index("external_workout_whoop_user_workout_id_idx").on(t.user_id, t.whoopWorkoutId),
+    // TODO: Add temporal unique constraint after testing
+    // unique("external_workout_whoop_user_temporal_unique").on(t.user_id, t.start, t.end),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 

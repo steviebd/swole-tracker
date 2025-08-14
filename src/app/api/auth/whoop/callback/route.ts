@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
           accessToken: tok.access_token!,
           refreshToken: tok.refresh_token ?? null,
           expiresAt,
-          scope: tok.scope ?? "read:workout offline",
+          scope: tok.scope ?? "read:workout read:recovery read:sleep offline",
           isActive: true,
           updatedAt: new Date(),
         })
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         accessToken: tok.access_token!,
         refreshToken: tok.refresh_token ?? null,
         expiresAt,
-        scope: tok.scope ?? "read:workout offline",
+        scope: tok.scope ?? "read:workout read:recovery read:sleep offline",
         isActive: true,
       });
     }

@@ -16,6 +16,7 @@ import { WhoopBodyMeasurements } from "./whoop-body-measurements";
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
   const [syncLoading, setSyncLoading] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -48,7 +49,7 @@ export function WhoopWorkouts() {
     }
   };
 
-  const { data: integrationStatus } = api.whoop.getIntegrationStatus.useQuery();
+  const { data: integrationStatus, refetch: refetchStatus } = api.whoop.getIntegrationStatus.useQuery();
   const {
     data: workouts,
     refetch: refetchWorkouts,
@@ -117,6 +118,33 @@ export function WhoopWorkouts() {
     void refetchWorkouts();
   });
 
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/whoop/cleanup-duplicates", {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage({
+          type: "success",
+          text: result.message,
+        });
+        void refetchWorkouts(); // Refresh workout list
+      } else {
+        setMessage({ type: "error", text: result.error || "Cleanup failed" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Network error during cleanup" });
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
   const handleSync = async () => {
     setSyncLoading(true);
     setMessage(null);
@@ -156,6 +184,13 @@ export function WhoopWorkouts() {
           text: syncSummary,
         });
         void refetchWorkouts();
+      } else if (response.status === 401 && result.needsReauthorization) {
+        setMessage({
+          type: "error",
+          text: "🔐 Your WHOOP connection has expired. Please reconnect your account to continue syncing.",
+        });
+        // Refresh the integration status to show the connect button
+        void refetchStatus();
       } else if (response.status === 429) {
         setMessage({
           type: "error",
@@ -252,13 +287,23 @@ export function WhoopWorkouts() {
               <div style={{ color: 'var(--color-success)' }}>
                 ✅ Connected to Whoop
               </div>
-              <button
-                onClick={handleSync}
-                disabled={syncLoading || rateLimit?.remaining === 0}
-                className="btn-primary w-full px-6 py-3 disabled:opacity-50"
-              >
-                {syncLoading ? "Syncing All Data..." : "Sync All WHOOP Data"}
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={handleSync}
+                  disabled={syncLoading || cleanupLoading || rateLimit?.remaining === 0}
+                  className="btn-primary w-full px-6 py-3 disabled:opacity-50"
+                >
+                  {syncLoading ? "Syncing All Data..." : "Sync All WHOOP Data"}
+                </button>
+                
+                <button
+                  onClick={handleCleanup}
+                  disabled={syncLoading || cleanupLoading}
+                  className="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  {cleanupLoading ? "Cleaning Up..." : "🧹 Remove Duplicate Workouts"}
+                </button>
+              </div>
               {rateLimit && (
                 <div className="text-secondary text-center text-xs">
                   {rateLimit.remaining > 0
@@ -452,6 +497,118 @@ export function WhoopWorkouts() {
           <WhoopCycles />
           <WhoopProfile />
           <WhoopBodyMeasurements />
+        </div>
+      )}
+
+      {/* WHOOP v2 API and Webhook Coverage */}
+      {integrationStatus?.isConnected && (
+        <div className="mt-12">
+          <div className="card max-w-4xl mx-auto p-6">
+            <h3 className="text-xl font-semibold mb-4">🔗 WHOOP v2 API Integration Status</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Current Scope */}
+              <div>
+                <h4 className="font-medium mb-3 text-secondary">Current OAuth Scopes</h4>
+                <div className="space-y-2 text-sm">
+                  {integrationStatus?.scope?.split(' ').map((scope: string) => (
+                    <div key={scope} className="flex items-center gap-2">
+                      <span style={{ color: 'var(--color-success)' }}>✅</span>
+                      <code className="bg-gray-100 px-2 py-1 rounded text-xs" style={{ backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-border) 30%)', color: 'var(--color-text)' }}>
+                        {scope}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Webhook Coverage */}
+              <div>
+                <h4 className="font-medium mb-3 text-secondary">v2 Webhook Events</h4>
+                <div className="space-y-2 text-sm">
+                  {[
+                    { event: 'workout.updated', supported: true },
+                    { event: 'workout.deleted', supported: false },
+                    { event: 'recovery.updated', supported: false },
+                    { event: 'recovery.deleted', supported: false },
+                    { event: 'sleep.updated', supported: false },
+                    { event: 'sleep.deleted', supported: false },
+                  ].map(({ event, supported }) => (
+                    <div key={event} className="flex items-center gap-2">
+                      <span style={{ color: supported ? 'var(--color-success)' : 'var(--color-muted)' }}>
+                        {supported ? '✅' : '⏸️'}
+                      </span>
+                      <code className="bg-gray-100 px-2 py-1 rounded text-xs" 
+                           style={{ 
+                             backgroundColor: 'color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-border) 30%)', 
+                             color: supported ? 'var(--color-text)' : 'var(--color-muted)'
+                           }}>
+                        {event}
+                      </code>
+                      {!supported && <span className="text-xs text-secondary">(not implemented)</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Data Sync Coverage */}
+              <div>
+                <h4 className="font-medium mb-3 text-secondary">Data Types Synced</h4>
+                <div className="space-y-2 text-sm">
+                  {[
+                    'Workouts',
+                    'Recovery',
+                    'Sleep',
+                    'Cycles',
+                    'Profile',
+                    'Body Measurements'
+                  ].map((dataType) => (
+                    <div key={dataType} className="flex items-center gap-2">
+                      <span style={{ color: 'var(--color-success)' }}>✅</span>
+                      <span>{dataType}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Technical Details */}
+              <div>
+                <h4 className="font-medium mb-3 text-secondary">Technical Features</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: 'var(--color-success)' }}>✅</span>
+                    <span>UUID Identifiers (v2)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: 'var(--color-success)' }}>✅</span>
+                    <span>Webhook Signature Verification</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: 'var(--color-success)' }}>✅</span>
+                    <span>Temporal Deduplication</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: 'var(--color-success)' }}>✅</span>
+                    <span>Real-time Updates (SSE)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: 'var(--color-success)' }}>✅</span>
+                    <span>Rate Limiting</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-bg-surface) 90%)', borderLeft: '4px solid var(--color-primary)' }}>
+              <h5 className="font-medium mb-2" style={{ color: 'var(--color-primary)' }}>🔮 Future Enhancements</h5>
+              <ul className="text-sm text-secondary space-y-1">
+                <li>• Add support for recovery/sleep webhook events</li>
+                <li>• Implement workout.deleted handling</li>
+                <li>• Add cycle data to webhook processing</li>
+                <li>• Expand OAuth scopes for additional data access</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 

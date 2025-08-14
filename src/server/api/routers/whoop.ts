@@ -17,6 +17,7 @@ export const whoopRouter = createTRPCRouter({
       .select({
         isActive: userIntegrations.isActive,
         createdAt: userIntegrations.createdAt,
+        expiresAt: userIntegrations.expiresAt,
         scope: userIntegrations.scope,
       })
       .from(userIntegrations)
@@ -27,9 +28,17 @@ export const whoopRouter = createTRPCRouter({
         ),
       );
 
+    // Check if token is expired
+    const now = new Date();
+    const isExpired = integration?.expiresAt 
+      ? new Date(integration.expiresAt).getTime() < now.getTime()
+      : false;
+
     return {
-      isConnected: !!integration?.isActive,
+      isConnected: !!integration?.isActive && !isExpired,
       connectedAt: integration?.createdAt || null,
+      expiresAt: integration?.expiresAt || null,
+      isExpired,
       scope: integration?.scope || null,
     };
   }),

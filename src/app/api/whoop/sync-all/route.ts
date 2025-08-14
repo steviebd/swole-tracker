@@ -182,7 +182,7 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       })
       .where(eq(userIntegrations.id, integration.id));
 
-    return tokens.access_token;
+    return tokens.access_token as string;
   }
 
   return integration.accessToken;
@@ -191,7 +191,7 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
 async function fetchWhoopData<T>(
   endpoint: string,
   accessToken: string,
-  limit: number = 25
+  limit = 25
 ): Promise<T[]> {
   const url = `https://api.prod.whoop.com/developer/v1/${endpoint}?limit=${limit}`;
   
@@ -203,11 +203,14 @@ async function fetchWhoopData<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`WHOOP API error for ${endpoint}: ${response.status}`);
+    const error = new Error(`WHOOP API error for ${endpoint}: ${response.status}`);
+    // Add response status to error for better error handling
+    (error as any).status = response.status;
+    throw error;
   }
 
   const data = await response.json();
-  return data.records || data || [];
+  return (data.records || data || []) as T[];
 }
 
 async function syncWorkouts(userId: string, accessToken: string): Promise<number> {
@@ -216,34 +219,46 @@ async function syncWorkouts(userId: string, accessToken: string): Promise<number
     
     if (workouts.length === 0) return 0;
 
+    // Check for existing workouts by both WHOOP ID and temporal overlap
     const existingWorkouts = await db
-      .select({ whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId })
+      .select({ 
+        whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
+        start: externalWorkoutsWhoop.start,
+        end: externalWorkoutsWhoop.end
+      })
       .from(externalWorkoutsWhoop)
-      .where(
-        and(
-          eq(externalWorkoutsWhoop.user_id, userId),
-          inArray(externalWorkoutsWhoop.whoopWorkoutId, workouts.map(w => w.id))
-        )
-      );
+      .where(eq(externalWorkoutsWhoop.user_id, userId));
 
     const existingIds = new Set(existingWorkouts.map(w => w.whoopWorkoutId));
-    const newWorkouts = workouts.filter(w => !existingIds.has(w.id));
+    const existingTimes = new Set(
+      existingWorkouts.map(w => `${w.start.toISOString()}_${w.end.toISOString()}`)
+    );
+
+    // Filter out workouts that already exist by ID or temporal match
+    const newWorkouts = workouts.filter(w => {
+      const timeKey = `${new Date(w.start).toISOString()}_${new Date(w.end).toISOString()}`;
+      return !existingIds.has(w.id) && !existingTimes.has(timeKey);
+    });
 
     if (newWorkouts.length > 0) {
-      await db.insert(externalWorkoutsWhoop).values(
-        newWorkouts.map(workout => ({
-          user_id: userId,
-          whoopWorkoutId: workout.id,
-          start: new Date(workout.start),
-          end: new Date(workout.end),
-          timezone_offset: workout.timezone_offset,
-          sport_name: workout.sport_name,
-          score_state: workout.score_state,
-          score: workout.score,
-          during: workout.during,
-          zone_duration: workout.zone_duration,
-        }))
-      );
+      for (const workout of newWorkouts) {
+        try {
+          await db.insert(externalWorkoutsWhoop).values({
+            user_id: userId,
+            whoopWorkoutId: workout.id,
+            start: new Date(workout.start),
+            end: new Date(workout.end),
+            timezone_offset: workout.timezone_offset,
+            sport_name: workout.sport_name,
+            score_state: workout.score_state,
+            score: workout.score,
+            during: workout.during,
+            zone_duration: workout.zone_duration,
+          }).onConflictDoNothing();
+        } catch (insertError) {
+          console.log(`Skipping duplicate workout ${workout.id}:`, insertError);
+        }
+      }
     }
 
     return newWorkouts.length;
@@ -279,13 +294,13 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
           return {
             user_id: userId,
             whoop_recovery_id: recovery.id,
-            cycle_id: recovery.cycle_id,
+            cycle_id: recovery.cycle_id || null,
             date: date,
-            recovery_score: recovery.score?.recovery_score,
-            hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli?.toString(),
-            hrv_rmssd_baseline: recovery.score?.hrv_baseline?.toString(),
-            resting_heart_rate: recovery.score?.resting_heart_rate_milli,
-            resting_heart_rate_baseline: recovery.score?.hr_baseline,
+            recovery_score: recovery.score?.recovery_score || null,
+            hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli?.toString() || null,
+            hrv_rmssd_baseline: recovery.score?.hrv_baseline?.toString() || null,
+            resting_heart_rate: recovery.score?.resting_heart_rate_milli || null,
+            resting_heart_rate_baseline: recovery.score?.hr_baseline || null,
             raw_data: recovery,
             timezone_offset: null,
           };
@@ -326,11 +341,11 @@ async function syncCycles(userId: string, accessToken: string): Promise<number> 
           whoop_cycle_id: cycle.id,
           start: new Date(cycle.start),
           end: new Date(cycle.end),
-          timezone_offset: cycle.timezone_offset,
-          day_strain: cycle.score?.strain?.toString(),
-          average_heart_rate: cycle.score?.average_heart_rate,
-          max_heart_rate: cycle.score?.max_heart_rate,
-          kilojoule: cycle.score?.kilojoule?.toString(),
+          timezone_offset: cycle.timezone_offset || null,
+          day_strain: cycle.score?.strain?.toString() || null,
+          average_heart_rate: cycle.score?.average_heart_rate || null,
+          max_heart_rate: cycle.score?.max_heart_rate || null,
+          kilojoule: cycle.score?.kilojoule?.toString() || null,
           raw_data: cycle,
         }))
       );
@@ -369,16 +384,16 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
           whoop_sleep_id: sleep.id,
           start: new Date(sleep.start),
           end: new Date(sleep.end),
-          timezone_offset: sleep.timezone_offset,
-          sleep_performance_percentage: sleep.score?.sleep_performance_percentage,
-          total_sleep_time_milli: sleep.score?.stage_summary?.total_in_bed_time_milli,
-          sleep_efficiency_percentage: sleep.score?.sleep_efficiency_percentage?.toString(),
-          slow_wave_sleep_time_milli: sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli,
-          rem_sleep_time_milli: sleep.score?.stage_summary?.total_rem_sleep_time_milli,
-          light_sleep_time_milli: sleep.score?.stage_summary?.total_light_sleep_time_milli,
-          wake_time_milli: sleep.score?.stage_summary?.total_awake_time_milli,
-          arousal_time_milli: sleep.score?.stage_summary?.total_awake_time_milli, // Using awake as proxy
-          disturbance_count: sleep.score?.stage_summary?.disturbance_count,
+          timezone_offset: sleep.timezone_offset || null,
+          sleep_performance_percentage: sleep.score?.sleep_performance_percentage || null,
+          total_sleep_time_milli: sleep.score?.stage_summary?.total_in_bed_time_milli || null,
+          sleep_efficiency_percentage: sleep.score?.sleep_efficiency_percentage?.toString() || null,
+          slow_wave_sleep_time_milli: sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli || null,
+          rem_sleep_time_milli: sleep.score?.stage_summary?.total_rem_sleep_time_milli || null,
+          light_sleep_time_milli: sleep.score?.stage_summary?.total_light_sleep_time_milli || null,
+          wake_time_milli: sleep.score?.stage_summary?.total_awake_time_milli || null,
+          arousal_time_milli: sleep.score?.stage_summary?.total_awake_time_milli || null, // Using awake as proxy
+          disturbance_count: sleep.score?.stage_summary?.disturbance_count || null,
           sleep_latency_milli: null, // Not available in API data
           raw_data: sleep,
         }))
@@ -402,7 +417,9 @@ async function syncProfile(userId: string, accessToken: string): Promise<number>
     });
 
     if (!response.ok) {
-      throw new Error(`WHOOP Profile API error: ${response.status}`);
+      const error = new Error(`WHOOP Profile API error: ${response.status}`);
+      (error as any).status = response.status;
+      throw error;
     }
 
     const profile = await response.json() as WhoopProfile;
@@ -472,9 +489,9 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
           return {
             user_id: userId,
             whoop_measurement_id: measurement.id,
-            height_meter: measurement.height_meter?.toString(),
-            weight_kilogram: measurement.weight_kilogram?.toString(),
-            max_heart_rate: measurement.max_heart_rate,
+            height_meter: measurement.height_meter?.toString() || null,
+            weight_kilogram: measurement.weight_kilogram?.toString() || null,
+            max_heart_rate: measurement.max_heart_rate || null,
             measurement_date: measurementDate,
             raw_data: measurement,
           };
@@ -489,7 +506,7 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -531,7 +548,19 @@ export async function POST(req: NextRequest) {
     }
 
     // Refresh token if needed
-    const accessToken = await refreshTokenIfNeeded(integration);
+    let accessToken: string;
+    try {
+      accessToken = await refreshTokenIfNeeded(integration);
+    } catch (error) {
+      return NextResponse.json(
+        { 
+          error: "Token refresh failed", 
+          details: String(error),
+          needsReauthorization: true 
+        },
+        { status: 401 }
+      );
+    }
 
     // Sync all data types
     const results = {
@@ -545,44 +574,107 @@ export async function POST(req: NextRequest) {
     };
 
     // Sync each data type independently to prevent one failure from stopping others
+    // But if we get 401s, it means token refresh failed or token is still invalid
+    let tokenInvalid = false;
+
     try {
       results.workouts = await syncWorkouts(user.id, accessToken);
     } catch (error) {
-      results.errors.push(`Workouts: ${error}`);
+      const errorStr = String(error);
+      // Check for 401 status in error object or error message
+      if ((error as any).status === 401 || errorStr.includes("401")) {
+        tokenInvalid = true;
+      }
+      results.errors.push(`Workouts: ${errorStr}`);
     }
 
-    try {
-      results.recovery = await syncRecovery(user.id, accessToken);
-    } catch (error) {
-      results.errors.push(`Recovery: ${error}`);
-    }
+    // Skip other syncs if token is invalid to avoid multiple 401s
+    if (!tokenInvalid) {
+      try {
+        results.recovery = await syncRecovery(user.id, accessToken);
+      } catch (error) {
+        const errorStr = String(error);
+        if ((error as any).status === 401 || errorStr.includes("401")) {
+          tokenInvalid = true;
+        }
+        results.errors.push(`Recovery: ${errorStr}`);
+      }
 
-    try {
-      results.cycles = await syncCycles(user.id, accessToken);
-    } catch (error) {
-      results.errors.push(`Cycles: ${error}`);
-    }
+      // Note: Cycles endpoint may not be available for all WHOOP OAuth apps
+      try {
+        results.cycles = await syncCycles(user.id, accessToken);
+      } catch (error) {
+        const errorStr = String(error);
+        if ((error as any).status === 401 || errorStr.includes("401")) {
+          tokenInvalid = true;
+        } else if ((error as any).status === 403 || errorStr.includes("403")) {
+          // 403 Forbidden likely means scope not granted, skip silently
+          console.log("Cycles sync skipped: insufficient scope");
+        } else {
+          results.errors.push(`Cycles: ${errorStr}`);
+        }
+      }
 
-    try {
-      results.sleep = await syncSleep(user.id, accessToken);
-    } catch (error) {
-      results.errors.push(`Sleep: ${error}`);
-    }
+      try {
+        results.sleep = await syncSleep(user.id, accessToken);
+      } catch (error) {
+        const errorStr = String(error);
+        if ((error as any).status === 401 || errorStr.includes("401")) {
+          tokenInvalid = true;
+        }
+        results.errors.push(`Sleep: ${errorStr}`);
+      }
 
-    try {
-      results.profile = await syncProfile(user.id, accessToken);
-    } catch (error) {
-      results.errors.push(`Profile: ${error}`);
-    }
+      // Profile and body measurements may not be available for all WHOOP OAuth apps
+      try {
+        results.profile = await syncProfile(user.id, accessToken);
+      } catch (error) {
+        const errorStr = String(error);
+        if ((error as any).status === 401 || errorStr.includes("401")) {
+          tokenInvalid = true;
+        } else if ((error as any).status === 403 || errorStr.includes("403")) {
+          console.log("Profile sync skipped: insufficient scope");
+        } else {
+          results.errors.push(`Profile: ${errorStr}`);
+        }
+      }
 
-    try {
-      results.bodyMeasurements = await syncBodyMeasurements(user.id, accessToken);
-    } catch (error) {
-      results.errors.push(`Body Measurements: ${error}`);
+      try {
+        results.bodyMeasurements = await syncBodyMeasurements(user.id, accessToken);
+      } catch (error) {
+        const errorStr = String(error);
+        if ((error as any).status === 401 || errorStr.includes("401")) {
+          tokenInvalid = true;
+        } else if ((error as any).status === 403 || errorStr.includes("403")) {
+          console.log("Body measurements sync skipped: insufficient scope");
+        } else {
+          results.errors.push(`Body Measurements: ${errorStr}`);
+        }
+      }
     }
 
     const totalSynced = results.workouts + results.recovery + results.cycles + 
                        results.sleep + results.profile + results.bodyMeasurements;
+
+    // If we have token issues, suggest reauthorization
+    if (tokenInvalid) {
+      // Mark integration as inactive so future status checks show disconnected
+      await db
+        .update(userIntegrations)
+        .set({
+          isActive: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(userIntegrations.id, integration.id));
+
+      return NextResponse.json({
+        success: false,
+        synced: results,
+        totalNewRecords: totalSynced,
+        error: "WHOOP access token is invalid or expired. Please reconnect your WHOOP account.",
+        needsReauthorization: true,
+      }, { status: 401 });
+    }
 
     return NextResponse.json({
       success: true,

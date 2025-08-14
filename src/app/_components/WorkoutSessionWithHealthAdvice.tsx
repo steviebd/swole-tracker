@@ -72,7 +72,7 @@ export function WorkoutSessionWithHealthAdvice({
 
   // Wellness mutations
   const saveWellness = api.wellness.save.useMutation();
-  const checkExistingWellness = api.wellness.checkExists.useQuery(
+  const _checkExistingWellness = api.wellness.checkExists.useQuery(
     { sessionId },
     { enabled: !!sessionId }
   );
@@ -236,7 +236,7 @@ export function WorkoutSessionWithHealthAdvice({
   });
 
   // Create a mapping from normalized exercise names to original names
-  const exerciseNameMapping = React.useMemo(() => {
+  const _exerciseNameMapping = React.useMemo(() => {
     const mapping: Record<string, string> = {};
     if (workoutSession?.template?.exercises) {
       for (const exercise of workoutSession.template.exercises) {

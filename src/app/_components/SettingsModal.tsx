@@ -21,7 +21,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   // Load user preferences and user data for analytics
   const { data: preferences, refetch: refetchPreferences } = api.preferences.get.useQuery();
-  const { data: userData } = api.preferences.get.useQuery(); // This would need user ID for analytics
+  const { data: _userData } = api.preferences.get.useQuery(); // This would need user ID for analytics
   
   const updatePreferences = api.preferences.update.useMutation({
     onSuccess: () => {
@@ -73,7 +73,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         source: 'settings_modal'
       });
       
-    } catch (error) {
+    } catch (_error) {
       // Revert on error
       setManualWellnessEnabled(previousValue);
     }
