@@ -23,6 +23,7 @@ interface SetListProps {
     setIndex: number,
     direction: "up" | "down",
   ) => void;
+  preferredUnit?: "kg" | "lbs";
 }
 
 export function SetList({
@@ -36,6 +37,7 @@ export function SetList({
   onAddSet,
   onDeleteSet,
   onMoveSet,
+  preferredUnit = "kg",
 }: SetListProps) {
   return (
     <div className="space-y-2">
@@ -53,6 +55,7 @@ export function SetList({
           onDelete={onDeleteSet}
           readOnly={readOnly}
           showDelete={sets.length > 1}
+          preferredUnit={preferredUnit}
           // Arrow button handlers
           onMoveUp={
             setIndex > 0

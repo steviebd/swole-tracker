@@ -44,9 +44,7 @@ describe("lib smoke extended", () => {
     // browser
     const browser = await import("~/lib/supabase-browser");
     expect(browser).toBeTruthy();
-    // index
-    const index = await import("~/lib/supabase");
-    expect(index).toBeTruthy();
+    // Note: No index file exists, so we're only testing the existing files
   });
 
   it("analytics branches load with default env", async () => {

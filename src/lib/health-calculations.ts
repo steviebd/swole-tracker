@@ -67,7 +67,7 @@ export function roundToIncrement(
   return Math.round(weight / increment) * increment;
 }
 
-// Enhanced function to get historical exercise data for the last 2 sessions
+// Optimized function to get historical exercise data for the last 2 sessions - prevents N+1 queries
 export async function getExerciseHistory(
   db: any,
   userId: string,
@@ -77,6 +77,8 @@ export async function getExerciseHistory(
 ): Promise<Array<{
   exerciseName: string;
   sessions: Array<{
+    sessionId?: number;
+    templateId?: number;
     workoutDate: Date;
     sets: Array<{
       weight: number | null;
@@ -85,48 +87,92 @@ export async function getExerciseHistory(
     }>;
   }>;
 }>> {
-  const results = [];
-  
-  for (const exerciseName of exerciseNames) {
-    // Get recent sessions for this exercise
-    const sessionData = await db.query.workoutSessions.findMany({
-      where: and(
-        eq(db.schema.workoutSessions.user_id, userId),
-        excludeSessionId ? ne(db.schema.workoutSessions.id, excludeSessionId) : undefined
-      ),
-      orderBy: [desc(db.schema.workoutSessions.workoutDate)],
-      with: {
-        exercises: {
-          where: eq(db.schema.sessionExercises.exerciseName, exerciseName),
+  if (exerciseNames.length === 0) {
+    return [];
+  }
+
+  // Single optimized query: Get all recent sessions with any of these exercises
+  const recentSessionsWithExercises = await db.query.workoutSessions.findMany({
+    where: and(
+      eq(db.schema.workoutSessions.user_id, userId),
+      excludeSessionId ? ne(db.schema.workoutSessions.id, excludeSessionId) : undefined
+    ),
+    orderBy: [desc(db.schema.workoutSessions.workoutDate)],
+    with: {
+      exercises: {
+        where: (exercises: any, { inArray }: any): any => inArray(exercises.exerciseName, exerciseNames),
+        orderBy: (exercises: any, { asc }: any) => {
+          const result = [asc(exercises.setOrder)];
+          return result as any[];
         },
       },
-      limit: 20, // Search more sessions to find 2 with this exercise
-    });
+      template: {
+        columns: {
+          id: true,
+        }
+      }
+    },
+    limit: 50, // Get more sessions to ensure we find enough data for each exercise
+  });
 
-    // Filter to sessions that actually have this exercise
-    const sessionsWithExercise = sessionData
-      .filter((session: any) => session.exercises.length > 0)
-      .slice(0, limit);
+  // Group sessions by exercise name and take the most recent N sessions per exercise
+  const exerciseSessionMap = new Map<string, Array<{
+    sessionId: number;
+    templateId?: number;
+    workoutDate: Date;
+    sets: Array<{
+      weight: number | null;
+      reps: number | null;
+      volume: number | null;
+    }>;
+  }>>();
 
-    const sessions = sessionsWithExercise.map((session: any) => ({
-      workoutDate: session.workoutDate,
-      sets: session.exercises.map((ex: any) => ({
-        weight: ex.weight ? parseFloat(ex.weight) : null,
-        reps: ex.reps,
-        volume: ex.weight && ex.reps ? parseFloat(ex.weight) * ex.reps * (ex.sets || 1) : null,
-      })),
-    }));
+  // Initialize map for all requested exercises
+  exerciseNames.forEach(name => {
+    exerciseSessionMap.set(name, []);
+  });
 
-    results.push({
-      exerciseName,
-      sessions,
+  // Process sessions in chronological order (most recent first)
+  for (const session of recentSessionsWithExercises) {
+    // Group exercises by name within this session
+    const exerciseGroups = session.exercises.reduce((groups: Record<string, any[]>, exercise: any) => {
+      if (!groups[exercise.exerciseName]) {
+        groups[exercise.exerciseName] = [];
+      }
+      groups[exercise.exerciseName]!.push(exercise);
+      return groups;
+    }, {});
+
+    // Add this session's data to each exercise that appears in it
+    Object.entries(exerciseGroups).forEach(([exerciseName, exercises]) => {
+      const currentSessions = exerciseSessionMap.get(exerciseName);
+      
+      // Only add if we haven't reached the limit for this exercise
+      if (currentSessions && currentSessions.length < limit && Array.isArray(exercises)) {
+        const sets = (exercises as any[]).map((ex: any) => ({
+          weight: ex.weight ? parseFloat(ex.weight) : null,
+          reps: ex.reps,
+          volume: ex.weight && ex.reps ? parseFloat(ex.weight) * ex.reps * (ex.sets || 1) : null,
+        }));
+
+        currentSessions.push({
+          sessionId: session.id,
+          templateId: session.template?.id,
+          workoutDate: session.workoutDate,
+          sets,
+        });
+      }
     });
   }
 
-  return results;
+  // Convert map back to array format expected by caller
+  return exerciseNames.map(exerciseName => ({
+    exerciseName,
+    sessions: exerciseSessionMap.get(exerciseName) || [],
+  }));
 }
 
-// Calculate progression recommendations based on historical data
+// Enhanced progression calculation with plateau detection
 export function calculateProgressionSuggestions(
   exerciseHistory: Array<{
     exerciseName: string;
@@ -140,23 +186,32 @@ export function calculateProgressionSuggestions(
     }>;
   }>,
   readiness: number,
-  preferredProgression: 'weight' | 'reps' = 'weight'
+  progressionType: 'linear' | 'percentage' | 'adaptive' = 'adaptive',
+  userPreferences: {
+    linearIncrement?: number;
+    percentageIncrement?: number;
+  } = {}
 ): Array<{
   exerciseName: string;
   suggestions: Array<{
-    type: 'weight' | 'reps';
+    type: 'weight' | 'reps' | 'volume';
     current: number;
     suggested: number;
     rationale: string;
+    plateauDetected?: boolean;
   }>;
+  plateauDetected: boolean;
 }> {
   return exerciseHistory.map(exercise => {
     const suggestions: Array<{
-      type: 'weight' | 'reps';
+      type: 'weight' | 'reps' | 'volume';
       current: number;
       suggested: number;
       rationale: string;
+      plateauDetected?: boolean;
     }> = [];
+    
+    let plateauDetected = false;
     
     if (exercise.sessions.length === 0) {
       return {
@@ -166,7 +221,8 @@ export function calculateProgressionSuggestions(
           current: 0,
           suggested: 20, // Conservative starting weight
           rationale: 'No historical data - starting with conservative weight'
-        }]
+        }],
+        plateauDetected: false
       };
     }
 
@@ -175,7 +231,8 @@ export function calculateProgressionSuggestions(
     if (!recentSession?.sets.length) {
       return {
         exerciseName: exercise.exerciseName,
-        suggestions: []
+        suggestions: [],
+        plateauDetected: false
       };
     }
 
@@ -185,33 +242,103 @@ export function calculateProgressionSuggestions(
       return setVolume > bestVolume ? set : best;
     });
 
+    // Plateau detection: compare last 2 sessions if available
+    if (exercise.sessions.length >= 2) {
+      const previousSession = exercise.sessions[1];
+      if (previousSession?.sets.length) {
+        const bestPreviousSet = previousSession.sets.reduce((best, set) => {
+          const setVolume = set.volume || 0;
+          const bestVolume = best.volume || 0;
+          return setVolume > bestVolume ? set : best;
+        });
+        
+        // Check if performance has stagnated or regressed
+        const currentVolume = bestRecentSet.volume || 0;
+        const previousVolume = bestPreviousSet.volume || 0;
+        const volumeChange = currentVolume - previousVolume;
+        
+        // Plateau detected if volume decreased or stayed the same (within 5% margin)
+        if (volumeChange <= previousVolume * 0.05) {
+          plateauDetected = true;
+        }
+      }
+    }
+
     if (bestRecentSet.weight && bestRecentSet.reps) {
       const baseWeight = bestRecentSet.weight;
       const baseReps = bestRecentSet.reps;
+      let progressionFactor = 1.0;
+      let rationale = '';
       
-      // Apply readiness-based progression
-      const progressionFactor = readiness > 0.7 ? 1.025 : readiness > 0.5 ? 1.0 : 0.975;
-      
-      if (preferredProgression === 'weight') {
-        suggestions.push({
-          type: 'weight',
-          current: baseWeight,
-          suggested: roundToIncrement(baseWeight * progressionFactor),
-          rationale: `Based on ${readiness > 0.7 ? 'good' : readiness > 0.5 ? 'moderate' : 'low'} readiness, suggesting ${readiness > 0.7 ? 'progressive overload' : readiness > 0.5 ? 'maintenance' : 'deload'}`
-        });
-      } else {
-        suggestions.push({
-          type: 'reps',
-          current: baseReps,
-          suggested: Math.round(baseReps * progressionFactor),
-          rationale: `Based on ${readiness > 0.7 ? 'good' : readiness > 0.5 ? 'moderate' : 'low'} readiness, suggesting ${readiness > 0.7 ? 'increased' : readiness > 0.5 ? 'same' : 'reduced'} reps`
-        });
+      // Calculate progression based on type and readiness
+      switch (progressionType) {
+        case 'linear':
+          const linearIncrement = userPreferences.linearIncrement || 2.5;
+          const suggestedWeight = baseWeight + linearIncrement;
+          suggestions.push({
+            type: 'weight',
+            current: baseWeight,
+            suggested: suggestedWeight,
+            rationale: `Linear progression: +${linearIncrement}kg from last session${plateauDetected ? ' (plateau detected - consider deload)' : ''}`,
+            plateauDetected
+          });
+          break;
+          
+        case 'percentage':
+          const percentageIncrement = (userPreferences.percentageIncrement || 2.5) / 100;
+          progressionFactor = 1 + percentageIncrement;
+          suggestions.push({
+            type: 'weight',
+            current: baseWeight,
+            suggested: roundToIncrement(baseWeight * progressionFactor),
+            rationale: `Percentage progression: +${(percentageIncrement * 100).toFixed(1)}% from last session${plateauDetected ? ' (plateau detected - consider deload)' : ''}`,
+            plateauDetected
+          });
+          break;
+          
+        case 'adaptive':
+        default:
+          // Adaptive progression based on readiness and plateau detection
+          if (plateauDetected && readiness < 0.7) {
+            // Deload if plateau + poor readiness
+            progressionFactor = 0.9;
+            rationale = 'Deload recommended: plateau detected with poor readiness';
+          } else if (plateauDetected) {
+            // Slight increase despite plateau if readiness is good
+            progressionFactor = 1.025;
+            rationale = 'Light progression despite plateau (good readiness allows push)';
+          } else {
+            // Normal adaptive progression
+            progressionFactor = readiness > 0.7 ? 1.05 : readiness > 0.5 ? 1.025 : 1.0;
+            rationale = `Adaptive progression based on ${readiness > 0.7 ? 'excellent' : readiness > 0.5 ? 'moderate' : 'low'} readiness`;
+          }
+          
+          suggestions.push({
+            type: 'weight',
+            current: baseWeight,
+            suggested: roundToIncrement(baseWeight * progressionFactor),
+            rationale,
+            plateauDetected
+          });
+          
+          // Also suggest rep variation for adaptive
+          if (progressionFactor === 1.0 && readiness > 0.6) {
+            suggestions.push({
+              type: 'reps',
+              current: baseReps,
+              suggested: baseReps + 1,
+              rationale: 'Volume progression: add 1 rep while maintaining weight',
+              plateauDetected
+            });
+          }
+          break;
       }
     }
 
     return {
       exerciseName: exercise.exerciseName,
-      suggestions
+      suggestions,
+      plateauDetected
     };
   });
 }

@@ -59,7 +59,7 @@ export default function RootLayout({
         var key = 'theme';
         var t = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var dark = (t === 'system' && prefersDark) || (t === 'dark') || (t === 'CalmDark') || (t === 'BoldDark') || (t === 'PlayfulDark');
+        var dark = (t === 'system' && prefersDark) || (t === 'dark');
         var root = document.documentElement;
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
         // Only apply data-theme for client. Do not set this attribute in SSR markup to avoid hydration warnings.

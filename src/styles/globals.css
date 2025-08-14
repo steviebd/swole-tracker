@@ -2,9 +2,7 @@
 @import "./tokens/base.css";
 @import "./tokens/light.css";
 @import "./tokens/dark.css";
-@import "./tokens/calmdark.css";
-@import "./tokens/bolddark.css";
-@import "./tokens/playfuldark.css";
+
 
 @theme {
   /* Typography */
@@ -229,7 +227,7 @@ html.dark {
 }
 
 /* ===================== */
-/* Liquid Glass utilities (used by custom dark themes: CalmDark, BoldDark, PlayfulDark) */
+/* Liquid Glass utilities */
 /* ===================== */
 .glass-surface {
   backdrop-filter: blur(10px);

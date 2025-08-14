@@ -29,10 +29,6 @@ export function useWorkoutSessionState({
     Map<string, { best?: PreviousBest; sets?: SetData[] }>
   >(new Map());
   const [previousDataLoaded, setPreviousDataLoaded] = useState(false);
-  const [notification, setNotification] = useState<{
-    type: "error" | "success";
-    message: string;
-  } | null>(null);
   const [collapsedIndexes, setCollapsedIndexes] = useState<number[]>([]);
   // Track last reversible action for persistent Undo behavior
   type HistoryAction =
@@ -530,6 +526,7 @@ export function useWorkoutSessionState({
   const debugLog = (...args: unknown[]) => {
     console.log("[WorkoutSessionState]", ...args);
   };
+
 
   // Action dedupe flags (same-tick guard)
   const addSetInFlightRef = useRef(false);
@@ -1077,8 +1074,6 @@ export function useWorkoutSessionState({
     showDeleteConfirm,
     setShowDeleteConfirm,
     previousExerciseData,
-    notification,
-    setNotification,
     collapsedIndexes,
 
     // trpc utils and prefs

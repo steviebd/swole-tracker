@@ -14,12 +14,7 @@ describe("module smoke: supabase adapters and analytics", () => {
     process.env = { ...envBackup };
   });
 
-  it("supabase-browser initializes client without throwing", async () => {
-    const mod = await import("~/lib/supabase-browser");
-    expect(mod).toBeTruthy();
-    // if module exports a function or client, ensure existence
-    expect(Object.keys(mod).length).toBeGreaterThan(0);
-  });
+  // Note: Removed test for ~/lib/supabase index file as it doesn't exist
 
   it("supabase-browser re-exports and functions load", async () => {
     const mod = await import("~/lib/supabase-browser");
@@ -31,13 +26,6 @@ describe("module smoke: supabase adapters and analytics", () => {
     const mod = await import("~/lib/supabase-server");
     expect(mod).toBeTruthy();
     expect(Object.keys(mod).length).toBeGreaterThan(0);
-  });
-
-  it("supabase lib index loads", async () => {
-    const mod = await import("~/lib/supabase");
-    expect(mod).toBeTruthy();
-    // Some modules export only side effects / default; just ensure import succeeds
-    expect(mod).toBeTypeOf("object");
   });
 
   it("analytics module loads and exposes functions", async () => {

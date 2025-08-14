@@ -71,3 +71,5 @@ node_modules/
 # tasks.json
 # tasks/ 
 .env.production
+src/__tests__/unit/supabase.coverage.test.ts.skip
+src/__tests__/unit/supabase.more.coverage2.test.ts.skip

@@ -16,7 +16,7 @@ interface AlternativeSuggestion {
 }
 
 interface SetSuggestionsProps {
-  exercise: HealthAdviceResponse['per_exercise'][0];
+  exercise: HealthAdviceResponse['per_exercise'][0] & { name?: string };
   onAcceptSuggestion: (setId: string, suggestion: { weight?: number; reps?: number }) => void;
   onOverrideSuggestion: (setId: string) => void;
   sessionId?: string; // For analytics tracking
@@ -139,7 +139,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
   return (
     <Card className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold" style={{color: 'var(--color-text)'}}>{exercise.exercise_id}</h3>
+        <h3 className="text-lg font-semibold" style={{color: 'var(--color-text)'}}>{exercise.name || exercise.exercise_id}</h3>
         <div className="text-right">
           <div className="text-sm text-muted">Beat Best Chance</div>
           <div className={cx("text-lg font-bold", chanceColor)}>

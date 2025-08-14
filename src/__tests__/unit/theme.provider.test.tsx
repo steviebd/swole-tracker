@@ -71,10 +71,8 @@ function TestConsumer() {
       <div data-testid="theme">{theme}</div>
       <div data-testid="resolved">{resolvedTheme}</div>
       <button onClick={() => setTheme("light")}>set-light</button>
-      <button onClick={() => setTheme("dark")}>set-dark2</button>
       <button onClick={() => setTheme("dark")}>set-dark</button>
       <button onClick={() => setTheme("system")}>set-system</button>
-      <button onClick={() => setTheme("CalmDark")}>set-calm</button>
       <button onClick={toggle}>toggle</button>
     </div>
   );
@@ -153,13 +151,13 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
 
-    // CalmDark acts dark-first and sets data-theme=CalmDark
-    await user.click(screen.getByText("set-calm"));
-    expect(screen.getByTestId("theme")).toHaveTextContent("CalmDark");
-    // resolvedTheme is derived from theme/systemDark and doesn't special-case custom dark themes.
-    // The DOM still applies dark-first for CalmDark.
-    expect(localStorage.getItem("theme")).toBe("CalmDark");
-    expect(document.documentElement.dataset.theme).toBe("CalmDark");
+    // set system
+    await user.click(screen.getByText("set-system"));
+    expect(screen.getByTestId("theme")).toHaveTextContent("system");
+    // resolvedTheme follows system preference
+    expect(screen.getByTestId("resolved")).toHaveTextContent("dark"); // because system prefers dark in this test (setupMatchMedia(true))
+    expect(localStorage.getItem("theme")).toBe("system");
+    expect(document.documentElement.dataset.theme).toBe("system");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
@@ -184,12 +182,12 @@ describe("ThemeProvider", () => {
     expect(screen.getByTestId("resolved")).toHaveTextContent("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
 
-    // if we set CalmDark and toggle, it should go to light (via toggle logic dark?light:dark)
-    await user.click(screen.getByText("set-calm"));
-    expect(screen.getByTestId("theme")).toHaveTextContent("CalmDark");
-    await user.click(screen.getByText("toggle"));
-    // Horizon_wow is not special-cased by toggle; since theme !== "dark", toggle sets dark
+    // if we set dark and toggle, it should go to light (via toggle logic dark?light:dark)
+    await user.click(screen.getByText("set-dark"));
     expect(screen.getByTestId("theme")).toHaveTextContent("dark");
+    await user.click(screen.getByText("toggle"));
+    // Horizon_wow is not special-cased by toggle; since theme === "dark", toggle sets light
+    expect(screen.getByTestId("theme")).toHaveTextContent("light");
   });
 
   it("honors localStorage on mount", async () => {

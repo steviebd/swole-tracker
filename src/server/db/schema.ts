@@ -65,7 +65,7 @@ export const workoutSessions = createTable(
       .references(() => workoutTemplates.id, { onDelete: "cascade" }),
     workoutDate: d.timestamp({ withTimezone: true }).notNull(),
     // Phase 2 additions
-    theme_used: d.varchar({ length: 20 }), // 'CalmDark' | 'BoldDark' | 'PlayfulDark' (validated in app layer)
+    theme_used: d.varchar({ length: 20 }), // 'dark' | 'light' | 'system' (validated in app layer)
     device_type: d.varchar({ length: 20 }), // 'android' | 'ios' | 'desktop' | 'ipad' | 'other'
     perf_metrics: d.json(), // optional perf/telemetry blob
     createdAt: d
@@ -133,6 +133,13 @@ export const userPreferences = createTable(
       .default("collapse_expand"),
     // Wellness feature
     enable_manual_wellness: d.boolean().notNull().default(false),
+    // AI Suggestions progression preferences
+    progression_type: d
+      .varchar({ length: 20 })
+      .notNull()
+      .default("adaptive"), // "linear" | "percentage" | "adaptive"
+    linear_progression_kg: d.numeric({ precision: 4, scale: 2 }).default("2.5"), // Default 2.5kg increment
+    percentage_progression: d.numeric({ precision: 4, scale: 2 }).default("2.5"), // Default 2.5% increment
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -702,6 +709,61 @@ export const wellnessDataRelations = relations(wellnessData, ({ one }) => ({
   }),
 }));
 
+// AI Suggestion History - Track user interactions with AI suggestions
+export const aiSuggestionHistory = createTable(
+  "ai_suggestion_history",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    sessionId: d
+      .integer()
+      .notNull()
+      .references(() => workoutSessions.id, { onDelete: "cascade" }),
+    exerciseName: d.varchar({ length: 256 }).notNull(),
+    setId: d.varchar({ length: 100 }).notNull(), // Format: templateExerciseId_setIndex
+    setIndex: d.integer().notNull(), // 0-based set index
+    
+    // Suggestion details
+    suggested_weight_kg: d.numeric({ precision: 6, scale: 2 }),
+    suggested_reps: d.integer(),
+    suggested_rest_seconds: d.integer(),
+    suggestion_rationale: d.text(),
+    
+    // User interaction
+    action: d.varchar({ length: 20 }).notNull(), // 'accepted', 'rejected', 'modified'
+    accepted_weight_kg: d.numeric({ precision: 6, scale: 2 }), // What user actually used
+    accepted_reps: d.integer(),
+    
+    // Context
+    progression_type: d.varchar({ length: 20 }), // User's progression preference at time of suggestion
+    readiness_score: d.numeric({ precision: 3, scale: 2 }), // Readiness at time of suggestion
+    plateau_detected: d.boolean().notNull().default(false),
+    
+    // Metadata
+    interaction_time_ms: d.integer(), // Time from suggestion to interaction
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("ai_suggestion_history_user_id_idx").on(t.user_id),
+    index("ai_suggestion_history_session_idx").on(t.sessionId),
+    index("ai_suggestion_history_exercise_idx").on(t.exerciseName),
+    index("ai_suggestion_history_action_idx").on(t.action),
+    index("ai_suggestion_history_created_at_idx").on(t.createdAt),
+    index("ai_suggestion_history_user_created_idx").on(t.user_id, t.createdAt),
+  ],
+);
+
+// AI Suggestion History Relations
+export const aiSuggestionHistoryRelations = relations(aiSuggestionHistory, ({ one }) => ({
+  session: one(workoutSessions, {
+    fields: [aiSuggestionHistory.sessionId],
+    references: [workoutSessions.id],
+  }),
+}));
+
 // WHOOP Data Relations
 export const whoopRecoveryRelations = relations(whoopRecovery, ({ one }) => ({
   cycle: one(whoopCycles, {
@@ -714,15 +776,15 @@ export const whoopCyclesRelations = relations(whoopCycles, ({ many }) => ({
   recoveries: many(whoopRecovery),
 }));
 
-export const whoopSleepRelations = relations(whoopSleep, ({ one }) => ({
+export const whoopSleepRelations = relations(whoopSleep, ({ }) => ({
   // Could add relationship to cycles if needed
 }));
 
-export const whoopProfileRelations = relations(whoopProfile, ({ one }) => ({
+export const whoopProfileRelations = relations(whoopProfile, ({ }) => ({
   // Profile is standalone
 }));
 
-export const whoopBodyMeasurementRelations = relations(whoopBodyMeasurement, ({ one }) => ({
+export const whoopBodyMeasurementRelations = relations(whoopBodyMeasurement, ({ }) => ({
   // Measurements are standalone
 }));
 

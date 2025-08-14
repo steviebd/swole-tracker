@@ -61,6 +61,7 @@ interface ExerciseCardProps {
     opts?: { force?: boolean },
   ) => void;
   setCardElement?: (element: HTMLElement | null) => void;
+  preferredUnit?: "kg" | "lbs";
 }
 
 export function ExerciseCard({
@@ -85,6 +86,7 @@ export function ExerciseCard({
   draggable = false,
   onPointerDown,
   setCardElement,
+  preferredUnit = "kg",
 }: ExerciseCardProps) {
   // Accessibility live region
   const announce = useLiveRegion();
@@ -547,6 +549,7 @@ export function ExerciseCard({
             onAddSet={onAddSet}
             onDeleteSet={onDeleteSet}
             onMoveSet={onMoveSet}
+            preferredUnit={preferredUnit}
           />
         </div>
       )}

@@ -11,10 +11,7 @@ import React, {
 type Theme =
   | "system"
   | "light"
-  | "dark"
-  | "CalmDark"
-  | "BoldDark"
-  | "PlayfulDark";
+  | "dark";
 
 interface ThemeContextValue {
   theme: Theme;

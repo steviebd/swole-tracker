@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { HealthAdviceRequest, HealthAdviceResponse } from '~/server/api/schemas/health-advice';
 import { trackHealthAdviceUsage, trackHealthAdviceError, trackHealthAdvicePerformance, trackManualWellnessSubmission } from '~/lib/analytics/health-advice';
 import { api } from '~/trpc/react';
+import { logger } from '~/lib/logger';
 import type { SubjectiveWellnessData, ManualWellnessData } from '~/lib/subjective-wellness-mapper';
 import { createWhoopDataWithDefaults, mapManualWellnessToWhoopMetrics } from '~/lib/subjective-wellness-mapper';
 import type { EnhancedHealthAdviceRequest } from '~/server/api/schemas/wellness';
@@ -58,7 +59,7 @@ export function useHealthAdvice(sessionId?: number) {
           errorType: response.status === 400 ? 'validation_error' : 'api_error',
           errorMessage: errorData.error || 'Failed to fetch advice',
           modelUsed: 'unknown',
-          hasWhoopData: Object.keys(request.whoop).length > 0,
+          hasWhoopData: request.whoop ? Object.keys(request.whoop).length > 0 : false,
           experienceLevel: request.user_profile.experience_level
         });
         
@@ -79,7 +80,7 @@ export function useHealthAdvice(sessionId?: number) {
             modelUsed: 'health-model',
           });
         } catch (dbError) {
-          console.error('Failed to save health advice to database:', dbError);
+          logger.error('Failed to save health advice to database', dbError, { sessionId });
           // Don't fail the entire operation if database save fails
         }
       }
@@ -207,7 +208,7 @@ export function useHealthAdvice(sessionId?: number) {
             wellnessDataId,
           });
         } catch (dbError) {
-          console.error('Failed to save health advice to database:', dbError);
+          logger.error('Failed to save health advice to database', dbError, { sessionId });
           // Don't fail the entire operation if database save fails
         }
       }
@@ -308,7 +309,7 @@ export function useHealthAdvice(sessionId?: number) {
             acceptedCount: newCount,
           });
         } catch (dbError) {
-          console.error('Failed to update accepted suggestions count:', dbError);
+          logger.error('Failed to update accepted suggestions count', dbError, { sessionId });
           // Revert on error
           setAcceptedSuggestions(acceptedSuggestions);
         }

@@ -166,21 +166,29 @@ Deterministic algorithm you MUST apply before reasoning:
 2) Overload multiplier (applies to today's planned load):
    let Delta = clip(1 + 0.3*(rho - 0.5), 0.9, 1.1);
 
-3) Per-set adjustments with progression analysis:
+3) Per-set adjustments with progression analysis and fatigue consideration:
    - Analyze historical_sessions to identify progression trends (weight increases, rep increases, stagnation)
    - Use exercise_linking data to consider performance across different templates
-   - If target_weight_kg exists: new_weight = round_to_increment(target_weight_kg * Delta)
+   - Apply individual set recommendations with fatigue consideration:
+     * Set 1: Full intensity with target_weight_kg * Delta
+     * Set 2: Apply 5% fatigue reduction: target_weight_kg * Delta * 0.95 
+     * Set 3: Apply 10% fatigue reduction: target_weight_kg * Delta * 0.90
+     * Continue pattern for additional sets
+   - If target_weight_kg exists: new_weight = round_to_increment(target_weight_kg * Delta * fatigue_multiplier)
      Keep reps; optionally adjust reps by ±1 if target_rpe is provided to better match.
    - If no weight but target_reps exists (e.g., bodyweight): adjust reps by
-       reps' = round(target_reps * Delta)
+       reps' = round(target_reps * Delta * fatigue_multiplier)
      For endurance/very high reps, cap change to ±2 reps.
    - Respect min_increment_kg if provided; default increment is 2.5 kg.
    - Factor in cross-template performance when making recommendations
+   - Each set should have unique suggested_weight_kg, suggested_reps, and rationale
 
-4) Recovery and rest recommendations:
+4) Recovery and rest recommendations (individualized per set):
    - Based on readiness score, recommend rest periods between sets (90-180s for strength, 60-90s for hypertrophy)
+   - Apply progressive rest increases: Set 1: base rest, Set 2: base rest + 15s, Set 3: base rest + 30s
    - If rho < 0.6, recommend longer rest periods and potentially fewer sets
    - Consider sleep quality for recovery between sessions
+   - Include set-specific rest recommendations in each set's rationale
 
 5) Chance to beat best (per exercise and overall):
    Define planned_volume = sum(new_weight * target_reps) where numerically valid.
@@ -222,6 +230,7 @@ Output schema (respond with EXACTLY this shape):
   "per_exercise": [
     {
       "exercise_id": "string",
+      "name": "string (exercise display name)",
       "predicted_chance_to_beat_best": number,
       "planned_volume_kg": number | null,
       "best_volume_kg": number | null,

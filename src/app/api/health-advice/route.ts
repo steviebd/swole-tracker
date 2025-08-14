@@ -7,27 +7,29 @@ import {
   calculateReadiness, 
   calculateOverloadMultiplier,
   getExerciseHistory,
-  roundToIncrement
+  roundToIncrement,
+  calculateProgressionSuggestions
 } from '~/lib/health-calculations';
 import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-advice';
 import { db } from '~/server/db';
-import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep } from '~/server/db/schema';
+import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep, userPreferences } from '~/server/db/schema';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { createServerSupabaseClient } from '~/lib/supabase-server';
+import { logger } from '~/lib/logger';
 
 // Removed edge runtime since we need database access for enhanced features
 
 interface WorkoutSet {
   weight: number | null;
   reps: number | null;
-  volume?: number | null;
+  volume: number | null;
 }
 
 interface ExerciseSession {
   workoutDate: Date;
   sets: WorkoutSet[];
-  templateId?: string;
-  sessionId?: string;
+  templateId?: string | number;
+  sessionId?: string | number;
 }
 
 interface ExerciseHistory {
@@ -75,7 +77,17 @@ export async function POST(req: NextRequest) {
     let currentSession: any = null;
     
     // PHASE 0: Fetch WHOOP data from database (stored via webhooks) instead of real-time API calls
-    let realWhoopData = validatedInput.whoop; // Fallback to request data
+    // Ensure we always have a valid WHOOP data object with defaults
+    const defaultWhoopData = {
+      recovery_score: 50, // neutral recovery
+      sleep_performance: 75, // reasonable sleep
+      hrv_now_ms: 40, // average HRV
+      hrv_baseline_ms: 40,
+      rhr_now_bpm: 60, // average RHR
+      rhr_baseline_bpm: 60,
+      yesterday_strain: 10, // moderate strain
+    };
+    let realWhoopData = validatedInput.whoop || defaultWhoopData;
     try {
       // Check if user has active WHOOP integration
       const [whoopIntegration] = await db
@@ -116,28 +128,29 @@ export async function POST(req: NextRequest) {
         });
         
         if (latestRecovery || latestSleep) {
-          // Use database-stored WHOOP data instead of real-time API calls
+          // Use database-stored WHOOP data instead of real-time API calls, with fallbacks to defaults
           realWhoopData = {
-            recovery_score: latestRecovery?.recovery_score || validatedInput.whoop.recovery_score,
-            sleep_performance: latestSleep?.sleep_performance_percentage || validatedInput.whoop.sleep_performance,
-            hrv_now_ms: latestRecovery?.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : validatedInput.whoop.hrv_now_ms,
-            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : validatedInput.whoop.hrv_baseline_ms,
-            rhr_now_bpm: latestRecovery?.resting_heart_rate || validatedInput.whoop.rhr_now_bpm,
-            rhr_baseline_bpm: latestRecovery?.resting_heart_rate_baseline || validatedInput.whoop.rhr_baseline_bpm,
-            yesterday_strain: validatedInput.whoop.yesterday_strain, // Could be fetched from cycles table if needed
+            recovery_score: latestRecovery?.recovery_score || realWhoopData.recovery_score || defaultWhoopData.recovery_score,
+            sleep_performance: latestSleep?.sleep_performance_percentage || realWhoopData.sleep_performance || defaultWhoopData.sleep_performance,
+            hrv_now_ms: latestRecovery?.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : (realWhoopData.hrv_now_ms || defaultWhoopData.hrv_now_ms),
+            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : (realWhoopData.hrv_baseline_ms || defaultWhoopData.hrv_baseline_ms),
+            rhr_now_bpm: latestRecovery?.resting_heart_rate || realWhoopData.rhr_now_bpm || defaultWhoopData.rhr_now_bpm,
+            rhr_baseline_bpm: latestRecovery?.resting_heart_rate_baseline || realWhoopData.rhr_baseline_bpm || defaultWhoopData.rhr_baseline_bpm,
+            yesterday_strain: realWhoopData.yesterday_strain || defaultWhoopData.yesterday_strain, // Could be fetched from cycles table if needed
           };
           
-          console.log(`✅ Using database-stored WHOOP data for user ${user.id}:`, {
+          logger.info('using_stored_whoop_data', {
+            userId: user?.id,
             recovery_score: realWhoopData.recovery_score,
             sleep_performance: realWhoopData.sleep_performance,
             data_sources: [latestRecovery ? 'recovery' : null, latestSleep ? 'sleep' : null].filter(Boolean)
           });
         } else {
-          console.log(`⚠️ No recent WHOOP data found in database for user ${user.id}, using fallback`);
+          logger.warn('no_recent_whoop_data', { userId: user?.id });
         }
       }
     } catch (error) {
-      console.error('Failed to fetch WHOOP data from database, using fallback:', error);
+      logger.error('Failed to fetch WHOOP data from database, using fallback', error, { userId: user?.id });
       // Continue with fallback data
     }
     
@@ -182,8 +195,8 @@ export async function POST(req: NextRequest) {
       // Add flags based on manual wellness thresholds
       if (manualWellness.energy_level <= 3) flags.push('low_energy');
       if (manualWellness.sleep_quality <= 3) flags.push('poor_sleep');
-      if (manualWellness.notes && manualWellness.notes.toLowerCase().includes('stress')) flags.push('stress_noted');
-      if (manualWellness.notes && manualWellness.notes.toLowerCase().includes('sick')) flags.push('illness_noted');
+      if (manualWellness.notes?.toLowerCase().includes('stress')) flags.push('stress_noted');
+      if (manualWellness.notes?.toLowerCase().includes('sick')) flags.push('illness_noted');
       
       flags.push('manual_wellness_input');
     } else {
@@ -207,6 +220,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Fetch user preferences for progression calculations
+    let userProgressionPrefs = null;
+    try {
+      userProgressionPrefs = await db.query.userPreferences.findFirst({
+        where: eq(userPreferences.user_id, user.id)
+      });
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+    }
+
     // Enhanced: Get historical data for template exercises
     const exerciseNames = templateExercises.map(ex => ex.exerciseName);
     let exerciseHistory: ExerciseHistory[] = [];
@@ -221,6 +244,35 @@ export async function POST(req: NextRequest) {
         );
       } catch (error) {
         console.error('Error fetching exercise history:', error);
+      }
+    }
+
+    // Apply enhanced progression calculations with user preferences
+    let progressionSuggestions: Array<{
+      exerciseName: string;
+      suggestions: Array<{
+        type: 'weight' | 'reps' | 'volume';
+        current: number;
+        suggested: number;
+        rationale: string;
+        plateauDetected?: boolean;
+      }>;
+      plateauDetected: boolean;
+    }> = [];
+    
+    if (exerciseHistory.length > 0) {
+      try {
+        progressionSuggestions = calculateProgressionSuggestions(
+          exerciseHistory,
+          rho,
+          (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive',
+          {
+            linearIncrement: userProgressionPrefs?.linear_progression_kg ? parseFloat(userProgressionPrefs.linear_progression_kg) : 2.5,
+            percentageIncrement: userProgressionPrefs?.percentage_progression ? parseFloat(userProgressionPrefs.percentage_progression) : 2.5,
+          }
+        );
+      } catch (error) {
+        console.error('Error calculating progression suggestions:', error);
       }
     }
 
@@ -242,7 +294,7 @@ export async function POST(req: NextRequest) {
         ? templateExercises 
         : validatedInput.workout_plan.exercises;
 
-      const perExerciseAdvice = exercisesToUse.map((exercise: any) => {
+      const perExerciseAdvice = exercisesToUse.map((exercise: { exerciseName?: string; exercise_id?: string; id?: string }) => {
         // Determine set count: use existing session data or default to 3
         const existingExerciseSets = currentSession?.exercises?.filter(
           (ex: any) => ex.exerciseName === exercise.exerciseName || ex.exerciseName === exercise.exercise_id
@@ -250,13 +302,20 @@ export async function POST(req: NextRequest) {
         
         const setCount = existingExerciseSets.length > 0 ? existingExerciseSets.length : 3;
         
-        // Find historical data for this exercise
+        // Find historical data and progression suggestions for this exercise
         const exerciseHist = exerciseHistory.find(hist => 
           hist.exerciseName === exercise.exerciseName || hist.exerciseName === exercise.exercise_id
+        );
+        
+        const progressionSuggestion = progressionSuggestions.find(prog =>
+          prog.exerciseName === exercise.exerciseName || prog.exerciseName === exercise.exercise_id
         );
 
         let baseWeight = 20; // Default starting weight
         let baseReps = 8; // Default reps
+        let suggestedWeight = baseWeight;
+        let suggestedReps = baseReps;
+        let plateauDetected = false;
         
         if (exerciseHist && exerciseHist.sessions.length > 0) {
           const recentSession = exerciseHist.sessions[0];
@@ -271,24 +330,79 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Use enhanced progression suggestions if available
+        if (progressionSuggestion && progressionSuggestion.suggestions.length > 0) {
+          const weightSuggestion = progressionSuggestion.suggestions.find(s => s.type === 'weight');
+          const repsSuggestion = progressionSuggestion.suggestions.find(s => s.type === 'reps');
+          
+          suggestedWeight = weightSuggestion?.suggested || baseWeight;
+          suggestedReps = repsSuggestion?.suggested || baseReps;
+          plateauDetected = progressionSuggestion.plateauDetected;
+          
+          const primarySuggestion = progressionSuggestion.suggestions[0];
+          if (primarySuggestion) {
+            // Use primary suggestion for rationale
+          }
+        } else {
+          // Fallback to simple delta calculation
+          suggestedWeight = roundToIncrement(baseWeight * delta);
+          suggestedReps = Math.round(baseReps * delta);
+        }
+
         // Calculate rest recommendations based on readiness and exercise type
         const restSeconds = rho > 0.7 ? 120 : rho > 0.5 ? 150 : 180; // 2-3 minutes based on readiness
         
-        const sets = Array.from({ length: setCount }, (_, index) => ({
-          set_id: `set-${exercise.id || exercise.exercise_id}-${index}`,
-          suggested_weight_kg: roundToIncrement(baseWeight * delta),
-          suggested_reps: Math.round(baseReps * delta),
-          suggested_rest_seconds: restSeconds,
-          rationale: exerciseHist?.sessions && exerciseHist.sessions.length > 0 
-            ? `Based on last session performance (${baseWeight}kg x ${baseReps}) with ${rho > 0.7 ? 'good' : rho > 0.5 ? 'moderate' : 'low'} readiness. Rest ${Math.round(restSeconds/60)} minutes between sets.`
-            : `AI Gateway not configured - using conservative estimates with readiness adjustment. Rest ${Math.round(restSeconds/60)} minutes between sets.`
-        }));
+        const sets = Array.from({ length: setCount }, (_, index) => {
+          // Apply progressive fatigue adjustment for later sets
+          const fatigueMultiplier = index === 0 ? 1.0 : 1.0 - (index * 0.05); // 5% reduction per set
+          const setWeight = roundToIncrement(suggestedWeight * fatigueMultiplier);
+          const setReps = Math.max(1, Math.round(suggestedReps * fatigueMultiplier));
+          const setRestSeconds = restSeconds + (index * 15); // Increase rest by 15s per set
+          
+          // Enhanced rationale with progression type and plateau information
+          let rationale = `Set ${index + 1}: `;
+          
+          if (progressionSuggestion && progressionSuggestion.suggestions.length > 0) {
+            const primarySuggestion = progressionSuggestion.suggestions[0];
+            if (primarySuggestion) {
+              rationale += primarySuggestion.rationale;
+            }
+            if (plateauDetected) {
+              rationale += ` [Plateau Alert]`;
+            }
+            if (index > 0) {
+              rationale += ` with ${Math.round((1-fatigueMultiplier)*100)}% fatigue adjustment`;
+            }
+            rationale += `. Rest ${Math.round(setRestSeconds/60)} minutes.`;
+          } else if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
+            rationale += `Based on last session performance (${baseWeight}kg x ${baseReps}) with ${rho > 0.7 ? 'good' : rho > 0.5 ? 'moderate' : 'low'} readiness`;
+            if (index > 0) {
+              rationale += ` and ${Math.round((1-fatigueMultiplier)*100)}% fatigue adjustment`;
+            }
+            rationale += `. Rest ${Math.round(setRestSeconds/60)} minutes.`;
+          } else {
+            rationale += `Conservative estimate with readiness adjustment`;
+            if (index > 0) {
+              rationale += ` and fatigue consideration`;
+            }
+            rationale += `. Rest ${Math.round(setRestSeconds/60)} minutes.`;
+          }
+          
+          return {
+            set_id: `${exercise.id || exercise.exercise_id}_${index + 1}`,
+            suggested_weight_kg: setWeight,
+            suggested_reps: setReps,
+            suggested_rest_seconds: setRestSeconds,
+            rationale
+          };
+        });
 
-        const bestVolume = exerciseHist?.sessions[0]?.sets.reduce((total: number, set: any) => 
+        const bestVolume = exerciseHist?.sessions[0]?.sets.reduce((total: number, set: WorkoutSet) => 
           total + (set.volume || 0), 0) || 0;
 
         return {
           exercise_id: exercise.exerciseName || exercise.exercise_id,
+          name: exercise.exerciseName || exercise.exercise_id, // Include display name
           predicted_chance_to_beat_best: rho > 0.7 ? 0.8 : rho > 0.5 ? 0.6 : 0.4,
           planned_volume_kg: null,
           best_volume_kg: bestVolume > 0 ? bestVolume : null,
@@ -297,17 +411,37 @@ export async function POST(req: NextRequest) {
       });
 
       // Calculate session duration estimate
-      const totalSets = perExerciseAdvice.reduce((sum: number, ex: any) => sum + ex.sets.length, 0);
+      const totalSets = perExerciseAdvice.reduce((sum: number, ex: { sets: { length: number }[] }) => sum + ex.sets.length, 0);
       const avgRestTime = rho > 0.7 ? 120 : rho > 0.5 ? 150 : 180;
       const estimatedDuration = Math.round((totalSets * avgRestTime + totalSets * 60) / 60); // Rest + exercise time
+      
+      // Check for plateau warnings
+      const plateauCount = progressionSuggestions.filter(p => p.plateauDetected).length;
+      const plateauWarnings = plateauCount > 0 ? [`Plateau detected in ${plateauCount} exercise${plateauCount > 1 ? 's' : ''} - consider deload or variation`] : [];
+      
+      // Build progression type summary
+      const progressionType = (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive';
+      let progressionSummary = '';
+      switch (progressionType) {
+        case 'linear':
+          progressionSummary = `Using linear progression (+${userProgressionPrefs?.linear_progression_kg || '2.5'}kg per session)`;
+          break;
+        case 'percentage':
+          progressionSummary = `Using percentage progression (+${userProgressionPrefs?.percentage_progression || '2.5'}% per session)`;
+          break;
+        case 'adaptive':
+        default:
+          progressionSummary = 'Using adaptive progression based on readiness and performance';
+          break;
+      }
       
       return NextResponse.json({
         session_id: validatedInput.session_id,
         readiness: { rho, overload_multiplier: delta, flags },
         per_exercise: perExerciseAdvice,
         session_predicted_chance: rho > 0.7 ? 0.75 : rho > 0.5 ? 0.6 : 0.45,
-        summary: `Enhanced load recommendations based on ${hasManualWellness ? 'your wellness input' : 'readiness'} (${Math.round(rho * 100)}%) and ${exerciseHistory.length > 0 ? 'historical performance data' : 'conservative estimates'}. ${hasManualWellness && validatedInput.manual_wellness?.notes ? `Note: ${validatedInput.manual_wellness.notes.slice(0, 100)}${validatedInput.manual_wellness.notes.length > 100 ? '...' : ''}` : ''} Allow ${estimatedDuration} minutes for this session.`,
-        warnings: [...(hasKey ? [] : ['AI Gateway not configured - using enhanced fallback calculations']), ...(hasManualWellness ? ['Recommendations based on manual wellness input'] : [])],
+        summary: `Enhanced load recommendations based on ${hasManualWellness ? 'your wellness input' : 'readiness'} (${Math.round(rho * 100)}%) and ${exerciseHistory.length > 0 ? 'historical performance data' : 'conservative estimates'}. ${progressionSummary}. ${hasManualWellness && validatedInput.manual_wellness?.notes ? `Note: ${validatedInput.manual_wellness.notes.slice(0, 100)}${validatedInput.manual_wellness.notes.length > 100 ? '...' : ''}` : ''} Allow ${estimatedDuration} minutes for this session.`,
+        warnings: [...(hasKey ? [] : ['AI Gateway not configured - using enhanced fallback calculations']), ...(hasManualWellness ? ['Recommendations based on manual wellness input'] : []), ...plateauWarnings],
         recovery_recommendations: {
           recommended_rest_between_sets: `${Math.round(avgRestTime/60)} minutes for strength exercises`,
           recommended_rest_between_sessions: rho > 0.7 ? '24-48 hours' : rho > 0.5 ? '48-72 hours' : '72+ hours for full recovery',
@@ -359,7 +493,7 @@ export async function POST(req: NextRequest) {
             name: ex.exerciseName,
             tags: ['strength'], // Default tag, could be enhanced later
             sets: Array.from({ length: setCount }, (_, index) => ({
-              set_id: `set-${ex.id}-${index}`,
+              set_id: `${ex.id}_${index + 1}`, // Use consistent template exercise ID format
               target_reps: targetReps || 8,
               target_weight_kg: targetWeight || 20,
             })),
@@ -377,66 +511,82 @@ export async function POST(req: NextRequest) {
           };
         }),
       },
-      // Include detailed exercise linking information with real data
-      exercise_linking: await Promise.all(templateExercises.map(async (ex: any) => {
+      // Include detailed exercise linking information with optimized batch queries
+      exercise_linking: await (async () => {
         try {
-          // Get the exercise link for this template exercise
-          const exerciseLink = await db.query.exerciseLinks.findFirst({
-            where: and(
-              eq(exerciseLinks.templateExerciseId, ex.id),
-              eq(exerciseLinks.user_id, user.id)
-            )
-          });
+          // templateExerciseIds not used in optimized query - removed for cleaner code
           
-          if (exerciseLink) {
-            // Get all exercises linked to the same master exercise
-            const linkedExercises = await db.query.exerciseLinks.findMany({
-              where: and(
-                eq(exerciseLinks.masterExerciseId, exerciseLink.masterExerciseId),
-                eq(exerciseLinks.user_id, user.id)
-              ),
-              with: {
-                templateExercise: {
-                  with: {
-                    template: true
-                  }
+          // Batch query: Get all exercise links for template exercises in one query
+          const exerciseLinksForTemplate = await db.query.exerciseLinks.findMany({
+            where: and(
+              eq(exerciseLinks.user_id, user.id)
+            ),
+            with: {
+              templateExercise: {
+                with: {
+                  template: true
                 }
               }
-            });
+            }
+          });
+          
+          // Create lookup maps for efficient processing
+          const linksByTemplateId = new Map<number, (typeof exerciseLinksForTemplate)[0]>();
+          const linksByMasterId = new Map<number, (typeof exerciseLinksForTemplate)[0][]>();
+          
+          exerciseLinksForTemplate.forEach(link => {
+            linksByTemplateId.set(link.templateExerciseId, link);
+            
+            const masterId = link.masterExerciseId;
+            if (!linksByMasterId.has(masterId)) {
+              linksByMasterId.set(masterId, []);
+            }
+            linksByMasterId.get(masterId)!.push(link);
+          });
+          
+          // Process each template exercise using the lookup maps
+          return templateExercises.map((ex: any) => {
+            const exerciseLink = linksByTemplateId.get(ex.id);
+            
+            if (exerciseLink) {
+              const linkedExercises = linksByMasterId.get(exerciseLink.masterExerciseId) || [];
+              
+              return {
+                template_exercise_id: ex.id,
+                exercise_name: ex.exerciseName,
+                master_exercise_id: exerciseLink.masterExerciseId,
+                linked_across_templates: linkedExercises.length > 1,
+                linked_templates: linkedExercises.map(link => ({
+                  template_id: link.templateExercise?.template?.id,
+                  template_name: link.templateExercise?.template?.name,
+                  exercise_id: link.templateExerciseId
+                })),
+                total_linked_count: linkedExercises.length
+              };
+            }
             
             return {
               template_exercise_id: ex.id,
               exercise_name: ex.exerciseName,
-              master_exercise_id: exerciseLink.masterExerciseId,
-              linked_across_templates: linkedExercises.length > 1,
-              linked_templates: linkedExercises.map(link => ({
-                template_id: link.templateExercise?.template?.id,
-                template_name: link.templateExercise?.template?.name,
-                exercise_id: link.templateExerciseId
-              })),
-              total_linked_count: linkedExercises.length
+              master_exercise_id: null,
+              linked_across_templates: false,
+              linked_templates: [],
+              total_linked_count: 0
             };
-          }
-          
-          return {
+          });
+        } catch (error) {
+          logger.error('Error fetching exercise linking data', error, { userId: user?.id });
+          // Return fallback data for all exercises
+          return templateExercises.map((ex: any) => ({
             template_exercise_id: ex.id,
             exercise_name: ex.exerciseName,
             master_exercise_id: null,
             linked_across_templates: false,
             linked_templates: [],
             total_linked_count: 0
-          };
-        } catch (error) {
-          console.error('Error fetching exercise linking data:', error);
-          return {
-            template_exercise_id: ex.id,
-            exercise_name: ex.exerciseName,
-            linked_across_templates: false,
-            linked_templates: [],
-            total_linked_count: 0
-          };
+          }));
         }
-      })),
+      })(),
       // Full historical context for AI analysis including cross-template data
       raw_exercise_history: exerciseHistory.map(hist => ({
         ...hist,
@@ -470,7 +620,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(aiResponse);
     
   } catch (error: any) {
-    console.error('Health advice API error:', error);
+    logger.error('Health advice API error', error);
     
     if (error.name === 'ZodError') {
       return NextResponse.json(

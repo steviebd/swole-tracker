@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
-import { Toast } from "./ui/Toast";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
 
@@ -42,8 +41,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     showDeleteConfirm,
     setShowDeleteConfirm,
     previousExerciseData,
-    notification,
-    setNotification,
     collapsedIndexes,
     saveWorkout,
     deleteWorkout,
@@ -62,6 +59,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     buildSavePayload,
     session,
     updatePreferences: _updatePreferences,
+    preferences,
     // undo integration
     lastAction,
     undoLastAction,
@@ -252,11 +250,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     });
 
     if (validationErrors.length > 0) {
-      setNotification({
-        type: "error",
-        message: `Please fix the following errors before saving:\n${validationErrors.join("\n")}`,
-      });
-      setTimeout(() => setNotification(null), 8000); // Auto-dismiss after 8 seconds
+      console.error("Validation errors:", validationErrors);
       return;
     }
 
@@ -266,24 +260,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       // If offline, enqueue and notify
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         enqueue(payload);
-        setNotification({
-          type: "success",
-          message:
-            "You’re offline. Workout queued and will sync automatically when back online. You can also tap 'Sync now' in the status bar.",
-        });
         // No navigation here; let user remain on page
-        setTimeout(() => setNotification(null), 6000);
         return;
       }
 
       // Try online save
       await saveWorkout.mutateAsync(payload);
-
-      // Show success notification briefly before navigation
-      setNotification({
-        type: "success",
-        message: "Workout saved successfully!",
-      });
     } catch (error) {
       console.error("Error saving workout:", error);
       analytics.error(error as Error, {
@@ -304,12 +286,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       ) {
         const payload = buildSavePayload();
         enqueue(payload);
-        setNotification({
-          type: "success",
-          message:
-            "Network issue detected. Workout queued and will sync automatically on reconnect.",
-        });
-        setTimeout(() => setNotification(null), 6000);
         return;
       }
 
@@ -318,18 +294,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         message.includes("Expected number, received null") ||
         message.includes("invalid_type")
       ) {
-        setNotification({
-          type: "error",
-          message:
-            "Please make sure all exercise fields are properly filled out. Empty fields should be left blank, not contain invalid values.",
-        });
+        console.error("Validation error:", message);
       } else {
-        setNotification({
-          type: "error",
-          message: `Error saving workout: ${message || "Unknown error"}`,
-        });
+        console.error("Error saving workout:", message || "Unknown error");
       }
-      setTimeout(() => setNotification(null), 6000);
     }
   };
 
@@ -392,59 +360,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Notification */}
-      {notification && (
-        <div
-          role="status"
-          aria-live={notification.type === "error" ? "assertive" : "polite"}
-          aria-atomic="true"
-          className={`sticky top-2 sm:top-4 z-50 rounded-lg p-3 sm:p-4 shadow-lg ${
-            notification.type === "error"
-              ? `border-red-700 bg-red-900 text-red-100`
-              : `border-green-700 bg-green-900 text-green-100`
-          }"
-          style={{
-            borderColor: notification.type === "error" ? "var(--color-danger)" : "var(--color-success)",
-            backgroundColor: notification.type === "error" 
-              ? "color-mix(in oklch, var(--color-danger) 20%, var(--color-bg-surface) 80%)"
-              : "color-mix(in oklch, var(--color-success) 20%, var(--color-bg-surface) 80%)",
-            color: "var(--color-text)"
-          }`}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div className="whitespace-pre-line text-sm sm:text-base min-w-0 flex-1">{notification.message}</div>
-            <button
-              onClick={() => setNotification(null)}
-              aria-label="Dismiss notification"
-              className="text-lg sm:text-xl font-bold opacity-70 hover:opacity-100 flex-shrink-0"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Persistent Undo (global) */}
-      {lastAction && (
-        <div className="sticky bottom-4 z-[60]">
-          <Toast
-            open={true}
-            type="info"
-            message={
-              lastAction.type === "swipeToEnd"
-                ? "Exercise moved to end"
-                : lastAction.type === "toggleCollapse"
-                  ? "Exercise expanded state changed"
-                  : "Order changed"
-            }
-            onUndo={() => {
-              undoLastAction();
-            }}
-            onClose={() => setLastAction(null)}
-          />
-        </div>
-      )}
-
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
         <div className="text-muted mb-2 text-center text-xs sm:text-sm px-2">
@@ -505,6 +420,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               setCardElement={(element) =>
                 dragHandlers.setCardElement?.(displayIndex, element)
               }
+              preferredUnit={(preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"}
             />
           </div>
         );

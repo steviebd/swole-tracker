@@ -21,6 +21,9 @@ export const preferencesRouter = createTRPCRouter({
       predictive_defaults_enabled: false,
       right_swipe_action: "collapse_expand",
       enable_manual_wellness: false,
+      progression_type: "adaptive",
+      linear_progression_kg: "2.5",
+      percentage_progression: "2.5",
     } as const;
   }),
 
@@ -35,8 +38,10 @@ export const preferencesRouter = createTRPCRouter({
             defaultWeightUnit: unitPreferenceSchema.optional(),
             predictive_defaults_enabled: z.boolean().optional(),
             right_swipe_action: z.enum(["collapse_expand", "none"]).optional(),
-            estimated_one_rm_factor: z.number().min(0.02).max(0.05).optional(),
             enable_manual_wellness: z.boolean().optional(),
+            progression_type: z.enum(["linear", "percentage", "adaptive"]).optional(),
+            linear_progression_kg: z.string().optional(),
+            percentage_progression: z.string().optional(),
           }),
         ])
         .transform((input) => {
@@ -47,8 +52,10 @@ export const preferencesRouter = createTRPCRouter({
             defaultWeightUnit: input.defaultWeightUnit,
             predictive_defaults_enabled: input.predictive_defaults_enabled,
             right_swipe_action: input.right_swipe_action,
-            estimated_one_rm_factor: input.estimated_one_rm_factor,
             enable_manual_wellness: input.enable_manual_wellness,
+            progression_type: input.progression_type,
+            linear_progression_kg: input.linear_progression_kg,
+            percentage_progression: input.percentage_progression,
           };
         }),
     )
@@ -62,8 +69,10 @@ export const preferencesRouter = createTRPCRouter({
         defaultWeightUnit?: "kg" | "lbs";
         predictive_defaults_enabled?: boolean;
         right_swipe_action?: "collapse_expand" | "none";
-        estimated_one_rm_factor?: number;
         enable_manual_wellness?: boolean;
+        progression_type?: "linear" | "percentage" | "adaptive";
+        linear_progression_kg?: string;
+        percentage_progression?: string;
       } = {};
 
       if (typeof input.defaultWeightUnit !== "undefined") {
@@ -75,11 +84,17 @@ export const preferencesRouter = createTRPCRouter({
       if (typeof input.right_swipe_action !== "undefined") {
         patch.right_swipe_action = input.right_swipe_action;
       }
-      if (typeof input.estimated_one_rm_factor !== "undefined") {
-        patch.estimated_one_rm_factor = input.estimated_one_rm_factor;
-      }
       if (typeof input.enable_manual_wellness !== "undefined") {
         patch.enable_manual_wellness = input.enable_manual_wellness;
+      }
+      if (typeof input.progression_type !== "undefined") {
+        patch.progression_type = input.progression_type;
+      }
+      if (typeof input.linear_progression_kg !== "undefined") {
+        patch.linear_progression_kg = input.linear_progression_kg;
+      }
+      if (typeof input.percentage_progression !== "undefined") {
+        patch.percentage_progression = input.percentage_progression;
       }
 
       if (existing) {
@@ -99,6 +114,9 @@ export const preferencesRouter = createTRPCRouter({
             input.predictive_defaults_enabled ?? false,
           right_swipe_action: input.right_swipe_action ?? "collapse_expand",
           enable_manual_wellness: input.enable_manual_wellness ?? false,
+          progression_type: input.progression_type ?? "adaptive",
+          linear_progression_kg: input.linear_progression_kg ?? "2.5",
+          percentage_progression: input.percentage_progression ?? "2.5",
         });
       }
 

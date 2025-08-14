@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS "swole-tracker_workout_session" (
   "templateId" integer NOT NULL REFERENCES "swole-tracker_workout_template"("id") ON DELETE CASCADE,
   "workoutDate" timestamp with time zone NOT NULL,
   -- Phase 2 additions
-  "theme_used" varchar(20), -- 'CalmDark' | 'BoldDark' | 'PlayfulDark' (validated in app layer)
+  "theme_used" varchar(20), -- 'dark' | 'light' | 'system' (validated in app layer)
   "device_type" varchar(20), -- 'android' | 'ios' | 'desktop' | 'ipad' | 'other'
   "perf_metrics" json, -- optional perf/telemetry blob
   "createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
