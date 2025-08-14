@@ -39,9 +39,7 @@ function WorkoutCard({ id, templateName, date, exerciseCount, theme }: WorkoutCa
         <div 
           className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm transition-colors duration-300"
           style={{ 
-            backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "var(--color-info)" 
-              : "#3B82F6"
+            backgroundColor: "var(--color-info)"
           }}
         >
           <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

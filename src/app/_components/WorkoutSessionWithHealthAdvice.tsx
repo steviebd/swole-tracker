@@ -8,10 +8,12 @@ import { SetSuggestions } from '~/app/_components/health-advice/SetSuggestions';
 import { ProbabilityGauge } from '~/app/_components/health-advice/ProbabilityGauge';
 import { AISummary } from '~/app/_components/health-advice/AISummary';
 import { SubjectiveWellnessModal } from '~/app/_components/health-advice/SubjectiveWellnessModal';
+import { ManualWellnessModal } from '~/app/_components/health-advice/ManualWellnessModal';
 import { useHealthAdvice } from '~/hooks/useHealthAdvice';
 import { api } from '~/trpc/react';
+import { logger } from '~/lib/logger';
 import type { HealthAdviceRequest } from '~/server/api/schemas/health-advice';
-import type { SubjectiveWellnessData } from '~/lib/subjective-wellness-mapper';
+import type { SubjectiveWellnessData, ManualWellnessData } from '~/lib/subjective-wellness-mapper';
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -43,7 +45,10 @@ export function WorkoutSessionWithHealthAdvice({
 }: WorkoutSessionWithHealthAdviceProps) {
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
+  const [showManualWellnessModal, setShowManualWellnessModal] = useState(false);
   const [, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
+  const [wellnessSubmitError, setWellnessSubmitError] = useState<string | null>(null);
+  const [isSubmittingWellness, setIsSubmittingWellness] = useState(false);
   
   const { 
     advice, 
@@ -51,6 +56,7 @@ export function WorkoutSessionWithHealthAdvice({
     error, 
     fetchAdvice, 
     fetchAdviceWithSubjectiveData,
+    fetchAdviceWithManualWellness,
     hasExistingAdvice,
     whoopStatus
   } = useHealthAdvice(sessionId);
@@ -61,18 +67,20 @@ export function WorkoutSessionWithHealthAdvice({
     { enabled: !!sessionId }
   );
 
-  // Mock data for demonstration - in real implementation, this would come from props
-  const mockWhoopData = whoopData || {
-    recovery_score: 75,
-    sleep_performance: 82,
-    hrv_now_ms: 48,
-    hrv_baseline_ms: 45,
-    rhr_now_bpm: 52,
-    rhr_baseline_bpm: 55,
-    yesterday_strain: 12.5
-  };
+  // Fetch user preferences to determine which wellness modal to show
+  const { data: userPreferences } = api.preferences.get.useQuery();
 
-  const mockUserProfile = userProfile || {
+  // Wellness mutations
+  const saveWellness = api.wellness.save.useMutation();
+  const _checkExistingWellness = api.wellness.checkExists.useQuery(
+    { sessionId },
+    { enabled: !!sessionId }
+  );
+
+  // Use actual data from props or provide reasonable defaults
+  const actualWhoopData = whoopData;
+
+  const actualUserProfile = userProfile || {
     experience_level: 'intermediate' as const,
     min_increment_kg: 2.5,
     preferred_rpe: 8
@@ -100,7 +108,7 @@ export function WorkoutSessionWithHealthAdvice({
       const sets = Array.from({ length: setCount }, (_, setIndex) => {
         const existingSet = existingSessionSets[setIndex];
         return {
-          set_id: `${templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_')}_set_${setIndex + 1}`,
+          set_id: `${templateExercise.id}_${setIndex + 1}`, // Use template exercise ID for consistency
           target_reps: existingSet?.reps || null,
           target_weight_kg: existingSet?.weight ? parseFloat(existingSet.weight) : null,
           target_rpe: existingSet?.rpe || null,
@@ -108,7 +116,7 @@ export function WorkoutSessionWithHealthAdvice({
       });
 
       return {
-        exercise_id: templateExercise.exerciseName.toLowerCase().replace(/\s+/g, '_'),
+        exercise_id: templateExercise.id.toString(), // Use template exercise ID for consistency  
         name: templateExercise.exerciseName, // Include original name for later reference
         tags: ['strength'] as ('strength' | 'hypertrophy' | 'endurance')[], // Default tag, could be enhanced with template metadata
         sets,
@@ -118,18 +126,7 @@ export function WorkoutSessionWithHealthAdvice({
     return { exercises };
   }, [workoutSession, workoutPlan]);
 
-  const mockPriorBests = priorBests || {
-    by_exercise_id: {
-      'bench_press': {
-        best_total_volume_kg: 1200,
-        best_e1rm_kg: 90
-      },
-      'squat': {
-        best_total_volume_kg: 2400,
-        best_e1rm_kg: 120
-      }
-    }
-  };
+  const actualPriorBests = priorBests || { by_exercise_id: {} };
 
   // Show existing advice automatically
   React.useEffect(() => {
@@ -139,21 +136,27 @@ export function WorkoutSessionWithHealthAdvice({
   }, [hasExistingAdvice, advice]);
 
   const handleGetHealthAdvice = async () => {
+    // Determine which wellness system to use based on user preferences
+    const isManualWellnessEnabled = userPreferences?.enable_manual_wellness ?? false;
+    
     // Check if user has WHOOP connected
     if (whoopStatus.isConnected) {
       // User has WHOOP - use actual WHOOP data
       const request: HealthAdviceRequest = {
         session_id: sessionId.toString(),
-        user_profile: mockUserProfile,
-        whoop: mockWhoopData,
+        user_profile: actualUserProfile,
+        whoop: actualWhoopData!,
         workout_plan: dynamicWorkoutPlan,
-        prior_bests: mockPriorBests
+        prior_bests: actualPriorBests
       };
 
       await fetchAdvice(request);
       setShowHealthAdvice(true);
+    } else if (isManualWellnessEnabled) {
+      // User has manual wellness enabled - show simplified modal
+      setShowManualWellnessModal(true);
     } else {
-      // User doesn't have WHOOP - show wellness modal
+      // User doesn't have WHOOP and manual wellness disabled - show legacy 4-input modal
       setShowWellnessModal(true);
     }
   };
@@ -163,13 +166,57 @@ export function WorkoutSessionWithHealthAdvice({
     
     const request = {
       session_id: sessionId.toString(),
-      user_profile: mockUserProfile,
+      user_profile: actualUserProfile,
       workout_plan: dynamicWorkoutPlan,
-      prior_bests: mockPriorBests
+      prior_bests: actualPriorBests
     };
 
     await fetchAdviceWithSubjectiveData(request, subjectiveData);
     setShowHealthAdvice(true);
+  };
+
+  const handleManualWellnessSubmit = async (manualData: ManualWellnessData) => {
+    setIsSubmittingWellness(true);
+    setWellnessSubmitError(null);
+
+    try {
+      // First, save wellness data to database
+      const wellnessResult = await saveWellness.mutateAsync({
+        sessionId,
+        energyLevel: manualData.energyLevel,
+        sleepQuality: manualData.sleepQuality,
+        deviceTimezone: manualData.deviceTimezone,
+        notes: manualData.notes,
+        hasWhoopData: false, // Manual input means no WHOOP data
+      });
+
+      // Then fetch health advice with wellness data
+      const request = {
+        session_id: sessionId.toString(),
+        user_profile: actualUserProfile,
+        workout_plan: dynamicWorkoutPlan,
+        prior_bests: actualPriorBests
+      };
+
+      if (wellnessResult?.id) {
+        await fetchAdviceWithManualWellness(request, manualData, wellnessResult.id);
+      } else {
+        // Fallback to health advice without wellness data if save failed
+        console.warn('Wellness data save returned no ID, proceeding without wellness tracking');
+        await fetchAdviceWithManualWellness(request, manualData);
+      }
+      
+      setShowManualWellnessModal(false);
+      setShowHealthAdvice(true);
+      
+    } catch (error) {
+      console.error('Failed to submit manual wellness:', error);
+      setWellnessSubmitError(
+        error instanceof Error ? error.message : 'Failed to submit wellness data. Please try again.'
+      );
+    } finally {
+      setIsSubmittingWellness(false);
+    }
   };
 
   const handleConnectWhoop = () => {
@@ -189,7 +236,7 @@ export function WorkoutSessionWithHealthAdvice({
   });
 
   // Create a mapping from normalized exercise names to original names
-  const exerciseNameMapping = React.useMemo(() => {
+  const _exerciseNameMapping = React.useMemo(() => {
     const mapping: Record<string, string> = {};
     if (workoutSession?.template?.exercises) {
       for (const exercise of workoutSession.template.exercises) {
@@ -200,28 +247,35 @@ export function WorkoutSessionWithHealthAdvice({
     return mapping;
   }, [workoutSession?.template?.exercises]);
 
+  const trackSuggestionInteraction = api.suggestions.trackInteraction.useMutation();
+
   const handleAcceptSuggestion = async (setId: string, suggestion: { weight?: number; reps?: number }) => {
     setAcceptedSuggestions(prev => new Map(prev).set(setId, suggestion));
     
-    // Extract normalized exercise name from setId format: "{exercise_name}_set_{index}"
-    const match = /^(.+)_set_\d+$/.exec(setId);
+    // Extract template exercise ID and set index from setId format: "{templateExerciseId}_{setIndex}"
+    const match = /^(\d+)_(\d+)$/.exec(setId);
     if (!match) {
-      console.error('Invalid setId format:', setId);
+      console.error('Invalid setId format:', setId, 'Expected format: templateExerciseId_setIndex');
       return;
     }
     
-    const normalizedName = match[1];
-    if (!normalizedName) {
-      console.error('No normalized name captured from setId:', setId);
+    const templateExerciseId = parseInt(match[1]!);
+    const setIndex = parseInt(match[2]!) - 1; // Convert to 0-based index
+    
+    if (!templateExerciseId) {
+      console.error('No template exercise ID captured from setId:', setId);
       return;
     }
     
-    const actualExerciseName = exerciseNameMapping[normalizedName];
-
-    if (!actualExerciseName) {
-      console.error('Could not find exercise name for normalized name:', normalizedName, 'Available mappings:', exerciseNameMapping);
+    // Find the template exercise to get the actual exercise name
+    const templateExercise = workoutSession?.template?.exercises.find(ex => ex.id === templateExerciseId);
+    
+    if (!templateExercise) {
+      console.error('Could not find template exercise for ID:', templateExerciseId);
       return;
     }
+    
+    const actualExerciseName = templateExercise.exerciseName;
 
     try {
       await updateSessionSets.mutateAsync({
@@ -229,14 +283,56 @@ export function WorkoutSessionWithHealthAdvice({
         updates: [{
           setId,
           exerciseName: actualExerciseName,
+          setIndex, // Include set index for proper targeting
           weight: suggestion.weight,
           reps: suggestion.reps,
           unit: 'kg', // Default to kg, could be made configurable
         }],
       });
-      console.log('Accepted and applied suggestion for set', setId, ':', suggestion, 'Exercise:', actualExerciseName);
+
+      // Track the suggestion interaction for analytics
+      const currentAdvice = advice;
+      if (currentAdvice) {
+        const exercise = currentAdvice.per_exercise.find(ex => 
+          ex.exercise_id === templateExerciseId.toString() || 
+          ex.name === actualExerciseName
+        );
+        const set = exercise?.sets.find(s => s.set_id === setId);
+        
+        if (set) {
+          try {
+            await trackSuggestionInteraction.mutateAsync({
+              sessionId,
+              exerciseName: actualExerciseName,
+              setId,
+              setIndex,
+              suggestedWeightKg: set.suggested_weight_kg,
+              suggestedReps: set.suggested_reps,
+              suggestedRestSeconds: set.suggested_rest_seconds,
+              suggestionRationale: set.rationale,
+              action: 'accepted',
+              acceptedWeightKg: suggestion.weight,
+              acceptedReps: suggestion.reps,
+              progressionType: userPreferences?.progression_type ?? 'adaptive',
+              readinessScore: currentAdvice.readiness.rho,
+              plateauDetected: set.rationale.includes('Plateau Alert') || set.rationale.includes('plateau detected'),
+            });
+          } catch (trackingError) {
+            console.warn('Failed to track suggestion interaction:', trackingError);
+            // Don't fail the main operation if tracking fails
+          }
+        }
+      }
+      
+      logger.info('suggestion_applied', { 
+        setId, 
+        suggestion, 
+        exerciseName: actualExerciseName, 
+        setIndex,
+        sessionId 
+      });
     } catch (error) {
-      console.error('Failed to apply suggestion:', error);
+      logger.error('Failed to apply suggestion', error, { setId, sessionId });
       // Revert the UI state if the backend update failed
       setAcceptedSuggestions(prev => {
         const newMap = new Map(prev);
@@ -261,14 +357,16 @@ export function WorkoutSessionWithHealthAdvice({
       <div className="flex justify-center">
         <Button
           onClick={handleGetHealthAdvice}
-          disabled={loading}
+          disabled={loading || isSubmittingWellness}
           className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
         >
-          {loading 
+          {loading || isSubmittingWellness
             ? 'Getting AI Advice...' 
             : hasExistingAdvice 
               ? '🔄 Refresh Workout Intelligence' 
-              : '🤖 Get Workout Intelligence'
+              : userPreferences?.enable_manual_wellness && !whoopStatus.isConnected
+                ? '🎯 Quick Wellness Check'
+                : '🤖 Get Workout Intelligence'
           }
         </Button>
       </div>
@@ -324,7 +422,7 @@ export function WorkoutSessionWithHealthAdvice({
         </div>
       )}
 
-      {/* Subjective Wellness Modal */}
+      {/* Subjective Wellness Modal (Legacy 4-input system) */}
       <SubjectiveWellnessModal
         isOpen={showWellnessModal}
         onClose={() => setShowWellnessModal(false)}
@@ -332,6 +430,22 @@ export function WorkoutSessionWithHealthAdvice({
         hasWhoopIntegration={whoopStatus.hasIntegration}
         isWhoopConnected={whoopStatus.isConnected}
         onConnectWhoop={handleConnectWhoop}
+      />
+
+      {/* Manual Wellness Modal (Simplified 2-input system) */}
+      <ManualWellnessModal
+        isOpen={showManualWellnessModal}
+        onClose={() => {
+          setShowManualWellnessModal(false);
+          setWellnessSubmitError(null);
+        }}
+        onSubmit={handleManualWellnessSubmit}
+        hasWhoopIntegration={whoopStatus.hasIntegration}
+        isWhoopConnected={whoopStatus.isConnected}
+        onConnectWhoop={handleConnectWhoop}
+        isSubmitting={isSubmittingWellness}
+        submitError={wellnessSubmitError ?? undefined}
+        sessionId={sessionId}
       />
 
       {/* Original Workout Session */}

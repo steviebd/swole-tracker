@@ -25,9 +25,13 @@ vi.mock("~/lib/rate-limit-middleware", async () => {
 
   // For code that constructs middleware dynamically
   const rateLimitMiddleware = () => trpcNoop;
+  
+  // Adapter function
+  const asTrpcMiddleware = (handler: unknown) => trpcNoop;
 
   return {
     rateLimitMiddleware,
+    asTrpcMiddleware,
     templateRateLimit: trpcNoop,
     workoutRateLimit: trpcNoop,
     jokesRateLimit: trpcNoop,

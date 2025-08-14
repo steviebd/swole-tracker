@@ -7,10 +7,16 @@ import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 import { useWorkoutUpdates } from "~/hooks/use-workout-updates";
+import { WhoopRecovery } from "./whoop-recovery";
+import { WhoopSleep } from "./whoop-sleep";
+import { WhoopCycles } from "./whoop-cycles";
+import { WhoopProfile } from "./whoop-profile";
+import { WhoopBodyMeasurements } from "./whoop-body-measurements";
 
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
   const [syncLoading, setSyncLoading] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -43,7 +49,7 @@ export function WhoopWorkouts() {
     }
   };
 
-  const { data: integrationStatus } = api.whoop.getIntegrationStatus.useQuery();
+  const { data: integrationStatus, refetch: refetchStatus } = api.whoop.getIntegrationStatus.useQuery();
   const {
     data: workouts,
     refetch: refetchWorkouts,
@@ -112,12 +118,12 @@ export function WhoopWorkouts() {
     void refetchWorkouts();
   });
 
-  const handleSync = async () => {
-    setSyncLoading(true);
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
     setMessage(null);
 
     try {
-      const response = await fetch("/api/whoop/sync-workouts", {
+      const response = await fetch("/api/whoop/cleanup-duplicates", {
         method: "POST",
       });
 
@@ -126,10 +132,65 @@ export function WhoopWorkouts() {
       if (response.ok) {
         setMessage({
           type: "success",
-          text: `Sync completed! ${result.newWorkouts} new workouts, ${result.duplicates} duplicates skipped.`,
+          text: result.message,
         });
-        setRateLimit(result.rateLimit);
+        void refetchWorkouts(); // Refresh workout list
+      } else {
+        setMessage({ type: "error", text: result.error || "Cleanup failed" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Network error during cleanup" });
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncLoading(true);
+    setMessage(null);
+
+    try {
+      // Use the comprehensive sync endpoint instead of just workouts
+      const response = await fetch("/api/whoop/sync-all", {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        const { synced, totalNewRecords } = result;
+        let syncSummary = "Comprehensive sync completed! ";
+        
+        if (totalNewRecords > 0) {
+          const parts = [];
+          if (synced.workouts > 0) parts.push(`${synced.workouts} workouts`);
+          if (synced.recovery > 0) parts.push(`${synced.recovery} recovery records`);
+          if (synced.cycles > 0) parts.push(`${synced.cycles} cycles`);
+          if (synced.sleep > 0) parts.push(`${synced.sleep} sleep records`);
+          if (synced.profile > 0) parts.push(`${synced.profile} profile update`);
+          if (synced.bodyMeasurements > 0) parts.push(`${synced.bodyMeasurements} measurements`);
+          
+          syncSummary += `New: ${parts.join(", ")}`;
+        } else {
+          syncSummary += "All data is up to date.";
+        }
+
+        if (result.synced.errors && result.synced.errors.length > 0) {
+          syncSummary += ` (${result.synced.errors.length} errors occurred)`;
+        }
+
+        setMessage({
+          type: "success",
+          text: syncSummary,
+        });
         void refetchWorkouts();
+      } else if (response.status === 401 && result.needsReauthorization) {
+        setMessage({
+          type: "error",
+          text: "🔐 Your WHOOP connection has expired. Please reconnect your account to continue syncing.",
+        });
+        // Refresh the integration status to show the connect button
+        void refetchStatus();
       } else if (response.status === 429) {
         setMessage({
           type: "error",
@@ -140,7 +201,7 @@ export function WhoopWorkouts() {
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }
-          } catch {
+    } catch {
       setMessage({ type: "error", text: "Network error during sync" });
     } finally {
       setSyncLoading(false);
@@ -226,13 +287,23 @@ export function WhoopWorkouts() {
               <div style={{ color: 'var(--color-success)' }}>
                 ✅ Connected to Whoop
               </div>
-              <button
-                onClick={handleSync}
-                disabled={syncLoading || rateLimit?.remaining === 0}
-                className="btn-primary w-full px-6 py-3 disabled:opacity-50"
-              >
-                {syncLoading ? "Syncing..." : "Sync with Whoop"}
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={handleSync}
+                  disabled={syncLoading || cleanupLoading || rateLimit?.remaining === 0}
+                  className="btn-primary w-full px-6 py-3 disabled:opacity-50"
+                >
+                  {syncLoading ? "Syncing All Data..." : "Sync All WHOOP Data"}
+                </button>
+                
+                <button
+                  onClick={handleCleanup}
+                  disabled={syncLoading || cleanupLoading}
+                  className="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  {cleanupLoading ? "Cleaning Up..." : "🧹 Remove Duplicate Workouts"}
+                </button>
+              </div>
               {rateLimit && (
                 <div className="text-secondary text-center text-xs">
                   {rateLimit.remaining > 0
@@ -417,6 +488,18 @@ export function WhoopWorkouts() {
           )}
         </div>
       )}
+
+      {/* Additional WHOOP Data Types */}
+      {integrationStatus?.isConnected && (
+        <div className="mt-12 space-y-12">
+          <WhoopRecovery />
+          <WhoopSleep />
+          <WhoopCycles />
+          <WhoopProfile />
+          <WhoopBodyMeasurements />
+        </div>
+      )}
+
 
       {/* Workout Detail Overlay */}
       <WorkoutDetailOverlay

@@ -92,7 +92,12 @@ describe('Health Advice Analytics', () => {
         experience_level: 'intermediate',
         readiness_flags: ['good_recovery', 'good_sleep'],
         warnings_count: 1,
-        has_warnings: true
+        has_warnings: true,
+        has_manual_wellness: false,
+        wellness_input_type: 'whoop',
+        manual_energy_level: undefined,
+        manual_sleep_quality: undefined,
+        manual_wellness_has_notes: false,
       });
 
       // Check analytics.featureUsed was called

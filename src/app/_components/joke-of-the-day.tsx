@@ -231,8 +231,8 @@ export function JokeOfTheDay() {
       onTouchEnd={handleTouchEnd}
       className="bg-navy-600 hover:bg-navy-700 cursor-pointer touch-none rounded-lg p-6 text-center select-none"
       style={{
-        backgroundColor: "#1e3a8a",
-        borderColor: "#1e40af",
+        backgroundColor: "var(--color-info)",
+        borderColor: "var(--color-info)",
         transform: `translateX(${translateX}px)`,
         transition: isDragging
           ? "none"
@@ -241,12 +241,12 @@ export function JokeOfTheDay() {
       }}
       onMouseEnter={(e) => {
         if (!isDragging) {
-          e.currentTarget.style.backgroundColor = "#1e40af";
+          e.currentTarget.style.backgroundColor = "var(--color-info)";
         }
       }}
       onMouseLeave={(e) => {
         if (!isDragging) {
-          e.currentTarget.style.backgroundColor = "#1e3a8a";
+          e.currentTarget.style.backgroundColor = "var(--color-info)";
         }
       }}
     >

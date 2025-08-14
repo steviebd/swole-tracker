@@ -9,6 +9,8 @@ import { insightsRouter } from "~/server/api/routers/insights";
 import { exercisesRouter } from "~/server/api/routers/exercises";
 import { progressRouter } from "~/server/api/routers/progress";
 import { healthAdviceRouter } from "~/server/api/routers/health-advice";
+import { wellnessRouter } from "~/server/api/routers/wellness";
+import { suggestionsRouter } from "~/server/api/routers/suggestions";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -28,6 +30,8 @@ export const appRouter = createTRPCRouter({
   insights: insightsRouter,
   progress: progressRouter,
   healthAdvice: healthAdviceRouter,
+  wellness: wellnessRouter,
+  suggestions: suggestionsRouter,
 });
 
 // export type definition of API

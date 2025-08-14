@@ -28,11 +28,11 @@ export function WhoopIntegrationSection() {
   };
 
   const mockHeartRateZones = [
-    { zone: "Zone 1", percentage: 25, color: "bg-gray-400", label: "50-60% (Recovery)" },
-    { zone: "Zone 2", percentage: 35, color: "bg-blue-400", label: "60-70% (Base)" },
-    { zone: "Zone 3", percentage: 20, color: "bg-green-400", label: "70-80% (Aerobic)" },
-    { zone: "Zone 4", percentage: 15, color: "bg-yellow-400", label: "80-90% (Threshold)" },
-    { zone: "Zone 5", percentage: 5, color: "bg-red-400", label: "90-100% (Max)" }
+    { zone: "Zone 1", percentage: 25, color: "var(--color-chart-1)", label: "50-60% (Recovery)" },
+    { zone: "Zone 2", percentage: 35, color: "var(--color-chart-2)", label: "60-70% (Base)" },
+    { zone: "Zone 3", percentage: 20, color: "var(--color-chart-3)", label: "70-80% (Aerobic)" },
+    { zone: "Zone 4", percentage: 15, color: "var(--color-chart-4)", label: "80-90% (Threshold)" },
+    { zone: "Zone 5", percentage: 5, color: "var(--color-chart-5)", label: "90-100% (Max)" }
   ];
 
   const getRecoveryColor = (recovery: number) => {
@@ -317,7 +317,7 @@ export function WhoopIntegrationSection() {
                 {mockHeartRateZones.map((zone, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 flex-1">
-                      <div className={`w-4 h-4 rounded ${zone.color}`}></div>
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: zone.color }}></div>
                       <div>
                         <p 
                           className="text-sm font-medium"
@@ -336,8 +336,8 @@ export function WhoopIntegrationSection() {
                     <div className="flex items-center space-x-3">
                       <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div 
-                          className={`h-2 rounded-full ${zone.color}`}
-                          style={{ width: `${zone.percentage}%` }}
+                          className="h-2 rounded-full"
+                          style={{ width: `${zone.percentage}%`, backgroundColor: zone.color }}
                         ></div>
                       </div>
                       <span 

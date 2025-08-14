@@ -31,6 +31,8 @@ interface SetInputProps {
   // Arrow button handlers for reordering sets
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  // User's preferred weight unit
+  preferredUnit?: "kg" | "lbs";
 }
 
 import { useEffect, useRef } from "react";
@@ -48,6 +50,7 @@ export function SetInput({
   showDelete = true,
   onMoveUp,
   onMoveDown,
+  preferredUnit = "kg",
 }: SetInputProps) {
   const weightInputRef = useRef<HTMLInputElement>(null);
   const repsInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +104,7 @@ export function SetInput({
         {/* Weight */}
         <div className="min-w-[120px] flex-1">
           <label className="text-secondary mb-1 block text-xs">Weight</label>
-          <div className="flex items-center gap-1">
+          <div className="relative flex items-center">
             <input
               ref={weightInputRef}
               type="number"
@@ -127,17 +130,11 @@ export function SetInput({
               }}
               placeholder="0"
               disabled={readOnly}
-              className={`input flex-1 bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+              className={`input w-full bg-transparent pr-12 ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
-            <button
-              type="button"
-              onClick={() => !readOnly && onToggleUnit(exerciseIndex, setIndex)}
-              disabled={readOnly}
-              className={`btn-secondary px-2 text-xs ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
-              title="Toggle unit"
-            >
-              {set.unit}
-            </button>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none select-none text-gray-500 dark:text-gray-400">
+              {preferredUnit}
+            </span>
           </div>
         </div>
 

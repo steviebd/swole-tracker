@@ -444,7 +444,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                       {/* Grid */}
                       <defs>
                         <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
-                          <path d="M 40 0 L 0 0 0 20" fill="none" stroke={isDark ? "#374151" : "#E5E7EB"} strokeWidth="0.5"/>
+                          <path d="M 40 0 L 0 0 0 20" fill="none" stroke="var(--color-border)" strokeWidth="0.5"/>
                         </pattern>
                       </defs>
                       <rect width="100%" height="100%" fill="url(#grid)" />
@@ -462,7 +462,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                               y={y}
                               width={16}
                               height={height}
-                              fill={isDark ? "#60A5FA" : "#3B82F6"}
+                              fill="var(--color-primary)"
                               className="hover:opacity-75"
                             />
                             {day.totalVolume > 0 && (

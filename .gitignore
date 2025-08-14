@@ -1,8 +1,5 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-/apps/mobile
-/apps/v1-dark-mode
-
 # dependencies
 /node_modules
 /.pnp
@@ -71,3 +68,5 @@ node_modules/
 # tasks.json
 # tasks/ 
 .env.production
+src/__tests__/unit/supabase.coverage.test.ts.skip
+src/__tests__/unit/supabase.more.coverage2.test.ts.skip

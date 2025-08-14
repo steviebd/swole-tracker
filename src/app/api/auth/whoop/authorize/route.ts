@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       `${request.nextUrl.origin}/api/auth/whoop/callback`,
     );
     authUrl.searchParams.append("response_type", "code");
-    authUrl.searchParams.append("scope", "read:workout offline");
+    authUrl.searchParams.append("scope", "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline");
     authUrl.searchParams.append("state", state);
 
     // Debug logging

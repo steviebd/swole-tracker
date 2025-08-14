@@ -27,7 +27,12 @@ describe("tRPC preferences router (integration, mocked ctx/db)", () => {
     const trpc = buildCaller({ db, user });
     const res = await (trpc as any).preferences?.get?.();
 
-    expect(res).toEqual({ defaultWeightUnit: "kg" });
+    expect(res).toEqual({ 
+      defaultWeightUnit: "kg",
+      predictive_defaults_enabled: false,
+      right_swipe_action: "collapse_expand",
+      enable_manual_wellness: false,
+    });
     expect((db as any).query?.userPreferences?.findFirst).toHaveBeenCalled();
   });
 

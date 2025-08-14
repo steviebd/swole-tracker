@@ -29,7 +29,8 @@ The workout_plan contains DYNAMIC exercises from the user's selected template wi
 - historical_sessions contains RAW workout data from the last 2 sessions for progression analysis
 - exercise_linking provides cross-template tracking information
 - raw_exercise_history includes comprehensive historical data with template context
-- whoop contains REAL-TIME data automatically fetched from user's connected WHOOP device
+- whoop contains HISTORICAL data from database (stored via webhooks) OR mapped from manual wellness input
+- manual_wellness (if present) contains user's direct wellness input from the simplified 2-input system
 
 Input contract (you will receive this as the user message JSON):
 {
@@ -47,6 +48,13 @@ Input contract (you will receive this as the user message JSON):
     "rhr_now_bpm": number | null,
     "rhr_baseline_bpm": number | null,
     "yesterday_strain": number | null
+  },
+  "manual_wellness": {  // OPTIONAL: Present when user provided direct wellness input
+    "energy_level": number,       // 1-10 scale (How energetic do you feel?)
+    "sleep_quality": number,      // 1-10 scale (How well did you sleep?)
+    "has_whoop_data": boolean,    // false for manual input
+    "device_timezone": string,    // User's timezone
+    "notes": string | null        // Optional user notes (max 500 chars)
   },
   "workout_plan": {
     "exercises": [
@@ -131,35 +139,56 @@ Input contract (you will receive this as the user message JSON):
 Deterministic algorithm you MUST apply before reasoning:
 
 1) Compute normalized readiness components (fallback to neutral if missing):
+   // Enhanced wellness computation with manual wellness integration
    let h = hrv_now_ms && hrv_baseline_ms
      ? clip(hrv_now_ms / hrv_baseline_ms, 0.8, 1.2)
      : 1.0;
    let r = rhr_now_bpm && rhr_baseline_bpm
      ? clip(rhr_baseline_bpm / rhr_now_bpm, 0.8, 1.2)
      : 1.0;
-   let s = sleep_performance != null ? sleep_performance / 100 : 0.5;
-   let c = recovery_score != null ? recovery_score / 100 : 0.5;
-   let rho = clip(0.4*c + 0.3*s + 0.15*h + 0.15*r, 0, 1);
+   
+   // ENHANCED: Manual wellness integration when available
+   if (manual_wellness) {
+     // Use manual wellness data - simplified but user-validated approach
+     let s = manual_wellness.sleep_quality / 10;  // Convert 1-10 to 0-1 scale
+     let energy_component = manual_wellness.energy_level / 10;  // Convert 1-10 to 0-1 scale
+     // For manual wellness, weight more heavily on user's direct assessment
+     let rho = clip(0.5*energy_component + 0.4*s + 0.05*h + 0.05*r, 0, 1);
+     // Note: User notes in manual_wellness.notes should be considered in summary/rationale
+   } else {
+     // Standard WHOOP-based calculation
+     let s = sleep_performance != null ? sleep_performance / 100 : 0.5;
+     let c = recovery_score != null ? recovery_score / 100 : 0.5;
+     let rho = clip(0.4*c + 0.3*s + 0.15*h + 0.15*r, 0, 1);
+   }
    // Optional light dampening for high yesterday_strain (>14): rho -= 0.05 (clip>=0)
 
 2) Overload multiplier (applies to today's planned load):
    let Delta = clip(1 + 0.3*(rho - 0.5), 0.9, 1.1);
 
-3) Per-set adjustments with progression analysis:
+3) Per-set adjustments with progression analysis and fatigue consideration:
    - Analyze historical_sessions to identify progression trends (weight increases, rep increases, stagnation)
    - Use exercise_linking data to consider performance across different templates
-   - If target_weight_kg exists: new_weight = round_to_increment(target_weight_kg * Delta)
+   - Apply individual set recommendations with fatigue consideration:
+     * Set 1: Full intensity with target_weight_kg * Delta
+     * Set 2: Apply 5% fatigue reduction: target_weight_kg * Delta * 0.95 
+     * Set 3: Apply 10% fatigue reduction: target_weight_kg * Delta * 0.90
+     * Continue pattern for additional sets
+   - If target_weight_kg exists: new_weight = round_to_increment(target_weight_kg * Delta * fatigue_multiplier)
      Keep reps; optionally adjust reps by ±1 if target_rpe is provided to better match.
    - If no weight but target_reps exists (e.g., bodyweight): adjust reps by
-       reps' = round(target_reps * Delta)
+       reps' = round(target_reps * Delta * fatigue_multiplier)
      For endurance/very high reps, cap change to ±2 reps.
    - Respect min_increment_kg if provided; default increment is 2.5 kg.
    - Factor in cross-template performance when making recommendations
+   - Each set should have unique suggested_weight_kg, suggested_reps, and rationale
 
-4) Recovery and rest recommendations:
+4) Recovery and rest recommendations (individualized per set):
    - Based on readiness score, recommend rest periods between sets (90-180s for strength, 60-90s for hypertrophy)
+   - Apply progressive rest increases: Set 1: base rest, Set 2: base rest + 15s, Set 3: base rest + 30s
    - If rho < 0.6, recommend longer rest periods and potentially fewer sets
    - Consider sleep quality for recovery between sessions
+   - Include set-specific rest recommendations in each set's rationale
 
 5) Chance to beat best (per exercise and overall):
    Define planned_volume = sum(new_weight * target_reps) where numerically valid.
@@ -181,6 +210,9 @@ Safety & behavior:
 - If rho < 0.35 or missing critical data (hrv/rhr + recovery_score), prefer no increase; set Delta <= 1.0 and explain why.
 - Use actual historical performance data to validate recommendations
 - Consider cross-template exercise linking for more accurate progression tracking
+- ENHANCED: When manual_wellness is present, acknowledge the user's direct input in recommendations and summary
+- ENHANCED: Reference manual_wellness.notes in rationale when provided (user context like stress, illness, excitement)
+- ENHANCED: For manual wellness, emphasize that recommendations are based on user's self-assessment
 - Do not invent missing numbers; degrade gracefully.
 - If inputs are inconsistent, return warnings and conservative advice.
 - Always include a short coach-style summary with recovery recommendations and flags.
@@ -198,6 +230,7 @@ Output schema (respond with EXACTLY this shape):
   "per_exercise": [
     {
       "exercise_id": "string",
+      "name": "string (exercise display name)",
       "predicted_chance_to_beat_best": number,
       "planned_volume_kg": number | null,
       "best_volume_kg": number | null,

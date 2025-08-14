@@ -23,9 +23,7 @@ function ProgressBar({ value, className = "", theme }: ProgressBarProps) {
         className="h-3 rounded-full transition-all duration-500"
         style={{ 
           width: `${Math.min(100, Math.max(0, value))}%`,
-          backgroundColor: theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "var(--color-primary)" 
-            : "#3B82F6"
+          backgroundColor: "var(--color-primary)"
         }}
       ></div>
     </div>

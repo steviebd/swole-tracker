@@ -11,10 +11,7 @@ import React, {
 type Theme =
   | "system"
   | "light"
-  | "dark"
-  | "CalmDark"
-  | "BoldDark"
-  | "PlayfulDark";
+  | "dark";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -43,7 +40,8 @@ function applyThemeClass(theme: Theme, systemDark: boolean) {
   const shouldDark = effectiveTheme !== "light";
 
   // data-theme is the source of truth for CSS variables/themes
-  root.dataset.theme = effectiveTheme;
+  // For system theme, we want to preserve "system" in the dataset
+  root.dataset.theme = theme === "system" ? "system" : effectiveTheme;
 
   // Toggle Tailwind's dark class for components that rely on it
   root.classList.toggle("dark", shouldDark);

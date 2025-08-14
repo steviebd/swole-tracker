@@ -7,18 +7,12 @@ const THEME_LABELS: Record<string, string> = {
   system: "System",
   light: "Light",
   dark: "Dark",
-  CalmDark: "Calm Dark",
-  BoldDark: "Bold Dark",
-  PlayfulDark: "Playful Dark",
 };
 
 const THEME_OPTIONS = [
   "system",
   "light",
   "dark",
-  "CalmDark",
-  "BoldDark",
-  "PlayfulDark",
 ] as const;
 
 export function ThemeToggleDropdown() {

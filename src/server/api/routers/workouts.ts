@@ -590,8 +590,9 @@ export const workoutsRouter = createTRPCRouter({
         sessionId: z.number(),
         updates: z.array(
           z.object({
-            setId: z.string(), // Format: "{exercise_name}_set_{index}"
+            setId: z.string(), // Format: "{templateExerciseId}_{setIndex}"
             exerciseName: z.string(),
+            setIndex: z.number().int().min(0).optional(), // 0-based index for direct targeting
             weight: z.number().optional(),
             reps: z.number().int().positive().optional(),
             unit: z.enum(["kg", "lbs"]).default("kg"),
@@ -620,15 +621,22 @@ export const workoutsRouter = createTRPCRouter({
       for (const update of input.updates) {
         console.log(`Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`);
         
-        // Parse setId to extract set index (format: "{exercise_name}_set_{index}")
-        const setIdMatch = /_set_(\d+)$/.exec(update.setId);
-        if (!setIdMatch?.[1]) {
-          console.warn(`Invalid setId format: ${update.setId}`);
-          continue;
-        }
+        let setIndex: number;
         
-        const setIndex = parseInt(setIdMatch[1]) - 1; // Convert to 0-based index
-        console.log(`Parsed setIndex: ${setIndex} (from ${setIdMatch[1]})`);
+        // Use setIndex if provided, otherwise parse from setId
+        if (update.setIndex !== undefined) {
+          setIndex = update.setIndex;
+          console.log(`Using provided setIndex: ${setIndex}`);
+        } else {
+          // Legacy parsing for old setId format
+          const setIdMatch = /_set_(\d+)$/.exec(update.setId);
+          if (!setIdMatch?.[1]) {
+            console.warn(`Invalid setId format: ${update.setId}`);
+            continue;
+          }
+          setIndex = parseInt(setIdMatch[1]) - 1; // Convert to 0-based index
+          console.log(`Parsed setIndex from setId: ${setIndex} (from ${setIdMatch[1]})`);
+        }
 
         // Find exercises matching the exercise name
         const exerciseMatches = session.exercises.filter(

@@ -1,5 +1,5 @@
-import { describe, test, expect } from 'vitest';
-import { calculateReadiness, calculateOverloadMultiplier, clip, roundToIncrement } from '~/lib/health-calculations';
+import { describe, test, expect, vi } from 'vitest';
+import { calculateReadiness, calculateOverloadMultiplier, clip, roundToIncrement, getExerciseHistory, calculateProgressionSuggestions } from '~/lib/health-calculations';
 
 describe('Health Calculations', () => {
   describe('clip function', () => {
@@ -242,6 +242,536 @@ describe('Health Calculations', () => {
       expect(roundToIncrement(0)).toBe(0);
       expect(roundToIncrement(-5.2)).toBe(-5);
       expect(roundToIncrement(-2.6)).toBe(-2.5);
+    });
+  });
+
+  describe('getExerciseHistory', () => {
+    test('returns empty array when no exercise names provided', async () => {
+      const mockDb = {
+        query: {
+          workoutSessions: {
+            findMany: vi.fn().mockResolvedValue([])
+          }
+        }
+      };
+      
+      const result = await getExerciseHistory(mockDb as any, 'user123', []);
+      expect(result).toEqual([]);
+    });
+
+    test('returns exercise history with sessions', async () => {
+      const mockDb = {
+        query: {
+          workoutSessions: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                workoutDate: new Date('2023-01-01'),
+                exercises: [
+                  {
+                    weight: '100',
+                    reps: 5,
+                    sets: 3
+                  }
+                ]
+              },
+              {
+                workoutDate: new Date('2022-12-25'),
+                exercises: [
+                  {
+                    weight: '90',
+                    reps: 8,
+                    sets: 3
+                  }
+                ]
+              }
+            ])
+          }
+        },
+        schema: {
+          workoutSessions: {},
+          sessionExercises: {}
+        }
+      };
+      
+      const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].exerciseName).toBe('Bench Press');
+      expect(result[0].sessions).toHaveLength(2);
+      expect(result[0].sessions[0].sets[0].weight).toBe(100);
+      expect(result[0].sessions[0].sets[0].reps).toBe(5);
+      expect(result[0].sessions[0].sets[0].volume).toBe(1500); // 100 * 5 * 3
+    });
+
+    test('filters sessions without the specified exercise', async () => {
+      const mockDb = {
+        query: {
+          workoutSessions: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                workoutDate: new Date('2023-01-01'),
+                exercises: [
+                  {
+                    weight: '100',
+                    reps: 5,
+                    sets: 3
+                  }
+                ]
+              },
+              {
+                workoutDate: new Date('2022-12-25'),
+                exercises: [] // No exercises
+              }
+            ])
+          }
+        },
+        schema: {
+          workoutSessions: {},
+          sessionExercises: {}
+        }
+      };
+      
+      const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].sessions).toHaveLength(1); // Only one session with the exercise
+    });
+
+    test('excludes specified session ID', async () => {
+      const mockDb = {
+        query: {
+          workoutSessions: {
+            findMany: vi.fn().mockImplementation((options) => {
+              // Check that the exclude condition is properly applied
+              expect(options.where).toBeDefined();
+              return Promise.resolve([
+                {
+                  workoutDate: new Date('2023-01-01'),
+                  exercises: [
+                    {
+                      weight: '100',
+                      reps: 5,
+                      sets: 3
+                    }
+                  ]
+                }
+              ]);
+            })
+          }
+        },
+        schema: {
+          workoutSessions: {},
+          sessionExercises: {}
+        }
+      };
+      
+      await getExerciseHistory(mockDb as any, 'user123', ['Bench Press'], 999);
+    });
+
+    test('handles sessions with null weight or reps', async () => {
+      const mockDb = {
+        query: {
+          workoutSessions: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                workoutDate: new Date('2023-01-01'),
+                exercises: [
+                  {
+                    weight: null,
+                    reps: null,
+                    sets: 3
+                  }
+                ]
+              }
+            ])
+          }
+        },
+        schema: {
+          workoutSessions: {},
+          sessionExercises: {}
+        }
+      };
+      
+      const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].sessions[0].sets[0].weight).toBeNull();
+      expect(result[0].sessions[0].sets[0].reps).toBeNull();
+      expect(result[0].sessions[0].sets[0].volume).toBeNull();
+    });
+  });
+
+  describe('calculateProgressionSuggestions', () => {
+    test('returns conservative suggestion when no history', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: []
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].exerciseName).toBe('Bench Press');
+      expect(result[0].suggestions).toHaveLength(1);
+      expect(result[0].suggestions[0].type).toBe('weight');
+      expect(result[0].suggestions[0].suggested).toBe(20);
+      expect(result[0].suggestions[0].rationale).toContain('No historical data');
+    });
+
+    test('returns suggestion based on recent performance with weight progression', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 100,
+                  reps: 5,
+                  volume: 500
+                },
+                {
+                  weight: 90,
+                  reps: 8,
+                  volume: 720 // Best set by volume
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'weight');
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].suggestions).toHaveLength(1);
+      expect(result[0].suggestions[0].type).toBe('weight');
+      expect(result[0].suggestions[0].current).toBe(90);
+      // With 0.8 readiness, progression factor should be 1.025
+      expect(result[0].suggestions[0].suggested).toBe(92.5); // 90 * 1.025 = 92.25, rounded to 2.5 increment
+      expect(result[0].suggestions[0].rationale).toContain('good readiness');
+    });
+
+    test('returns suggestion based on recent performance with rep progression', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 100,
+                  reps: 5,
+                  volume: 500
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.6, 'reps');
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].suggestions).toHaveLength(1);
+      expect(result[0].suggestions[0].type).toBe('reps');
+      expect(result[0].suggestions[0].current).toBe(5);
+      // With 0.6 readiness, progression factor should be 1.0
+      expect(result[0].suggestions[0].suggested).toBe(5); // 5 * 1.0 = 5
+      expect(result[0].suggestions[0].rationale).toContain('moderate readiness');
+    });
+
+    test('applies deload with low readiness', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 100,
+                  reps: 5,
+                  volume: 500
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.3, 'weight');
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].suggestions).toHaveLength(1);
+      expect(result[0].suggestions[0].type).toBe('weight');
+      expect(result[0].suggestions[0].current).toBe(100);
+      // With 0.3 readiness, progression factor should be 0.975
+      expect(result[0].suggestions[0].suggested).toBe(97.5); // 100 * 0.975 = 97.5, rounded to 2.5 increment
+      expect(result[0].suggestions[0].rationale).toContain('low readiness');
+    });
+
+    test('covers edge cases for readiness boundary values', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 100,
+                  reps: 5,
+                  volume: 500
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      // Test above 0.7 boundary for weight progression
+      const result1 = calculateProgressionSuggestions(exerciseHistory, 0.8, 'weight');
+      expect(result1[0].suggestions[0].rationale).toContain('good readiness');
+      expect(result1[0].suggestions[0].rationale).toContain('progressive overload');
+      
+      // Test exactly at 0.7 boundary for weight progression (should be moderate)
+      const result2 = calculateProgressionSuggestions(exerciseHistory, 0.7, 'weight');
+      expect(result2[0].suggestions[0].rationale).toContain('moderate readiness');
+      expect(result2[0].suggestions[0].rationale).toContain('maintenance');
+      
+      // Test between 0.5 and 0.7 for weight progression (should be moderate)
+      const result3 = calculateProgressionSuggestions(exerciseHistory, 0.6, 'weight');
+      expect(result3[0].suggestions[0].rationale).toContain('moderate readiness');
+      expect(result3[0].suggestions[0].rationale).toContain('maintenance');
+      
+      // Test exactly at 0.5 boundary for weight progression (should be low)
+      const result4 = calculateProgressionSuggestions(exerciseHistory, 0.5, 'weight');
+      expect(result4[0].suggestions[0].rationale).toContain('low readiness');
+      expect(result4[0].suggestions[0].rationale).toContain('deload');
+      
+      // Test below 0.5 boundary for weight progression
+      const result5 = calculateProgressionSuggestions(exerciseHistory, 0.4, 'weight');
+      expect(result5[0].suggestions[0].rationale).toContain('low readiness');
+      expect(result5[0].suggestions[0].rationale).toContain('deload');
+      
+      // Test above 0.7 boundary for rep progression
+      const result6 = calculateProgressionSuggestions(exerciseHistory, 0.8, 'reps');
+      expect(result6[0].suggestions[0].rationale).toContain('good readiness');
+      expect(result6[0].suggestions[0].rationale).toContain('increased');
+      
+      // Test exactly at 0.7 boundary for rep progression (should be moderate)
+      const result7 = calculateProgressionSuggestions(exerciseHistory, 0.7, 'reps');
+      expect(result7[0].suggestions[0].rationale).toContain('moderate readiness');
+      expect(result7[0].suggestions[0].rationale).toContain('same');
+      
+      // Test between 0.5 and 0.7 for rep progression (should be moderate)
+      const result8 = calculateProgressionSuggestions(exerciseHistory, 0.6, 'reps');
+      expect(result8[0].suggestions[0].rationale).toContain('moderate readiness');
+      expect(result8[0].suggestions[0].rationale).toContain('same');
+      
+      // Test exactly at 0.5 boundary for rep progression (should be low)
+      const result9 = calculateProgressionSuggestions(exerciseHistory, 0.5, 'reps');
+      expect(result9[0].suggestions[0].rationale).toContain('low readiness');
+      expect(result9[0].suggestions[0].rationale).toContain('reduced');
+      
+      // Test below 0.5 boundary for rep progression
+      const result10 = calculateProgressionSuggestions(exerciseHistory, 0.4, 'reps');
+      expect(result10[0].suggestions[0].rationale).toContain('low readiness');
+      expect(result10[0].suggestions[0].rationale).toContain('reduced');
+    });
+
+    test('handles empty sessions in history', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: []
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].suggestions).toHaveLength(0);
+    });
+
+    test('handles sessions with sets missing weight or reps', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: null,
+                  reps: 5,
+                  volume: null
+                },
+                {
+                  weight: 100,
+                  reps: null,
+                  volume: null
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
+      
+      expect(result).toHaveLength(1);
+      // Should have no suggestions since no complete set with both weight and reps
+      expect(result[0].suggestions).toHaveLength(0);
+    });
+
+    test('covers volume calculation edge cases in getExerciseHistory', async () => {
+      const mockDb = {
+        query: {
+          workoutSessions: {
+            findMany: vi.fn().mockResolvedValue([
+              {
+                workoutDate: new Date('2023-01-01'),
+                exercises: [
+                  {
+                    weight: null, // weight is null
+                    reps: 5,
+                    sets: 3
+                  },
+                  {
+                    weight: '100',
+                    reps: null, // reps is null
+                    sets: 3
+                  },
+                  {
+                    weight: '0', // weight is '0' (falsy string)
+                    reps: 5,
+                    sets: 3
+                  },
+                  {
+                    weight: '100',
+                    reps: '0', // reps is '0' (falsy string)
+                    sets: 3
+                  },
+                  {
+                    weight: '100',
+                    reps: 5,
+                    sets: 3
+                  }
+                ]
+              }
+            ])
+          }
+        },
+        schema: {
+          workoutSessions: {},
+          sessionExercises: {}
+        }
+      };
+      
+      const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].sessions).toHaveLength(1);
+      expect(result[0].sessions[0].sets).toHaveLength(5);
+      
+      // Test the volume calculations for each case
+      expect(result[0].sessions[0].sets[0].volume).toBeNull(); // weight is null, so volume is null
+      expect(result[0].sessions[0].sets[1].volume).toBeNull(); // reps is null, so volume is null
+      expect(result[0].sessions[0].sets[2].volume).toBe(0); // '0' && 5 is truthy, so 0 * 5 * 3 = 0
+      expect(result[0].sessions[0].sets[3].volume).toBe(0); // '100' && '0' is truthy, so 100 * 0 * 3 = 0
+      expect(result[0].sessions[0].sets[4].volume).toBe(1500); // 100 * 5 * 3
+    });
+
+    test('handles mixed sets and selects best by volume', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 80,
+                  reps: 10,
+                  volume: 800 // Highest volume
+                },
+                {
+                  weight: 90,
+                  reps: 5,
+                  volume: 450 // Lower volume
+                },
+                {
+                  weight: 85,
+                  reps: 8,
+                  volume: 680 // Lower volume
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.8);
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].suggestions).toHaveLength(1);
+      // Should select the set with 80 weight and 10 reps (best by volume)
+      expect(result[0].suggestions[0].current).toBe(80);
+      expect(result[0].suggestions[0].suggested).toBe(82.5); // 80 * 1.025 = 82, rounded to 2.5 increment
+    });
+
+    test('handles multiple exercises', () => {
+      const exerciseHistory = [
+        {
+          exerciseName: 'Bench Press',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 100,
+                  reps: 5,
+                  volume: 500
+                }
+              ]
+            }
+          ]
+        },
+        {
+          exerciseName: 'Squat',
+          sessions: [
+            {
+              workoutDate: new Date('2023-01-01'),
+              sets: [
+                {
+                  weight: 150,
+                  reps: 5,
+                  volume: 750
+                }
+              ]
+            }
+          ]
+        }
+      ];
+      
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.8);
+      
+      expect(result).toHaveLength(2);
+      expect(result[0].exerciseName).toBe('Bench Press');
+      expect(result[1].exerciseName).toBe('Squat');
+      expect(result[0].suggestions).toHaveLength(1);
+      expect(result[1].suggestions).toHaveLength(1);
     });
   });
 });

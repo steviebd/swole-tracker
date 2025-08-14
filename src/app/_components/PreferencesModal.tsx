@@ -23,7 +23,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
   const [rightSwipeAction, setRightSwipeAction] =
     useState<RightSwipeAction>("collapse_expand");
-  const [estimatedOneRmFactor, setEstimatedOneRmFactor] = useState<string>(""); // text to allow blank => default
+  const [defaultWeightUnit, setDefaultWeightUnit] = useState<"kg" | "lbs">("kg");
   const [saving, setSaving] = useState(false);
 
   const updateMutation = api.preferences.update.useMutation({
@@ -55,12 +55,12 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
           : "collapse_expand";
       setRightSwipeAction(rightSwipe as RightSwipeAction);
 
-      // Only set estimatedOneRmFactor if present
-      const factor =
-        "estimated_one_rm_factor" in prefs
-          ? prefs.estimated_one_rm_factor
-          : undefined;
-      setEstimatedOneRmFactor(typeof factor === "number" ? String(factor) : "");
+      const weightUnit = 
+        "defaultWeightUnit" in prefs
+          ? (prefs.defaultWeightUnit ?? "kg")
+          : "kg";
+      setDefaultWeightUnit(weightUnit as "kg" | "lbs");
+
     }
   }, [isLoading, prefs]);
 
@@ -79,41 +79,36 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       "right_swipe_action" in prefs
         ? ((prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction)
         : ("collapse_expand" as RightSwipeAction);
-    const pf =
-      "estimated_one_rm_factor" in prefs
-        ? prefs.estimated_one_rm_factor
-        : undefined;
-    const uiPf =
-      estimatedOneRmFactor.trim() === ""
-        ? undefined
-        : Number(estimatedOneRmFactor);
+    const wu =
+      "defaultWeightUnit" in prefs
+        ? (prefs.defaultWeightUnit ?? "kg")
+        : "kg";
     
     // Only disable if nothing has changed
     return (
       pe === predictiveEnabled &&
       rs === rightSwipeAction &&
-      (pf ?? undefined) === (uiPf ?? undefined)
+      wu === defaultWeightUnit
     );
-  }, [prefs, predictiveEnabled, rightSwipeAction, estimatedOneRmFactor, saving]);
+  }, [prefs, predictiveEnabled, rightSwipeAction, defaultWeightUnit, saving]);
 
   const handleSave = () => {
+    // If no changes, just close the modal
+    if (saveDisabled && !saving) {
+      onClose();
+      return;
+    }
+
     setSaving(true);
     const payload: {
       predictive_defaults_enabled?: boolean;
       right_swipe_action?: RightSwipeAction;
-      estimated_one_rm_factor?: number;
+      defaultWeightUnit?: "kg" | "lbs";
     } = {
       predictive_defaults_enabled: predictiveEnabled,
       right_swipe_action: rightSwipeAction,
+      defaultWeightUnit: defaultWeightUnit,
     };
-    // Only send factor if the input is not blank and within bounds; otherwise omit to keep default
-    const trimmed = estimatedOneRmFactor.trim();
-    if (trimmed !== "") {
-      const n = Number(trimmed);
-      if (!Number.isNaN(n)) {
-        payload.estimated_one_rm_factor = Math.max(0.02, Math.min(0.05, n));
-      }
-    }
     updateMutation.mutate(payload);
   };
 
@@ -204,9 +199,6 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   { value: "system", label: "System" },
                   { value: "light", label: "Light" },
                   { value: "dark", label: "Dark" },
-                  { value: "CalmDark", label: "Calm Dark" },
-                  { value: "BoldDark", label: "Bold Dark" },
-                  { value: "PlayfulDark", label: "Playful Dark" },
                 ].map((themeOption) => (
                   <button
                     key={themeOption.value}
@@ -228,32 +220,43 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
               </div>
             </section>
 
-            {/* Estimated 1RM factor */}
+            {/* Weight Unit Preference */}
             <section>
-              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Estimated 1RM factor</div>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Default Weight Unit</div>
               <div className="mb-2 text-sm text-muted">
-                Used in 1RM estimation formula: weight × (1 + reps × factor).
-                Leave blank to use default 0.0333 (1/30).
+                Choose your preferred weight unit for displaying exercises.
               </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  step="0.0001"
-                  min={0.02}
-                  max={0.05}
-                  inputMode="decimal"
-                  aria-label="Estimated 1RM factor"
-                  className="w-32 rounded-md border px-3 py-2 transition-colors placeholder:text-muted"
-                  style={{
-                    backgroundColor: 'var(--color-bg-surface)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text)'
-                  }}
-                  placeholder="0.0333"
-                  value={estimatedOneRmFactor}
-                  onChange={(e) => setEstimatedOneRmFactor(e.target.value)}
-                />
-                <div className="text-xs text-muted">Default: 0.0333</div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "kg" as const, label: "Kilograms (kg)" },
+                  { value: "lbs" as const, label: "Pounds (lbs)" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDefaultWeightUnit(value)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      defaultWeightUnit === value
+                        ? "bg-purple-600 text-white border-purple-600"
+                        : "glass-surface glass-hairline text-gray-300"
+                    }`}
+                    style={
+                      defaultWeightUnit === value
+                        ? {
+                            backgroundColor: "var(--color-primary)",
+                            borderColor: "var(--color-primary)",
+                            color: "white",
+                          }
+                        : {
+                            backgroundColor: "var(--color-bg-surface)",
+                            borderColor: "var(--color-border)",
+                            color: "var(--color-text)",
+                          }
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </section>
 

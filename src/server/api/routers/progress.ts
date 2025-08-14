@@ -7,6 +7,7 @@ import {
   templateExercises
 } from "~/server/db/schema";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { db } from "~/server/db";
 
 // Time range enum for filtering
 const timeRangeSchema = z.enum(["week", "month", "year"]);
@@ -119,8 +120,17 @@ export const progressRouter = createTRPCRouter({
           )
           .orderBy(desc(workoutSessions.workoutDate));
 
+        // Transform data to match expected types
+        const transformedData = volumeData.map(row => ({
+          workoutDate: row.workoutDate,
+          exerciseName: row.exerciseName,
+          weight: row.weight ? parseFloat(row.weight) : 0,
+          reps: row.reps || 0,
+          sets: row.sets || 0,
+        }));
+
         // Calculate volume metrics by workout date
-        const volumeByDate = calculateVolumeMetrics(volumeData);
+        const volumeByDate = calculateVolumeMetrics(transformedData);
         
         return volumeByDate;
       } catch (error) {
@@ -150,7 +160,11 @@ export const progressRouter = createTRPCRouter({
           )
           .orderBy(desc(workoutSessions.workoutDate));
 
-        const consistency = calculateConsistencyMetrics(workoutDates, startDate, endDate);
+        const consistency = calculateConsistencyMetrics(
+          workoutDates.map(row => row.workoutDate), 
+          startDate, 
+          endDate
+        );
         
         return consistency;
       } catch (error) {
@@ -313,8 +327,17 @@ export const progressRouter = createTRPCRouter({
           )
           .orderBy(desc(workoutSessions.workoutDate));
 
+        // Transform data to match expected types
+        const transformedData = volumeData.map(row => ({
+          exerciseName: row.exerciseName,
+          weight: row.weight ? parseFloat(row.weight) : 0,
+          reps: row.reps || 0,
+          sets: row.sets || 0,
+          workoutDate: row.workoutDate,
+        }));
+
         // Calculate volume metrics by exercise
-        const volumeByExercise = calculateVolumeByExercise(volumeData);
+        const volumeByExercise = calculateVolumeByExercise(transformedData);
         
         return volumeByExercise;
       } catch (error) {
@@ -347,8 +370,14 @@ export const progressRouter = createTRPCRouter({
             )
           );
 
+        // Transform data to match expected types
+        const transformedData = rawData.map(row => ({
+          sets: row.sets || 0,
+          reps: row.reps || 0,
+        }));
+
         // Calculate set/rep distribution
-        const distribution = calculateSetRepDistribution(rawData);
+        const distribution = calculateSetRepDistribution(transformedData);
         
         return distribution;
       } catch (error) {
@@ -419,17 +448,17 @@ export function getPreviousPeriod(startDate: Date, endDate: Date): { startDate: 
   return { startDate: prevStartDate, endDate: prevEndDate };
 }
 
-export async function getLinkedExerciseNames(db: any, templateExerciseId: number): Promise<string[]> {
+export async function getLinkedExerciseNames(database: typeof db, templateExerciseId: number): Promise<string[]> {
   try {
     // Check if this template exercise is linked to a master exercise
-    // Handle both real db and mock db cases
-    if (!db) {
+    // Handle both real database and mock database cases
+    if (!database) {
       return [];
     }
     
-    // If it's a mock db with query and queryOne properties
-    if (db.query) {
-      const exerciseLink = await db.query.exerciseLinks.findFirst({
+    // If it's a mock database with query and queryOne properties
+    if (database.query) {
+      const exerciseLink = await database.query.exerciseLinks.findFirst({
         where: eq(exerciseLinks.templateExerciseId, templateExerciseId),
         with: {
           masterExercise: true,
@@ -438,32 +467,32 @@ export async function getLinkedExerciseNames(db: any, templateExerciseId: number
 
       if (exerciseLink) {
         // Find all template exercises linked to the same master exercise
-        const linkedExercises = await db.query.exerciseLinks.findMany({
+        const linkedExercises = await database.query.exerciseLinks.findMany({
           where: eq(exerciseLinks.masterExerciseId, exerciseLink.masterExerciseId),
           with: {
             templateExercise: true,
           },
         });
 
-        return linkedExercises.map((link: typeof linkedExercises[0]) => link.templateExercise.exerciseName as string);
+        return linkedExercises.map(link => link.templateExercise.exerciseName);
       } else {
         // Fallback to getting exercise name from templateExerciseId using queryOne if available (for mocks)
-        if (typeof db.queryOne === 'function') {
+        if (typeof (database as any).queryOne === 'function') {
           try {
-            const templateExercise = await db.queryOne();
+            const templateExercise: any = await (database as any).queryOne();
             return templateExercise ? [templateExercise.exerciseName as string] : [];
           } catch (_error) {
             // If queryOne fails, continue to normal query
           }
         }
         
-        // Try normal query for templateExercises (for real db)
+        // Try normal query for templateExercises (for real database)
         try {
-          const templateExercise = await db.query.templateExercises.findFirst({
+          const templateExercise = await database.query.templateExercises.findFirst({
             where: eq(templateExercises.id, templateExerciseId),
           });
           
-          return templateExercise ? [templateExercise.exerciseName as string] : [];
+          return templateExercise ? [templateExercise.exerciseName] : [];
         } catch (_error) {
           // If normal query fails, return empty array
           return [];
@@ -530,7 +559,13 @@ export function processTopSets(progressData: ProgressDataRow[]): Array<{
   }));
 }
 
-export function calculateVolumeMetrics(volumeData: any[]): Array<{
+export function calculateVolumeMetrics(volumeData: {
+  workoutDate: Date;
+  exerciseName: string;
+  weight: number;
+  reps: number;
+  sets: number;
+}[]): Array<{
   workoutDate: Date;
   totalVolume: number;
   totalSets: number;
@@ -560,9 +595,15 @@ export function calculateVolumeMetrics(volumeData: any[]): Array<{
     acc[dateKey].exerciseCount.add(row.exerciseName);
     
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, {
+    workoutDate: Date;
+    totalVolume: number;
+    totalSets: number;
+    totalReps: number;
+    exerciseCount: Set<string>;
+  }>);
 
-  return Object.values(grouped).map((day: any) => ({
+  return Object.values(grouped).map(day => ({
     workoutDate: day.workoutDate,
     totalVolume: day.totalVolume,
     totalSets: day.totalSets,
@@ -571,14 +612,14 @@ export function calculateVolumeMetrics(volumeData: any[]): Array<{
   }));
 }
 
-export function calculateConsistencyMetrics(workoutDates: any[], startDate: Date, endDate: Date): {
+export function calculateConsistencyMetrics(workoutDates: Date[], startDate: Date, endDate: Date): {
   totalWorkouts: number;
   frequency: number;
   currentStreak: number;
   longestStreak: number;
   consistencyScore: number;
 } {
-  const dates = workoutDates.map(w => new Date(w.workoutDate.toDateString()));
+  const dates = workoutDates.map(w => new Date(w.toDateString()));
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   const workoutDays = dates.length;
   
@@ -649,7 +690,7 @@ export function calculateLongestStreak(dates: Date[]) {
 }
 
 export async function calculatePersonalRecords(
-  ctx: any,
+  ctx: { db: typeof db; user: { id: string } },
   exerciseNames: string[],
   startDate: Date,
   endDate: Date,
@@ -668,7 +709,13 @@ export async function calculatePersonalRecords(
   const records = [];
   
   for (const exerciseName of exerciseNames) {
-    let exerciseData: any[] = [];
+    let exerciseData: {
+      weight: string | null;
+      reps: number | null;
+      sets: number | null;
+      workoutDate: Date;
+      unit: string;
+    }[] = [];
     
     try {
       exerciseData = await ctx.db
@@ -718,8 +765,8 @@ export async function calculatePersonalRecords(
         exerciseName,
         recordType: "weight" as const,
         weight: parseFloat(String(weightPR.weight || "0")),
-        reps: weightPR.reps,
-        sets: weightPR.sets,
+        reps: weightPR.reps || 0,
+        sets: weightPR.sets || 0,
         unit: weightPR.unit,
         workoutDate: weightPR.workoutDate,
         oneRMEstimate: calculateOneRM(parseFloat(String(weightPR.weight || "0")), weightPR.reps || 1),
@@ -732,8 +779,8 @@ export async function calculatePersonalRecords(
         exerciseName,
         recordType: "volume" as const,
         weight: parseFloat(String(volumePR.weight || "0")),
-        reps: volumePR.reps,
-        sets: volumePR.sets,
+        reps: volumePR.reps || 0,
+        sets: volumePR.sets || 0,
         unit: volumePR.unit,
         workoutDate: volumePR.workoutDate,
         totalVolume: volume,
@@ -744,7 +791,7 @@ export async function calculatePersonalRecords(
   return records;
 }
 
-export async function getVolumeAndStrengthData(ctx: any, startDate: Date, endDate: Date): Promise<{
+export async function getVolumeAndStrengthData(ctx: { db: typeof db; user: { id: string } }, startDate: Date, endDate: Date): Promise<{
   totalVolume: number;
   totalSets: number;
   totalReps: number;
@@ -770,13 +817,13 @@ export async function getVolumeAndStrengthData(ctx: any, startDate: Date, endDat
         )
       );
 
-  const totalVolume = data.reduce((sum: number, row: any) => {
+  const totalVolume = data.reduce((sum: number, row) => {
       return sum + (parseFloat(String(row.weight || "0")) * (row.reps || 0) * (row.sets || 1));
     }, 0);
 
-    const totalSets = data.reduce((sum: number, row: any) => sum + (row.sets || 1), 0);
-    const totalReps = data.reduce((sum: number, row: any) => sum + ((row.reps || 0) * (row.sets || 1)), 0);
-    const uniqueExercises = new Set(data.map((row: any) => row.exerciseName)).size;
+    const totalSets = data.reduce((sum: number, row) => sum + (row.sets || 1), 0);
+    const totalReps = data.reduce((sum: number, row) => sum + ((row.reps || 0) * (row.sets || 1)), 0);
+    const uniqueExercises = new Set(data.map((row) => row.exerciseName)).size;
 
     return {
       totalVolume,
@@ -797,7 +844,17 @@ export async function getVolumeAndStrengthData(ctx: any, startDate: Date, endDat
   }
 }
 
-export function calculateChanges(current: any, previous: any): {
+export function calculateChanges(current: {
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  uniqueExercises: number;
+}, previous: {
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  uniqueExercises: number;
+}): {
   volumeChange: number;
   setsChange: number;
   repsChange: number;
@@ -821,7 +878,13 @@ export function calculateChanges(current: any, previous: any): {
   };
 }
 
-export function calculateVolumeByExercise(volumeData: any[]): Array<{
+export function calculateVolumeByExercise(volumeData: {
+  exerciseName: string;
+  weight: number;
+  reps: number;
+  sets: number;
+  workoutDate: Date;
+}[]): Array<{
   exerciseName: string;
   totalVolume: number;
   totalSets: number;
@@ -846,15 +909,21 @@ export function calculateVolumeByExercise(volumeData: any[]): Array<{
     const reps = row.reps || 0;
     const sets = row.sets || 1;
     
-    acc[row.exerciseName].totalVolume += weight * reps * sets;
-    acc[row.exerciseName].totalSets += sets;
-    acc[row.exerciseName].totalReps += reps * sets;
-    acc[row.exerciseName].sessionDates.add(row.workoutDate.toDateString());
+    acc[row.exerciseName]!.totalVolume += weight * reps * sets;
+    acc[row.exerciseName]!.totalSets += sets;
+    acc[row.exerciseName]!.totalReps += reps * sets;
+    acc[row.exerciseName]!.sessionDates.add(row.workoutDate.toDateString());
     
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, {
+    exerciseName: string;
+    totalVolume: number;
+    totalSets: number;
+    totalReps: number;
+    sessionDates: Set<string>;
+  }>);
 
-  const exercises = Object.values(grouped).map((exercise: any) => ({
+  const exercises = Object.values(grouped).map(exercise => ({
     exerciseName: exercise.exerciseName,
     totalVolume: exercise.totalVolume,
     totalSets: exercise.totalSets,
@@ -874,7 +943,10 @@ export function calculateVolumeByExercise(volumeData: any[]): Array<{
     .sort((a, b) => b.totalVolume - a.totalVolume); // Sort by total volume descending
 }
 
-export function calculateSetRepDistribution(rawData: any[]): {
+export function calculateSetRepDistribution(rawData: {
+  sets: number;
+  reps: number;
+}[]): {
   setDistribution: Array<{ sets: number; count: number; percentage: number }>;
   repDistribution: Array<{ reps: number; count: number; percentage: number }>;
   repRangeDistribution: Array<{ range: string; count: number; percentage: number }>;

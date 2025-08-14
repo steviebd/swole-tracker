@@ -9,6 +9,7 @@ import { ConsistencySection } from "./ConsistencySection";
 import { PersonalRecordsSection } from "./PersonalRecordsSection";
 import { RecentAchievements } from "./RecentAchievements";
 import { WhoopIntegrationSection } from "./WhoopIntegrationSection";
+import { WellnessHistorySection } from "./WellnessHistorySection";
 
 type TimeRange = "week" | "month" | "year";
 
@@ -176,6 +177,11 @@ export function ProgressDashboard() {
         {/* Consistency Section */}
         <div id="consistency" className="mt-8">
           <ConsistencySection />
+        </div>
+
+        {/* Wellness History Section */}
+        <div className="mt-8">
+          <WellnessHistorySection timeRange={timeRange} />
         </div>
 
         {/* WHOOP Integration Section */}

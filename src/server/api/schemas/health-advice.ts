@@ -48,6 +48,7 @@ export const healthAdviceResponseSchema = z.object({
   }),
   per_exercise: z.array(z.object({
     exercise_id: z.string(),
+    name: z.string().optional(), // Exercise display name
     predicted_chance_to_beat_best: z.number().min(0).max(1),  // 0-1
     planned_volume_kg: z.number().positive().optional().nullable(),
     best_volume_kg: z.number().positive().optional().nullable(),

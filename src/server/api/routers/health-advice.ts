@@ -5,11 +5,13 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { healthAdvice } from "~/server/db/schema";
+import { healthAdvice, wellnessData } from "~/server/db/schema";
 import { 
   healthAdviceRequestSchema, 
   healthAdviceResponseSchema
 } from "~/server/api/schemas/health-advice";
+import { enhancedHealthAdviceRequestSchema } from "~/server/api/schemas/wellness";
+import { logger } from "~/lib/logger";
 
 export const healthAdviceRouter = createTRPCRouter({
   // Save AI advice response to database
@@ -59,6 +61,99 @@ export const healthAdviceRouter = createTRPCRouter({
         .returning();
 
       return result[0];
+    }),
+
+  // Enhanced save method that can optionally link wellness data
+  saveWithWellness: protectedProcedure
+    .input(z.object({
+      sessionId: z.number(),
+      request: enhancedHealthAdviceRequestSchema,
+      response: healthAdviceResponseSchema,
+      responseTimeMs: z.number().optional(),
+      modelUsed: z.string().optional(),
+      wellnessDataId: z.number().optional(), // Link to wellness data if available
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { sessionId, request, response, responseTimeMs, modelUsed, wellnessDataId } = input;
+
+      try {
+        // Calculate total suggestions
+        const totalSuggestions = response.per_exercise.reduce((sum, ex) => sum + ex.sets.length, 0);
+
+        // Verify wellness data belongs to user if provided
+        if (wellnessDataId) {
+          const wellnessRecord = await ctx.db
+            .select({ id: wellnessData.id })
+            .from(wellnessData)
+            .where(
+              and(
+                eq(wellnessData.id, wellnessDataId),
+                eq(wellnessData.user_id, ctx.user.id)
+              )
+            )
+            .limit(1);
+
+          if (!wellnessRecord.length) {
+            logger.warn('Wellness data not found or access denied', {
+              wellnessDataId,
+              userId: ctx.user.id,
+              sessionId,
+            });
+            // Continue without wellness data rather than failing
+          }
+        }
+
+        // Upsert health advice with wellness context
+        const result = await ctx.db
+          .insert(healthAdvice)
+          .values({
+            user_id: ctx.user.id,
+            sessionId: sessionId,
+            request: request,
+            response: response,
+            readiness_rho: response.readiness.rho.toString(),
+            overload_multiplier: response.readiness.overload_multiplier.toString(),
+            session_predicted_chance: response.session_predicted_chance.toString(),
+            user_accepted_suggestions: 0,
+            total_suggestions: totalSuggestions,
+            response_time_ms: responseTimeMs ? Math.round(responseTimeMs) : null,
+            model_used: modelUsed,
+          })
+          .onConflictDoUpdate({
+            target: [healthAdvice.user_id, healthAdvice.sessionId],
+            set: {
+              request: request,
+              response: response,
+              readiness_rho: response.readiness.rho.toString(),
+              overload_multiplier: response.readiness.overload_multiplier.toString(),
+              session_predicted_chance: response.session_predicted_chance.toString(),
+              total_suggestions: totalSuggestions,
+              response_time_ms: responseTimeMs ? Math.round(responseTimeMs) : null,
+              model_used: modelUsed,
+            },
+          })
+          .returning();
+
+        logger.info('Health advice saved with wellness context', {
+          userId: ctx.user.id,
+          sessionId,
+          hasWellnessData: !!wellnessDataId,
+          hasManualWellness: !!request.manual_wellness,
+          readinessRho: response.readiness.rho,
+        });
+
+        return result[0];
+
+      } catch (error) {
+        logger.error('Failed to save health advice with wellness', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          userId: ctx.user.id,
+          sessionId,
+          wellnessDataId,
+        });
+
+        throw error;
+      }
     }),
 
   // Get AI advice for a session
