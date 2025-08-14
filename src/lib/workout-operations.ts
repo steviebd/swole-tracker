@@ -1,4 +1,4 @@
-import { createBrowserSupabaseClient } from "./supabase-client";
+import { createBrowserSupabaseClient } from "./supabase-browser";
 import { createServerSupabaseClient } from "./supabase-server";
 
 // Types for workout data

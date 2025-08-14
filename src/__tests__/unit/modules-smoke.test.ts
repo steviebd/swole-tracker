@@ -21,8 +21,8 @@ describe("module smoke: supabase adapters and analytics", () => {
     expect(Object.keys(mod).length).toBeGreaterThan(0);
   });
 
-  it("supabase-client re-exports or config loads", async () => {
-    const mod = await import("~/lib/supabase-client");
+  it("supabase-browser re-exports and functions load", async () => {
+    const mod = await import("~/lib/supabase-browser");
     expect(mod).toBeTruthy();
     expect(Object.keys(mod).length).toBeGreaterThan(0);
   });
