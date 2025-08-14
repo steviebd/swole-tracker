@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { requireEnv } from "~/lib/supabase";
+import { requireEnv } from "~/lib/env-utils";
 
-describe("supabase.ts build tests", () => {
+describe("env-utils.ts build tests", () => {
   describe("requireEnv function", () => {
     it("should return environment variable when set", () => {
       // Mock process.env
@@ -29,7 +29,7 @@ describe("supabase.ts build tests", () => {
 
   describe("module exports", () => {
     it("should not export client or server implementations", async () => {
-      const module = await import("~/lib/supabase");
+      const module = await import("~/lib/env-utils");
 
       expect(module).toBeDefined();
       // The module should not export createClient or SupabaseClient
@@ -41,7 +41,7 @@ describe("supabase.ts build tests", () => {
   describe("import behavior", () => {
     it("should be importable without errors", async () => {
       expect(async () => {
-        await import("~/lib/supabase");
+        await import("~/lib/env-utils");
       }).not.toThrow();
     });
   });

@@ -12,11 +12,16 @@ export const preferencesRouter = createTRPCRouter({
     });
 
     // Return full preferences row when found to satisfy integration tests,
-    // otherwise return default shape with only defaultWeightUnit (fallback 'kg').
+    // otherwise return default shape with all expected properties.
     if (prefs) {
       return prefs;
     }
-    return { defaultWeightUnit: "kg" } as const;
+    return { 
+      defaultWeightUnit: "kg",
+      predictive_defaults_enabled: false,
+      right_swipe_action: "collapse_expand",
+      enable_manual_wellness: false,
+    } as const;
   }),
 
   // Update user preferences
@@ -31,6 +36,7 @@ export const preferencesRouter = createTRPCRouter({
             predictive_defaults_enabled: z.boolean().optional(),
             right_swipe_action: z.enum(["collapse_expand", "none"]).optional(),
             estimated_one_rm_factor: z.number().min(0.02).max(0.05).optional(),
+            enable_manual_wellness: z.boolean().optional(),
           }),
         ])
         .transform((input) => {
@@ -42,6 +48,7 @@ export const preferencesRouter = createTRPCRouter({
             predictive_defaults_enabled: input.predictive_defaults_enabled,
             right_swipe_action: input.right_swipe_action,
             estimated_one_rm_factor: input.estimated_one_rm_factor,
+            enable_manual_wellness: input.enable_manual_wellness,
           };
         }),
     )
@@ -56,6 +63,7 @@ export const preferencesRouter = createTRPCRouter({
         predictive_defaults_enabled?: boolean;
         right_swipe_action?: "collapse_expand" | "none";
         estimated_one_rm_factor?: number;
+        enable_manual_wellness?: boolean;
       } = {};
 
       if (typeof input.defaultWeightUnit !== "undefined") {
@@ -69,6 +77,9 @@ export const preferencesRouter = createTRPCRouter({
       }
       if (typeof input.estimated_one_rm_factor !== "undefined") {
         patch.estimated_one_rm_factor = input.estimated_one_rm_factor;
+      }
+      if (typeof input.enable_manual_wellness !== "undefined") {
+        patch.enable_manual_wellness = input.enable_manual_wellness;
       }
 
       if (existing) {
@@ -87,6 +98,7 @@ export const preferencesRouter = createTRPCRouter({
           predictive_defaults_enabled:
             input.predictive_defaults_enabled ?? false,
           right_swipe_action: input.right_swipe_action ?? "collapse_expand",
+          enable_manual_wellness: input.enable_manual_wellness ?? false,
         });
       }
 

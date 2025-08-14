@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTableCreator, unique } from "drizzle-orm/pg-core";
+import { index, pgTableCreator, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -184,6 +184,10 @@ export const workoutSessionsRelations = relations(
     healthAdvice: one(healthAdvice, {
       fields: [workoutSessions.id],
       references: [healthAdvice.sessionId],
+    }),
+    wellnessData: one(wellnessData, {
+      fields: [workoutSessions.id],
+      references: [wellnessData.sessionId],
     }),
   }),
 );
@@ -459,6 +463,229 @@ export const webhookEvents = createTable(
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 
+// Wellness Data - Manual wellness inputs for enhanced workout intelligence
+export const wellnessData = createTable(
+  "wellness_data",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    sessionId: d
+      .integer()
+      .references(() => workoutSessions.id, { onDelete: "cascade" }),
+    date: d.date().notNull(),
+    
+    // Manual wellness inputs (2 total)
+    energy_level: d.integer(), // 1-10 scale
+    sleep_quality: d.integer(), // 1-10 scale
+    
+    // Metadata
+    device_timezone: d.varchar({ length: 50 }), // Store device timezone for context
+    submitted_at: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(), // Prevent backfill attempts
+    
+    // Context
+    has_whoop_data: d.boolean().notNull().default(false),
+    whoop_data: d.json(), // Store actual Whoop metrics for comparison
+    notes: d.text(), // User notes (max 500 chars enforced in app)
+    
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    // Indexes for performance
+    index("wellness_data_user_id_idx").on(t.user_id),
+    index("wellness_data_user_date_idx").on(t.user_id, t.date),
+    index("wellness_data_user_session_idx").on(t.user_id, t.sessionId),
+    index("wellness_data_submitted_at_idx").on(t.user_id, t.submitted_at),
+    // Unique constraint: One wellness entry per session (prevents race conditions)
+    unique("wellness_data_user_session_unique").on(t.user_id, t.sessionId),
+  ],
+); // RLS disabled - using Supabase auth with application-level security
+
+// Comprehensive WHOOP data storage from webhooks
+
+// WHOOP Recovery Data (read:recovery)
+export const whoopRecovery = createTable(
+  "whoop_recovery",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    whoop_recovery_id: d.varchar({ length: 256 }).notNull().unique(), // WHOOP's recovery ID
+    cycle_id: d.varchar({ length: 256 }), // Link to cycle
+    date: d.date().notNull(),
+    
+    // Recovery metrics
+    recovery_score: d.integer(), // 0-100
+    hrv_rmssd_milli: d.numeric({ precision: 10, scale: 2 }), // HRV in milliseconds
+    hrv_rmssd_baseline: d.numeric({ precision: 10, scale: 2 }), // HRV baseline
+    resting_heart_rate: d.integer(), // BPM
+    resting_heart_rate_baseline: d.integer(), // BPM baseline
+    
+    // Full recovery data
+    raw_data: d.json(), // Complete recovery payload from WHOOP
+    
+    // Metadata
+    timezone_offset: d.varchar({ length: 20 }),
+    webhook_received_at: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("whoop_recovery_user_id_idx").on(t.user_id),
+    index("whoop_recovery_user_date_idx").on(t.user_id, t.date),
+    index("whoop_recovery_whoop_id_idx").on(t.whoop_recovery_id),
+    index("whoop_recovery_cycle_id_idx").on(t.cycle_id),
+    index("whoop_recovery_user_received_idx").on(t.user_id, t.webhook_received_at),
+    uniqueIndex("whoop_recovery_user_date_unique").on(t.user_id, t.date),
+  ],
+);
+
+// WHOOP Cycles Data (read:cycles)
+export const whoopCycles = createTable(
+  "whoop_cycle",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    whoop_cycle_id: d.varchar({ length: 256 }).notNull().unique(), // WHOOP's cycle ID
+    
+    // Cycle timing
+    start: d.timestamp({ withTimezone: true }).notNull(),
+    end: d.timestamp({ withTimezone: true }).notNull(),
+    timezone_offset: d.varchar({ length: 20 }),
+    
+    // Cycle metrics
+    day_strain: d.numeric({ precision: 5, scale: 2 }), // 0-21 strain scale
+    average_heart_rate: d.integer(), // BPM
+    max_heart_rate: d.integer(), // BPM
+    kilojoule: d.numeric({ precision: 10, scale: 2 }), // Energy expenditure
+    
+    // Full cycle data
+    raw_data: d.json(), // Complete cycle payload from WHOOP
+    
+    // Metadata
+    webhook_received_at: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("whoop_cycle_user_id_idx").on(t.user_id),
+    index("whoop_cycle_user_start_idx").on(t.user_id, t.start),
+    index("whoop_cycle_whoop_id_idx").on(t.whoop_cycle_id),
+    index("whoop_cycle_strain_idx").on(t.user_id, t.day_strain),
+  ],
+);
+
+// WHOOP Sleep Data (read:sleep)
+export const whoopSleep = createTable(
+  "whoop_sleep",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    whoop_sleep_id: d.varchar({ length: 256 }).notNull().unique(), // WHOOP's sleep ID
+    
+    // Sleep timing
+    start: d.timestamp({ withTimezone: true }).notNull(),
+    end: d.timestamp({ withTimezone: true }).notNull(),
+    timezone_offset: d.varchar({ length: 20 }),
+    
+    // Sleep metrics
+    sleep_performance_percentage: d.integer(), // 0-100
+    total_sleep_time_milli: d.integer(), // Milliseconds
+    sleep_efficiency_percentage: d.numeric({ precision: 5, scale: 2 }),
+    slow_wave_sleep_time_milli: d.integer(),
+    rem_sleep_time_milli: d.integer(),
+    light_sleep_time_milli: d.integer(),
+    wake_time_milli: d.integer(),
+    arousal_time_milli: d.integer(),
+    disturbance_count: d.integer(),
+    sleep_latency_milli: d.integer(),
+    
+    // Full sleep data
+    raw_data: d.json(), // Complete sleep payload from WHOOP
+    
+    // Metadata
+    webhook_received_at: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("whoop_sleep_user_id_idx").on(t.user_id),
+    index("whoop_sleep_user_start_idx").on(t.user_id, t.start),
+    index("whoop_sleep_whoop_id_idx").on(t.whoop_sleep_id),
+    index("whoop_sleep_performance_idx").on(t.user_id, t.sleep_performance_percentage),
+  ],
+);
+
+// WHOOP Profile Data (read:profile)
+export const whoopProfile = createTable(
+  "whoop_profile",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    whoop_user_id: d.varchar({ length: 256 }).notNull(), // WHOOP's user ID
+    
+    // Profile data
+    email: d.varchar({ length: 255 }),
+    first_name: d.varchar({ length: 100 }),
+    last_name: d.varchar({ length: 100 }),
+    
+    // Full profile data
+    raw_data: d.json(), // Complete profile payload from WHOOP
+    
+    // Metadata
+    webhook_received_at: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    last_updated: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("whoop_profile_user_id_idx").on(t.user_id),
+    index("whoop_profile_whoop_user_id_idx").on(t.whoop_user_id),
+    uniqueIndex("whoop_profile_user_unique").on(t.user_id),
+  ],
+);
+
+// WHOOP Body Measurements (read:body_measurement)
+export const whoopBodyMeasurement = createTable(
+  "whoop_body_measurement",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    whoop_measurement_id: d.varchar({ length: 256 }).notNull().unique(), // WHOOP's measurement ID
+    
+    // Measurement data
+    height_meter: d.numeric({ precision: 5, scale: 3 }), // Height in meters
+    weight_kilogram: d.numeric({ precision: 6, scale: 2 }), // Weight in kg
+    max_heart_rate: d.integer(), // BPM
+    
+    // Metadata
+    measurement_date: d.date(),
+    
+    // Full measurement data
+    raw_data: d.json(), // Complete measurement payload from WHOOP
+    
+    // Metadata
+    webhook_received_at: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("whoop_body_measurement_user_id_idx").on(t.user_id),
+    index("whoop_body_measurement_date_idx").on(t.user_id, t.measurement_date),
+    index("whoop_body_measurement_whoop_id_idx").on(t.whoop_measurement_id),
+  ],
+);
+
 // Health Advice Relations
 export const healthAdviceRelations = relations(healthAdvice, ({ one }) => ({
   session: one(workoutSessions, {
@@ -466,3 +693,36 @@ export const healthAdviceRelations = relations(healthAdvice, ({ one }) => ({
     references: [workoutSessions.id],
   }),
 }));
+
+// Wellness Data Relations
+export const wellnessDataRelations = relations(wellnessData, ({ one }) => ({
+  session: one(workoutSessions, {
+    fields: [wellnessData.sessionId],
+    references: [workoutSessions.id],
+  }),
+}));
+
+// WHOOP Data Relations
+export const whoopRecoveryRelations = relations(whoopRecovery, ({ one }) => ({
+  cycle: one(whoopCycles, {
+    fields: [whoopRecovery.cycle_id],
+    references: [whoopCycles.whoop_cycle_id],
+  }),
+}));
+
+export const whoopCyclesRelations = relations(whoopCycles, ({ many }) => ({
+  recoveries: many(whoopRecovery),
+}));
+
+export const whoopSleepRelations = relations(whoopSleep, ({ one }) => ({
+  // Could add relationship to cycles if needed
+}));
+
+export const whoopProfileRelations = relations(whoopProfile, ({ one }) => ({
+  // Profile is standalone
+}));
+
+export const whoopBodyMeasurementRelations = relations(whoopBodyMeasurement, ({ one }) => ({
+  // Measurements are standalone
+}));
+

@@ -82,8 +82,17 @@ vi.mock("~/env.js", async () => {
 vi.mock("~/lib/rate-limit-middleware", async () => {
   const { initTRPC } = await import("@trpc/server");
   const t = initTRPC.create();
+  
+  const trpcNoop = t.middleware(async ({ next }) => next());
+  
   return {
-    apiCallRateLimit: t.middleware(async ({ next }) => next()),
+    apiCallRateLimit: trpcNoop,
+    rateLimitMiddleware: () => trpcNoop,
+    asTrpcMiddleware: (handler: unknown) => trpcNoop,
+    templateRateLimit: trpcNoop,
+    workoutRateLimit: trpcNoop,
+    jokesRateLimit: trpcNoop,
+    whoopSyncRateLimit: trpcNoop,
   };
 });
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";

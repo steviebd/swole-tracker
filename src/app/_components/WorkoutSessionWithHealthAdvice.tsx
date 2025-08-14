@@ -8,10 +8,11 @@ import { SetSuggestions } from '~/app/_components/health-advice/SetSuggestions';
 import { ProbabilityGauge } from '~/app/_components/health-advice/ProbabilityGauge';
 import { AISummary } from '~/app/_components/health-advice/AISummary';
 import { SubjectiveWellnessModal } from '~/app/_components/health-advice/SubjectiveWellnessModal';
+import { ManualWellnessModal } from '~/app/_components/health-advice/ManualWellnessModal';
 import { useHealthAdvice } from '~/hooks/useHealthAdvice';
 import { api } from '~/trpc/react';
 import type { HealthAdviceRequest } from '~/server/api/schemas/health-advice';
-import type { SubjectiveWellnessData } from '~/lib/subjective-wellness-mapper';
+import type { SubjectiveWellnessData, ManualWellnessData } from '~/lib/subjective-wellness-mapper';
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -43,7 +44,10 @@ export function WorkoutSessionWithHealthAdvice({
 }: WorkoutSessionWithHealthAdviceProps) {
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
+  const [showManualWellnessModal, setShowManualWellnessModal] = useState(false);
   const [, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
+  const [wellnessSubmitError, setWellnessSubmitError] = useState<string | null>(null);
+  const [isSubmittingWellness, setIsSubmittingWellness] = useState(false);
   
   const { 
     advice, 
@@ -51,6 +55,7 @@ export function WorkoutSessionWithHealthAdvice({
     error, 
     fetchAdvice, 
     fetchAdviceWithSubjectiveData,
+    fetchAdviceWithManualWellness,
     hasExistingAdvice,
     whoopStatus
   } = useHealthAdvice(sessionId);
@@ -58,6 +63,16 @@ export function WorkoutSessionWithHealthAdvice({
   // Fetch the actual workout session to get template exercises
   const { data: workoutSession, refetch: refetchWorkoutSession } = api.workouts.getById.useQuery(
     { id: sessionId },
+    { enabled: !!sessionId }
+  );
+
+  // Fetch user preferences to determine which wellness modal to show
+  const { data: userPreferences } = api.preferences.get.useQuery();
+
+  // Wellness mutations
+  const saveWellness = api.wellness.save.useMutation();
+  const checkExistingWellness = api.wellness.checkExists.useQuery(
+    { sessionId },
     { enabled: !!sessionId }
   );
 
@@ -139,6 +154,9 @@ export function WorkoutSessionWithHealthAdvice({
   }, [hasExistingAdvice, advice]);
 
   const handleGetHealthAdvice = async () => {
+    // Determine which wellness system to use based on user preferences
+    const isManualWellnessEnabled = userPreferences?.enable_manual_wellness ?? false;
+    
     // Check if user has WHOOP connected
     if (whoopStatus.isConnected) {
       // User has WHOOP - use actual WHOOP data
@@ -152,8 +170,11 @@ export function WorkoutSessionWithHealthAdvice({
 
       await fetchAdvice(request);
       setShowHealthAdvice(true);
+    } else if (isManualWellnessEnabled) {
+      // User has manual wellness enabled - show simplified modal
+      setShowManualWellnessModal(true);
     } else {
-      // User doesn't have WHOOP - show wellness modal
+      // User doesn't have WHOOP and manual wellness disabled - show legacy 4-input modal
       setShowWellnessModal(true);
     }
   };
@@ -170,6 +191,50 @@ export function WorkoutSessionWithHealthAdvice({
 
     await fetchAdviceWithSubjectiveData(request, subjectiveData);
     setShowHealthAdvice(true);
+  };
+
+  const handleManualWellnessSubmit = async (manualData: ManualWellnessData) => {
+    setIsSubmittingWellness(true);
+    setWellnessSubmitError(null);
+
+    try {
+      // First, save wellness data to database
+      const wellnessResult = await saveWellness.mutateAsync({
+        sessionId,
+        energyLevel: manualData.energyLevel,
+        sleepQuality: manualData.sleepQuality,
+        deviceTimezone: manualData.deviceTimezone,
+        notes: manualData.notes,
+        hasWhoopData: false, // Manual input means no WHOOP data
+      });
+
+      // Then fetch health advice with wellness data
+      const request = {
+        session_id: sessionId.toString(),
+        user_profile: mockUserProfile,
+        workout_plan: dynamicWorkoutPlan,
+        prior_bests: mockPriorBests
+      };
+
+      if (wellnessResult?.id) {
+        await fetchAdviceWithManualWellness(request, manualData, wellnessResult.id);
+      } else {
+        // Fallback to health advice without wellness data if save failed
+        console.warn('Wellness data save returned no ID, proceeding without wellness tracking');
+        await fetchAdviceWithManualWellness(request, manualData);
+      }
+      
+      setShowManualWellnessModal(false);
+      setShowHealthAdvice(true);
+      
+    } catch (error) {
+      console.error('Failed to submit manual wellness:', error);
+      setWellnessSubmitError(
+        error instanceof Error ? error.message : 'Failed to submit wellness data. Please try again.'
+      );
+    } finally {
+      setIsSubmittingWellness(false);
+    }
   };
 
   const handleConnectWhoop = () => {
@@ -261,14 +326,16 @@ export function WorkoutSessionWithHealthAdvice({
       <div className="flex justify-center">
         <Button
           onClick={handleGetHealthAdvice}
-          disabled={loading}
+          disabled={loading || isSubmittingWellness}
           className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
         >
-          {loading 
+          {loading || isSubmittingWellness
             ? 'Getting AI Advice...' 
             : hasExistingAdvice 
               ? '🔄 Refresh Workout Intelligence' 
-              : '🤖 Get Workout Intelligence'
+              : userPreferences?.enable_manual_wellness && !whoopStatus.isConnected
+                ? '🎯 Quick Wellness Check'
+                : '🤖 Get Workout Intelligence'
           }
         </Button>
       </div>
@@ -324,7 +391,7 @@ export function WorkoutSessionWithHealthAdvice({
         </div>
       )}
 
-      {/* Subjective Wellness Modal */}
+      {/* Subjective Wellness Modal (Legacy 4-input system) */}
       <SubjectiveWellnessModal
         isOpen={showWellnessModal}
         onClose={() => setShowWellnessModal(false)}
@@ -332,6 +399,22 @@ export function WorkoutSessionWithHealthAdvice({
         hasWhoopIntegration={whoopStatus.hasIntegration}
         isWhoopConnected={whoopStatus.isConnected}
         onConnectWhoop={handleConnectWhoop}
+      />
+
+      {/* Manual Wellness Modal (Simplified 2-input system) */}
+      <ManualWellnessModal
+        isOpen={showManualWellnessModal}
+        onClose={() => {
+          setShowManualWellnessModal(false);
+          setWellnessSubmitError(null);
+        }}
+        onSubmit={handleManualWellnessSubmit}
+        hasWhoopIntegration={whoopStatus.hasIntegration}
+        isWhoopConnected={whoopStatus.isConnected}
+        onConnectWhoop={handleConnectWhoop}
+        isSubmitting={isSubmittingWellness}
+        submitError={wellnessSubmitError ?? undefined}
+        sessionId={sessionId}
       />
 
       {/* Original Workout Session */}

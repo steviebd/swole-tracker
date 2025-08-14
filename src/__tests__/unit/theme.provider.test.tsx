@@ -1,4 +1,4 @@
-import React from "react";
+import React, { act } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -53,8 +53,13 @@ function setupMatchMedia(initialDark = false) {
     mql,
     setDark(next: boolean) {
       (mql as any).matches = next;
-      const ev = new Event("change") as MediaQueryListEvent;
-      mql.dispatchEvent(ev);
+      // Create a proper MediaQueryListEvent-like object
+      const ev = {
+        matches: next,
+        media: "(prefers-color-scheme: dark)"
+      } as MediaQueryListEvent;
+      // Call listeners directly to ensure they're triggered
+      listeners.forEach(listener => listener(ev));
     },
   };
 }
@@ -76,9 +81,10 @@ function TestConsumer() {
 }
 
 describe("ThemeProvider", () => {
-  const user = userEvent.setup();
+  let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
+    user = userEvent.setup();
     vi.restoreAllMocks();
     localStorage.clear();
     document.documentElement.className = "";
@@ -108,7 +114,9 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
 
     // If system changes to dark, provider applies dark to DOM on system mode
-    setDark(true);
+    await act(async () => {
+      setDark(true);
+    });
     // effect handler should apply class (no state change expected)
     expect(document.documentElement.dataset.theme).toBe("system");
     expect(document.documentElement.classList.contains("dark")).toBe(true);

@@ -29,7 +29,8 @@ The workout_plan contains DYNAMIC exercises from the user's selected template wi
 - historical_sessions contains RAW workout data from the last 2 sessions for progression analysis
 - exercise_linking provides cross-template tracking information
 - raw_exercise_history includes comprehensive historical data with template context
-- whoop contains REAL-TIME data automatically fetched from user's connected WHOOP device
+- whoop contains HISTORICAL data from database (stored via webhooks) OR mapped from manual wellness input
+- manual_wellness (if present) contains user's direct wellness input from the simplified 2-input system
 
 Input contract (you will receive this as the user message JSON):
 {
@@ -47,6 +48,13 @@ Input contract (you will receive this as the user message JSON):
     "rhr_now_bpm": number | null,
     "rhr_baseline_bpm": number | null,
     "yesterday_strain": number | null
+  },
+  "manual_wellness": {  // OPTIONAL: Present when user provided direct wellness input
+    "energy_level": number,       // 1-10 scale (How energetic do you feel?)
+    "sleep_quality": number,      // 1-10 scale (How well did you sleep?)
+    "has_whoop_data": boolean,    // false for manual input
+    "device_timezone": string,    // User's timezone
+    "notes": string | null        // Optional user notes (max 500 chars)
   },
   "workout_plan": {
     "exercises": [
@@ -131,15 +139,28 @@ Input contract (you will receive this as the user message JSON):
 Deterministic algorithm you MUST apply before reasoning:
 
 1) Compute normalized readiness components (fallback to neutral if missing):
+   // Enhanced wellness computation with manual wellness integration
    let h = hrv_now_ms && hrv_baseline_ms
      ? clip(hrv_now_ms / hrv_baseline_ms, 0.8, 1.2)
      : 1.0;
    let r = rhr_now_bpm && rhr_baseline_bpm
      ? clip(rhr_baseline_bpm / rhr_now_bpm, 0.8, 1.2)
      : 1.0;
-   let s = sleep_performance != null ? sleep_performance / 100 : 0.5;
-   let c = recovery_score != null ? recovery_score / 100 : 0.5;
-   let rho = clip(0.4*c + 0.3*s + 0.15*h + 0.15*r, 0, 1);
+   
+   // ENHANCED: Manual wellness integration when available
+   if (manual_wellness) {
+     // Use manual wellness data - simplified but user-validated approach
+     let s = manual_wellness.sleep_quality / 10;  // Convert 1-10 to 0-1 scale
+     let energy_component = manual_wellness.energy_level / 10;  // Convert 1-10 to 0-1 scale
+     // For manual wellness, weight more heavily on user's direct assessment
+     let rho = clip(0.5*energy_component + 0.4*s + 0.05*h + 0.05*r, 0, 1);
+     // Note: User notes in manual_wellness.notes should be considered in summary/rationale
+   } else {
+     // Standard WHOOP-based calculation
+     let s = sleep_performance != null ? sleep_performance / 100 : 0.5;
+     let c = recovery_score != null ? recovery_score / 100 : 0.5;
+     let rho = clip(0.4*c + 0.3*s + 0.15*h + 0.15*r, 0, 1);
+   }
    // Optional light dampening for high yesterday_strain (>14): rho -= 0.05 (clip>=0)
 
 2) Overload multiplier (applies to today's planned load):
@@ -181,6 +202,9 @@ Safety & behavior:
 - If rho < 0.35 or missing critical data (hrv/rhr + recovery_score), prefer no increase; set Delta <= 1.0 and explain why.
 - Use actual historical performance data to validate recommendations
 - Consider cross-template exercise linking for more accurate progression tracking
+- ENHANCED: When manual_wellness is present, acknowledge the user's direct input in recommendations and summary
+- ENHANCED: Reference manual_wellness.notes in rationale when provided (user context like stress, illness, excitement)
+- ENHANCED: For manual wellness, emphasize that recommendations are based on user's self-assessment
 - Do not invent missing numbers; degrade gracefully.
 - If inputs are inconsistent, return warnings and conservative advice.
 - Always include a short coach-style summary with recovery recommendations and flags.

@@ -279,3 +279,66 @@ html.dark {
    - src/styles/tokens/bolddark.css
    - src/styles/tokens/playfuldark.css
 */
+
+/* ===================== */
+/* Mobile-Optimized Wellness Modal Slider Styles */
+/* ===================== */
+
+/* Mobile-optimized slider styles for wellness input */
+.slider-primary::-webkit-slider-thumb {
+  appearance: none;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  border: 2px solid var(--color-bg-surface);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.slider-primary::-moz-range-thumb {
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  border: 2px solid var(--color-bg-surface);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Track styling for webkit browsers */
+.slider-primary::-webkit-slider-track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-border);
+}
+
+.slider-primary::-moz-range-track {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-border);
+  border: none;
+}
+
+/* Larger touch targets for mobile */
+@media (max-width: 768px) {
+  .slider-primary::-webkit-slider-thumb {
+    height: 28px;
+    width: 28px;
+  }
+  
+  .slider-primary::-moz-range-thumb {
+    height: 28px;
+    width: 28px;
+  }
+
+  .slider-primary::-webkit-slider-track {
+    height: 14px;
+    border-radius: 7px;
+  }
+
+  .slider-primary::-moz-range-track {
+    height: 14px;
+    border-radius: 7px;
+  }
+}

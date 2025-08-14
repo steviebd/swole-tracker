@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { env } from '~/env';
 import { healthAdviceRequestSchema } from '~/server/api/schemas/health-advice';
+import { enhancedHealthAdviceRequestSchema } from '~/server/api/schemas/wellness';
 import { 
   calculateReadiness, 
   calculateOverloadMultiplier,
@@ -10,8 +11,8 @@ import {
 } from '~/lib/health-calculations';
 import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-advice';
 import { db } from '~/server/db';
-import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks } from '~/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep } from '~/server/db/schema';
+import { eq, and, desc, gte } from 'drizzle-orm';
 import { createServerSupabaseClient } from '~/lib/supabase-server';
 
 // Removed edge runtime since we need database access for enhanced features
@@ -45,7 +46,17 @@ function getApiKey(): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const validatedInput = healthAdviceRequestSchema.parse(body);
+    
+    // Try enhanced schema first, fallback to basic schema
+    let validatedInput: any;
+    let hasManualWellness = false;
+    
+    try {
+      validatedInput = enhancedHealthAdviceRequestSchema.parse(body);
+      hasManualWellness = !!validatedInput.manual_wellness;
+    } catch {
+      validatedInput = healthAdviceRequestSchema.parse(body);
+    }
     
     // Get authenticated user for WHOOP data fetching
     const supabase = await createServerSupabaseClient();
@@ -63,14 +74,13 @@ export async function POST(req: NextRequest) {
     let templateExercises: Array<{ exerciseName: string }> = [];
     let currentSession: any = null;
     
-    // Fetch real WHOOP data if user has integration
+    // PHASE 0: Fetch WHOOP data from database (stored via webhooks) instead of real-time API calls
     let realWhoopData = validatedInput.whoop; // Fallback to request data
     try {
+      // Check if user has active WHOOP integration
       const [whoopIntegration] = await db
         .select({
-          accessToken: userIntegrations.accessToken,
           isActive: userIntegrations.isActive,
-          expiresAt: userIntegrations.expiresAt,
         })
         .from(userIntegrations)
         .where(
@@ -81,63 +91,53 @@ export async function POST(req: NextRequest) {
           ),
         );
       
-      if (whoopIntegration?.accessToken && 
-          (!whoopIntegration.expiresAt || new Date() < whoopIntegration.expiresAt)) {
+      if (whoopIntegration?.isActive) {
+        // Get date range for historical lookup (2 days as specified in requirements)
+        const todayMinus2Days = new Date();
+        todayMinus2Days.setDate(todayMinus2Days.getDate() - 2);
+        const dateString = todayMinus2Days.toISOString().split('T')[0]!; // Convert to YYYY-MM-DD format
         
-        // Get today's date for WHOOP API
-        const today = new Date().toISOString().split('T')[0];
+        // Fetch latest recovery data from database (stored via webhooks)
+        const latestRecovery = await db.query.whoopRecovery.findFirst({
+          where: and(
+            eq(whoopRecovery.user_id, user.id),
+            gte(whoopRecovery.date, dateString) // Look back 2 days for recent data
+          ),
+          orderBy: desc(whoopRecovery.date)
+        });
         
-        // Fetch latest recovery data
-        const recoveryResponse = await fetch(
-          `https://api.prod.whoop.com/developer/v1/recovery?start=${today}&end=${today}`,
-          {
-            headers: {
-              Authorization: `Bearer ${whoopIntegration.accessToken}`,
-              Accept: "application/json",
-            },
-          }
-        );
+        // Fetch latest sleep data from database (stored via webhooks)
+        const latestSleep = await db.query.whoopSleep.findFirst({
+          where: and(
+            eq(whoopSleep.user_id, user.id),
+            gte(whoopSleep.start, todayMinus2Days) // Sleep uses timestamp, can use Date object
+          ),
+          orderBy: desc(whoopSleep.start)
+        });
         
-        if (recoveryResponse.ok) {
-          const recoveryData = await recoveryResponse.json();
-          const latestRecovery = recoveryData.records?.[0];
+        if (latestRecovery || latestSleep) {
+          // Use database-stored WHOOP data instead of real-time API calls
+          realWhoopData = {
+            recovery_score: latestRecovery?.recovery_score || validatedInput.whoop.recovery_score,
+            sleep_performance: latestSleep?.sleep_performance_percentage || validatedInput.whoop.sleep_performance,
+            hrv_now_ms: latestRecovery?.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : validatedInput.whoop.hrv_now_ms,
+            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : validatedInput.whoop.hrv_baseline_ms,
+            rhr_now_bpm: latestRecovery?.resting_heart_rate || validatedInput.whoop.rhr_now_bpm,
+            rhr_baseline_bpm: latestRecovery?.resting_heart_rate_baseline || validatedInput.whoop.rhr_baseline_bpm,
+            yesterday_strain: validatedInput.whoop.yesterday_strain, // Could be fetched from cycles table if needed
+          };
           
-          if (latestRecovery) {
-            // Fetch sleep data as well
-            const sleepResponse = await fetch(
-              `https://api.prod.whoop.com/developer/v1/activity/sleep?start=${today}&end=${today}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${whoopIntegration.accessToken}`,
-                  Accept: "application/json",
-                },
-              }
-            );
-            
-            let sleepPerformance = validatedInput.whoop.sleep_performance;
-            if (sleepResponse.ok) {
-              const sleepData = await sleepResponse.json();
-              const latestSleep = sleepData.records?.[0];
-              if (latestSleep?.score?.stage_summary?.total_sleep_time_milli) {
-                sleepPerformance = Math.min(100, (latestSleep.score.stage_summary.total_sleep_time_milli / (8 * 60 * 60 * 1000)) * 100);
-              }
-            }
-            
-            // Use real WHOOP data
-            realWhoopData = {
-              recovery_score: latestRecovery.score?.recovery_score || validatedInput.whoop.recovery_score,
-              sleep_performance: sleepPerformance,
-              hrv_now_ms: latestRecovery.score?.hrv_rmssd_milli || validatedInput.whoop.hrv_now_ms,
-              hrv_baseline_ms: latestRecovery.score?.baseline?.hrv_rmssd_milli || validatedInput.whoop.hrv_baseline_ms,
-              rhr_now_bpm: latestRecovery.score?.resting_heart_rate || validatedInput.whoop.rhr_now_bpm,
-              rhr_baseline_bpm: latestRecovery.score?.baseline?.resting_heart_rate || validatedInput.whoop.rhr_baseline_bpm,
-              yesterday_strain: validatedInput.whoop.yesterday_strain, // Would need separate API call
-            };
-          }
+          console.log(`✅ Using database-stored WHOOP data for user ${user.id}:`, {
+            recovery_score: realWhoopData.recovery_score,
+            sleep_performance: realWhoopData.sleep_performance,
+            data_sources: [latestRecovery ? 'recovery' : null, latestSleep ? 'sleep' : null].filter(Boolean)
+          });
+        } else {
+          console.log(`⚠️ No recent WHOOP data found in database for user ${user.id}, using fallback`);
         }
       }
     } catch (error) {
-      console.error('Failed to fetch real WHOOP data, using fallback:', error);
+      console.error('Failed to fetch WHOOP data from database, using fallback:', error);
       // Continue with fallback data
     }
     
@@ -165,8 +165,34 @@ export async function POST(req: NextRequest) {
       // Fall back to input exercises if session fetch fails
     }
 
-    // Server-side safety checks using real WHOOP data
-    const { rho, flags } = calculateReadiness(realWhoopData);
+    // Server-side safety checks using real WHOOP data or manual wellness
+    let rho: number;
+    let flags: string[];
+    
+    if (hasManualWellness && validatedInput.manual_wellness) {
+      // Use manual wellness for readiness calculation
+      const manualWellness = validatedInput.manual_wellness;
+      const energyComponent = manualWellness.energy_level / 10; // Convert 1-10 to 0-1
+      const sleepComponent = manualWellness.sleep_quality / 10; // Convert 1-10 to 0-1
+      
+      // Simplified readiness calculation based on manual wellness (more weight on user input)
+      rho = Math.max(0, Math.min(1, 0.6 * energyComponent + 0.4 * sleepComponent));
+      flags = [];
+      
+      // Add flags based on manual wellness thresholds
+      if (manualWellness.energy_level <= 3) flags.push('low_energy');
+      if (manualWellness.sleep_quality <= 3) flags.push('poor_sleep');
+      if (manualWellness.notes && manualWellness.notes.toLowerCase().includes('stress')) flags.push('stress_noted');
+      if (manualWellness.notes && manualWellness.notes.toLowerCase().includes('sick')) flags.push('illness_noted');
+      
+      flags.push('manual_wellness_input');
+    } else {
+      // Use standard WHOOP-based calculation
+      const readinessData = calculateReadiness(realWhoopData);
+      rho = readinessData.rho;
+      flags = readinessData.flags;
+    }
+    
     const delta = calculateOverloadMultiplier(rho, validatedInput.user_profile.experience_level);
     
     // Block unsafe advice
@@ -271,7 +297,7 @@ export async function POST(req: NextRequest) {
       });
 
       // Calculate session duration estimate
-      const totalSets = perExerciseAdvice.reduce((sum, ex) => sum + ex.sets.length, 0);
+      const totalSets = perExerciseAdvice.reduce((sum: number, ex: any) => sum + ex.sets.length, 0);
       const avgRestTime = rho > 0.7 ? 120 : rho > 0.5 ? 150 : 180;
       const estimatedDuration = Math.round((totalSets * avgRestTime + totalSets * 60) / 60); // Rest + exercise time
       
@@ -280,8 +306,8 @@ export async function POST(req: NextRequest) {
         readiness: { rho, overload_multiplier: delta, flags },
         per_exercise: perExerciseAdvice,
         session_predicted_chance: rho > 0.7 ? 0.75 : rho > 0.5 ? 0.6 : 0.45,
-        summary: `Enhanced load recommendations based on readiness (${Math.round(rho * 100)}%) and ${exerciseHistory.length > 0 ? 'historical performance data' : 'conservative estimates'}. Allow ${estimatedDuration} minutes for this session.`,
-        warnings: hasKey ? [] : ['AI Gateway not configured - using enhanced fallback calculations'],
+        summary: `Enhanced load recommendations based on ${hasManualWellness ? 'your wellness input' : 'readiness'} (${Math.round(rho * 100)}%) and ${exerciseHistory.length > 0 ? 'historical performance data' : 'conservative estimates'}. ${hasManualWellness && validatedInput.manual_wellness?.notes ? `Note: ${validatedInput.manual_wellness.notes.slice(0, 100)}${validatedInput.manual_wellness.notes.length > 100 ? '...' : ''}` : ''} Allow ${estimatedDuration} minutes for this session.`,
+        warnings: [...(hasKey ? [] : ['AI Gateway not configured - using enhanced fallback calculations']), ...(hasManualWellness ? ['Recommendations based on manual wellness input'] : [])],
         recovery_recommendations: {
           recommended_rest_between_sets: `${Math.round(avgRestTime/60)} minutes for strength exercises`,
           recommended_rest_between_sessions: rho > 0.7 ? '24-48 hours' : rho > 0.5 ? '48-72 hours' : '72+ hours for full recovery',
@@ -295,10 +321,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Enhanced AI prompt with dynamic template data, real WHOOP data, and full historical context
+    // Enhanced AI prompt with dynamic template data, real WHOOP data, manual wellness, and full historical context
     const enhancedInput = {
       ...validatedInput,
       whoop: realWhoopData, // Use real WHOOP data instead of mock
+      ...(hasManualWellness && { manual_wellness: validatedInput.manual_wellness }), // Include manual wellness if present
       workout_plan: {
         exercises: templateExercises.map((ex: any) => {
           const existingExerciseSets = currentSession?.exercises?.filter(

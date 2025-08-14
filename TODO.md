@@ -3,6 +3,8 @@
 ## Overview
 Enhance the existing workout intelligence system to optionally collect **2 manual wellness inputs** alongside Whoop integration, store historical wellness data, and provide comprehensive workout intelligence recommendations with improved security and performance.
 
+**CRITICAL EFFICIENCY UPDATE:** Replace real-time WHOOP API calls with database-stored recovery data from webhooks to eliminate unnecessary API calls and improve performance.
+
 ## User Requirements & Clarifications
 - **Manual Inputs**: Only 2 total inputs (energy_level, sleep_quality) regardless of Whoop integration status
 - **Rate Limiting**: Use existing RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR env variable
@@ -23,12 +25,116 @@ Enhance the existing workout intelligence system to optionally collect **2 manua
 - Dual API methods (`useHealthAdvice.ts`)
 - SubjectiveWellnessModal component
 - Enhanced AI prompt system
+- WHOOP workout webhooks and storage (`externalWorkoutsWhoop` table)
+
+**Implementation Issue Identified:**
+- Health advice currently makes real-time WHOOP API calls for recovery data
+- Should use database-stored WHOOP recovery data from webhooks instead
+- Need WHOOP recovery webhooks and storage for efficiency
 
 ## Implementation Plan
 
+### Phase 0: WHOOP Recovery Data Efficiency (NEW PRIORITY)
+
+#### 0.1 Add WHOOP Recovery Webhooks
+**File:** `src/app/api/webhooks/whoop/recovery/route.ts`
+
+```typescript
+// Handle WHOOP recovery/sleep webhooks
+export async function POST(req: NextRequest) {
+  const payload = await verifyWhoopWebhook(req);
+  
+  // Store recovery data in database instead of real-time API calls
+  await storeWhoopRecoveryData(payload);
+  
+  return NextResponse.json({ success: true });
+}
+```
+
+#### 0.2 Update Health Advice to Use Database
+**File:** `src/app/api/health-advice/route.ts`
+
+```typescript
+// REMOVE: Real-time WHOOP API calls
+// REPLACE WITH: Database queries for latest recovery data
+
+const latestRecovery = await db.query.whoopRecovery.findFirst({
+  where: and(
+    eq(whoopRecovery.user_id, user.id),
+    gte(whoopRecovery.date, todayMinus3Days) // Get recent data
+  ),
+  orderBy: desc(whoopRecovery.date)
+});
+
+if (latestRecovery) {
+  realWhoopData = {
+    recovery_score: latestRecovery.recovery_score,
+    sleep_performance: latestRecovery.sleep_performance,
+    hrv_now_ms: latestRecovery.hrv_now_ms,
+    hrv_baseline_ms: latestRecovery.hrv_baseline_ms,
+    rhr_now_bpm: latestRecovery.rhr_now_bpm,
+    rhr_baseline_bpm: latestRecovery.rhr_baseline_bpm,
+    yesterday_strain: latestRecovery.yesterday_strain,
+  };
+}
+```
+
+#### 0.3 Update AI Prompt Documentation
+**File:** `src/lib/ai-prompts/enhanced-health-advice.ts`
+
+```typescript
+// UPDATE THIS LINE:
+// - whoop contains REAL-TIME data automatically fetched from user's connected WHOOP device OR mapped from manual wellness input
+
+// TO THIS:
+// - whoop contains HISTORICAL data from database (stored via webhooks) OR mapped from manual wellness input
+```
+
+#### 0.4 Performance Benefits
+- **Eliminate real-time WHOOP API calls** during health advice generation
+- **Reduce API rate limiting** issues with WHOOP
+- **Improve response times** for workout intelligence
+- **Enable offline capabilities** when WHOOP API is unavailable
+- **Historical recovery analysis** for trend tracking
+- **More reliable data** (webhooks vs. polling)
+
 ### Phase 1: Database Schema Enhancement
 
-#### 1.1 Create Wellness Data Table
+#### 1.1 Add WHOOP Recovery Data Storage
+```sql
+-- Add table for WHOOP recovery/sleep data from webhooks
+CREATE TABLE swole-tracker_whoop_recovery (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(256) NOT NULL,
+  date DATE NOT NULL,
+  
+  -- Recovery metrics from WHOOP webhooks
+  recovery_score INTEGER CHECK (recovery_score >= 0 AND recovery_score <= 100),
+  sleep_performance INTEGER CHECK (sleep_performance >= 0 AND sleep_performance <= 100),
+  hrv_now_ms DECIMAL(10,2),
+  hrv_baseline_ms DECIMAL(10,2),
+  rhr_now_bpm INTEGER,
+  rhr_baseline_bpm INTEGER,
+  yesterday_strain DECIMAL(5,2),
+  
+  -- Metadata
+  raw_data JSONB, -- Store full WHOOP recovery payload
+  timezone_offset VARCHAR(20),
+  webhook_received_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Constraints
+  UNIQUE(user_id, date), -- One recovery entry per user per day
+  
+  -- Indexes
+  INDEX(user_id, date), -- For date-range queries
+  INDEX(user_id, webhook_received_at) -- For latest data queries
+);
+```
+
+#### 1.2 Create Wellness Data Table
 ```sql
 -- Add to drizzle schema
 CREATE TABLE swole-tracker_wellness_data (

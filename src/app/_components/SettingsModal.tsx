@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
+import { api } from "~/trpc/react";
+import { trackWellnessSettingsChange } from '~/lib/analytics/health-advice';
 
 interface SettingsModalProps {
   open: boolean;
@@ -14,6 +16,30 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [notifications, setNotifications] = useState(true);
   const [workoutReminders, setWorkoutReminders] = useState(false);
   const [dataExport, setDataExport] = useState(false);
+  const [manualWellnessEnabled, setManualWellnessEnabled] = useState(false);
+  const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
+
+  // Load user preferences and user data for analytics
+  const { data: preferences, refetch: refetchPreferences } = api.preferences.get.useQuery();
+  const { data: userData } = api.preferences.get.useQuery(); // This would need user ID for analytics
+  
+  const updatePreferences = api.preferences.update.useMutation({
+    onSuccess: () => {
+      refetchPreferences();
+      setIsUpdatingPreferences(false);
+    },
+    onError: (error) => {
+      console.error('Failed to update preferences:', error);
+      setIsUpdatingPreferences(false);
+    },
+  });
+
+  // Sync local state with preferences
+  useEffect(() => {
+    if (preferences) {
+      setManualWellnessEnabled(preferences.enable_manual_wellness ?? false);
+    }
+  }, [preferences]);
 
   if (!open) return null;
 
@@ -24,6 +50,33 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       setDataExport(false);
       alert("Export feature coming soon!");
     }, 2000);
+  };
+
+  const handleManualWellnessToggle = async () => {
+    if (isUpdatingPreferences) return;
+    
+    const previousValue = manualWellnessEnabled;
+    const newValue = !manualWellnessEnabled;
+    setManualWellnessEnabled(newValue);
+    setIsUpdatingPreferences(true);
+    
+    try {
+      await updatePreferences.mutateAsync({
+        enable_manual_wellness: newValue,
+      });
+      
+      // Track analytics for wellness settings change
+      trackWellnessSettingsChange({
+        userId: 'current_user', // In real implementation, get from auth context
+        enabled: newValue,
+        previouslyEnabled: previousValue,
+        source: 'settings_modal'
+      });
+      
+    } catch (error) {
+      // Revert on error
+      setManualWellnessEnabled(previousValue);
+    }
   };
 
   return (
@@ -119,6 +172,57 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <span className="sr-only">Toggle workout reminders</span>
                 </button>
               </div>
+            </section>
+
+            {/* Manual Wellness */}
+            <section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium" style={{ color: 'var(--color-text)' }}>Manual Wellness Input</div>
+                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    Enable quick wellness checks for personalized workout recommendations
+                  </div>
+                  {manualWellnessEnabled && (
+                    <div className="text-xs mt-1" style={{ color: 'var(--color-success)' }}>
+                      ✓ Enhanced workout intelligence with 2-input wellness system
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-pressed={manualWellnessEnabled ? "true" : "false"}
+                  onClick={handleManualWellnessToggle}
+                  disabled={isUpdatingPreferences}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50"
+                  style={{
+                    backgroundColor: manualWellnessEnabled 
+                      ? "var(--color-primary)" 
+                      : "var(--color-text-muted)"
+                  }}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                      manualWellnessEnabled ? "translate-x-7" : "translate-x-1"
+                    }`}
+                  />
+                  <span className="sr-only">Toggle manual wellness input</span>
+                </button>
+              </div>
+              {manualWellnessEnabled && (
+                <div className="mt-3 p-3 rounded-lg text-sm" style={{ 
+                  backgroundColor: 'color-mix(in oklab, var(--color-primary) 5%, var(--color-bg-surface))',
+                  borderColor: 'var(--color-primary)'
+                }}>
+                  <div className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+                    🎯 Enhanced Workout Intelligence
+                  </div>
+                  <div style={{ color: 'var(--color-text-muted)' }}>
+                    • 30-second wellness check before workouts<br/>
+                    • Personalized recommendations based on energy & sleep<br/>
+                    • Works alongside WHOOP integration for best results
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Data Export */}

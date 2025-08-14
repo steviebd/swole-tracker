@@ -13,6 +13,13 @@ interface HealthAdviceUsageMetrics {
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   flags?: string[]; // Readiness flags
   warnings?: string[]; // Any warnings shown to user
+  // Enhanced wellness tracking
+  hasManualWellness?: boolean; // Whether manual wellness was used
+  manualWellnessData?: {
+    energyLevel: number; // 1-10
+    sleepQuality: number; // 1-10
+    hasNotes: boolean;
+  };
 }
 
 interface HealthAdviceErrorMetrics {
@@ -35,7 +42,9 @@ export function trackHealthAdviceUsage({
   hasWhoopData,
   experienceLevel,
   flags = [],
-  warnings = []
+  warnings = [],
+  hasManualWellness = false,
+  manualWellnessData
 }: HealthAdviceUsageMetrics) {
   const acceptanceRate = totalSuggestions > 0 ? userAcceptedSuggestions / totalSuggestions : 0;
   
@@ -54,7 +63,13 @@ export function trackHealthAdviceUsage({
       experience_level: experienceLevel,
       readiness_flags: flags,
       warnings_count: warnings.length,
-      has_warnings: warnings.length > 0
+      has_warnings: warnings.length > 0,
+      // Enhanced wellness tracking
+      has_manual_wellness: hasManualWellness,
+      wellness_input_type: hasManualWellness ? 'manual' : hasWhoopData ? 'whoop' : 'none',
+      manual_energy_level: manualWellnessData?.energyLevel,
+      manual_sleep_quality: manualWellnessData?.sleepQuality,
+      manual_wellness_has_notes: manualWellnessData?.hasNotes || false,
     });
   }
 
@@ -229,17 +244,142 @@ export function trackHealthAdvicePerformance({
   }
 }
 
+// Manual wellness tracking
+export function trackManualWellnessSubmission({
+  sessionId,
+  energyLevel,
+  sleepQuality,
+  hasNotes,
+  notesLength,
+  deviceTimezone,
+  submissionTime
+}: {
+  sessionId: string;
+  energyLevel: number;
+  sleepQuality: number;
+  hasNotes: boolean;
+  notesLength?: number;
+  deviceTimezone: string;
+  submissionTime?: number; // Time taken to submit in ms
+}) {
+  if (typeof window !== 'undefined') {
+    posthog.capture('manual_wellness_submitted', {
+      session_id: sessionId,
+      energy_level: energyLevel,
+      sleep_quality: sleepQuality,
+      wellness_average: (energyLevel + sleepQuality) / 2,
+      has_notes: hasNotes,
+      notes_length: notesLength || 0,
+      device_timezone: deviceTimezone,
+      submission_time_ms: submissionTime,
+      energy_category: energyLevel >= 8 ? 'high' : energyLevel >= 6 ? 'good' : energyLevel >= 4 ? 'moderate' : 'low',
+      sleep_category: sleepQuality >= 8 ? 'excellent' : sleepQuality >= 6 ? 'good' : sleepQuality >= 4 ? 'fair' : 'poor',
+      overall_wellness: energyLevel >= 7 && sleepQuality >= 7 ? 'excellent' : 
+                       energyLevel >= 5 && sleepQuality >= 5 ? 'good' : 
+                       energyLevel >= 3 && sleepQuality >= 3 ? 'moderate' : 'poor'
+    });
+  }
+
+  analytics.featureUsed('manual_wellness_submission', {
+    sessionId,
+    energyLevel,
+    sleepQuality,
+    hasNotes,
+    deviceTimezone,
+    submissionTime
+  });
+}
+
+export function trackWellnessModalInteraction({
+  sessionId,
+  action,
+  presetUsed,
+  timeSpent,
+  initialValues,
+  finalValues
+}: {
+  sessionId: string;
+  action: 'opened' | 'closed' | 'preset_selected' | 'custom_input' | 'submitted' | 'cancelled';
+  presetUsed?: string; // 'great_day' | 'average' | 'tough_day'
+  timeSpent?: number; // Time in modal in ms
+  initialValues?: { energy: number; sleep: number };
+  finalValues?: { energy: number; sleep: number };
+}) {
+  if (typeof window !== 'undefined') {
+    posthog.capture('wellness_modal_interaction', {
+      session_id: sessionId,
+      action,
+      preset_used: presetUsed,
+      time_spent_ms: timeSpent,
+      initial_energy: initialValues?.energy,
+      initial_sleep: initialValues?.sleep,
+      final_energy: finalValues?.energy,
+      final_sleep: finalValues?.sleep,
+      values_changed: initialValues && finalValues ? 
+        (initialValues.energy !== finalValues.energy || initialValues.sleep !== finalValues.sleep) : false,
+      used_presets: !!presetUsed
+    });
+  }
+}
+
+export function trackWellnessSettingsChange({
+  userId,
+  enabled,
+  previouslyEnabled,
+  source
+}: {
+  userId: string;
+  enabled: boolean;
+  previouslyEnabled: boolean;
+  source: 'settings_modal' | 'onboarding' | 'api';
+}) {
+  if (typeof window !== 'undefined') {
+    posthog.capture('manual_wellness_settings_changed', {
+      user_id: userId,
+      manual_wellness_enabled: enabled,
+      previously_enabled: previouslyEnabled,
+      action: enabled ? 'enabled' : 'disabled',
+      source,
+      is_first_time_enable: !previouslyEnabled && enabled
+    });
+  }
+
+  analytics.featureUsed('manual_wellness_settings', {
+    userId,
+    enabled,
+    previouslyEnabled,
+    source
+  });
+}
+
 // Weekly/monthly aggregation helpers for analytics dashboards
 export function getHealthAdviceMetrics() {
   // This would be used in analytics dashboards to show:
-  // - Average readiness scores
-  // - Suggestion acceptance rates by experience level
+  // - Average readiness scores by wellness input type
+  // - Suggestion acceptance rates by experience level and wellness type
   // - Most common warnings/flags
   // - Performance metrics by model
   // - Safety cap trigger frequency
+  // - Manual wellness adoption rates
+  // - Wellness trend analysis (energy vs sleep patterns)
+  // - User engagement with wellness features
   
   return {
     // Implementation would depend on your analytics backend
     // Could pull from PostHog, database, or other sources
+  };
+}
+
+// Wellness analytics aggregation for progress dashboard
+export function getWellnessAnalytics() {
+  // This would provide data for wellness dashboard:
+  // - Average energy/sleep trends over time
+  // - Correlation between wellness and workout performance
+  // - Most common wellness notes/patterns
+  // - Wellness input frequency and consistency
+  
+  return {
+    // Implementation would query wellness data from database
+    // and provide aggregated insights
   };
 }

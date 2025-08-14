@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import path from "path";
 
-describe("supabase.ts enhanced coverage", () => {
+describe("env-utils.ts enhanced coverage", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -18,12 +18,12 @@ describe("supabase.ts enhanced coverage", () => {
   describe("module structure and imports", () => {
     it("should be importable without errors", async () => {
       await expect(async () => {
-        await import(path.resolve(process.cwd(), "src/lib/supabase.ts"));
+        await import(path.resolve(process.cwd(), "src/lib/env-utils.ts"));
       }).not.toThrow();
     });
 
     it("should be importable multiple times without side effects", async () => {
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const module1 = await import(modulePath);
       const module2 = await import(modulePath);
 
@@ -34,7 +34,7 @@ describe("supabase.ts enhanced coverage", () => {
     });
 
     it("should handle ES module import syntax", async () => {
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const module = await import(modulePath);
 
       expect(typeof module).toBe("object");
@@ -43,7 +43,7 @@ describe("supabase.ts enhanced coverage", () => {
 
     it("should export requireEnv function", async () => {
       const module = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(typeof module.requireEnv).toBe("function");
@@ -51,7 +51,7 @@ describe("supabase.ts enhanced coverage", () => {
 
     it("should not export createClient directly", async () => {
       const module = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(module.createClient).toBeUndefined();
@@ -59,7 +59,7 @@ describe("supabase.ts enhanced coverage", () => {
 
     it("should not export SupabaseClient type directly", async () => {
       const module = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(module.SupabaseClient).toBeUndefined();
@@ -67,7 +67,7 @@ describe("supabase.ts enhanced coverage", () => {
 
     it("should have correct exports structure", async () => {
       const module = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       // Should export requireEnv but not client implementations
@@ -83,7 +83,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.TEST_VAR = "test_value";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("TEST_VAR")).toBe("test_value");
@@ -93,7 +93,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.EMPTY_VAR = "";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       // Empty string should be treated as falsy and throw
@@ -104,7 +104,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.ZERO_VAR = "0";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("ZERO_VAR")).toBe("0");
@@ -114,7 +114,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.FALSE_VAR = "false";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("FALSE_VAR")).toBe("false");
@@ -124,7 +124,7 @@ describe("supabase.ts enhanced coverage", () => {
       delete process.env.UNDEFINED_VAR;
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(() => requireEnv("UNDEFINED_VAR")).toThrow(
@@ -136,7 +136,7 @@ describe("supabase.ts enhanced coverage", () => {
       delete process.env.CUSTOM_VAR_NAME;
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(() => requireEnv("CUSTOM_VAR_NAME")).toThrow(
@@ -148,7 +148,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env["VAR_WITH_SPECIAL-CHARS.123"] = "special_value";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("VAR_WITH_SPECIAL-CHARS.123")).toBe("special_value");
@@ -158,7 +158,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.UNICODE_VAR = "🚀 test value with émojis and àccénts";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("UNICODE_VAR")).toBe(
@@ -171,7 +171,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.LONG_VAR = longValue;
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("LONG_VAR")).toBe(longValue);
@@ -181,7 +181,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.WHITESPACE_VAR = "   ";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       // Whitespace-only should be treated as truthy since it's not empty
@@ -192,7 +192,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.NEWLINE_VAR = "line1\nline2\r\nline3";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("NEWLINE_VAR")).toBe("line1\nline2\r\nline3");
@@ -202,7 +202,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.JSON_VAR = '{"key": "value", "number": 123}';
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(requireEnv("JSON_VAR")).toBe('{"key": "value", "number": 123}');
@@ -212,7 +212,7 @@ describe("supabase.ts enhanced coverage", () => {
       delete process.env.ERROR_TEST_VAR;
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       try {
@@ -231,7 +231,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.BOOLEAN_VAR = "true";
 
       const { requireEnv } = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       expect(typeof requireEnv("STRING_VAR")).toBe("string");
@@ -246,7 +246,7 @@ describe("supabase.ts enhanced coverage", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
 
       expect(moduleContent).toContain("supabase-browser");
@@ -259,7 +259,7 @@ describe("supabase.ts enhanced coverage", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
 
       expect(moduleContent).toContain(
@@ -274,7 +274,7 @@ describe("supabase.ts enhanced coverage", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
 
       expect(moduleContent).toContain(
@@ -286,7 +286,7 @@ describe("supabase.ts enhanced coverage", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
 
       expect(moduleContent).toContain(
@@ -302,7 +302,7 @@ describe("supabase.ts enhanced coverage", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
 
       // Check that the requireEnv function has proper validation
@@ -315,7 +315,7 @@ describe("supabase.ts enhanced coverage", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const modulePath = path.resolve(process.cwd(), "src/lib/supabase.ts");
+      const modulePath = path.resolve(process.cwd(), "src/lib/env-utils.ts");
       const moduleContent = fs.readFileSync(modulePath, "utf-8");
 
       // The function should check for !v which catches undefined, null, and empty string
@@ -326,7 +326,7 @@ describe("supabase.ts enhanced coverage", () => {
   describe("module architecture", () => {
     it("should serve as a shared utility module", async () => {
       const module = await import(
-        path.resolve(process.cwd(), "src/lib/supabase.ts")
+        path.resolve(process.cwd(), "src/lib/env-utils.ts")
       );
 
       // Should be a minimal module that doesn't expose client implementations
@@ -336,7 +336,7 @@ describe("supabase.ts enhanced coverage", () => {
     it("should not instantiate any clients at module level", async () => {
       // Module should not create any side effects or client instances
       await expect(async () => {
-        await import(path.resolve(process.cwd(), "src/lib/supabase.ts"));
+        await import(path.resolve(process.cwd(), "src/lib/env-utils.ts"));
       }).not.toThrow();
     });
   });
@@ -347,7 +347,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.NEXT_PUBLIC_SUPABASE_KEY = "test_key";
 
       await expect(async () => {
-        await import(path.resolve(process.cwd(), "src/lib/supabase.ts"));
+        await import(path.resolve(process.cwd(), "src/lib/env-utils.ts"));
         await import(
           path.resolve(process.cwd(), "src/lib/supabase-browser.ts")
         );
@@ -359,7 +359,7 @@ describe("supabase.ts enhanced coverage", () => {
       process.env.SUPABASE_SERVICE_ROLE_KEY = "service_key";
 
       await expect(async () => {
-        await import(path.resolve(process.cwd(), "src/lib/supabase.ts"));
+        await import(path.resolve(process.cwd(), "src/lib/env-utils.ts"));
         // Note: supabase-server might have server-only imports, so we just test the base module
       }).not.toThrow();
     });
