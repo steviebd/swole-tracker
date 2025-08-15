@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function AuthCodeError() {
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
+      <div className="w-full max-w-md space-y-8 rounded-lg bg-card p-6 shadow-md">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-red-600">Authentication Error</h2>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
@@ -25,7 +25,7 @@ export default function AuthCodeError() {
         <div className="text-center space-y-3">
           <Link
             href="/auth/login"
-            className="block w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+            className="block w-full rounded-md bg-blue-600 px-4 py-2 text-background transition-colors hover:bg-blue-700"
           >
             Try Signing In Again
           </Link>

@@ -81,6 +81,23 @@ export default tseslint.config(
         "error",
         { drizzleObjectName: ["db", "ctx.db"] },
       ],
+      
+      // Theme token enforcement - prevent hardcoded colors
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/^(bg|text)-(black|white)$/]",
+          message: "Use theme tokens instead: bg-foreground/bg-background, text-foreground/text-background"
+        },
+        {
+          selector: "Literal[value=/^#(000|000000|fff|ffffff)$/]",
+          message: "Use theme tokens instead of raw black/white hex colors"
+        },
+        {
+          selector: "TemplateElement[value.raw=/(bg|text)-(black|white)/]",
+          message: "Use theme tokens instead: bg-foreground/bg-background, text-foreground/text-background"
+        }
+      ]
     },
   },
   {

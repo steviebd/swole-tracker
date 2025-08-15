@@ -586,7 +586,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div
-          className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-black p-4"
+          className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-foreground p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-workout-title"
@@ -655,7 +655,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {/* Complete Workout Modal */}
       {showCompleteModal && (
         <div
-          className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-black p-4"
+          className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-foreground p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="complete-workout-title"

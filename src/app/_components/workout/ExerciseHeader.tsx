@@ -48,7 +48,7 @@ export function ExerciseHeader({
       <div className="ml-3 flex shrink-0 items-center gap-2">
         <button
           type="button"
-          className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+          className="rounded border border-gray-200 bg-background px-2 py-1 text-xs text-foreground hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
           onClick={(e) => {
             e.stopPropagation();
             onToggleExpansion(exerciseIndex);

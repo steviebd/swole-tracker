@@ -192,7 +192,7 @@ export function ExerciseLinkPicker({
               Exact match found: “{isExactMatch.name}”
               <button
                 onClick={() => handleLink(isExactMatch.id)}
-                className="ml-2 rounded bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700"
+                className="ml-2 rounded bg-green-600 px-2 py-1 text-xs text-background hover:bg-green-700"
               >
                 Link to exact
               </button>
@@ -214,7 +214,7 @@ export function ExerciseLinkPicker({
                     <span className="text-sm text-gray-200">{it.name}</span>
                     <button
                       onClick={() => handleLink(it.id)}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                      className="rounded bg-blue-600 px-2 py-1 text-xs text-background hover:bg-blue-700 disabled:opacity-50"
                       disabled={linkToMaster.isPending}
                     >
                       {linkToMaster.isPending ? "Linking…" : "Link"}

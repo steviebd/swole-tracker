@@ -49,9 +49,9 @@ export function ExerciseManager() {
     return (
       <div className="space-y-4">
         {[...(Array(5) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg bg-gray-800 p-4">
-            <div className="mb-2 h-4 w-1/4 rounded bg-gray-700"></div>
-            <div className="h-3 w-1/6 rounded bg-gray-700"></div>
+          <div key={i} className="animate-pulse rounded-lg bg-card p-4">
+            <div className="mb-2 h-4 w-1/4 rounded bg-muted"></div>
+            <div className="h-3 w-1/6 rounded bg-muted"></div>
           </div>
         ))}
       </div>
@@ -93,7 +93,7 @@ export function ExerciseManager() {
           placeholder="Search exercises..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          className="w-full rounded-lg border border-border bg-background px-4 py-2 text-foreground focus:ring-2 focus:ring-purple-500 focus:outline-none"
         />
 
         <div className="flex justify-end">
@@ -231,7 +231,7 @@ function ExerciseDetails({
 
   if (detailsLoading) {
     return (
-      <div className="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+      <div className="mt-4 space-y-3 border-t border-border pt-4">
         <div className="text-secondary animate-pulse text-sm">
           Loading linking details...
         </div>
@@ -241,7 +241,7 @@ function ExerciseDetails({
 
   if (!linkingDetails) {
     return (
-      <div className="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+      <div className="mt-4 space-y-3 border-t border-border pt-4">
         <div className="text-sm text-red-600 dark:text-red-400">
           Failed to load linking details
         </div>
@@ -255,7 +255,7 @@ function ExerciseDetails({
   );
 
   return (
-    <div className="mt-4 space-y-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+    <div className="mt-4 space-y-4 border-t border-border pt-4">
       {/* Basic Info */}
       <div className="text-sm">
         <span className="text-secondary">Normalized name:</span>
@@ -265,7 +265,7 @@ function ExerciseDetails({
       {/* Latest Performance */}
       {latestPerformance && (
         <div className="text-sm">
-          <span className="text-gray-400">Latest performance:</span>
+          <span className="text-muted-foreground">Latest performance:</span>
           <span className="ml-2 text-green-600 dark:text-green-400">
             {latestPerformance.weight} {latestPerformance.unit} ×{" "}
             {latestPerformance.reps} reps × {latestPerformance.sets} sets
@@ -293,7 +293,7 @@ function ExerciseDetails({
         {linkedExercises.length > 0 && (
           <button
             onClick={() => setShowConfirmUnlinkAll(true)}
-            className="rounded bg-red-600 px-3 py-1 text-sm text-white transition-colors hover:bg-red-700"
+            className="rounded bg-red-600 px-3 py-1 text-sm text-background transition-colors hover:bg-red-700"
           >
             Unlink All ({linkedExercises.length})
           </button>
@@ -306,7 +306,7 @@ function ExerciseDetails({
           <div className="mb-2 text-sm font-medium text-red-700 dark:text-red-400">
             Confirm Unlink All
           </div>
-          <div className="mb-3 text-sm text-gray-700 dark:text-gray-300">
+          <div className="mb-3 text-sm text-foreground">
             This will unlink all {linkedExercises.length} exercises from &quot;
             {masterExerciseName}&quot;. Historical data will be separated.
           </div>
@@ -314,13 +314,13 @@ function ExerciseDetails({
             <button
               onClick={() => bulkUnlinkAll.mutate({ masterExerciseId })}
               disabled={bulkUnlinkAll.isPending}
-              className="rounded bg-red-600 px-3 py-1 text-sm text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              className="rounded bg-red-600 px-3 py-1 text-sm text-background transition-colors hover:bg-red-700 disabled:opacity-50"
             >
               {bulkUnlinkAll.isPending ? "Unlinking..." : "Confirm Unlink All"}
             </button>
             <button
               onClick={() => setShowConfirmUnlinkAll(false)}
-              className="rounded bg-gray-200 px-3 py-1 text-sm text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
+              className="rounded bg-secondary px-3 py-1 text-sm text-secondary-foreground transition-colors hover:bg-secondary/80"
             >
               Cancel
             </button>
@@ -353,7 +353,7 @@ function ExerciseDetails({
                     })
                   }
                   disabled={unlinkExercise.isPending}
-                  className="rounded bg-red-600 px-2 py-1 text-xs text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                  className="rounded bg-red-600 px-2 py-1 text-xs text-background transition-colors hover:bg-red-700 disabled:opacity-50"
                 >
                   {unlinkExercise.isPending ? "..." : "Unlink"}
                 </button>
@@ -378,7 +378,7 @@ function ExerciseDetails({
                     ? "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20"
                     : potential.similarity >= 0.7
                       ? "border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20"
-                      : "border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/20"
+                      : "border-border bg-muted"
                 }`}
               >
                 <div className="text-sm">

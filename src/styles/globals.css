@@ -43,6 +43,40 @@ html.dark {
   color: var(--color-text-muted);
 }
 
+/* Foreground/Background utilities (replaces bg-black/white, text-black/white) */
+.bg-foreground {
+  background-color: var(--color-foreground);
+}
+.bg-background {
+  background-color: var(--color-background);
+}
+.text-foreground {
+  color: var(--color-foreground);
+}
+.text-background {
+  color: var(--color-background);
+}
+
+/* Gradient utilities */
+.bg-gradient-subtle {
+  background: var(--gradient-subtle);
+}
+.bg-gradient-surface {
+  background: var(--gradient-surface);
+}
+.bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+.bg-gradient-accent {
+  background: var(--gradient-accent);
+}
+.bg-gradient-shell-radial {
+  background: var(--gradient-shell-radial);
+}
+.bg-gradient-header-linear {
+  background: var(--gradient-header-linear);
+}
+
 /* Primary button - tokenized */
 .btn-primary {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
@@ -233,10 +267,10 @@ html.dark {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   background:
-    radial-gradient(1200px 600px at 20% -10%, #ffffff12 0%, transparent 60%),
-    radial-gradient(800px 400px at 110% 0%, #8A84FF22 0%, transparent 60%),
-    color-mix(in oklab, var(--color-bg-surface) 85%, black 15%);
-  border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
+    radial-gradient(1200px 600px at 20% -10%, var(--glass-highlight) 0%, transparent 60%),
+    radial-gradient(800px 400px at 110% 0%, var(--glass-accent) 0%, transparent 60%),
+    color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-foreground) 15%);
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
   box-shadow: var(--shadow-sm);
 }
 
@@ -244,31 +278,26 @@ html.dark {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   background:
-    linear-gradient(180deg, #ffffff05 0%, transparent 100%),
-    color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
-  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
+    linear-gradient(180deg, var(--glass-highlight) 0%, transparent 100%),
+    color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-foreground) 30%);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
 }
 
 .glass-footer {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   background:
-    linear-gradient(0deg, #ffffff08 0%, transparent 100%),
-    color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
-  border-top: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
+    linear-gradient(0deg, var(--glass-highlight) 0%, transparent 100%),
+    color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-foreground) 30%);
+  border-top: 1px solid color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
 }
 
 .glass-hairline {
-  border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
 }
 
 .bg-horizon {
-  /* deep-space gradient backdrop */
-  background:
-    radial-gradient(1200px 800px at -10% -20%, #FF7A7A10 0%, transparent 60%),
-    radial-gradient(1000px 700px at 110% -20%, #8A84FF18 0%, transparent 65%),
-    radial-gradient(1200px 900px at 50% 120%, #FFD16612 0%, transparent 60%),
-    linear-gradient(180deg, #070A17 0%, #0B1020 60%, #0F1530 100%);
+  background: var(--gradient-shell-radial);
 }
 
 /* Removed legacy Horizon_wow theme block. Tokens now provided via:

@@ -52,7 +52,7 @@ export function StrengthProgressSection() {
               onClick={() => setTimeRange(range)}
               className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
                 timeRange === range
-                  ? "bg-[var(--color-primary)] text-white shadow-sm"
+                  ? "bg-[var(--color-primary)] text-background shadow-sm"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >

@@ -15,10 +15,17 @@ export const createQueryClient = () => {
         refetchOnWindowFocus: true, // Refetch when user returns to tab
         refetchOnReconnect: true, // Refetch when internet reconnects
         refetchInterval: false, // Disable automatic polling by default
-        retry: (failureCount, _error) => {
-          // Retry logic for better offline handling
-          if (failureCount < 3) {
-            // Exponential backoff: 1s, 2s, 4s
+        retry: (failureCount, error) => {
+          // More conservative retry logic to prevent infinite loops
+          if (error && typeof error === "object" && "data" in error) {
+            const errorData = error.data as any;
+            // Don't retry on authentication or authorization errors
+            if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "FORBIDDEN") {
+              return false;
+            }
+          }
+          // Reduce retry count to prevent excessive requests
+          if (failureCount < 2) {
             return true;
           }
           return false;

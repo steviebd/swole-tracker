@@ -31,11 +31,11 @@ export function StrengthAnalysisModal({ isOpen, onClose, exerciseName, timeRange
   const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
     isDark
       ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
+      : "bg-background border-gray-200 dark:bg-gray-900 dark:border-gray-800"
   }`;
 
   const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
+    isDark ? "text-foreground" : "text-foreground dark:text-foreground"
   }`;
 
   const subtitleClass = `text-sm font-medium mb-2 ${
@@ -110,7 +110,7 @@ export function StrengthAnalysisModal({ isOpen, onClose, exerciseName, timeRange
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-foreground bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className={`max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-xl ${cardClass} p-6`}>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -336,7 +336,7 @@ export function StrengthAnalysisModal({ isOpen, onClose, exerciseName, timeRange
                         year: 'numeric'
                       })}
                     </div>
-                    <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <div className={`font-medium ${isDark ? "text-foreground" : "text-foreground"}`}>
                       {session.weight}kg
                     </div>
                     <div className={isDark ? "text-gray-300" : "text-gray-700"}>
@@ -345,10 +345,10 @@ export function StrengthAnalysisModal({ isOpen, onClose, exerciseName, timeRange
                     <div className={isDark ? "text-gray-300" : "text-gray-700"}>
                       {session.sets}
                     </div>
-                    <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <div className={`font-medium ${isDark ? "text-foreground" : "text-foreground"}`}>
                       {(session.weight * session.reps * session.sets).toLocaleString()}kg
                     </div>
-                    <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <div className={`font-medium ${isDark ? "text-foreground" : "text-foreground"}`}>
                       {session.oneRMEstimate}kg
                     </div>
                   </div>

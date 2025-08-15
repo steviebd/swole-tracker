@@ -85,13 +85,13 @@ export function HomePageHeader() {
                 className="btn-ghost p-1 sm:p-2 rounded-full"
                 aria-label="User menu"
               >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm sm:text-base">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center text-background font-semibold text-sm sm:text-base">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               </button>
               
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-background dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                   <div className="py-1">
                     <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                       {user.email}

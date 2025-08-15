@@ -7,7 +7,7 @@ import {
   templateExercises
 } from "~/server/db/schema";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
-import { db } from "~/server/db";
+import { type db } from "~/server/db";
 
 // Time range enum for filtering
 const timeRangeSchema = z.enum(["week", "month", "year"]);

@@ -36,7 +36,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
   }`;
 
   const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
+    isDark ? "text-background" : "text-gray-900 dark:text-background"
   }`;
 
   const subtitleClass = `text-sm font-medium mb-2 ${
@@ -258,13 +258,13 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                       {exerciseStats.volumeDistribution.slice(0, 10).map((exercise, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center space-x-3 flex-1">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-background ${
                               index < 3 ? "bg-gradient-to-r from-yellow-400 to-orange-500" : "bg-gray-500"
                             }`}>
                               {index + 1}
                             </div>
                             <div>
-                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                              <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                                 {exercise.exerciseName}
                               </p>
                               <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -273,7 +273,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className={`text-sm font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                            <p className={`text-sm font-bold ${isDark ? "text-background" : "text-foreground"}`}>
                               {exercise.totalVolume.toLocaleString()}kg
                             </p>
                             <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
@@ -292,7 +292,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                     <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
                       <div className="space-y-4">
                         <div>
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                          <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                             Most Volume: {exerciseStats.topExercise.exerciseName}
                           </p>
                           <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -301,7 +301,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                         </div>
                         
                         <div>
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                          <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                             Exercise Variety: {exerciseStats.totalExercises} different exercises
                           </p>
                           <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -344,7 +344,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                          <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                             Strength (1-5 reps)
                           </p>
                           <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -360,7 +360,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
 
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                          <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                             Hypertrophy (6-12 reps)
                           </p>
                           <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -376,7 +376,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
 
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                          <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                             Endurance (13+ reps)
                           </p>
                           <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -398,7 +398,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                     </h5>
                     <div className="space-y-3">
                       <div>
-                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                           Total Sets: {setRepStats.totalSets.toLocaleString()}
                         </p>
                         <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -407,7 +407,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                       </div>
 
                       <div>
-                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                           Most Common: {setRepStats.mostCommonRepRange.reps} reps
                         </p>
                         <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -416,7 +416,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                       </div>
 
                       <div className="pt-2">
-                        <p className={`text-sm font-medium mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <p className={`text-sm font-medium mb-2 ${isDark ? "text-background" : "text-foreground"}`}>
                           Training Focus
                         </p>
                         <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>

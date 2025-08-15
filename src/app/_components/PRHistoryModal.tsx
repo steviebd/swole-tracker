@@ -63,11 +63,11 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
   const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
     isDark
       ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
+      : "bg-background border-gray-200 dark:bg-gray-900 dark:border-gray-800"
   }`;
 
   const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
+    isDark ? "text-background" : "text-gray-900 dark:text-background"
   }`;
 
   const subtitleClass = `text-sm font-medium mb-2 ${
@@ -156,7 +156,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
   const stats = calculateStats();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-foreground bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className={`max-w-6xl w-full max-h-[90vh] overflow-y-auto rounded-xl ${cardClass} p-6`}>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -190,7 +190,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
               className={`ml-2 px-3 py-1 text-sm rounded-md border transition-all ${
                 isDark
                   ? "bg-gray-800 border-gray-600 text-white"
-                  : "bg-white border-gray-300 text-gray-900"
+                  : "bg-background border-gray-300 text-gray-900"
               }`}
             >
               <option value="">All Exercises</option>
@@ -208,7 +208,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                 onClick={() => setRecordType(type)}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                   recordType === type
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                    ? "bg-background dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
               >
@@ -225,7 +225,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                 onClick={() => setTimeRange(range)}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                   timeRange === range
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                    ? "bg-background dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
               >
@@ -331,7 +331,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                 {stats.improvements.slice(0, 3).map((improvement, index) => (
                   <div key={improvement.exercise} className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <h5 className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <h5 className={`font-semibold ${isDark ? "text-background" : "text-foreground"}`}>
                         {improvement.exercise}
                       </h5>
                       <span className={`text-2xl ${
@@ -342,7 +342,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className={isDark ? "text-gray-400" : "text-gray-600"}>Total PRs:</span>
-                        <span className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <span className={`font-semibold ${isDark ? "text-background" : "text-foreground"}`}>
                           {improvement.totalPRs}
                         </span>
                       </div>
@@ -407,7 +407,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                       <div className={isDark ? "text-gray-300" : "text-gray-700"}>
                         {formatDate(record.workoutDate)}
                       </div>
-                      <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <div className={`font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                         {record.exerciseName}
                       </div>
                       <div>
@@ -415,16 +415,16 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
                           {record.recordType === "weight" ? "Weight" : "Volume"}
                         </span>
                       </div>
-                      <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <div className={`font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                         {record.weight}kg
                       </div>
                       <div className={isDark ? "text-gray-300" : "text-gray-700"}>
                         {record.reps}
                       </div>
-                      <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <div className={`font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                         {(record.weight * record.reps).toLocaleString()}kg
                       </div>
-                      <div className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <div className={`font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                         {record.oneRMEstimate || '-'}
                       </div>
                     </div>

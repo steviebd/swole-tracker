@@ -86,7 +86,7 @@ export function ConsistencySection() {
               onClick={() => setTimeRange(range)}
               className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
                 timeRange === range
-                  ? "bg-[var(--color-primary)] text-white shadow-sm"
+                  ? "bg-[var(--color-primary)] text-background shadow-sm"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
@@ -192,7 +192,7 @@ export function ConsistencySection() {
                           isToday(date)
                             ? "ring-2 ring-[var(--color-primary)] bg-[var(--color-primary)] bg-opacity-20 text-[var(--color-primary)]"
                             : isWorkoutDay(date)
-                            ? "bg-[var(--color-success)] text-white font-semibold"
+                            ? "bg-[var(--color-success)] text-background font-semibold"
                             : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)] hover:bg-opacity-80"
                         }`}>
                           {date.getDate()}

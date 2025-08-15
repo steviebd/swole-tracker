@@ -13,55 +13,71 @@ import { TRPCError } from "@trpc/server";
 
 export const whoopRouter = createTRPCRouter({
   getIntegrationStatus: protectedProcedure.query(async ({ ctx }) => {
-    const [integration] = await ctx.db
-      .select({
-        isActive: userIntegrations.isActive,
-        createdAt: userIntegrations.createdAt,
-        expiresAt: userIntegrations.expiresAt,
-        scope: userIntegrations.scope,
-      })
-      .from(userIntegrations)
-      .where(
-        and(
-          eq(userIntegrations.user_id, ctx.user.id),
-          eq(userIntegrations.provider, "whoop"),
-        ),
-      );
+    try {
+      const [integration] = await ctx.db
+        .select({
+          isActive: userIntegrations.isActive,
+          createdAt: userIntegrations.createdAt,
+          expiresAt: userIntegrations.expiresAt,
+          scope: userIntegrations.scope,
+        })
+        .from(userIntegrations)
+        .where(
+          and(
+            eq(userIntegrations.user_id, ctx.user.id),
+            eq(userIntegrations.provider, "whoop"),
+          ),
+        );
 
-    // Check if token is expired
-    const now = new Date();
-    const isExpired = integration?.expiresAt 
-      ? new Date(integration.expiresAt).getTime() < now.getTime()
-      : false;
+      // Check if token is expired
+      const now = new Date();
+      const isExpired = integration?.expiresAt 
+        ? new Date(integration.expiresAt).getTime() < now.getTime()
+        : false;
 
-    return {
-      isConnected: !!integration?.isActive && !isExpired,
-      connectedAt: integration?.createdAt || null,
-      expiresAt: integration?.expiresAt || null,
-      isExpired,
-      scope: integration?.scope || null,
-    };
+      return {
+        isConnected: !!integration?.isActive && !isExpired,
+        connectedAt: integration?.createdAt || null,
+        expiresAt: integration?.expiresAt || null,
+        isExpired,
+        scope: integration?.scope || null,
+      };
+    } catch (error) {
+      console.error("Failed to fetch WHOOP integration status:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to check WHOOP integration status. Please try again later.",
+      });
+    }
   }),
 
   getWorkouts: protectedProcedure.query(async ({ ctx }) => {
-    const workouts = await ctx.db
-      .select({
-        id: externalWorkoutsWhoop.id,
-        whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
-        start: externalWorkoutsWhoop.start,
-        end: externalWorkoutsWhoop.end,
-        sport_name: externalWorkoutsWhoop.sport_name,
-        score_state: externalWorkoutsWhoop.score_state,
-        score: externalWorkoutsWhoop.score,
-        during: externalWorkoutsWhoop.during,
-        zone_duration: externalWorkoutsWhoop.zone_duration,
-        createdAt: externalWorkoutsWhoop.createdAt,
-      })
-      .from(externalWorkoutsWhoop)
-      .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
-      .orderBy(desc(externalWorkoutsWhoop.start));
+    try {
+      const workouts = await ctx.db
+        .select({
+          id: externalWorkoutsWhoop.id,
+          whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
+          start: externalWorkoutsWhoop.start,
+          end: externalWorkoutsWhoop.end,
+          sport_name: externalWorkoutsWhoop.sport_name,
+          score_state: externalWorkoutsWhoop.score_state,
+          score: externalWorkoutsWhoop.score,
+          during: externalWorkoutsWhoop.during,
+          zone_duration: externalWorkoutsWhoop.zone_duration,
+          createdAt: externalWorkoutsWhoop.createdAt,
+        })
+        .from(externalWorkoutsWhoop)
+        .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
+        .orderBy(desc(externalWorkoutsWhoop.start));
 
-    return workouts;
+      return workouts;
+    } catch (error) {
+      console.error("Failed to fetch WHOOP workouts:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch WHOOP workouts. Please try again later.",
+      });
+    }
   }),
 
   disconnectIntegration: protectedProcedure.mutation(async ({ ctx }) => {

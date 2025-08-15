@@ -8,6 +8,10 @@
   --color-bg-surface: oklch(0.205 0 0);       /* Slightly lighter surface */
   --color-border: oklch(0.269 0 0);           /* Subtle borders */
   
+  /* Foreground/Background tokens for black/white replacement */
+  --color-foreground: oklch(0.985 0 0);       /* Light foreground (replaces white) */
+  --color-background: oklch(0.145 0 0);       /* Dark background (replaces black) */
+  
   /* Text hierarchy */
   --color-text: oklch(0.985 0 0);             /* Near white */
   --color-text-secondary: oklch(0.708 0 0);   /* Muted text */
@@ -48,6 +52,21 @@
   
   /* Focus shadow with primary color */
   --shadow-focus: 0 0 0 2px color-mix(in oklab, oklch(0.985 0 0) 30%, transparent);
+  
+  /* Gradient tokens for subtle backgrounds */
+  --gradient-subtle: linear-gradient(180deg, oklch(0.145 0 0) 0%, oklch(0.205 0 0) 100%);
+  --gradient-surface: linear-gradient(180deg, oklch(0.205 0 0) 0%, oklch(0.269 0 0) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.985 0 0) 0%, oklch(0.9 0 0) 100%);
+  --gradient-accent: linear-gradient(135deg, oklch(0.488 0.243 264.376) 0%, oklch(0.627 0.265 303.9) 100%);
+  
+  /* App shell gradients - subtle radial for backgrounds */
+  --gradient-shell-radial: radial-gradient(1200px 800px at 30% 20%, oklch(0.145 0 0) 0%, oklch(0.205 0 0) 60%, oklch(0.269 0 0) 100%);
+  --gradient-header-linear: linear-gradient(180deg, oklch(0.205 0 0) 0%, oklch(0.269 0 0) 100%);
+  
+  /* Glass effect colors for dark theme */
+  --glass-highlight: oklch(0.985 0 0 / 0.05);
+  --glass-accent: oklch(0.488 0.243 264.376 / 0.1);
+  --glass-border-mix: oklch(0.985 0 0 / 0.3);
   
   /* Button overrides for v1dark theme */
   --btn-primary-bg-color: oklch(0.985 0 0);

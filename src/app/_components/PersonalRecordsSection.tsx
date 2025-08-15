@@ -28,7 +28,7 @@ export function PersonalRecordsSection() {
   }`;
 
   const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
+    isDark ? "text-background" : "text-gray-900 dark:text-background"
   }`;
 
   const subtitleClass = `text-sm font-medium mb-2 ${
@@ -73,7 +73,7 @@ export function PersonalRecordsSection() {
                 onClick={() => setRecordType(type)}
                 className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
                   recordType === type
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                    ? "bg-card text-foreground shadow-sm"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
               >
@@ -90,7 +90,7 @@ export function PersonalRecordsSection() {
                 onClick={() => setTimeRange(range)}
                 className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
                   timeRange === range
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                    ? "bg-card text-foreground shadow-sm"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
               >

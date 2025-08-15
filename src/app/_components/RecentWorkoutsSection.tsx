@@ -23,8 +23,8 @@ function WorkoutCard({ id, templateName, date, exerciseCount, theme }: WorkoutCa
 
   const titleClass = `font-bold text-lg transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-white" 
-      : "text-gray-900 dark:text-white"
+      ? "text-background" 
+      : "text-gray-900 dark:text-background"
   }`;
 
   const metaClass = `flex items-center gap-4 text-sm mt-1 transition-colors duration-300 ${
@@ -42,7 +42,7 @@ function WorkoutCard({ id, templateName, date, exerciseCount, theme }: WorkoutCa
             backgroundColor: "var(--color-info)"
           }}
         >
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-6 h-6 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
@@ -106,8 +106,8 @@ export function RecentWorkoutsSection() {
 
   const titleClass = `text-xl font-bold transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-white" 
-      : "text-gray-900 dark:text-white"
+      ? "text-background" 
+      : "text-gray-900 dark:text-background"
   }`;
 
   const linkClass = `font-medium transition-colors duration-300 ${
