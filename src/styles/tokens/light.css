@@ -3,7 +3,8 @@
 
 /* Apply theme when data-theme="light" or as fallback default */
 :root,
-[data-theme="light"] {
+[data-theme="light"],
+[data-theme="system"] html:not(.dark) {
   /* Core colors - light theme palette using OKLCH values from v1-dark */
   --color-bg-app: oklch(1 0 0);                    /* Pure white background */
   --color-bg-surface: oklch(1 0 0);                /* White surface */
@@ -87,7 +88,8 @@
 
 /* Ensure light mode is active for light theme */
 :root,
-[data-theme="light"] {
+[data-theme="light"],
+[data-theme="system"] html:not(.dark) {
   color-scheme: light;
 }
 
@@ -137,11 +139,110 @@
 
 /* Link colors */
 :root .link-primary,
-[data-theme="light"] .link-primary {
+[data-theme="light"] .link-primary,
+[data-theme="system"] html:not(.dark) .link-primary {
   color: oklch(0.205 0 0);
 }
 
 :root .link-primary:hover,
-[data-theme="light"] .link-primary:hover {
+[data-theme="light"] .link-primary:hover,
+[data-theme="system"] html:not(.dark) .link-primary:hover {
   color: oklch(0.145 0 0);
+}
+
+/* ===================== */
+/* Semantic Utility Classes */
+/* ===================== */
+
+/* Loading/Skeleton states using theme tokens */
+:root .skeleton,
+[data-theme="light"] .skeleton,
+[data-theme="system"] html:not(.dark) .skeleton {
+  background-color: oklch(0.95 0 0);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Form inputs using theme tokens */
+:root .input-primary,
+[data-theme="light"] .input-primary,
+[data-theme="system"] html:not(.dark) .input-primary {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+
+:root .input-primary:focus,
+[data-theme="light"] .input-primary:focus,
+[data-theme="system"] html:not(.dark) .input-primary:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Error states */
+:root .error-bg,
+[data-theme="light"] .error-bg,
+[data-theme="system"] html:not(.dark) .error-bg {
+  background-color: oklch(0.97 0.05 27.325);
+}
+
+:root .error-text,
+[data-theme="light"] .error-text,
+[data-theme="system"] html:not(.dark) .error-text {
+  color: oklch(0.5 0.25 27.325);
+}
+
+/* Success states */
+:root .success-bg,
+[data-theme="light"] .success-bg,
+[data-theme="system"] html:not(.dark) .success-bg {
+  background-color: oklch(0.97 0.05 142.5);
+}
+
+:root .success-text,
+[data-theme="light"] .success-text,
+[data-theme="system"] html:not(.dark) .success-text {
+  color: oklch(0.5 0.25 142.5);
+}
+
+/* Interactive card hover states */
+:root .card-interactive:hover,
+[data-theme="light"] .card-interactive:hover,
+[data-theme="system"] html:not(.dark) .card-interactive:hover {
+  background-color: oklch(0.99 0 0);
+  border-color: oklch(0.9 0 0);
+  transform: translateY(-1px);
+}
+
+/* Button variants for light theme */
+:root .btn-outline,
+[data-theme="light"] .btn-outline,
+[data-theme="system"] html:not(.dark) .btn-outline {
+  background-color: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+:root .btn-outline:hover,
+[data-theme="light"] .btn-outline:hover,
+[data-theme="system"] html:not(.dark) .btn-outline:hover {
+  background-color: var(--color-primary);
+  color: var(--color-background);
+}
+
+/* Focus states for form elements */
+:root .focus-primary:focus,
+[data-theme="light"] .focus-primary:focus,
+[data-theme="system"] html:not(.dark) .focus-primary:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+/* Loading overlay */
+:root .loading-overlay,
+[data-theme="light"] .loading-overlay,
+[data-theme="system"] html:not(.dark) .loading-overlay {
+  background-color: color-mix(in oklab, var(--color-background) 80%, transparent);
+  backdrop-filter: blur(2px);
 }

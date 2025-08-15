@@ -13,11 +13,11 @@ export default function Home() {
     return (
       <div className="relative mx-auto max-w-4xl text-center flex items-center justify-center min-h-[60vh] px-3 sm:px-4">
         <div className="glass-surface card p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl w-full min-w-0">
-          <div className="animate-pulse">
-            <div className="h-12 bg-gray-200 rounded-lg mb-4 dark:bg-gray-700"></div>
-            <div className="h-4 bg-gray-200 rounded mb-2 dark:bg-gray-700"></div>
-            <div className="h-4 bg-gray-200 rounded mb-4 dark:bg-gray-700"></div>
-            <div className="h-10 bg-gray-200 rounded dark:bg-gray-700"></div>
+          <div className="space-y-4">
+            <div className="h-12 skeleton rounded-lg"></div>
+            <div className="h-4 skeleton"></div>
+            <div className="h-4 skeleton"></div>
+            <div className="h-10 skeleton"></div>
           </div>
         </div>
       </div>

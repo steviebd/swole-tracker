@@ -35,12 +35,112 @@ html.dark {
   box-shadow: var(--shadow-xs);
 }
 
+.card-interactive {
+  @apply card transition-all duration-200 cursor-pointer;
+}
+
+.card-interactive:hover {
+  box-shadow: var(--shadow-md);
+}
+
 /* Text utilities */
 .text-secondary {
   color: var(--color-text-secondary);
 }
 .text-muted {
   color: var(--color-text-muted);
+}
+
+/* ===================== */
+/* Semantic Utility Classes */
+/* ===================== */
+
+/* Loading/Skeleton components */
+.skeleton {
+  @apply rounded animate-pulse;
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+/* Form inputs with theme support */
+.input-primary {
+  @apply block w-full rounded-md border px-3 py-2 shadow-sm transition-colors;
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+/* Alert/notification backgrounds */
+.error-bg {
+  @apply rounded-md p-3;
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+.error-text {
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+.success-bg {
+  @apply rounded-md p-3;
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+.success-text {
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+/* Button variants */
+.btn-outline {
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors border;
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+/* Focus utilities */
+.focus-primary {
+  @apply transition-all duration-200;
+  /* Theme-specific focus styles defined in light.css and dark.css */
+}
+
+/* Loading overlay */
+.loading-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  /* Theme-specific colors defined in light.css and dark.css */
+}
+
+/* Text color utilities using theme tokens */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-danger {
+  color: var(--color-danger);
+}
+
+.text-info {
+  color: var(--color-info);
+}
+
+/* Background utilities using theme tokens */
+.bg-surface {
+  background-color: var(--color-bg-surface);
+}
+
+.bg-app {
+  background-color: var(--color-bg-app);
+}
+
+/* Border utilities */
+.border-primary {
+  border-color: var(--color-primary);
+}
+
+.border-muted {
+  border-color: var(--color-border);
 }
 
 /* Foreground/Background utilities (replaces bg-black/white, text-black/white) */

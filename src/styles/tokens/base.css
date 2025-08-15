@@ -51,6 +51,7 @@ body {
 .btn-primary:hover { background-color: var(--btn-primary-bg-hover, var(--color-primary-hover)); }
 .btn-primary:active { background-color: var(--btn-primary-bg-active, var(--color-primary-active)); }
 .btn-primary:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-secondary {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
@@ -78,7 +79,7 @@ body {
 .btn-success {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-success);
-  color: var(--btn-destructive-fg, var(--color-text));
+  color: var(--btn-success-fg, white);
 }
 
 /* Links */
@@ -96,6 +97,16 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Pulse animation for skeleton loading states */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 
