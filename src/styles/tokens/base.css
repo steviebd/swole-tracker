@@ -110,40 +110,26 @@ body {
   }
 }
 
-/* Glass utilities (shared) */
+/* Glass utilities - base structure (colors defined in theme files) */
 .glass-surface {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  background:
-    radial-gradient(1200px 600px at 20% -10%, #ffffff12 0%, transparent 60%),
-    radial-gradient(800px 400px at 110% 0%, #8A84FF22 0%, transparent 60%),
-    color-mix(in oklab, var(--color-bg-surface) 85%, black 15%);
-  border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
   box-shadow: var(--shadow-sm);
 }
 .glass-header {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background:
-    linear-gradient(180deg, #ffffff05 0%, transparent 100%),
-    color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
-  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
 .glass-footer {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  background:
-    linear-gradient(0deg, #ffffff08 0%, transparent 100%),
-    color-mix(in oklab, var(--color-bg-surface) 70%, #000 30%);
-  border-top: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%);
 }
-.glass-hairline { border: 1px solid color-mix(in oklab, var(--color-border) 70%, #ffffff 30%); }
+.glass-hairline {
+  border-width: 1px;
+  border-style: solid;
+}
 
-/* Backdrop gradient helper */
+/* Backdrop gradient helper - colors defined in theme files */
 .bg-horizon {
-  background:
-    radial-gradient(1200px 800px at -10% -20%, #FF7A7A10 0%, transparent 60%),
-    radial-gradient(1000px 700px at 110% -20%, #8A84FF18 0%, transparent 65%),
-    radial-gradient(1200px 900px at 50% 120%, #FFD16612 0%, transparent 60%),
-    linear-gradient(180deg, #070A17 0%, #0B1020 60%, #0F1530 100%);
+  background: var(--gradient-shell-radial);
 }

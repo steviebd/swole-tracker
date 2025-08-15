@@ -92,49 +92,81 @@ html.dark {
 }
 
 /* Glass effects specific to dark */
-[data-theme="dark"] .glass-surface {
+[data-theme="dark"] .glass-surface,
+[data-theme="system"] html.dark .glass-surface,
+html.dark .glass-surface {
   background:
-    radial-gradient(1200px 600px at 20% -10%, oklch(0.985 0 0 / 0.05) 0%, transparent 60%),
-    radial-gradient(800px 400px at 110% 0%, oklch(0.488 0.243 264.376 / 0.1) 0%, transparent 60%),
-    color-mix(in oklab, oklch(0.205 0 0) 85%, black 15%);
-  border: 1px solid color-mix(in oklab, oklch(0.269 0 0) 70%, oklch(0.985 0 0) 30%);
+    radial-gradient(1200px 600px at 20% -10%, var(--glass-highlight) 0%, transparent 60%),
+    radial-gradient(800px 400px at 110% 0%, var(--glass-accent) 0%, transparent 60%),
+    color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-background) 15%);
+  border-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
 }
 
-[data-theme="dark"] .glass-header {
+[data-theme="dark"] .glass-header,
+[data-theme="system"] html.dark .glass-header,
+html.dark .glass-header {
   background:
-    linear-gradient(180deg, oklch(0.985 0 0 / 0.02) 0%, transparent 100%),
-    color-mix(in oklab, oklch(0.205 0 0) 70%, oklch(0.145 0 0) 30%);
-  border-bottom: 1px solid color-mix(in oklab, oklch(0.269 0 0) 70%, oklch(0.985 0 0) 30%);
+    linear-gradient(180deg, var(--glass-highlight) 0%, transparent 100%),
+    color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-background) 30%);
+  border-bottom-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+}
+
+[data-theme="dark"] .glass-footer,
+[data-theme="system"] html.dark .glass-footer,
+html.dark .glass-footer {
+  background:
+    linear-gradient(0deg, var(--glass-highlight) 0%, transparent 100%),
+    color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-background) 30%);
+  border-top-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+}
+
+[data-theme="dark"] .glass-hairline,
+[data-theme="system"] html.dark .glass-hairline,
+html.dark .glass-hairline {
+  border-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+}
+
+/* Dark theme horizon background */
+[data-theme="dark"] .bg-horizon,
+[data-theme="system"] html.dark .bg-horizon,
+html.dark .bg-horizon {
+  background: var(--gradient-shell-radial);
 }
 
 /* Card styling for dark */
-[data-theme="dark"] .card {
-  background-color: oklch(0.205 0 0);
-  color: oklch(0.985 0 0);
-  border-color: oklch(0.269 0 0);
-  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+[data-theme="dark"] .card,
+[data-theme="system"] html.dark .card,
+html.dark .card {
+  background-color: var(--color-card);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Text utilities for dark */
-[data-theme="dark"] .text-secondary {
-  color: oklch(0.708 0 0);
+[data-theme="dark"] .text-secondary,
+[data-theme="system"] html.dark .text-secondary,
+html.dark .text-secondary {
+  color: var(--color-text-secondary);
 }
 
-[data-theme="dark"] .text-muted {
-  color: oklch(0.556 0 0);
+[data-theme="dark"] .text-muted,
+[data-theme="system"] html.dark .text-muted,
+html.dark .text-muted {
+  color: var(--color-text-muted);
 }
 
 /* Link colors */
 [data-theme="dark"] .link-primary,
 [data-theme="system"] html.dark .link-primary,
 html.dark .link-primary {
-  color: oklch(0.985 0 0);
+  color: var(--color-primary);
 }
 
 [data-theme="dark"] .link-primary:hover,
 [data-theme="system"] html.dark .link-primary:hover,
 html.dark .link-primary:hover {
-  color: oklch(0.9 0 0);
+  color: var(--color-primary-hover);
 }
 
 /* ===================== */
