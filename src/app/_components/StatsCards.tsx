@@ -47,7 +47,7 @@ export function StatsCards() {
 
   const stats = calculateStats();
 
-  const cardClass = "transition-all duration-300 border rounded-xl hover:shadow-xl bg-card border-border shadow-lg hover:shadow-2xl";
+  const cardClass = "card-interactive border-border shadow-lg";
 
   const iconBgClass = (color: string) => `bg-${color}-500/20`;
 
@@ -64,10 +64,10 @@ export function StatsCards() {
           <div key={i} className={cardClass}>
             <div className="p-3 sm:p-4 md:p-6">
               <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl skeleton" />
                 <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
-                  <div className="h-3 sm:h-4 w-12 sm:w-14 md:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                  <div className="h-4 sm:h-5 md:h-6 w-14 sm:w-16 md:w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-3 sm:h-4 w-12 sm:w-14 md:w-16 skeleton" />
+                  <div className="h-4 sm:h-5 md:h-6 w-14 sm:w-16 md:w-20 skeleton" />
                 </div>
               </div>
             </div>

@@ -61,10 +61,10 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center overflow-x-hidden w-full px-4">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-card p-6 shadow-md">
+      <div className="w-full max-w-md space-y-8 card p-6">
         <div className="text-center">
           <h2 className="text-3xl font-bold">Sign Up</h2>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-2 text-muted">
             Create your Swole Tracker account
           </p>
         </div>
@@ -74,10 +74,10 @@ export default function RegisterPage() {
           
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
+              <span className="w-full border-t border-muted" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-card px-2 text-muted-foreground">
+              <span className="bg-card px-2 text-muted">
                 Or continue with email
               </span>
             </div>
@@ -86,19 +86,19 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSignUp} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+            <div className="error-bg error-text">
               {error}
             </div>
           )}
 
           {message && (
-            <div className="rounded-md bg-green-50 p-3 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+            <div className="success-bg success-text">
               {message}
             </div>
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -107,12 +107,12 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border border-border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 bg-background text-foreground"
+              className="mt-1 input-primary focus-primary"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground">
               Password
             </label>
             <input
@@ -121,12 +121,12 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border border-border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 bg-background text-foreground"
+              className="mt-1 input-primary focus-primary"
             />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
               Confirm Password
             </label>
             <input
@@ -135,25 +135,25 @@ export default function RegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="mt-1 block w-full rounded-md border border-border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 bg-background text-foreground"
+              className="mt-1 input-primary focus-primary"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-background transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="w-full btn-primary py-2"
           >
             {isLoading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
 
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted">
             Already have an account?{" "}
             <Link
               href="/auth/login"
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              className="link-primary"
             >
               Sign in
             </Link>

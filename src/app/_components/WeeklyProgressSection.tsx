@@ -8,14 +8,10 @@ import Link from "next/link";
 interface ProgressBarProps {
   value: number;
   className?: string;
-  theme: string;
 }
 
-function ProgressBar({ value, className = "", theme }: ProgressBarProps) {
-  const { resolvedTheme } = useTheme();
-  const bgClass = theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-    ? "bg-gray-800" 
-    : "bg-gray-200 dark:bg-gray-800";
+function ProgressBar({ value, className = "" }: Omit<ProgressBarProps, 'theme'>) {
+  const bgClass = "bg-surface border border-muted";
 
   return (
     <div className={`w-full rounded-full h-3 ${bgClass} ${className}`}>
@@ -78,17 +74,9 @@ export function WeeklyProgressSection() {
 
   const progress = calculateProgress();
 
-  const cardClass = `transition-all duration-300 border rounded-xl hover:shadow-xl ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "bg-gray-900 border-gray-800 shadow-lg hover:shadow-2xl" 
-      : "bg-white border-gray-200 shadow-sm hover:shadow-lg dark:bg-gray-900 dark:border-gray-800"
-  }`;
+  const cardClass = "card-interactive";
 
-  const titleClass = `text-xl font-bold transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
+  const titleClass = "text-xl font-bold text-foreground";
 
   const toggleBgClass = `flex gap-1 rounded-lg p-1 transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
@@ -158,11 +146,11 @@ export function WeeklyProgressSection() {
             {[...Array(3)].map((_, i) => (
               <div key={i} className="space-y-3">
                 <div className="flex justify-between">
-                  <div className="h-5 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                  <div className="h-5 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-5 w-20 skeleton" />
+                  <div className="h-5 w-12 skeleton" />
                 </div>
-                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-3 w-full skeleton" />
+                <div className="h-4 w-32 skeleton" />
               </div>
             ))}
           </div>
@@ -176,7 +164,7 @@ export function WeeklyProgressSection() {
                   {progress.workoutGoal.current}/{progress.workoutGoal.target}
                 </span>
               </div>
-              <ProgressBar value={progress.workoutGoal.percentage} theme={theme} />
+              <ProgressBar value={progress.workoutGoal.percentage} />
               <p className={subtextClass}>
                 {Math.max(0, progress.workoutGoal.target - progress.workoutGoal.current)} more to reach your goal
               </p>
@@ -188,7 +176,7 @@ export function WeeklyProgressSection() {
                 <span className={labelClass}>Volume Goal</span>
                 <span className={valueClass}>{progress.volumeGoal.current}/{progress.volumeGoal.target}</span>
               </div>
-              <ProgressBar value={progress.volumeGoal.percentage} theme={theme} />
+              <ProgressBar value={progress.volumeGoal.percentage} />
               <p className={subtextClass}>
                 {(parseFloat(progress.volumeGoal.target.replace(/[^\d.]/g, '')) - parseFloat(progress.volumeGoal.current.replace(/[^\d.]/g, ''))).toFixed(1)}k kg remaining
               </p>
@@ -200,7 +188,7 @@ export function WeeklyProgressSection() {
                 <span className={labelClass}>Consistency</span>
                 <span className={valueClass}>{progress.consistency.percentage}%</span>
               </div>
-              <ProgressBar value={progress.consistency.percentage} theme={theme} />
+              <ProgressBar value={progress.consistency.percentage} />
               <p className={subtextClass}>{progress.consistency.message}</p>
             </Link>
           </div>
