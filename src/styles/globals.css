@@ -27,16 +27,26 @@ html.dark {
 
 /* Cards and surfaces */
 .card {
-  @apply rounded-lg border;
+  border-radius: var(--radius-card);
+  border-width: 1px;
+  border-style: solid;
   background-color: var(--color-card);
   color: var(--color-text);
   border-color: var(--color-border);
-  border-radius: var(--radius-card);
   box-shadow: var(--shadow-xs);
 }
 
 .card-interactive {
-  @apply card transition-all duration-200 cursor-pointer;
+  border-radius: var(--radius-card);
+  border-width: 1px;
+  border-style: solid;
+  background-color: var(--color-card);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-xs);
+  transition-property: all;
+  transition-duration: 200ms;
+  cursor: pointer;
 }
 
 .card-interactive:hover {
