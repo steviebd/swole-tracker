@@ -105,7 +105,7 @@ export default function RootLayout({
 
                   {/* Mobile Bottom Tab Bar */}
                   <nav
-                    className="app-footer fixed inset-x-0 bottom-0 md:hidden"
+                    className="app-footer glass-footer fixed inset-x-0 bottom-0 md:hidden"
                     role="navigation"
                     aria-label="Primary"
                     style={{ color: "var(--color-text-secondary)" }}

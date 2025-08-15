@@ -132,7 +132,7 @@ export function SetInput({
               disabled={readOnly}
               className={`input w-full bg-transparent pr-12 ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none select-none text-gray-500 dark:text-gray-400">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none select-none text-muted-foreground">
               {preferredUnit}
             </span>
           </div>
@@ -274,7 +274,7 @@ export function SetInput({
               onMoveUp?.();
             }}
             disabled={!onMoveUp}
-            className="px-1 py-1 text-gray-500 transition-colors hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:text-gray-100"
+            className="px-1 py-1 text-secondary transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
             title="Move set up"
             aria-label="Move set up"
           >
@@ -294,7 +294,7 @@ export function SetInput({
               onMoveDown?.();
             }}
             disabled={!onMoveDown}
-            className="px-1 py-1 text-gray-500 transition-colors hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:text-gray-100"
+            className="px-1 py-1 text-secondary transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
             title="Move set down"
             aria-label="Move set down"
           >

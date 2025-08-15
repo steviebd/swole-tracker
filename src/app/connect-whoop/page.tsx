@@ -24,7 +24,7 @@ export default async function ConnectWhoopPage() {
             </Link>
           </div>
           <h1 className="text-3xl font-bold">Whoop Workouts</h1>
-          <p className="text-gray-400">View and sync your Whoop workout data</p>
+          <p className="text-muted-foreground">View and sync your Whoop workout data</p>
         </div>
 
         <WhoopWorkouts />

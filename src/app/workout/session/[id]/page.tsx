@@ -49,7 +49,7 @@ export default async function WorkoutSessionPage({
                 {workoutSession.exercises.length > 0 ? "View Workout: " : ""}
                 {workoutSession.template.name}
               </h1>
-              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 {new Date(workoutSession.workoutDate).toLocaleString()}
               </p>
             </div>

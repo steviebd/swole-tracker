@@ -73,10 +73,11 @@
   --glass-border-mix: oklch(0.145 0 0 / 0.3);
   
   /* Button overrides for light theme */
-  --btn-primary-bg-color: oklch(0.205 0 0);
-  --btn-primary-fg: oklch(0.985 0 0);              /* White text on dark button */
-  --btn-primary-bg-hover: oklch(0.145 0 0);
-  --btn-primary-bg-active: oklch(0.1 0 0);
+  --btn-primary-bg: var(--gradient-primary);
+--btn-primary-bg-color: oklch(0.205 0 0);
+--btn-primary-fg: oklch(0.985 0 0);              /* White text on dark button */
+--btn-primary-bg-hover: oklch(0.145 0 0);
+--btn-primary-bg-active: oklch(0.1 0 0);
   
   --btn-secondary-bg: transparent;
   --btn-secondary-fg: oklch(0.145 0 0);

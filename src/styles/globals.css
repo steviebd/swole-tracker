@@ -167,6 +167,18 @@ html.dark {
   color: var(--color-background);
 }
 
+/* Additional semantic utilities */
+.bg-card { background-color: var(--color-card); }
+.border-border { border-color: var(--color-border); }
+.text-muted-foreground { color: var(--color-text-muted); }
+.bg-muted { background-color: color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-foreground) 15%); }
+
+/* App background layers */
+.page-backdrop { position: fixed; inset: 0; z-index: -1; background: var(--gradient-shell-radial); }
+
+/* Header/footer gradient utility */
+.bg-app-header { background: var(--gradient-header-linear); }
+
 /* Gradient utilities */
 .bg-gradient-subtle {
   background: var(--gradient-subtle);

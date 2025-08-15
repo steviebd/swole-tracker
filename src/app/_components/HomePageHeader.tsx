@@ -91,9 +91,9 @@ export function HomePageHeader() {
               </button>
               
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-background dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-background rounded-md shadow-lg border border-border z-50">
                   <div className="py-1">
-                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                    <div className="px-4 py-2 text-sm text-foreground border-b border-border">
                       {user.email}
                     </div>
                     <button
@@ -101,7 +101,7 @@ export function HomePageHeader() {
                         signOut();
                         setUserMenuOpen(false);
                       }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted"
                     >
                       Sign out
                     </button>

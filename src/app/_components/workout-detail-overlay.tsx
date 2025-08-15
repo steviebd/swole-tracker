@@ -186,7 +186,7 @@ export function WorkoutDetailOverlay({
         }}
       >
         {/* Header */}
-        <div className="sticky top-0 rounded-t-xl border-b border-gray-200 bg-background p-6 dark:border-gray-700 dark:bg-gray-900">
+        <div className="sticky top-0 rounded-t-xl border-b border-border bg-background p-6">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="mb-1 text-2xl font-bold text-foreground dark:text-foreground">
@@ -198,7 +198,7 @@ export function WorkoutDetailOverlay({
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-500 transition-colors hover:text-foreground dark:text-gray-400 dark:hover:text-foreground"
+              className="p-2 text-secondary transition-colors hover:text-foreground"
             >
               ✕
             </button>
@@ -273,7 +273,7 @@ export function WorkoutDetailOverlay({
         </div>
 
         {/* Footer Help Text */}
-        <div className="rounded-b-xl border-t border-gray-200 bg-background p-4 dark:border-gray-700 dark:bg-gray-800">
+        <div className="rounded-b-xl border-t border-border bg-background p-4">
           <p className="text-muted text-center text-xs">
             Double-click, swipe any direction, or click outside to close
           </p>
