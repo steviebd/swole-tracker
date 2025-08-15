@@ -34,7 +34,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
   }`;
 
   const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
+    isDark ? "text-background" : "text-gray-900 dark:text-background"
   }`;
 
   const subtitleClass = `text-sm font-medium mb-2 ${
@@ -383,7 +383,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
                           Morning (6-11 AM)
                         </span>
                       </div>
-                      <span className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <span className={`text-lg font-bold ${isDark ? "text-background" : "text-foreground"}`}>
                         {detailedStats.workoutsByHour.morning}
                       </span>
                     </div>
@@ -394,7 +394,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
                           Afternoon (11-5 PM)
                         </span>
                       </div>
-                      <span className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <span className={`text-lg font-bold ${isDark ? "text-background" : "text-foreground"}`}>
                         {detailedStats.workoutsByHour.afternoon}
                       </span>
                     </div>
@@ -405,7 +405,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
                           Evening (5-10 PM)
                         </span>
                       </div>
-                      <span className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <span className={`text-lg font-bold ${isDark ? "text-background" : "text-foreground"}`}>
                         {detailedStats.workoutsByHour.evening}
                       </span>
                     </div>

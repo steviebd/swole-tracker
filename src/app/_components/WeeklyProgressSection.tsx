@@ -86,8 +86,8 @@ export function WeeklyProgressSection() {
 
   const titleClass = `text-xl font-bold transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-white" 
-      : "text-gray-900 dark:text-white"
+      ? "text-background" 
+      : "text-gray-900 dark:text-background"
   }`;
 
   const toggleBgClass = `flex gap-1 rounded-lg p-1 transition-colors duration-300 ${
@@ -110,14 +110,14 @@ export function WeeklyProgressSection() {
 
   const labelClass = `text-base font-medium transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-white" 
-      : "text-gray-900 dark:text-white"
+      ? "text-background" 
+      : "text-gray-900 dark:text-background"
   }`;
 
   const valueClass = `text-base font-bold transition-colors duration-300 ${
     theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-white" 
-      : "text-gray-900 dark:text-white"
+      ? "text-background" 
+      : "text-gray-900 dark:text-background"
   }`;
 
   const subtextClass = `text-sm transition-colors duration-300 ${

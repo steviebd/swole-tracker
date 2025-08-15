@@ -97,7 +97,7 @@ export function WorkoutTemplateList() {
             </Link>
             <Link
               href={`/workout/start?templateId=${template.id}`}
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
             >
               Start Workout
             </Link>

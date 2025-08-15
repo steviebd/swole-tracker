@@ -179,7 +179,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   }}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
                       predictiveEnabled ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -237,7 +237,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     onClick={() => setDefaultWeightUnit(value)}
                     className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
                       defaultWeightUnit === value
-                        ? "bg-purple-600 text-white border-purple-600"
+                        ? "bg-purple-600 text-background border-purple-600"
                         : "glass-surface glass-hairline text-gray-300"
                     }`}
                     style={

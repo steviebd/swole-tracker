@@ -1,10 +1,8 @@
 "use client";
 
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 
 export function StatsCards() {
-  const { theme, resolvedTheme } = useTheme();
   
   // Get real data from ProgressDashboard API
   const { isLoading: consistencyLoading } = api.progress.getConsistencyStats.useQuery({
@@ -49,27 +47,13 @@ export function StatsCards() {
 
   const stats = calculateStats();
 
-  const cardClass = `transition-all duration-300 border rounded-xl hover:shadow-xl ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "bg-gray-900 border-gray-800 shadow-lg hover:shadow-2xl" 
-      : "bg-white border-gray-200 shadow-sm hover:shadow-lg dark:bg-gray-900 dark:border-gray-800"
-  }`;
+  const cardClass = "transition-all duration-300 border rounded-xl hover:shadow-xl bg-card border-border shadow-lg hover:shadow-2xl";
 
-  const iconBgClass = (color: string) => 
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? `bg-${color}-500/20` 
-      : `bg-${color}-100 dark:bg-${color}-500/20`;
+  const iconBgClass = (color: string) => `bg-${color}-500/20`;
 
-  const iconClass = (color: string) =>
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? `text-${color}-400` 
-      : `text-${color}-600 dark:text-${color}-400`;
+  const iconClass = (color: string) => `text-${color}-400`;
 
-  const labelClass = `text-sm font-medium transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-gray-400" 
-      : "text-gray-600 dark:text-gray-400"
-  }`;
+  const labelClass = "text-sm font-medium transition-colors duration-300 text-muted-foreground";
 
   
 
@@ -106,11 +90,7 @@ export function StatsCards() {
             </div>
             <div className="min-w-0 flex-1">
               <p className={labelClass}>This Week</p>
-              <p className={`text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>{stats.workoutsThisWeek} Workouts</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.workoutsThisWeek} Workouts</p>
             </div>
           </div>
         </div>
@@ -127,11 +107,7 @@ export function StatsCards() {
             </div>
             <div className="min-w-0 flex-1">
               <p className={labelClass}>Avg Duration</p>
-              <p className={`text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>{stats.avgDuration}</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.avgDuration}</p>
             </div>
           </div>
         </div>
@@ -148,11 +124,7 @@ export function StatsCards() {
             </div>
             <div className="min-w-0 flex-1">
               <p className={labelClass}>Weekly Goal</p>
-              <p className={`text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate ${
-                theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                  ? "text-white" 
-                  : "text-gray-900 dark:text-white"
-              }`}>{stats.weeklyGoal.current}/{stats.weeklyGoal.target}</p>
+              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.weeklyGoal.current}/{stats.weeklyGoal.target}</p>
             </div>
           </div>
         </div>

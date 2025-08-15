@@ -182,7 +182,7 @@ function InlineSearchFallback({
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center p-4" style={{
-      backgroundColor: "rgba(0, 0, 0, 0.5)"
+      backgroundColor: "hsl(var(--foreground) / 0.5)"
     }}>
       <div className="w-full max-w-lg rounded-lg shadow-xl" style={{
         backgroundColor: "var(--color-bg-surface)",

@@ -93,7 +93,7 @@ export function WhoopIntegrationSection() {
         <div className="text-center py-12">
           <div className="mb-6">
             <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">W</span>
+              <span className="text-background text-2xl font-bold">W</span>
             </div>
             <h3 
               className="text-lg font-semibold mb-2"
@@ -169,7 +169,7 @@ export function WhoopIntegrationSection() {
           </div>
           
           <button 
-            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg"
+            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-background font-medium rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg"
             disabled
           >
             Connect WHOOP (Coming Soon)

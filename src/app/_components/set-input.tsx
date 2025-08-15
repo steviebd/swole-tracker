@@ -93,9 +93,9 @@ export function SetInput({
   };
 
   return (
-    <div className="glass-surface glass-hairline flex items-center gap-3 rounded-lg p-3 text-gray-900 select-none dark:text-white">
+    <div className="glass-surface glass-hairline flex items-center gap-3 rounded-lg p-3 text-foreground select-none">
       {/* Set Number */}
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-white">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-background">
         {setIndex + 1}
       </div>
 

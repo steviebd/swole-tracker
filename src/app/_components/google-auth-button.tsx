@@ -37,7 +37,7 @@ export function GoogleAuthButton({ mode, redirectTo = "/" }: GoogleAuthButtonPro
     <button
       onClick={handleGoogleAuth}
       disabled={isLoading}
-      className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+      className="flex w-full items-center justify-center gap-3 rounded-md border border-border bg-background px-4 py-2 text-foreground transition-colors hover:bg-muted disabled:opacity-50"
     >
       <svg className="h-5 w-5" viewBox="0 0 24 24">
         <path

@@ -67,6 +67,72 @@ export function configureQueryCache(queryClient: QueryClient) {
     gcTime: CACHE_TIMES.DYNAMIC.gcTime,
     refetchOnWindowFocus: true,
   });
+
+  // WHOOP Integration - more conservative retry and cache settings
+  queryClient.setQueryDefaults(["whoop", "getIntegrationStatus"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime,
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnWindowFocus: false, // Don't refetch on focus to prevent loops
+    refetchInterval: false, // Disable automatic polling
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error.data as any;
+        if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+          return false;
+        }
+      }
+      return failureCount < 2; // Max 2 retries for WHOOP queries
+    },
+    retryDelay: 5000, // 5 second delay between retries
+  });
+
+  queryClient.setQueryDefaults(["whoop", "getWorkouts"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime,
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnWindowFocus: false, // Don't refetch on focus to prevent loops
+    refetchInterval: false, // Disable automatic polling
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error && typeof error === "object" && "data" in error) {
+        const errorData = error.data as any;
+        if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+          return false;
+        }
+      }
+      return failureCount < 2; // Max 2 retries for WHOOP queries
+    },
+    retryDelay: 5000, // 5 second delay between retries
+  });
+
+  // Configure all other WHOOP queries with similar conservative settings
+  const whoopQueries = [
+    "getLatestRecoveryData",
+    "getRecovery", 
+    "getCycles",
+    "getSleep",
+    "getProfile",
+    "getBodyMeasurements"
+  ];
+  
+  whoopQueries.forEach(queryType => {
+    queryClient.setQueryDefaults(["whoop", queryType], {
+      staleTime: CACHE_TIMES.MEDIUM.staleTime,
+      gcTime: CACHE_TIMES.MEDIUM.gcTime,
+      refetchOnWindowFocus: false,
+      refetchInterval: false,
+      retry: (failureCount, error) => {
+        if (error && typeof error === "object" && "data" in error) {
+          const errorData = error.data as any;
+          if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+            return false;
+          }
+        }
+        return failureCount < 2;
+      },
+      retryDelay: 5000,
+    });
+  });
 }
 
 /**
@@ -91,6 +157,11 @@ export const invalidateQueries = {
   // Invalidate jokes
   jokes: (queryClient: QueryClient) => {
     void queryClient.invalidateQueries({ queryKey: ["jokes"] });
+  },
+
+  // Invalidate WHOOP queries
+  whoop: (queryClient: QueryClient) => {
+    void queryClient.invalidateQueries({ queryKey: ["whoop"] });
   },
 
   // Invalidate all queries (for major data changes)

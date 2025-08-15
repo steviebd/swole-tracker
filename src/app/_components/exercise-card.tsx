@@ -508,7 +508,7 @@ export function ExerciseCard({
                         className={`flex items-center gap-3 text-sm ${isHighestWeight ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}`}
                       >
                         <div
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "bg-green-600 text-white" : "bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-white"}`}
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "bg-green-600 text-background" : "bg-muted text-muted-foreground"}`}
                         >
                           {originalIndex + 1}
                         </div>

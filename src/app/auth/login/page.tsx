@@ -43,7 +43,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-6 sm:space-y-8 rounded-lg bg-white p-4 sm:p-6 shadow-md dark:bg-gray-800">
+    <div className="w-full max-w-md space-y-6 sm:space-y-8 rounded-lg bg-card p-4 sm:p-6 shadow-md">
       <div className="text-center">
         <h2 className="text-2xl sm:text-3xl font-bold">Sign In</h2>
         <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
@@ -59,7 +59,7 @@ function LoginForm() {
             <span className="w-full border-t border-gray-300 dark:border-gray-600" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+            <span className="bg-card px-2 text-muted-foreground">
               Or continue with email
             </span>
           </div>
@@ -104,7 +104,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-md bg-blue-600 px-4 py-2.5 sm:py-2 text-base sm:text-sm text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded-md bg-blue-600 px-4 py-2.5 sm:py-2 text-base sm:text-sm text-background transition-colors hover:bg-blue-700 disabled:opacity-50"
         >
           {isLoading ? "Signing In..." : "Sign In"}
         </button>
@@ -129,7 +129,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 sm:px-6 lg:px-8 overflow-x-hidden w-full">
       <Suspense fallback={
-        <div className="w-full max-w-md space-y-6 sm:space-y-8 rounded-lg bg-white p-4 sm:p-6 shadow-md dark:bg-gray-800">
+        <div className="w-full max-w-md space-y-6 sm:space-y-8 rounded-lg bg-card p-4 sm:p-6 shadow-md">
           <div className="animate-pulse space-y-4">
             <div className="h-6 sm:h-8 bg-gray-200 rounded dark:bg-gray-700"></div>
             <div className="h-4 bg-gray-200 rounded dark:bg-gray-700"></div>

@@ -21,6 +21,10 @@
   --motion-duration-slow: 240ms;
   --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-spring: cubic-bezier(0.2, 0.8, 0.2, 1.2);
+
+  /* Tailwind color mappings to CSS variables */
+  --color-black: var(--color-foreground);
+  --color-white: var(--color-background);
 }
 
 /* Global defaults - no theme-specific colors here anymore */

@@ -25,11 +25,11 @@ export function RecentAchievements() {
   const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
     isDark
       ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
+      : "bg-background border-gray-200 dark:bg-gray-900 dark:border-gray-800"
   }`;
 
   const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-white" : "text-gray-900 dark:text-white"
+    isDark ? "text-foreground" : "text-foreground dark:text-foreground"
   }`;
 
   const subtitleClass = `text-sm font-medium mb-2 ${
@@ -212,7 +212,7 @@ export function RecentAchievements() {
                   >
                     {/* Badge Icon with Gradient */}
                     <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br ${getBadgeColor(achievement.level as "gold" | "silver" | "bronze")} flex items-center justify-center shadow-lg`}>
-                      <span className="text-white text-xs font-bold">
+                      <span className="text-background text-xs font-bold">
                         {achievement.level === "gold" ? "🥇" : achievement.level === "silver" ? "🥈" : "🥉"}
                       </span>
                     </div>
@@ -220,7 +220,7 @@ export function RecentAchievements() {
                     <div className="flex items-center space-x-3">
                       <span className="text-2xl">{getBadgeEmoji(achievement.category)}</span>
                       <div>
-                        <h4 className={`font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <h4 className={`font-semibold ${isDark ? "text-foreground" : "text-foreground"}`}>
                           {achievement.title}
                         </h4>
                         <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -251,7 +251,7 @@ export function RecentAchievements() {
                         {record.recordType === "weight" ? "🏋️" : "📊"}
                       </span>
                       <div>
-                        <p className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                        <p className={`font-medium ${isDark ? "text-foreground" : "text-foreground"}`}>
                           {record.exerciseName}
                         </p>
                         <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
@@ -261,7 +261,7 @@ export function RecentAchievements() {
                     </div>
                     
                     <div className="text-right">
-                      <p className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <p className={`font-bold ${isDark ? "text-foreground" : "text-foreground"}`}>
                         {record.weight}kg × {record.reps}
                       </p>
                       {new Date(record.workoutDate) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && (

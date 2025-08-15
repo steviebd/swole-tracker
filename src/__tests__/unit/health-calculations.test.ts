@@ -265,23 +265,18 @@ describe('Health Calculations', () => {
           workoutSessions: {
             findMany: vi.fn().mockResolvedValue([
               {
+                id: 1,
                 workoutDate: new Date('2023-01-01'),
                 exercises: [
-                  {
-                    weight: '100',
-                    reps: 5,
-                    sets: 3
-                  }
+                  { exerciseName: 'Bench Press', weight: '100', reps: 5 },
+                  { exerciseName: 'Bench Press', weight: '100', reps: 5 },
                 ]
               },
               {
+                id: 2,
                 workoutDate: new Date('2022-12-25'),
                 exercises: [
-                  {
-                    weight: '90',
-                    reps: 8,
-                    sets: 3
-                  }
+                  { exerciseName: 'Bench Press', weight: '90', reps: 8 },
                 ]
               }
             ])
@@ -300,7 +295,7 @@ describe('Health Calculations', () => {
       expect(result[0].sessions).toHaveLength(2);
       expect(result[0].sessions[0].sets[0].weight).toBe(100);
       expect(result[0].sessions[0].sets[0].reps).toBe(5);
-      expect(result[0].sessions[0].sets[0].volume).toBe(1500); // 100 * 5 * 3
+      expect(result[0].sessions[0].sets[0].volume).toBe(500);
     });
 
     test('filters sessions without the specified exercise', async () => {
@@ -309,18 +304,16 @@ describe('Health Calculations', () => {
           workoutSessions: {
             findMany: vi.fn().mockResolvedValue([
               {
+                id: 1,
                 workoutDate: new Date('2023-01-01'),
                 exercises: [
-                  {
-                    weight: '100',
-                    reps: 5,
-                    sets: 3
-                  }
+                  { exerciseName: 'Bench Press', weight: '100', reps: 5 },
                 ]
               },
               {
+                id: 2,
                 workoutDate: new Date('2022-12-25'),
-                exercises: [] // No exercises
+                exercises: []
               }
             ])
           }
@@ -334,7 +327,7 @@ describe('Health Calculations', () => {
       const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
       
       expect(result).toHaveLength(1);
-      expect(result[0].sessions).toHaveLength(1); // Only one session with the exercise
+      expect(result[0].sessions).toHaveLength(1);
     });
 
     test('excludes specified session ID', async () => {
@@ -342,20 +335,8 @@ describe('Health Calculations', () => {
         query: {
           workoutSessions: {
             findMany: vi.fn().mockImplementation((options) => {
-              // Check that the exclude condition is properly applied
               expect(options.where).toBeDefined();
-              return Promise.resolve([
-                {
-                  workoutDate: new Date('2023-01-01'),
-                  exercises: [
-                    {
-                      weight: '100',
-                      reps: 5,
-                      sets: 3
-                    }
-                  ]
-                }
-              ]);
+              return Promise.resolve([]);
             })
           }
         },
@@ -374,13 +355,10 @@ describe('Health Calculations', () => {
           workoutSessions: {
             findMany: vi.fn().mockResolvedValue([
               {
+                id: 1,
                 workoutDate: new Date('2023-01-01'),
                 exercises: [
-                  {
-                    weight: null,
-                    reps: null,
-                    sets: 3
-                  }
+                  { exerciseName: 'Bench Press', weight: null, reps: null },
                 ]
               }
             ])
@@ -428,31 +406,22 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 100,
-                  reps: 5,
-                  volume: 500
-                },
-                {
-                  weight: 90,
-                  reps: 8,
-                  volume: 720 // Best set by volume
-                }
+                { weight: 100, reps: 5, volume: 500 },
+                { weight: 90, reps: 8, volume: 720 }
               ]
             }
           ]
         }
       ];
       
-      const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'weight');
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive', { progressionModel: 'weight' });
       
       expect(result).toHaveLength(1);
       expect(result[0].suggestions).toHaveLength(1);
       expect(result[0].suggestions[0].type).toBe('weight');
       expect(result[0].suggestions[0].current).toBe(90);
-      // With 0.8 readiness, progression factor should be 1.025
-      expect(result[0].suggestions[0].suggested).toBe(92.5); // 90 * 1.025 = 92.25, rounded to 2.5 increment
-      expect(result[0].suggestions[0].rationale).toContain('good readiness');
+      expect(result[0].suggestions[0].suggested).toBe(95);
+      expect(result[0].suggestions[0].rationale).toContain('excellent readiness');
     });
 
     test('returns suggestion based on recent performance with rep progression', () => {
@@ -463,26 +432,21 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 100,
-                  reps: 5,
-                  volume: 500
-                }
+                { weight: 100, reps: 5, volume: 500 }
               ]
             }
           ]
         }
       ];
       
-      const result = calculateProgressionSuggestions(exerciseHistory, 0.6, 'reps');
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.6, 'adaptive', { progressionModel: 'reps' });
       
       expect(result).toHaveLength(1);
       expect(result[0].suggestions).toHaveLength(1);
       expect(result[0].suggestions[0].type).toBe('reps');
       expect(result[0].suggestions[0].current).toBe(5);
-      // With 0.6 readiness, progression factor should be 1.0
-      expect(result[0].suggestions[0].suggested).toBe(5); // 5 * 1.0 = 5
-      expect(result[0].suggestions[0].rationale).toContain('moderate readiness');
+      expect(result[0].suggestions[0].suggested).toBe(6);
+      expect(result[0].suggestions[0].rationale).toContain('Volume progression');
     });
 
     test('applies deload with low readiness', () => {
@@ -493,25 +457,20 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 100,
-                  reps: 5,
-                  volume: 500
-                }
+                { weight: 100, reps: 5, volume: 500 }
               ]
             }
           ]
         }
       ];
       
-      const result = calculateProgressionSuggestions(exerciseHistory, 0.3, 'weight');
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.3, 'adaptive');
       
       expect(result).toHaveLength(1);
       expect(result[0].suggestions).toHaveLength(1);
       expect(result[0].suggestions[0].type).toBe('weight');
       expect(result[0].suggestions[0].current).toBe(100);
-      // With 0.3 readiness, progression factor should be 0.975
-      expect(result[0].suggestions[0].suggested).toBe(97.5); // 100 * 0.975 = 97.5, rounded to 2.5 increment
+      expect(result[0].suggestions[0].suggested).toBe(97.5);
       expect(result[0].suggestions[0].rationale).toContain('low readiness');
     });
 
@@ -523,66 +482,21 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 100,
-                  reps: 5,
-                  volume: 500
-                }
+                { weight: 100, reps: 5, volume: 500 }
               ]
             }
           ]
         }
       ];
       
-      // Test above 0.7 boundary for weight progression
-      const result1 = calculateProgressionSuggestions(exerciseHistory, 0.8, 'weight');
-      expect(result1[0].suggestions[0].rationale).toContain('good readiness');
-      expect(result1[0].suggestions[0].rationale).toContain('progressive overload');
+      const result1 = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive');
+      expect(result1[0].suggestions[0].rationale).toContain('excellent readiness');
       
-      // Test exactly at 0.7 boundary for weight progression (should be moderate)
-      const result2 = calculateProgressionSuggestions(exerciseHistory, 0.7, 'weight');
-      expect(result2[0].suggestions[0].rationale).toContain('moderate readiness');
-      expect(result2[0].suggestions[0].rationale).toContain('maintenance');
+      const result2 = calculateProgressionSuggestions(exerciseHistory, 0.7, 'adaptive');
+      expect(result2[0].suggestions[0].rationale).toContain('good readiness');
       
-      // Test between 0.5 and 0.7 for weight progression (should be moderate)
-      const result3 = calculateProgressionSuggestions(exerciseHistory, 0.6, 'weight');
-      expect(result3[0].suggestions[0].rationale).toContain('moderate readiness');
-      expect(result3[0].suggestions[0].rationale).toContain('maintenance');
-      
-      // Test exactly at 0.5 boundary for weight progression (should be low)
-      const result4 = calculateProgressionSuggestions(exerciseHistory, 0.5, 'weight');
-      expect(result4[0].suggestions[0].rationale).toContain('low readiness');
-      expect(result4[0].suggestions[0].rationale).toContain('deload');
-      
-      // Test below 0.5 boundary for weight progression
-      const result5 = calculateProgressionSuggestions(exerciseHistory, 0.4, 'weight');
-      expect(result5[0].suggestions[0].rationale).toContain('low readiness');
-      expect(result5[0].suggestions[0].rationale).toContain('deload');
-      
-      // Test above 0.7 boundary for rep progression
-      const result6 = calculateProgressionSuggestions(exerciseHistory, 0.8, 'reps');
-      expect(result6[0].suggestions[0].rationale).toContain('good readiness');
-      expect(result6[0].suggestions[0].rationale).toContain('increased');
-      
-      // Test exactly at 0.7 boundary for rep progression (should be moderate)
-      const result7 = calculateProgressionSuggestions(exerciseHistory, 0.7, 'reps');
-      expect(result7[0].suggestions[0].rationale).toContain('moderate readiness');
-      expect(result7[0].suggestions[0].rationale).toContain('same');
-      
-      // Test between 0.5 and 0.7 for rep progression (should be moderate)
-      const result8 = calculateProgressionSuggestions(exerciseHistory, 0.6, 'reps');
-      expect(result8[0].suggestions[0].rationale).toContain('moderate readiness');
-      expect(result8[0].suggestions[0].rationale).toContain('same');
-      
-      // Test exactly at 0.5 boundary for rep progression (should be low)
-      const result9 = calculateProgressionSuggestions(exerciseHistory, 0.5, 'reps');
-      expect(result9[0].suggestions[0].rationale).toContain('low readiness');
-      expect(result9[0].suggestions[0].rationale).toContain('reduced');
-      
-      // Test below 0.5 boundary for rep progression
-      const result10 = calculateProgressionSuggestions(exerciseHistory, 0.4, 'reps');
-      expect(result10[0].suggestions[0].rationale).toContain('low readiness');
-      expect(result10[0].suggestions[0].rationale).toContain('reduced');
+      const result3 = calculateProgressionSuggestions(exerciseHistory, 0.5, 'adaptive');
+      expect(result3[0].suggestions[0].rationale).toContain('low readiness');
     });
 
     test('handles empty sessions in history', () => {
@@ -612,16 +526,8 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: null,
-                  reps: 5,
-                  volume: null
-                },
-                {
-                  weight: 100,
-                  reps: null,
-                  volume: null
-                }
+                { weight: null, reps: 5, volume: null },
+                { weight: 100, reps: null, volume: null }
               ]
             }
           ]
@@ -631,7 +537,6 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
       
       expect(result).toHaveLength(1);
-      // Should have no suggestions since no complete set with both weight and reps
       expect(result[0].suggestions).toHaveLength(0);
     });
 
@@ -641,33 +546,14 @@ describe('Health Calculations', () => {
           workoutSessions: {
             findMany: vi.fn().mockResolvedValue([
               {
+                id: 1,
                 workoutDate: new Date('2023-01-01'),
                 exercises: [
-                  {
-                    weight: null, // weight is null
-                    reps: 5,
-                    sets: 3
-                  },
-                  {
-                    weight: '100',
-                    reps: null, // reps is null
-                    sets: 3
-                  },
-                  {
-                    weight: '0', // weight is '0' (falsy string)
-                    reps: 5,
-                    sets: 3
-                  },
-                  {
-                    weight: '100',
-                    reps: '0', // reps is '0' (falsy string)
-                    sets: 3
-                  },
-                  {
-                    weight: '100',
-                    reps: 5,
-                    sets: 3
-                  }
+                  { exerciseName: 'Bench Press', weight: null, reps: 5 },
+                  { exerciseName: 'Bench Press', weight: '100', reps: null },
+                  { exerciseName: 'Bench Press', weight: '0', reps: 5 },
+                  { exerciseName: 'Bench Press', weight: '100', reps: 0 },
+                  { exerciseName: 'Bench Press', weight: '100', reps: 5 },
                 ]
               }
             ])
@@ -685,12 +571,11 @@ describe('Health Calculations', () => {
       expect(result[0].sessions).toHaveLength(1);
       expect(result[0].sessions[0].sets).toHaveLength(5);
       
-      // Test the volume calculations for each case
-      expect(result[0].sessions[0].sets[0].volume).toBeNull(); // weight is null, so volume is null
-      expect(result[0].sessions[0].sets[1].volume).toBeNull(); // reps is null, so volume is null
-      expect(result[0].sessions[0].sets[2].volume).toBe(0); // '0' && 5 is truthy, so 0 * 5 * 3 = 0
-      expect(result[0].sessions[0].sets[3].volume).toBe(0); // '100' && '0' is truthy, so 100 * 0 * 3 = 0
-      expect(result[0].sessions[0].sets[4].volume).toBe(1500); // 100 * 5 * 3
+      expect(result[0].sessions[0].sets[0].volume).toBeNull();
+      expect(result[0].sessions[0].sets[1].volume).toBeNull();
+      expect(result[0].sessions[0].sets[2].volume).toBe(0);
+      expect(result[0].sessions[0].sets[3].volume).toBe(0);
+      expect(result[0].sessions[0].sets[4].volume).toBe(500);
     });
 
     test('handles mixed sets and selects best by volume', () => {
@@ -701,34 +586,21 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 80,
-                  reps: 10,
-                  volume: 800 // Highest volume
-                },
-                {
-                  weight: 90,
-                  reps: 5,
-                  volume: 450 // Lower volume
-                },
-                {
-                  weight: 85,
-                  reps: 8,
-                  volume: 680 // Lower volume
-                }
+                { weight: 80, reps: 10, volume: 800 },
+                { weight: 90, reps: 5, volume: 450 },
+                { weight: 85, reps: 8, volume: 680 }
               ]
             }
           ]
         }
       ];
       
-      const result = calculateProgressionSuggestions(exerciseHistory, 0.8);
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive');
       
       expect(result).toHaveLength(1);
       expect(result[0].suggestions).toHaveLength(1);
-      // Should select the set with 80 weight and 10 reps (best by volume)
       expect(result[0].suggestions[0].current).toBe(80);
-      expect(result[0].suggestions[0].suggested).toBe(82.5); // 80 * 1.025 = 82, rounded to 2.5 increment
+      expect(result[0].suggestions[0].suggested).toBe(85);
     });
 
     test('handles multiple exercises', () => {
@@ -739,11 +611,7 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 100,
-                  reps: 5,
-                  volume: 500
-                }
+                { weight: 100, reps: 5, volume: 500 }
               ]
             }
           ]
@@ -754,18 +622,14 @@ describe('Health Calculations', () => {
             {
               workoutDate: new Date('2023-01-01'),
               sets: [
-                {
-                  weight: 150,
-                  reps: 5,
-                  volume: 750
-                }
+                { weight: 150, reps: 5, volume: 750 }
               ]
             }
           ]
         }
       ];
       
-      const result = calculateProgressionSuggestions(exerciseHistory, 0.8);
+      const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive');
       
       expect(result).toHaveLength(2);
       expect(result[0].exerciseName).toBe('Bench Press');

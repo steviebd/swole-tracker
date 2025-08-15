@@ -327,7 +327,7 @@ export const sliderStyles = `
   background: var(--color-primary);
   cursor: pointer;
   border: 2px solid var(--color-bg-surface);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px var(--shadow-md);
 }
 
 .slider-primary::-moz-range-thumb {
@@ -337,7 +337,7 @@ export const sliderStyles = `
   background: var(--color-primary);
   cursor: pointer;
   border: 2px solid var(--color-bg-surface);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px var(--shadow-md);
 }
 
 /* Larger touch targets for mobile */

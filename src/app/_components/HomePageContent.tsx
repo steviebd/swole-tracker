@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useTheme } from "~/providers/ThemeProvider";
 
 interface HomePageContentProps {
   children: React.ReactNode;
@@ -84,32 +83,18 @@ export function QuickActionsGrid({ children }: { children: React.ReactNode }) {
 
 // Recent workouts section with proper spacing
 export function RecentWorkoutsSection({ children }: { children: React.ReactNode }) {
-  const { theme, resolvedTheme } = useTheme();
-  
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className={`text-xl font-bold transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "text-white" 
-            : "text-gray-900 dark:text-white"
-        }`}>
+        <h2 className="text-xl font-bold text-foreground transition-colors duration-300">
           Recent Workouts
         </h2>
-        <button className={`font-medium transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "text-blue-400 hover:text-blue-300" 
-            : "text-blue-500 hover:text-blue-600 dark:text-blue-400"
-        }`}>
+        <button className="font-medium text-blue-500 hover:text-blue-600 transition-colors duration-300">
           View all workouts →
         </button>
       </div>
       
-      <div className={`transition-colors duration-300 rounded-xl p-6 ${
-        theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "bg-gray-900 border-gray-800 shadow-lg" 
-          : "bg-white border-gray-200 shadow-sm dark:bg-gray-900 dark:border-gray-800"
-      } border`}>
+      <div className="transition-colors duration-300 rounded-xl p-6 bg-card border border-border shadow-lg">
         {children}
       </div>
     </section>

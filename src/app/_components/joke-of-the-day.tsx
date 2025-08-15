@@ -181,7 +181,7 @@ export function JokeOfTheDay() {
     if (isLoading) {
       return (
         <>
-          <h3 className="mb-2 text-xl font-semibold text-white">
+          <h3 className="mb-2 text-xl font-semibold text-background">
             😄 Joke of the Day
           </h3>
           <div className="animate-pulse text-blue-100">
@@ -194,7 +194,7 @@ export function JokeOfTheDay() {
     if (error) {
       return (
         <>
-          <h3 className="mb-2 text-xl font-semibold text-white">
+          <h3 className="mb-2 text-xl font-semibold text-background">
             😅 Joke of the Day
           </h3>
           <div className="text-sm text-red-200">

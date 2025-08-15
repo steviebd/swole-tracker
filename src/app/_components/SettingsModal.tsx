@@ -135,7 +135,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   }}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
                       notifications ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -165,7 +165,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   }}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
                       workoutReminders ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -201,7 +201,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   }}
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
                       manualWellnessEnabled ? "translate-x-7" : "translate-x-1"
                     }`}
                   />

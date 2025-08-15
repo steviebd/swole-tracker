@@ -67,7 +67,6 @@ export function roundToIncrement(
   return Math.round(weight / increment) * increment;
 }
 
-// Optimized function to get historical exercise data for the last 2 sessions - prevents N+1 queries
 export async function getExerciseHistory(
   db: any,
   userId: string,
@@ -77,7 +76,7 @@ export async function getExerciseHistory(
 ): Promise<Array<{
   exerciseName: string;
   sessions: Array<{
-    sessionId?: number;
+    sessionId: number;
     templateId?: number;
     workoutDate: Date;
     sets: Array<{
@@ -91,7 +90,6 @@ export async function getExerciseHistory(
     return [];
   }
 
-  // Single optimized query: Get all recent sessions with any of these exercises
   const recentSessionsWithExercises = await db.query.workoutSessions.findMany({
     where: and(
       eq(db.schema.workoutSessions.user_id, userId),
@@ -106,70 +104,51 @@ export async function getExerciseHistory(
       template: {
         columns: {
           id: true,
+        },
+      },
+    },
+    limit: 50,
+  });
+
+  const exerciseSessionMap = new Map<string, Array<any>>();
+
+  for (const session of recentSessionsWithExercises) {
+    for (const exercise of session.exercises) {
+      if (!exerciseSessionMap.has(exercise.exerciseName)) {
+        exerciseSessionMap.set(exercise.exerciseName, []);
+      }
+
+      const sessionsForExercise = exerciseSessionMap.get(exercise.exerciseName)!;
+      
+      let sessionGroup = sessionsForExercise.find(s => s.sessionId === session.id);
+      if (!sessionGroup) {
+        if (sessionsForExercise.length < limit) {
+          sessionGroup = {
+            sessionId: session.id,
+            templateId: session.template?.id,
+            workoutDate: session.workoutDate,
+            sets: [],
+          };
+          sessionsForExercise.push(sessionGroup);
+        } else {
+          continue;
         }
       }
-    },
-    limit: 50, // Get more sessions to ensure we find enough data for each exercise
-  });
 
-  // Group sessions by exercise name and take the most recent N sessions per exercise
-  const exerciseSessionMap = new Map<string, Array<{
-    sessionId: number;
-    templateId?: number;
-    workoutDate: Date;
-    sets: Array<{
-      weight: number | null;
-      reps: number | null;
-      volume: number | null;
-    }>;
-  }>>();
-
-  // Initialize map for all requested exercises
-  exerciseNames.forEach(name => {
-    exerciseSessionMap.set(name, []);
-  });
-
-  // Process sessions in chronological order (most recent first)
-  for (const session of recentSessionsWithExercises) {
-    // Group exercises by name within this session
-    const exerciseGroups = session.exercises.reduce((groups: Record<string, any[]>, exercise: any) => {
-      if (!groups[exercise.exerciseName]) {
-        groups[exercise.exerciseName] = [];
-      }
-      groups[exercise.exerciseName]!.push(exercise);
-      return groups;
-    }, {});
-
-    // Add this session's data to each exercise that appears in it
-    Object.entries(exerciseGroups).forEach(([exerciseName, exercises]) => {
-      const currentSessions = exerciseSessionMap.get(exerciseName);
-      
-      // Only add if we haven't reached the limit for this exercise
-      if (currentSessions && currentSessions.length < limit && Array.isArray(exercises)) {
-        const sets = (exercises as any[]).map((ex: any) => ({
-          weight: ex.weight ? parseFloat(ex.weight) : null,
-          reps: ex.reps,
-          volume: ex.weight && ex.reps ? parseFloat(ex.weight) * ex.reps * (ex.sets || 1) : null,
-        }));
-
-        currentSessions.push({
-          sessionId: session.id,
-          templateId: session.template?.id,
-          workoutDate: session.workoutDate,
-          sets,
-        });
-      }
-    });
+      sessionGroup.sets.push({
+        weight: exercise.weight ? parseFloat(exercise.weight) : null,
+        reps: exercise.reps,
+        volume: exercise.weight && exercise.reps ? parseFloat(exercise.weight) * exercise.reps : null,
+      });
+    }
   }
 
-  // Convert map back to array format expected by caller
-  return exerciseNames.map(exerciseName => ({
+  return Array.from(exerciseSessionMap.entries()).map(([exerciseName, sessions]) => ({
     exerciseName,
-    sessions: exerciseSessionMap.get(exerciseName) || [],
+    sessions,
   }));
 }
 
-// Enhanced progression calculation with plateau detection
 export function calculateProgressionSuggestions(
   exerciseHistory: Array<{
     exerciseName: string;
@@ -187,6 +166,7 @@ export function calculateProgressionSuggestions(
   userPreferences: {
     linearIncrement?: number;
     percentageIncrement?: number;
+    progressionModel?: 'reps' | 'weight';
   } = {}
 ): Array<{
   exerciseName: string;
@@ -223,7 +203,6 @@ export function calculateProgressionSuggestions(
       };
     }
 
-    // Get most recent session's best performance
     const recentSession = exercise.sessions[0];
     if (!recentSession?.sets.length) {
       return {
@@ -239,7 +218,6 @@ export function calculateProgressionSuggestions(
       return setVolume > bestVolume ? set : best;
     });
 
-    // Plateau detection: compare last 2 sessions if available
     if (exercise.sessions.length >= 2) {
       const previousSession = exercise.sessions[1];
       if (previousSession?.sets.length) {
@@ -249,12 +227,10 @@ export function calculateProgressionSuggestions(
           return setVolume > bestVolume ? set : best;
         });
         
-        // Check if performance has stagnated or regressed
         const currentVolume = bestRecentSet.volume || 0;
         const previousVolume = bestPreviousSet.volume || 0;
         const volumeChange = currentVolume - previousVolume;
         
-        // Plateau detected if volume decreased or stayed the same (within 5% margin)
         if (volumeChange <= previousVolume * 0.05) {
           plateauDetected = true;
         }
@@ -267,15 +243,13 @@ export function calculateProgressionSuggestions(
       let progressionFactor = 1.0;
       let rationale = '';
       
-      // Calculate progression based on type and readiness
       switch (progressionType) {
         case 'linear':
           const linearIncrement = userPreferences.linearIncrement || 2.5;
-          const suggestedWeight = baseWeight + linearIncrement;
           suggestions.push({
             type: 'weight',
             current: baseWeight,
-            suggested: suggestedWeight,
+            suggested: baseWeight + linearIncrement,
             rationale: `Linear progression: +${linearIncrement}kg from last session${plateauDetected ? ' (plateau detected - consider deload)' : ''}`,
             plateauDetected
           });
@@ -295,31 +269,28 @@ export function calculateProgressionSuggestions(
           
         case 'adaptive':
         default:
-          // Adaptive progression based on readiness and plateau detection
           if (plateauDetected && readiness < 0.7) {
-            // Deload if plateau + poor readiness
             progressionFactor = 0.9;
             rationale = 'Deload recommended: plateau detected with poor readiness';
           } else if (plateauDetected) {
-            // Slight increase despite plateau if readiness is good
             progressionFactor = 1.025;
             rationale = 'Light progression despite plateau (good readiness allows push)';
           } else {
-            // Normal adaptive progression
-            progressionFactor = readiness > 0.7 ? 1.05 : readiness > 0.5 ? 1.025 : 1.0;
-            rationale = `Adaptive progression based on ${readiness > 0.7 ? 'excellent' : readiness > 0.5 ? 'moderate' : 'low'} readiness`;
+            progressionFactor = readiness > 0.7 ? 1.05 : readiness > 0.5 ? 1.0 : 0.975;
+            rationale = `Adaptive progression based on ${readiness > 0.7 ? 'excellent' : readiness > 0.5 ? 'good' : 'low'} readiness`;
           }
-          
-          suggestions.push({
-            type: 'weight',
-            current: baseWeight,
-            suggested: roundToIncrement(baseWeight * progressionFactor),
-            rationale,
-            plateauDetected
-          });
-          
-          // Also suggest rep variation for adaptive
-          if (progressionFactor === 1.0 && readiness > 0.6) {
+
+          const progressionModel = userPreferences.progressionModel || (progressionFactor === 1.0 ? 'reps' : 'weight');
+
+          if (progressionModel === 'weight') {
+            suggestions.push({
+              type: 'weight',
+              current: baseWeight,
+              suggested: roundToIncrement(baseWeight * progressionFactor),
+              rationale,
+              plateauDetected
+            });
+          } else {
             suggestions.push({
               type: 'reps',
               current: baseReps,
