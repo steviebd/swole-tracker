@@ -48,7 +48,7 @@ export async function createTestUser(): Promise<TestUser> {
 
   // Create user preferences record
   await testDb.insert(schema.userPreferences).values({
-    userId: authData.user.id,
+    user_id: authData.user.id,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -66,18 +66,19 @@ export async function createTestUser(): Promise<TestUser> {
  * Creates test workout template
  */
 export async function createTestTemplate(userId: string, name = "Test Workout") {
-  const template = await testDb.insert(schema.workoutTemplate).values({
-    userId,
+  const template = await testDb.insert(schema.workoutTemplates).values({
+    user_id: userId,
     name,
     createdAt: new Date(),
     updatedAt: new Date(),
   }).returning();
 
   // Add a couple of exercises to the template
-  const exercises = await testDb.insert(schema.templateExercise).values([
+  const exercises = await testDb.insert(schema.templateExercises).values([
     {
+      user_id: userId,
       templateId: template[0]!.id,
-      name: "Bench Press",
+      exerciseName: "Bench Press",
       targetSets: 3,
       targetReps: "8-10",
       restPeriod: 120,
@@ -87,8 +88,9 @@ export async function createTestTemplate(userId: string, name = "Test Workout") 
       updatedAt: new Date(),
     },
     {
+      user_id: userId,
       templateId: template[0]!.id,
-      name: "Squats", 
+      exerciseName: "Squats", 
       targetSets: 3,
       targetReps: "10-12",
       restPeriod: 180,
@@ -109,7 +111,7 @@ export async function createTestTemplate(userId: string, name = "Test Workout") 
  * Creates test master exercises for linking
  */
 export async function createTestMasterExercises() {
-  return await testDb.insert(schema.masterExercise).values([
+  return await testDb.insert(schema.masterExercises).values([
     {
       name: "Bench Press",
       variations: ["Barbell Bench Press", "Dumbbell Bench Press", "Incline Bench Press"],
@@ -153,35 +155,35 @@ export async function cleanupTestData(): Promise<void> {
     for (const userId of testUserIds) {
       // Delete in order to respect foreign key constraints
       await testDb.delete(schema.sessionExercise)
-        .where(eq(schema.sessionExercise.userId, userId));
+        .where(eq(schema.sessionExercise.user_id, userId));
       
       await testDb.delete(schema.workoutSession)
-        .where(eq(schema.workoutSession.userId, userId));
+        .where(eq(schema.workoutSession.user_id, userId));
         
-      await testDb.delete(schema.templateExercise)
-        .where(eq(schema.templateExercise.userId, userId));
+      await testDb.delete(schema.templateExercises)
+        .where(eq(schema.templateExercises.user_id, userId));
         
-      await testDb.delete(schema.workoutTemplate)
-        .where(eq(schema.workoutTemplate.userId, userId));
+      await testDb.delete(schema.workoutTemplates)
+        .where(eq(schema.workoutTemplates.user_id, userId));
         
       await testDb.delete(schema.userPreferences)
-        .where(eq(schema.userPreferences.userId, userId));
+        .where(eq(schema.userPreferences.user_id, userId));
 
       await testDb.delete(schema.healthAdvice)
-        .where(eq(schema.healthAdvice.userId, userId));
+        .where(eq(schema.healthAdvice.user_id, userId));
 
       await testDb.delete(schema.userIntegration)
-        .where(eq(schema.userIntegration.userId, userId));
+        .where(eq(schema.userIntegration.user_id, userId));
 
       // Delete Supabase Auth user
       await supabaseAdmin.auth.admin.deleteUser(userId);
     }
 
     // Clean up master exercises created during tests
-    await testDb.delete(schema.masterExercise)
-      .where(eq(schema.masterExercise.name, "Bench Press"));
-    await testDb.delete(schema.masterExercise)
-      .where(eq(schema.masterExercise.name, "Squats"));
+    await testDb.delete(schema.masterExercises)
+      .where(eq(schema.masterExercises.name, "Bench Press"));
+    await testDb.delete(schema.masterExercises)
+      .where(eq(schema.masterExercises.name, "Squats"));
 
     console.log(`Cleaned up ${testUserIds.length} test users and associated data`);
 

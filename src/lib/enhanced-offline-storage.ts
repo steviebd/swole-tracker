@@ -201,7 +201,8 @@ export function setupEnhancedOfflinePersistence(queryClient: QueryClient) {
       // Ensure offline data is immediately available
       defaultOptions: {
         queries: {
-          staleTime: Infinity, // Keep offline data fresh
+          // Keep offline data fresh by setting a very long gcTime instead of staleTime
+          gcTime: Infinity,
         },
       },
     },

@@ -151,7 +151,7 @@ export function WorkoutDetailOverlay({
               <span className="text-muted capitalize">
                 {key.replace(/_/g, " ")}:
               </span>
-              <span className="text-foreground dark:text-foreground">
+              <span className="text-foreground">
                 {typeof value === "number" ? value.toFixed(2) : String(value)}
               </span>
             </div>
@@ -170,7 +170,7 @@ export function WorkoutDetailOverlay({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm dark:bg-foreground/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm"
       onClick={handleBackdropClick}
       style={{ animation: isOpen ? "fadeIn 0.3s ease-out" : "" }}
     >
@@ -189,7 +189,7 @@ export function WorkoutDetailOverlay({
         <div className="sticky top-0 rounded-t-xl border-b border-border bg-background p-6">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="mb-1 text-2xl font-bold text-foreground dark:text-foreground">
+              <h2 className="mb-1 text-2xl font-bold text-foreground">
                 {workout.sport_name ?? "Unknown Sport"}
               </h2>
               <p className="text-secondary text-sm">
@@ -213,7 +213,7 @@ export function WorkoutDetailOverlay({
               <h4 className="text-secondary mb-2 text-sm font-semibold">
                 Duration
               </h4>
-              <p className="text-xl font-bold text-foreground dark:text-foreground">
+              <p className="text-xl font-bold text-foreground">
                 {formatDuration(new Date(workout.start), new Date(workout.end))}
               </p>
             </div>
@@ -221,7 +221,7 @@ export function WorkoutDetailOverlay({
               <h4 className="text-secondary mb-2 text-sm font-semibold">
                 Score
               </h4>
-              <p className="text-xl font-bold text-foreground dark:text-foreground">
+              <p className="text-xl font-bold text-foreground">
                 {formatScore(workout.score, workout.score_state)}
               </p>
             </div>
@@ -252,19 +252,19 @@ export function WorkoutDetailOverlay({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted">Started:</span>
-                <span className="text-foreground dark:text-foreground">
+                <span className="text-foreground">
                   {new Date(workout.start).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">Ended:</span>
-                <span className="text-foreground dark:text-foreground">
+                <span className="text-foreground">
                   {new Date(workout.end).toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">Synced:</span>
-                <span className="text-foreground dark:text-foreground">
+                <span className="text-foreground">
                   {new Date(workout.createdAt).toLocaleString()}
                 </span>
               </div>

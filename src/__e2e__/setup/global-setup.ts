@@ -1,14 +1,14 @@
 import { chromium, type FullConfig } from "@playwright/test";
 import { createTestUser, cleanupTestData } from "./test-database";
 import path from "path";
-import { config } from "dotenv";
+import { config as dotenvConfig } from "dotenv";
 
 async function globalSetup(config: FullConfig) {
   console.log("🧪 Starting global e2e test setup...");
 
   // Load test environment variables
   const testEnvPath = path.resolve(process.cwd(), ".env.test");
-  config({ path: testEnvPath });
+  dotenvConfig({ path: testEnvPath });
 
   try {
     // Clean up any existing test data

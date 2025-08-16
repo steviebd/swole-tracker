@@ -73,13 +73,13 @@ body {
 .btn-destructive {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-danger);
-  color: var(--btn-destructive-fg, var(--color-text));
+  color: var(--btn-destructive-fg, var(--color-background));
 }
 
 .btn-success {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-success);
-  color: var(--btn-success-fg, white);
+  color: var(--btn-success-fg, var(--color-background));
 }
 
 /* Links */

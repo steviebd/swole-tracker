@@ -40,5 +40,5 @@
     "**/*.js",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "public", ".next", "coverage", "apps", "clerk-supabase-demo-backup", "scripts"]
+  "exclude": ["node_modules", "public", ".next", "coverage", "apps", "clerk-supabase-demo-backup", "scripts", "src/__e2e__"]
 }

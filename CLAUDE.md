@@ -41,6 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/lib/` - Utilities (rate limiting, offline queue, webhooks, analytics)
 - `src/hooks/` - Custom React hooks
 - `src/providers/` - React context providers (PostHog, Theme)
+- `apps/mobile/` - Mobile (Android) app folder
 
 **Authentication:** Supabase Auth middleware protects `/workout*`, `/templates*`, `/workouts*` routes
 
