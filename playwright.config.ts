@@ -7,11 +7,15 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
+  // globalSetup: "./src/__e2e__/setup/global-setup.ts",
+  // globalTeardown: "./src/__e2e__/setup/global-teardown.ts",
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
     video: "on-first-retry",
     screenshot: "only-on-failure",
+    // Load test environment variables
+    // storageState: "src/__e2e__/storage/auth.json",
   },
   projects: [
     {
@@ -23,9 +27,13 @@ export default defineConfig({
     // { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {
-    command: "pnpm dev",
+    command: "bun dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      // Load test environment for e2e tests
+      ...process.env,
+    },
   },
 });

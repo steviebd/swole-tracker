@@ -17,7 +17,10 @@ export default defineConfig({
       "**/*.spec.{ts,tsx}",
       "src/__e2e__/**/*",
       "**/node_modules/**",
-      "**/dist/**"
+      "**/dist/**",
+      "**/*.e2e.{ts,tsx}",
+      "**/e2e/**/*",
+      "**/playwright/**/*"
     ],
     coverage: {
       provider: "v8",

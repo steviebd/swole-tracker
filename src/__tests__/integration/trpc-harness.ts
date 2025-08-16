@@ -9,6 +9,7 @@ process.env.NEXT_PUBLIC_SUPABASE_KEY ??= "supabase_test_key";
 
 // Ensure rate-limit middleware is mocked before any app imports to avoid env-core errors in jsdom
 import "./setup.rate-limit-mocks";
+import { vi } from "vitest";
 
 // Also stub server-side env so @t3-oss/env-core proxy does not throw under jsdom.
 // These values are safe test defaults and prevent "Attempted to access a server-side env on the client".
@@ -96,7 +97,6 @@ vi.mock("~/lib/rate-limit-middleware", async () => {
   };
 });
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
-import { vi } from "vitest";
 
 // Minimal shape of context from createTRPCContext in src/server/api/trpc.ts
 /* eslint-disable @typescript-eslint/no-unused-vars */

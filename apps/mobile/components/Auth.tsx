@@ -1,95 +1,97 @@
-import React, { useState } from 'react'
-import { Alert, StyleSheet, View, AppState } from 'react-native'
-import { supabase } from '../lib/supabase'
-import { Button, Input } from '@rneui/themed'
-
-// Tells Supabase Auth to continuously refresh the session automatically if
-// the app is in the foreground. When this is added, you will continue to receive
-// `onAuthStateChange` events with the `TOKEN_REFRESHED` or `SIGNED_OUT` event
-// if the user's session is terminated. This should only be registered once.
-AppState.addEventListener('change', (state) => {
-  if (state === 'active') {
-    supabase.auth.startAutoRefresh()
-  } else {
-    supabase.auth.stopAutoRefresh()
-  }
-})
+import React, { useState } from 'react';
+import { Alert, View, Text } from 'react-native';
+import { Button, Input } from './ui';
+import { useAuth } from './providers/AuthProvider';
 
 export default function Auth() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { signIn, signUp, isLoading } = useAuth();
 
-  async function signInWithEmail() {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    })
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
 
-    if (error) Alert.alert(error.message)
-    setLoading(false)
-  }
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
 
-  async function signUpWithEmail() {
-    setLoading(true)
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-    })
+    try {
+      if (isSignUp) {
+        const result = await signUp(email, password);
+        if (result.error) {
+          Alert.alert('Sign Up Error', result.error);
+        } else if (result.requiresVerification) {
+          Alert.alert(
+            'Check Your Email',
+            'Please check your inbox for email verification!'
+          );
+        }
+      } else {
+        const result = await signIn(email, password);
+        if (result.error) {
+          Alert.alert('Sign In Error', result.error);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
 
-    if (error) Alert.alert(error.message)
-    if (!session) Alert.alert('Please check your inbox for email verification!')
-    setLoading(false)
-  }
+  const toggleMode = () => {
+    setIsSignUp(!isSignUp);
+    // Clear form when switching modes
+    setEmail('');
+    setPassword('');
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Input
-          label="Email"
-          leftIcon={{ type: 'font-awesome', name: 'envelope' }}
-          onChangeText={(text) => setEmail(text)}
-          value={email}
-          placeholder="email@address.com"
-          autoCapitalize={'none'}
-        />
-      </View>
-      <View style={styles.verticallySpaced}>
-        <Input
-          label="Password"
-          leftIcon={{ type: 'font-awesome', name: 'lock' }}
-          onChangeText={(text) => setPassword(text)}
-          value={password}
-          secureTextEntry={true}
-          placeholder="Password"
-          autoCapitalize={'none'}
-        />
-      </View>
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Button title="Sign in" disabled={loading} onPress={() => signInWithEmail()} />
-      </View>
-      <View style={styles.verticallySpaced}>
-        <Button title="Sign up" disabled={loading} onPress={() => signUpWithEmail()} />
-      </View>
+    <View className="mt-10 p-6 bg-white mx-4 rounded-lg shadow-sm">
+      <Text className="text-2xl font-bold text-center mb-6 text-gray-900">
+        {isSignUp ? 'Create Account' : 'Welcome Back'}
+      </Text>
+      
+      <Input
+        label="Email"
+        onChangeText={setEmail}
+        value={email}
+        placeholder="email@address.com"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        editable={!isLoading}
+        containerClassName="mb-4"
+      />
+      
+      <Input
+        label="Password"
+        onChangeText={setPassword}
+        value={password}
+        secureTextEntry={true}
+        placeholder={isSignUp ? 'Create a password (min 6 characters)' : 'Enter your password'}
+        autoCapitalize="none"
+        editable={!isLoading}
+        containerClassName="mb-6"
+      />
+      
+      <Button 
+        title={isSignUp ? 'Create Account' : 'Sign In'} 
+        loading={isLoading}
+        onPress={handleSubmit}
+        className="mb-4"
+        disabled={!email.trim() || !password.trim()}
+      />
+      
+      <Button 
+        title={isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+        variant="outline"
+        onPress={toggleMode}
+        disabled={isLoading}
+      />
     </View>
-  )
+  );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 40,
-    padding: 12,
-  },
-  verticallySpaced: {
-    paddingTop: 4,
-    paddingBottom: 4,
-    alignSelf: 'stretch',
-  },
-  mt20: {
-    marginTop: 20,
-  },
-})

@@ -95,5 +95,9 @@
   "packageManager": "bun@1.1.42",
   "volta": {
     "node": "20.19.4"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }
