@@ -5,31 +5,31 @@
 :root,
 [data-theme="light"],
 [data-theme="system"] html:not(.dark) {
-  /* Core colors - light theme with warm gradient tones */
-  --color-bg-app: oklch(0.995 0.008 106.5);        /* Warm off-white background */
-  --color-bg-surface: oklch(0.998 0.005 106.5);    /* Slightly warmer surface */
-  --color-border: oklch(0.91 0.015 106.5);         /* Warm gray border with subtle tint */
+  /* Core colors - earth tone palette integration */
+  --color-bg-app: #FEFAE0;                         /* Cream background (#FEFAE0) */
+  --color-bg-surface: #FAEDCD;                     /* Light peach surface (#FAEDCD) */
+  --color-border: #CCD5AE;                         /* Sage green border (#CCD5AE) */
   
   /* Foreground/Background tokens for black/white replacement */
-  --color-foreground: oklch(0.18 0.01 280);        /* Rich dark foreground with subtle warmth */
-  --color-background: oklch(0.998 0.005 106.5);    /* Warm light background */
+  --color-foreground: #00111C;                     /* Deepest blue foreground */
+  --color-background: #FEFAE0;                     /* Cream background (#FEFAE0) */
   
-  /* Text hierarchy with enhanced readability */
-  --color-text: oklch(0.18 0.01 280);              /* Rich dark text with depth */
-  --color-text-secondary: oklch(0.55 0.015 270);   /* Medium gray with subtle warmth */
-  --color-text-muted: oklch(0.68 0.02 260);        /* Light gray with warmth */
+  /* Text hierarchy with dark blue tones */
+  --color-text: #00111C;                           /* Primary text - deepest blue (#00111C) */
+  --color-text-secondary: #002137;                 /* Secondary text - medium blue (#002137) */
+  --color-text-muted: #003356;                     /* Muted text - lighter blue (#003356) */
   
-  /* Primary accent with gradient depth */
-  --color-primary: oklch(0.25 0.01 270);           /* Rich dark primary with hint of blue */
-  --color-primary-hover: oklch(0.2 0.015 275);     /* Deeper on hover */
-  --color-primary-active: oklch(0.15 0.02 280);    /* Richest when active */
+  /* Primary accent using warm tan */
+  --color-primary: #D4A373;                        /* Warm tan primary (#D4A373) */
+  --color-primary-hover: #c49660;                  /* Darker tan on hover */
+  --color-primary-active: #b8894d;                 /* Deeper tan when active */
   
-  /* Secondary colors with gradient warmth */
-  --color-secondary: oklch(0.975 0.008 106.5);     /* Warm very light gray */
-  --color-secondary-hover: oklch(0.95 0.012 106.5); /* Warmer on hover */
+  /* Secondary colors using light sage */
+  --color-secondary: #E9EDC9;                      /* Light sage secondary (#E9EDC9) */
+  --color-secondary-hover: #dde4b8;                /* Slightly darker sage on hover */
   
-  /* Card background with gradient */
-  --color-card: oklch(0.998 0.005 106.5);          /* Warm card background for gradient base */
+  /* Card background using cream */
+  --color-card: #FAEDCD;                           /* Light peach card background (#FAEDCD) */
   
   /* Semantic colors - keeping similar to v1-dark but adjusted for light theme */
   --color-success: oklch(0.646 0.222 142.5);       /* Green success */
@@ -68,42 +68,42 @@
   /* Focus shadow with primary color - enhanced visibility */
   --shadow-focus: 0 0 0 2px oklch(0.145 0 0 / 0.1), 0 0 0 4px oklch(0.488 0.243 264.376 / 0.15);
   
-  /* Enhanced gradient tokens for depth and warmth */
-  --gradient-subtle: linear-gradient(180deg, oklch(0.992 0.003 106.5) 0%, oklch(0.97 0.007 106.5) 100%);
-  --gradient-surface: linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.985 0.008 106.5) 100%);
-  --gradient-card: linear-gradient(135deg, oklch(1 0 0) 0%, oklch(0.995 0.005 106.5) 50%, oklch(0.99 0.008 106.5) 100%);
-  --gradient-primary: linear-gradient(135deg, oklch(0.25 0.01 270) 0%, oklch(0.18 0.015 280) 100%);
-  --gradient-secondary: linear-gradient(135deg, oklch(0.98 0.005 106.5) 0%, oklch(0.95 0.01 106.5) 100%);
-  --gradient-accent: linear-gradient(135deg, oklch(0.6 0.15 264.376) 0%, oklch(0.55 0.18 285) 100%);
-  --gradient-input: linear-gradient(180deg, oklch(0.985 0.008 106.5) 0%, oklch(0.975 0.012 106.5) 100%);
+  /* Enhanced gradient tokens using earth-tone palette */
+  --gradient-subtle: linear-gradient(180deg, #FEFAE0 0%, #FAEDCD 100%);
+  --gradient-surface: linear-gradient(180deg, #FEFAE0 0%, #FAEDCD 100%);
+  --gradient-card: linear-gradient(135deg, #FEFAE0 0%, #FAEDCD 50%, #E9EDC9 100%);
+  --gradient-primary: linear-gradient(135deg, #D4A373 0%, #c49660 100%);
+  --gradient-secondary: linear-gradient(135deg, #E9EDC9 0%, #dde4b8 100%);
+  --gradient-accent: linear-gradient(135deg, #D4A373 0%, #c49660 100%);
+  --gradient-input: linear-gradient(180deg, #FAEDCD 0%, #E9EDC9 100%);
   
-  /* Enhanced app shell gradients with warmth and depth */
-  --gradient-shell-radial: radial-gradient(1400px 900px at 35% 15%, oklch(0.995 0.008 106.5) 0%, oklch(0.985 0.012 106.5) 40%, oklch(0.975 0.015 106.5) 80%, oklch(0.96 0.018 106.5) 100%);
-  --gradient-header-linear: linear-gradient(180deg, oklch(0.995 0.005 106.5) 0%, oklch(0.98 0.012 106.5) 100%);
-  --gradient-modal: radial-gradient(800px 600px at 50% 30%, oklch(1 0 0) 0%, oklch(0.995 0.005 106.5) 70%, oklch(0.985 0.01 106.5) 100%);
+  /* Enhanced app shell gradients using earth tones */
+  --gradient-shell-radial: radial-gradient(1400px 900px at 35% 15%, #FEFAE0 0%, #FAEDCD 40%, #E9EDC9 80%, #CCD5AE 100%);
+  --gradient-header-linear: linear-gradient(180deg, #FEFAE0 0%, #FAEDCD 100%);
+  --gradient-modal: radial-gradient(800px 600px at 50% 30%, #FEFAE0 0%, #FAEDCD 70%, #E9EDC9 100%);
   
   /* Enhanced glass effect colors with gradient depth */
-  --glass-highlight: oklch(0.995 0.008 106.5 / 0.6);
-  --glass-accent: oklch(0.6 0.15 264.376 / 0.08);
-  --glass-border-mix: oklch(0.25 0.015 270 / 0.25);
+  --glass-highlight: rgba(254, 250, 224, 0.6);      /* #FEFAE0 with alpha */
+  --glass-accent: rgba(212, 163, 115, 0.08);        /* #D4A373 with alpha */
+  --glass-border-mix: rgba(0, 17, 28, 0.25);        /* #00111C with alpha */
   
   /* Enhanced glass effect variants with gradient warmth */
-  --glass-card: oklch(0.995 0.005 106.5 / 0.85);
-  --glass-modal: oklch(0.998 0.003 106.5 / 0.95);
+  --glass-card: rgba(250, 237, 205, 0.85);          /* #FAEDCD with alpha */
+  --glass-modal: rgba(254, 250, 224, 0.95);         /* #FEFAE0 with alpha */
   
-  /* Enhanced button overrides with gradient depth */
-  --btn-primary-bg: var(--gradient-primary);
-  --btn-primary-bg-color: oklch(0.25 0.01 270);
-  --btn-primary-fg: oklch(0.995 0.005 106.5);     /* Warm white text on dark button */
-  --btn-primary-bg-hover: oklch(0.2 0.015 275);
-  --btn-primary-bg-active: oklch(0.15 0.02 280);
+  /* Enhanced button overrides with earth tones */
+  --btn-primary-bg: var(--color-primary);
+  --btn-primary-bg-color: var(--color-primary);
+  --btn-primary-fg: #FEFAE0;                      /* Cream text on tan button */
+  --btn-primary-bg-hover: var(--color-primary-hover);
+  --btn-primary-bg-active: var(--color-primary-active);
   
-  --btn-secondary-bg: var(--gradient-secondary);
-  --btn-secondary-fg: oklch(0.25 0.01 270);
-  --btn-secondary-border: oklch(0.91 0.015 106.5);
-  --btn-secondary-bg-hover: oklch(0.95 0.012 106.5);
+  --btn-secondary-bg: var(--color-secondary);
+  --btn-secondary-fg: #00111C;                     /* Dark blue text on secondary buttons */
+  --btn-secondary-border: var(--color-border);
+  --btn-secondary-bg-hover: var(--color-secondary-hover);
   
-  --btn-ghost-fg: oklch(0.55 0.015 270);
+  --btn-ghost-fg: #002137;                         /* Medium blue for ghost buttons */
 }
 
 /* Ensure light mode is active for light theme */
