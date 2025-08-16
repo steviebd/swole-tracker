@@ -133,8 +133,8 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
   };
 
   const chancePercent = Math.round(exercise.predicted_chance_to_beat_best * 100);
-  const chanceColor = exercise.predicted_chance_to_beat_best >= 0.7 ? 'text-green-600 dark:text-green-400' :
-                     exercise.predicted_chance_to_beat_best >= 0.5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400';
+  const chanceColor = exercise.predicted_chance_to_beat_best >= 0.7 ? 'text-success' :
+                     exercise.predicted_chance_to_beat_best >= 0.5 ? 'text-warning' : 'text-danger';
 
   return (
     <Card className="p-4 space-y-4">
@@ -197,11 +197,11 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                     <>
                       <Button
                         size="sm"
+                        variant="primary"
                         onClick={() => handleAcceptSet(set.set_id, {
                           weight: set.suggested_weight_kg || undefined,
                           reps: set.suggested_reps || undefined
                         }, 'ai_recommended')}
-                        className="btn-primary"
                       >
                         Accept AI
                       </Button>
@@ -212,7 +212,6 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                           ...prev,
                           [set.set_id]: !prev[set.set_id]
                         }))}
-                        className="btn-secondary"
                       >
                         {showAlternatives[set.set_id] ? 'Hide' : 'Options'}
                       </Button>
@@ -222,7 +221,6 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                       size="sm"
                       variant="secondary"
                       onClick={() => handleOverrideSet(set.set_id)}
-                      className="btn-secondary"
                     >
                       Override
                     </Button>
@@ -274,7 +272,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                             weight: alt.weight_kg,
                             reps: alt.reps
                           }, alt.progression_type)}
-                          className="btn-secondary ml-2"
+                          className="ml-2"
                         >
                           Use This
                         </Button>

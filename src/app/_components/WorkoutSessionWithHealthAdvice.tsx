@@ -358,7 +358,8 @@ export function WorkoutSessionWithHealthAdvice({
         <Button
           onClick={handleGetHealthAdvice}
           disabled={loading || isSubmittingWellness}
-          className="btn-primary text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3"
+          variant="primary"
+          size="lg"
         >
           {loading || isSubmittingWellness
             ? 'Getting AI Advice...' 

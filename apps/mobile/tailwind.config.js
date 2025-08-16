@@ -1,51 +1,89 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // Note: NativeWind v4 uses a new engine
-  content: [
+  "content": [
     "./app/**/*.{js,jsx,ts,tsx}",
     "./components/**/*.{js,jsx,ts,tsx}",
-    "./lib/**/*.{js,jsx,ts,tsx}",
+    "./lib/**/*.{js,jsx,ts,tsx}"
   ],
-  presets: [require("nativewind/preset")],
-  theme: {
-    extend: {
-      colors: {
-        primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
+  "presets": [
+    "nativewind/preset"
+  ],
+  "theme": {
+    "extend": {
+      "colors": {
+        "primary": {
+          "50": "#f0f9ff",
+          "100": "#e0f2fe",
+          "200": "#bae6fd",
+          "300": "#7dd3fc",
+          "400": "#38bdf8",
+          "500": "#fafafa",
+          "600": "#e6e6e6",
+          "700": "#d9d9d9",
+          "800": "#075985",
+          "900": "#0c4a6e",
+          "950": "#082f49"
         },
-        gray: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          400: '#9ca3af',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          800: '#1f2937',
-          900: '#111827',
-          950: '#030712',
-        },
+        "background": "#252525",
+        "foreground": "#ffffff",
+        "card": "#343434",
+        "surface": "#343434",
+        "text-primary": "#ffffff",
+        "text-secondary": "#b5b5b5",
+        "text-muted": "#a6a6a6",
+        "border-default": "#454545",
+        "success": "#22c55e",
+        "warning": "#eab308",
+        "danger": "#ef4444",
+        "info": "#3b82f6",
+        "chart-1": "#3b82f6",
+        "chart-2": "#22c55e",
+        "chart-3": "#eab308",
+        "chart-4": "oklch(0.627 0.265 303.9)",
+        "chart-5": "oklch(0.645 0.246 16.439)"
       },
-      fontFamily: {
-        sans: ['System'],
-        mono: ['Courier New'],
+      "fontFamily": {
+        "sans": [
+          "System"
+        ],
+        "mono": [
+          "Courier New"
+        ]
       },
-      spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
+      "spacing": {
+        "component-xs": "0.5rem",
+        "component-sm": "0.75rem",
+        "component-md": "1rem",
+        "component-lg": "1.5rem",
+        "component-xl": "2rem",
+        "gap-xs": "0.25rem",
+        "gap-sm": "0.5rem",
+        "gap-md": "0.75rem",
+        "gap-lg": "1rem",
+        "gap-xl": "1.5rem"
       },
-    },
+      "borderRadius": {
+        "token-sm": "0.25rem",
+        "token-md": "0.375rem",
+        "token-lg": "0.5rem",
+        "token-card": "0.75rem"
+      },
+      "fontSize": {
+        "token-xs": "0.75rem",
+        "token-sm": "0.875rem",
+        "token-base": "1rem",
+        "token-lg": "1.125rem",
+        "token-xl": "1.25rem",
+        "token-2xl": "1.5rem",
+        "token-3xl": "1.875rem"
+      },
+      "fontWeight": {
+        "token-normal": 400,
+        "token-medium": 500,
+        "token-semibold": 600,
+        "token-bold": 700
+      }
+    }
   },
-  plugins: [],
-}
+  "plugins": []
+};

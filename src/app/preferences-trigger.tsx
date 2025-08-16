@@ -22,7 +22,7 @@ export default function ClientPreferencesTrigger({
 
   const btnClass = inline
     ? "text-sm link-primary"
-    : "fixed bottom-24 right-4 z-40 rounded-full bg-purple-600 p-3 text-white shadow-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 md:static md:ml-2 md:rounded-lg md:px-3 md:py-2 md:bg-gray-800 md:hover:bg-gray-700";
+    : "fixed bottom-24 right-4 z-40 rounded-full btn-primary p-3 shadow-lg md:static md:ml-2 md:rounded-lg md:px-3 md:py-2";
 
   return (
     <>

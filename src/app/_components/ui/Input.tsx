@@ -43,10 +43,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div
           className={cx(
             "flex items-center gap-1 rounded-md border",
-            "bg-transparent",
+            "bg-gradient-input",
             "px-2 py-1.5",
-            "border-[color:var(--color-border)]",
+            "border-[color:var(--color-border)] border-soft",
             "focus-within:border-[color:var(--color-primary)] focus-within:[box-shadow:var(--shadow-focus)]",
+            "transition-all duration-200",
           )}
         >
           {leftAdornment ? (

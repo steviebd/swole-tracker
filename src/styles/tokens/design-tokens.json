@@ -1,0 +1,864 @@
+{
+  "$schema": "https://schemas.tr-pro.com/v1/design-tokens.json",
+  "$description": "Design tokens for swole-tracker - unified cross-platform design system",
+  "color": {
+    "$type": "color",
+    "base": {
+      "black": {
+        "$value": "oklch(0.145 0 0)",
+        "$description": "True black - used as dark background and light foreground"
+      },
+      "white": {
+        "$value": "oklch(1 0 0)",
+        "$description": "Pure white - used as light background and dark foreground"
+      }
+    },
+    "semantic": {
+      "foreground": {
+        "$value": "{color.base.white}",
+        "$description": "Primary foreground color (replaces text-black in light, text-white in dark)"
+      },
+      "background": {
+        "$value": "{color.base.black}",
+        "$description": "Primary background color (replaces bg-black in light, bg-white in dark)"
+      }
+    },
+    "text": {
+      "primary": {
+        "$value": "{color.semantic.foreground}",
+        "$description": "Primary text color"
+      },
+      "secondary": {
+        "$value": "oklch(0.708 0 0)",
+        "$description": "Secondary text color for less prominent content"
+      },
+      "muted": {
+        "$value": "oklch(0.65 0 0)",
+        "$description": "Muted text color for subtle content"
+      }
+    },
+    "background": {
+      "app": {
+        "$value": "{color.semantic.background}",
+        "$description": "Main application background"
+      },
+      "surface": {
+        "$value": "oklch(0.205 0 0)",
+        "$description": "Surface background for cards and elevated elements"
+      },
+      "card": {
+        "$value": "{color.background.surface}",
+        "$description": "Card background color"
+      }
+    },
+    "border": {
+      "default": {
+        "$value": "oklch(0.269 0 0)",
+        "$description": "Default border color"
+      },
+      "muted": {
+        "$value": "{color.border.default}",
+        "$description": "Muted border color"
+      }
+    },
+    "primary": {
+      "default": {
+        "$value": "oklch(0.985 0 0)",
+        "$description": "Primary brand color"
+      },
+      "hover": {
+        "$value": "oklch(0.9 0 0)",
+        "$description": "Primary color on hover"
+      },
+      "active": {
+        "$value": "oklch(0.85 0 0)",
+        "$description": "Primary color when active"
+      }
+    },
+    "secondary": {
+      "default": {
+        "$value": "oklch(0.269 0 0)",
+        "$description": "Secondary color"
+      },
+      "hover": {
+        "$value": "oklch(0.32 0 0)",
+        "$description": "Secondary color on hover"
+      }
+    },
+    "status": {
+      "success": {
+        "default": {
+          "$value": "oklch(0.696 0.17 162.48)",
+          "$description": "Success state color"
+        },
+        "muted": {
+          "$value": "oklch(0.25 0.08 142.5)",
+          "$description": "Muted success background"
+        }
+      },
+      "warning": {
+        "default": {
+          "$value": "oklch(0.769 0.188 70.08)",
+          "$description": "Warning state color"
+        },
+        "muted": {
+          "$value": "oklch(0.25 0.08 70.08)",
+          "$description": "Muted warning background"
+        }
+      },
+      "danger": {
+        "default": {
+          "$value": "oklch(0.637 0.237 25.331)",
+          "$description": "Error/danger state color"
+        },
+        "muted": {
+          "$value": "oklch(0.25 0.08 25.331)",
+          "$description": "Muted danger background"
+        }
+      },
+      "info": {
+        "default": {
+          "$value": "oklch(0.488 0.243 264.376)",
+          "$description": "Info state color"
+        },
+        "muted": {
+          "$value": "oklch(0.25 0.08 264.376)",
+          "$description": "Muted info background"
+        }
+      }
+    },
+    "chart": {
+      "1": {
+        "$value": "oklch(0.488 0.243 264.376)",
+        "$description": "Chart color 1 - Blue"
+      },
+      "2": {
+        "$value": "oklch(0.696 0.17 162.48)",
+        "$description": "Chart color 2 - Green"
+      },
+      "3": {
+        "$value": "oklch(0.769 0.188 70.08)",
+        "$description": "Chart color 3 - Yellow"
+      },
+      "4": {
+        "$value": "oklch(0.627 0.265 303.9)",
+        "$description": "Chart color 4 - Purple"
+      },
+      "5": {
+        "$value": "oklch(0.645 0.246 16.439)",
+        "$description": "Chart color 5 - Orange"
+      }
+    },
+    "glass": {
+      "highlight": {
+        "$value": "oklch(0.985 0 0 / 0.05)",
+        "$description": "Glass effect highlight"
+      },
+      "accent": {
+        "$value": "oklch(0.488 0.243 264.376 / 0.1)",
+        "$description": "Glass effect accent"
+      },
+      "border": {
+        "$value": "oklch(0.985 0 0 / 0.3)",
+        "$description": "Glass effect border mix"
+      },
+      "card": {
+        "$value": "oklch(0.205 0 0 / 0.8)",
+        "$description": "Glass card background"
+      },
+      "modal": {
+        "$value": "oklch(0.145 0 0 / 0.95)",
+        "$description": "Glass modal background"
+      }
+    }
+  },
+  "spacing": {
+    "$type": "dimension",
+    "component": {
+      "padding": {
+        "xs": {
+          "$value": "0.5rem",
+          "$description": "Extra small component padding"
+        },
+        "sm": {
+          "$value": "0.75rem",
+          "$description": "Small component padding"
+        },
+        "md": {
+          "$value": "1rem",
+          "$description": "Medium component padding"
+        },
+        "lg": {
+          "$value": "1.5rem",
+          "$description": "Large component padding"
+        },
+        "xl": {
+          "$value": "2rem",
+          "$description": "Extra large component padding"
+        }
+      },
+      "gap": {
+        "xs": {
+          "$value": "0.25rem",
+          "$description": "Extra small gap between elements"
+        },
+        "sm": {
+          "$value": "0.5rem",
+          "$description": "Small gap between elements"
+        },
+        "md": {
+          "$value": "0.75rem",
+          "$description": "Medium gap between elements"
+        },
+        "lg": {
+          "$value": "1rem",
+          "$description": "Large gap between elements"
+        },
+        "xl": {
+          "$value": "1.5rem",
+          "$description": "Extra large gap between elements"
+        }
+      }
+    },
+    "layout": {
+      "section": {
+        "y": {
+          "mobile": {
+            "$value": "1.5rem",
+            "$description": "Section vertical spacing on mobile"
+          },
+          "desktop": {
+            "$value": "2rem",
+            "$description": "Section vertical spacing on desktop"
+          }
+        }
+      },
+      "container": {
+        "x": {
+          "mobile": {
+            "$value": "1rem",
+            "$description": "Container horizontal padding on mobile"
+          },
+          "tablet": {
+            "$value": "1.5rem",
+            "$description": "Container horizontal padding on tablet"
+          },
+          "desktop": {
+            "$value": "2rem",
+            "$description": "Container horizontal padding on desktop"
+          }
+        }
+      }
+    }
+  },
+  "borderRadius": {
+    "$type": "dimension",
+    "sm": {
+      "$value": "0.25rem",
+      "$description": "Small border radius"
+    },
+    "md": {
+      "$value": "0.375rem",
+      "$description": "Medium border radius"
+    },
+    "lg": {
+      "$value": "0.5rem",
+      "$description": "Large border radius"
+    },
+    "card": {
+      "$value": "0.75rem",
+      "$description": "Card border radius"
+    },
+    "full": {
+      "$value": "9999px",
+      "$description": "Full border radius for pills/circles"
+    }
+  },
+  "shadow": {
+    "$type": "shadow",
+    "xs": {
+      "$value": {
+        "color": "rgba(0,0,0,0.25)",
+        "offsetX": "0px",
+        "offsetY": "1px",
+        "blur": "2px",
+        "spread": "0px"
+      },
+      "$description": "Extra small shadow"
+    },
+    "sm": {
+      "$value": {
+        "color": "rgba(0,0,0,0.35)",
+        "offsetX": "0px",
+        "offsetY": "2px",
+        "blur": "8px",
+        "spread": "0px"
+      },
+      "$description": "Small shadow"
+    },
+    "md": {
+      "$value": {
+        "color": "rgba(0,0,0,0.45)",
+        "offsetX": "0px",
+        "offsetY": "6px",
+        "blur": "18px",
+        "spread": "0px"
+      },
+      "$description": "Medium shadow"
+    },
+    "lg": {
+      "$value": {
+        "color": "rgba(0,0,0,0.55)",
+        "offsetX": "0px",
+        "offsetY": "12px",
+        "blur": "30px",
+        "spread": "0px"
+      },
+      "$description": "Large shadow"
+    },
+    "focus": {
+      "$value": [
+        {
+          "color": "oklch(0.985 0 0 / 0.4)",
+          "offsetX": "0px",
+          "offsetY": "0px",
+          "blur": "0px",
+          "spread": "2px"
+        },
+        {
+          "color": "oklch(0.488 0.243 264.376 / 0.2)",
+          "offsetX": "0px",
+          "offsetY": "0px",
+          "blur": "0px",
+          "spread": "4px"
+        }
+      ],
+      "$description": "Focus ring shadow"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": {
+        "$type": "fontFamily",
+        "$value": ["var(--font-ui)", "ui-sans-serif", "system-ui", "sans-serif"],
+        "$description": "Sans-serif font family"
+      },
+      "display": {
+        "$type": "fontFamily",
+        "$value": ["var(--font-display-internal, var(--font-ui))"],
+        "$description": "Display font family"
+      }
+    },
+    "fontSize": {
+      "xs": {
+        "$type": "dimension",
+        "$value": "0.75rem",
+        "$description": "Extra small font size"
+      },
+      "sm": {
+        "$type": "dimension",
+        "$value": "0.875rem",
+        "$description": "Small font size"
+      },
+      "base": {
+        "$type": "dimension",
+        "$value": "1rem",
+        "$description": "Base font size"
+      },
+      "lg": {
+        "$type": "dimension",
+        "$value": "1.125rem",
+        "$description": "Large font size"
+      },
+      "xl": {
+        "$type": "dimension",
+        "$value": "1.25rem",
+        "$description": "Extra large font size"
+      },
+      "2xl": {
+        "$type": "dimension",
+        "$value": "1.5rem",
+        "$description": "2X large font size"
+      },
+      "3xl": {
+        "$type": "dimension",
+        "$value": "1.875rem",
+        "$description": "3X large font size"
+      }
+    },
+    "fontWeight": {
+      "normal": {
+        "$type": "fontWeight",
+        "$value": 400,
+        "$description": "Normal font weight"
+      },
+      "medium": {
+        "$type": "fontWeight",
+        "$value": 500,
+        "$description": "Medium font weight"
+      },
+      "semibold": {
+        "$type": "fontWeight",
+        "$value": 600,
+        "$description": "Semibold font weight"
+      },
+      "bold": {
+        "$type": "fontWeight",
+        "$value": 700,
+        "$description": "Bold font weight"
+      }
+    },
+    "lineHeight": {
+      "tight": {
+        "$type": "number",
+        "$value": 1.25,
+        "$description": "Tight line height"
+      },
+      "normal": {
+        "$type": "number",
+        "$value": 1.5,
+        "$description": "Normal line height"
+      },
+      "relaxed": {
+        "$type": "number",
+        "$value": 1.625,
+        "$description": "Relaxed line height"
+      }
+    }
+  },
+  "motion": {
+    "duration": {
+      "fast": {
+        "$type": "duration",
+        "$value": "160ms",
+        "$description": "Fast animation duration"
+      },
+      "base": {
+        "$type": "duration",
+        "$value": "200ms",
+        "$description": "Base animation duration"
+      },
+      "slow": {
+        "$type": "duration",
+        "$value": "240ms",
+        "$description": "Slow animation duration"
+      }
+    },
+    "easing": {
+      "ease": {
+        "$type": "cubicBezier",
+        "$value": [0.2, 0.8, 0.2, 1],
+        "$description": "Standard easing curve"
+      },
+      "spring": {
+        "$type": "cubicBezier",
+        "$value": [0.2, 0.8, 0.2, 1.2],
+        "$description": "Spring easing curve"
+      }
+    }
+  },
+  "gradient": {
+    "dark": {
+      "subtle": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "180deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.145 0 0)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.205 0 0)"
+            }
+          ]
+        },
+        "$description": "Subtle gradient for dark theme backgrounds"
+      },
+      "surface": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "180deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.205 0 0)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.269 0 0)"
+            }
+          ]
+        },
+        "$description": "Surface gradient for dark theme elevated elements"
+      },
+      "primary": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.985 0 0)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.9 0 0)"
+            }
+          ]
+        },
+        "$description": "Primary gradient for dark theme buttons and accents"
+      },
+      "shell": {
+        "radial": {
+          "$type": "gradient",
+          "$value": {
+            "type": "radial",
+            "shape": "ellipse",
+            "size": "1200px 800px",
+            "position": "30% 20%",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.145 0 0)"
+              },
+              {
+                "position": "60%",
+                "color": "oklch(0.205 0 0)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.269 0 0)"
+              }
+            ]
+          },
+          "$description": "Shell radial gradient for dark theme app backgrounds"
+        }
+      }
+    },
+    "light": {
+      "subtle": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "180deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.992 0.003 106.5)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.97 0.007 106.5)"
+            }
+          ]
+        },
+        "$description": "Subtle warm gradient for light theme backgrounds"
+      },
+      "surface": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "180deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(1 0 0)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.985 0.008 106.5)"
+            }
+          ]
+        },
+        "$description": "Surface gradient for light theme elevated elements"
+      },
+      "card": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(1 0 0)"
+            },
+            {
+              "position": "50%",
+              "color": "oklch(0.995 0.005 106.5)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.99 0.008 106.5)"
+            }
+          ]
+        },
+        "$description": "Card gradient for light theme with subtle depth"
+      },
+      "primary": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.25 0.01 270)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.18 0.015 280)"
+            }
+          ]
+        },
+        "$description": "Primary gradient for light theme buttons with depth"
+      },
+      "secondary": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.98 0.005 106.5)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.95 0.01 106.5)"
+            }
+          ]
+        },
+        "$description": "Secondary gradient for light theme subtle buttons"
+      },
+      "accent": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.6 0.15 264.376)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.55 0.18 285)"
+            }
+          ]
+        },
+        "$description": "Accent gradient for light theme special elements"
+      },
+      "shell": {
+        "radial": {
+          "$type": "gradient",
+          "$value": {
+            "type": "radial",
+            "shape": "ellipse",
+            "size": "1400px 900px",
+            "position": "35% 15%",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.995 0.008 106.5)"
+              },
+              {
+                "position": "40%",
+                "color": "oklch(0.985 0.012 106.5)"
+              },
+              {
+                "position": "80%",
+                "color": "oklch(0.975 0.015 106.5)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.96 0.018 106.5)"
+              }
+            ]
+          },
+          "$description": "Shell radial gradient for light theme app backgrounds with warmth"
+        },
+        "linear": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "180deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.995 0.005 106.5)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.98 0.012 106.5)"
+              }
+            ]
+          },
+          "$description": "Linear shell gradient for light theme headers and sections"
+        }
+      },
+      "input": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "180deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.985 0.008 106.5)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.975 0.012 106.5)"
+            }
+          ]
+        },
+        "$description": "Input field gradient for light theme with subtle inset appearance"
+      },
+      "modal": {
+        "$type": "gradient",
+        "$value": {
+          "type": "radial",
+          "shape": "ellipse",
+          "size": "800px 600px",
+          "position": "50% 30%",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(1 0 0)"
+            },
+            {
+              "position": "70%",
+              "color": "oklch(0.995 0.005 106.5)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.985 0.01 106.5)"
+            }
+          ]
+        },
+        "$description": "Modal gradient for light theme with center focus"
+      }
+    },
+    "universal": {
+      "success": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.696 0.17 162.48)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.65 0.15 150)"
+            }
+          ]
+        },
+        "$description": "Success gradient universal across themes"
+      },
+      "warning": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.769 0.188 70.08)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.72 0.16 65)"
+            }
+          ]
+        },
+        "$description": "Warning gradient universal across themes"
+      },
+      "danger": {
+        "$type": "gradient",
+        "$value": {
+          "type": "linear",
+          "angle": "135deg",
+          "stops": [
+            {
+              "position": "0%",
+              "color": "oklch(0.637 0.237 25.331)"
+            },
+            {
+              "position": "100%",
+              "color": "oklch(0.58 0.2 20)"
+            }
+          ]
+        },
+        "$description": "Danger gradient universal across themes"
+      }
+    }
+  },
+  "component": {
+    "button": {
+      "padding": {
+        "x": {
+          "$value": "{spacing.component.padding.md}",
+          "$description": "Button horizontal padding"
+        },
+        "y": {
+          "$value": "{spacing.component.padding.sm}",
+          "$description": "Button vertical padding"
+        }
+      },
+      "borderRadius": {
+        "$value": "{borderRadius.md}",
+        "$description": "Button border radius"
+      },
+      "fontSize": {
+        "$value": "{typography.fontSize.sm}",
+        "$description": "Button font size"
+      },
+      "fontWeight": {
+        "$value": "{typography.fontWeight.medium}",
+        "$description": "Button font weight"
+      }
+    },
+    "card": {
+      "padding": {
+        "$value": "{spacing.component.padding.lg}",
+        "$description": "Card padding"
+      },
+      "borderRadius": {
+        "$value": "{borderRadius.card}",
+        "$description": "Card border radius"
+      },
+      "shadow": {
+        "$value": "{shadow.xs}",
+        "$description": "Card shadow"
+      }
+    },
+    "input": {
+      "padding": {
+        "x": {
+          "$value": "{spacing.component.padding.sm}",
+          "$description": "Input horizontal padding"
+        },
+        "y": {
+          "$value": "{spacing.component.padding.sm}",
+          "$description": "Input vertical padding"
+        }
+      },
+      "borderRadius": {
+        "$value": "{borderRadius.md}",
+        "$description": "Input border radius"
+      },
+      "fontSize": {
+        "$value": "{typography.fontSize.base}",
+        "$description": "Input font size"
+      }
+    }
+  }
+}

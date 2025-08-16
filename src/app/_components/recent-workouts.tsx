@@ -103,8 +103,8 @@ export function RecentWorkouts() {
       <div className="space-y-3">
         {[...(Array(3) as number[])].map((_, i) => (
           <div key={i} className="glass-surface card animate-pulse p-4">
-            <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
-            <div className="h-3 w-2/3 rounded bg-gray-700"></div>
+            <div className="mb-2 h-4 w-1/3 skeleton"></div>
+            <div className="h-3 w-2/3 skeleton"></div>
           </div>
         ))}
       </div>
@@ -156,7 +156,7 @@ export function RecentWorkouts() {
             </Link>
             <Link
               href={`/workout/start?templateId=${workout.templateId}`}
-              className="text-secondary hover:text-gray-900 dark:hover:text-white"
+              className="text-secondary hover:text-primary"
             >
               Repeat
             </Link>

@@ -1,0 +1,67 @@
+/* Generated light theme overrides */
+@import "tailwindcss";
+
+:root, [data-theme="light"], [data-theme="system"] html:not(.dark) {
+  color-scheme: light;
+  --color-semantic-foreground: oklch(0.145 0 0);
+  --color-semantic-background: oklch(1 0 0);
+  --color-text-primary: oklch(0.145 0 0);
+  --color-text-secondary: oklch(0.556 0 0);
+  --color-text-muted: oklch(0.708 0 0);
+  --color-background-app: oklch(1 0 0);
+  --color-background-surface: oklch(1 0 0);
+  --color-background-card: oklch(1 0 0);
+  --color-border-default: oklch(0.922 0 0);
+  --color-primary-default: oklch(0.205 0 0);
+  --color-primary-hover: oklch(0.145 0 0);
+  --color-primary-active: oklch(0.1 0 0);
+  --color-secondary-default: oklch(0.97 0 0);
+  --color-secondary-hover: oklch(0.95 0 0);
+  --color-status-success-default: oklch(0.646 0.222 142.5);
+  --color-status-success-muted: oklch(0.95 0.05 142.5);
+  --color-status-warning-default: oklch(0.828 0.189 84.429);
+  --color-status-warning-muted: oklch(0.95 0.05 70.08);
+  --color-status-danger-default: oklch(0.577 0.245 27.325);
+  --color-status-danger-muted: oklch(0.95 0.05 25.331);
+  --color-status-info-default: oklch(0.6 0.118 264.376);
+  --color-status-info-muted: oklch(0.95 0.05 264.376);
+  --color-chart-1: oklch(0.646 0.222 41.116);
+  --color-chart-2: oklch(0.6 0.118 184.704);
+  --color-chart-3: oklch(0.398 0.07 227.392);
+  --color-chart-4: oklch(0.828 0.189 84.429);
+  --color-chart-5: oklch(0.769 0.188 70.08);
+  --color-glass-highlight: oklch(0.145 0 0 / 0.02);
+  --color-glass-accent: oklch(0.6 0.118 264.376 / 0.05);
+  --color-glass-border: oklch(0.145 0 0 / 0.3);
+  --color-glass-card: oklch(0.99 0 0 / 0.8);
+  --color-glass-modal: oklch(1 0 0 / 0.95);
+
+  --shadow-xs: 0px 1px 2px 0px rgba(0,0,0,0.08);
+  --shadow-sm: 0px 2px 8px 0px rgba(0,0,0,0.12);
+  --shadow-md: 0px 6px 18px 0px rgba(0,0,0,0.15);
+  --shadow-lg: 0px 12px 30px 0px rgba(0,0,0,0.18);
+  --shadow-focus: 0px 0px 0px 2px oklch(0.145 0 0 / 0.1), 0px 0px 0px 4px oklch(0.488 0.243 264.376 / 0.15);
+
+  --gradient-subtle: linear-gradient(180deg, oklch(0.99 0 0) 0%, oklch(0.97 0 0) 100%);
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.99 0 0) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.205 0 0) 0%, oklch(0.145 0 0) 100%);
+  --gradient-accent: linear-gradient(135deg, oklch(0.6 0.118 264.376) 0%, oklch(0.488 0.243 264.376) 100%);
+  --gradient-shell-radial: radial-gradient(ellipse 1200px 800px at 30% 20%, oklch(0.99 0 0) 0%, oklch(0.97 0 0) 60%, oklch(0.95 0 0) 100%);
+
+}
+
+/* light theme specific glass effects */
+:root, [data-theme="light"], [data-theme="system"] html:not(.dark) .glass-surface {
+  background:
+    radial-gradient(1200px 600px at 20% -10%, var(--color-glass-highlight) 0%, transparent 60%),
+    radial-gradient(800px 400px at 110% 0%, var(--color-glass-accent) 0%, transparent 60%),
+    color-mix(in oklab, var(--color-background-surface) 85%, var(--color-semantic-foreground) 15%);
+  border-color: color-mix(in oklab, var(--color-border-default) 70%, var(--color-glass-border));
+}
+
+:root, [data-theme="light"], [data-theme="system"] html:not(.dark) .glass-header {
+  background:
+    linear-gradient(180deg, var(--color-glass-highlight) 0%, transparent 100%),
+    color-mix(in oklab, var(--color-background-surface) 70%, var(--color-semantic-foreground) 30%);
+  border-bottom-color: color-mix(in oklab, var(--color-border-default) 70%, var(--color-glass-border));
+}

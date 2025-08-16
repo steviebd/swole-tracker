@@ -92,6 +92,7 @@ export const insightsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }): Promise<ExerciseInsightsResponse> => {
+      try {
       // Resolve linked exercise names/ids via master linking if templateExerciseId provided
       let exerciseNamesToSearch: string[] = [input.exerciseName];
       let templateExerciseIds: number[] | undefined;
@@ -137,29 +138,44 @@ export const insightsRouter = createTRPCRouter({
         sessionWhere.push(ne(workoutSessions.id, input.excludeSessionId));
 
       // Fetch recent sessions for the user
-      const recentSessions = await ctx.db.query.workoutSessions.findMany({
-        where: and(...sessionWhere),
-        orderBy: [desc(workoutSessions.workoutDate)],
-        limit: input.limitSessions,
-        with: {
-          exercises: {
-            where:
-              templateExerciseIds && templateExerciseIds.length > 0
-                ? inArray(
-                    sessionExercises.templateExerciseId,
-                    templateExerciseIds,
-                  )
-                : inArray(sessionExercises.exerciseName, exerciseNamesToSearch),
+      let recentSessions: any[] = [];
+      
+      // Only proceed if we have exercises to search for
+      if (exerciseNamesToSearch.length > 0 || (templateExerciseIds && templateExerciseIds.length > 0)) {
+        recentSessions = await ctx.db.query.workoutSessions.findMany({
+          where: and(...sessionWhere),
+          orderBy: [desc(workoutSessions.workoutDate)],
+          limit: input.limitSessions,
+          with: {
+            exercises: {
+              where:
+                templateExerciseIds && templateExerciseIds.length > 0
+                  ? inArray(
+                      sessionExercises.templateExerciseId,
+                      templateExerciseIds,
+                    )
+                  : exerciseNamesToSearch.length > 0
+                    ? inArray(sessionExercises.exerciseName, exerciseNamesToSearch)
+                    : undefined,
+            },
           },
-        },
-      });
+        });
+      }
 
       // Flatten sets chronologically (per session order) and compute metrics
       const flat: FlatSet[] = [];
       for (const s of recentSessions) {
+        if (!s.exercises || !Array.isArray(s.exercises)) {
+          console.warn(`Session ${s.id} has no exercises or exercises is not an array`);
+          continue;
+        }
         for (const ex of s.exercises.sort(
-          (a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0),
+          (a: any, b: any) => (a.setOrder ?? 0) - (b.setOrder ?? 0),
         )) {
+          if (!ex) {
+            console.warn(`Null exercise found in session ${s.id}`);
+            continue;
+          }
           flat.push({
             sessionId: s.id,
             workoutDate: s.workoutDate,
@@ -360,6 +376,10 @@ export const insightsRouter = createTRPCRouter({
         recommendation,
         suggestions,
       };
+      } catch (error) {
+        console.error('Error in getExerciseInsights:', error);
+        throw new Error(`Failed to get exercise insights: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }),
 
   // Session insights summary: totals and bests for the given session
@@ -371,6 +391,7 @@ export const insightsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }): Promise<SessionInsightsResponse> => {
+      try {
       const session = await ctx.db.query.workoutSessions.findFirst({
         where: and(
           eq(workoutSessions.id, input.sessionId),
@@ -419,6 +440,10 @@ export const insightsRouter = createTRPCRouter({
       );
 
       return { unit: input.unit, totalVolume, bestSets };
+      } catch (error) {
+        console.error('Error in getSessionInsights:', error);
+        throw new Error(`Failed to get session insights: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }),
 
   // Export recent workout summaries to CSV (simple)

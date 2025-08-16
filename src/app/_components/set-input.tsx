@@ -93,7 +93,7 @@ export function SetInput({
   };
 
   return (
-    <div className="glass-surface glass-hairline flex items-center gap-3 rounded-lg p-3 text-foreground select-none">
+    <div className="glass-card glass-hairline flex items-center gap-3 rounded-lg p-3 text-foreground select-none card-interactive">
       {/* Set Number */}
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-xs font-medium text-background">
         {setIndex + 1}
@@ -130,7 +130,7 @@ export function SetInput({
               }}
               placeholder="0"
               disabled={readOnly}
-              className={`input w-full bg-transparent pr-12 ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+              className={`input-primary w-full pr-12 ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none select-none text-muted-foreground">
               {preferredUnit}
@@ -164,7 +164,7 @@ export function SetInput({
             }}
             placeholder="0"
             disabled={readOnly}
-            className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+            className={`input-primary w-full ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
         </div>
 
@@ -192,7 +192,7 @@ export function SetInput({
             placeholder="1"
             min="1"
             disabled={readOnly}
-            className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+            className={`input-primary w-full ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
           />
         </div>
         {/* RPE segmented [6-10] */}
@@ -243,7 +243,7 @@ export function SetInput({
               }}
               placeholder="60"
               disabled={readOnly}
-              className={`input w-full bg-transparent ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
+              className={`input-primary w-full ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
             {[30, 60, 90].map((sec) => (
               <button

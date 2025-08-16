@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 import { useMockFeed } from "~/hooks/useMockData";
 
@@ -10,28 +9,14 @@ interface WorkoutCardProps {
   templateName: string;
   date: string;
   exerciseCount: number;
-  theme: string;
 }
 
-function WorkoutCard({ id, templateName, date, exerciseCount, theme }: WorkoutCardProps) {
-  const { resolvedTheme } = useTheme();
-  const cardClass = `flex items-center justify-between p-5 rounded-xl transition-all duration-300 cursor-pointer group border ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "bg-gray-800 hover:bg-gray-750 border-gray-700 hover:border-gray-600" 
-      : "bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300 dark:bg-gray-800 dark:hover:bg-gray-750 dark:border-gray-700 dark:hover:border-gray-600"
-  }`;
+function WorkoutCard({ id, templateName, date, exerciseCount }: WorkoutCardProps) {
+  const cardClass = "flex items-center justify-between p-5 rounded-xl transition-all duration-300 cursor-pointer group border bg-card border-border hover:shadow-md";
 
-  const titleClass = `font-bold text-lg transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
+  const titleClass = "font-bold text-lg text-theme-primary";
 
-  const metaClass = `flex items-center gap-4 text-sm mt-1 transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-gray-400" 
-      : "text-gray-600 dark:text-gray-400"
-  }`;
+  const metaClass = "flex items-center gap-4 text-sm mt-1 text-theme-muted";
 
   return (
     <div className={cardClass}>
@@ -64,27 +49,15 @@ function WorkoutCard({ id, templateName, date, exerciseCount, theme }: WorkoutCa
         <div className="flex items-center gap-3 text-sm">
           <Link
             href={`/workout/session/${id}`}
-            className={`transition-colors duration-300 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "text-blue-400 hover:text-blue-300" 
-                : "text-blue-500 hover:text-blue-600 dark:text-blue-400"
-            }`}
+            className="link-primary"
           >
             View
           </Link>
-          <span className={`transition-colors duration-300 ${
-            theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-              ? "text-gray-400" 
-              : "text-gray-600 dark:text-gray-400"
-          }`}>
+          <span className="text-theme-muted">
             Repeat
           </span>
         </div>
-        <svg className={`w-5 h-5 transition-colors duration-300 ${
-          theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-            ? "text-gray-500 group-hover:text-gray-300" 
-            : "text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
-        }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-5 h-5 text-theme-muted group-hover:text-theme-secondary transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </div>
@@ -93,8 +66,6 @@ function WorkoutCard({ id, templateName, date, exerciseCount, theme }: WorkoutCa
 }
 
 export function RecentWorkoutsSection() {
-  const { theme, resolvedTheme } = useTheme();
-  
   // Try to use real tRPC data first, fallback to mock data
   const {
     data: trpcWorkouts,
@@ -104,23 +75,11 @@ export function RecentWorkoutsSection() {
   
   const { data: mockWorkouts } = useMockFeed(3);
 
-  const titleClass = `text-xl font-bold transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
+  const titleClass = "text-xl font-bold text-theme-primary";
 
-  const linkClass = `font-medium transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-blue-400 hover:text-blue-300" 
-      : "text-blue-500 hover:text-blue-600 dark:text-blue-400"
-  }`;
+  const linkClass = "link-primary font-medium";
 
-  const containerClass = `transition-all duration-300 rounded-xl p-6 border hover:shadow-xl ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "bg-gray-900 border-gray-800 shadow-lg hover:shadow-2xl" 
-      : "bg-white border-gray-200 shadow-sm hover:shadow-lg dark:bg-gray-900 dark:border-gray-800"
-  }`;
+  const containerClass = "card-interactive p-6";
 
   // Use tRPC data if available and not loading/error, otherwise use mock data
   const workouts = (!trpcLoading && !trpcError && trpcWorkouts?.length) ? trpcWorkouts : mockWorkouts;
@@ -142,7 +101,7 @@ export function RecentWorkoutsSection() {
                   <div className="w-12 h-12 skeleton rounded-xl"></div>
                   <div className="flex-1 space-y-2">
                     <div className="h-4 skeleton w-1/3"></div>
-                    <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
+                    <div className="h-3 skeleton rounded w-1/2"></div>
                   </div>
                 </div>
               </div>
@@ -175,7 +134,6 @@ export function RecentWorkoutsSection() {
                 year: 'numeric' 
               })}
               exerciseCount={workout.exercises?.length ?? 0}
-              theme={theme}
             />
           ))}
         </div>

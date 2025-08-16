@@ -5,31 +5,31 @@
 :root,
 [data-theme="light"],
 [data-theme="system"] html:not(.dark) {
-  /* Core colors - light theme palette using OKLCH values from v1-dark */
-  --color-bg-app: oklch(1 0 0);                    /* Pure white background */
-  --color-bg-surface: oklch(1 0 0);                /* White surface */
-  --color-border: oklch(0.922 0 0);                /* Light gray border */
+  /* Core colors - light theme with warm gradient tones */
+  --color-bg-app: oklch(0.995 0.008 106.5);        /* Warm off-white background */
+  --color-bg-surface: oklch(0.998 0.005 106.5);    /* Slightly warmer surface */
+  --color-border: oklch(0.91 0.015 106.5);         /* Warm gray border with subtle tint */
   
   /* Foreground/Background tokens for black/white replacement */
-  --color-foreground: oklch(0.145 0 0);            /* Dark foreground (replaces black) */
-  --color-background: oklch(1 0 0);                /* Light background (replaces white) */
+  --color-foreground: oklch(0.18 0.01 280);        /* Rich dark foreground with subtle warmth */
+  --color-background: oklch(0.998 0.005 106.5);    /* Warm light background */
   
-  /* Text hierarchy */
-  --color-text: oklch(0.145 0 0);                  /* Dark text */
-  --color-text-secondary: oklch(0.556 0 0);        /* Medium gray text */
-  --color-text-muted: oklch(0.708 0 0);            /* Light gray text */
+  /* Text hierarchy with enhanced readability */
+  --color-text: oklch(0.18 0.01 280);              /* Rich dark text with depth */
+  --color-text-secondary: oklch(0.55 0.015 270);   /* Medium gray with subtle warmth */
+  --color-text-muted: oklch(0.68 0.02 260);        /* Light gray with warmth */
   
-  /* Primary accent - dark for light theme */
-  --color-primary: oklch(0.205 0 0);               /* Dark primary */
-  --color-primary-hover: oklch(0.145 0 0);         /* Darker on hover */
-  --color-primary-active: oklch(0.1 0 0);          /* Even darker when active */
+  /* Primary accent with gradient depth */
+  --color-primary: oklch(0.25 0.01 270);           /* Rich dark primary with hint of blue */
+  --color-primary-hover: oklch(0.2 0.015 275);     /* Deeper on hover */
+  --color-primary-active: oklch(0.15 0.02 280);    /* Richest when active */
   
-  /* Secondary colors */
-  --color-secondary: oklch(0.97 0 0);              /* Very light gray */
-  --color-secondary-hover: oklch(0.95 0 0);        /* Slightly darker gray */
+  /* Secondary colors with gradient warmth */
+  --color-secondary: oklch(0.975 0.008 106.5);     /* Warm very light gray */
+  --color-secondary-hover: oklch(0.95 0.012 106.5); /* Warmer on hover */
   
-  /* Card background */
-  --color-card: oklch(1 0 0);                      /* White card background */
+  /* Card background with gradient */
+  --color-card: oklch(0.998 0.005 106.5);          /* Warm card background for gradient base */
   
   /* Semantic colors - keeping similar to v1-dark but adjusted for light theme */
   --color-success: oklch(0.646 0.222 142.5);       /* Green success */
@@ -66,36 +66,44 @@
   --shadow-lg: 0 12px 30px rgba(0,0,0,.18);
   
   /* Focus shadow with primary color - enhanced visibility */
-  --shadow-focus: 0 0 0 2px oklch(0.985 0 0 / 0.4), 0 0 0 4px oklch(0.488 0.243 264.376 / 0.2);
+  --shadow-focus: 0 0 0 2px oklch(0.145 0 0 / 0.1), 0 0 0 4px oklch(0.488 0.243 264.376 / 0.15);
   
-  /* Gradient tokens for subtle backgrounds */
-  --gradient-subtle: linear-gradient(180deg, oklch(0.99 0 0) 0%, oklch(0.97 0 0) 100%);
-  --gradient-surface: linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.99 0 0) 100%);
-  --gradient-primary: linear-gradient(135deg, oklch(0.205 0 0) 0%, oklch(0.145 0 0) 100%);
-  --gradient-accent: linear-gradient(135deg, oklch(0.6 0.118 264.376) 0%, oklch(0.488 0.243 264.376) 100%);
+  /* Enhanced gradient tokens for depth and warmth */
+  --gradient-subtle: linear-gradient(180deg, oklch(0.992 0.003 106.5) 0%, oklch(0.97 0.007 106.5) 100%);
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.985 0.008 106.5) 100%);
+  --gradient-card: linear-gradient(135deg, oklch(1 0 0) 0%, oklch(0.995 0.005 106.5) 50%, oklch(0.99 0.008 106.5) 100%);
+  --gradient-primary: linear-gradient(135deg, oklch(0.25 0.01 270) 0%, oklch(0.18 0.015 280) 100%);
+  --gradient-secondary: linear-gradient(135deg, oklch(0.98 0.005 106.5) 0%, oklch(0.95 0.01 106.5) 100%);
+  --gradient-accent: linear-gradient(135deg, oklch(0.6 0.15 264.376) 0%, oklch(0.55 0.18 285) 100%);
+  --gradient-input: linear-gradient(180deg, oklch(0.985 0.008 106.5) 0%, oklch(0.975 0.012 106.5) 100%);
   
-  /* App shell gradients - subtle radial for backgrounds */
-  --gradient-shell-radial: radial-gradient(1200px 800px at 30% 20%, oklch(0.99 0 0) 0%, oklch(0.97 0 0) 60%, oklch(0.95 0 0) 100%);
-  --gradient-header-linear: linear-gradient(180deg, oklch(0.99 0 0) 0%, oklch(0.97 0 0) 100%);
+  /* Enhanced app shell gradients with warmth and depth */
+  --gradient-shell-radial: radial-gradient(1400px 900px at 35% 15%, oklch(0.995 0.008 106.5) 0%, oklch(0.985 0.012 106.5) 40%, oklch(0.975 0.015 106.5) 80%, oklch(0.96 0.018 106.5) 100%);
+  --gradient-header-linear: linear-gradient(180deg, oklch(0.995 0.005 106.5) 0%, oklch(0.98 0.012 106.5) 100%);
+  --gradient-modal: radial-gradient(800px 600px at 50% 30%, oklch(1 0 0) 0%, oklch(0.995 0.005 106.5) 70%, oklch(0.985 0.01 106.5) 100%);
   
-  /* Glass effect colors for light theme */
-  --glass-highlight: oklch(0.145 0 0 / 0.02);
-  --glass-accent: oklch(0.6 0.118 264.376 / 0.05);
-  --glass-border-mix: oklch(0.145 0 0 / 0.3);
+  /* Enhanced glass effect colors with gradient depth */
+  --glass-highlight: oklch(0.995 0.008 106.5 / 0.6);
+  --glass-accent: oklch(0.6 0.15 264.376 / 0.08);
+  --glass-border-mix: oklch(0.25 0.015 270 / 0.25);
   
-  /* Button overrides for light theme */
+  /* Enhanced glass effect variants with gradient warmth */
+  --glass-card: oklch(0.995 0.005 106.5 / 0.85);
+  --glass-modal: oklch(0.998 0.003 106.5 / 0.95);
+  
+  /* Enhanced button overrides with gradient depth */
   --btn-primary-bg: var(--gradient-primary);
---btn-primary-bg-color: oklch(0.205 0 0);
---btn-primary-fg: oklch(0.985 0 0);              /* White text on dark button */
---btn-primary-bg-hover: oklch(0.145 0 0);
---btn-primary-bg-active: oklch(0.1 0 0);
+  --btn-primary-bg-color: oklch(0.25 0.01 270);
+  --btn-primary-fg: oklch(0.995 0.005 106.5);     /* Warm white text on dark button */
+  --btn-primary-bg-hover: oklch(0.2 0.015 275);
+  --btn-primary-bg-active: oklch(0.15 0.02 280);
   
-  --btn-secondary-bg: transparent;
-  --btn-secondary-fg: oklch(0.145 0 0);
-  --btn-secondary-border: oklch(0.922 0 0);
-  --btn-secondary-bg-hover: oklch(0.97 0 0);
+  --btn-secondary-bg: var(--gradient-secondary);
+  --btn-secondary-fg: oklch(0.25 0.01 270);
+  --btn-secondary-border: oklch(0.91 0.015 106.5);
+  --btn-secondary-bg-hover: oklch(0.95 0.012 106.5);
   
-  --btn-ghost-fg: oklch(0.556 0 0);
+  --btn-ghost-fg: oklch(0.55 0.015 270);
 }
 
 /* Ensure light mode is active for light theme */
@@ -105,15 +113,17 @@
   color-scheme: light;
 }
 
-/* Glass effects specific to light theme - more subtle */
+/* Enhanced glass effects with gradient integration */
 :root .glass-surface,
 [data-theme="light"] .glass-surface,
 [data-theme="system"] html:not(.dark) .glass-surface {
   background:
-    radial-gradient(1200px 600px at 20% -10%, var(--glass-highlight) 0%, transparent 60%),
-    radial-gradient(800px 400px at 110% 0%, var(--glass-accent) 0%, transparent 60%),
-    color-mix(in oklab, var(--color-bg-surface) 90%, var(--color-border) 10%);
-  border-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+    radial-gradient(1200px 600px at 25% -5%, var(--glass-highlight) 0%, transparent 50%),
+    radial-gradient(800px 400px at 105% 10%, var(--glass-accent) 0%, transparent 50%),
+    var(--gradient-surface);
+  border-color: color-mix(in oklch, var(--color-border) 70%, var(--glass-border-mix));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 :root .glass-header,
@@ -121,8 +131,10 @@
 [data-theme="system"] html:not(.dark) .glass-header {
   background:
     linear-gradient(180deg, var(--glass-highlight) 0%, transparent 100%),
-    color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-border) 15%);
-  border-bottom-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+    var(--gradient-header-linear);
+  border-bottom-color: color-mix(in oklch, var(--color-border) 60%, var(--glass-border-mix));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 :root .glass-footer,
@@ -130,30 +142,117 @@
 [data-theme="system"] html:not(.dark) .glass-footer {
   background:
     linear-gradient(0deg, var(--glass-highlight) 0%, transparent 100%),
-    color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-border) 15%);
-  border-top-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+    var(--gradient-header-linear);
+  border-top-color: color-mix(in oklch, var(--color-border) 60%, var(--glass-border-mix));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 :root .glass-hairline,
 [data-theme="light"] .glass-hairline,
 [data-theme="system"] html:not(.dark) .glass-hairline {
-  border-color: color-mix(in oklab, var(--color-border) 70%, var(--glass-border-mix));
+  border-color: color-mix(in oklch, var(--color-border) 60%, var(--glass-border-mix));
 }
 
-/* Light theme horizon background - bright and airy */
+/* Additional glass variants for enhanced depth */
+:root .glass-card,
+[data-theme="light"] .glass-card,
+[data-theme="system"] html:not(.dark) .glass-card {
+  background:
+    radial-gradient(800px 500px at 30% 20%, var(--glass-highlight) 0%, transparent 60%),
+    var(--gradient-card);
+  border-color: color-mix(in oklch, var(--color-border) 50%, var(--glass-border-mix));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px color-mix(in oklch, var(--color-border) 40%, transparent);
+}
+
+:root .glass-modal,
+[data-theme="light"] .glass-modal,
+[data-theme="system"] html:not(.dark) .glass-modal {
+  background:
+    radial-gradient(600px 400px at 50% 30%, oklch(1 0 0 / 0.95) 0%, oklch(0.995 0.005 106.5 / 0.9) 70%, oklch(0.985 0.01 106.5 / 0.85) 100%);
+  border-color: color-mix(in oklch, var(--color-border) 40%, var(--glass-border-mix));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px color-mix(in oklch, var(--color-foreground) 20%, transparent);
+}
+
+/* Enhanced light theme horizon background with warmth */
 :root .bg-horizon,
 [data-theme="light"] .bg-horizon {
   background: var(--gradient-shell-radial);
 }
 
-/* Card styling for light */
+/* New gradient utility classes for light theme */
+:root .bg-gradient-subtle,
+[data-theme="light"] .bg-gradient-subtle,
+[data-theme="system"] html:not(.dark) .bg-gradient-subtle {
+  background: var(--gradient-subtle);
+}
+
+:root .bg-gradient-surface,
+[data-theme="light"] .bg-gradient-surface,
+[data-theme="system"] html:not(.dark) .bg-gradient-surface {
+  background: var(--gradient-surface);
+}
+
+:root .bg-gradient-card,
+[data-theme="light"] .bg-gradient-card,
+[data-theme="system"] html:not(.dark) .bg-gradient-card {
+  background: var(--gradient-card);
+}
+
+:root .bg-gradient-primary,
+[data-theme="light"] .bg-gradient-primary,
+[data-theme="system"] html:not(.dark) .bg-gradient-primary {
+  background: var(--gradient-primary);
+  color: var(--btn-primary-fg);
+}
+
+:root .bg-gradient-secondary,
+[data-theme="light"] .bg-gradient-secondary,
+[data-theme="system"] html:not(.dark) .bg-gradient-secondary {
+  background: var(--gradient-secondary);
+}
+
+:root .bg-gradient-input,
+[data-theme="light"] .bg-gradient-input,
+[data-theme="system"] html:not(.dark) .bg-gradient-input {
+  background: var(--gradient-input);
+}
+
+:root .bg-gradient-modal,
+[data-theme="light"] .bg-gradient-modal,
+[data-theme="system"] html:not(.dark) .bg-gradient-modal {
+  background: var(--gradient-modal);
+}
+
+/* Enhanced card styling for light theme with gradient */
 :root .card,
 [data-theme="light"] .card,
 [data-theme="system"] html:not(.dark) .card {
-  background-color: var(--color-card);
+  background: var(--gradient-card);
   color: var(--color-text);
   border-color: var(--color-border);
   box-shadow: var(--shadow-sm);
+  transition: all 200ms ease;
+}
+
+/* Card variants for different contexts */
+:root .card-surface,
+[data-theme="light"] .card-surface,
+[data-theme="system"] html:not(.dark) .card-surface {
+  background: var(--gradient-surface);
+  border-color: color-mix(in oklch, var(--color-border) 80%, transparent);
+}
+
+:root .card-elevated,
+[data-theme="light"] .card-elevated,
+[data-theme="system"] html:not(.dark) .card-elevated {
+  background: var(--gradient-card);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in oklch, var(--color-border) 60%, transparent);
 }
 
 /* Text utilities for light */
@@ -194,13 +293,26 @@
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Form inputs using theme tokens */
+/* Enhanced form inputs with gradient backgrounds */
 :root .input-primary,
 [data-theme="light"] .input-primary,
 [data-theme="system"] html:not(.dark) .input-primary {
-  background-color: var(--color-background);
+  background: var(--gradient-input);
   color: var(--color-foreground);
   border-color: var(--color-border);
+  transition: all 200ms ease;
+}
+
+:root .input,
+[data-theme="light"] .input,
+[data-theme="system"] html:not(.dark) .input {
+  background: var(--gradient-input);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  transition: all 200ms ease;
 }
 
 :root .input-primary:focus,
@@ -237,13 +349,21 @@
   color: oklch(0.5 0.25 142.5);
 }
 
-/* Interactive card hover states */
+/* Enhanced interactive card hover states with gradient depth */
 :root .card-interactive:hover,
 [data-theme="light"] .card-interactive:hover,
 [data-theme="system"] html:not(.dark) .card-interactive:hover {
-  background-color: oklch(0.99 0 0);
-  border-color: oklch(0.9 0 0);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, oklch(0.999 0.002 106.5) 0%, oklch(0.992 0.008 106.5) 50%, oklch(0.985 0.012 106.5) 100%);
+  border-color: oklch(0.88 0.02 106.5);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+:root .card-interactive:active,
+[data-theme="light"] .card-interactive:active,
+[data-theme="system"] html:not(.dark) .card-interactive:active {
+  transform: translateY(0px);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Button variants for light theme */
@@ -271,10 +391,58 @@
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 30%, transparent);
 }
 
-/* Loading overlay */
+/* Enhanced loading overlay with gradient warmth */
 :root .loading-overlay,
 [data-theme="light"] .loading-overlay,
 [data-theme="system"] html:not(.dark) .loading-overlay {
-  background-color: color-mix(in oklab, var(--color-background) 80%, transparent);
-  backdrop-filter: blur(2px);
+  background: radial-gradient(600px 400px at 50% 50%, oklch(0.995 0.005 106.5 / 0.9) 0%, oklch(0.99 0.008 106.5 / 0.8) 100%);
+  backdrop-filter: blur(4px);
+}
+
+/* Modal backgrounds with enhanced gradient */
+:root .modal-backdrop,
+[data-theme="light"] .modal-backdrop,
+[data-theme="system"] html:not(.dark) .modal-backdrop {
+  background: var(--gradient-modal);
+}
+
+/* Soft borders for subtle separation */
+:root .border-soft,
+[data-theme="light"] .border-soft,
+[data-theme="system"] html:not(.dark) .border-soft {
+  border-color: color-mix(in oklch, var(--color-border) 50%, transparent);
+}
+
+/* Gradient button utilities */
+:root .btn-gradient-primary,
+[data-theme="light"] .btn-gradient-primary,
+[data-theme="system"] html:not(.dark) .btn-gradient-primary {
+  background: var(--gradient-primary);
+  color: var(--btn-primary-fg);
+  border: 1px solid transparent;
+  box-shadow: 0 2px 4px color-mix(in oklch, var(--color-primary) 30%, transparent);
+}
+
+:root .btn-gradient-primary:hover,
+[data-theme="light"] .btn-gradient-primary:hover,
+[data-theme="system"] html:not(.dark) .btn-gradient-primary:hover {
+  box-shadow: 0 4px 8px color-mix(in oklch, var(--color-primary) 40%, transparent);
+  transform: translateY(-1px);
+}
+
+:root .btn-gradient-secondary,
+[data-theme="light"] .btn-gradient-secondary,
+[data-theme="system"] html:not(.dark) .btn-gradient-secondary {
+  background: var(--gradient-secondary);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px color-mix(in oklch, var(--color-border) 50%, transparent);
+}
+
+:root .btn-gradient-secondary:hover,
+[data-theme="light"] .btn-gradient-secondary:hover,
+[data-theme="system"] html:not(.dark) .btn-gradient-secondary:hover {
+  background: linear-gradient(135deg, oklch(0.975 0.008 106.5) 0%, oklch(0.94 0.015 106.5) 100%);
+  box-shadow: 0 2px 6px color-mix(in oklch, var(--color-border) 60%, transparent);
+  transform: translateY(-1px);
 }

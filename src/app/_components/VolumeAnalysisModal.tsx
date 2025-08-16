@@ -29,19 +29,11 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
 
   if (!isOpen) return null;
 
-  const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
-    isDark
-      ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-800"
-  }`;
+  const cardClass = "card transition-all duration-300 rounded-xl";
 
-  const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-background" : "text-gray-900 dark:text-background"
-  }`;
+  const titleClass = "text-xl font-bold mb-4 text-primary";
 
-  const subtitleClass = `text-sm font-medium mb-2 ${
-    isDark ? "text-gray-300" : "text-gray-700 dark:text-gray-300"
-  }`;
+  const subtitleClass = "text-sm font-medium mb-2 text-secondary";
 
   const calculateVolumeStats = () => {
     if (!volumeData || volumeData.length === 0) return null;
@@ -147,7 +139,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 loading-overlay flex items-center justify-center p-4 z-50">
       <div className={`max-w-6xl w-full max-h-[90vh] overflow-y-auto rounded-xl ${cardClass} p-6`}>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -157,9 +149,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
           <button
             onClick={onClose}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              isDark
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+              isDark ? "btn-primary" : "btn-secondary"
             }`}
           >
             ✕ Close
@@ -169,7 +159,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
         {isLoading ? (
           <div className="space-y-6">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"></div>
+              <div key={i} className="skeleton h-32 rounded-lg"></div>
             ))}
           </div>
         ) : (
@@ -179,55 +169,55 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
               <div className="mb-8">
                 <h4 className={subtitleClass}>Volume Overview</h4>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+                  <div className="p-4 rounded-lg bg-muted">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-xl">💪</span>
-                      <h5 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <h5 className="text-xs font-medium text-muted">
                         Total Volume
                       </h5>
                     </div>
                     <p className="text-2xl font-bold text-purple-500">
                       {volumeStats.totalVolume.toLocaleString()}kg
                     </p>
-                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                    <p className="text-xs text-muted">
                       {volumeStats.workoutDays} workout days
                     </p>
                   </div>
 
-                  <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+                  <div className="p-4 rounded-lg bg-muted">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-xl">📊</span>
-                      <h5 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <h5 className="text-xs font-medium text-muted">
                         Daily Average
                       </h5>
                     </div>
                     <p className="text-2xl font-bold text-blue-500">
                       {volumeStats.avgDailyVolume.toLocaleString()}kg
                     </p>
-                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                    <p className="text-xs text-muted">
                       per workout
                     </p>
                   </div>
 
-                  <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+                  <div className="p-4 rounded-lg bg-muted">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-xl">{getTrendIcon(volumeStats.trend)}</span>
-                      <h5 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <h5 className="text-xs font-medium text-muted">
                         Trend
                       </h5>
                     </div>
                     <p className={`text-2xl font-bold ${getTrendColor(volumeStats.trend)}`}>
                       {volumeStats.trend > 0 ? '+' : ''}{volumeStats.trend}%
                     </p>
-                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                    <p className="text-xs text-muted">
                       vs previous period
                     </p>
                   </div>
 
-                  <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+                  <div className="p-4 rounded-lg bg-muted">
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-xl">🎯</span>
-                      <h5 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <h5 className="text-xs font-medium text-muted">
                         Consistency
                       </h5>
                     </div>
@@ -237,7 +227,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                     }`}>
                       {volumeStats.consistency}%
                     </p>
-                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                    <p className="text-xs text-muted">
                       workout frequency
                     </p>
                   </div>
@@ -251,7 +241,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                 <h4 className={subtitleClass}>Exercise Volume Distribution</h4>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
-                    <h5 className={`text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                    <h5 className="text-sm font-medium mb-3 text-secondary">
                       Top Volume Contributors
                     </h5>
                     <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -267,7 +257,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                               <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
                                 {exercise.exerciseName}
                               </p>
-                              <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                              <p className="text-xs text-muted">
                                 {exercise.totalSets} sets, {Math.round(exercise.averageVolume)}kg avg
                               </p>
                             </div>
@@ -276,7 +266,7 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                             <p className={`text-sm font-bold ${isDark ? "text-background" : "text-foreground"}`}>
                               {exercise.totalVolume.toLocaleString()}kg
                             </p>
-                            <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                            <p className="text-xs text-muted">
                               {Math.round(exercise.percentage)}%
                             </p>
                           </div>
@@ -286,10 +276,10 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                   </div>
 
                   <div>
-                    <h5 className={`text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                    <h5 className="text-sm font-medium mb-3 text-secondary">
                       Volume Distribution
                     </h5>
-                    <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+                    <div className="p-4 rounded-lg bg-muted">
                       <div className="space-y-4">
                         <div>
                           <p className={`text-sm font-medium ${isDark ? "text-background" : "text-foreground"}`}>
@@ -337,8 +327,8 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
               <div className="mb-8">
                 <h4 className={subtitleClass}>Set & Rep Distribution</h4>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
-                    <h5 className={`text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <h5 className="text-sm font-medium mb-3 text-secondary">
                       Rep Range Analysis
                     </h5>
                     <div className="space-y-3">
@@ -392,8 +382,8 @@ export function VolumeAnalysisModal({ isOpen, onClose, timeRange }: VolumeAnalys
                     </div>
                   </div>
 
-                  <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
-                    <h5 className={`text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <h5 className="text-sm font-medium mb-3 text-secondary">
                       Training Summary
                     </h5>
                     <div className="space-y-3">

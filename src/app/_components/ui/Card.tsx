@@ -28,7 +28,7 @@ export function Card({
     <Comp
       className={cx(
         "card",
-        glass ? "glass-surface" : "",
+        glass ? "glass-card" : "",
         hairline ? "glass-hairline" : "",
         className,
       )}

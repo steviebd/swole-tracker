@@ -1,14 +1,52 @@
 @import "tailwindcss";
-@import "./tokens/base.css";
-@import "./tokens/light.css";
+@import "./tokens/generated-base.css";
+@import "./tokens/generated-light.css";
 @import "./tokens/dark.css";
 
 
 @theme {
-  /* Typography */
-  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-display: var(--font-display-internal, var(--font-ui));
+  /* Typography mapped from design tokens */
+  --font-sans: var(--font-fontFamily-sans);
+  --font-display: var(--font-fontFamily-display);
+  
+  /* Tailwind color mappings to our semantic tokens */
+  --color-primary-50: hsl(from var(--color-primary-default) h s calc(l + 45%));
+  --color-primary-100: hsl(from var(--color-primary-default) h s calc(l + 35%));
+  --color-primary-200: hsl(from var(--color-primary-default) h s calc(l + 25%));
+  --color-primary-300: hsl(from var(--color-primary-default) h s calc(l + 15%));
+  --color-primary-400: hsl(from var(--color-primary-default) h s calc(l + 5%));
+  --color-primary-500: var(--color-primary-default);
+  --color-primary-600: var(--color-primary-hover);
+  --color-primary-700: var(--color-primary-active);
+  --color-primary-800: hsl(from var(--color-primary-active) h s calc(l - 10%));
+  --color-primary-900: hsl(from var(--color-primary-active) h s calc(l - 20%));
+  --color-primary-950: hsl(from var(--color-primary-active) h s calc(l - 30%));
+  
+  /* Surface colors */
+  --color-background: var(--color-background-app);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-background-card);
+  --color-popover: var(--color-background-surface);
+  --color-muted: var(--color-background-surface);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-border: var(--color-border-default);
+  --color-input: var(--color-background-surface);
+  --color-ring: var(--color-primary-default);
+  
+  /* Semantic state colors */
+  --color-destructive: var(--color-status-danger-default);
+  --color-destructive-foreground: var(--color-text-primary);
+  
+  /* Border radius from tokens */
+  --radius: var(--radius-md);
+  
+  /* Spacing mapped from tokens */
+  --spacing-1: var(--spacing-component-gap-xs);
+  --spacing-2: var(--spacing-component-gap-sm);
+  --spacing-3: var(--spacing-component-gap-md);
+  --spacing-4: var(--spacing-component-gap-lg);
+  --spacing-6: var(--spacing-component-gap-xl);
+  --spacing-8: var(--spacing-component-padding-lg);
 }
 
 /* Light-first base, with dark overrides via html.dark */
@@ -172,6 +210,31 @@ html.dark {
 .border-border { border-color: var(--color-border); }
 .text-muted-foreground { color: var(--color-text-muted); }
 .bg-muted { background-color: color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-foreground) 15%); }
+
+/* Theme-aware utility classes */
+.bg-theme-surface { background-color: var(--color-bg-surface); }
+.bg-theme-app { background-color: var(--color-bg-app); }
+.text-theme-primary { color: var(--color-text); }
+.text-theme-secondary { color: var(--color-text-secondary); }
+.text-theme-muted { color: var(--color-text-muted); }
+
+/* Semantic muted background utilities */
+.bg-success-muted { background-color: var(--color-success-muted); }
+.bg-warning-muted { background-color: var(--color-warning-muted); }
+.bg-danger-muted { background-color: var(--color-danger-muted); }
+.bg-info-muted { background-color: var(--color-info-muted); }
+
+/* Glass effect utilities */
+.glass-card { 
+  background-color: var(--glass-card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.glass-modal {
+  background-color: var(--glass-modal);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
 /* App background layers */
 .page-backdrop { position: fixed; inset: 0; z-index: -1; background: var(--gradient-shell-radial); }

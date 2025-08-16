@@ -24,43 +24,66 @@ export const healthAdviceRouter = createTRPCRouter({
       modelUsed: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { sessionId, request, response, responseTimeMs, modelUsed } = input;
+      try {
+        const { sessionId, request, response, responseTimeMs, modelUsed } = input;
 
-      // Calculate total suggestions
-      const totalSuggestions = response.per_exercise.reduce((sum, ex) => sum + ex.sets.length, 0);
+        // Calculate total suggestions
+        const totalSuggestions = response.per_exercise.reduce((sum, ex) => sum + ex.sets.length, 0);
 
-      // Upsert health advice (update if exists, insert if not)
-      const result = await ctx.db
-        .insert(healthAdvice)
-        .values({
-          user_id: ctx.user.id,
-          sessionId: sessionId,
-          request: request,
-          response: response,
-          readiness_rho: response.readiness.rho.toString(),
-          overload_multiplier: response.readiness.overload_multiplier.toString(),
-          session_predicted_chance: response.session_predicted_chance.toString(),
-          user_accepted_suggestions: 0, // Will be updated when user accepts
-          total_suggestions: totalSuggestions,
-          response_time_ms: responseTimeMs ? Math.round(responseTimeMs) : null,
-          model_used: modelUsed,
-        })
-        .onConflictDoUpdate({
-          target: [healthAdvice.user_id, healthAdvice.sessionId],
-          set: {
+        // Upsert health advice (update if exists, insert if not)
+        const result = await ctx.db
+          .insert(healthAdvice)
+          .values({
+            user_id: ctx.user.id,
+            sessionId: sessionId,
             request: request,
             response: response,
             readiness_rho: response.readiness.rho.toString(),
             overload_multiplier: response.readiness.overload_multiplier.toString(),
             session_predicted_chance: response.session_predicted_chance.toString(),
+            user_accepted_suggestions: 0, // Will be updated when user accepts
             total_suggestions: totalSuggestions,
             response_time_ms: responseTimeMs ? Math.round(responseTimeMs) : null,
             model_used: modelUsed,
-          },
-        })
-        .returning();
+          })
+          .onConflictDoUpdate({
+            target: [healthAdvice.user_id, healthAdvice.sessionId],
+            set: {
+              request: request,
+              response: response,
+              readiness_rho: response.readiness.rho.toString(),
+              overload_multiplier: response.readiness.overload_multiplier.toString(),
+              session_predicted_chance: response.session_predicted_chance.toString(),
+              total_suggestions: totalSuggestions,
+              response_time_ms: responseTimeMs ? Math.round(responseTimeMs) : null,
+              model_used: modelUsed,
+            },
+          })
+          .returning();
 
-      return result[0];
+        if (!result?.[0]) {
+          logger.error('Failed to save health advice - no result returned', {
+            userId: ctx.user.id,
+            sessionId,
+          });
+          throw new Error('Failed to save health advice to database');
+        }
+
+        logger.info('Health advice saved successfully', {
+          userId: ctx.user.id,
+          sessionId,
+          readinessRho: response.readiness.rho,
+        });
+
+        return result[0];
+      } catch (error) {
+        logger.error('Failed to save health advice to database', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          userId: ctx.user.id,
+          sessionId: input.sessionId,
+        });
+        throw error;
+      }
     }),
 
   // Enhanced save method that can optionally link wellness data

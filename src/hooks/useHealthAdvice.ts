@@ -59,7 +59,7 @@ export function useHealthAdvice(sessionId?: number) {
           errorType: response.status === 400 ? 'validation_error' : 'api_error',
           errorMessage: errorData.error || 'Failed to fetch advice',
           modelUsed: 'unknown',
-          hasWhoopData: request.whoop ? Object.keys(request.whoop).length > 0 : false,
+          hasWhoopData: request.whoop ? Object.keys(request.whoop || {}).length > 0 : false,
           experienceLevel: request.user_profile.experience_level
         });
         
@@ -96,7 +96,7 @@ export function useHealthAdvice(sessionId?: number) {
         totalSuggestions,
         modelUsed: 'health-model',
         responseTime: totalDuration,
-        hasWhoopData: Object.keys(request.whoop).length > 0,
+        hasWhoopData: Object.keys(request.whoop || {}).length > 0,
         experienceLevel: request.user_profile.experience_level,
         flags: data.readiness.flags,
         warnings: data.warnings
@@ -118,7 +118,7 @@ export function useHealthAdvice(sessionId?: number) {
         sessionId: request.session_id,
         errorType,
         errorMessage: err.message,
-        hasWhoopData: Object.keys(request.whoop).length > 0,
+        hasWhoopData: Object.keys(request.whoop || {}).length > 0,
         experienceLevel: request.user_profile.experience_level
       });
       

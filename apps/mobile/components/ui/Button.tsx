@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, TouchableOpacityProps, ActivityIndicator } from 'react-native';
 import { cn } from '../../lib/utils';
+import { DesignTokens } from '../../lib/design-tokens';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
@@ -22,27 +23,27 @@ export function Button({
   const baseClasses = 'items-center justify-center rounded-lg border';
   
   const variantClasses = {
-    primary: 'bg-blue-600 border-blue-600',
-    secondary: 'bg-gray-600 border-gray-600',
-    outline: 'bg-transparent border-blue-600',
+    primary: 'bg-primary-500 border-primary-500',
+    secondary: 'bg-surface border-border-default',
+    outline: 'bg-transparent border-primary-500',
   };
   
   const sizeClasses = {
-    sm: 'px-3 py-2',
-    md: 'px-4 py-3',
-    lg: 'px-6 py-4',
+    sm: 'px-component-sm py-component-xs',
+    md: 'px-component-md py-component-sm',
+    lg: 'px-component-lg py-component-md',
   };
   
   const textVariantClasses = {
-    primary: 'text-white font-medium',
-    secondary: 'text-white font-medium',
-    outline: 'text-blue-600 font-medium',
+    primary: 'text-foreground font-token-medium',
+    secondary: 'text-text-primary font-token-medium',
+    outline: 'text-primary-500 font-token-medium',
   };
   
   const textSizeClasses = {
-    sm: 'text-sm',
-    md: 'text-base',
-    lg: 'text-lg',
+    sm: 'text-token-sm',
+    md: 'text-token-base',
+    lg: 'text-token-lg',
   };
   
   const disabledClasses = (disabled || loading) ? 'opacity-50' : '';
@@ -62,7 +63,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'outline' ? '#2563eb' : '#ffffff'}
+          color={variant === 'outline' ? DesignTokens.colors.primary : DesignTokens.colors.text.primary}
         />
       ) : (
         <Text

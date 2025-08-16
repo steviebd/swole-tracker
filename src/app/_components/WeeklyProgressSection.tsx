@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 import Link from "next/link";
 
@@ -27,7 +26,6 @@ function ProgressBar({ value, className = "" }: Omit<ProgressBarProps, 'theme'>)
 }
 
 export function WeeklyProgressSection() {
-  const { theme, resolvedTheme } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month">("week");
   
   // Get real data from ProgressDashboard API
@@ -76,54 +74,30 @@ export function WeeklyProgressSection() {
 
   const cardClass = "card-interactive";
 
-  const titleClass = "text-xl font-bold text-foreground";
+  const titleClass = "text-xl font-bold text-theme-primary";
 
-  const toggleBgClass = `flex gap-1 rounded-lg p-1 transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "bg-gray-800" 
-      : "bg-gray-100 dark:bg-gray-800"
-  }`;
+  const toggleBgClass = "flex gap-1 rounded-lg p-1 transition-colors duration-300";
 
   const getButtonClass = (isActive: boolean) => `
     text-sm font-medium px-4 py-2 rounded-md transition-colors duration-300 ${
       isActive
-        ? theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "bg-gray-700 text-white shadow-sm"
-          : "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white"
-        : theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "text-gray-400 hover:text-white hover:bg-gray-700/50"
-          : "text-gray-600 hover:text-gray-900 hover:bg-white/50 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700/50"
+        ? "bg-theme-surface text-theme-primary shadow-sm"
+        : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface/50"
     }
   `;
 
-  const labelClass = `text-base font-medium transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
+  const labelClass = "text-base font-medium text-theme-primary";
 
-  const valueClass = `text-base font-bold transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
+  const valueClass = "text-base font-bold text-theme-primary";
 
-  const subtextClass = `text-sm transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-gray-400" 
-      : "text-gray-600 dark:text-gray-400"
-  }`;
+  const subtextClass = "text-sm text-theme-muted";
 
   return (
     <div className={cardClass}>
-      <div className={`p-6 pb-4 border-b transition-colors duration-300 ${
-        theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "border-gray-800" 
-          : "border-gray-200 dark:border-gray-700"
-      }`}>
+      <div className="p-6 pb-4 border-b border-muted transition-colors duration-300">
         <div className="flex items-center justify-between">
           <h3 className={titleClass}>Weekly Progress</h3>
-          <div className={toggleBgClass}>
+          <div className={toggleBgClass} style={{ backgroundColor: "var(--color-bg-surface)" }}>
             <button
               onClick={() => setSelectedPeriod("week")}
               className={getButtonClass(selectedPeriod === "week")}
@@ -195,14 +169,10 @@ export function WeeklyProgressSection() {
         )}
 
         {/* View Full Progress Dashboard Button */}
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="pt-4 border-t border-muted">
           <Link 
             href="/progress"
-            className={`inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
-            }`}
+            className="btn-secondary w-full justify-center"
           >
             View Full Progress Dashboard
             <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
