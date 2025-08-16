@@ -145,4 +145,102 @@
   .gradient-card {
     background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--card) 95%, var(--primary) 5%) 100%);
   }
+
+  /* Enhanced gradients for better dark mode support */
+  .gradient-card-subtle {
+    background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--card) 98%, var(--primary) 2%) 100%);
+    border: 1px solid color-mix(in srgb, var(--border) 80%, var(--primary) 20%);
+  }
+
+  .gradient-muted {
+    background: linear-gradient(135deg, var(--muted) 0%, color-mix(in srgb, var(--muted) 95%, var(--primary) 5%) 100%);
+  }
+
+  .gradient-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  }
+
+  .gradient-warning {
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+  }
+
+  .gradient-text-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gradient-border {
+    position: relative;
+    background: var(--card);
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+  }
+
+  /* Dark mode specific enhancements */
+  .dark .gradient-card-hover {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--card) 95%, var(--primary) 5%) 0%,
+      color-mix(in srgb, var(--card) 90%, var(--primary) 10%) 100%
+    );
+  }
+
+  .dark .gradient-stats {
+    background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--card) 92%, var(--primary) 8%) 100%);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, var(--primary) 30%);
+  }
+
+  /* Light mode specific enhancements */
+  .gradient-card-hover {
+    background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--card) 97%, var(--primary) 3%) 100%);
+  }
+
+  .gradient-stats {
+    background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--card) 96%, var(--primary) 4%) 100%);
+    border: 1px solid color-mix(in srgb, var(--border) 85%, var(--primary) 15%);
+  }
+
+  /* Animated gradients for interactive elements */
+  .gradient-animated {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 50%, var(--secondary) 100%);
+    background-size: 200% 200%;
+    animation: gradient-shift 3s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Progress bar gradients */
+  .gradient-progress {
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  }
+
+  .gradient-progress-success {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  }
+
+  .gradient-progress-warning {
+    background: linear-gradient(90deg, var(--secondary) 0%, var(--accent) 100%);
+  }
 }

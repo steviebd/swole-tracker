@@ -139,39 +139,25 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
     <div className="space-y-4 sm:space-y-6">
       {/* Template Selection */}
       <div>
-        <h2 className="mb-3 sm:mb-4 text-base sm:text-lg font-medium">Select Workout Template</h2>
+        <h2 className="mb-3 sm:mb-4 text-base sm:text-lg font-serif font-black gradient-text-primary">Select Workout Template</h2>
         <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
             <button
               key={template.id}
               onClick={() => setSelectedTemplateId(template.id)}
-              className="rounded-lg border-2 p-3 sm:p-4 text-left transition-all"
-              style={{
-                borderColor: selectedTemplateId === template.id ? 'var(--color-primary)' : 'var(--color-border)',
-                backgroundColor: selectedTemplateId === template.id 
-                  ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' 
-                  : 'var(--color-bg-surface)',
-              }}
-              onMouseEnter={(e) => {
-                if (selectedTemplateId !== template.id) {
-                  e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--color-border) 80%, var(--color-text-muted) 20%)';
-                  e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-surface) 90%, var(--color-text-muted) 10%)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedTemplateId !== template.id) {
-                  e.currentTarget.style.borderColor = 'var(--color-border)';
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
-                }
-              }}
+              className={`rounded-lg border-2 p-3 sm:p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg ${
+                selectedTemplateId === template.id 
+                  ? 'gradient-card border-primary shadow-md' 
+                  : 'card-interactive border-border'
+              }`}
             >
-              <h3 className="mb-1 sm:mb-2 truncate font-semibold text-sm sm:text-base">{template.name}</h3>
-              <p className="text-xs sm:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              <h3 className="mb-1 sm:mb-2 truncate font-serif font-black text-sm sm:text-base text-foreground">{template.name}</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {template.exercises.length} exercise
                 {template.exercises.length !== 1 ? "s" : ""}
               </p>
               {template.exercises.length > 0 && (
-                <div className="mt-1 sm:mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <div className="mt-1 sm:mt-2 text-xs text-muted-foreground">
                   {template.exercises
                     .slice(0, 3)
                     .map((ex) => ex.exerciseName)
@@ -192,17 +178,17 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
             return template ? (
               <>
                 <div>
-                  <h3 className="mb-2 text-base sm:text-lg font-semibold">
+                  <h3 className="mb-2 text-base sm:text-lg font-serif font-black gradient-text-accent">
                     Selected: {template.name}
                   </h3>
-                  <div className="text-xs sm:text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  <div className="text-xs sm:text-sm text-muted-foreground">
                     {template.exercises.length === 0 ? (
                       "No exercises in this template"
                     ) : (
                       <div className="space-y-1">
                         {template.exercises.map((exercise, index) => (
                           <div key={exercise.id} className="flex items-center">
-                            <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full text-xs" style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}>
+                            <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full text-xs gradient-primary text-white font-semibold shadow-sm">
                               {index + 1}
                             </span>
                             <span className="text-xs sm:text-sm">{exercise.exerciseName}</span>

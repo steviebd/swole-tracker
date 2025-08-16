@@ -24,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${openSans.variable} ${montserrat.variable} antialiased`} suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
         </ThemeProvider>
       </body>

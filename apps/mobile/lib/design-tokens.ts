@@ -4,9 +4,11 @@
 
 export const DesignTokens = {
   colors: {
-    primary: '#fafafa',
-    primaryHover: '#e6e6e6',
-    primaryActive: '#d9d9d9',
+    primary: '#d97706',
+    primaryHover: '#f59e0b',
+    primaryActive: '#d97706',
+    secondary: '#f59e0b',
+    accent: '#f97316',
     
     background: '#252525',
     surface: '#343434',
@@ -27,6 +29,14 @@ export const DesignTokens = {
       warning: '#eab308',
       danger: '#ef4444',
       info: '#3b82f6',
+    },
+    
+    chart: {
+      1: '#f97316',
+      2: '#ef4444',
+      3: '#d97706',
+      4: '#f59e0b',
+      5: '#4b5563',
     },
   },
   
@@ -69,6 +79,7 @@ export const DesignTokens = {
       medium: 500,
       semibold: 600,
       bold: 700,
+      black: 900,
     },
   },
 } as const;

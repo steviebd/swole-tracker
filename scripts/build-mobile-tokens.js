@@ -39,6 +39,15 @@ function oklchToRgb(oklchColor) {
     'oklch(0.769 0.188 70.08)': '#eab308',     // yellow
     'oklch(0.637 0.237 25.331)': '#ef4444',   // red
     'oklch(0.488 0.243 264.376)': '#3b82f6',  // blue
+    // Energetic fitness colors
+    'oklch(0.688 0.153 57.5)': '#d97706',     // amber primary
+    'oklch(0.774 0.178 66.5)': '#f59e0b',     // golden secondary
+    'oklch(0.802 0.190 66.5)': '#fbbf24',     // brighter golden
+    'oklch(0.702 0.191 36.8)': '#f97316',     // orange accent
+    'oklch(0.730 0.200 36.8)': '#fb923c',     // brighter orange
+    'oklch(0.432 0.013 249.6)': '#4b5563',    // dark gray chart
+    'oklch(0.985 0.018 102.5)': '#fefce8',    // cream background
+    'oklch(0.145 0.024 249.6)': '#0f172a',    // dark slate background
   };
   
   return colorMap[oklchColor] || oklchColor;
@@ -106,6 +115,10 @@ function generateMobileConfig(tokens, lightTokens = {}) {
             900: '#0c4a6e',
             950: '#082f49',
           },
+          
+          // Secondary and accent colors for energetic fitness theme
+          secondary: resolveMobileValue(tokens.color.secondary?.default?.$value, tokens) || '#f59e0b',
+          accent: resolveMobileValue(tokens.color.accent?.default?.$value, tokens) || '#f97316',
           
           // Semantic colors from design tokens
           background: resolveMobileValue(tokens.color.background.app.$value, tokens),
@@ -178,6 +191,7 @@ function generateMobileConfig(tokens, lightTokens = {}) {
           'token-medium': resolveMobileValue(tokens.typography.fontWeight.medium.$value, tokens),
           'token-semibold': resolveMobileValue(tokens.typography.fontWeight.semibold.$value, tokens),
           'token-bold': resolveMobileValue(tokens.typography.fontWeight.bold.$value, tokens),
+          'token-black': resolveMobileValue(tokens.typography.fontWeight.black?.$value, tokens) || 900,
         },
       },
     },
@@ -202,6 +216,8 @@ export const DesignTokens = {
     primary: '${resolveMobileValue(tokens.color.primary.default.$value, tokens)}',
     primaryHover: '${resolveMobileValue(tokens.color.primary.hover.$value, tokens)}',
     primaryActive: '${resolveMobileValue(tokens.color.primary.active.$value, tokens)}',
+    secondary: '${resolveMobileValue(tokens.color.secondary?.default?.$value, tokens) || '#f59e0b'}',
+    accent: '${resolveMobileValue(tokens.color.accent?.default?.$value, tokens) || '#f97316'}',
     
     background: '${resolveMobileValue(tokens.color.background.app.$value, tokens)}',
     surface: '${resolveMobileValue(tokens.color.background.surface.$value, tokens)}',
@@ -222,6 +238,14 @@ export const DesignTokens = {
       warning: '${resolveMobileValue(tokens.color.status.warning.default.$value, tokens)}',
       danger: '${resolveMobileValue(tokens.color.status.danger.default.$value, tokens)}',
       info: '${resolveMobileValue(tokens.color.status.info.default.$value, tokens)}',
+    },
+    
+    chart: {
+      1: '${resolveMobileValue(tokens.color.chart['1'].$value, tokens)}',
+      2: '${resolveMobileValue(tokens.color.chart['2'].$value, tokens)}',
+      3: '${resolveMobileValue(tokens.color.chart['3'].$value, tokens)}',
+      4: '${resolveMobileValue(tokens.color.chart['4'].$value, tokens)}',
+      5: '${resolveMobileValue(tokens.color.chart['5'].$value, tokens)}',
     },
   },
   
@@ -264,6 +288,7 @@ export const DesignTokens = {
       medium: ${resolveMobileValue(tokens.typography.fontWeight.medium.$value, tokens)},
       semibold: ${resolveMobileValue(tokens.typography.fontWeight.semibold.$value, tokens)},
       bold: ${resolveMobileValue(tokens.typography.fontWeight.bold.$value, tokens)},
+      black: ${resolveMobileValue(tokens.typography.fontWeight.black?.$value, tokens) || 900},
     },
   },
 } as const;

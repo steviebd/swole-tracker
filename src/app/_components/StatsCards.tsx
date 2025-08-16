@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "~/trpc/react";
+import { Card } from "~/app/_components/ui/Card";
 
 export function StatsCards() {
   
@@ -47,86 +48,99 @@ export function StatsCards() {
 
   const stats = calculateStats();
 
-  const cardClass = "card-interactive border-border shadow-lg";
-
-  const iconBgClass = (color: string) => `bg-${color}-500/20`;
-
-  const iconClass = (color: string) => `text-${color}-400`;
-
-  const labelClass = "text-sm font-medium transition-colors duration-300 text-muted-foreground";
+  // Icon definitions for each stat
+  const StatIcon = ({ type }: { type: 'workouts' | 'duration' | 'goal' }) => {
+    const icons = {
+      workouts: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+      ),
+      duration: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      goal: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    };
+    return icons[type];
+  };
 
   
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+      <div className="space-y-gap-sm">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className={cardClass}>
-            <div className="p-3 sm:p-4 md:p-6">
-              <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl skeleton" />
-                <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
-                  <div className="h-3 sm:h-4 w-12 sm:w-14 md:w-16 skeleton" />
-                  <div className="h-4 sm:h-5 md:h-6 w-14 sm:w-16 md:w-20 skeleton" />
-                </div>
+          <Card key={i} surface="card" padding="md">
+            <div className="flex items-center gap-gap-md">
+              <div className="w-10 h-10 rounded-lg skeleton" />
+              <div className="space-y-gap-xs flex-1">
+                <div className="h-4 w-16 skeleton" />
+                <div className="h-6 w-20 skeleton" />
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+    <div className="space-y-gap-sm sm:space-y-gap-md">
       {/* This Week Workouts */}
-      <div className={cardClass}>
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass("green")}`}>
-              <svg className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${iconClass("green")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={labelClass}>This Week</p>
-              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.workoutsThisWeek} Workouts</p>
-            </div>
+      <Card surface="card" padding="md" interactive>
+        <div className="flex items-center gap-gap-md">
+          <div className="w-10 h-10 rounded-lg bg-chart-1/20 border border-chart-1/30 flex items-center justify-center text-chart-1 flex-shrink-0">
+            <StatIcon type="workouts" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-text-secondary text-sm font-medium">This Week</p>
+            <p className="text-2xl font-serif font-bold text-text-primary mt-1">
+              {stats.workoutsThisWeek} <span className="text-lg font-sans font-normal text-text-secondary">Workouts</span>
+            </p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Average Duration */}
-      <div className={cardClass}>
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass("blue")}`}>
-              <svg className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${iconClass("blue")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={labelClass}>Avg Duration</p>
-              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.avgDuration}</p>
-            </div>
+      <Card surface="card" padding="md" interactive>
+        <div className="flex items-center gap-gap-md">
+          <div className="w-10 h-10 rounded-lg bg-chart-2/20 border border-chart-2/30 flex items-center justify-center text-chart-2 flex-shrink-0">
+            <StatIcon type="duration" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-text-secondary text-sm font-medium">Average Duration</p>
+            <p className="text-2xl font-serif font-bold text-text-primary mt-1">
+              {stats.avgDuration}
+            </p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Weekly Goal */}
-      <div className={cardClass}>
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass("purple")}`}>
-              <svg className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${iconClass("purple")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={labelClass}>Weekly Goal</p>
-              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.weeklyGoal.current}/{stats.weeklyGoal.target}</p>
-            </div>
+      <Card surface="card" padding="md" interactive>
+        <div className="flex items-center gap-gap-md">
+          <div className="w-10 h-10 rounded-lg bg-chart-3/20 border border-chart-3/30 flex items-center justify-center text-chart-3 flex-shrink-0">
+            <StatIcon type="goal" />
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-text-secondary text-sm font-medium">Weekly Goal</p>
+            <p className="text-2xl font-serif font-bold text-text-primary mt-1">
+              {stats.weeklyGoal.current}<span className="text-lg font-sans font-normal text-text-secondary">/{stats.weeklyGoal.target}</span>
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Enhanced responsive design for larger screens */}
+      <div className="hidden sm:block">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-gap-md mt-gap-lg">
+          {/* Placeholder for potential additional stats on larger screens */}
         </div>
       </div>
     </div>

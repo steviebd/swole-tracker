@@ -17,13 +17,15 @@ module.exports = {
           "200": "#bae6fd",
           "300": "#7dd3fc",
           "400": "#38bdf8",
-          "500": "#fafafa",
-          "600": "#e6e6e6",
-          "700": "#d9d9d9",
+          "500": "#d97706",
+          "600": "#f59e0b",
+          "700": "#d97706",
           "800": "#075985",
           "900": "#0c4a6e",
           "950": "#082f49"
         },
+        "secondary": "#f59e0b",
+        "accent": "#f97316",
         "background": "#252525",
         "foreground": "#ffffff",
         "card": "#343434",
@@ -36,11 +38,11 @@ module.exports = {
         "warning": "#eab308",
         "danger": "#ef4444",
         "info": "#3b82f6",
-        "chart-1": "#3b82f6",
-        "chart-2": "#22c55e",
-        "chart-3": "#eab308",
-        "chart-4": "oklch(0.627 0.265 303.9)",
-        "chart-5": "oklch(0.645 0.246 16.439)"
+        "chart-1": "#f97316",
+        "chart-2": "#ef4444",
+        "chart-3": "#d97706",
+        "chart-4": "#f59e0b",
+        "chart-5": "#4b5563"
       },
       "fontFamily": {
         "sans": [
@@ -81,7 +83,8 @@ module.exports = {
         "token-normal": 400,
         "token-medium": 500,
         "token-semibold": 600,
-        "token-bold": 700
+        "token-bold": 700,
+        "token-black": 900
       }
     }
   },

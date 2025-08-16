@@ -49,6 +49,14 @@
       "card": {
         "$value": "{color.background.surface}",
         "$description": "Card background color"
+      },
+      "light": {
+        "$value": "oklch(0.985 0.018 102.5)",
+        "$description": "Light theme background - warm cream"
+      },
+      "dark": {
+        "$value": "oklch(0.145 0.024 249.6)",
+        "$description": "Dark theme background - dark slate"
       }
     },
     "border": {
@@ -63,26 +71,36 @@
     },
     "primary": {
       "default": {
-        "$value": "oklch(0.985 0 0)",
-        "$description": "Primary brand color"
+        "$value": "oklch(0.688 0.153 57.5)",
+        "$description": "Primary brand color - energetic amber"
       },
       "hover": {
-        "$value": "oklch(0.9 0 0)",
-        "$description": "Primary color on hover"
+        "$value": "oklch(0.774 0.178 66.5)",
+        "$description": "Primary color on hover - golden yellow"
       },
       "active": {
-        "$value": "oklch(0.85 0 0)",
-        "$description": "Primary color when active"
+        "$value": "oklch(0.688 0.153 57.5)",
+        "$description": "Primary color when active - energetic amber"
       }
     },
     "secondary": {
       "default": {
-        "$value": "oklch(0.269 0 0)",
-        "$description": "Secondary color"
+        "$value": "oklch(0.774 0.178 66.5)",
+        "$description": "Secondary color - golden yellow"
       },
       "hover": {
-        "$value": "oklch(0.32 0 0)",
-        "$description": "Secondary color on hover"
+        "$value": "oklch(0.802 0.190 66.5)",
+        "$description": "Secondary color on hover - brighter golden"
+      }
+    },
+    "accent": {
+      "default": {
+        "$value": "oklch(0.702 0.191 36.8)",
+        "$description": "Accent color - energetic orange for highlights"
+      },
+      "hover": {
+        "$value": "oklch(0.730 0.200 36.8)",
+        "$description": "Accent color on hover - brighter orange"
       }
     },
     "status": {
@@ -129,24 +147,24 @@
     },
     "chart": {
       "1": {
-        "$value": "oklch(0.488 0.243 264.376)",
-        "$description": "Chart color 1 - Blue"
+        "$value": "oklch(0.702 0.191 36.8)",
+        "$description": "Chart color 1 - Primary orange for energetic data"
       },
       "2": {
-        "$value": "oklch(0.696 0.17 162.48)",
-        "$description": "Chart color 2 - Green"
+        "$value": "oklch(0.637 0.237 25.331)",
+        "$description": "Chart color 2 - Red for secondary data"
       },
       "3": {
-        "$value": "oklch(0.769 0.188 70.08)",
-        "$description": "Chart color 3 - Yellow"
+        "$value": "oklch(0.688 0.153 57.5)",
+        "$description": "Chart color 3 - Amber for tertiary data"
       },
       "4": {
-        "$value": "oklch(0.627 0.265 303.9)",
-        "$description": "Chart color 4 - Purple"
+        "$value": "oklch(0.774 0.178 66.5)",
+        "$description": "Chart color 4 - Golden yellow for fourth data"
       },
       "5": {
-        "$value": "oklch(0.645 0.246 16.439)",
-        "$description": "Chart color 5 - Orange"
+        "$value": "oklch(0.432 0.013 249.6)",
+        "$description": "Chart color 5 - Dark gray for neutral data"
       }
     },
     "glass": {
@@ -340,13 +358,18 @@
     "fontFamily": {
       "sans": {
         "$type": "fontFamily",
-        "$value": ["var(--font-ui)", "ui-sans-serif", "system-ui", "sans-serif"],
-        "$description": "Sans-serif font family"
+        "$value": ["Open Sans", "var(--font-ui)", "ui-sans-serif", "system-ui", "sans-serif"],
+        "$description": "Sans-serif font family for body text and UI elements"
+      },
+      "serif": {
+        "$type": "fontFamily",
+        "$value": ["Montserrat", "ui-serif", "Georgia", "serif"],
+        "$description": "Serif font family for energetic headings and key metrics"
       },
       "display": {
         "$type": "fontFamily",
-        "$value": ["var(--font-display-internal, var(--font-ui))"],
-        "$description": "Display font family"
+        "$value": ["Montserrat", "ui-serif", "Georgia", "serif"],
+        "$description": "Display font family for impactful headings"
       }
     },
     "fontSize": {
@@ -406,6 +429,11 @@
         "$type": "fontWeight",
         "$value": 700,
         "$description": "Bold font weight"
+      },
+      "black": {
+        "$type": "fontWeight",
+        "$value": 900,
+        "$description": "Black font weight for strong, impactful headings"
       }
     },
     "lineHeight": {

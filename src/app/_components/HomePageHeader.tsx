@@ -27,13 +27,19 @@ export function HomePageHeader() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           {/* Left side - App branding */}
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate" style={{ color: "var(--color-text)" }}>
-              Swole Tracker
-            </h1>
-            <p className="text-sm sm:text-base truncate" style={{ color: "var(--color-text-secondary)" }}>
-              Welcome back, {displayName}
-            </p>
+          <div className="min-w-0 flex-1 flex items-center gap-3">
+            {/* Gradient logo background */}
+            <div className="gradient-primary w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <span className="text-white font-black text-lg sm:text-xl drop-shadow-sm">💪</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-serif font-black truncate gradient-text-primary">
+                Swole Tracker
+              </h1>
+              <p className="text-sm sm:text-base truncate text-muted-foreground">
+                Welcome back, {displayName}
+              </p>
+            </div>
           </div>
 
           {/* Right side - Controls */}
@@ -85,7 +91,7 @@ export function HomePageHeader() {
                 className="btn-ghost p-1 sm:p-2 rounded-full"
                 aria-label="User menu"
               >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center text-background font-semibold text-sm sm:text-base">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-semibold text-sm sm:text-base shadow-lg">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               </button>

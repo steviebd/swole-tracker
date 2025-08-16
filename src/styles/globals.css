@@ -36,9 +36,38 @@
   /* Semantic state colors */
   --color-destructive: var(--color-status-danger-default);
   --color-destructive-foreground: var(--color-text-primary);
+  --color-success: var(--color-status-success-default);
+  --color-success-foreground: var(--color-text-primary);
+  --color-warning: var(--color-status-warning-default);
+  --color-warning-foreground: var(--color-text-primary);
+  --color-info: var(--color-status-info-default);
+  --color-info-foreground: var(--color-text-primary);
+  
+  /* Surface hierarchy backgrounds */
+  --color-bg-app: var(--color-background-app);
+  --color-bg-surface: var(--color-background-surface);
+  --color-bg-card: var(--color-background-card);
+  
+  /* Status muted colors */
+  --color-success-muted: var(--color-status-success-muted);
+  --color-warning-muted: var(--color-status-warning-muted);
+  --color-danger-muted: var(--color-status-danger-muted);
+  --color-info-muted: var(--color-status-info-muted);
+  
+  /* Border variants */
+  --color-border-muted: var(--color-border-muted);
+  
+  /* Glass effect colors */
+  --color-glass-card: var(--color-glass-card);
+  --color-glass-border: var(--color-glass-border);
+  --color-glass-highlight: var(--color-glass-highlight);
   
   /* Border radius from tokens */
   --radius: var(--radius-md);
+  --radius-token-sm: var(--radius-sm);
+  --radius-token-md: var(--radius-md);
+  --radius-token-lg: var(--radius-lg);
+  --radius-token-card: var(--radius-card);
   
   /* Spacing mapped from tokens */
   --spacing-1: var(--spacing-component-gap-xs);
@@ -47,6 +76,24 @@
   --spacing-4: var(--spacing-component-gap-lg);
   --spacing-6: var(--spacing-component-gap-xl);
   --spacing-8: var(--spacing-component-padding-lg);
+  
+  /* Component spacing tokens */
+  --spacing-component-xs: var(--spacing-component-padding-xs);
+  --spacing-component-sm: var(--spacing-component-padding-sm);
+  --spacing-component-md: var(--spacing-component-padding-md);
+  --spacing-component-lg: var(--spacing-component-padding-lg);
+  --spacing-component-xl: var(--spacing-component-padding-xl);
+  
+  /* Shadow tokens mapped */
+  --shadow-token-xs: var(--shadow-xs);
+  --shadow-token-sm: var(--shadow-sm);
+  --shadow-token-md: var(--shadow-md);
+  --shadow-token-lg: var(--shadow-lg);
+  
+  /* Animation durations */
+  --duration-base: var(--motion-duration-base);
+  --duration-fast: var(--motion-duration-fast);
+  --duration-slow: var(--motion-duration-slow);
 }
 
 /* Light-first base, with dark overrides via html.dark */
@@ -442,6 +489,38 @@ html.dark {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ===================== */
+/* Energetic Fitness Gradient Utilities */
+/* ===================== */
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, var(--color-primary-default) 0%, var(--color-accent-default) 100%);
+    /* Creates amber to orange gradient for primary actions */
+  }
+  .gradient-secondary {
+    background: linear-gradient(135deg, var(--color-secondary-default) 0%, var(--color-primary-default) 100%);
+    /* Creates golden to amber gradient for secondary elements */
+  }
+  .gradient-card {
+    background: linear-gradient(135deg, var(--color-background-card) 0%, color-mix(in srgb, var(--color-background-card) 95%, var(--color-primary-default) 5%) 100%);
+    /* Subtle gradient with 5% energetic color tint for enhanced card depth */
+  }
+  .gradient-text-primary {
+    background: linear-gradient(135deg, var(--color-primary-default) 0%, var(--color-accent-default) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Energetic gradient text effect for headings */
+  }
+  .gradient-text-accent {
+    background: linear-gradient(135deg, var(--color-secondary-default) 0%, var(--color-primary-default) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Secondary gradient text effect */
   }
 }
 
