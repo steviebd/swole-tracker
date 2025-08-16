@@ -24,6 +24,7 @@ const TOKENS_DIR = path.join(ROOT_DIR, 'src/styles/tokens');
  * @returns {Object} Flattened CSS variables
  */
 function flattenTokens(obj, prefix = '', context = {}) {
+  /** @type {Record<string, any>} */
   const result = {};
   
   for (const [key, value] of Object.entries(obj)) {
@@ -59,6 +60,7 @@ function resolveTokenValue(value, context) {
   if (typeof value === 'string' && value.startsWith('{') && value.endsWith('}')) {
     const reference = value.slice(1, -1);
     const refPath = reference.split('.');
+    /** @type {any} */
     let resolved = context;
     
     for (const part of refPath) {
@@ -71,7 +73,7 @@ function resolveTokenValue(value, context) {
   // Handle gradient objects
   if (typeof value === 'object' && value.type === 'linear') {
     const angle = value.angle || '0deg';
-    const stops = value.stops?.map(stop => 
+    const stops = value.stops?.map(/** @param {any} stop */ (stop) => 
       `${stop.color} ${stop.position}`
     ).join(', ') || '';
     return `linear-gradient(${angle}, ${stops})`;
@@ -81,7 +83,7 @@ function resolveTokenValue(value, context) {
     const shape = value.shape || 'circle';
     const size = value.size || 'closest-side';
     const position = value.position || 'center';
-    const stops = value.stops?.map(stop => 
+    const stops = value.stops?.map(/** @param {any} stop */ (stop) => 
       `${stop.color} ${stop.position}`
     ).join(', ') || '';
     return `radial-gradient(${shape} ${size} at ${position}, ${stops})`;
@@ -95,7 +97,7 @@ function resolveTokenValue(value, context) {
   
   // Handle shadow arrays (multiple shadows)
   if (Array.isArray(value) && value.length > 0 && value[0].color) {
-    return value.map(shadow => {
+    return value.map(/** @param {any} shadow */ (shadow) => {
       const { color, offsetX, offsetY, blur, spread } = shadow;
       return `${offsetX} ${offsetY} ${blur} ${spread} ${color}`;
     }).join(', ');
@@ -103,7 +105,7 @@ function resolveTokenValue(value, context) {
   
   // Handle font family arrays
   if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
-    return value.map(font => 
+    return value.map(/** @param {string} font */ (font) => 
       font.includes(' ') ? `"${font}"` : font
     ).join(', ');
   }
@@ -135,7 +137,7 @@ function generateCSSVariables(tokens, prefix = '') {
 
 /**
  * Generate base theme CSS
- * @param {Object} tokens - Base token object
+ * @param {any} tokens - Base token object
  * @returns {string} Complete CSS content
  */
 function generateBaseCSS(tokens) {
@@ -282,7 +284,7 @@ body {
 
 /**
  * Generate theme override CSS
- * @param {Object} themeTokens - Theme-specific token overrides
+ * @param {any} themeTokens - Theme-specific token overrides
  * @param {string} themeName - Theme name (light/dark)
  * @returns {string} Theme-specific CSS
  */
