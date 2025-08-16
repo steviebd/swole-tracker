@@ -1,32 +1,137 @@
-// Re-export all shared types for the mobile app
-export * from '@swole-tracker/shared-types';
+// Define AppRouter type locally to avoid import issues across packages
+// This should match the structure from the web app's src/server/api/root.ts
+export interface AppRouter {
+  post: any;
+  templates: {
+    getAll: any;
+    getById: any;
+    create: any;
+    update: any;
+    delete: any;
+  };
+  workouts: {
+    getRecent: any;
+    getById: any;
+    start: any;
+    save: any;
+    delete: any;
+    getLastExerciseData: any;
+    getLatestPerformanceForTemplateExercise: any;
+    updateSessionSets: any;
+  };
+  preferences: any;
+  jokes: any;
+  whoop: any;
+  webhooks: any;
+  exercises: any;
+  insights: any;
+  progress: any;
+  healthAdvice: any;
+  wellness: any;
+  suggestions: any;
+}
 
-// Define the AppRouter type from the web app's tRPC router
-// This should match the exact type from the web app's src/server/api/root.ts
-export type AppRouter = {
-  post: any; // Post router
-  templates: any; // Templates router  
-  workouts: any; // Workouts router
-  preferences: any; // Preferences router
-  jokes: any; // Jokes router
-  whoop: any; // WHOOP integration router
-  webhooks: any; // Webhooks router
-  exercises: any; // Exercises router
-  insights: any; // Insights router
-  progress: any; // Progress router
-  healthAdvice: any; // Health advice router
-  wellness: any; // Wellness router
-  suggestions: any; // Suggestions router
-};
+// Template-specific types for mobile components
+export interface Template {
+  id: number;
+  name: string;
+  user_id: string;
+  createdAt: Date;
+  updatedAt: Date | null;
+  exercises: TemplateExercise[];
+}
 
-// Note: In a real implementation, you would import the actual AppRouter type 
-// from the web app. For now, we're using 'any' as placeholders since we can't
-// directly import from the web app due to different environments.
-// 
-// Ideally, this would be:
-// import type { AppRouter } from '../../src/server/api/root';
-// 
-// But since the mobile app is in a different package, you might need to:
-// 1. Export AppRouter from the shared-types package
-// 2. Or create a separate API types package
-// 3. Or use module federation/workspace imports
+export interface TemplateExercise {
+  id: number;
+  user_id: string;
+  templateId: number;
+  exerciseName: string;
+  orderIndex: number;
+  linkingRejected: boolean;
+  createdAt: Date;
+}
+
+// Form types for creating/editing templates
+export interface TemplateFormData {
+  name: string;
+  exercises: string[];
+}
+
+export interface CreateTemplateInput {
+  name: string;
+  exercises: string[];
+}
+
+export interface UpdateTemplateInput {
+  id: number;
+  name: string;
+  exercises: string[];
+}
+
+// Workout Session types
+export interface WorkoutSession {
+  id: number;
+  user_id: string;
+  templateId: number;
+  workoutDate: Date;
+  theme_used?: string | null;
+  device_type?: string | null;
+  perf_metrics?: any;
+  createdAt: Date;
+  updatedAt?: Date | null;
+  template?: Template;
+  exercises: SessionExercise[];
+}
+
+export interface SessionExercise {
+  id: number;
+  user_id: string;
+  sessionId: number;
+  templateExerciseId?: number | null;
+  exerciseName: string;
+  setOrder: number;
+  weight?: string | null;
+  reps?: number | null;
+  sets?: number | null;
+  unit: string;
+  rpe?: number | null;
+  rest_seconds?: number | null;
+  is_estimate: boolean;
+  is_default_applied: boolean;
+  createdAt: Date;
+}
+
+export interface SetInput {
+  id: string;
+  weight?: number;
+  reps?: number;
+  sets?: number;
+  unit: "kg" | "lbs";
+  rpe?: number;
+  rest?: number;
+  isEstimate?: boolean;
+  isDefaultApplied?: boolean;
+}
+
+export interface ExerciseInput {
+  templateExerciseId?: number;
+  exerciseName: string;
+  sets: SetInput[];
+  unit: "kg" | "lbs";
+}
+
+export interface StartWorkoutInput {
+  templateId: number;
+  workoutDate?: Date;
+  theme_used?: string;
+  device_type?: "android" | "ios" | "desktop" | "ipad" | "other";
+  perf_metrics?: any;
+}
+
+export interface SaveWorkoutInput {
+  sessionId: number;
+  exercises: ExerciseInput[];
+  theme_used?: string;
+  device_type?: "android" | "ios" | "desktop" | "ipad" | "other";
+  perf_metrics?: any;
+}

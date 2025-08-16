@@ -1,6 +1,5 @@
 import React, { ReactNode, useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { trpc, trpcClient } from '../../lib/trpc';
 import { queryClient, setupQueryPersistence, clearQueryCache } from '../../lib/query-client';
 import { useAuth } from './AuthProvider';
@@ -64,13 +63,6 @@ export function TRPCProvider({ children }: TRPCProviderProps) {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         {children}
-        {/* Only show React Query devtools in development */}
-        {__DEV__ && (
-          <ReactQueryDevtools
-            initialIsOpen={false}
-            buttonPosition="bottom-left"
-          />
-        )}
       </QueryClientProvider>
     </trpc.Provider>
   );

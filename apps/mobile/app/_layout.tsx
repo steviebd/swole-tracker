@@ -11,22 +11,43 @@ function useProtectedRoute() {
   const { session, isInitialized } = useAuth();
 
   useEffect(() => {
-    if (!isInitialized) return; // Wait for auth to initialize
+    console.log('🔐 Route protection check:', { 
+      isInitialized, 
+      hasSession: !!session, 
+      segments: segments.join('/'),
+      currentRoute: segments[0],
+      allSegments: segments 
+    });
+
+    if (!isInitialized) {
+      console.log('🔐 Auth not initialized yet, waiting...');
+      return; // Wait for auth to initialize
+    }
 
     const inAuthGroup = segments[0] === '(auth)';
+    console.log('🔐 Route analysis:', { inAuthGroup, hasSession: !!session });
 
     if (!session && !inAuthGroup) {
       // Redirect to the sign-in page.
-      router.replace('/(auth)/login');
+      console.log('🔐 No session and not in auth group, redirecting to login');
+      setTimeout(() => {
+        router.replace('/(auth)/login');
+      }, 100); // Small delay to ensure navigation works
     } else if (session && inAuthGroup) {
       // Redirect away from the sign-in page.
-      router.replace('/(tabs)');
+      console.log('🔐 Has session and in auth group, redirecting to tabs');
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 100);
+    } else {
+      console.log('🔐 No redirect needed');
     }
-  }, [session, segments, isInitialized]);
+  }, [session, segments, isInitialized, router]);
 }
 
 function RootLayoutContent() {
-  const { isInitialized, isLoading } = useAuth();
+  const { isInitialized, isLoading, session } = useAuth();
+  const segments = useSegments();
   
   useProtectedRoute();
 
@@ -36,6 +57,16 @@ function RootLayoutContent() {
       <LoadingScreen 
         message={!isInitialized ? 'Initializing...' : 'Loading...'} 
       />
+    );
+  }
+
+  // If auth is initialized but no session and not in auth group, show loading
+  // This prevents the protected content from flashing before redirect
+  const inAuthGroup = segments[0] === '(auth)';
+  if (isInitialized && !session && !inAuthGroup) {
+    console.log('🔐 Showing loading while redirecting to auth...');
+    return (
+      <LoadingScreen message="Redirecting to login..." />
     );
   }
 

@@ -1,29 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
-import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Create a custom storage adapter for AsyncStorage
-const asyncStorageAdapter = {
-  getItem: async (key: string) => {
-    const value = await AsyncStorage.getItem(key);
-    return value;
-  },
-  setItem: async (key: string, value: string) => {
-    await AsyncStorage.setItem(key, value);
-  },
-  removeItem: async (key: string) => {
-    await AsyncStorage.removeItem(key);
-  },
-};
-
-// Create the persister for offline storage
-const persister = createSyncStoragePersister({
-  storage: asyncStorageAdapter,
-  key: 'swole-tracker-cache',
-  serialize: JSON.stringify,
-  deserialize: JSON.parse,
-});
 
 // Create the query client with mobile-optimized settings
 export const queryClient = new QueryClient({
@@ -65,31 +41,10 @@ export const queryClient = new QueryClient({
   },
 });
 
-// Set up persistence
+// Set up persistence (simplified for now)
 export const setupQueryPersistence = async () => {
-  try {
-    await persistQueryClient({
-      queryClient,
-      persister,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      hydrateOptions: {
-        defaultOptions: {
-          queries: {
-            // Don't refetch immediately on hydration to avoid unnecessary network calls
-            staleTime: 5 * 60 * 1000,
-          },
-        },
-      },
-      dehydrateOptions: {
-        shouldDehydrateQuery: (query) => {
-          // Only persist successful queries that have data
-          return query.state.status === 'success' && query.state.data !== undefined;
-        },
-      },
-    });
-  } catch (error) {
-    console.warn('Failed to setup query persistence:', error);
-  }
+  // Persistence will be added later
+  return Promise.resolve();
 };
 
 // Helper function to clear cache (useful for logout)
@@ -107,18 +62,16 @@ export const getCacheInfo = async () => {
   try {
     const cacheData = await AsyncStorage.getItem('swole-tracker-cache');
     if (cacheData) {
-      const parsed = JSON.parse(cacheData);
       return {
         exists: true,
-        size: new Blob([cacheData]).size,
-        entries: Object.keys(parsed.clientState?.queries || {}).length,
-        lastUpdated: new Date(parsed.timestamp || 0),
+        size: cacheData.length,
+        lastUpdated: new Date(),
       };
     }
     return { exists: false };
   } catch (error) {
     console.warn('Failed to get cache info:', error);
-    return { exists: false, error: error?.message };
+    return { exists: false, error: (error as any)?.message };
   }
 };
 

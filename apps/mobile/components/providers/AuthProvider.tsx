@@ -47,11 +47,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
+        console.log('🔑 Initializing auth...');
+        
+        // For debugging - clear any invalid sessions
+        // Uncomment this line to force logout for testing:
+        // await supabase.auth.signOut();
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
+          console.error('🔑 Error getting session:', error);
         }
+        
+        console.log('🔑 Auth initialization result:', { 
+          hasSession: !!session, 
+          sessionData: session ? 'valid session' : 'null',
+          error: error?.message 
+        });
         
         if (mounted) {
           setSession(session);

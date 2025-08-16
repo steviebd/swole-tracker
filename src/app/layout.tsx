@@ -7,6 +7,8 @@ import Link from "next/link";
 import { TRPCReactProvider } from "~/trpc/react";
 import { ConnectionStatus } from "~/app/_components/connection-status";
 import { SyncIndicator } from "~/app/_components/sync-indicator";
+import { EnhancedSyncIndicator } from "~/app/_components/enhanced-sync-indicator";
+import { NetworkStatusBanner } from "~/app/_components/network-status-banner";
 import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
@@ -90,9 +92,11 @@ export default function RootLayout({
                 <ClientPerfInit />
                 <div className="page-backdrop" aria-hidden="true" />
                 <PageTracker />
+                <NetworkStatusBanner />
                 <ConnectionStatus />
                 <TRPCReactProvider>
                   <SyncIndicator />
+                  <EnhancedSyncIndicator />
 
                   <main
                     id="main-content"
