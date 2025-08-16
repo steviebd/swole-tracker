@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { trpc } from '../../lib/trpc';
 import { useAuth } from '../providers/AuthProvider';
 import { Card, EmptyState, Skeleton } from '../ui';
+import { Button } from '../ui/Button';
+import { Text } from '../ui/Text';
 import type { Template } from '../../lib/shared-types';
 
 interface TemplateCardProps {
@@ -19,53 +21,101 @@ function TemplateCard({ template, onEdit, onDelete, onStartWorkout, isStarting }
   const exerciseNames = template.exercises?.map(ex => ex.exerciseName).join(', ') || 'No exercises';
 
   return (
-    <Card variant="elevated" className="p-4 mb-4">
-      <View className="flex-row justify-between items-start mb-2">
-        <Text className="text-lg font-semibold text-gray-900 flex-1 mr-2">
+    <Card 
+      variant="glass" 
+      className="p-component-md mb-component-sm mx-component-sm border border-glass-border bg-glass-card/90 backdrop-blur-sm shadow-token-md"
+    >
+      {/* Header with template name and actions */}
+      <View className="flex-row justify-between items-start mb-component-sm">
+        <Text 
+          variant="heading" 
+          size="lg" 
+          weight="semibold"
+          className="text-text-primary flex-1 mr-2"
+        >
           {template.name}
         </Text>
-        <View className="flex-row gap-2">
-          <TouchableOpacity onPress={() => onEdit(template)}>
-            <Text className="text-blue-600 text-sm font-medium">Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onDelete(template)}>
-            <Text className="text-red-600 text-sm font-medium">Delete</Text>
-          </TouchableOpacity>
+        
+        <View className="flex-row gap-gap-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onPress={() => onEdit(template)}
+            className="min-w-[44px]"
+          >
+            <Text variant="body" size="sm" className="text-info">
+              Edit
+            </Text>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            visualStyle="danger"
+            onPress={() => onDelete(template)}
+            className="min-w-[52px]"
+          >
+            <Text variant="body" size="sm" className="text-danger">
+              Delete
+            </Text>
+          </Button>
         </View>
       </View>
       
-      <Text className="text-gray-600 text-sm mb-3">
+      {/* Exercise count and names */}
+      <Text 
+        variant="body" 
+        size="sm" 
+        className="text-text-secondary mb-component-sm leading-relaxed"
+      >
         {exerciseCount === 0 
-          ? 'No exercises' 
-          : `${exerciseCount} exercise${exerciseCount !== 1 ? 's' : ''}: ${exerciseNames}`
+          ? 'No exercises configured' 
+          : `${exerciseCount} exercise${exerciseCount !== 1 ? 's' : ''}: ${exerciseNames.length > 50 ? exerciseNames.substring(0, 47) + '...' : exerciseNames}`
         }
       </Text>
       
-      <TouchableOpacity 
-        className={`rounded-lg py-2 px-3 self-start ${isStarting ? 'bg-blue-400' : 'bg-blue-600'}`}
-        onPress={() => onStartWorkout(template)}
-        disabled={isStarting}
-      >
-        <Text className="text-white text-sm font-medium">
+      {/* Start workout button */}
+      <View className="flex-row justify-between items-center">
+        <Button 
+          variant="primary"
+          size="sm"
+          loading={isStarting}
+          onPress={() => onStartWorkout(template)}
+          disabled={isStarting || exerciseCount === 0}
+          className="min-w-[120px] bg-gradient-dark-primary shadow-token-sm"
+        >
           {isStarting ? 'Starting...' : 'Start Workout'}
-        </Text>
-      </TouchableOpacity>
+        </Button>
+        
+        {/* Exercise count badge */}
+        <View className="bg-bg-surface/80 px-component-sm py-1 rounded-token-md border border-border-muted">
+          <Text variant="body" size="xs" className="text-text-muted font-token-medium">
+            {exerciseCount} exercises
+          </Text>
+        </View>
+      </View>
     </Card>
   );
 }
 
 function SkeletonCard() {
   return (
-    <Card variant="elevated" className="p-4 mb-4">
-      <View className="flex-row justify-between items-start mb-2">
-        <Skeleton width="60%" height={20} className="mr-2" />
-        <View className="flex-row gap-2">
-          <Skeleton width={30} height={16} />
-          <Skeleton width={40} height={16} />
+    <Card 
+      variant="glass" 
+      className="p-component-md mb-component-sm mx-component-sm border border-glass-border bg-glass-card/60 backdrop-blur-sm"
+    >
+      <View className="flex-row justify-between items-start mb-component-sm">
+        <Skeleton width="60%" height={24} className="mr-2 bg-bg-surface/40" />
+        <View className="flex-row gap-gap-xs">
+          <Skeleton width={44} height={32} className="bg-bg-surface/40" />
+          <Skeleton width={52} height={32} className="bg-bg-surface/40" />
         </View>
       </View>
-      <Skeleton width="80%" height={16} className="mb-3" />
-      <Skeleton width={100} height={32} />
+      <Skeleton width="85%" height={16} className="mb-component-sm bg-bg-surface/30" />
+      <View className="flex-row justify-between items-center">
+        <Skeleton width={120} height={32} className="bg-bg-surface/40" />
+        <Skeleton width={80} height={24} className="bg-bg-surface/30" />
+      </View>
     </Card>
   );
 }
@@ -170,7 +220,7 @@ export function TemplatesList() {
   // Show loading if not authenticated yet
   if (!session) {
     return (
-      <View className="p-4">
+      <View className="flex-1 bg-bg-app py-component-sm">
         {[...Array(3)].map((_, index) => (
           <SkeletonCard key={index} />
         ))}
@@ -180,7 +230,7 @@ export function TemplatesList() {
 
   if (isLoading) {
     return (
-      <View className="p-4">
+      <View className="flex-1 bg-bg-app py-component-sm">
         {[...Array(3)].map((_, index) => (
           <SkeletonCard key={index} />
         ))}
@@ -190,14 +240,16 @@ export function TemplatesList() {
 
   if (!templates || templates.length === 0) {
     return (
-      <EmptyState
-        title="No templates yet"
-        description="Create your first workout template to get started"
-        icon="📋"
-        actionTitle="Create Template"
-        onAction={handleCreateTemplate}
-        className="flex-1"
-      />
+      <View className="flex-1 justify-center items-center bg-bg-app px-component-lg">
+        <EmptyState
+          title="No templates yet"
+          description="Create your first workout template to get started with structured training"
+          icon="🏋️‍♂️"
+          actionTitle="Create Template"
+          onAction={handleCreateTemplate}
+          className="flex-1 bg-glass-card/50 backdrop-blur-sm border border-glass-border rounded-token-card p-component-lg shadow-token-sm"
+        />
+      </View>
     );
   }
 
@@ -214,8 +266,21 @@ export function TemplatesList() {
           isStarting={startingTemplateId === item.id}
         />
       )}
-      contentContainerStyle={{ padding: 16 }}
+      contentContainerStyle={{ 
+        paddingTop: 16,
+        paddingBottom: 32,
+        backgroundColor: 'transparent',
+      }}
+      style={{
+        backgroundColor: 'transparent',
+      }}
       showsVerticalScrollIndicator={false}
+      // Enhanced scroll behavior
+      bounces={true}
+      decelerationRate="normal"
+      // Pull to refresh functionality
+      refreshing={isLoading}
+      onRefresh={() => refetch()}
     />
   );
 }

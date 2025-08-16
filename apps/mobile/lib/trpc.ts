@@ -12,15 +12,24 @@ export const trpc = createTRPCReact();
 // Get the API URL from environment variables
 const getBaseUrl = () => {
   // During development, this should point to your local web app
+  // Read fresh from process.env each time to avoid caching issues
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  
+  // Debug: Log all environment variables for troubleshooting
+  console.log('🌐 All EXPO_PUBLIC env vars:', Object.keys(process.env).filter(key => key.startsWith('EXPO_PUBLIC')));
+  console.log('🌐 EXPO_PUBLIC_API_URL direct read:', process.env.EXPO_PUBLIC_API_URL);
+  console.log('🌐 EXPO_PUBLIC_API_URL variable:', apiUrl);
+  console.log('🌐 Are they equal?', process.env.EXPO_PUBLIC_API_URL === apiUrl);
+  
   if (!apiUrl) {
     throw new Error('EXPO_PUBLIC_API_URL environment variable is required');
   }
   
-  // Debug: Log the URL being used
-  console.log('🌐 Using API URL:', apiUrl);
+  // Always use the direct process.env read to avoid variable caching
+  const finalUrl = process.env.EXPO_PUBLIC_API_URL;
+  console.log('🌐 Using API URL (direct):', finalUrl);
   
-  return apiUrl;
+  return finalUrl;
 };
 
 // Create the tRPC client configuration

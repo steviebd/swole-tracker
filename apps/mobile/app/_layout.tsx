@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../components/providers/AuthProvider';
 import { TRPCProvider } from '../components/providers/TRPCProvider';
+import { ThemeProvider, useTheme } from '../components/providers/ThemeProvider';
 import { LoadingScreen } from '../components/ui';
+import { configureStatusBar } from '../lib/theme-utils';
 import '../global.css';
 
 function useProtectedRoute() {
@@ -46,16 +48,28 @@ function useProtectedRoute() {
 }
 
 function RootLayoutContent() {
-  const { isInitialized, isLoading, session } = useAuth();
+  const { isInitialized: authInitialized, isLoading: authLoading, session } = useAuth();
+  const { isInitialized: themeInitialized, activeTheme } = useTheme();
   const segments = useSegments();
   
   useProtectedRoute();
 
-  // Show loading screen while auth is initializing
-  if (!isInitialized || isLoading) {
+  // Configure status bar when theme changes
+  useEffect(() => {
+    if (themeInitialized) {
+      configureStatusBar(activeTheme);
+    }
+  }, [activeTheme, themeInitialized]);
+
+  // Show loading screen while providers are initializing
+  if (!authInitialized || !themeInitialized || authLoading) {
     return (
       <LoadingScreen 
-        message={!isInitialized ? 'Initializing...' : 'Loading...'} 
+        message={
+          !authInitialized ? 'Initializing authentication...' :
+          !themeInitialized ? 'Loading theme...' :
+          'Loading...'
+        } 
       />
     );
   }
@@ -63,7 +77,7 @@ function RootLayoutContent() {
   // If auth is initialized but no session and not in auth group, show loading
   // This prevents the protected content from flashing before redirect
   const inAuthGroup = segments[0] === '(auth)';
-  if (isInitialized && !session && !inAuthGroup) {
+  if (authInitialized && !session && !inAuthGroup) {
     console.log('🔐 Showing loading while redirecting to auth...');
     return (
       <LoadingScreen message="Redirecting to login..." />
@@ -75,10 +89,12 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <TRPCProvider>
-        <RootLayoutContent />
-      </TRPCProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <TRPCProvider>
+          <RootLayoutContent />
+        </TRPCProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

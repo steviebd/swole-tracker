@@ -1,1 +1,23 @@
-<resources/>
+<resources>
+  <!-- Dark theme colors (preferred) -->
+  <color name="splashscreen_background">#252525</color>
+  <color name="iconBackground">#252525</color>
+  <color name="colorPrimary">#fafafa</color>
+  <color name="colorPrimaryDark">#252525</color>
+  <color name="colorAccent">#fafafa</color>
+  
+  <!-- Status bar and navigation bar for dark theme -->
+  <color name="statusBarColor">#252525</color>
+  <color name="navigationBarColor">#252525</color>
+  
+  <!-- Dark theme app colors -->
+  <color name="backgroundColor">#252525</color>
+  <color name="surfaceColor">#343434</color>
+  <color name="primaryTextColor">#ffffff</color>
+  <color name="secondaryTextColor">#b5b5b5</color>
+  
+  <!-- Additional dark theme colors -->
+  <color name="borderColor">#454545</color>
+  <color name="cardColor">#343434</color>
+  <color name="mutedTextColor">#a6a6a6</color>
+</resources>

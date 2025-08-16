@@ -1,6 +1,16 @@
 export { Button } from './Button';
-export { Input } from './Input';
+export { Input, TextArea } from './Input';
 export { LoadingScreen, LoadingOverlay } from './LoadingScreen';
-export { Card } from './Card';
+export { Card, CardHeader, CardContent, CardFooter } from './Card';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
+export { 
+  Text, 
+  Heading, 
+  Subtitle, 
+  Body, 
+  Caption, 
+  Label, 
+  Code, 
+  Link 
+} from './Text';
