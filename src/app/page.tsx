@@ -44,7 +44,7 @@ export default function Home() {
 
   // Template-inspired layout with clean design
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Preferences status bar */}
       <PreferencesStatusBar />
       

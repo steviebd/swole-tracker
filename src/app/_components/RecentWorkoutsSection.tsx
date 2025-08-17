@@ -76,15 +76,15 @@ export function RecentWorkoutsSection() {
     return (
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Workouts</h2>
-          <button className="text-sm font-medium text-gray-600 hover:text-gray-900">
+          <h2 className="text-xl font-semibold text-foreground">Recent Workouts</h2>
+          <button className="text-sm font-medium text-muted-foreground hover:text-foreground">
             View all workouts →
           </button>
         </div>
         
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-gray-100 rounded-xl p-4 h-16"></div>
+            <div key={i} className="bg-muted rounded-xl p-4 h-16"></div>
           ))}
         </div>
       </div>
@@ -94,8 +94,8 @@ export function RecentWorkoutsSection() {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">Recent Workouts</h2>
-        <Link href="/workouts" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+        <h2 className="text-xl font-semibold text-foreground">Recent Workouts</h2>
+        <Link href="/workouts" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
           View all workouts →
         </Link>
       </div>

@@ -37,7 +37,7 @@ export function GlassHeader({
 }: GlassHeaderProps) {
   return (
     <header 
-      className={`bg-white/95 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-40 ${className}`}
+      className={`bg-card/95 backdrop-blur-sm border-b border-border/50 sticky top-0 z-40 ${className}`}
     >
       <div className="max-w-7xl mx-auto px-6 py-4">
         {/* Main horizontal layout */}
@@ -65,7 +65,7 @@ export function GlassHeader({
         {/* Subtitle */}
         {subtitle && (
           <p 
-            className="text-sm text-gray-500 mt-1 ml-11"
+            className="text-sm text-muted-foreground mt-1 ml-11"
             role="doc-subtitle"
           >
             {subtitle}

@@ -27,7 +27,8 @@ export function ProgressDashboard() {
   
   const { data: exerciseList, isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
 
-  const cardClass = `transition-all duration-300 card-interactive hover:-translate-y-1 hover:shadow-xl`;
+
+  const cardClass = `bg-card border border-border rounded-lg shadow-sm transition-all duration-300 card-interactive hover:-translate-y-1 hover:shadow-xl`;
 
   return (
     <div className="min-h-screen bg-horizon">

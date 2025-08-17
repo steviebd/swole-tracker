@@ -35,7 +35,7 @@ export function DashboardContent() {
       {/* Chart/Analytics Button */}
       <button
         onClick={() => setProgressionOpen(true)}
-        className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+        className="p-2 text-muted-foreground hover:text-foreground transition-colors"
         aria-label="View Analytics"
         title="Analytics"
       >
@@ -47,7 +47,7 @@ export function DashboardContent() {
       {/* Settings Button */}
       <button
         onClick={() => setSettingsOpen(true)}
-        className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+        className="p-2 text-muted-foreground hover:text-foreground transition-colors"
         aria-label="Settings"
         title="Settings"
       >
@@ -60,7 +60,7 @@ export function DashboardContent() {
       {/* Preferences Button */}
       <button
         onClick={() => setPreferencesOpen(true)}
-        className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+        className="p-2 text-muted-foreground hover:text-foreground transition-colors"
         aria-label="Preferences"
         title="Preferences"
       >
@@ -80,9 +80,9 @@ export function DashboardContent() {
         </button>
         
         {userMenuOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+          <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50">
             <div className="py-1">
-              <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100">
+              <div className="px-4 py-2 text-sm text-muted-foreground border-b border-border">
                 {user.email}
               </div>
               <button
@@ -90,7 +90,7 @@ export function DashboardContent() {
                   signOut();
                   setUserMenuOpen(false);
                 }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted"
               >
                 Sign out
               </button>

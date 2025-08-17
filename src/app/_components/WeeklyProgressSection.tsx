@@ -170,17 +170,17 @@ export function WeeklyProgressSection() {
   const periods = ["week", "month"] as const;
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6">
+    <div className="bg-card rounded-xl p-6 shadow-sm border border-border mb-6">
       {/* Header with title and toggle */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-semibold text-gray-900">
+        <h3 className="text-xl font-semibold text-foreground">
           Weekly Progress
         </h3>
         
         {/* Month toggle button */}
         <button
           onClick={() => setSelectedPeriod(selectedPeriod === "week" ? "month" : "week")}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors"
         >
           Month
         </button>
@@ -189,56 +189,56 @@ export function WeeklyProgressSection() {
       {isLoading ? (
         <div className="space-y-6">
           {/* Progress bar skeleton */}
-          <div className="bg-gray-100 rounded-lg h-20"></div>
+          <div className="bg-muted rounded-lg h-20"></div>
           
           {/* Goal cards skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gray-100 rounded-lg h-24"></div>
-            <div className="bg-gray-100 rounded-lg h-24"></div>
+            <div className="bg-muted rounded-lg h-24"></div>
+            <div className="bg-muted rounded-lg h-24"></div>
           </div>
         </div>
       ) : (
         <div className="space-y-6">
           {/* Main progress bar - empty for now to match template */}
-          <div className="bg-gray-50 rounded-lg h-20 border border-gray-200"></div>
+          <div className="bg-muted rounded-lg h-20 border border-border"></div>
           
           {/* Goal cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Volume Goal */}
-            <div className="border border-gray-200 rounded-lg p-4">
+            <div className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">Volume Goal</h4>
-                <span className="text-lg font-bold text-gray-900">
+                <h4 className="font-medium text-foreground">Volume Goal</h4>
+                <span className="text-lg font-bold text-foreground">
                   {progress.volumeGoal.current}/{progress.volumeGoal.target}
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div className="w-full bg-muted rounded-full h-2 mb-2">
                 <div 
                   className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${Math.min(100, progress.volumeGoal.percentage)}%` }}
                 ></div>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {(parseFloat(progress.volumeGoal.target.replace('k', '')) * 1000 - 
                   parseFloat(progress.volumeGoal.current.replace('k', '')) * 1000).toFixed(0)}kg remaining
               </p>
             </div>
 
             {/* Consistency */}
-            <div className="border border-gray-200 rounded-lg p-4">
+            <div className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">Consistency</h4>
-                <span className="text-lg font-bold text-gray-900">
+                <h4 className="font-medium text-foreground">Consistency</h4>
+                <span className="text-lg font-bold text-foreground">
                   {progress.consistency.current.toFixed(0)}%/100%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div className="w-full bg-muted rounded-full h-2 mb-2">
                 <div 
                   className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${Math.min(100, progress.consistency.percentage)}%` }}
                 ></div>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Let's improve consistency together
               </p>
             </div>
@@ -248,7 +248,7 @@ export function WeeklyProgressSection() {
           <div className="pt-4">
             <Link 
               href="/progress"
-              className="flex items-center justify-center gap-2 w-full py-3 px-4 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+              className="flex items-center justify-center gap-2 w-full py-3 px-4 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors border border-border"
             >
               View Full Progress Dashboard
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

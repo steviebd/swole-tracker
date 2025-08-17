@@ -111,7 +111,7 @@ export function StatsCards() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div key={i} className="bg-card rounded-xl p-6 shadow-sm border border-border">
             <div className="space-y-4">
               <div className="skeleton h-10 w-10 rounded-lg" />
               <div className="space-y-2">
@@ -147,7 +147,7 @@ export function StatsCards() {
         return (
           <div
             key={card.id}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+            className="bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer"
           >
             {/* Icon with gradient background */}
             <div className={`w-10 h-10 rounded-lg ${getIconGradient(card.gradient)} flex items-center justify-center mb-4`}>
@@ -157,7 +157,7 @@ export function StatsCards() {
             {/* Stats content */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600">
+                <p className="text-sm font-medium text-muted-foreground">
                   {card.title}
                 </p>
                 {card.badge && (
@@ -166,10 +166,10 @@ export function StatsCards() {
                   </span>
                 )}
               </div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-foreground">
                 {card.value}
                 {card.unit && (
-                  <span className="ml-1 text-lg font-normal text-gray-500">
+                  <span className="ml-1 text-lg font-normal text-muted-foreground">
                     {card.unit}
                   </span>
                 )}

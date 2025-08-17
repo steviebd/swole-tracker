@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
 import { api } from "~/trpc/react";
 import { trackWellnessSettingsChange } from '~/lib/analytics/health-advice';
+import { useTheme } from "~/providers/ThemeProvider";
+
+type RightSwipeAction = "collapse_expand" | "none";
 
 interface SettingsModalProps {
   open: boolean;
@@ -13,33 +16,86 @@ interface SettingsModalProps {
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { restoreFocus } = useReturnFocus();
   const firstFocusRef = useRef<HTMLButtonElement>(null);
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  
+  // All the original settings states
   const [notifications, setNotifications] = useState(true);
   const [workoutReminders, setWorkoutReminders] = useState(false);
   const [dataExport, setDataExport] = useState(false);
   const [manualWellnessEnabled, setManualWellnessEnabled] = useState(false);
   const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
-
-  // Load user preferences and user data for analytics
-  const { data: preferences, refetch: refetchPreferences } = api.preferences.get.useQuery();
-  const { data: _userData } = api.preferences.get.useQuery(); // This would need user ID for analytics
   
-  const updatePreferences = api.preferences.update.useMutation({
-    onSuccess: () => {
-      refetchPreferences();
+  // New states from Preferences modal
+  const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
+  const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
+  const [defaultWeightUnit, setDefaultWeightUnit] = useState<"kg" | "lbs">("kg");
+  const [saving, setSaving] = useState(false);
+
+  // Load user preferences
+  const utils = api.useUtils();
+  const { data: preferences, isLoading } = api.preferences.get.useQuery(undefined, {
+    enabled: open,
+  });
+  
+  const updateMutation = api.preferences.update.useMutation({
+    onSuccess: async () => {
+      await utils.preferences.get.invalidate();
+      setSaving(false);
       setIsUpdatingPreferences(false);
     },
     onError: (error) => {
-      console.error('Failed to update preferences:', error);
+      console.error("Failed to save preferences", error);
+      alert("Failed to save preferences. Please try again.");
+      setSaving(false);
       setIsUpdatingPreferences(false);
     },
   });
 
   // Sync local state with preferences
   useEffect(() => {
-    if (preferences) {
+    if (!isLoading && preferences) {
       setManualWellnessEnabled(preferences.enable_manual_wellness ?? false);
+      
+      // Sync the preferences from the old modal
+      const predictive = "predictive_defaults_enabled" in preferences
+        ? Boolean(preferences.predictive_defaults_enabled ?? false)
+        : false;
+      setPredictiveEnabled(predictive);
+
+      const rightSwipe = "right_swipe_action" in preferences
+        ? (preferences.right_swipe_action ?? "collapse_expand")
+        : "collapse_expand";
+      setRightSwipeAction(rightSwipe as RightSwipeAction);
+
+      const weightUnit = "defaultWeightUnit" in preferences
+        ? (preferences.defaultWeightUnit ?? "kg")
+        : "kg";
+      setDefaultWeightUnit(weightUnit as "kg" | "lbs");
     }
-  }, [preferences]);
+  }, [isLoading, preferences]);
+
+  const saveDisabled = useMemo(() => {
+    if (saving || isUpdatingPreferences) return true;
+    if (!preferences) return false;
+    
+    const pe = "predictive_defaults_enabled" in preferences
+      ? Boolean(preferences.predictive_defaults_enabled ?? false)
+      : false;
+    const rs = "right_swipe_action" in preferences
+      ? ((preferences.right_swipe_action ?? "collapse_expand") as RightSwipeAction)
+      : ("collapse_expand" as RightSwipeAction);
+    const wu = "defaultWeightUnit" in preferences
+      ? (preferences.defaultWeightUnit ?? "kg")
+      : "kg";
+    const mw = preferences.enable_manual_wellness ?? false;
+    
+    return (
+      pe === predictiveEnabled &&
+      rs === rightSwipeAction &&
+      wu === defaultWeightUnit &&
+      mw === manualWellnessEnabled
+    );
+  }, [preferences, predictiveEnabled, rightSwipeAction, defaultWeightUnit, manualWellnessEnabled, saving, isUpdatingPreferences]);
 
   if (!open) return null;
 
@@ -61,7 +117,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     setIsUpdatingPreferences(true);
     
     try {
-      await updatePreferences.mutateAsync({
+      await updateMutation.mutateAsync({
         enable_manual_wellness: newValue,
       });
       
@@ -79,15 +135,33 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleSave = () => {
+    if (saveDisabled && !saving && !isUpdatingPreferences) {
+      onClose();
+      return;
+    }
+
+    setSaving(true);
+    const payload: {
+      predictive_defaults_enabled?: boolean;
+      right_swipe_action?: RightSwipeAction;
+      defaultWeightUnit?: "kg" | "lbs";
+      enable_manual_wellness?: boolean;
+    } = {
+      predictive_defaults_enabled: predictiveEnabled,
+      right_swipe_action: rightSwipeAction,
+      defaultWeightUnit: defaultWeightUnit,
+      enable_manual_wellness: manualWellnessEnabled,
+    };
+    updateMutation.mutate(payload);
+  };
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-title"
-      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4"
-      style={{ 
-        backgroundColor: 'color-mix(in srgb, var(--color-bg-app) 80%, transparent)',
-      }}
+      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={() => {
         restoreFocus();
         onClose();
@@ -114,6 +188,181 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
           {/* Content */}
           <div className="px-6 py-5 space-y-6">
+            {/* Predictive defaults toggle */}
+            <section>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium" style={{ color: 'var(--color-text)' }}>Predictive defaults</div>
+                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    Prefill new sets with your most recent values for the exercise.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-pressed={predictiveEnabled ? "true" : "false"}
+                  onClick={() => setPredictiveEnabled((v) => !v)}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors"
+                  style={{
+                    backgroundColor: predictiveEnabled 
+                      ? "var(--color-primary)"
+                      : "var(--color-border)"
+                  }}
+                >
+                  <span
+                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
+                      predictiveEnabled ? "translate-x-7" : "translate-x-1"
+                    }`}
+                  />
+                  <span className="sr-only">Toggle predictive defaults</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Theme selector */}
+            <section>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Theme</div>
+              <div className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Choose your preferred color theme for the app.
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "system", label: "System" },
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                ].map((themeOption) => (
+                  <button
+                    key={themeOption.value}
+                    onClick={() => setTheme(themeOption.value as any)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      theme === themeOption.value
+                        ? "bg-purple-600 text-background border-purple-600"
+                        : "glass-surface glass-hairline text-gray-300"
+                    }`}
+                    style={
+                      theme === themeOption.value
+                        ? {
+                            backgroundColor: "var(--color-primary)",
+                            borderColor: "var(--color-primary)",
+                            color: "white",
+                          }
+                        : {
+                            backgroundColor: "var(--color-bg-surface)",
+                            borderColor: "var(--color-border)",
+                            color: "var(--color-text)",
+                          }
+                    }
+                    aria-pressed={theme === themeOption.value ? "true" : "false"}
+                  >
+                    {themeOption.label}
+                    {theme === themeOption.value &&
+                      themeOption.value === "system" && (
+                        <span className="ml-1 text-xs opacity-70">
+                          ({resolvedTheme})
+                        </span>
+                      )}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Weight Unit Preference */}
+            <section>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Default Weight Unit</div>
+              <div className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Choose your preferred weight unit for displaying exercises.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "kg" as const, label: "Kilograms (kg)" },
+                  { value: "lbs" as const, label: "Pounds (lbs)" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDefaultWeightUnit(value)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      defaultWeightUnit === value
+                        ? "bg-purple-600 text-background border-purple-600"
+                        : "glass-surface glass-hairline text-gray-300"
+                    }`}
+                    style={
+                      defaultWeightUnit === value
+                        ? {
+                            backgroundColor: "var(--color-primary)",
+                            borderColor: "var(--color-primary)",
+                            color: "white",
+                          }
+                        : {
+                            backgroundColor: "var(--color-bg-surface)",
+                            borderColor: "var(--color-border)",
+                            color: "var(--color-text)",
+                          }
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Right swipe action selector */}
+            <section>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Right-swipe action</div>
+              <div className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Choose what happens when you right-swipe an exercise card.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(["collapse_expand", "none"] as RightSwipeAction[]).map(
+                  (opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setRightSwipeAction(opt)}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                        rightSwipeAction === opt
+                          ? "bg-purple-600 text-background border-purple-600"
+                          : "glass-surface glass-hairline text-gray-300"
+                      }`}
+                      style={
+                        rightSwipeAction === opt
+                          ? {
+                              backgroundColor: "var(--color-primary)",
+                              borderColor: "var(--color-primary)",
+                              color: "white",
+                            }
+                          : {
+                              backgroundColor: "var(--color-bg-surface)",
+                              borderColor: "var(--color-border)",
+                              color: "var(--color-text)",
+                            }
+                      }
+                      aria-pressed={rightSwipeAction === opt ? "true" : "false"}
+                    >
+                      {opt === "collapse_expand" ? "Collapse/Expand" : "None"}
+                    </button>
+                  ),
+                )}
+              </div>
+            </section>
+
+            {/* Connect Whoop */}
+            <section>
+              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Connect Whoop</div>
+              <div className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Connect your Whoop device to sync recovery and strain data.
+              </div>
+              <a
+                href="/connect-whoop"
+                className="inline-block px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+                style={{
+                  backgroundColor: 'var(--color-bg-surface)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text)',
+                }}
+              >
+                Connect Whoop
+              </a>
+            </section>
+
             {/* Notifications */}
             <section>
               <div className="flex items-center justify-between">
@@ -298,8 +547,22 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 borderColor: 'var(--color-border)',
                 color: 'var(--color-text)',
               }}
+              disabled={saving || isUpdatingPreferences}
             >
-              Close
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleSave()}
+              className="px-4 py-2 rounded-lg font-medium transition-colors duration-300 disabled:opacity-50"
+              style={{
+                backgroundColor: "var(--color-primary)",
+                borderColor: "var(--color-primary)",
+                color: "white",
+              }}
+              disabled={saving || isUpdatingPreferences || saveDisabled}
+              aria-busy={saving || isUpdatingPreferences ? "true" : "false"}
+            >
+              {saving || isUpdatingPreferences ? "Saving…" : "Save"}
             </button>
           </div>
         </div>
