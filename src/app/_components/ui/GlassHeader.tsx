@@ -37,20 +37,20 @@ export function GlassHeader({
 }: GlassHeaderProps) {
   return (
     <header 
-      className={`glass-header sticky top-0 z-40 ${className}`}
-      style={{ borderBottomColor: "var(--color-border)" }}
+      className={`bg-white/95 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-40 ${className}`}
     >
-      <div className="px-4 py-3 sm:px-6 sm:py-4">
+      <div className="max-w-7xl mx-auto px-6 py-4">
         {/* Main horizontal layout */}
         <div className="flex items-center justify-between">
-          {/* Left side - Title */}
-          <div className="min-w-0 flex-1">
+          {/* Left side - Logo and Title */}
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔥</span>
             <h1 
-              className="text-xl sm:text-2xl font-bold text-foreground truncate"
+              className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent"
               role="heading"
               aria-level={1}
             >
-              {title}
+              Swole Tracker
             </h1>
           </div>
           
@@ -65,7 +65,7 @@ export function GlassHeader({
         {/* Subtitle */}
         {subtitle && (
           <p 
-            className="text-sm text-muted-foreground mt-1"
+            className="text-sm text-gray-500 mt-1 ml-11"
             role="doc-subtitle"
           >
             {subtitle}

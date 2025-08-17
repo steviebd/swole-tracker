@@ -104,7 +104,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full btn-primary py-2.5 sm:py-2 text-base sm:text-sm"
+          className="w-full btn-primary py-2.5 sm:py-2 text-base sm:text-sm animate-button-hover"
         >
           {isLoading ? "Signing In..." : "Sign In"}
         </button>

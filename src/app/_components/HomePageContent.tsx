@@ -17,12 +17,12 @@ interface GridProps {
   gap?: "sm" | "md" | "lg";
 }
 
-// Main content wrapper with mobile-first single-column layout
+// Main content wrapper with template design layout
 export function HomePageContent({ children }: HomePageContentProps) {
   return (
-    <div className="flex-1 bg-background">
-      {/* Single-column content area with consistent padding */}
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <div className="flex-1 bg-gray-50 min-h-screen">
+      {/* Container with template spacing and layout */}
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {children}
       </div>
     </div>

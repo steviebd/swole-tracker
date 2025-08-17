@@ -142,7 +142,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full btn-primary py-2"
+            className="w-full btn-primary py-2 animate-button-hover"
           >
             {isLoading ? "Creating Account..." : "Sign Up"}
           </button>

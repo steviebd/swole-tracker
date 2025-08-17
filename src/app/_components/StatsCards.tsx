@@ -3,6 +3,17 @@
 import { api } from "~/trpc/react";
 import { Card } from "~/app/_components/ui/Card";
 import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
+import { calculateStreak, getStreakBadge, formatAchievementBadge, type Achievement } from "~/lib/achievements";
+
+interface StatsCard {
+  id: string;
+  title: string;
+  value: string | number;
+  unit: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  badge?: Achievement | null;
+}
 
 export function StatsCards() {
   // Get real data from ProgressDashboard API
@@ -38,6 +49,10 @@ export function StatsCards() {
       avgDuration = `${estimatedMinutes} min`;
     }
 
+    // Calculate streak from workout dates
+    const streakInfo = calculateStreak(workoutDates?.map(date => new Date(date)) || []);
+    const streakBadge = getStreakBadge(streakInfo);
+
     // Weekly goal progress (target 3 workouts per week)
     const weeklyGoal = {
       current: workoutsThisWeek,
@@ -48,13 +63,15 @@ export function StatsCards() {
       workoutsThisWeek,
       avgDuration,
       weeklyGoal,
+      streakInfo,
+      streakBadge,
     };
   };
 
   const stats = calculateStats();
 
   // Card definitions with icons and styling
-  const cards = [
+  const cards: StatsCard[] = [
     {
       id: "workouts",
       title: "This Week",
@@ -74,10 +91,11 @@ export function StatsCards() {
     {
       id: "streak",
       title: "Current Streak",
-      value: "Coming Soon",
-      unit: "",
+      value: stats.streakInfo.current,
+      unit: ` day${stats.streakInfo.current === 1 ? '' : 's'}`,
       icon: Flame,
       gradient: "gradient-stats-orange",
+      badge: stats.streakBadge,
     },
     {
       id: "goal",
@@ -91,64 +109,73 @@ export function StatsCards() {
 
   if (isLoading) {
     return (
-      <div className="gap-gap-md grid grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} surface="card" padding="md">
-            <div className="space-y-gap-md">
-              <div className="flex items-center justify-between">
-                <div className="skeleton h-8 w-8 rounded-lg" />
-              </div>
-              <div className="space-y-gap-xs">
-                <div className="skeleton h-4 w-16" />
-                <div className="skeleton h-6 w-20" />
+          <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="space-y-4">
+              <div className="skeleton h-10 w-10 rounded-lg" />
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-20" />
+                <div className="skeleton h-8 w-16" />
               </div>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="gap-gap-md grid grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       {cards.map((card) => {
         const IconComponent = card.icon;
+        
+        // Map gradient classes to specific gradient styles
+        const getIconGradient = (gradient: string) => {
+          switch (gradient) {
+            case "gradient-stats-orange":
+              return "bg-gradient-to-br from-orange-500 to-red-500";
+            case "gradient-stats-red":
+              return "bg-gradient-to-br from-red-500 to-pink-500";
+            case "gradient-stats-amber":
+              return "bg-gradient-to-br from-amber-500 to-orange-500";
+            default:
+              return "bg-gradient-to-br from-blue-500 to-purple-500";
+          }
+        };
+
         return (
-          <Card
+          <div
             key={card.id}
-            surface="card"
-            padding="md"
-            interactive
-            className="group relative overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg"
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
           >
-            {/* Gradient background overlay */}
-            <div className={`absolute inset-0 ${card.gradient} opacity-90`} />
+            {/* Icon with gradient background */}
+            <div className={`w-10 h-10 rounded-lg ${getIconGradient(card.gradient)} flex items-center justify-center mb-4`}>
+              <IconComponent className="h-5 w-5 text-white" />
+            </div>
 
-            {/* Card content */}
-            <div className="space-y-gap-md relative z-10">
-              {/* Icon and title row */}
+            {/* Stats content */}
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm">
-                  <IconComponent className="h-4 w-4" />
-                </div>
-              </div>
-
-              {/* Stats content */}
-              <div className="space-y-gap-xs">
-                <p className="text-sm font-medium text-white/90">
+                <p className="text-sm font-medium text-gray-600">
                   {card.title}
                 </p>
-                <p className="font-serif text-2xl font-bold text-white">
-                  {card.value}
-                  {card.unit && (
-                    <span className="ml-1 font-sans text-lg font-normal text-white/80">
-                      {card.unit}
-                    </span>
-                  )}
-                </p>
+                {card.badge && (
+                  <span className={`${formatAchievementBadge(card.badge).className} text-xs px-1.5 py-0.5`}>
+                    {formatAchievementBadge(card.badge).icon}
+                  </span>
+                )}
               </div>
+              <p className="text-2xl font-bold text-gray-900">
+                {card.value}
+                {card.unit && (
+                  <span className="ml-1 text-lg font-normal text-gray-500">
+                    {card.unit}
+                  </span>
+                )}
+              </p>
             </div>
-          </Card>
+          </div>
         );
       })}
     </div>

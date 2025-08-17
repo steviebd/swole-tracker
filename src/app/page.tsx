@@ -42,13 +42,13 @@ export default function Home() {
     );
   }
 
-  // Mobile-inspired layout: SafeAreaView pattern with single-column design
+  // Template-inspired layout with clean design
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {/* Preferences status bar */}
       <PreferencesStatusBar />
       
-      {/* Main content with mobile-first single-column layout */}
+      {/* Main content with template design layout */}
       <DashboardContent />
     </div>
   );

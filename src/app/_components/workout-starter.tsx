@@ -127,7 +127,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         </p>
         <Link
           href="/templates/new"
-          className="btn-primary inline-flex px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium"
+          className="btn-primary inline-flex px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium animate-button-hover"
         >
           Create Your First Template
         </Link>
@@ -251,7 +251,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                 <button
                 onClick={handleStart}
                 disabled={isStarting || createWorkoutMutation.isPending}
-                className="btn-primary w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-primary w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium disabled:cursor-not-allowed disabled:opacity-50 animate-button-hover"
                 type="button"
                 >
                 {isStarting || createWorkoutMutation.isPending ? "Starting..." : "Start Workout"}
