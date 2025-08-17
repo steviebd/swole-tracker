@@ -36,6 +36,25 @@ The refactoring will be done in several phases:
 5.  **Verify Dark Mode**:
     *   Thoroughly test the dark mode implementation across all pages and components.
 
+6.  **Refactor Authentication Pages**:
+    *   Update authentication forms and messages to use `shadcn/ui` components.
+
+7.  **Refactor Template Pages**:
+    *   Replace custom components and styles with `shadcn/ui` equivalents.
+
+8.  **Refactor Workout Pages**:
+    *   Update workout history and start pages with `shadcn/ui` components.
+
+9.  **Refactor Exercise Pages**:
+    *   Restyle the exercise manager with `shadcn/ui` components.
+
+10. **Refactor Connect Whoop Page**:
+    *   Update the "Connect Whoop" page to use the new design system.
+
+11. **Refactor Legal Pages**:
+    *   Improve the readability of legal pages with `shadcn/ui` typography and layout.
+
+
 ## Detailed Task Checklist
 
 ### Phase 1: Design System and Foundation
@@ -111,6 +130,69 @@ The refactoring will be done in several phases:
     -   [ ] The new `globals.css` from the template already includes a dark mode implementation using the `.dark` class.
     -   [ ] Ensure that the `ThemeProvider` is correctly configured to toggle the dark mode.
     -   [ ] Thoroughly test all pages and components in both light and dark modes to ensure that the UI is consistent and looks good.
+
+### Phase 6: Authentication
+
+-   [ ] **Goal:** Refactor the authentication pages to use the new design system.
+-   [ ] **Pages:**
+    -   [ ] `/auth/login`
+    -   [ ] `/auth/register`
+    -   [ ] `/auth/auth-code-error`
+-   [ ] **Tasks:**
+    -   [ ] Refactor the login and register forms to use `shadcn/ui` form components (`Input`, `Button`, `Label`, etc.).
+    -   [ ] Replace the custom error and success message components with `shadcn/ui` `Alert` and `AlertDescription` components.
+    -   [ ] Ensure the layout of the authentication pages is consistent with the new design system.
+    -   [ ] Restyle the `GoogleAuthButton` to match the new design.
+
+### Phase 7: Templates
+
+-   [ ] **Goal:** Refactor the workout templates pages to use the new design system.
+-   [ ] **Pages:**
+    -   [ ] `/templates`
+    -   [ ] `/templates/new`
+    -   [ ] `/templates/[id]/edit`
+-   [ ] **Tasks:**
+    -   [ ] Replace the `GlassHeader` on the templates list page with a standard `shadcn/ui` header.
+    -   [ ] Replace the `glass-surface` card with a `shadcn/ui` `Card`.
+    -   [ ] Refactor the `TemplateForm` component to use `shadcn/ui` form components.
+    -   [ ] Ensure the overall layout and styling of the templates pages are consistent with the new design system.
+
+### Phase 8: Workouts
+
+-   [ ] **Goal:** Refactor the remaining workout-related pages.
+-   [ ] **Pages:**
+    -   [ ] `/workouts`
+    -   [ ] `/workout/start`
+-   [ ] **Tasks:**
+    -   [ ] Replace the `GlassHeader` on the workout history page with a standard `shadcn/ui` header.
+    -   [ ] Restyle the `WorkoutHistory` component to use `shadcn/ui` components (e.g., `Table`, `Card`).
+    -   [ ] Restyle the `WorkoutStarter` component on the `/workout/start` page to use `shadcn/ui` components.
+
+### Phase 9: Exercises
+
+-   [ ] **Goal:** Refactor the exercise management page.
+-   [ ] **Page:** `/exercises`
+-   [ ] **Tasks:**
+    -   [ ] Restyle the `ExerciseManager` component to use `shadcn/ui` components (e.g., `Table`, `Dialog`, `Button`).
+    -   [ ] Ensure the layout and styling of the exercise management page are consistent with the new design system.
+
+### Phase 10: Connect Whoop
+
+-   [ ] **Goal:** Refactor the "Connect Whoop" page.
+-   [ ] **Page:** `/connect-whoop`
+-   [ ] **Tasks:**
+    -   [ ] Restyle the `WhoopWorkouts` component to use `shadcn/ui` components.
+    -   [ ] Update the layout of the page to be consistent with the new design system.
+
+### Phase 11: Legal Pages
+
+-   [ ] **Goal:** Improve the styling of the legal pages.
+-   [ ] **Pages:**
+    -   [ ] `/privacy`
+    -   [ ] `/terms`
+-   [ ] **Tasks:**
+    -   [ ] Create a new layout component for the legal pages that uses `shadcn/ui` typography and layout components to improve readability.
+    -   [ ] Apply this new layout to the privacy and terms pages.
 
 ## Contributing
 
