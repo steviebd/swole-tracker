@@ -4,11 +4,11 @@
 
 export const DesignTokens = {
   colors: {
-    primary: '#d97706',
-    primaryHover: '#f59e0b',
-    primaryActive: '#d97706',
+    primary: 'oklch(0.72 0.186 45)',
+    primaryHover: 'oklch(0.66 0.175 45)',
+    primaryActive: 'oklch(0.58 0.16 45)',
     secondary: '#f59e0b',
-    accent: '#f97316',
+    accent: 'oklch(0.74 0.185 55)',
     
     background: '#252525',
     surface: '#343434',

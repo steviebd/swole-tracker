@@ -70,17 +70,119 @@
       }
     },
     "primary": {
+      "50": {
+        "$value": "oklch(0.97 0.02 45)",
+        "$description": "Primary orange 50 - lightest shade"
+      },
+      "100": {
+        "$value": "oklch(0.94 0.05 45)",
+        "$description": "Primary orange 100"
+      },
+      "200": {
+        "$value": "oklch(0.88 0.08 45)",
+        "$description": "Primary orange 200"
+      },
+      "300": {
+        "$value": "oklch(0.82 0.12 45)",
+        "$description": "Primary orange 300"
+      },
+      "400": {
+        "$value": "oklch(0.75 0.16 45)",
+        "$description": "Primary orange 400"
+      },
+      "500": {
+        "$value": "oklch(0.72 0.186 45)",
+        "$description": "Primary orange 500 - #ff6b35"
+      },
+      "600": {
+        "$value": "oklch(0.66 0.175 45)",
+        "$description": "Primary orange 600 - #e55a2b"
+      },
+      "700": {
+        "$value": "oklch(0.58 0.16 45)",
+        "$description": "Primary orange 700 - #cc4e24"
+      },
+      "800": {
+        "$value": "oklch(0.50 0.14 45)",
+        "$description": "Primary orange 800"
+      },
+      "900": {
+        "$value": "oklch(0.42 0.12 45)",
+        "$description": "Primary orange 900"
+      },
+      "950": {
+        "$value": "oklch(0.35 0.10 45)",
+        "$description": "Primary orange 950 - darkest shade"
+      },
       "default": {
-        "$value": "oklch(0.688 0.153 57.5)",
-        "$description": "Primary brand color - energetic amber"
+        "$value": "oklch(0.72 0.186 45)",
+        "$description": "Primary brand color - energetic orange"
       },
       "hover": {
-        "$value": "oklch(0.774 0.178 66.5)",
-        "$description": "Primary color on hover - golden yellow"
+        "$value": "oklch(0.66 0.175 45)",
+        "$description": "Primary color on hover - darker orange"
       },
       "active": {
-        "$value": "oklch(0.688 0.153 57.5)",
-        "$description": "Primary color when active - energetic amber"
+        "$value": "oklch(0.58 0.16 45)",
+        "$description": "Primary color when active - darkest orange"
+      }
+    },
+    "red": {
+      "50": {
+        "$value": "oklch(0.96 0.02 25)",
+        "$description": "Red-orange 50 - lightest shade"
+      },
+      "100": {
+        "$value": "oklch(0.92 0.05 25)",
+        "$description": "Red-orange 100"
+      },
+      "200": {
+        "$value": "oklch(0.85 0.08 25)",
+        "$description": "Red-orange 200"
+      },
+      "300": {
+        "$value": "oklch(0.78 0.12 25)",
+        "$description": "Red-orange 300"
+      },
+      "400": {
+        "$value": "oklch(0.70 0.16 25)",
+        "$description": "Red-orange 400"
+      },
+      "500": {
+        "$value": "oklch(0.66 0.20 25)",
+        "$description": "Red-orange 500 - #ff4444"
+      },
+      "600": {
+        "$value": "oklch(0.60 0.19 25)",
+        "$description": "Red-orange 600 - #e63946"
+      },
+      "700": {
+        "$value": "oklch(0.54 0.18 25)",
+        "$description": "Red-orange 700 - #d62828"
+      },
+      "800": {
+        "$value": "oklch(0.48 0.16 25)",
+        "$description": "Red-orange 800"
+      },
+      "900": {
+        "$value": "oklch(0.42 0.14 25)",
+        "$description": "Red-orange 900"
+      },
+      "950": {
+        "$value": "oklch(0.36 0.12 25)",
+        "$description": "Red-orange 950 - darkest shade"
+      },
+      "default": {
+        "$value": "oklch(0.66 0.20 25)",
+        "$description": "Red-orange color for secondary actions"
+      },
+      "hover": {
+        "$value": "oklch(0.60 0.19 25)",
+        "$description": "Red-orange color on hover"
+      },
+      "active": {
+        "$value": "oklch(0.54 0.18 25)",
+        "$description": "Red-orange color when active"
       }
     },
     "secondary": {
@@ -94,13 +196,57 @@
       }
     },
     "accent": {
+      "50": {
+        "$value": "oklch(0.96 0.03 55)",
+        "$description": "Accent amber 50 - lightest shade"
+      },
+      "100": {
+        "$value": "oklch(0.92 0.06 55)",
+        "$description": "Accent amber 100"
+      },
+      "200": {
+        "$value": "oklch(0.86 0.10 55)",
+        "$description": "Accent amber 200"
+      },
+      "300": {
+        "$value": "oklch(0.80 0.14 55)",
+        "$description": "Accent amber 300"
+      },
+      "400": {
+        "$value": "oklch(0.74 0.18 55)",
+        "$description": "Accent amber 400"
+      },
+      "500": {
+        "$value": "oklch(0.78 0.195 55)",
+        "$description": "Accent amber 500 - #ffb700"
+      },
+      "600": {
+        "$value": "oklch(0.74 0.185 55)",
+        "$description": "Accent amber 600 - #ffa500"
+      },
+      "700": {
+        "$value": "oklch(0.70 0.175 55)",
+        "$description": "Accent amber 700 - #ff8500"
+      },
+      "800": {
+        "$value": "oklch(0.64 0.16 55)",
+        "$description": "Accent amber 800"
+      },
+      "900": {
+        "$value": "oklch(0.58 0.14 55)",
+        "$description": "Accent amber 900"
+      },
+      "950": {
+        "$value": "oklch(0.52 0.12 55)",
+        "$description": "Accent amber 950 - darkest shade"
+      },
       "default": {
-        "$value": "oklch(0.702 0.191 36.8)",
-        "$description": "Accent color - energetic orange for highlights"
+        "$value": "oklch(0.74 0.185 55)",
+        "$description": "Accent color - warm amber for highlights"
       },
       "hover": {
-        "$value": "oklch(0.730 0.200 36.8)",
-        "$description": "Accent color on hover - brighter orange"
+        "$value": "oklch(0.70 0.175 55)",
+        "$description": "Accent color on hover - deeper amber"
       }
     },
     "status": {
@@ -826,6 +972,64 @@
           ]
         },
         "$description": "Danger gradient universal across themes"
+      },
+      "stats": {
+        "orange": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "135deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.72 0.186 45)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.74 0.185 55)"
+              }
+            ]
+          },
+          "$description": "Orange gradient for stats cards - primary orange to amber"
+        },
+        "red": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "135deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.66 0.20 25)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.60 0.19 25)"
+              }
+            ]
+          },
+          "$description": "Red gradient for stats cards - red-orange spectrum"
+        }
+      },
+      "action": {
+        "primary": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "135deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.72 0.186 45)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.66 0.175 45)"
+              }
+            ]
+          },
+          "$description": "Primary action gradient for buttons and interactive elements"
+        }
       }
     }
   },

@@ -2,86 +2,105 @@
 
 import { api } from "~/trpc/react";
 import { Card } from "~/app/_components/ui/Card";
+import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
 
 export function StatsCards() {
-  
   // Get real data from ProgressDashboard API
-  const { isLoading: consistencyLoading } = api.progress.getConsistencyStats.useQuery({
-    timeRange: "week",
-  });
-  
-  const { data: volumeData, isLoading: volumeLoading } = api.progress.getVolumeProgression.useQuery({
-    timeRange: "week",
-  });
+  const { isLoading: consistencyLoading } =
+    api.progress.getConsistencyStats.useQuery({
+      timeRange: "week",
+    });
 
-  const { data: workoutDates, isLoading: workoutDatesLoading } = api.progress.getWorkoutDates.useQuery({
-    timeRange: "week",
-  });
+  const { data: volumeData, isLoading: volumeLoading } =
+    api.progress.getVolumeProgression.useQuery({
+      timeRange: "week",
+    });
+
+  const { data: workoutDates, isLoading: workoutDatesLoading } =
+    api.progress.getWorkoutDates.useQuery({
+      timeRange: "week",
+    });
 
   const isLoading = consistencyLoading || volumeLoading || workoutDatesLoading;
 
   // Calculate stats from real data
   const calculateStats = () => {
     const workoutsThisWeek = workoutDates?.length || 0;
-    
+
     // Calculate average duration from volume data (estimate based on exercises and sets)
     let avgDuration = "0 min";
     if (volumeData && volumeData.length > 0) {
-      const avgSets = volumeData.reduce((sum, session) => sum + session.totalSets, 0) / volumeData.length;
+      const avgSets =
+        volumeData.reduce((sum, session) => sum + session.totalSets, 0) /
+        volumeData.length;
       // Estimate 3-4 minutes per set including rest
       const estimatedMinutes = Math.round(avgSets * 3.5);
       avgDuration = `${estimatedMinutes} min`;
     }
-    
+
     // Weekly goal progress (target 3 workouts per week)
     const weeklyGoal = {
       current: workoutsThisWeek,
-      target: 3
+      target: 3,
     };
-    
+
     return {
       workoutsThisWeek,
       avgDuration,
-      weeklyGoal
+      weeklyGoal,
     };
   };
 
   const stats = calculateStats();
 
-  // Icon definitions for each stat
-  const StatIcon = ({ type }: { type: 'workouts' | 'duration' | 'goal' }) => {
-    const icons = {
-      workouts: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
-      ),
-      duration: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      goal: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    };
-    return icons[type];
-  };
-
-  
+  // Card definitions with icons and styling
+  const cards = [
+    {
+      id: "workouts",
+      title: "This Week",
+      value: stats.workoutsThisWeek,
+      unit: "Workouts",
+      icon: TrendingUp,
+      gradient: "gradient-stats-orange",
+    },
+    {
+      id: "duration",
+      title: "Avg Duration",
+      value: stats.avgDuration,
+      unit: "",
+      icon: Clock,
+      gradient: "gradient-stats-red",
+    },
+    {
+      id: "streak",
+      title: "Current Streak",
+      value: "Coming Soon",
+      unit: "",
+      icon: Flame,
+      gradient: "gradient-stats-orange",
+    },
+    {
+      id: "goal",
+      title: "Weekly Goal",
+      value: stats.weeklyGoal.current,
+      unit: `/${stats.weeklyGoal.target}`,
+      icon: Calendar,
+      gradient: "gradient-stats-amber",
+    },
+  ];
 
   if (isLoading) {
     return (
-      <div className="space-y-gap-sm">
-        {[...Array(3)].map((_, i) => (
+      <div className="gap-gap-md grid grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
           <Card key={i} surface="card" padding="md">
-            <div className="flex items-center gap-gap-md">
-              <div className="w-10 h-10 rounded-lg skeleton" />
-              <div className="space-y-gap-xs flex-1">
-                <div className="h-4 w-16 skeleton" />
-                <div className="h-6 w-20 skeleton" />
+            <div className="space-y-gap-md">
+              <div className="flex items-center justify-between">
+                <div className="skeleton h-8 w-8 rounded-lg" />
+              </div>
+              <div className="space-y-gap-xs">
+                <div className="skeleton h-4 w-16" />
+                <div className="skeleton h-6 w-20" />
               </div>
             </div>
           </Card>
@@ -91,58 +110,47 @@ export function StatsCards() {
   }
 
   return (
-    <div className="space-y-gap-sm sm:space-y-gap-md">
-      {/* This Week Workouts */}
-      <Card surface="card" padding="md" interactive>
-        <div className="flex items-center gap-gap-md">
-          <div className="w-10 h-10 rounded-lg bg-chart-1/20 border border-chart-1/30 flex items-center justify-center text-chart-1 flex-shrink-0">
-            <StatIcon type="workouts" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-text-secondary text-sm font-medium">This Week</p>
-            <p className="text-2xl font-serif font-bold text-text-primary mt-1">
-              {stats.workoutsThisWeek} <span className="text-lg font-sans font-normal text-text-secondary">Workouts</span>
-            </p>
-          </div>
-        </div>
-      </Card>
+    <div className="gap-gap-md grid grid-cols-2 lg:grid-cols-4">
+      {cards.map((card) => {
+        const IconComponent = card.icon;
+        return (
+          <Card
+            key={card.id}
+            surface="card"
+            padding="md"
+            interactive
+            className="group relative overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg"
+          >
+            {/* Gradient background overlay */}
+            <div className={`absolute inset-0 ${card.gradient} opacity-90`} />
 
-      {/* Average Duration */}
-      <Card surface="card" padding="md" interactive>
-        <div className="flex items-center gap-gap-md">
-          <div className="w-10 h-10 rounded-lg bg-chart-2/20 border border-chart-2/30 flex items-center justify-center text-chart-2 flex-shrink-0">
-            <StatIcon type="duration" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-text-secondary text-sm font-medium">Average Duration</p>
-            <p className="text-2xl font-serif font-bold text-text-primary mt-1">
-              {stats.avgDuration}
-            </p>
-          </div>
-        </div>
-      </Card>
+            {/* Card content */}
+            <div className="space-y-gap-md relative z-10">
+              {/* Icon and title row */}
+              <div className="flex items-center justify-between">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm">
+                  <IconComponent className="h-4 w-4" />
+                </div>
+              </div>
 
-      {/* Weekly Goal */}
-      <Card surface="card" padding="md" interactive>
-        <div className="flex items-center gap-gap-md">
-          <div className="w-10 h-10 rounded-lg bg-chart-3/20 border border-chart-3/30 flex items-center justify-center text-chart-3 flex-shrink-0">
-            <StatIcon type="goal" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-text-secondary text-sm font-medium">Weekly Goal</p>
-            <p className="text-2xl font-serif font-bold text-text-primary mt-1">
-              {stats.weeklyGoal.current}<span className="text-lg font-sans font-normal text-text-secondary">/{stats.weeklyGoal.target}</span>
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Enhanced responsive design for larger screens */}
-      <div className="hidden sm:block">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-gap-md mt-gap-lg">
-          {/* Placeholder for potential additional stats on larger screens */}
-        </div>
-      </div>
+              {/* Stats content */}
+              <div className="space-y-gap-xs">
+                <p className="text-sm font-medium text-white/90">
+                  {card.title}
+                </p>
+                <p className="font-serif text-2xl font-bold text-white">
+                  {card.value}
+                  {card.unit && (
+                    <span className="ml-1 font-sans text-lg font-normal text-white/80">
+                      {card.unit}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

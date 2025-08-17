@@ -309,6 +309,20 @@ html.dark {
   background: var(--gradient-header-linear);
 }
 
+/* New gradient utilities for stats and actions */
+.gradient-stats-orange {
+  background: var(--gradient-universal-stats-orange);
+}
+.gradient-stats-red {
+  background: var(--gradient-universal-stats-red);
+}
+.gradient-stats-amber {
+  background: var(--gradient-universal-warning);
+}
+.gradient-action-primary {
+  background: var(--gradient-universal-action-primary);
+}
+
 /* Primary button - tokenized */
 .btn-primary {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;

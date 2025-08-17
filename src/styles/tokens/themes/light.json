@@ -49,16 +49,16 @@
     },
     "primary": {
       "default": {
-        "$value": "oklch(0.688 0.153 57.5)",
-        "$description": "Energetic amber primary for light theme"
+        "$value": "oklch(0.72 0.186 45)",
+        "$description": "Energetic orange primary for light theme"
       },
       "hover": {
-        "$value": "oklch(0.774 0.178 66.5)",
-        "$description": "Golden yellow on hover for light theme"
+        "$value": "oklch(0.66 0.175 45)",
+        "$description": "Darker orange on hover for light theme"
       },
       "active": {
-        "$value": "oklch(0.688 0.153 57.5)",
-        "$description": "Energetic amber when active for light theme"
+        "$value": "oklch(0.58 0.16 45)",
+        "$description": "Darkest orange when active for light theme"
       }
     },
     "secondary": {
@@ -73,12 +73,12 @@
     },
     "accent": {
       "default": {
-        "$value": "oklch(0.702 0.191 36.8)",
-        "$description": "Energetic orange accent for light theme"
+        "$value": "oklch(0.74 0.185 55)",
+        "$description": "Warm amber accent for light theme"
       },
       "hover": {
-        "$value": "oklch(0.730 0.200 36.8)",
-        "$description": "Brighter orange on hover for light theme"
+        "$value": "oklch(0.70 0.175 55)",
+        "$description": "Deeper amber on hover for light theme"
       }
     },
     "status": {
@@ -125,15 +125,15 @@
     },
     "chart": {
       "1": {
-        "$value": "oklch(0.702 0.191 36.8)",
+        "$value": "oklch(0.72 0.186 45)",
         "$description": "Chart color 1 - Primary orange for energetic data"
       },
       "2": {
-        "$value": "oklch(0.637 0.237 25.331)",
-        "$description": "Chart color 2 - Red for secondary data"
+        "$value": "oklch(0.66 0.20 25)",
+        "$description": "Chart color 2 - Red-orange for secondary data"
       },
       "3": {
-        "$value": "oklch(0.688 0.153 57.5)",
+        "$value": "oklch(0.74 0.185 55)",
         "$description": "Chart color 3 - Amber for tertiary data"
       },
       "4": {
@@ -275,15 +275,15 @@
         "stops": [
           {
             "position": "0%",
-            "color": "oklch(0.688 0.153 57.5)"
+            "color": "oklch(0.72 0.186 45)"
           },
           {
             "position": "100%",
-            "color": "oklch(0.702 0.191 36.8)"
+            "color": "oklch(0.74 0.185 55)"
           }
         ]
       },
-      "$description": "Energetic primary gradient amber to orange for light theme buttons"
+      "$description": "Energetic primary gradient orange to amber for light theme buttons"
     },
     "accent": {
       "$type": "gradient",
@@ -297,7 +297,7 @@
           },
           {
             "position": "100%",
-            "color": "oklch(0.688 0.153 57.5)"
+            "color": "oklch(0.74 0.185 55)"
           }
         ]
       },
