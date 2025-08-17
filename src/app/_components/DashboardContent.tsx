@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useAuth } from "~/providers/AuthProvider";
+import { useTheme } from "~/providers/ThemeProvider";
 import { GlassHeader } from "./ui/GlassHeader";
-import { PreferencesModal } from "./PreferencesModal";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
 import { HomePageContent } from "./HomePageContent";
@@ -16,7 +16,7 @@ import { JokeOfTheDay } from "./joke-of-the-day";
 
 export function DashboardContent() {
   const { user, signOut } = useAuth();
-  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const { toggle: toggleTheme, resolvedTheme } = useTheme();
   const [progressionOpen, setProgressionOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -57,15 +57,21 @@ export function DashboardContent() {
         </svg>
       </button>
 
-      {/* Preferences Button */}
+      {/* Theme Toggle Button */}
       <button
-        onClick={() => setPreferencesOpen(true)}
+        onClick={toggleTheme}
         className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label="Preferences"
-        title="Preferences"
+        aria-label="Toggle theme"
+        title="Toggle theme"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          {resolvedTheme === 'dark' ? (
+            // Sun icon for dark mode (clicking will switch to light)
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          ) : (
+            // Moon icon for light mode (clicking will switch to dark)
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          )}
         </svg>
       </button>
       
@@ -133,7 +139,6 @@ export function DashboardContent() {
       </HomePageContent>
       
       {/* Modals */}
-      <PreferencesModal open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
       <ProgressionModal open={progressionOpen} onClose={() => setProgressionOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
