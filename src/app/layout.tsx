@@ -15,6 +15,7 @@ import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
 import ClientPerfInit from "@/app/_components/ClientPerfInit";
 import LiveRegionProvider from "~/app/_components/LiveRegion";
+import { Header } from "~/app/_components/header";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -97,71 +98,18 @@ export default function RootLayout({
                 <TRPCReactProvider>
                   <SyncIndicator />
                   <EnhancedSyncIndicator />
+                  
+                  <Header />
 
                   <main
                     id="main-content"
-                    className="container-default flex-1 py-4 sm:py-6 pb-20 md:pb-6 overflow-x-hidden"
+                    className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
                     role="main"
                     tabIndex={-1}
                   >
                     <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
                   </main>
 
-                  {/* Mobile Bottom Tab Bar */}
-                  <nav
-                    className="app-footer glass-footer fixed inset-x-0 bottom-0 md:hidden"
-                    role="navigation"
-                    aria-label="Primary"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    <div className="mx-auto grid grid-cols-3">
-                      <Link
-                        href="/"
-                        className="flex flex-col items-center justify-center py-2 text-xs transition-colors hover:text-[var(--color-text)]"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        aria-label="Home"
-                        prefetch
-                        aria-current={
-                          typeof window !== "undefined" &&
-                          window.location?.pathname === "/"
-                            ? "page"
-                            : undefined
-                        }
-                      >
-                        <span>Home</span>
-                      </Link>
-                      <Link
-                        href="/workout/start"
-                        className="flex flex-col items-center justify-center py-2 text-xs transition-colors hover:text-[var(--color-text)]"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        aria-label="Start a workout"
-                        prefetch
-                        aria-current={
-                          typeof window !== "undefined" &&
-                          window.location?.pathname.startsWith("/workout/start")
-                            ? "page"
-                            : undefined
-                        }
-                      >
-                        <span>Start</span>
-                      </Link>
-                      <Link
-                        href="/templates"
-                        className="flex flex-col items-center justify-center py-2 text-xs transition-colors hover:text-[var(--color-text)]"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        aria-label="Manage templates"
-                        prefetch
-                        aria-current={
-                          typeof window !== "undefined" &&
-                          window.location?.pathname.startsWith("/templates")
-                            ? "page"
-                            : undefined
-                        }
-                      >
-                        <span>Templates</span>
-                      </Link>
-                    </div>
-                  </nav>
 
                   <footer className="app-footer mt-auto py-6">
                     <div className="container mx-auto px-4 text-center">

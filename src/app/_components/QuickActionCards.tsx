@@ -46,10 +46,15 @@ export function QuickActionCards() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       {cards.map((card) => (
-        <a
+        <Card
           key={card.id}
+          as="a"
           href={card.href}
-          className={`${card.gradient} rounded-xl p-6 text-white hover:shadow-lg transition-shadow group block`}
+          surface="card"
+          variant="elevated"
+          padding="md"
+          interactive={true}
+          className={`${card.gradient} text-white hover:shadow-lg transition-all group block relative overflow-hidden`} // eslint-disable-line no-restricted-syntax
         >
           {/* Icon and arrow row */}
           <div className="flex items-center justify-between mb-4">
@@ -90,7 +95,7 @@ export function QuickActionCards() {
               </svg>
             </div>
           </div>
-        </a>
+        </Card>
       ))}
     </div>
   );

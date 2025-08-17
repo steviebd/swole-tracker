@@ -101,6 +101,10 @@
   color-scheme: light;
 }
 
+html {
+  background-color: var(--color-bg-app);
+}
+
 body {
   background-color: var(--color-bg-app);
   color: var(--color-text);
@@ -115,9 +119,9 @@ html.dark {
   border-radius: var(--radius-card);
   border-width: 1px;
   border-style: solid;
-  background-color: var(--color-card);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background-color: var(--color-background-card);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
   box-shadow: var(--shadow-xs);
 }
 
@@ -125,9 +129,9 @@ html.dark {
   border-radius: var(--radius-card);
   border-width: 1px;
   border-style: solid;
-  background-color: var(--color-card);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background-color: var(--color-background-card);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
   box-shadow: var(--shadow-xs);
   transition-property: all;
   transition-duration: 200ms;
@@ -325,9 +329,13 @@ html.dark {
 
 /* Primary button - tokenized */
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
   background-image: var(--btn-primary-bg, none);
-  background-color: var(--btn-primary-bg-color, var(--color-primary));
+  background-color: var(--btn-primary-bg-color, var(--color-primary-default));
   color: var(--btn-primary-fg);
   border: 1px solid var(--btn-primary-border, transparent);
 }
@@ -342,33 +350,94 @@ html.dark {
   box-shadow: var(--shadow-focus);
 }
 
+/* Button size variants using design tokens */
+.btn-primary.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-primary.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 /* Secondary, ghost, destructive, success buttons */
 .btn-secondary {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
   background-color: var(--btn-secondary-bg, transparent);
-  color: var(--btn-secondary-fg, var(--color-text));
-  border: 1px solid var(--btn-secondary-border, var(--color-border));
+  color: var(--btn-secondary-fg, var(--color-text-primary));
+  border: 1px solid var(--btn-secondary-border, var(--color-border-default));
 }
 .btn-secondary:hover {
-  background-color: var(--btn-secondary-bg-hover, color-mix(in oklab, var(--color-bg-surface) 85%, white 15%));
+  background-color: var(--btn-secondary-bg-hover, color-mix(in oklab, var(--color-background-surface) 85%, white 15%));
 }
+.btn-secondary.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-secondary.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 .btn-ghost {
-  @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
   background-color: transparent;
   color: var(--btn-ghost-fg, var(--color-text-secondary));
 }
 .btn-ghost:hover {
-  background-color: color-mix(in oklab, var(--color-bg-surface) 80%, black 20%);
+  background-color: color-mix(in oklab, var(--color-background-surface) 80%, black 20%);
 }
+.btn-ghost.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-ghost.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 .btn-destructive {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
-  background-color: var(--color-danger);
-  color: var(--btn-destructive-fg, var(--color-text));
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
+  background-color: var(--color-status-danger-default);
+  color: var(--btn-destructive-fg, var(--color-text-primary));
 }
+.btn-destructive.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-destructive.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 .btn-success {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
-  background-color: var(--color-success);
-  color: var(--btn-destructive-fg, var(--color-text));
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
+  background-color: var(--color-status-success-default);
+  color: var(--btn-success-fg, var(--color-text-primary));
+}
+.btn-success.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-success.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
 }
 
 /* Link styles with primary accent */

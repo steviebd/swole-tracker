@@ -96,70 +96,62 @@ export function Card({
   
   // Base classes with surface hierarchy and padding
   const baseClasses = cx(
-    'rounded-token-card border',
-    // Padding system
-    padding === 'xs' && 'p-component-xs',
-    padding === 'sm' && 'p-component-sm',
-    padding === 'md' && 'p-component-md',
-    padding === 'lg' && 'p-component-lg',
-    padding === 'xl' && 'p-component-xl',
+    'card',
     // Interactive states with scale animation
-    interactive && 'transition-all duration-base hover:scale-[1.02] active:scale-[0.98] cursor-pointer',
+    interactive && 'transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer',
     // Focus states for accessibility
     interactive && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
   );
   
   // Surface-based background classes
   const surfaceClasses = {
-    app: 'bg-bg-app',
-    surface: 'bg-bg-surface',
-    card: 'bg-bg-card',
-    elevated: 'bg-bg-card',
+    app: 'bg-app',
+    surface: 'bg-surface',
+    card: 'bg-card',
+    elevated: 'bg-card',
   };
   
   // Variant classes with glass effects and shadows
   const variantClasses = {
     default: cx(
-      'border-border-default',
-      surface === 'elevated' && 'shadow-token-sm',
+      'border-border',
+      surface === 'elevated' && 'shadow-sm',
       // Status-aware styling
-      visualStyle === 'success' && 'border-success/20 bg-success-muted/50',
-      visualStyle === 'warning' && 'border-warning/20 bg-warning-muted/50',
-      visualStyle === 'danger' && 'border-danger/20 bg-danger-muted/50',
-      visualStyle === 'info' && 'border-info/20 bg-info-muted/50'
+      visualStyle === 'success' && 'bg-success-muted',
+      visualStyle === 'warning' && 'bg-warning-muted',
+      visualStyle === 'danger' && 'bg-danger-muted',
+      visualStyle === 'info' && 'bg-info-muted'
     ),
     elevated: cx(
-      'border-border-default shadow-token-md',
-      visualStyle === 'success' && 'border-success/30 bg-success-muted/60 shadow-success/20',
-      visualStyle === 'warning' && 'border-warning/30 bg-warning-muted/60 shadow-warning/20',
-      visualStyle === 'danger' && 'border-danger/30 bg-danger-muted/60 shadow-danger/20',
-      visualStyle === 'info' && 'border-info/30 bg-info-muted/60 shadow-info/20'
+      'border-border shadow-md',
+      visualStyle === 'success' && 'bg-success-muted',
+      visualStyle === 'warning' && 'bg-warning-muted',
+      visualStyle === 'danger' && 'bg-danger-muted',
+      visualStyle === 'info' && 'bg-info-muted'
     ),
     glass: cx(
-      'bg-glass-card border-glass-border backdrop-blur-sm shadow-token-lg',
-      'before:absolute before:inset-0 before:rounded-token-card before:bg-glass-highlight before:pointer-events-none',
-      visualStyle === 'success' && 'bg-success/10 border-success/30',
-      visualStyle === 'warning' && 'bg-warning/10 border-warning/30',
-      visualStyle === 'danger' && 'bg-danger/10 border-danger/30',
-      visualStyle === 'info' && 'bg-info/10 border-info/30'
+      'glass-card backdrop-blur-sm shadow-lg',
+      'relative overflow-hidden',
+      visualStyle === 'success' && 'bg-success-muted',
+      visualStyle === 'warning' && 'bg-warning-muted',
+      visualStyle === 'danger' && 'bg-danger-muted',
+      visualStyle === 'info' && 'bg-info-muted'
     ),
     outline: cx(
       'bg-transparent border-2',
-      visualStyle === 'default' && 'border-border-default',
-      visualStyle === 'success' && 'border-success',
-      visualStyle === 'warning' && 'border-warning',
-      visualStyle === 'danger' && 'border-danger',
-      visualStyle === 'info' && 'border-info'
+      visualStyle === 'default' && 'border-border',
+      visualStyle === 'success' && 'text-success',
+      visualStyle === 'warning' && 'text-warning',
+      visualStyle === 'danger' && 'text-danger',
+      visualStyle === 'info' && 'text-info'
     ),
     interactive: cx(
-      'border-border-default shadow-token-xs',
-      'hover:shadow-token-sm hover:border-primary/20 hover:bg-bg-surface/80',
-      'active:shadow-token-xs active:border-primary/30',
+      'card-interactive',
       'cursor-pointer',
-      visualStyle === 'success' && 'hover:border-success/30 hover:bg-success-muted/30',
-      visualStyle === 'warning' && 'hover:border-warning/30 hover:bg-warning-muted/30',
-      visualStyle === 'danger' && 'hover:border-danger/30 hover:bg-danger-muted/30',
-      visualStyle === 'info' && 'hover:border-info/30 hover:bg-info-muted/30'
+      visualStyle === 'success' && 'hover:bg-success-muted',
+      visualStyle === 'warning' && 'hover:bg-warning-muted',
+      visualStyle === 'danger' && 'hover:bg-danger-muted',
+      visualStyle === 'info' && 'hover:bg-info-muted'
     ),
   };
   
@@ -178,6 +170,12 @@ export function Card({
         glassPositioning,
         className
       )}
+      style={{
+        padding: padding !== 'none' 
+          ? `var(--spacing-component-${padding})`
+          : undefined,
+        ...rest.style
+      }}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       {...rest}
@@ -201,9 +199,13 @@ export function CardHeader({ className, children, ...props }: CardHeaderProps) {
   return (
     <div 
       className={cx(
-        'pb-component-sm border-b border-border-muted/50',
+        'border-b border-muted',
         className
       )}
+      style={{
+        paddingBottom: 'var(--spacing-component-sm)',
+        ...props.style
+      }}
       {...props}
     >
       {children}
@@ -225,9 +227,13 @@ export function CardContent({ className, children, ...props }: CardContentProps)
   return (
     <div 
       className={cx(
-        'py-component-md',
         className
       )}
+      style={{
+        paddingTop: 'var(--spacing-component-md)',
+        paddingBottom: 'var(--spacing-component-md)',
+        ...props.style
+      }}
       {...props}
     >
       {children}
@@ -249,9 +255,13 @@ export function CardFooter({ className, children, ...props }: CardFooterProps) {
   return (
     <div 
       className={cx(
-        'pt-component-sm border-t border-border-muted/50',
+        'border-t border-muted',
         className
       )}
+      style={{
+        paddingTop: 'var(--spacing-component-sm)',
+        ...props.style
+      }}
       {...props}
     >
       {children}

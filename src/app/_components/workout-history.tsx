@@ -21,10 +21,18 @@ export function WorkoutHistory() {
     return (
       <div className="space-y-4">
         {[...(Array(5) as number[])].map((_, i) => (
-          <Card key={i} variant="glass" padding="md" className="animate-pulse">
-            <div className="mb-2 h-4 w-1/3 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-            <div className="mb-2 h-3 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-            <div className="h-3 w-2/3 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+          <Card key={i} surface="card" variant="default" padding="md" className="animate-pulse">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="skeleton h-4 w-1/3 rounded" />
+                <div className="skeleton h-3 w-20 rounded" />
+              </div>
+              <div className="skeleton h-3 w-1/2 rounded" />
+              <div className="flex gap-3">
+                <div className="skeleton h-8 w-16 rounded" />
+                <div className="skeleton h-8 w-20 rounded" />
+              </div>
+            </div>
           </Card>
         ))}
       </div>
@@ -109,7 +117,7 @@ export function WorkoutHistory() {
           
           // Find best set across all exercises
           let bestWeight = 0;
-          for (const [exerciseName, sets] of exerciseGroups.entries()) {
+          for (const [_exerciseName, sets] of exerciseGroups.entries()) {
             const bestSetInExercise = sets.reduce((best, current) => {
               const currentWeight = current.weight ? parseFloat(current.weight) : 0;
               const bestWeight = best.weight ? parseFloat(best.weight) : 0;
@@ -138,19 +146,20 @@ export function WorkoutHistory() {
         return (
           <Card
             key={workout.id}
-            variant="glass"
+            surface="card"
+            variant="elevated"
             padding="md"
             interactive
             as="article"
-            className="mb-3 sm:mb-4"
+            className="mb-3 sm:mb-4 hover:shadow-lg transition-all"
           >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                <h3 className="text-lg font-semibold text-foreground">
                   {workout.template.name}
                 </h3>
                 <time 
-                  className="text-sm" style={{ color: "var(--color-text-secondary)" }}
+                  className="text-sm text-muted-foreground"
                   dateTime={new Date(workout.workoutDate).toISOString()}
                 >
                   {new Date(workout.workoutDate).toLocaleDateString()}
@@ -159,7 +168,7 @@ export function WorkoutHistory() {
             </CardHeader>
             
             <CardContent className="py-3">
-              <div className="flex items-center gap-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>{workoutTime}</span>
                 <span>•</span>
                 <span>{duration}</span>

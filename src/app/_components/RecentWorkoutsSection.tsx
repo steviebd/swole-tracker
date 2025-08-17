@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { useMockFeed } from "~/hooks/useMockData";
+import { Card } from "~/app/_components/ui/Card";
 
 interface WorkoutCardProps {
   id: number;
@@ -13,7 +14,13 @@ interface WorkoutCardProps {
 
 function WorkoutCard({ id, templateName, date, exerciseCount }: WorkoutCardProps) {
   return (
-    <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-4 text-white hover:shadow-lg transition-shadow group">
+    <Card
+      surface="card"
+      variant="elevated"
+      padding="sm"
+      interactive={true}
+      className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:shadow-lg transition-all group relative overflow-hidden"
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -48,7 +55,7 @@ function WorkoutCard({ id, templateName, date, exerciseCount }: WorkoutCardProps
           </svg>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -62,11 +69,6 @@ export function RecentWorkoutsSection() {
   
   const { data: mockWorkouts } = useMockFeed(3);
 
-  const titleClass = "text-xl font-bold text-theme-primary";
-
-  const linkClass = "link-primary font-medium";
-
-  const containerClass = "card-interactive p-6 animate-smooth-scale";
 
   // Use tRPC data if available and not loading/error, otherwise use mock data
   const workouts = (!trpcLoading && !trpcError && trpcWorkouts?.length) ? trpcWorkouts : mockWorkouts;
@@ -84,7 +86,15 @@ export function RecentWorkoutsSection() {
         
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-muted rounded-xl p-4 h-16"></div>
+            <Card key={i} surface="card" variant="default" padding="sm" className="h-16 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="skeleton w-10 h-10 rounded-lg" />
+                <div className="space-y-2 flex-1">
+                  <div className="skeleton h-4 w-32" />
+                  <div className="skeleton h-3 w-24" />
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       </div>

@@ -10,6 +10,8 @@ import {
   prefetchWorkoutStart,
 } from "~/trpc/prefetch";
 import { WorkoutStarter } from "~/app/_components/workout-starter";
+import { GlassHeader } from "~/app/_components/ui/GlassHeader";
+import { Button } from "~/app/_components/ui/Button";
 
 interface StartWorkoutPageProps {
   searchParams: Promise<{ templateId?: string }>;
@@ -43,15 +45,20 @@ export default async function StartWorkoutPage({
   return (
     <ClientHydrate state={state}>
       <main className="min-h-screen overflow-x-hidden">
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
-          {/* Header */}
-          <div className="mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4">
-            <Link href="/" className="text-purple-400 hover:text-purple-300 text-sm sm:text-base">
-              ← Back
+        {/* Glass Header */}
+        <GlassHeader
+          title="Start Workout"
+          subtitle="Choose a template or start from scratch"
+          actions={
+            <Link href="/">
+              <Button variant="ghost" size="sm">
+                ← Back
+              </Button>
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold">Start Workout</h1>
-          </div>
+          }
+        />
 
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
           {/* Workout Starter */}
           <WorkoutStarter
             initialTemplateId={templateId ? parseInt(templateId) : undefined}

@@ -42,6 +42,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       await utils.preferences.get.invalidate();
       setSaving(false);
       setIsUpdatingPreferences(false);
+      // Close modal after successful save
+      onClose();
     },
     onError: (error) => {
       console.error("Failed to save preferences", error);
@@ -136,8 +138,14 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   const handleSave = () => {
+    // If save is disabled (no changes), just close the modal
     if (saveDisabled && !saving && !isUpdatingPreferences) {
       onClose();
+      return;
+    }
+
+    // If currently saving, don't start another save operation
+    if (saving || isUpdatingPreferences) {
       return;
     }
 
@@ -176,11 +184,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         preventScroll
       >
         <div
-          className="w-full max-w-lg max-h-[90vh] overflow-y-auto glass-surface shadow-2xl"
+          className="w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border rounded-lg"
+          style={{
+            background: 'var(--gradient-card, var(--color-bg-surface))',
+            borderColor: 'var(--color-border)',
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="glass-hairline border-b px-6 py-4">
+          <div className="border-b px-6 py-4" style={{ borderColor: 'var(--color-border)' }}>
             <h2 id="settings-title" className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
               App Settings
             </h2>
@@ -233,10 +245,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <button
                     key={themeOption.value}
                     onClick={() => setTheme(themeOption.value as any)}
-                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`relative z-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                       theme === themeOption.value
                         ? "bg-purple-600 text-background border-purple-600"
-                        : "glass-surface glass-hairline text-gray-300"
+                        : "text-gray-300"
                     }`}
                     style={
                       theme === themeOption.value
@@ -280,10 +292,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     key={value}
                     type="button"
                     onClick={() => setDefaultWeightUnit(value)}
-                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`relative z-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                       defaultWeightUnit === value
                         ? "bg-purple-600 text-background border-purple-600"
-                        : "glass-surface glass-hairline text-gray-300"
+                        : "text-gray-300"
                     }`}
                     style={
                       defaultWeightUnit === value
@@ -298,6 +310,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                             color: "var(--color-text)",
                           }
                     }
+                    aria-pressed={defaultWeightUnit === value ? "true" : "false"}
                   >
                     {label}
                   </button>
@@ -317,10 +330,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     <button
                       key={opt}
                       onClick={() => setRightSwipeAction(opt)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      className={`relative z-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                         rightSwipeAction === opt
                           ? "bg-purple-600 text-background border-purple-600"
-                          : "glass-surface glass-hairline text-gray-300"
+                          : "text-gray-300"
                       }`}
                       style={
                         rightSwipeAction === opt
@@ -559,7 +572,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 borderColor: "var(--color-primary)",
                 color: "white",
               }}
-              disabled={saving || isUpdatingPreferences || saveDisabled}
+              disabled={saving || isUpdatingPreferences}
               aria-busy={saving || isUpdatingPreferences ? "true" : "false"}
             >
               {saving || isUpdatingPreferences ? "Saving…" : "Save"}

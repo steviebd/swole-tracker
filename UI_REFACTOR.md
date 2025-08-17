@@ -26,8 +26,7 @@ The refactoring will be done in several phases:
     *   Replace the mobile bottom tab bar with a new header component that includes navigation and user authentication status.
 
 3.  **Refactor the pages**:
-    *   Refactor the home, progress, and workout pages to match the template's modular structure.
-    *   Create a new dedicated login page.
+    *   Refactor the home, progress, and workout pages to match the template's modular structure
 
 4.  **Refactor the existing components**:
     *   Audit the existing components and replace them with `shadcn/ui` components wherever possible.
@@ -59,61 +58,61 @@ The refactoring will be done in several phases:
 
 ### Phase 1: Design System and Foundation
 
--   [ ] **Adopt `shadcn/ui`**:
-    -   [ ] Install `shadcn-ui` and its dependencies.
-    -   [ ] Use the `apps/template` as a reference for which components to use.
-    -   [ ] Remove the existing custom components in `src/app/_components/ui` and replace them with `shadcn/ui` components.
--   [ ] **Update Global Styles**:
-    -   [ ] Replace the content of `src/styles/globals.css` with the content of `apps/template/styles/globals.css`.
-    -   [ ] Update `DESIGN_SYSTEM.md` to reflect the new changes.
--   [ ] **Update Fonts**:
-    -   [ ] In `src/app/layout.tsx`, replace `Geist`, `Inter`, and `Space_Grotesk` with `Open_Sans` and `Montserrat` from the template.
--   [ ] **Simplify Layout**:
-    -   [ ] Refactor `src/app/layout.tsx` to be as simple as the template's `layout.tsx`.
-    -   [ ] Move all the providers (`TRPCReactProvider`, `PostHogProvider`, `AuthProvider`, etc.) to a new `src/app/providers.tsx` file.
-    -   [ ] Remove the `noFoucScript` and rely on the `next-themes` `ThemeProvider`.
+-   [x] **Adopt `shadcn/ui`**:
+    -   [x] Install `shadcn-ui` and its dependencies.
+    -   [x] Use the `apps/template` as a reference for which components to use.
+    -   [x] Remove the existing custom components in `src/app/_components/ui` and replace them with `shadcn/ui` components.
+-   [x] **Update Global Styles**:
+    -   [x] Replace the content of `src/styles/globals.css` with the content of `apps/template/styles/globals.css`.
+    -   [x] Update `DESIGN_SYSTEM.md` to reflect the new changes.
+-   [x] **Update Fonts**:
+    -   [x] In `src/app/layout.tsx`, replace `Geist`, `Inter`, and `Space_Grotesk` with `Open_Sans` and `Montserrat` from the template.
+-   [x] **Simplify Layout**:
+    -   [x] Refactor `src/app/layout.tsx` to be as simple as the template's `layout.tsx`.
+    -   [x] Move all the providers (`TRPCReactProvider`, `PostHogProvider`, `AuthProvider`, etc.) to a new `src/app/providers.tsx` file.
+    -   [x] Remove the `noFoucScript` and rely on the `next-themes` `ThemeProvider`.
 
 ### Phase 2: Navigation
 
--   [ ] **Replace Mobile Bottom Tab Bar**:
-    -   [ ] Remove the mobile bottom tab bar from `src/app/layout.tsx`.
--   [ ] **Create a new Header Component**:
-    -   [ ] Create a new `src/app/_components/header.tsx` component.
-    *   [ ] The header should include the application logo, navigation links (e.g., "Dashboard", "Progress", "Workout", "Templates"), and a user menu with a sign-out button.
-    *   [ ] The header should be responsive and adapt to different screen sizes.
+-   [x] **Replace Mobile Bottom Tab Bar**:
+    -   [x] Remove the mobile bottom tab bar from `src/app/layout.tsx`.
+-   [x] **Create a new Header Component**:
+    -   [x] Create a new `src/app/_components/header.tsx` component.
+    *   [x] The header should include the application logo, navigation links (e.g., "Dashboard", "Progress", "Workout", "Templates"), and a user menu with a sign-out button.
+    *   [x] The header should be responsive and adapt to different screen sizes.
 
 ### Phase 3: Page Refactoring
 
--   [ ] **Refactor the Home Page (`/`)**:
-    -   [ ] Create the following new components in `src/app/_components/dashboard/`:
-        -   [ ] `DashboardHeader`
-        -   [ ] `StatsCards`
-        -   [ ] `QuickActions`
-        -   [ ] `WeeklyProgress`
-        -   [ ] `RecentWorkouts`
-    -   [ ] Replace the content of `src/app/page.tsx` with the new dashboard layout, composing it from the new components.
--   [ ] **Create a new Login Page (`/login`)**:
-    -   [ ] Create a new `src/app/login/page.tsx` file.
-    -   [ ] This page will contain the sign-in buttons.
-    -   [ ] Redirect unauthenticated users from the home page to this page.
--   [ ] **Refactor the Progress Page (`/progress`)**:
-    -   [ ] Create the following new components in `src/app/_components/progress/`:
-        -   [ ] `ProgressStats`
-        -   [ ] `StrengthChart`
-        -   [ ] `ConsistencyTracker`
-        -   [ ] `AchievementsBadges`
-        -   [ ] `YourExercises`
-        -   [ ] `PersonalRecords`
-        -   [ ] `VolumeAnalysis`
-        -   [ ] `TrainingAnalytics`
-    -   [ ] Update `src/app/progress/page.tsx` to use these new components.
--   [ ] **Refactor the Workout Page (`/workout/session/[id]`)**:
-    -   [ ] Create the following new components in `src/app/_components/workout/`:
-        -   [ ] `WorkoutHeader` (with back button and workout details)
-        -   [ ] `WorkoutIntelligence`
-        -   [ ] `ExerciseLogger`
-        -   [ ] `WorkoutControls`
-    -   [ ] Update `src/app/workout/session/[id]/page.tsx` to use these new components.
+-   [x] **Refactor the Home Page (`/`)**:
+    -   [x] Create the following new components in `src/app/_components/dashboard/`:
+        -   [x] `DashboardHeader`
+        -   [x] `StatsCards`
+        -   [x] `QuickActions`
+        -   [x] `WeeklyProgress`
+        -   [x] `RecentWorkouts`
+    -   [x] Replace the content of `src/app/page.tsx` with the new dashboard layout, composing it from the new components.
+-   [x] **Create a new Login Page (`/login`)**:
+    -   [x] Create a new `src/app/login/page.tsx` file.
+    -   [x] This page will contain the sign-in buttons.
+    -   [x] Redirect unauthenticated users from the home page to this page.
+-   [x] **Refactor the Progress Page (`/progress`)**:
+    -   [x] Create the following new components in `src/app/_components/progress/`:
+        -   [x] `ProgressStats`
+        -   [x] `StrengthChart`
+        -   [x] `ConsistencyTracker`
+        -   [x] `AchievementsBadges`
+        -   [x] `YourExercises`
+        -   [x] `PersonalRecords`
+        -   [x] `VolumeAnalysis`
+        -   [x] `TrainingAnalytics`
+    -   [x] Update `src/app/progress/page.tsx` to use these new components.
+-   [x] **Refactor the Workout Page (`/workout/session/[id]`)**:
+    -   [x] Create the following new components in `src/app/_components/workout/`:
+        -   [x] `WorkoutHeader` (with back button and workout details)
+        -   [x] `WorkoutIntelligence`
+        -   [x] `ExerciseLogger`
+        -   [x] `WorkoutControls`
+    -   [x] Update `src/app/workout/session/[id]/page.tsx` to use these new components.
 
 ### Phase 4: Component Refactoring
 

@@ -111,7 +111,7 @@ export function StatsCards() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-card rounded-xl p-6 shadow-sm border border-border">
+          <Card key={i} surface="card" variant="default" padding="md" className="animate-pulse">
             <div className="space-y-4">
               <div className="skeleton h-10 w-10 rounded-lg" />
               <div className="space-y-2">
@@ -119,7 +119,7 @@ export function StatsCards() {
                 <div className="skeleton h-8 w-16" />
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     );
@@ -145,9 +145,13 @@ export function StatsCards() {
         };
 
         return (
-          <div
+          <Card
             key={card.id}
-            className="bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow cursor-pointer"
+            surface="card"
+            variant="default"
+            padding="md"
+            interactive={true}
+            className="transition-all hover:shadow-md"
           >
             {/* Icon with gradient background */}
             <div className={`w-10 h-10 rounded-lg ${getIconGradient(card.gradient)} flex items-center justify-center mb-4`}>
@@ -175,7 +179,7 @@ export function StatsCards() {
                 )}
               </p>
             </div>
-          </div>
+          </Card>
         );
       })}
     </div>

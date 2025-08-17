@@ -3,126 +3,7 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
-import { Card, CardHeader, CardContent, CardFooter } from "~/app/_components/ui/Card";
-import { getBestGoalAchievement, formatAchievementBadge } from "~/lib/achievements";
-// Removed unused VisualStyle import - now using gradients instead
-
-function cx(...args: Array<string | false | null | undefined>) {
-  return args.filter(Boolean).join(" ");
-}
-
-/**
- * Get gradient class based on progress percentage
- */
-function getProgressGradient(percentage: number): string {
-  if (percentage >= 100) return 'gradient-stats-orange';
-  if (percentage >= 75) return 'gradient-stats-orange';
-  if (percentage >= 50) return 'gradient-stats-amber';
-  return 'gradient-stats-red';
-}
-
-/**
- * Get achievement badge for goals that are met or exceeded
- * Now uses the centralized achievement system
- */
-function getAchievementBadge(percentage: number): React.JSX.Element | null {
-  const achievement = getBestGoalAchievement(percentage);
-  if (!achievement) return null;
-  
-  const badge = formatAchievementBadge(achievement);
-  const pulseClass = achievement.id === 'perfect-week' ? 'animate-badge-pulse' : '';
-  
-  return (
-    <span className={`${badge.className} ${pulseClass} animate-badge-shine`}>
-      {badge.text} {badge.icon}
-    </span>
-  );
-}
-
-/**
- * Get motivational message based on progress percentage
- */
-function getMotivationalMessage(percentage: number, current: number, target: number, type: 'workout' | 'volume' | 'consistency'): string {
-  if (percentage >= 100) {
-    return type === 'workout' ? 'Goal achieved! 🎉' : 
-           type === 'volume' ? 'Volume target smashed! 💪' : 
-           'Outstanding consistency!';
-  }
-  
-  if (percentage >= 75) {
-    return type === 'workout' ? 'Almost there, keep going!' : 
-           type === 'volume' ? 'Great volume progress!' : 
-           'Excellent consistency!';
-  }
-  
-  if (percentage >= 50) {
-    return type === 'workout' ? 'Halfway there, you\'ve got this!' : 
-           type === 'volume' ? 'Good volume momentum!' : 
-           'Good consistency, keep it up!';
-  }
-  
-  const remaining = target - current;
-  return type === 'workout' ? `${remaining} more workout${remaining === 1 ? '' : 's'} to reach your goal` : 
-         type === 'volume' ? `${(remaining / 1000).toFixed(1)}k kg remaining` : 
-         'Let\'s improve consistency together';
-}
-
-interface ProgressMetricProps {
-  title: string;
-  current: string | number;
-  target: string | number;
-  percentage: number;
-  type: 'workout' | 'volume' | 'consistency';
-  href: string;
-  isPrimary?: boolean;
-}
-
-function ProgressMetric({ title, current, target, percentage, type, href, isPrimary = false }: ProgressMetricProps) {
-  const gradientClass = getProgressGradient(percentage);
-  const achievementBadge = getAchievementBadge(percentage);
-  const motivationalMessage = getMotivationalMessage(percentage, typeof current === 'string' ? parseFloat(current.replace(/[^\d.]/g, '')) : current, typeof target === 'string' ? parseFloat(target.replace(/[^\d.]/g, '')) : target, type);
-  
-  return (
-    <Link href={href} className="block">
-      <Card 
-        surface={isPrimary ? "elevated" : "card"} 
-        variant="interactive"
-        padding="lg"
-        className="h-full animate-smooth-scale"
-      >
-        <CardHeader className="pb-component-sm">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <h3 className="text-text-primary font-medium text-base">{title}</h3>
-              {achievementBadge}
-            </div>
-            <span className="text-text-primary font-bold text-lg">
-              {current}/{target}
-            </span>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="pt-0">
-          <div className="space-y-component-sm">
-            <div className="w-full h-3 rounded-token-card overflow-hidden bg-bg-surface">
-              <div 
-                className={cx(
-                  "h-full rounded-token-card animate-progress-fill",
-                  gradientClass
-                )}
-                style={{ width: `${Math.min(100, percentage)}%` }}
-                aria-label={`Progress: ${percentage.toFixed(1)}% towards ${title.toLowerCase()} goal`}
-              />
-            </div>
-            <p className="text-text-secondary text-sm leading-relaxed">
-              {motivationalMessage}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
+import { Card } from "~/app/_components/ui/Card";
 
 export function WeeklyProgressSection() {
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month">("week");
@@ -167,22 +48,21 @@ export function WeeklyProgressSection() {
   };
 
   const progress = calculateProgress();
-  const periods = ["week", "month"] as const;
 
   return (
-    <div className="bg-card rounded-xl p-6 shadow-sm border border-border mb-6">
+    <Card surface="card" variant="default" padding="md" className="mb-6">
       {/* Header with title and toggle */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-semibold text-foreground">
-          Weekly Progress
+          {selectedPeriod === "week" ? "Weekly" : "Monthly"} Progress
         </h3>
         
-        {/* Month toggle button */}
+        {/* Period toggle button */}
         <button
           onClick={() => setSelectedPeriod(selectedPeriod === "week" ? "month" : "week")}
           className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors"
         >
-          Month
+          {selectedPeriod === "week" ? "Month" : "Week"}
         </button>
       </div>
       
@@ -205,7 +85,7 @@ export function WeeklyProgressSection() {
           {/* Goal cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Volume Goal */}
-            <div className="border border-border rounded-lg p-4">
+            <Card surface="surface" variant="default" padding="sm" className="border border-border">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-medium text-foreground">Volume Goal</h4>
                 <span className="text-lg font-bold text-foreground">
@@ -222,10 +102,10 @@ export function WeeklyProgressSection() {
                 {(parseFloat(progress.volumeGoal.target.replace('k', '')) * 1000 - 
                   parseFloat(progress.volumeGoal.current.replace('k', '')) * 1000).toFixed(0)}kg remaining
               </p>
-            </div>
+            </Card>
 
             {/* Consistency */}
-            <div className="border border-border rounded-lg p-4">
+            <Card surface="surface" variant="default" padding="sm" className="border border-border">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-medium text-foreground">Consistency</h4>
                 <span className="text-lg font-bold text-foreground">
@@ -241,7 +121,7 @@ export function WeeklyProgressSection() {
               <p className="text-sm text-muted-foreground">
                 Let's improve consistency together
               </p>
-            </div>
+            </Card>
           </div>
 
           {/* View Full Progress Button */}
@@ -258,6 +138,6 @@ export function WeeklyProgressSection() {
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
