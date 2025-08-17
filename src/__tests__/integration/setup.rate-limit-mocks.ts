@@ -6,13 +6,14 @@
  * We import this file from trpc-harness to ensure ordering for all integration tests.
  */
 
-import { vi } from "vitest";
-
 // Provide safe defaults for server-only env so any direct reads won't throw
 process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR ??= "100";
 process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR ??= "100";
 process.env.RATE_LIMIT_JOKES_PER_HOUR ??= "100";
 process.env.RATE_LIMIT_WHOOP_SYNC_PER_HOUR ??= "100";
+
+// Import vi explicitly from vitest
+import { vi } from "vitest";
 
 // Mock the middleware module to no-op wrappers so handlers run without rate limiting.
 vi.mock("~/lib/rate-limit-middleware", async () => {

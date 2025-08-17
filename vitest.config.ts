@@ -9,6 +9,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
+    pool: "forks",
     include: [
       "src/__tests__/unit/**/*.test.{ts,tsx}",
       "src/__tests__/integration/**/*.test.{ts,tsx}"
@@ -20,7 +21,13 @@ export default defineConfig({
       "**/dist/**",
       "**/*.e2e.{ts,tsx}",
       "**/e2e/**/*",
-      "**/playwright/**/*"
+      "**/playwright/**/*",
+      "playwright.config.ts",
+      // Explicitly exclude each problematic file
+      "src/__e2e__/healthcheck.spec.ts",
+      "src/__e2e__/auth.spec.ts", 
+      "src/__e2e__/templates.spec.ts",
+      "src/__e2e__/workouts.spec.ts"
     ],
     coverage: {
       provider: "v8",
