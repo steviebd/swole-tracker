@@ -25,7 +25,7 @@ type CardVisualStyle = VisualStyle;
 /**
  * Enhanced Card component props with mobile app patterns
  */
-export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface CardProps {
   /** Surface level in dark theme hierarchy - controls background elevation */
   surface?: CardSurface;
   /** Visual variant with glass effects and elevation */
@@ -42,6 +42,12 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   hairline?: boolean;
   /** Element type to render as */
   as?: keyof React.JSX.IntrinsicElements;
+  /** Additional CSS classes */
+  className?: string;
+  /** Children content */
+  children?: React.ReactNode;
+  /** Additional props spread to element */
+  [key: string]: any;
 }
 
 /**

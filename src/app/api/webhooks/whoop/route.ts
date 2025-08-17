@@ -696,7 +696,7 @@ export async function POST(request: NextRequest) {
             .where(eq(webhookEvents.id, webhookEventId));
         }
 
-        console.log(`⏭️ Ignoring webhook event type: ${payload.type}`);
+        console.log(`⏭️ Ignoring webhook event type: ${String(payload.type)}`);
         return NextResponse.json({
           success: true,
           message: "Event type not processed",

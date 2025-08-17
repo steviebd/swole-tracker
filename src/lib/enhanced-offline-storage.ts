@@ -30,13 +30,6 @@ const createEnhancedPersister = () => {
         return "{}";
       }
     },
-    deserialize: (data) => {
-      try {
-        return JSON.parse(data);
-      } catch {
-        return {};
-      }
-    },
   });
 };
 

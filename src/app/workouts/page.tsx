@@ -4,6 +4,8 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutHistory } from "~/app/_components/workout-history";
+import { GlassHeader } from "~/app/_components/ui/GlassHeader";
+import { Button } from "~/app/_components/ui/Button";
 
 export default async function WorkoutsPage() {
   const supabase = await createServerSupabaseClient();
@@ -19,15 +21,20 @@ export default async function WorkoutsPage() {
   return (
     <HydrateClient>
       <main className="min-h-screen overflow-x-hidden">
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
-          {/* Header */}
-          <div className="mb-4 sm:mb-6 flex items-center gap-3 sm:gap-4">
-            <Link href="/" className="text-purple-400 hover:text-purple-300 text-sm sm:text-base">
-              ← Back
+        {/* Glass Header */}
+        <GlassHeader
+          title="Workout History"
+          subtitle="View and track your workout progression over time"
+          actions={
+            <Link href="/">
+              <Button variant="ghost" size="sm">
+                ← Back
+              </Button>
             </Link>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Workout History</h1>
-          </div>
+          }
+        />
 
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
           {/* Workout History */}
           <WorkoutHistory />
         </div>

@@ -3,7 +3,6 @@
 import { useAuth } from "~/providers/AuthProvider";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
 import { PreferencesStatusBar } from "~/app/_components/PreferencesStatusBar";
-import { HomePageHeader } from "~/app/_components/HomePageHeader";
 import { DashboardContent } from "~/app/_components/DashboardContent";
 
 export default function Home() {
@@ -43,15 +42,14 @@ export default function Home() {
     );
   }
 
+  // Mobile-inspired layout: SafeAreaView pattern with single-column design
   return (
-    <>
-      <div className="fixed inset-x-0 top-0 z-40">
-        <PreferencesStatusBar />
-        <HomePageHeader />
-      </div>
-      <div className="pt-24 sm:pt-28 md:pt-32">
-        <DashboardContent />
-      </div>
-    </>
+    <div className="min-h-screen bg-background">
+      {/* Preferences status bar */}
+      <PreferencesStatusBar />
+      
+      {/* Main content with mobile-first single-column layout */}
+      <DashboardContent />
+    </div>
   );
 }

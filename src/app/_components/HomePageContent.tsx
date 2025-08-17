@@ -17,21 +17,24 @@ interface GridProps {
   gap?: "sm" | "md" | "lg";
 }
 
-// Main content wrapper with proper spacing
+// Main content wrapper with mobile-first single-column layout
 export function HomePageContent({ children }: HomePageContentProps) {
   return (
-    <div className="container mx-auto px-3 sm:px-4 md:px-6 space-y-6 sm:space-y-8 md:space-y-12">
-      {children}
+    <div className="flex-1 bg-background">
+      {/* Single-column content area with consistent padding */}
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {children}
+      </div>
     </div>
   );
 }
 
-// Section wrapper for different content areas
+// Section wrapper for different content areas with mobile-first spacing
 export function Section({ children, spacing = "default" }: SectionProps) {
   const spacingClasses = {
-    compact: "space-y-4",
-    default: "space-y-6", 
-    loose: "space-y-8"
+    compact: "space-y-3 sm:space-y-4",
+    default: "space-y-4 sm:space-y-6", 
+    loose: "space-y-6 sm:space-y-8"
   };
 
   return (
@@ -41,19 +44,19 @@ export function Section({ children, spacing = "default" }: SectionProps) {
   );
 }
 
-// Responsive grid system matching mockup
+// Mobile-first responsive grid system
 export function Grid({ children, cols = 3, gap = "md" }: GridProps) {
   const colClasses = {
     1: "grid-cols-1",
-    2: "grid-cols-1 md:grid-cols-2",
-    3: "grid-cols-1 md:grid-cols-3", 
+    2: "grid-cols-1 sm:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3", 
     4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
   };
 
   const gapClasses = {
-    sm: "gap-4",
-    md: "gap-6",
-    lg: "gap-8"
+    sm: "gap-3 sm:gap-4",
+    md: "gap-4 sm:gap-6",
+    lg: "gap-6 sm:gap-8"
   };
 
   return (
@@ -63,38 +66,38 @@ export function Grid({ children, cols = 3, gap = "md" }: GridProps) {
   );
 }
 
-// Stats cards grid (will be used for dashboard metrics)
+// Stats cards grid with mobile-first design
 export function StatsGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {children}
     </div>
   );
 }
 
-// Quick actions grid (3-column for main action cards)
+// Quick actions grid with mobile-first single-column priority
 export function QuickActionsGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {children}
     </div>
   );
 }
 
-// Recent workouts section with proper spacing
+// Recent workouts section with mobile-first spacing
 export function RecentWorkoutsSection({ children }: { children: React.ReactNode }) {
   return (
-    <section className="space-y-4">
+    <section className="space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-foreground transition-colors duration-300">
+        <h2 className="text-lg sm:text-xl font-bold text-foreground transition-colors duration-300">
           Recent Workouts
         </h2>
-        <button className="font-medium text-blue-500 hover:text-blue-600 transition-colors duration-300">
+        <button className="font-medium text-blue-500 hover:text-blue-600 transition-colors duration-300 text-sm sm:text-base">
           View all workouts →
         </button>
       </div>
       
-      <div className="transition-colors duration-300 rounded-xl p-6 bg-card border border-border shadow-lg">
+      <div className="transition-colors duration-300 rounded-xl p-4 sm:p-6 bg-card border border-border shadow-lg">
         {children}
       </div>
     </section>

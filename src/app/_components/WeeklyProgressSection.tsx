@@ -3,25 +3,111 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
+import { Card, CardHeader, CardContent, CardFooter } from "~/app/_components/ui/Card";
+import { type VisualStyle } from "~/lib/design-tokens";
 
-interface ProgressBarProps {
-  value: number;
-  className?: string;
+function cx(...args: Array<string | false | null | undefined>) {
+  return args.filter(Boolean).join(" ");
 }
 
-function ProgressBar({ value, className = "" }: Omit<ProgressBarProps, 'theme'>) {
-  const bgClass = "bg-surface border border-muted";
+/**
+ * Get visual style based on progress percentage
+ */
+function getProgressStatus(percentage: number): VisualStyle {
+  if (percentage >= 100) return 'success';
+  if (percentage >= 75) return 'info';
+  if (percentage >= 50) return 'warning';
+  return 'danger';
+}
 
+/**
+ * Get motivational message based on progress percentage
+ */
+function getMotivationalMessage(percentage: number, current: number, target: number, type: 'workout' | 'volume' | 'consistency'): string {
+  if (percentage >= 100) {
+    return type === 'workout' ? 'Goal achieved! 🎉' : 
+           type === 'volume' ? 'Volume target smashed! 💪' : 
+           'Outstanding consistency!';
+  }
+  
+  if (percentage >= 75) {
+    return type === 'workout' ? 'Almost there, keep going!' : 
+           type === 'volume' ? 'Great volume progress!' : 
+           'Excellent consistency!';
+  }
+  
+  if (percentage >= 50) {
+    return type === 'workout' ? 'Halfway there, you\'ve got this!' : 
+           type === 'volume' ? 'Good volume momentum!' : 
+           'Good consistency, keep it up!';
+  }
+  
+  const remaining = target - current;
+  return type === 'workout' ? `${remaining} more workout${remaining === 1 ? '' : 's'} to reach your goal` : 
+         type === 'volume' ? `${(remaining / 1000).toFixed(1)}k kg remaining` : 
+         'Let\'s improve consistency together';
+}
+
+interface ProgressMetricProps {
+  title: string;
+  current: string | number;
+  target: string | number;
+  percentage: number;
+  type: 'workout' | 'volume' | 'consistency';
+  href: string;
+  isPrimary?: boolean;
+}
+
+function ProgressMetric({ title, current, target, percentage, type, href, isPrimary = false }: ProgressMetricProps) {
+  const visualStyle = getProgressStatus(percentage);
+  const motivationalMessage = getMotivationalMessage(percentage, typeof current === 'string' ? parseFloat(current.replace(/[^\d.]/g, '')) : current, typeof target === 'string' ? parseFloat(target.replace(/[^\d.]/g, '')) : target, type);
+  
   return (
-    <div className={`w-full rounded-full h-3 ${bgClass} ${className}`}>
-      <div
-        className="h-3 rounded-full transition-all duration-500"
-        style={{ 
-          width: `${Math.min(100, Math.max(0, value))}%`,
-          backgroundColor: "var(--color-primary)"
-        }}
-      ></div>
-    </div>
+    <Link href={href} className="block">
+      <Card 
+        surface={isPrimary ? "elevated" : "card"} 
+        variant="interactive"
+        padding="lg"
+        visualStyle={visualStyle}
+        className="h-full"
+      >
+        <CardHeader className="pb-component-sm">
+          <div className="flex justify-between items-center">
+            <h3 className="text-text-primary font-medium text-base">{title}</h3>
+            <span className="text-text-primary font-bold text-lg">
+              {current}/{target}
+            </span>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-0">
+          <div className="space-y-component-sm">
+            <progress 
+              className={cx(
+                "w-full h-3 rounded-token-card overflow-hidden",
+                "[&::-webkit-progress-bar]:bg-bg-surface [&::-webkit-progress-bar]:rounded-token-card",
+                "[&::-webkit-progress-value]:rounded-token-card [&::-webkit-progress-value]:transition-all [&::-webkit-progress-value]:duration-500",
+                visualStyle === 'success' && "[&::-webkit-progress-value]:bg-success",
+                visualStyle === 'info' && "[&::-webkit-progress-value]:bg-info",
+                visualStyle === 'warning' && "[&::-webkit-progress-value]:bg-warning",
+                visualStyle === 'danger' && "[&::-webkit-progress-value]:bg-danger",
+                "[&::-moz-progress-bar]:rounded-token-card [&::-moz-progress-bar]:transition-all [&::-moz-progress-bar]:duration-500",
+                visualStyle === 'success' && "[&::-moz-progress-bar]:bg-success",
+                visualStyle === 'info' && "[&::-moz-progress-bar]:bg-info",
+                visualStyle === 'warning' && "[&::-moz-progress-bar]:bg-warning",
+                visualStyle === 'danger' && "[&::-moz-progress-bar]:bg-danger"
+              )}
+              value={percentage} 
+              max={100}
+              aria-label={`Progress: ${percentage.toFixed(1)}% towards ${title.toLowerCase()} goal`}
+            />
+            <p className="text-text-secondary text-sm leading-relaxed">
+              {motivationalMessage}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
@@ -59,128 +145,139 @@ export function WeeklyProgressSection() {
     };
 
     const consistency = {
-      percentage: consistencyData?.consistencyScore || 0,
-      message: (consistencyData?.consistencyScore || 0) >= 80 
-        ? "Great consistency!" 
-        : (consistencyData?.consistencyScore || 0) >= 60 
-        ? "Good progress, keep it up!" 
-        : "Let's improve consistency"
+      current: consistencyData?.consistencyScore || 0,
+      target: 100,
+      percentage: consistencyData?.consistencyScore || 0
     };
 
     return { workoutGoal, volumeGoal, consistency };
   };
 
   const progress = calculateProgress();
-
-  const cardClass = "card-interactive";
-
-  const titleClass = "text-xl font-bold text-theme-primary";
-
-  const toggleBgClass = "flex gap-1 rounded-lg p-1 transition-colors duration-300";
-
-  const getButtonClass = (isActive: boolean) => `
-    text-sm font-medium px-4 py-2 rounded-md transition-colors duration-300 ${
-      isActive
-        ? "bg-theme-surface text-theme-primary shadow-sm"
-        : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface/50"
-    }
-  `;
-
-  const labelClass = "text-base font-medium text-theme-primary";
-
-  const valueClass = "text-base font-bold text-theme-primary";
-
-  const subtextClass = "text-sm text-theme-muted";
+  const periods = ["week", "month"] as const;
 
   return (
-    <div className={cardClass}>
-      <div className="p-6 pb-4 border-b border-muted transition-colors duration-300">
-        <div className="flex items-center justify-between">
-          <h3 className={titleClass}>Weekly Progress</h3>
-          <div className={toggleBgClass} style={{ backgroundColor: "var(--color-bg-surface)" }}>
-            <button
-              onClick={() => setSelectedPeriod("week")}
-              className={getButtonClass(selectedPeriod === "week")}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setSelectedPeriod("month")}
-              className={getButtonClass(selectedPeriod === "month")}
-            >
-              Month
-            </button>
-          </div>
+    <Card surface="card" variant="default" padding="none">
+      <CardHeader className="p-component-lg pb-component-md">
+        <div className="flex items-center justify-between gap-component-md">
+          <h3 className="text-text-primary font-semibold text-xl">
+            {selectedPeriod === "week" ? "Weekly" : "Monthly"} Progress
+          </h3>
+          
+          {/* Touch-friendly period toggle */}
+          <Card surface="surface" variant="outline" padding="xs">
+            <div className="flex gap-1" role="radiogroup" aria-label="Select time period">
+              {periods.map(period => (
+                <button
+                  key={period}
+                  className={cx(
+                    'flex-1 py-2 px-4 rounded-token-card text-sm font-medium',
+                    'min-h-[44px] min-w-[72px] transition-all duration-base',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                    selectedPeriod === period
+                      ? 'bg-primary text-background shadow-token-xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-surface/50'
+                  )}
+                  onClick={() => setSelectedPeriod(period)}
+                  role="radio"
+                  aria-checked={selectedPeriod === period}
+                  aria-label={`View ${period} progress`}
+                >
+                  {period.charAt(0).toUpperCase() + period.slice(1)}
+                </button>
+              ))}
+            </div>
+          </Card>
         </div>
-      </div>
+      </CardHeader>
       
-      <div className="p-6 space-y-6">
+      <CardContent className="p-component-lg pt-0">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="space-y-3">
+          <div className="space-y-component-md">
+            {/* Primary goal skeleton */}
+            <Card surface="elevated" variant="outline" padding="lg">
+              <div className="space-y-component-sm">
                 <div className="flex justify-between">
-                  <div className="h-5 w-20 skeleton" />
-                  <div className="h-5 w-12 skeleton" />
+                  <div className="h-6 w-24 skeleton" />
+                  <div className="h-6 w-16 skeleton" />
                 </div>
                 <div className="h-3 w-full skeleton" />
-                <div className="h-4 w-32 skeleton" />
+                <div className="h-4 w-40 skeleton" />
               </div>
-            ))}
+            </Card>
+            
+            {/* Secondary metrics skeleton */}
+            <div className="grid gap-component-sm sm:grid-cols-2">
+              {[...Array(2)].map((_, i) => (
+                <Card key={i} surface="card" variant="outline" padding="lg">
+                  <div className="space-y-component-sm">
+                    <div className="flex justify-between">
+                      <div className="h-5 w-20 skeleton" />
+                      <div className="h-5 w-12 skeleton" />
+                    </div>
+                    <div className="h-3 w-full skeleton" />
+                    <div className="h-4 w-32 skeleton" />
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Workout Goal - Links to Consistency section */}
-            <Link href="/progress#consistency" className="space-y-3 hover:opacity-80 transition-opacity">
-              <div className="flex justify-between">
-                <span className={labelClass}>Workout Goal</span>
-                <span className={valueClass}>
-                  {progress.workoutGoal.current}/{progress.workoutGoal.target}
-                </span>
-              </div>
-              <ProgressBar value={progress.workoutGoal.percentage} />
-              <p className={subtextClass}>
-                {Math.max(0, progress.workoutGoal.target - progress.workoutGoal.current)} more to reach your goal
-              </p>
-            </Link>
-
-            {/* Volume Goal - Links to Volume Tracking section */}
-            <Link href="/progress#volume" className="space-y-3 hover:opacity-80 transition-opacity">
-              <div className="flex justify-between">
-                <span className={labelClass}>Volume Goal</span>
-                <span className={valueClass}>{progress.volumeGoal.current}/{progress.volumeGoal.target}</span>
-              </div>
-              <ProgressBar value={progress.volumeGoal.percentage} />
-              <p className={subtextClass}>
-                {(parseFloat(progress.volumeGoal.target.replace(/[^\d.]/g, '')) - parseFloat(progress.volumeGoal.current.replace(/[^\d.]/g, ''))).toFixed(1)}k kg remaining
-              </p>
-            </Link>
-
-            {/* Consistency - Links to Consistency section */}
-            <Link href="/progress#consistency" className="space-y-3 hover:opacity-80 transition-opacity">
-              <div className="flex justify-between">
-                <span className={labelClass}>Consistency</span>
-                <span className={valueClass}>{progress.consistency.percentage}%</span>
-              </div>
-              <ProgressBar value={progress.consistency.percentage} />
-              <p className={subtextClass}>{progress.consistency.message}</p>
-            </Link>
+          <div className="space-y-component-md">
+            {/* Primary goal - Workout Goal gets priority */}
+            <ProgressMetric
+              title="Workout Goal"
+              current={progress.workoutGoal.current}
+              target={progress.workoutGoal.target}
+              percentage={progress.workoutGoal.percentage}
+              type="workout"
+              href="/progress#consistency"
+              isPrimary={true}
+            />
+            
+            {/* Secondary metrics */}
+            <div className="grid gap-component-sm sm:grid-cols-2">
+              <ProgressMetric
+                title="Volume Goal"
+                current={progress.volumeGoal.current}
+                target={progress.volumeGoal.target}
+                percentage={progress.volumeGoal.percentage}
+                type="volume"
+                href="/progress#volume"
+              />
+              
+              <ProgressMetric
+                title="Consistency"
+                current={`${progress.consistency.current.toFixed(0)}%`}
+                target="100%"
+                percentage={progress.consistency.percentage}
+                type="consistency"
+                href="/progress#consistency"
+              />
+            </div>
           </div>
         )}
+      </CardContent>
 
-        {/* View Full Progress Dashboard Button */}
-        <div className="pt-4 border-t border-muted">
-          <Link 
-            href="/progress"
-            className="btn-secondary w-full justify-center"
-          >
-            View Full Progress Dashboard
-            <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
-      </div>
-    </div>
+      <CardFooter className="p-component-lg pt-component-md">
+        <Link 
+          href="/progress"
+          className={cx(
+            "flex items-center justify-center gap-component-xs w-full",
+            "py-component-sm px-component-md rounded-token-card",
+            "bg-bg-surface hover:bg-bg-surface/80 border border-border-default",
+            "text-text-primary font-medium text-sm transition-all duration-base",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            "min-h-[44px]"
+          )}
+          aria-label="Navigate to full progress dashboard"
+        >
+          View Full Progress Dashboard
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </CardFooter>
+    </Card>
   );
 }

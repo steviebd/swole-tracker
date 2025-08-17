@@ -66,8 +66,8 @@ export function ConflictResolutionModal({
     switch (type) {
       case 'workout':
         return `${data.exercises?.length || 0} exercises, ${
-          data.exercises?.reduce((total: number, ex: any) => 
-            total + (ex.sets?.length || 0), 0) || 0
+          (data.exercises?.reduce((total: number, ex: any) => 
+            total + (ex.sets?.length || 0), 0) as number) || 0
         } sets`;
       case 'template':
         return `"${data.name}" - ${data.exercises?.length || 0} exercises`;
