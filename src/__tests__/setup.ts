@@ -95,31 +95,62 @@ Object.defineProperty(window.navigator, "onLine", {
   configurable: true,
 });
 
-// Ensure window and document globals are properly set up for JSDOM
-if (typeof window === "undefined") {
-  // If window is not defined, setup minimal globals
-  Object.defineProperty(globalThis, "window", {
-    value: global,
-    writable: true,
-    configurable: true,
-  });
-}
-
-// Ensure localStorage is available
-if (!global.localStorage) {
-  Object.defineProperty(global, "localStorage", {
-    value: {
+// Minimal jsdom setup for tests that don't have window/document available
+if (typeof globalThis.window === "undefined") {
+  const mockWindow = {
+    localStorage: {
       getItem: vi.fn(),
-      setItem: vi.fn(),
+      setItem: vi.fn(), 
       removeItem: vi.fn(),
       clear: vi.fn(),
       length: 0,
       key: vi.fn(),
     },
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    navigator: {
+      onLine: true,
+    },
+    document: {
+      cookie: "",
+    },
+  };
+  
+  Object.defineProperty(globalThis, "window", {
+    value: mockWindow,
+    writable: true,
+    configurable: true,
+  });
+  
+  Object.defineProperty(globalThis, "document", {
+    value: mockWindow.document,
     writable: true,
     configurable: true,
   });
 }
+
+// Ensure localStorage is available in all environments
+const mockStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
+};
+
+Object.defineProperty(global, "localStorage", {
+  value: mockStorage,
+  writable: true,
+  configurable: true,
+});
+
+// Also ensure it's available on window
+Object.defineProperty(window, "localStorage", {
+  value: mockStorage,
+  writable: true,
+  configurable: true,
+});
 
 // Ensure document.addEventListener is available for user-event
 if (global.document && !global.document.addEventListener) {

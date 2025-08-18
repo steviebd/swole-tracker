@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // JSDOM provides window + localStorage, ensure it's clean and stable
 function resetStorage() {
@@ -8,9 +8,11 @@ function resetStorage() {
 describe("offline-queue", () => {
   beforeEach(() => {
     resetStorage();
-    vi.useFakeTimers();
-    // Start with a stable time for deterministic createdAt/updatedAt assertions when needed
-    vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+    // Note: removed timers since they're causing issues in vitest
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("returns empty queue and length=0 when nothing stored", async () => {

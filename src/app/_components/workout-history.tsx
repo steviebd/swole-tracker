@@ -183,7 +183,7 @@ export function WorkoutHistory() {
 }
 
 // Helper function to calculate workout metrics
-function calculateWorkoutMetrics(workout: any) {
+function calculateWorkoutMetrics(workout: any): { workoutTime: string; duration: string; bestMetric: string } {
   const workoutTime = new Date(workout.workoutDate).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -205,13 +205,13 @@ function calculateWorkoutMetrics(workout: any) {
     // Find best set across all exercises
     let bestWeight = 0;
     for (const [_exerciseName, sets] of exerciseGroups.entries()) {
-      const bestSetInExercise = sets.reduce((best, current) => {
-        const currentWeight = current.weight ? parseFloat(current.weight) : 0;
-        const bestWeight = best.weight ? parseFloat(best.weight) : 0;
+      const bestSetInExercise = sets.reduce((best: { weight?: string | number }, current: { weight?: string | number }) => {
+        const currentWeight = current.weight ? parseFloat(current.weight.toString()) : 0;
+        const bestWeight = best.weight ? parseFloat(best.weight.toString()) : 0;
         return currentWeight > bestWeight ? current : best;
       });
       
-      const weight = bestSetInExercise.weight ? parseFloat(bestSetInExercise.weight) : 0;
+      const weight = bestSetInExercise.weight ? parseFloat(bestSetInExercise.weight.toString()) : 0;
       if (weight > bestWeight) {
         bestWeight = weight;
       }
@@ -223,7 +223,7 @@ function calculateWorkoutMetrics(workout: any) {
     if (bestWeight > 0) {
       const bestSet = Array.from(exerciseGroups.values())
         .flat()
-        .find(set => set.weight && parseFloat(set.weight) === bestWeight);
+        .find(set => set.weight && parseFloat(set.weight.toString()) === bestWeight);
       bestMetric = `Best: ${bestWeight}${bestSet?.unit ?? 'lbs'}`;
     } else {
       bestMetric = `${totalExercises} exercise${totalExercises !== 1 ? 's' : ''} logged`;

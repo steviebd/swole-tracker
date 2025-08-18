@@ -158,40 +158,40 @@ The refactoring will be done in several phases:
 
 ### Phase 8: Workouts
 
--   [ ] **Goal:** Refactor the remaining workout-related pages.
--   [ ] **Pages:**
-    -   [ ] `/workouts`
-    -   [ ] `/workout/start`
--   [ ] **Tasks:**
-    -   [ ] Replace the `GlassHeader` on the workout history page with a standard `shadcn/ui` header.
-    -   [ ] Restyle the `WorkoutHistory` component to use `shadcn/ui` components (e.g., `Table`, `Card`).
-    -   [ ] Restyle the `WorkoutStarter` component on the `/workout/start` page to use `shadcn/ui` components.
+-   [x] **Goal:** Refactor the remaining workout-related pages.
+-   [x] **Pages:**
+    -   [x] `/workouts`
+    -   [x] `/workout/start`
+-   [x] **Tasks:**
+    -   [x] Replace the `GlassHeader` on the workout history page with a standard `shadcn/ui` header.
+    -   [x] Restyle the `WorkoutHistory` component to use `shadcn/ui` components (e.g., `Table`, `Card`).
+    -   [x] Restyle the `WorkoutStarter` component on the `/workout/start` page to use `shadcn/ui` components.
 
 ### Phase 9: Exercises
 
--   [ ] **Goal:** Refactor the exercise management page.
--   [ ] **Page:** `/exercises`
--   [ ] **Tasks:**
-    -   [ ] Restyle the `ExerciseManager` component to use `shadcn/ui` components (e.g., `Table`, `Dialog`, `Button`).
-    -   [ ] Ensure the layout and styling of the exercise management page are consistent with the new design system.
+-   [x] **Goal:** Refactor the exercise management page.
+-   [x] **Page:** `/exercises`
+-   [x] **Tasks:**
+    -   [x] Restyle the `ExerciseManager` component to use `shadcn/ui` components (e.g., `Table`, `Dialog`, `Button`).
+    -   [x] Ensure the layout and styling of the exercise management page are consistent with the new design system.
 
 ### Phase 10: Connect Whoop
 
--   [ ] **Goal:** Refactor the "Connect Whoop" page.
--   [ ] **Page:** `/connect-whoop`
--   [ ] **Tasks:**
-    -   [ ] Restyle the `WhoopWorkouts` component to use `shadcn/ui` components.
-    -   [ ] Update the layout of the page to be consistent with the new design system.
+-   [x] **Goal:** Refactor the "Connect Whoop" page.
+-   [x] **Page:** `/connect-whoop`
+-   [x] **Tasks:**
+    -   [x] Restyle the `WhoopWorkouts` component to use `shadcn/ui` components.
+    -   [x] Update the layout of the page to be consistent with the new design system.
 
 ### Phase 11: Legal Pages
 
--   [ ] **Goal:** Improve the styling of the legal pages.
--   [ ] **Pages:**
-    -   [ ] `/privacy`
-    -   [ ] `/terms`
--   [ ] **Tasks:**
-    -   [ ] Create a new layout component for the legal pages that uses `shadcn/ui` typography and layout components to improve readability.
-    -   [ ] Apply this new layout to the privacy and terms pages.
+-   [x] **Goal:** Improve the styling of the legal pages.
+-   [x] **Pages:**
+    -   [x] `/privacy`
+    -   [x] `/terms`
+-   [x] **Tasks:**
+    -   [x] Create a new layout component for the legal pages that uses `shadcn/ui` typography and layout components to improve readability.
+    -   [x] Apply this new layout to the privacy and terms pages.
 
 ## Contributing
 

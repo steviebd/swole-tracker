@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { ExerciseManager } from "~/app/_components/exercise-manager";
+import { Button } from "~/components/ui/button";
 
 export default async function ExercisesPage() {
   const supabase = await createServerSupabaseClient();
@@ -21,14 +22,15 @@ export default async function ExercisesPage() {
       <main className="min-h-screen overflow-x-hidden">
         <div className="container-default py-6 w-full min-w-0">
           {/* Header */}
-          <div className="mb-6 flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 gap-4">
-            <Link
-              href="/templates"
-              className="text-purple-400 hover:text-purple-300"
-            >
-              ← Back to Templates
-            </Link>
-            <h1 className="text-xl sm:text-2xl font-bold">Exercise Management</h1>
+          <div className="mb-4 sm:mb-6">
+            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/templates" className="flex-shrink-0">← Back to Templates</Link>
+                </Button>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Exercise Management</h1>
+              </div>
+            </div>
           </div>
 
           {/* Exercise Manager */}

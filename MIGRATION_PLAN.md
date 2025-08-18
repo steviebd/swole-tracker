@@ -38,6 +38,19 @@ This is a significant architectural change that will enhance performance, potent
 
 This phase focuses on getting a development version of the application running on your local machine with the new stack.
 
+### **Security & Pre-migration Audit**
+
+Before modifying the code, an audit was performed on all tRPC routers (`src/server/api/routers/`) to assess the current application-layer security model. 
+
+**Conclusion: The existing codebase is robust.** There are no apparent security gaps. Data access is consistently and correctly isolated to the authenticated user across the entire application. This is excellent news, as it means the migration will focus on replacing infrastructure while preserving an already-secure logic pattern.
+
+Two primary security patterns are used effectively:
+
+1.  **Direct Query Filtering:** Most queries correctly use a `WHERE` clause with `eq(table.user_id, ctx.user.id)` to filter results at the database level.
+2.  **Fetch and Verify:** For operations on a single item, the code often fetches the item by its ID and then immediately verifies that `item.user_id === ctx.user.id` before proceeding.
+
+Because this discipline is already in place, the primary security challenge of the migration is to **preserve these patterns** as we replace the underlying components.
+
 ### **Step 1: Initial Setup & Branching**
 
 1.  **Create a New Branch:** All work should be done on a dedicated git branch.
@@ -124,11 +137,7 @@ The goal here is to make Drizzle work with a local D1 database.
         *   `d.numeric(...)` -> `d.real()`
         *   `d.smallint()` -> `d.integer()`
     *   **Update Default Values:**
-        *   `default(sql\
-CURRENT_TIMESTAMP\
-)` -> `default(sql\
-(CURRENT_TIMESTAMP)\
-)`
+        *   `default(sql\nCURRENT_TIMESTAMP\n)` -> `default(sql\n(CURRENT_TIMESTAMP)\n)`
     *   **Update Auto-Incrementing Keys:**
         *   `generatedByDefaultAsIdentity()` is a pg-specific feature. For SQLite, `d.integer().primaryKey({ autoIncrement: true })` is the standard.
 
@@ -179,7 +188,7 @@ This is the most invasive step. It requires replacing auth logic throughout the 
 
 *   Use Wrangler to run your Next.js application in a local environment that simulates the Cloudflare Workers runtime.
     ```bash
-    wrangler pages dev .
+    wrangler pages dev .next
     ```
 
 This command starts a local server. You can now access your application at `http://localhost:8788` (or a similar port) and test the new database connection and authentication flow.

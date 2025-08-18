@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Skeleton } from "~/components/ui/skeleton";
 
 interface WorkoutStarterProps {
   initialTemplateId?: number;
@@ -108,11 +113,13 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
   if (templatesLoading) {
     return (
-      <div className="space-y-3 sm:space-y-4">
-        <div className="animate-pulse rounded-lg p-3 sm:p-4" style={{ backgroundColor: 'var(--color-bg-surface)' }}>
-          <div className="mb-3 sm:mb-4 h-3 sm:h-4 w-1/3 rounded" style={{ backgroundColor: 'var(--color-border)' }}></div>
-          <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: 'var(--color-border)' }}></div>
-        </div>
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-4">
+            <Skeleton className="h-4 w-1/3 mb-4" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -120,17 +127,16 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   if (!templates?.length) {
     return (
       <div className="py-8 sm:py-12 text-center">
-        <div className="mb-3 sm:mb-4 text-4xl sm:text-6xl">📋</div>
+        <div className="mb-4 text-4xl sm:text-6xl">📋</div>
         <h3 className="mb-2 text-lg sm:text-xl font-semibold">No templates available</h3>
-        <p className="text-secondary mb-4 sm:mb-6 text-sm sm:text-base px-4">
+        <p className="text-muted-foreground mb-6 text-sm sm:text-base px-4">
           You need to create a workout template before you can start a workout
         </p>
-        <Link
-          href="/templates/new"
-          className="btn-primary inline-flex px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium animate-button-hover"
-        >
-          Create Your First Template
-        </Link>
+        <Button asChild>
+          <Link href="/templates/new">
+            Create Your First Template
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -139,133 +145,128 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
     <div className="space-y-4 sm:space-y-6">
       {/* Template Selection */}
       <div>
-        <h2 className="mb-3 sm:mb-4 text-base sm:text-lg font-serif font-black gradient-text-primary">Select Workout Template</h2>
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <h2 className="mb-4 text-lg font-semibold">Select Workout Template</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
-            <button
+            <Card 
               key={template.id}
-              onClick={() => setSelectedTemplateId(template.id)}
-              className={`rounded-lg border-2 p-3 sm:p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg ${
+              className={`cursor-pointer transition-all hover:shadow-md ${
                 selectedTemplateId === template.id 
-                  ? 'gradient-card border-primary shadow-md' 
-                  : 'card-interactive border-border'
+                  ? 'ring-2 ring-primary shadow-md' 
+                  : 'hover:ring-1 hover:ring-muted-foreground/20'
               }`}
+              onClick={() => setSelectedTemplateId(template.id)}
             >
-              <h3 className="mb-1 sm:mb-2 truncate font-serif font-black text-sm sm:text-base text-foreground">{template.name}</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {template.exercises.length} exercise
-                {template.exercises.length !== 1 ? "s" : ""}
-              </p>
-              {template.exercises.length > 0 && (
-                <div className="mt-1 sm:mt-2 text-xs text-muted-foreground">
-                  {template.exercises
-                    .slice(0, 3)
-                    .map((ex) => ex.exerciseName)
-                    .join(", ")}
-                  {template.exercises.length > 3 && "..."}
-                </div>
-              )}
-            </button>
+              <CardContent className="p-4">
+                <h3 className="mb-2 truncate font-semibold text-sm sm:text-base">{template.name}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  {template.exercises.length} exercise
+                  {template.exercises.length !== 1 ? "s" : ""}
+                </p>
+                {template.exercises.length > 0 && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {template.exercises
+                      .slice(0, 3)
+                      .map((ex) => ex.exerciseName)
+                      .join(", ")}
+                    {template.exercises.length > 3 && "..."}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
 
       {/* Selected Template & Actions */}
       {selectedTemplateId && (
-        <div className="card space-y-3 sm:space-y-4 p-4 sm:p-6">
-          {(() => {
-            const template = templates.find((t) => t.id === selectedTemplateId);
-            return template ? (
-              <>
-                <div>
-                  <h3 className="mb-2 text-base sm:text-lg font-serif font-black gradient-text-accent">
-                    Selected: {template.name}
-                  </h3>
-                  <div className="text-xs sm:text-sm text-muted-foreground">
-                    {template.exercises.length === 0 ? (
-                      "No exercises in this template"
-                    ) : (
-                      <div className="space-y-1">
-                        {template.exercises.map((exercise, index) => (
-                          <div key={exercise.id} className="flex items-center">
-                            <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full text-xs gradient-primary text-white font-semibold shadow-sm">
-                              {index + 1}
-                            </span>
-                            <span className="text-xs sm:text-sm">{exercise.exerciseName}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base sm:text-lg">
+              Selected: {(() => {
+                const template = templates.find((t) => t.id === selectedTemplateId);
+                return template?.name;
+              })()}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(() => {
+              const template = templates.find((t) => t.id === selectedTemplateId);
+              return template ? (
+                <>
+                  <div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">
+                      {template.exercises.length === 0 ? (
+                        "No exercises in this template"
+                      ) : (
+                        <div className="space-y-1">
+                          {template.exercises.map((exercise, index) => (
+                            <div key={exercise.id} className="flex items-center">
+                              <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                                {index + 1}
+                              </span>
+                              <span className="text-xs sm:text-sm">{exercise.exerciseName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Date/Time Selection */}
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label
-                      htmlFor="workoutDate"
-                      className="block text-xs sm:text-sm font-medium"
-                    >
-                      Workout Date & Time
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const year = now.getFullYear();
-                        const month = String(now.getMonth() + 1).padStart(
-                          2,
-                          "0",
-                        );
-                        const day = String(now.getDate()).padStart(2, "0");
-                        const hours = String(now.getHours()).padStart(2, "0");
-                        const minutes = String(now.getMinutes()).padStart(
-                          2,
-                          "0",
-                        );
-                        setWorkoutDate(
-                          `${year}-${month}-${day}T${hours}:${minutes}`,
-                        );
-                      }}
-                      className="link-primary text-xs"
-                    >
-                      Use Now
-                    </button>
+                  {/* Date/Time Selection */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="workoutDate" className="text-xs sm:text-sm font-medium">
+                        Workout Date & Time
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => {
+                          const now = new Date();
+                          const year = now.getFullYear();
+                          const month = String(now.getMonth() + 1).padStart(2, "0");
+                          const day = String(now.getDate()).padStart(2, "0");
+                          const hours = String(now.getHours()).padStart(2, "0");
+                          const minutes = String(now.getMinutes()).padStart(2, "0");
+                          setWorkoutDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+                        }}
+                      >
+                        Use Now
+                      </Button>
+                    </div>
+                    <Input
+                      type="datetime-local"
+                      id="workoutDate"
+                      value={workoutDate}
+                      onChange={(e) => setWorkoutDate(e.target.value)}
+                      className="w-full"
+                      required
+                    />
                   </div>
-                  <input
-                    type="datetime-local"
-                    id="workoutDate"
-                    value={workoutDate}
-                    onChange={(e) => setWorkoutDate(e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2 text-sm sm:text-base focus:ring-2 focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--color-bg-surface)',
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text)',
-                    } as React.CSSProperties}
-                    required
-                  />
-                </div>
 
-                {/* Start Button */}
-                <button
-                onClick={handleStart}
-                disabled={isStarting || createWorkoutMutation.isPending}
-                className="btn-primary w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium disabled:cursor-not-allowed disabled:opacity-50 animate-button-hover"
-                type="button"
-                >
-                {isStarting || createWorkoutMutation.isPending ? "Starting..." : "Start Workout"}
-                 </button>
-              </>
-            ) : null;
-          })()}
-        </div>
+                  {/* Start Button */}
+                  <Button
+                    onClick={handleStart}
+                    disabled={isStarting || createWorkoutMutation.isPending}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isStarting || createWorkoutMutation.isPending ? "Starting..." : "Start Workout"}
+                  </Button>
+                </>
+              ) : null;
+            })()}
+          </CardContent>
+        </Card>
       )}
 
       {/* No Selection State */}
       {!selectedTemplateId && (
         <div className="py-6 sm:py-8 text-center">
-          <p className="text-sm sm:text-base" style={{ color: 'var(--color-text-secondary)' }}>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Select a workout template above to continue
           </p>
         </div>
