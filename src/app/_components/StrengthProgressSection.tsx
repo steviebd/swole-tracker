@@ -122,8 +122,9 @@ export function StrengthProgressSection() {
                               y1={y}
                               x2={(index + 1) / Math.max(1, chartData.length - 1) * 360 + 20}
                               y2={180 - ((chartData[index + 1]!.weight - minWeight) / range) * 160}
-                              stroke="var(--color-primary)"
-                              strokeWidth="2"
+                              stroke="var(--color-chart-1)"
+                              strokeWidth="3"
+                              opacity="0.8"
                             />
                           )}
                           
@@ -132,8 +133,13 @@ export function StrengthProgressSection() {
                             cx={x}
                             cy={y}
                             r="4"
-                            fill="var(--color-primary)"
+                            fill="var(--color-chart-1)"
+                            stroke="white"
+                            strokeWidth="2"
                             className="hover:r-6 cursor-pointer transition-all"
+                            style={{
+                              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                            }}
                           />
                           
                           {/* Weight label */}

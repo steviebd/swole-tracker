@@ -1,5 +1,5 @@
 import type { WhoopMetrics } from "~/server/api/schemas/health-advice";
-import { eq, desc, and, ne } from 'drizzle-orm';
+import { eq, desc, and, ne, inArray, asc } from 'drizzle-orm';
 
 export function clip(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -98,8 +98,8 @@ export async function getExerciseHistory(
     orderBy: [desc(db.schema.workoutSessions.workoutDate)],
     with: {
       exercises: {
-        where: (exercises: any, { inArray }: any) => inArray(exercises.exerciseName, exerciseNames),
-        orderBy: (exercises: any, { asc }: any) => [asc(exercises.setOrder)],
+        where: (exercises: any) => inArray(exercises.exerciseName, exerciseNames),
+        orderBy: (exercises: any) => [asc(exercises.setOrder)],
       },
       template: {
         columns: {

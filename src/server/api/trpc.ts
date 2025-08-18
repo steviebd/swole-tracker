@@ -46,7 +46,7 @@ export const createTRPCContext = async (opts: {
   const requestId = randomUUID();
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient(opts.headers);
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error) {

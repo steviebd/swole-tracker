@@ -1,120 +1,163 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { StyleSheet, View, Alert } from 'react-native'
-import { Button, Input } from '@rneui/themed'
-import { Session } from '@supabase/supabase-js'
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { View, Alert, Text } from 'react-native';
+import { Button, Input, LoadingScreen } from './ui';
+import { useAuth } from './providers/AuthProvider';
 
-export default function Account({ session }: { session: Session }) {
-  const [loading, setLoading] = useState(true)
-  const [username, setUsername] = useState('')
-  const [website, setWebsite] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState('')
+export default function Account() {
+  const { session, signOut, isLoading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [username, setUsername] = useState('');
+  const [website, setWebsite] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   useEffect(() => {
-    if (session) getProfile()
-  }, [session])
+    if (session) {
+      getProfile();
+    }
+  }, [session]);
 
   async function getProfile() {
     try {
-      setLoading(true)
-      if (!session?.user) throw new Error('No user on the session!')
+      setLoading(true);
+      if (!session?.user) throw new Error('No user on the session!');
 
       const { data, error, status } = await supabase
         .from('profiles')
         .select(`username, website, avatar_url`)
-        .eq('id', session?.user.id)
-        .single()
+        .eq('id', session.user.id)
+        .single();
+        
       if (error && status !== 406) {
-        throw error
+        throw error;
       }
 
       if (data) {
-        setUsername(data.username)
-        setWebsite(data.website)
-        setAvatarUrl(data.avatar_url)
+        setUsername(data.username || '');
+        setWebsite(data.website || '');
+        setAvatarUrl(data.avatar_url || '');
       }
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert(error.message)
+        Alert.alert('Error Loading Profile', error.message);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
-  async function updateProfile({
-    username,
-    website,
-    avatar_url,
-  }: {
-    username: string
-    website: string
-    avatar_url: string
-  }) {
+  async function updateProfile() {
     try {
-      setLoading(true)
-      if (!session?.user) throw new Error('No user on the session!')
+      setUpdating(true);
+      if (!session?.user) throw new Error('No user on the session!');
 
       const updates = {
-        id: session?.user.id,
-        username,
-        website,
-        avatar_url,
-        updated_at: new Date(),
-      }
+        id: session.user.id,
+        username: username.trim(),
+        website: website.trim(),
+        avatar_url: avatarUrl.trim(),
+        updated_at: new Date().toISOString(),
+      };
 
-      const { error } = await supabase.from('profiles').upsert(updates)
+      const { error } = await supabase.from('profiles').upsert(updates);
 
       if (error) {
-        throw error
+        throw error;
       }
+
+      Alert.alert('Success', 'Profile updated successfully!');
     } catch (error) {
       if (error instanceof Error) {
-        Alert.alert(error.message)
+        Alert.alert('Error Updating Profile', error.message);
       }
     } finally {
-      setLoading(false)
+      setUpdating(false);
     }
+  }
+
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1">
+        <LoadingScreen message="Loading profile..." backgroundColor="bg-gray-100" />
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Input label="Email" value={session?.user?.email} disabled />
-      </View>
-      <View style={styles.verticallySpaced}>
-        <Input label="Username" value={username || ''} onChangeText={(text) => setUsername(text)} />
-      </View>
-      <View style={styles.verticallySpaced}>
-        <Input label="Website" value={website || ''} onChangeText={(text) => setWebsite(text)} />
-      </View>
+    <View className="mt-10 p-6 bg-white mx-4 rounded-lg shadow-sm">
+      <Text className="text-2xl font-bold text-center mb-6 text-gray-900">
+        Profile
+      </Text>
+      
+      <Input 
+        label="Email" 
+        value={session?.user?.email || ''} 
+        editable={false}
+        className="bg-gray-100"
+        containerClassName="mb-4"
+      />
+      
+      <Input 
+        label="Username" 
+        value={username} 
+        onChangeText={setUsername}
+        placeholder="Enter your username"
+        editable={!updating}
+        containerClassName="mb-4"
+      />
+      
+      <Input 
+        label="Website" 
+        value={website} 
+        onChangeText={setWebsite}
+        placeholder="https://your-website.com"
+        autoCapitalize="none"
+        keyboardType="url"
+        editable={!updating}
+        containerClassName="mb-6"
+      />
 
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Button
-          title={loading ? 'Loading ...' : 'Update'}
-          onPress={() => updateProfile({ username, website, avatar_url: avatarUrl })}
-          disabled={loading}
-        />
-      </View>
+      <Button
+        title={updating ? 'Updating...' : 'Update Profile'}
+        onPress={updateProfile}
+        loading={updating}
+        disabled={updating}
+        className="mb-3"
+      />
 
-      <View style={styles.verticallySpaced}>
-        <Button title="Sign Out" onPress={() => supabase.auth.signOut()} />
-      </View>
+      <Button 
+        title={authLoading ? 'Signing Out...' : 'Sign Out'} 
+        variant="outline"
+        onPress={handleSignOut}
+        loading={authLoading}
+        disabled={authLoading}
+      />
     </View>
-  )
+  );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 40,
-    padding: 12,
-  },
-  verticallySpaced: {
-    paddingTop: 4,
-    paddingBottom: 4,
-    alignSelf: 'stretch',
-  },
-  mt20: {
-    marginTop: 20,
-  },
-})

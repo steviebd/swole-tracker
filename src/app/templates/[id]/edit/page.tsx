@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api } from "~/trpc/server";
 import { TemplateForm } from "~/app/_components/template-form";
+import { Button } from "~/components/ui/button";
 
 interface EditTemplatePageProps {
   params: Promise<{ id: string }>;
@@ -37,12 +38,11 @@ export default async function EditTemplatePage({
       <div className="container mx-auto px-4 py-6 w-full min-w-0">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
-          <Link
-            href="/templates"
-            className="text-purple-400 hover:text-purple-300"
-          >
-            ← Back
-          </Link>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/templates">
+              ← Back
+            </Link>
+          </Button>
           <h1 className="text-2xl font-bold">Edit Template</h1>
         </div>
 

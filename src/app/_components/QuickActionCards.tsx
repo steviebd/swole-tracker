@@ -1,99 +1,102 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "~/components/ui/card";
 
 export function QuickActionCards() {
+  // Card definitions matching template design
+  const cards = [
+    {
+      id: "start-workout",
+      title: "Start Workout",
+      description: "Begin a new workout session",
+      href: "/workout/start",
+      gradient: "bg-gradient-to-r from-orange-500 to-red-500",
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+    },
+    {
+      id: "view-progress",
+      title: "View Progress",
+      description: "Track your strength gains and consistency",
+      href: "/progress",
+      gradient: "bg-gradient-to-r from-pink-500 to-red-500",
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+      ),
+    },
+    {
+      id: "manage-templates",
+      title: "Manage Templates",
+      description: "Create and edit workout templates",
+      href: "/templates",
+      gradient: "bg-gradient-to-r from-amber-500 to-orange-500",
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+      ),
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-      {/* Start Workout Card */}
-      <Link href="/workout/start" className="glass-surface transition-all duration-300 cursor-pointer group rounded-2xl transform hover:-translate-y-1 hover:shadow-lg"
-        style={{ 
-          borderColor: "var(--color-border)",
-          boxShadow: "var(--shadow-sm)"
-        } as React.CSSProperties}>
-        <div className="p-4 sm:p-6 md:p-8">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-            <div 
-              className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0"
-              style={{ backgroundColor: "var(--color-info)" }}
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {cards.map((card) => (
+        <Link key={card.id} href={card.href} className="block">
+          <Card
+            surface="card"
+            variant="elevated"
+            padding="md"
+            interactive={true}
+            className={`${card.gradient} text-white hover:shadow-lg transition-all group relative overflow-hidden`} // eslint-disable-line no-restricted-syntax
+          >
+          {/* Icon and arrow row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              {card.icon}
             </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 group-hover:text-[var(--color-text-secondary)] flex-shrink-0" 
-              style={{ color: "var(--color-text-muted)" }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg 
+              className="h-5 w-5 text-white/80 transition-transform duration-300 group-hover:translate-x-1" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
-          <h3 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2" style={{ color: "var(--color-text)" }}>Start Workout</h3>
-          <p className="text-xs sm:text-sm md:text-base mb-3 sm:mb-4 md:mb-6" style={{ color: "var(--color-text-secondary)" }}>Begin a new workout session</p>
-          <div className="btn-primary w-full text-center py-2 sm:py-3 rounded-xl text-sm sm:text-base">
-            Open
-          </div>
-        </div>
-      </Link>
 
-      {/* Progress Dashboard Card */}
-      <Link href="/progress" className="glass-surface transition-all duration-300 cursor-pointer group rounded-2xl transform hover:-translate-y-1 hover:shadow-lg"
-        style={{ 
-          borderColor: "var(--color-border)",
-          boxShadow: "var(--shadow-sm)"
-        } as React.CSSProperties}>
-        <div className="p-4 sm:p-6 md:p-8">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-            <div 
-              className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0"
-              style={{ backgroundColor: "var(--color-success)" }}
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 group-hover:text-[var(--color-text-secondary)] flex-shrink-0" 
-              style={{ color: "var(--color-text-muted)" }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+          {/* Content */}
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold">
+              {card.title}
+            </h3>
+            <p className="text-sm text-white/90">
+              {card.description}
+            </p>
           </div>
-          <h3 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2" style={{ color: "var(--color-text)" }}>View Progress</h3>
-          <p className="text-xs sm:text-sm md:text-base mb-3 sm:mb-4 md:mb-6" style={{ color: "var(--color-text-secondary)" }}>Track your strength gains and consistency</p>
-          <div className="btn-primary w-full text-center py-2 sm:py-3 rounded-xl text-sm sm:text-base">
-            Open
-          </div>
-        </div>
-      </Link>
 
-      {/* Manage Templates Card */}
-      <Link href="/templates" className="glass-surface transition-all duration-300 cursor-pointer group rounded-2xl transform hover:-translate-y-1 hover:shadow-lg"
-        style={{ 
-          borderColor: "var(--color-border)",
-          boxShadow: "var(--shadow-sm)"
-        } as React.CSSProperties}>
-        <div className="p-4 sm:p-6 md:p-8">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-            <div 
-              className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          {/* Button */}
+          <div className="mt-4">
+            <div className="inline-flex items-center text-sm font-medium">
+              Get Started
+              <svg 
+                className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 group-hover:text-[var(--color-text-secondary)] flex-shrink-0" 
-              style={{ color: "var(--color-text-muted)" }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
           </div>
-          <h3 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2" style={{ color: "var(--color-text)" }}>Manage Templates</h3>
-          <p className="text-xs sm:text-sm md:text-base mb-3 sm:mb-4 md:mb-6" style={{ color: "var(--color-text-secondary)" }}>Create and edit workout templates</p>
-          <div className="btn-primary w-full text-center py-2 sm:py-3 rounded-xl text-sm sm:text-base">
-            Open
-          </div>
-        </div>
-      </Link>
+          </Card>
+        </Link>
+      ))}
     </div>
   );
 }

@@ -9,6 +9,15 @@ import {
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { type db } from "~/server/db";
 
+/* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
+const debugEnabled =
+  process.env.VITEST ||
+  process.env.NODE_ENV === "test" ||
+  (process.env.NODE_ENV === "development" && process.env.DEBUG_PROGRESS);
+function debugLog(...args: unknown[]) {
+  if (debugEnabled) console.log("[progressRouter]", ...args);
+}
+
 // Time range enum for filtering
 const timeRangeSchema = z.enum(["week", "month", "year"]);
 
@@ -98,7 +107,9 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
+        debugLog("getVolumeProgression: input", input, "user_id", ctx.user.id);
         const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        debugLog("getVolumeProgression: date range", { startDate, endDate });
         
         const volumeData = await ctx.db
           .select({
@@ -131,6 +142,7 @@ export const progressRouter = createTRPCRouter({
 
         // Calculate volume metrics by workout date
         const volumeByDate = calculateVolumeMetrics(transformedData);
+        debugLog("getVolumeProgression: result count", volumeByDate.length);
         
         return volumeByDate;
       } catch (error) {
@@ -144,6 +156,7 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
+        debugLog("getConsistencyStats: input", input, "user_id", ctx.user.id);
         const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
         
         const workoutDates = await ctx.db
@@ -165,6 +178,7 @@ export const progressRouter = createTRPCRouter({
           startDate, 
           endDate
         );
+        debugLog("getConsistencyStats: result", consistency);
         
         return consistency;
       } catch (error) {
@@ -395,6 +409,7 @@ export const progressRouter = createTRPCRouter({
   getExerciseList: protectedProcedure
     .query(async ({ ctx }) => {
       try {
+        debugLog("getExerciseList: user_id", ctx.user.id);
         const exercises = await ctx.db
           .select({
             exerciseName: sessionExercises.exerciseName,
@@ -407,6 +422,7 @@ export const progressRouter = createTRPCRouter({
           .groupBy(sessionExercises.exerciseName)
           .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
 
+        debugLog("getExerciseList: result count", exercises.length);
         return exercises;
       } catch (error) {
         console.error("Error in getExerciseList:", error);

@@ -42,12 +42,16 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         ) : null}
         <div
           className={cx(
-            "flex items-center gap-1 rounded-md border",
-            "bg-transparent",
-            "px-2 py-1.5",
-            "border-[color:var(--color-border)]",
-            "focus-within:border-[color:var(--color-primary)] focus-within:[box-shadow:var(--shadow-focus)]",
+            "flex items-center gap-1",
+            "input-primary",
+            "transition-all",
           )}
+          style={{
+            borderRadius: 'var(--component-input-borderRadius)',
+            padding: `var(--component-input-padding-y) var(--component-input-padding-x)`,
+            fontSize: 'var(--component-input-fontSize)',
+            transitionDuration: 'var(--motion-duration-base)',
+          }}
         >
           {leftAdornment ? (
             <div className="shrink-0">{leftAdornment}</div>
@@ -60,7 +64,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             aria-describedby={describedBy}
             data-invalid={invalid ? "true" : undefined}
             className={cx(
-              "input !border-0 !bg-transparent !px-0 !py-0 focus:ring-0 focus:outline-none",
+              "border-0 bg-transparent px-0 py-0 focus:ring-0 focus:outline-none",
               "flex-1",
               className,
             )}
@@ -75,7 +79,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={describedBy}
             className={cx(
               "text-xs",
-              invalid ? "text-[var(--color-danger)]" : "text-secondary",
+              invalid ? "text-danger" : "text-secondary",
             )}
           >
             {hint}

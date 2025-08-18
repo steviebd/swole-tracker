@@ -24,21 +24,23 @@ export function createBrowserSupabaseClient(): SupabaseClient {
  * Useful for debugging auth issues
  */
 export function clearSupabaseAuth(): void {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && window.localStorage) {
     // Clear Supabase auth data
-    Object.keys(localStorage).forEach(key => {
+    Object.keys(window.localStorage).forEach(key => {
       if (key.startsWith('sb-') || key.includes('supabase')) {
-        localStorage.removeItem(key);
+        window.localStorage.removeItem(key);
       }
     });
     
     // Clear session cookies if any
-    document.cookie.split(";").forEach(cookie => {
-      const eqPos = cookie.indexOf("=");
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-      if (name.startsWith('sb-') || name.includes('supabase')) {
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-      }
-    });
+    if (typeof document !== 'undefined' && document.cookie) {
+      document.cookie.split(";").forEach(cookie => {
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        if (name.startsWith('sb-') || name.includes('supabase')) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        }
+      });
+    }
   }
 }

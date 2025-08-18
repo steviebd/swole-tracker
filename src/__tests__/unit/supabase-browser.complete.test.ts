@@ -4,7 +4,9 @@ describe("supabase-browser.ts complete coverage", () => {
   const originalWindow = global.window;
 
   beforeEach(() => {
-    vi.resetModules();
+    // vi.resetModules() was removed in vitest v3
+    // Use vi.doUnmock() or manual module resets as needed
+    vi.clearAllMocks();
   });
 
   afterEach(() => {

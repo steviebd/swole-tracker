@@ -1,33 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 import Link from "next/link";
-
-interface ProgressBarProps {
-  value: number;
-  className?: string;
-}
-
-function ProgressBar({ value, className = "" }: Omit<ProgressBarProps, 'theme'>) {
-  const bgClass = "bg-surface border border-muted";
-
-  return (
-    <div className={`w-full rounded-full h-3 ${bgClass} ${className}`}>
-      <div
-        className="h-3 rounded-full transition-all duration-500"
-        style={{ 
-          width: `${Math.min(100, Math.max(0, value))}%`,
-          backgroundColor: "var(--color-primary)"
-        }}
-      ></div>
-    </div>
-  );
-}
+import { Card } from "~/components/ui/card";
 
 export function WeeklyProgressSection() {
-  const { theme, resolvedTheme } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month">("week");
   
   // Get real data from ProgressDashboard API
@@ -61,12 +39,9 @@ export function WeeklyProgressSection() {
     };
 
     const consistency = {
-      percentage: consistencyData?.consistencyScore || 0,
-      message: (consistencyData?.consistencyScore || 0) >= 80 
-        ? "Great consistency!" 
-        : (consistencyData?.consistencyScore || 0) >= 60 
-        ? "Good progress, keep it up!" 
-        : "Let's improve consistency"
+      current: consistencyData?.consistencyScore || 0,
+      target: 100,
+      percentage: consistencyData?.consistencyScore || 0
     };
 
     return { workoutGoal, volumeGoal, consistency };
@@ -74,143 +49,95 @@ export function WeeklyProgressSection() {
 
   const progress = calculateProgress();
 
-  const cardClass = "card-interactive";
-
-  const titleClass = "text-xl font-bold text-foreground";
-
-  const toggleBgClass = `flex gap-1 rounded-lg p-1 transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "bg-gray-800" 
-      : "bg-gray-100 dark:bg-gray-800"
-  }`;
-
-  const getButtonClass = (isActive: boolean) => `
-    text-sm font-medium px-4 py-2 rounded-md transition-colors duration-300 ${
-      isActive
-        ? theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "bg-gray-700 text-white shadow-sm"
-          : "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white"
-        : theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "text-gray-400 hover:text-white hover:bg-gray-700/50"
-          : "text-gray-600 hover:text-gray-900 hover:bg-white/50 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700/50"
-    }
-  `;
-
-  const labelClass = `text-base font-medium transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
-
-  const valueClass = `text-base font-bold transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-background" 
-      : "text-gray-900 dark:text-background"
-  }`;
-
-  const subtextClass = `text-sm transition-colors duration-300 ${
-    theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-      ? "text-gray-400" 
-      : "text-gray-600 dark:text-gray-400"
-  }`;
-
   return (
-    <div className={cardClass}>
-      <div className={`p-6 pb-4 border-b transition-colors duration-300 ${
-        theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-          ? "border-gray-800" 
-          : "border-gray-200 dark:border-gray-700"
-      }`}>
-        <div className="flex items-center justify-between">
-          <h3 className={titleClass}>Weekly Progress</h3>
-          <div className={toggleBgClass}>
-            <button
-              onClick={() => setSelectedPeriod("week")}
-              className={getButtonClass(selectedPeriod === "week")}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setSelectedPeriod("month")}
-              className={getButtonClass(selectedPeriod === "month")}
-            >
-              Month
-            </button>
-          </div>
-        </div>
+    <Card surface="card" variant="default" padding="md" className="mb-6">
+      {/* Header with title and toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-semibold text-foreground">
+          {selectedPeriod === "week" ? "Weekly" : "Monthly"} Progress
+        </h3>
+        
+        {/* Period toggle button */}
+        <button
+          onClick={() => setSelectedPeriod(selectedPeriod === "week" ? "month" : "week")}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+        >
+          {selectedPeriod === "week" ? "Month" : "Week"}
+        </button>
       </div>
       
-      <div className="p-6 space-y-6">
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="space-y-3">
-                <div className="flex justify-between">
-                  <div className="h-5 w-20 skeleton" />
-                  <div className="h-5 w-12 skeleton" />
-                </div>
-                <div className="h-3 w-full skeleton" />
-                <div className="h-4 w-32 skeleton" />
-              </div>
-            ))}
+      {isLoading ? (
+        <div className="space-y-6">
+          {/* Progress bar skeleton */}
+          <div className="bg-muted rounded-lg h-20"></div>
+          
+          {/* Goal cards skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-muted rounded-lg h-24"></div>
+            <div className="bg-muted rounded-lg h-24"></div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Workout Goal - Links to Consistency section */}
-            <Link href="/progress#consistency" className="space-y-3 hover:opacity-80 transition-opacity">
-              <div className="flex justify-between">
-                <span className={labelClass}>Workout Goal</span>
-                <span className={valueClass}>
-                  {progress.workoutGoal.current}/{progress.workoutGoal.target}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Main progress bar - empty for now to match template */}
+          <div className="bg-muted rounded-lg h-20 border border-border"></div>
+          
+          {/* Goal cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Volume Goal */}
+            <Card surface="surface" variant="default" padding="sm" className="border border-border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-foreground">Volume Goal</h4>
+                <span className="text-lg font-bold text-foreground">
+                  {progress.volumeGoal.current}/{progress.volumeGoal.target}
                 </span>
               </div>
-              <ProgressBar value={progress.workoutGoal.percentage} />
-              <p className={subtextClass}>
-                {Math.max(0, progress.workoutGoal.target - progress.workoutGoal.current)} more to reach your goal
-              </p>
-            </Link>
-
-            {/* Volume Goal - Links to Volume Tracking section */}
-            <Link href="/progress#volume" className="space-y-3 hover:opacity-80 transition-opacity">
-              <div className="flex justify-between">
-                <span className={labelClass}>Volume Goal</span>
-                <span className={valueClass}>{progress.volumeGoal.current}/{progress.volumeGoal.target}</span>
+              <div className="w-full bg-muted rounded-full h-2 mb-2">
+                <div 
+                  className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, progress.volumeGoal.percentage)}%` }}
+                ></div>
               </div>
-              <ProgressBar value={progress.volumeGoal.percentage} />
-              <p className={subtextClass}>
-                {(parseFloat(progress.volumeGoal.target.replace(/[^\d.]/g, '')) - parseFloat(progress.volumeGoal.current.replace(/[^\d.]/g, ''))).toFixed(1)}k kg remaining
+              <p className="text-sm text-muted-foreground">
+                {(parseFloat(progress.volumeGoal.target.replace('k', '')) * 1000 - 
+                  parseFloat(progress.volumeGoal.current.replace('k', '')) * 1000).toFixed(0)}kg remaining
               </p>
-            </Link>
+            </Card>
 
-            {/* Consistency - Links to Consistency section */}
-            <Link href="/progress#consistency" className="space-y-3 hover:opacity-80 transition-opacity">
-              <div className="flex justify-between">
-                <span className={labelClass}>Consistency</span>
-                <span className={valueClass}>{progress.consistency.percentage}%</span>
+            {/* Consistency */}
+            <Card surface="surface" variant="default" padding="sm" className="border border-border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-foreground">Consistency</h4>
+                <span className="text-lg font-bold text-foreground">
+                  {progress.consistency.current.toFixed(0)}%/100%
+                </span>
               </div>
-              <ProgressBar value={progress.consistency.percentage} />
-              <p className={subtextClass}>{progress.consistency.message}</p>
+              <div className="w-full bg-muted rounded-full h-2 mb-2">
+                <div 
+                  className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, progress.consistency.percentage)}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Let's improve consistency together
+              </p>
+            </Card>
+          </div>
+
+          {/* View Full Progress Button */}
+          <div className="pt-4">
+            <Link 
+              href="/progress"
+              className="flex items-center justify-center gap-2 w-full py-3 px-4 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors border border-border"
+            >
+              View Full Progress Dashboard
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
           </div>
-        )}
-
-        {/* View Full Progress Dashboard Button */}
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <Link 
-            href="/progress"
-            className={`inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              theme !== "system" || (theme === "system" && resolvedTheme === "dark")
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
-            }`}
-          >
-            View Full Progress Dashboard
-            <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
         </div>
-      </div>
-    </div>
+      )}
+    </Card>
   );
 }

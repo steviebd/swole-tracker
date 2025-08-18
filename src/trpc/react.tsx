@@ -9,7 +9,7 @@ import SuperJSON from "superjson";
 
 import { type AppRouter } from "~/server/api/root";
 import { createQueryClient } from "./query-client";
-import { setupOfflinePersistence } from "~/lib/offline-storage";
+import { setupEnhancedOfflinePersistence } from "~/lib/enhanced-offline-storage";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
 const getQueryClient = () => {
@@ -42,9 +42,10 @@ export type RouterOutputs = inferRouterOutputs<AppRouter>;
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
 
-  // Setup offline persistence
+  // Setup enhanced offline persistence with background sync
   useEffect(() => {
-    setupOfflinePersistence(queryClient);
+    const cleanup = setupEnhancedOfflinePersistence(queryClient);
+    return cleanup;
   }, [queryClient]);
 
   const [trpcClient] = useState(() =>

@@ -1,19 +1,108 @@
 @import "tailwindcss";
-@import "./tokens/base.css";
-@import "./tokens/light.css";
+@import "./tokens/generated-base.css";
+@import "./tokens/generated-light.css";
 @import "./tokens/dark.css";
 
 
 @theme {
-  /* Typography */
-  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-display: var(--font-display-internal, var(--font-ui));
+  /* Typography mapped from design tokens */
+  --font-sans: var(--font-fontFamily-sans);
+  --font-display: var(--font-fontFamily-display);
+  
+  /* Tailwind color mappings to our semantic tokens */
+  --color-primary-50: hsl(from var(--color-primary-default) h s calc(l + 45%));
+  --color-primary-100: hsl(from var(--color-primary-default) h s calc(l + 35%));
+  --color-primary-200: hsl(from var(--color-primary-default) h s calc(l + 25%));
+  --color-primary-300: hsl(from var(--color-primary-default) h s calc(l + 15%));
+  --color-primary-400: hsl(from var(--color-primary-default) h s calc(l + 5%));
+  --color-primary-500: var(--color-primary-default);
+  --color-primary-600: var(--color-primary-hover);
+  --color-primary-700: var(--color-primary-active);
+  --color-primary-800: hsl(from var(--color-primary-active) h s calc(l - 10%));
+  --color-primary-900: hsl(from var(--color-primary-active) h s calc(l - 20%));
+  --color-primary-950: hsl(from var(--color-primary-active) h s calc(l - 30%));
+  
+  /* Surface colors */
+  --color-background: var(--color-background-app);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-background-card);
+  --color-popover: var(--color-background-surface);
+  --color-muted: var(--color-background-surface);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-border: var(--color-border-default);
+  --color-input: var(--color-background-surface);
+  --color-ring: var(--color-primary-default);
+  
+  /* Semantic state colors */
+  --color-destructive: var(--color-status-danger-default);
+  --color-destructive-foreground: var(--color-text-primary);
+  --color-success: var(--color-status-success-default);
+  --color-success-foreground: var(--color-text-primary);
+  --color-warning: var(--color-status-warning-default);
+  --color-warning-foreground: var(--color-text-primary);
+  --color-info: var(--color-status-info-default);
+  --color-info-foreground: var(--color-text-primary);
+  
+  /* Surface hierarchy backgrounds */
+  --color-bg-app: var(--color-background-app);
+  --color-bg-surface: var(--color-background-surface);
+  --color-bg-card: var(--color-background-card);
+  
+  /* Status muted colors */
+  --color-success-muted: var(--color-status-success-muted);
+  --color-warning-muted: var(--color-status-warning-muted);
+  --color-danger-muted: var(--color-status-danger-muted);
+  --color-info-muted: var(--color-status-info-muted);
+  
+  /* Border variants */
+  --color-border-muted: var(--color-border-muted);
+  
+  /* Glass effect colors */
+  --color-glass-card: var(--color-glass-card);
+  --color-glass-border: var(--color-glass-border);
+  --color-glass-highlight: var(--color-glass-highlight);
+  
+  /* Border radius from tokens */
+  --radius: var(--radius-md);
+  --radius-token-sm: var(--radius-sm);
+  --radius-token-md: var(--radius-md);
+  --radius-token-lg: var(--radius-lg);
+  --radius-token-card: var(--radius-card);
+  
+  /* Spacing mapped from tokens */
+  --spacing-1: var(--spacing-component-gap-xs);
+  --spacing-2: var(--spacing-component-gap-sm);
+  --spacing-3: var(--spacing-component-gap-md);
+  --spacing-4: var(--spacing-component-gap-lg);
+  --spacing-6: var(--spacing-component-gap-xl);
+  --spacing-8: var(--spacing-component-padding-lg);
+  
+  /* Component spacing tokens */
+  --spacing-component-xs: var(--spacing-component-padding-xs);
+  --spacing-component-sm: var(--spacing-component-padding-sm);
+  --spacing-component-md: var(--spacing-component-padding-md);
+  --spacing-component-lg: var(--spacing-component-padding-lg);
+  --spacing-component-xl: var(--spacing-component-padding-xl);
+  
+  /* Shadow tokens mapped */
+  --shadow-token-xs: var(--shadow-xs);
+  --shadow-token-sm: var(--shadow-sm);
+  --shadow-token-md: var(--shadow-md);
+  --shadow-token-lg: var(--shadow-lg);
+  
+  /* Animation durations */
+  --duration-base: var(--motion-duration-base);
+  --duration-fast: var(--motion-duration-fast);
+  --duration-slow: var(--motion-duration-slow);
 }
 
 /* Light-first base, with dark overrides via html.dark */
 :root {
   color-scheme: light;
+}
+
+html {
+  background-color: var(--color-bg-app);
 }
 
 body {
@@ -30,9 +119,9 @@ html.dark {
   border-radius: var(--radius-card);
   border-width: 1px;
   border-style: solid;
-  background-color: var(--color-card);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background-color: var(--color-background-card);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
   box-shadow: var(--shadow-xs);
 }
 
@@ -40,9 +129,9 @@ html.dark {
   border-radius: var(--radius-card);
   border-width: 1px;
   border-style: solid;
-  background-color: var(--color-card);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background-color: var(--color-background-card);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-default);
   box-shadow: var(--shadow-xs);
   transition-property: all;
   transition-duration: 200ms;
@@ -167,6 +256,43 @@ html.dark {
   color: var(--color-background);
 }
 
+/* Additional semantic utilities */
+.bg-card { background-color: var(--color-card); }
+.border-border { border-color: var(--color-border); }
+.text-muted-foreground { color: var(--color-text-muted); }
+.bg-muted { background-color: color-mix(in oklab, var(--color-bg-surface) 85%, var(--color-foreground) 15%); }
+
+/* Theme-aware utility classes */
+.bg-theme-surface { background-color: var(--color-bg-surface); }
+.bg-theme-app { background-color: var(--color-bg-app); }
+.text-theme-primary { color: var(--color-text); }
+.text-theme-secondary { color: var(--color-text-secondary); }
+.text-theme-muted { color: var(--color-text-muted); }
+
+/* Semantic muted background utilities */
+.bg-success-muted { background-color: var(--color-success-muted); }
+.bg-warning-muted { background-color: var(--color-warning-muted); }
+.bg-danger-muted { background-color: var(--color-danger-muted); }
+.bg-info-muted { background-color: var(--color-info-muted); }
+
+/* Glass effect utilities */
+.glass-card { 
+  background-color: var(--glass-card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.glass-modal {
+  background-color: var(--glass-modal);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* App background layers */
+.page-backdrop { position: fixed; inset: 0; z-index: -1; background: var(--gradient-shell-radial); }
+
+/* Header/footer gradient utility */
+.bg-app-header { background: var(--gradient-header-linear); }
+
 /* Gradient utilities */
 .bg-gradient-subtle {
   background: var(--gradient-subtle);
@@ -187,11 +313,29 @@ html.dark {
   background: var(--gradient-header-linear);
 }
 
+/* New gradient utilities for stats and actions */
+.gradient-stats-orange {
+  background: var(--gradient-universal-stats-orange);
+}
+.gradient-stats-red {
+  background: var(--gradient-universal-stats-red);
+}
+.gradient-stats-amber {
+  background: var(--gradient-universal-warning);
+}
+.gradient-action-primary {
+  background: var(--gradient-universal-action-primary);
+}
+
 /* Primary button - tokenized */
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
   background-image: var(--btn-primary-bg, none);
-  background-color: var(--btn-primary-bg-color, var(--color-primary));
+  background-color: var(--btn-primary-bg-color, var(--color-primary-default));
   color: var(--btn-primary-fg);
   border: 1px solid var(--btn-primary-border, transparent);
 }
@@ -206,33 +350,94 @@ html.dark {
   box-shadow: var(--shadow-focus);
 }
 
+/* Button size variants using design tokens */
+.btn-primary.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-primary.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 /* Secondary, ghost, destructive, success buttons */
 .btn-secondary {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
   background-color: var(--btn-secondary-bg, transparent);
-  color: var(--btn-secondary-fg, var(--color-text));
-  border: 1px solid var(--btn-secondary-border, var(--color-border));
+  color: var(--btn-secondary-fg, var(--color-text-primary));
+  border: 1px solid var(--btn-secondary-border, var(--color-border-default));
 }
 .btn-secondary:hover {
-  background-color: var(--btn-secondary-bg-hover, color-mix(in oklab, var(--color-bg-surface) 85%, white 15%));
+  background-color: var(--btn-secondary-bg-hover, color-mix(in oklab, var(--color-background-surface) 85%, white 15%));
 }
+.btn-secondary.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-secondary.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 .btn-ghost {
-  @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors;
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
   background-color: transparent;
   color: var(--btn-ghost-fg, var(--color-text-secondary));
 }
 .btn-ghost:hover {
-  background-color: color-mix(in oklab, var(--color-bg-surface) 80%, black 20%);
+  background-color: color-mix(in oklab, var(--color-background-surface) 80%, black 20%);
 }
+.btn-ghost.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-ghost.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 .btn-destructive {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
-  background-color: var(--color-danger);
-  color: var(--btn-destructive-fg, var(--color-text));
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
+  background-color: var(--color-status-danger-default);
+  color: var(--btn-destructive-fg, var(--color-text-primary));
 }
+.btn-destructive.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-destructive.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
+}
+
 .btn-success {
-  @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
-  background-color: var(--color-success);
-  color: var(--btn-destructive-fg, var(--color-text));
+  @apply inline-flex items-center justify-center transition-colors;
+  padding: var(--component-button-padding-y) var(--component-button-padding-x);
+  border-radius: var(--component-button-borderRadius);
+  font-size: var(--component-button-fontSize);
+  font-weight: var(--component-button-fontWeight);
+  background-color: var(--color-status-success-default);
+  color: var(--btn-success-fg, var(--color-text-primary));
+}
+.btn-success.text-sm {
+  padding: var(--spacing-component-xs) var(--spacing-component-sm);
+  font-size: var(--font-fontSize-sm);
+}
+.btn-success.text-base {
+  padding: var(--spacing-component-sm) var(--spacing-component-lg);
+  font-size: var(--font-fontSize-base);
 }
 
 /* Link styles with primary accent */
@@ -306,7 +511,8 @@ html.dark {
   @apply min-w-max w-full;
 }
 
-/* Prevent horizontal overflow on mobile */
+/* Enhanced responsive breakpoint system */
+/* Mobile-first responsive utilities */
 @media (max-width: 640px) {
   .grid {
     min-width: 0;
@@ -342,21 +548,81 @@ html.dark {
     flex: 1;
   }
   
-  /* Mobile-first gap adjustments for cards */
-  .mobile-grid {
-    @apply grid gap-2;
+  /* Stats cards mobile optimization */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
   
-  @media (min-width: 640px) {
-    .mobile-grid {
-      gap: 0.75rem;
-    }
+  /* Progress cards mobile stacking */
+  .progress-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Tablet breakpoint optimizations */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
   }
   
-  @media (min-width: 768px) {
-    .mobile-grid {
-      gap: 1rem;
-    }
+  .progress-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  /* Tablet-specific card padding */
+  .tablet-card-spacing {
+    padding: 1.25rem;
+  }
+  
+  /* Enhanced button sizes for tablet */
+  .tablet-button {
+    min-height: 48px;
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .progress-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  /* Enhanced desktop card spacing */
+  .desktop-card-spacing {
+    padding: 2rem;
+  }
+  
+  /* Desktop hover states */
+  .desktop-enhanced-hover:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 25px 50px -10px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Large desktop optimizations */
+@media (min-width: 1440px) {
+  .stats-grid {
+    gap: 2rem;
+  }
+  
+  .progress-grid {
+    gap: 2rem;
+  }
+  
+  /* Enhanced large screen layouts */
+  .large-desktop-layout {
+    max-width: 1400px;
+    margin: 0 auto;
   }
 }
 
@@ -367,6 +633,38 @@ html.dark {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ===================== */
+/* Energetic Fitness Gradient Utilities */
+/* ===================== */
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, var(--color-primary-default) 0%, var(--color-accent-default) 100%);
+    /* Creates amber to orange gradient for primary actions */
+  }
+  .gradient-secondary {
+    background: linear-gradient(135deg, var(--color-secondary-default) 0%, var(--color-primary-default) 100%);
+    /* Creates golden to amber gradient for secondary elements */
+  }
+  .gradient-card {
+    background: linear-gradient(135deg, var(--color-background-card) 0%, color-mix(in srgb, var(--color-background-card) 95%, var(--color-primary-default) 5%) 100%);
+    /* Subtle gradient with 5% energetic color tint for enhanced card depth */
+  }
+  .gradient-text-primary {
+    background: linear-gradient(135deg, var(--color-primary-default) 0%, var(--color-accent-default) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Energetic gradient text effect for headings */
+  }
+  .gradient-text-accent {
+    background: linear-gradient(135deg, var(--color-secondary-default) 0%, var(--color-primary-default) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    /* Secondary gradient text effect */
   }
 }
 
@@ -477,5 +775,328 @@ html.dark {
   .slider-primary::-moz-range-track {
     height: 14px;
     border-radius: 7px;
+  }
+}
+
+/* ===================== */
+/* Phase 6 Animation Utilities */
+/* ===================== */
+
+/* Card interaction animations */
+.animate-card-hover {
+  transition: transform var(--duration-base), box-shadow var(--duration-base);
+}
+
+.animate-card-hover:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Smooth scale animations for interactive elements */
+.animate-smooth-scale {
+  transition: transform var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
+}
+
+.animate-smooth-scale:hover {
+  transform: scale(1.02);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress bar fill animations */
+.animate-progress-fill {
+  transition: width var(--duration-slow) ease-out, background-color var(--duration-base) ease-out;
+}
+
+.animate-progress-smooth {
+  transition: all var(--duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Button hover enhancements */
+.animate-button-hover {
+  transition: all var(--duration-fast) ease-out;
+}
+
+.animate-button-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.animate-gradient-hover {
+  transition: background var(--duration-base) ease-out, transform var(--duration-fast) ease-out;
+  background-size: 200% 200%;
+}
+
+.animate-gradient-hover:hover {
+  background-position: 100% 0;
+  transform: scale(1.01);
+}
+
+/* Achievement badge animations */
+.animate-badge-entrance {
+  animation: badge-appear var(--duration-base) ease-out;
+}
+
+.animate-badge-pulse {
+  animation: badge-pulse 2s infinite;
+}
+
+/* Loading state animations */
+.animate-loading-dots {
+  animation: loading-dots 1.4s infinite ease-in-out;
+}
+
+.animate-loading-spin {
+  animation: loading-spin 1s linear infinite;
+}
+
+/* Keyframe definitions */
+@keyframes badge-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+@keyframes loading-dots {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes loading-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slide-in animations for modals and panels */
+.animate-slide-in-right {
+  animation: slide-in-right var(--duration-base) ease-out;
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up var(--duration-base) ease-out;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Subtle reveal animations for content */
+.animate-fade-in {
+  animation: fade-in var(--duration-base) ease-out;
+}
+
+.animate-fade-in-delay {
+  animation: fade-in var(--duration-base) ease-out var(--duration-fast);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced motion for existing card-interactive */
+.card-interactive {
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast), background-color var(--duration-fast);
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+}
+
+/* Enhanced micro-interactions */
+.animate-micro-bounce {
+  transition: transform var(--duration-fast) cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-micro-bounce:active {
+  transform: scale(0.95);
+}
+
+.animate-icon-spin {
+  transition: transform var(--duration-base) ease-in-out;
+}
+
+.animate-icon-spin:hover {
+  transform: rotate(15deg);
+}
+
+.animate-text-glow {
+  transition: text-shadow var(--duration-base) ease-out;
+}
+
+.animate-text-glow:hover {
+  text-shadow: 0 0 8px currentColor;
+}
+
+/* Enhanced progress bar animations with stagger effect */
+.animate-progress-stagger {
+  transition: width var(--duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: var(--stagger-delay, 0ms);
+}
+
+/* Stats card number counter animation */
+.animate-number-count {
+  transition: transform var(--duration-fast) ease-out;
+}
+
+.animate-number-count.counting {
+  transform: scale(1.05);
+}
+
+/* Achievement badge special effects */
+.animate-badge-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-badge-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left var(--duration-slow) ease-out;
+}
+
+.animate-badge-shine:hover::after {
+  left: 100%;
+}
+
+/* Card depth animation on focus */
+.animate-card-depth {
+  transition: all var(--duration-base) ease-out;
+}
+
+.animate-card-depth:focus-within {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+}
+
+/* Ripple effect for touch interactions */
+.animate-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width var(--duration-base) ease-out, height var(--duration-base) ease-out;
+}
+
+.animate-ripple:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Accessibility-first animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-card-hover,
+  .animate-smooth-scale,
+  .animate-button-hover,
+  .animate-gradient-hover,
+  .animate-progress-fill,
+  .animate-progress-smooth,
+  .animate-micro-bounce,
+  .animate-icon-spin,
+  .animate-text-glow,
+  .animate-progress-stagger,
+  .animate-number-count,
+  .animate-badge-shine,
+  .animate-card-depth,
+  .animate-ripple {
+    transition: none;
+  }
+  
+  .animate-card-hover:hover,
+  .animate-smooth-scale:hover,
+  .animate-button-hover:hover,
+  .animate-gradient-hover:hover,
+  .animate-micro-bounce:active,
+  .animate-icon-spin:hover,
+  .animate-text-glow:hover,
+  .animate-card-depth:focus-within {
+    transform: none;
+    text-shadow: none;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .animate-badge-entrance,
+  .animate-badge-pulse,
+  .animate-loading-dots,
+  .animate-loading-spin,
+  .animate-slide-in-right,
+  .animate-slide-in-up,
+  .animate-fade-in,
+  .animate-fade-in-delay {
+    animation: none;
+  }
+  
+  .animate-badge-shine::after,
+  .animate-ripple::before {
+    display: none;
   }
 }

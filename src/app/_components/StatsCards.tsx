@@ -1,134 +1,187 @@
 "use client";
 
 import { api } from "~/trpc/react";
+import { Card } from "~/components/ui/card";
+import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
+import { calculateStreak, getStreakBadge, formatAchievementBadge, type Achievement } from "~/lib/achievements";
+
+interface StatsCard {
+  id: string;
+  title: string;
+  value: string | number;
+  unit: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  badge?: Achievement | null;
+}
 
 export function StatsCards() {
-  
   // Get real data from ProgressDashboard API
-  const { isLoading: consistencyLoading } = api.progress.getConsistencyStats.useQuery({
-    timeRange: "week",
-  });
-  
-  const { data: volumeData, isLoading: volumeLoading } = api.progress.getVolumeProgression.useQuery({
-    timeRange: "week",
-  });
+  const { isLoading: consistencyLoading } =
+    api.progress.getConsistencyStats.useQuery({
+      timeRange: "week",
+    });
 
-  const { data: workoutDates, isLoading: workoutDatesLoading } = api.progress.getWorkoutDates.useQuery({
-    timeRange: "week",
-  });
+  const { data: volumeData, isLoading: volumeLoading } =
+    api.progress.getVolumeProgression.useQuery({
+      timeRange: "week",
+    });
+
+  const { data: workoutDates, isLoading: workoutDatesLoading } =
+    api.progress.getWorkoutDates.useQuery({
+      timeRange: "week",
+    });
 
   const isLoading = consistencyLoading || volumeLoading || workoutDatesLoading;
 
   // Calculate stats from real data
   const calculateStats = () => {
     const workoutsThisWeek = workoutDates?.length || 0;
-    
+
     // Calculate average duration from volume data (estimate based on exercises and sets)
     let avgDuration = "0 min";
     if (volumeData && volumeData.length > 0) {
-      const avgSets = volumeData.reduce((sum, session) => sum + session.totalSets, 0) / volumeData.length;
+      const avgSets =
+        volumeData.reduce((sum, session) => sum + session.totalSets, 0) /
+        volumeData.length;
       // Estimate 3-4 minutes per set including rest
       const estimatedMinutes = Math.round(avgSets * 3.5);
       avgDuration = `${estimatedMinutes} min`;
     }
-    
+
+    // Calculate streak from workout dates
+    const streakInfo = calculateStreak(workoutDates?.map(date => new Date(date)) || []);
+    const streakBadge = getStreakBadge(streakInfo);
+
     // Weekly goal progress (target 3 workouts per week)
     const weeklyGoal = {
       current: workoutsThisWeek,
-      target: 3
+      target: 3,
     };
-    
+
     return {
       workoutsThisWeek,
       avgDuration,
-      weeklyGoal
+      weeklyGoal,
+      streakInfo,
+      streakBadge,
     };
   };
 
   const stats = calculateStats();
 
-  const cardClass = "card-interactive border-border shadow-lg";
-
-  const iconBgClass = (color: string) => `bg-${color}-500/20`;
-
-  const iconClass = (color: string) => `text-${color}-400`;
-
-  const labelClass = "text-sm font-medium transition-colors duration-300 text-muted-foreground";
-
-  
+  // Card definitions with icons and styling
+  const cards: StatsCard[] = [
+    {
+      id: "workouts",
+      title: "This Week",
+      value: stats.workoutsThisWeek,
+      unit: "Workouts",
+      icon: TrendingUp,
+      gradient: "gradient-stats-orange",
+    },
+    {
+      id: "duration",
+      title: "Avg Duration",
+      value: stats.avgDuration,
+      unit: "",
+      icon: Clock,
+      gradient: "gradient-stats-red",
+    },
+    {
+      id: "streak",
+      title: "Current Streak",
+      value: stats.streakInfo.current,
+      unit: ` day${stats.streakInfo.current === 1 ? '' : 's'}`,
+      icon: Flame,
+      gradient: "gradient-stats-orange",
+      badge: stats.streakBadge,
+    },
+    {
+      id: "goal",
+      title: "Weekly Goal",
+      value: stats.weeklyGoal.current,
+      unit: `/${stats.weeklyGoal.target}`,
+      icon: Calendar,
+      gradient: "gradient-stats-amber",
+    },
+  ];
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className={cardClass}>
-            <div className="p-3 sm:p-4 md:p-6">
-              <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl skeleton" />
-                <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
-                  <div className="h-3 sm:h-4 w-12 sm:w-14 md:w-16 skeleton" />
-                  <div className="h-4 sm:h-5 md:h-6 w-14 sm:w-16 md:w-20 skeleton" />
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} surface="card" variant="default" padding="md" className="animate-pulse">
+            <div className="space-y-4">
+              <div className="skeleton h-10 w-10 rounded-lg" />
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-20" />
+                <div className="skeleton h-8 w-16" />
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-      {/* This Week Workouts */}
-      <div className={cardClass}>
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass("green")}`}>
-              <svg className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${iconClass("green")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={labelClass}>This Week</p>
-              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.workoutsThisWeek} Workouts</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {cards.map((card) => {
+        const IconComponent = card.icon;
+        
+        // Map gradient classes to specific gradient styles
+        const getIconGradient = (gradient: string) => {
+          switch (gradient) {
+            case "gradient-stats-orange":
+              return "bg-gradient-to-br from-orange-500 to-red-500";
+            case "gradient-stats-red":
+              return "bg-gradient-to-br from-red-500 to-pink-500";
+            case "gradient-stats-amber":
+              return "bg-gradient-to-br from-amber-500 to-orange-500";
+            default:
+              return "bg-gradient-to-br from-blue-500 to-purple-500";
+          }
+        };
 
-      {/* Average Duration */}
-      <div className={cardClass}>
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass("blue")}`}>
-              <svg className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${iconClass("blue")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+        return (
+          <Card
+            key={card.id}
+            surface="card"
+            variant="default"
+            padding="md"
+            interactive={true}
+            className="transition-all hover:shadow-md"
+          >
+            {/* Icon with gradient background */}
+            <div className={`w-10 h-10 rounded-lg ${getIconGradient(card.gradient)} flex items-center justify-center mb-4`}>
+              <IconComponent className="h-5 w-5 text-white" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className={labelClass}>Avg Duration</p>
-              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.avgDuration}</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Weekly Goal */}
-      <div className={cardClass}>
-        <div className="p-3 sm:p-4 md:p-6">
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass("purple")}`}>
-              <svg className={`w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 ${iconClass("purple")}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            {/* Stats content */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {card.title}
+                </p>
+                {card.badge && (
+                  <span className={`${formatAchievementBadge(card.badge).className} text-xs px-1.5 py-0.5`}>
+                    {formatAchievementBadge(card.badge).icon}
+                  </span>
+                )}
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {card.value}
+                {card.unit && (
+                  <span className="ml-1 text-lg font-normal text-muted-foreground">
+                    {card.unit}
+                  </span>
+                )}
+              </p>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className={labelClass}>Weekly Goal</p>
-              <p className="text-base sm:text-lg md:text-2xl font-bold transition-colors duration-300 truncate text-foreground">{stats.weeklyGoal.current}/{stats.weeklyGoal.target}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

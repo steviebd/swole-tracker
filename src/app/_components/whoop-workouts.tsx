@@ -12,6 +12,11 @@ import { WhoopSleep } from "./whoop-sleep";
 import { WhoopCycles } from "./whoop-cycles";
 import { WhoopProfile } from "./whoop-profile";
 import { WhoopBodyMeasurements } from "./whoop-body-measurements";
+import { Card, CardContent, CardTitle } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
@@ -281,93 +286,81 @@ export function WhoopWorkouts() {
     <div className="space-y-8">
       {/* Sync Controls */}
       <div className="flex justify-center">
-        <div className="card max-w-md rounded-lg p-6 text-center">
-          {integrationStatus?.isConnected ? (
-            <div className="space-y-4">
-              <div style={{ color: 'var(--color-success)' }}>
-                ✅ Connected to Whoop
-              </div>
-              <div className="space-y-3">
-                <button
-                  onClick={handleSync}
-                  disabled={syncLoading || cleanupLoading || rateLimit?.remaining === 0}
-                  className="btn-primary w-full px-6 py-3 disabled:opacity-50"
-                >
-                  {syncLoading ? "Syncing All Data..." : "Sync All WHOOP Data"}
-                </button>
-                
-                <button
-                  onClick={handleCleanup}
-                  disabled={syncLoading || cleanupLoading}
-                  className="btn-secondary w-full px-4 py-2 text-sm disabled:opacity-50"
-                >
-                  {cleanupLoading ? "Cleaning Up..." : "🧹 Remove Duplicate Workouts"}
-                </button>
-              </div>
-              {rateLimit && (
-                <div className="text-secondary text-center text-xs">
-                  {rateLimit.remaining > 0
-                    ? `${rateLimit.remaining} syncs remaining this hour`
-                    : `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`}
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            {integrationStatus?.isConnected ? (
+              <div className="space-y-4">
+                <Alert>
+                  <AlertDescription className="text-center">
+                    ✅ Connected to Whoop
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleSync}
+                    disabled={syncLoading || cleanupLoading || rateLimit?.remaining === 0}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {syncLoading ? "Syncing All Data..." : "Sync All WHOOP Data"}
+                  </Button>
+                  
+                  <Button
+                    onClick={handleCleanup}
+                    disabled={syncLoading || cleanupLoading}
+                    variant="secondary"
+                    className="w-full"
+                    size="sm"
+                  >
+                    {cleanupLoading ? "Cleaning Up..." : "🧹 Remove Duplicate Workouts"}
+                  </Button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div style={{ color: 'var(--color-danger)' }}>
-                ❌ Not connected to Whoop
+                {rateLimit && (
+                  <div className="text-muted-foreground text-center text-xs">
+                    {rateLimit.remaining > 0
+                      ? `${rateLimit.remaining} syncs remaining this hour`
+                      : `Rate limit reached. Resets at ${new Date(rateLimit.resetTime).toLocaleTimeString()}`}
+                  </div>
+                )}
               </div>
-              <Link
-                href="/api/auth/whoop/authorize"
-                className="btn-primary block w-full px-6 py-3 text-center"
-                prefetch={false}
-              >
-                Connect Whoop Now
-              </Link>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="space-y-4">
+                <Alert variant="destructive">
+                  <AlertDescription className="text-center">
+                    ❌ Not connected to Whoop
+                  </AlertDescription>
+                </Alert>
+                <Button asChild className="w-full" size="lg">
+                  <Link href="/api/auth/whoop/authorize" prefetch={false}>
+                    Connect Whoop Now
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Messages */}
       {message && (
         <div className="flex justify-center">
-          <div
-            className="max-w-md rounded-lg border p-4"
-            style={{
-              backgroundColor: message.type === "success" 
-                ? 'color-mix(in oklab, var(--color-success) 15%, var(--color-bg-surface) 85%)'
-                : 'color-mix(in oklab, var(--color-danger) 15%, var(--color-bg-surface) 85%)',
-              borderColor: message.type === "success" 
-                ? 'var(--color-success)'
-                : 'var(--color-danger)',
-              color: message.type === "success" 
-                ? 'var(--color-success)'
-                : 'var(--color-danger)'
-            }}
+          <Alert 
+            variant={message.type === "success" ? "default" : "destructive"} 
+            className="max-w-md"
           >
-            <div className="flex items-start justify-between">
-              <p className="text-sm">{message.text}</p>
-              <button
+            <AlertDescription className="flex items-start justify-between">
+              <span className="text-sm">{message.text}</span>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setMessage(null)}
-                className="ml-4 text-lg leading-none transition-colors"
-                style={{
-                  color: message.type === "success" 
-                    ? 'var(--color-success)'
-                    : 'var(--color-danger)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.8';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
+                className="ml-4 h-auto p-0 text-lg leading-none hover:bg-transparent"
                 aria-label="Dismiss message"
               >
                 ×
-              </button>
-            </div>
-          </div>
+              </Button>
+            </AlertDescription>
+          </Alert>
         </div>
       )}
 
@@ -378,14 +371,16 @@ export function WhoopWorkouts() {
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Your Workouts</h2>
               {sortedWorkouts.length > 3 && (
-                <button
+                <Button
+                  variant="link"
+                  size="sm"
                   onClick={() => setShowAll(!showAll)}
-                  className="link-primary text-sm no-underline"
+                  className="h-auto p-0 text-sm"
                 >
                   {showAll
                     ? "Show Less"
                     : `Show All (${sortedWorkouts.length})`}
-                </button>
+                </Button>
               )}
             </div>
 
@@ -394,97 +389,88 @@ export function WhoopWorkouts() {
               <div className="flex items-center gap-3">
                 <label
                   htmlFor="sport-filter"
-                  className="text-secondary text-sm"
+                  className="text-muted-foreground text-sm"
                 >
                   Filter by sport:
                 </label>
-                <select
-                  id="sport-filter"
-                  value={sportFilter}
-                  onChange={(e) => setSportFilter(e.target.value)}
-                  className="rounded-lg border px-3 py-2 text-sm transition-colors focus:outline-none"
-                  style={{
-                    backgroundColor: 'var(--color-bg-surface)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text)',
-                    boxShadow: '0 0 0 2px color-mix(in oklab, var(--color-primary) 50%, transparent)'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.boxShadow = 'var(--shadow-focus)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <option value="all">All Sports</option>
-                  {uniqueSports.map((sport) => (
-                    <option key={sport} value={sport}>
-                      {sport}
-                    </option>
-                  ))}
-                </select>
-                <button
+                <Select value={sportFilter} onValueChange={setSportFilter}>
+                  <SelectTrigger className="w-48" id="sport-filter">
+                    <SelectValue placeholder="Select sport" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sports</SelectItem>
+                    {uniqueSports.map((sport) => (
+                      <SelectItem key={sport} value={sport}>
+                        {sport}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={clearPreferences}
-                  className="rounded border px-2 py-1 text-xs transition-colors"
-                  style={{
-                    borderColor: 'var(--color-danger)',
-                    color: 'var(--color-danger)',
-                    backgroundColor: 'transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'color-mix(in oklab, var(--color-danger) 15%, transparent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
+                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                   title="Clear corrupted localStorage data"
                 >
                   Reset Prefs
-                </button>
+                </Button>
               </div>
             )}
           </div>
 
           {workoutsLoading ? (
-            <div className="py-8 text-center">
-              <p className="text-secondary">Loading workouts...</p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="p-6">
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                </Card>
+              ))}
             </div>
           ) : displayedWorkouts.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {displayedWorkouts.map((workout) => (
-                <div
+                <Card
                   key={workout.id}
-                  className="card cursor-pointer p-6 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                  className="cursor-pointer p-6 transition-all duration-200 hover:scale-105 hover:shadow-lg"
                   onClick={(e) => handleWorkoutClick(workout, e)}
                 >
-                  <div className="space-y-3">
-                    <div className="text-muted text-sm">
-                      {formatDateTime(
-                        new Date(workout.start),
-                        new Date(workout.end),
-                      )}
-                    </div>
+                  <CardContent className="p-0">
+                    <div className="space-y-3">
+                      <div className="text-muted-foreground text-sm">
+                        {formatDateTime(
+                          new Date(workout.start),
+                          new Date(workout.end),
+                        )}
+                      </div>
 
-                    <h3 className="text-lg font-semibold">
-                      {workout.sport_name || "Unknown Sport"}
-                    </h3>
+                      <CardTitle className="text-lg">
+                        {workout.sport_name || "Unknown Sport"}
+                      </CardTitle>
 
-                    <div className="text-secondary text-sm">
-                      <span className="font-medium">Score:</span>{" "}
-                      {formatScore(workout.score, workout.score_state)}
+                      <div className="text-muted-foreground text-sm">
+                        <span className="font-medium">Score:</span>{" "}
+                        {formatScore(workout.score, workout.score_state)}
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center">
-              <p className="text-secondary">
-                {sportFilter !== "all" && sortedWorkouts.length === 0
-                  ? "No workouts from whoop"
-                  : 'No workouts found. Click "Sync with Whoop" to fetch your data.'}
-              </p>
-            </div>
+            <Card className="py-8">
+              <CardContent className="text-center">
+                <p className="text-muted-foreground">
+                  {sportFilter !== "all" && sortedWorkouts.length === 0
+                    ? "No workouts from whoop"
+                    : 'No workouts found. Click "Sync with Whoop" to fetch your data.'}
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}

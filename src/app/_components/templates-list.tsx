@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function TemplatesList() {
   const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
@@ -72,10 +75,15 @@ export function TemplatesList() {
     return (
       <div className="space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="glass-surface card animate-pulse p-4">
-            <div className="mb-2 h-4 w-1/3 rounded bg-gray-700"></div>
-            <div className="h-3 w-2/3 rounded bg-gray-700"></div>
-          </div>
+          <Card key={i} padding="md">
+            <CardContent>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     );
@@ -83,64 +91,69 @@ export function TemplatesList() {
 
   if (!templates?.length) {
     return (
-      <div className="glass-surface card py-12 text-center">
-        <div className="mb-4 text-6xl">📋</div>
-        <h3 className="mb-2 text-xl font-semibold">No templates yet</h3>
-        <p className="text-secondary mb-6">
-          Create your first workout template to get started
-        </p>
-        <Link
-          href="/templates/new"
-          className="btn-primary inline-flex px-6 py-3 font-medium"
-        >
-          Create Template
-        </Link>
-      </div>
+      <Card padding="lg" className="text-center">
+        <CardContent className="py-12">
+          <div className="mb-4 text-6xl">📋</div>
+          <CardTitle className="mb-2">No templates yet</CardTitle>
+          <p className="text-muted-foreground mb-6">
+            Create your first workout template to get started
+          </p>
+          <Button asChild>
+            <Link href="/templates/new">
+              Create Template
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-4">
       {templates.map((template) => (
-        <div key={template.id} className="card glass-surface p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{template.name}</h3>
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/templates/${template.id}/edit`}
-                className="link-primary text-sm"
-              >
-                Edit
-              </Link>
-              <button
-                onClick={() => handleDelete(template.id, template.name)}
-                disabled={deleteTemplate.isPending}
-                className="text-sm text-red-400 hover:text-red-300 disabled:opacity-50"
-              >
-                Delete
-              </button>
+        <Card key={template.id} padding="md">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">{template.name}</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/templates/${template.id}/edit`}>
+                    Edit
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(template.id, template.name)}
+                  disabled={deleteTemplate.isPending}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
-          </div>
-          <div className="text-secondary text-sm">
-            {!template.exercises || template.exercises.length === 0 ? (
-              "No exercises"
-            ) : (
-              <>
-                {template.exercises.length} exercise
-                {template.exercises.length !== 1 ? "s" : ""}:{" "}
-                {template.exercises.map((ex) => ex.exerciseName).join(", ")}
-              </>
-            )}
-          </div>
-          <div className="mt-3">
-            <Link
-              href={`/workout/start?templateId=${template.id}`}
-              className="btn-primary inline-flex px-3 py-1 text-sm"
-            >
-              Start Workout
-            </Link>
-          </div>
-        </div>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <p className="text-muted-foreground text-sm">
+              {!template.exercises || template.exercises.length === 0 ? (
+                "No exercises"
+              ) : (
+                <>
+                  {template.exercises.length} exercise
+                  {template.exercises.length !== 1 ? "s" : ""}:{" "}
+                  {template.exercises.map((ex) => ex.exerciseName).join(", ")}
+                </>
+              )}
+            </p>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Button size="sm" asChild>
+              <Link href={`/workout/start?templateId=${template.id}`}>
+                Start Workout
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
       ))}
     </div>
   );

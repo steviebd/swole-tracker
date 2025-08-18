@@ -1,12 +1,8 @@
 "use client";
 
-// Removed unused import
-import { useTheme } from "~/providers/ThemeProvider";
 import { api } from "~/trpc/react";
 
 export function RecentAchievements() {
-  const { theme, resolvedTheme } = useTheme();
-  const isDark = theme !== "system" || (theme === "system" && resolvedTheme === "dark");
 
   // Get recent data for current month
   const { data: personalRecords, isLoading: prLoading } = api.progress.getPersonalRecords.useQuery({
@@ -22,19 +18,9 @@ export function RecentAchievements() {
     timeRange: "month",
   });
 
-  const cardClass = `transition-all duration-300 rounded-xl border shadow-sm ${
-    isDark
-      ? "bg-gray-900 border-gray-800 shadow-lg" 
-      : "bg-background border-gray-200 dark:bg-gray-900 dark:border-gray-800"
-  }`;
-
-  const titleClass = `text-xl font-bold mb-4 ${
-    isDark ? "text-foreground" : "text-foreground dark:text-foreground"
-  }`;
-
-  const subtitleClass = `text-sm font-medium mb-2 ${
-    isDark ? "text-gray-300" : "text-gray-700 dark:text-gray-300"
-  }`;
+  const cardClass = "transition-all duration-300 rounded-xl border shadow-sm bg-card border-border";
+  const titleClass = "text-xl font-bold mb-4 text-theme-primary";
+  const subtitleClass = "text-sm font-medium mb-2 text-theme-secondary";
 
   const getBadgeEmoji = (category: string) => {
     switch (category) {
@@ -159,7 +145,7 @@ export function RecentAchievements() {
                 <p className={`font-bold ${motivationalMessage.color}`}>
                   {motivationalMessage.title}
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                <p className="text-xs text-theme-muted">
                   Keep it up!
                 </p>
               </div>
@@ -171,7 +157,7 @@ export function RecentAchievements() {
       {isLoading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-gray-200 dark:bg-gray-700 h-20 rounded-lg"></div>
+            <div key={i} className="animate-pulse bg-muted h-20 rounded-lg"></div>
           ))}
         </div>
       ) : (
@@ -190,7 +176,7 @@ export function RecentAchievements() {
                   <h3 className={`font-bold ${motivationalMessage.color}`}>
                     {motivationalMessage.title}
                   </h3>
-                  <p className={isDark ? "text-gray-300" : "text-gray-700"}>
+                  <p className="text-theme-secondary">
                     {motivationalMessage.message}
                   </p>
                 </div>
@@ -206,9 +192,7 @@ export function RecentAchievements() {
                 {achievements.map((achievement, index) => (
                   <div 
                     key={index}
-                    className={`relative p-4 rounded-xl border transition-all duration-200 hover:scale-105 ${
-                      isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
-                    }`}
+                    className="relative p-4 rounded-xl border transition-all duration-200 hover:scale-105 border-border bg-surface"
                   >
                     {/* Badge Icon with Gradient */}
                     <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br ${getBadgeColor(achievement.level as "gold" | "silver" | "bronze")} flex items-center justify-center shadow-lg`}>
@@ -220,10 +204,10 @@ export function RecentAchievements() {
                     <div className="flex items-center space-x-3">
                       <span className="text-2xl">{getBadgeEmoji(achievement.category)}</span>
                       <div>
-                        <h4 className={`font-semibold ${isDark ? "text-foreground" : "text-foreground"}`}>
+                        <h4 className="font-semibold text-theme-primary">
                           {achievement.title}
                         </h4>
-                        <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                        <p className="text-sm text-theme-secondary">
                           {achievement.description}
                         </p>
                       </div>
@@ -242,30 +226,28 @@ export function RecentAchievements() {
                 {personalRecords.slice(0, 5).map((record, index) => (
                   <div 
                     key={index}
-                    className={`flex items-center justify-between p-3 rounded-lg transition-all ${
-                      isDark ? "bg-gray-800" : "bg-gray-50"
-                    } hover:scale-[1.02]`}
+                    className="flex items-center justify-between p-3 rounded-lg transition-all bg-surface hover:scale-[1.02]"
                   >
                     <div className="flex items-center space-x-3">
                       <span className="text-xl">
                         {record.recordType === "weight" ? "🏋️" : "📊"}
                       </span>
                       <div>
-                        <p className={`font-medium ${isDark ? "text-foreground" : "text-foreground"}`}>
+                        <p className="font-medium text-theme-primary">
                           {record.exerciseName}
                         </p>
-                        <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                        <p className="text-sm text-theme-secondary">
                           {record.recordType === "weight" ? "Weight PR" : "Volume PR"}
                         </p>
                       </div>
                     </div>
                     
                     <div className="text-right">
-                      <p className={`font-bold ${isDark ? "text-foreground" : "text-foreground"}`}>
+                      <p className="font-bold text-theme-primary">
                         {record.weight}kg × {record.reps}
                       </p>
                       {new Date(record.workoutDate) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) && (
-                        <span className="text-xs text-green-500 animate-pulse">🆕 New!</span>
+                        <span className="text-xs text-success animate-pulse">🆕 New!</span>
                       )}
                     </div>
                   </div>
@@ -279,10 +261,10 @@ export function RecentAchievements() {
             <h3 className={subtitleClass}>Monthly Summary</h3>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Total Workouts */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div className="p-4 rounded-lg bg-surface">
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">🎯</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 className="text-xs font-medium text-theme-secondary">
                     Workouts
                   </h4>
                 </div>
@@ -292,10 +274,10 @@ export function RecentAchievements() {
               </div>
 
               {/* PRs This Month */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div className="p-4 rounded-lg bg-surface">
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">🏆</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 className="text-xs font-medium text-theme-secondary">
                     New PRs
                   </h4>
                 </div>
@@ -305,33 +287,33 @@ export function RecentAchievements() {
               </div>
 
               {/* Current Streak */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div className="p-4 rounded-lg bg-surface">
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">🔥</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 className="text-xs font-medium text-theme-secondary">
                     Streak
                   </h4>
                 </div>
                 <p className="text-2xl font-bold text-orange-500">
                   {consistencyData?.currentStreak || 0}
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                <p className="text-xs text-theme-muted">
                   days
                 </p>
               </div>
 
               {/* Total Volume */}
-              <div className={`p-4 rounded-lg ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
+              <div className="p-4 rounded-lg bg-surface">
                 <div className="flex items-center space-x-2 mb-1">
                   <span className="text-xl">💪</span>
-                  <h4 className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  <h4 className="text-xs font-medium text-theme-secondary">
                     Volume
                   </h4>
                 </div>
                 <p className="text-2xl font-bold text-purple-500">
                   {volumeData ? Math.round((volumeData.reduce((sum, day) => sum + day.totalVolume, 0) / 1000)) : 0}k
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                <p className="text-xs text-theme-muted">
                   kg moved
                 </p>
               </div>
@@ -346,10 +328,10 @@ export function RecentAchievements() {
           <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
           </svg>
-          <p className={`text-lg font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+          <p className="text-lg font-medium mb-2 text-theme-secondary">
             Start Your Achievement Journey
           </p>
-          <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+          <p className="text-sm text-theme-muted">
             Complete workouts this month to unlock achievements and track your progress.
           </p>
         </div>

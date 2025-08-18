@@ -5,46 +5,57 @@
 [data-theme="dark"],
 [data-theme="system"] html.dark,
 html.dark {
-  /* Core colors from mockup */
-  --color-bg-app: oklch(0.145 0 0);           /* Deep black background */
-  --color-bg-surface: oklch(0.205 0 0);       /* Slightly lighter surface */
-  --color-border: oklch(0.269 0 0);           /* Subtle borders */
+  /* Core colors matching template dark theme */
+  --color-bg-app: #0f172a;                    /* Dark slate background */
+  --color-bg-surface: #1e293b;                /* Slightly lighter surface */
+  --color-border: #334155;                    /* Medium slate borders */
   
   /* Foreground/Background tokens for black/white replacement */
-  --color-foreground: oklch(0.985 0 0);       /* Light foreground (replaces white) */
-  --color-background: oklch(0.145 0 0);       /* Dark background (replaces black) */
+  --color-foreground: #f1f5f9;                /* Light gray foreground */
+  --color-background: #0f172a;                /* Dark slate background */
   
   /* Text hierarchy */
-  --color-text: oklch(0.985 0 0);             /* Near white */
-  --color-text-secondary: oklch(0.708 0 0);   /* Muted text */
-  --color-text-muted: oklch(0.556 0 0);       /* Even more muted */
-  --color-card: oklch(0.205 0 0);             /* Card background */
+  --color-text: #f1f5f9;                      /* Light gray */
+  --color-text-secondary: #94a3b8;            /* Light slate secondary */
+  --color-text-muted: #94a3b8;                /* Light slate muted */
+  --color-card: #1e293b;                      /* Dark slate card background */
   
-  /* Primary accent - high contrast white */
-  --color-primary: oklch(0.985 0 0);
-  --color-primary-hover: oklch(0.9 0 0);
-  --color-primary-active: oklch(0.85 0 0);
+  /* Primary accent - bright orange for dark mode */
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-active: #c2410c;
   
-  /* Secondary colors */
-  --color-secondary: oklch(0.269 0 0);
-  --color-secondary-hover: oklch(0.32 0 0);
+  /* Secondary colors - bright yellow */
+  --color-secondary: #fbbf24;
+  --color-secondary-hover: #f59e0b;
   
-  /* Semantic colors */
-  --color-success: oklch(0.696 0.17 162.48);     /* Green */
-  --color-warning: oklch(0.769 0.188 70.08);     /* Yellow */
-  --color-danger: oklch(0.637 0.237 25.331);     /* Red */
-  --color-info: oklch(0.488 0.243 264.376);      /* Blue */
+  /* Semantic colors matching template */
+  --color-success: #10b981;                      /* Green */
+  --color-warning: #fbbf24;                      /* Bright yellow */
+  --color-danger: #ef4444;                       /* Bright red */
+  --color-info: #3b82f6;                         /* Blue */
+
+  /* Muted semantic colors for subtle backgrounds */
+  --color-success-muted: #064e3b;
+  --color-warning-muted: #451a03;  
+  --color-danger-muted: #450a0a;
+  --color-info-muted: #1e3a8a;
   
-  /* Chart colors from mockup */
-  --color-chart-1: oklch(0.488 0.243 264.376);   /* Blue */
-  --color-chart-2: oklch(0.696 0.17 162.48);     /* Green */
-  --color-chart-3: oklch(0.769 0.188 70.08);     /* Yellow */
-  --color-chart-4: oklch(0.627 0.265 303.9);     /* Purple */
-  --color-chart-5: oklch(0.645 0.246 16.439);    /* Orange */
+  /* Chart colors matching template */
+  --color-chart-1: #fb923c;                      /* Bright orange */
+  --color-chart-2: #ef4444;                      /* Bright red */
+  --color-chart-3: #f97316;                      /* Orange */
+  --color-chart-4: #fbbf24;                      /* Bright yellow */
+  --color-chart-5: #94a3b8;                      /* Light slate */
   
   /* Component-specific */
-  --color-input: oklch(0.269 0 0);
-  --color-ring: oklch(0.439 0 0);
+  --color-input: #1e293b;
+  --color-ring: #f97316;
+
+  /* Standardized interaction states */
+  --hover-opacity: 0.8;
+  --active-opacity: 0.6;
+  --disabled-opacity: 0.5;
   
   /* Shadows - darker for better contrast */
   --shadow-xs: 0 1px 2px rgba(0,0,0,.25);
@@ -52,36 +63,45 @@ html.dark {
   --shadow-md: 0 6px 18px rgba(0,0,0,.45);
   --shadow-lg: 0 12px 30px rgba(0,0,0,.55);
   
-  /* Focus shadow with primary color */
-  --shadow-focus: 0 0 0 2px color-mix(in oklab, oklch(0.985 0 0) 30%, transparent);
+  /* Focus shadow with primary color - enhanced visibility */
+  --shadow-focus: 0 0 0 2px #f97316, 0 0 0 4px rgba(249, 115, 22, 0.2);
   
-  /* Gradient tokens for subtle backgrounds */
-  --gradient-subtle: linear-gradient(180deg, oklch(0.145 0 0) 0%, oklch(0.205 0 0) 100%);
-  --gradient-surface: linear-gradient(180deg, oklch(0.205 0 0) 0%, oklch(0.269 0 0) 100%);
-  --gradient-primary: linear-gradient(135deg, oklch(0.985 0 0) 0%, oklch(0.9 0 0) 100%);
-  --gradient-accent: linear-gradient(135deg, oklch(0.488 0.243 264.376) 0%, oklch(0.627 0.265 303.9) 100%);
+  /* Gradient tokens matching template */
+  --gradient-subtle: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  --gradient-surface: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+  --gradient-primary: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  --gradient-accent: linear-gradient(135deg, #fb923c 0%, #ef4444 100%);
   
-  /* App shell gradients - subtle radial for backgrounds */
-  --gradient-shell-radial: radial-gradient(1200px 800px at 30% 20%, oklch(0.145 0 0) 0%, oklch(0.205 0 0) 60%, oklch(0.269 0 0) 100%);
-  --gradient-header-linear: linear-gradient(180deg, oklch(0.205 0 0) 0%, oklch(0.269 0 0) 100%);
+  /* App shell gradients - energetic design */
+  --gradient-shell-radial: radial-gradient(1200px 800px at 30% 20%, #0f172a 0%, #1e293b 60%, #334155 100%);
+  --gradient-header-linear: linear-gradient(180deg, #1e293b 0%, #334155 100%);
   
   /* Glass effect colors for dark theme */
-  --glass-highlight: oklch(0.985 0 0 / 0.05);
-  --glass-accent: oklch(0.488 0.243 264.376 / 0.1);
-  --glass-border-mix: oklch(0.985 0 0 / 0.3);
+  --glass-highlight: rgba(241, 245, 249, 0.05);
+  --glass-accent: rgba(249, 115, 22, 0.1);
+  --glass-border-mix: rgba(241, 245, 249, 0.3);
   
-  /* Button overrides for v1dark theme */
-  --btn-primary-bg-color: oklch(0.985 0 0);
-  --btn-primary-fg: oklch(0.145 0 0);
-  --btn-primary-bg-hover: oklch(0.9 0 0);
-  --btn-primary-bg-active: oklch(0.85 0 0);
+  /* Additional glass effect variants */
+  --glass-card: rgba(30, 41, 59, 0.8);
+  --glass-modal: rgba(15, 23, 42, 0.95);
   
-  --btn-secondary-bg: oklch(0.269 0 0);
-  --btn-secondary-fg: oklch(0.985 0 0);
-  --btn-secondary-border: oklch(0.269 0 0);
-  --btn-secondary-bg-hover: oklch(0.32 0 0);
+  /* Button overrides for energetic dark theme */
+  --btn-primary-bg: var(--gradient-primary);
+  --btn-primary-bg-color: #f97316;
+  --btn-primary-fg: #ffffff;
+  --btn-primary-bg-hover: #ea580c;
+  --btn-primary-bg-active: #c2410c;
   
-  --btn-ghost-fg: oklch(0.708 0 0);
+  --btn-secondary-bg: #334155;
+  --btn-secondary-fg: #f1f5f9;
+  --btn-secondary-border: #334155;
+  --btn-secondary-bg-hover: #475569;
+  
+  --btn-ghost-fg: #94a3b8;
+  
+  /* Button foreground colors for better contrast */
+  --btn-success-fg: #ffffff;
+  --btn-destructive-fg: #ffffff;
 }
 
 /* Ensure dark mode is active for dark theme */
@@ -177,7 +197,7 @@ html.dark .link-primary:hover {
 [data-theme="dark"] .skeleton,
 [data-theme="system"] html.dark .skeleton,
 html.dark .skeleton {
-  background-color: oklch(0.32 0 0);
+  background-color: #334155;
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -202,34 +222,34 @@ html.dark .input-primary:focus {
 [data-theme="dark"] .error-bg,
 [data-theme="system"] html.dark .error-bg,
 html.dark .error-bg {
-  background-color: oklch(0.25 0.1 27.325);
+  background-color: #450a0a;
 }
 
 [data-theme="dark"] .error-text,
 [data-theme="system"] html.dark .error-text,
 html.dark .error-text {
-  color: oklch(0.7 0.2 27.325);
+  color: #fca5a5;
 }
 
 /* Success states */
 [data-theme="dark"] .success-bg,
 [data-theme="system"] html.dark .success-bg,
 html.dark .success-bg {
-  background-color: oklch(0.25 0.08 142.5);
+  background-color: #064e3b;
 }
 
 [data-theme="dark"] .success-text,
 [data-theme="system"] html.dark .success-text,
 html.dark .success-text {
-  color: oklch(0.7 0.15 142.5);
+  color: #86efac;
 }
 
 /* Interactive card hover states */
 [data-theme="dark"] .card-interactive:hover,
 [data-theme="system"] html.dark .card-interactive:hover,
 html.dark .card-interactive:hover {
-  background-color: oklch(0.25 0 0);
-  border-color: oklch(0.35 0 0);
+  background-color: #334155;
+  border-color: #475569;
   transform: translateY(-1px);
 }
 
@@ -262,6 +282,31 @@ html.dark .focus-primary:focus {
 [data-theme="dark"] .loading-overlay,
 [data-theme="system"] html.dark .loading-overlay,
 html.dark .loading-overlay {
-  background-color: color-mix(in oklab, var(--color-background) 80%, transparent);
+  background-color: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(2px);
+}
+
+/* Additional template-specific gradient utilities for dark theme */
+[data-theme="dark"] .gradient-stats-orange,
+[data-theme="system"] html.dark .gradient-stats-orange,
+html.dark .gradient-stats-orange {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+}
+
+[data-theme="dark"] .gradient-stats-red,
+[data-theme="system"] html.dark .gradient-stats-red,
+html.dark .gradient-stats-red {
+  background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+}
+
+[data-theme="dark"] .gradient-stats-amber,
+[data-theme="system"] html.dark .gradient-stats-amber,
+html.dark .gradient-stats-amber {
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+}
+
+[data-theme="dark"] .gradient-action-primary,
+[data-theme="system"] html.dark .gradient-action-primary,
+html.dark .gradient-action-primary {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
 }

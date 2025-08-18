@@ -9,6 +9,7 @@ process.env.NEXT_PUBLIC_SUPABASE_KEY ??= "supabase_test_key";
 
 // Ensure rate-limit middleware is mocked before any app imports to avoid env-core errors in jsdom
 import "./setup.rate-limit-mocks";
+import { vi } from "vitest";
 
 // Also stub server-side env so @t3-oss/env-core proxy does not throw under jsdom.
 // These values are safe test defaults and prevent "Attempted to access a server-side env on the client".
@@ -36,6 +37,15 @@ process.env.AI_GATEWAY_PROMPT ??= "Tell a short fitness-themed joke.";
 // process.env.NODE_ENV ||= 'test';
 
 import { type AppRouter, createCaller } from "~/server/api/root";
+
+// Declare mockState before any vi.mock calls that reference it
+const mockState: {
+  db: unknown;
+  user: { id?: string } | null;
+} = {
+  db: undefined,
+  user: null,
+};
 
 // IMPORTANT: Provide a stub for the DB module before it is imported by trpc.ts/router files.
 // We mock the module id that trpc.ts imports: "~/server/db" resolves to "src/server/db/index.ts".
@@ -96,7 +106,6 @@ vi.mock("~/lib/rate-limit-middleware", async () => {
   };
 });
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
-import { vi } from "vitest";
 
 // Minimal shape of context from createTRPCContext in src/server/api/trpc.ts
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -216,6 +225,8 @@ type SelectChain = {
   limit: (_v?: unknown) => SelectChain;
   with: (_v?: unknown) => SelectChain;
   execute: () => Promise<unknown[]>;
+  then: <T>(onFulfilled?: (value: unknown[]) => T) => Promise<T>;
+  catch: <T>(onRejected?: (reason: any) => T) => Promise<T>;
   _table?: string;
 };
 
@@ -674,16 +685,22 @@ export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
           // avoid setting a non-string to prevent base-to-string warning
           chain._table = typeof name === "string" ? name : undefined;
           return chain;
-        }) as unknown as SelectChain["from"],
-        where: vi.fn(() => chain) as unknown as SelectChain["where"],
-        innerJoin: vi.fn(() => chain) as unknown as SelectChain["innerJoin"],
-        orderBy: vi.fn(() => chain) as unknown as SelectChain["orderBy"],
-        limit: vi.fn(() => chain) as unknown as SelectChain["limit"],
-        with: vi.fn(() => chain) as unknown as SelectChain["with"],
+        }),
+        where: vi.fn(() => chain),
+        innerJoin: vi.fn(() => chain),
+        orderBy: vi.fn(() => chain),
+        limit: vi.fn(() => chain),
+        with: vi.fn(() => chain),
         execute: vi.fn(async (): Promise<unknown[]> => {
           // Always return an array to avoid unsafe any return
           return [];
         }) as unknown as SelectChain["execute"],
+        then: <T>(onFulfilled?: (value: unknown[]) => T) => {
+          return Promise.resolve([]).then(onFulfilled);
+        },
+        catch: <T>(onRejected?: (reason: any) => T) => {
+          return Promise.resolve([]).catch(onRejected);
+        },
         _table: undefined as string | undefined,
       };
       return chain;
@@ -893,14 +910,6 @@ export function createMockUser(
  * IMPORTANT: Module mocks must be defined before importing modules that consume them.
  * These vi.mock calls are hoisted by Vitest. We store mutable references that tests can set.
  */
-const mockState: {
-  db: unknown;
-  user: { id?: string } | null;
-} = {
-  db: undefined,
-  user: null,
-};
-
 // Hoisted mocks - using Supabase auth instead of Clerk
 vi.mock("~/lib/supabase-server", async () => {
   return {

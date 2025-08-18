@@ -1,23 +1,31 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vitest/config";
-import { resolve } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
+import path from "path";
 
 export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
+    environmentOptions: {
+      jsdom: {
+        resources: "usable",
+        pretendToBeVisual: true,
+      },
+    },
     include: [
-      "src/__tests__/unit/**/*.test.{ts,tsx}",
-      "src/__tests__/integration/**/*.test.{ts,tsx}"
+      "src/__tests__/**/*.test.{ts,tsx}"
     ],
     exclude: [
       "**/*.spec.{ts,tsx}",
       "src/__e2e__/**/*",
+      "**/*e2e*",
       "**/node_modules/**",
-      "**/dist/**"
+      "**/dist/**",
+      "**/*.e2e.{ts,tsx}",
+      "**/e2e/**/*",
+      "**/playwright/**/*",
+      "playwright.config.ts"
     ],
     coverage: {
       provider: "v8",
@@ -55,7 +63,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "~": resolve(__dirname, "./src"),
+      "~": path.resolve(process.cwd(), "./src"),
     },
   },
 });

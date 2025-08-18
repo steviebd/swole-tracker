@@ -168,12 +168,12 @@ export function ExerciseLinkPicker({
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4"
       onKeyDown={onKeyDown}
     >
-      <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-700 p-3">
-          <div className="text-sm font-medium text-gray-200">Link exercise</div>
+      <div className="w-full max-w-lg rounded-lg border border-border bg-background shadow-xl">
+        <div className="flex items-center justify-between border-b border-border p-3">
+          <div className="text-sm font-medium text-foreground">Link exercise</div>
           <button
             onClick={onClose}
-            className="rounded px-2 py-1 text-sm text-gray-300 hover:bg-gray-700"
+            className="rounded px-2 py-1 text-sm text-secondary hover:bg-muted"
           >
             Close
           </button>
@@ -185,7 +185,7 @@ export function ExerciseLinkPicker({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search master exercises"
-            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm outline-none placeholder:text-gray-500 focus:border-gray-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-[color:var(--color-primary)]"
           />
           {isExactMatch && (
             <div className="mt-2 rounded border border-green-700 bg-green-900/20 p-2 text-xs text-green-300">
@@ -199,7 +199,7 @@ export function ExerciseLinkPicker({
             </div>
           )}
 
-          <div className="mt-3 max-h-72 overflow-y-auto rounded border border-gray-700">
+          <div className="mt-3 max-h-72 overflow-y-auto rounded border border-border">
             {pending && items.length === 0 ? (
               <div className="p-3 text-sm text-gray-400">Searching…</div>
             ) : items.length === 0 ? (
@@ -209,9 +209,9 @@ export function ExerciseLinkPicker({
                 {items.map((it) => (
                   <li
                     key={it.id}
-                    className="flex items-center justify-between border-b border-gray-800 p-3 last:border-b-0"
+                    className="flex items-center justify-between border-b border-border p-3 last:border-b-0"
                   >
-                    <span className="text-sm text-gray-200">{it.name}</span>
+                    <span className="text-sm text-foreground">{it.name}</span>
                     <button
                       onClick={() => handleLink(it.id)}
                       className="rounded bg-blue-600 px-2 py-1 text-xs text-background hover:bg-blue-700 disabled:opacity-50"
@@ -229,7 +229,7 @@ export function ExerciseLinkPicker({
             <div className="mt-2">
               <button
                 onClick={loadMore}
-                className="w-full rounded border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+                className="w-full rounded border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
               >
                 Load more
               </button>
@@ -237,12 +237,12 @@ export function ExerciseLinkPicker({
           )}
 
           <div className="mt-3 flex items-center justify-between">
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-muted-foreground">
               Can't find it? Create a new master exercise and link.
             </div>
             <button
               onClick={handleCreateAndLink}
-              className="rounded bg-gray-700 px-3 py-1 text-xs text-gray-100 hover:bg-gray-600 disabled:opacity-50"
+              className="btn-secondary px-3 py-1 text-xs disabled:opacity-50"
               disabled={createOrGetMaster.isPending || q.trim().length === 0}
             >
               {createOrGetMaster.isPending

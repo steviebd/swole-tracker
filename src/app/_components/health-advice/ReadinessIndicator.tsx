@@ -1,6 +1,6 @@
 'use client';
 
-import { Card } from '~/app/_components/ui/Card';
+import { Card } from '~/components/ui/card';
 
 interface ReadinessIndicatorProps {
   rho: number; // 0-1

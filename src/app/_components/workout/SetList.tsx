@@ -86,7 +86,7 @@ export function SetList({
       {!readOnly && (
         <div>
           <button
-            className="w-full rounded-md border border-gray-200 bg-background py-2 text-sm text-foreground transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600"
+            className="w-full rounded-md border border-border bg-background py-2 text-sm text-foreground transition-colors hover:bg-muted"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

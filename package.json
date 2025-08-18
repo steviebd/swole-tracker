@@ -4,19 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "bun run tokens:build && next build",
+    "build:tokens": "node scripts/build-tokens.js",
     "check": "bun run lint && bun run typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "dev": "infisical run -- next dev --turbo",
+    "dev": "bun run tokens:build && infisical run -- next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "preview": "next build && next start",
+    "preview": "bun run tokens:build && next build && next start",
     "start": "next start",
+    "tokens:build": "node scripts/build-tokens.js && node scripts/build-mobile-tokens.js",
+    "tokens:watch": "node scripts/build-tokens.js --watch",
+    "tokens:mobile": "node scripts/build-mobile-tokens.js",
     "typecheck": "tsc --noEmit",
     "test": "npx vitest",
     "test:ci": "npx vitest run --coverage",
@@ -31,6 +35,12 @@
     "@ai-sdk/google": "^1.2.22",
     "@ai-sdk/openai": "^1.3.24",
     "@ai-sdk/provider-utils": "^2.2.8",
+    "@hookform/resolvers": "^5.2.1",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-progress": "^1.1.7",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.3",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.54.0",
     "@t3-oss/env-nextjs": "^0.12.0",
@@ -41,6 +51,8 @@
     "@trpc/react-query": "^11.4.4",
     "@trpc/server": "^11.4.4",
     "ai": "5.0.0-beta.29",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.41.0",
     "lucide-react": "^0.536.0",
     "next": "^15.4.6",
@@ -48,11 +60,13 @@
     "postgres": "^3.4.7",
     "posthog-js": "^1.259.0",
     "posthog-node": "^5.6.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-hook-form": "^7.62.0",
     "server-only": "^0.0.1",
     "superjson": "^2.2.2",
-    "zod": "^3.25.76"
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -95,5 +109,9 @@
   "packageManager": "bun@1.1.42",
   "volta": {
     "node": "20.19.4"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
 }

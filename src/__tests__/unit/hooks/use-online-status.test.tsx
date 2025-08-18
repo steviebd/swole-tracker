@@ -13,7 +13,6 @@ describe("useOnlineStatus", () => {
   }
 
   beforeEach(() => {
-    vi.useFakeTimers();
     // stub add/removeEventListener on window
     listeners.clear();
     vi.spyOn(window, "addEventListener").mockImplementation(
@@ -37,7 +36,6 @@ describe("useOnlineStatus", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
     listeners.clear();
   });
