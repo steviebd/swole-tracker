@@ -7,7 +7,7 @@ import {
   workoutTemplates,
   templateExercises,
   exerciseLinks,
-} from "~/server/db/schema-d1";
+} from "~/server/db/schema";
 import { eq, desc, and, ne, inArray, gte } from "drizzle-orm";
 
 const setInputSchema = z.object({
@@ -167,7 +167,7 @@ export const workoutsRouter = createTRPCRouter({
 
       const sets = lastExerciseSets.map((set, index) => ({
         id: `prev-${index}`,
-        weight: set.weight ? parseFloat(set.weight) : undefined,
+        weight: set.weight,
         reps: set.reps,
         sets: set.sets ?? 1,
         unit: set.unit as "kg" | "lbs",
@@ -404,7 +404,7 @@ export const workoutsRouter = createTRPCRouter({
           where: and(
             eq(workoutSessions.user_id, ctx.user.id),
             eq(workoutSessions.templateId, input.templateId),
-            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)) // Within last 2 minutes
+            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000).toISOString()) // Within last 2 minutes
           ),
           orderBy: [desc(workoutSessions.workoutDate)],
           with: {
@@ -454,11 +454,11 @@ export const workoutsRouter = createTRPCRouter({
           .values({
             user_id: ctx.user.id,
             templateId: input.templateId,
-            workoutDate: input.workoutDate,
+            workoutDate: input.workoutDate.toISOString(),
             // Phase 3 persistence
             theme_used: input.theme_used ?? null,
             device_type: input.device_type ?? null,
-            perf_metrics: input.perf_metrics ?? null,
+            perf_metrics: input.perf_metrics ? JSON.stringify(input.perf_metrics) : null,
           })
           .returning();
 
@@ -563,15 +563,15 @@ export const workoutsRouter = createTRPCRouter({
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,
             setOrder: setIndex,
-            weight: set.weight?.toString(),
+            weight: set.weight,
             reps: set.reps,
             sets: set.sets,
             unit: set.unit,
             // Phase 2 mappings
             rpe: set.rpe, // maps to session_exercise.rpe
             rest_seconds: set.rest, // maps to session_exercise.rest_seconds
-            is_estimate: set.isEstimate ?? false,
-            is_default_applied: set.isDefaultApplied ?? false,
+            is_estimate: set.isEstimate ? 1 : 0,
+            is_default_applied: set.isDefaultApplied ? 1 : 0,
           })),
       );
 
@@ -654,7 +654,7 @@ export const workoutsRouter = createTRPCRouter({
             await ctx.db
               .update(sessionExercises)
               .set({
-                weight: update.weight !== undefined ? update.weight.toString() : undefined,
+                weight: update.weight,
                 reps: update.reps,
                 unit: update.unit,
               })

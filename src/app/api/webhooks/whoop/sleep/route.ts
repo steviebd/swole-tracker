@@ -75,7 +75,7 @@ async function fetchSleepFromWhoop(
         and(
           eq(userIntegrations.user_id, userId.toString()),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
         ),
       );
 
@@ -162,12 +162,12 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopSleep)
         .set({
-          start: sleepData.start ? new Date(sleepData.start) : new Date(),
-          end: sleepData.end ? new Date(sleepData.end) : new Date(),
+          start: sleepData.start ?? new Date().toISOString(),
+          end: sleepData.end ?? new Date().toISOString(),
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage: sleepData.score?.sleep_performance_percentage || null,
           total_sleep_time_milli: stageSum?.total_sleep_time_milli || null,
-          sleep_efficiency_percentage: stageSum?.sleep_efficiency_percentage?.toString() || null,
+          sleep_efficiency_percentage: stageSum?.sleep_efficiency_percentage ?? null,
           slow_wave_sleep_time_milli: stageSum?.slow_wave_sleep_time_milli || null,
           rem_sleep_time_milli: stageSum?.rem_sleep_time_milli || null,
           light_sleep_time_milli: stageSum?.light_sleep_time_milli || null,
@@ -175,8 +175,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
           arousal_time_milli: stageSum?.arousal_time_milli || null,
           disturbance_count: stageSum?.disturbance_count || null,
           sleep_latency_milli: stageSum?.sleep_latency_milli || null,
-          raw_data: sleepData as unknown,
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(sleepData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopSleep.whoop_sleep_id, sleepId));
     } else {
@@ -187,12 +187,12 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       await db.insert(whoopSleep).values({
         user_id: dbUserId,
         whoop_sleep_id: sleepId,
-        start: sleepData.start ? new Date(sleepData.start) : new Date(),
-        end: sleepData.end ? new Date(sleepData.end) : new Date(),
+        start: sleepData.start ?? new Date().toISOString(),
+        end: sleepData.end ?? new Date().toISOString(),
         timezone_offset: sleepData.timezone_offset || null,
         sleep_performance_percentage: sleepData.score?.sleep_performance_percentage || null,
         total_sleep_time_milli: stageSum?.total_sleep_time_milli || null,
-        sleep_efficiency_percentage: stageSum?.sleep_efficiency_percentage?.toString() || null,
+        sleep_efficiency_percentage: stageSum?.sleep_efficiency_percentage ?? null,
         slow_wave_sleep_time_milli: stageSum?.slow_wave_sleep_time_milli || null,
         rem_sleep_time_milli: stageSum?.rem_sleep_time_milli || null,
         light_sleep_time_milli: stageSum?.light_sleep_time_milli || null,
@@ -200,7 +200,7 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
         arousal_time_milli: stageSum?.arousal_time_milli || null,
         disturbance_count: stageSum?.disturbance_count || null,
         sleep_latency_milli: stageSum?.sleep_latency_milli || null,
-        raw_data: sleepData as unknown,
+        raw_data: JSON.stringify(sleepData),
       });
     }
 
@@ -270,13 +270,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -342,7 +342,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

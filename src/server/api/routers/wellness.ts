@@ -6,7 +6,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { wellnessData, workoutSessions } from "~/server/db/schema-d1";
+import { wellnessData, workoutSessions } from "~/server/db/schema";
 import { 
   saveWellnessSchema,
   getWellnessHistorySchema,
@@ -81,9 +81,9 @@ export const wellnessRouter = createTRPCRouter({
             energy_level: energyLevel,
             sleep_quality: sleepQuality,
             device_timezone: deviceTimezone,
-            submitted_at: submittedAt,
-            has_whoop_data: hasWhoopData,
-            whoop_data: whoopData ?? null,
+            submitted_at: submittedAt.toISOString(),
+            has_whoop_data: hasWhoopData ? 1 : 0,
+            whoop_data: whoopData ? JSON.stringify(whoopData) : null,
             notes: notes ?? null,
           })
           .onConflictDoUpdate({
@@ -92,11 +92,11 @@ export const wellnessRouter = createTRPCRouter({
               energy_level: energyLevel,
               sleep_quality: sleepQuality,
               device_timezone: deviceTimezone,
-              submitted_at: submittedAt,
-              has_whoop_data: hasWhoopData,
-              whoop_data: whoopData ?? null,
+              submitted_at: submittedAt.toISOString(),
+              has_whoop_data: hasWhoopData ? 1 : 0,
+              whoop_data: whoopData ? JSON.stringify(whoopData) : null,
               notes: notes ?? null,
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
             },
           })
           .returning();

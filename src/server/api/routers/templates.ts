@@ -6,7 +6,7 @@ import {
   templateExercises,
   masterExercises,
   exerciseLinks,
-} from "~/server/db/schema-d1";
+} from "~/server/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 // Utility function to normalize exercise names for fuzzy matching
@@ -209,7 +209,7 @@ export const templatesRouter = createTRPCRouter({
 
       // If a template with same name was created in the last 5 seconds, return it instead
       if (recentTemplate) {
-        const timeDiff = Date.now() - recentTemplate.createdAt.getTime();
+        const timeDiff = Date.now() - new Date(recentTemplate.createdAt).getTime();
         if (timeDiff < 5000) {
           debugLog("templates.create: returning existing recent template", {
             templateId: recentTemplate.id,
@@ -249,7 +249,7 @@ export const templatesRouter = createTRPCRouter({
               templateId: template.id,
               exerciseName,
               orderIndex: index,
-              linkingRejected: false,
+              linkingRejected: 0,
             })),
           )
           .returning();
@@ -313,7 +313,7 @@ export const templatesRouter = createTRPCRouter({
               templateId: input.id,
               exerciseName,
               orderIndex: index,
-              linkingRejected: false,
+              linkingRejected: 0,
             })),
           )
           .returning();

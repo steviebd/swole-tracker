@@ -24,8 +24,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Get session cookie
         const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-          const [name, value] = cookie.trim().split('=');
-          acc[name] = value;
+          const [rawName, ...rest] = cookie.trim().split('=');
+          const name = rawName?.trim();
+          if (name) {
+            const value = rest.join('=');
+            acc[name] = value ?? '';
+          }
           return acc;
         }, {} as Record<string, string>);
 
@@ -113,8 +117,12 @@ if (typeof window !== 'undefined') {
     },
     checkAuth: () => {
       const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split('=');
-        acc[name] = value;
+        const [rawName, ...rest] = cookie.trim().split('=');
+        const name = rawName?.trim();
+        if (name) {
+          const value = rest.join('=');
+          acc[name] = value ?? '';
+        }
         return acc;
       }, {} as Record<string, string>);
 

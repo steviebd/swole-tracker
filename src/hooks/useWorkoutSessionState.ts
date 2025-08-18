@@ -187,8 +187,8 @@ export function useWorkoutSessionState({
           theme_used: (session as any).theme_used ?? null,
           device_type: (session as any).device_type ?? null,
           perf_metrics: (session as any).perf_metrics ?? null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           template: session.template,
           exercises: newWorkout.exercises.flatMap((exercise, exerciseIndex) =>
             exercise.sets.map((set, setIndex) => ({
@@ -198,16 +198,16 @@ export function useWorkoutSessionState({
               templateExerciseId: exercise.templateExerciseId ?? null,
               exerciseName: exercise.exerciseName,
               setOrder: setIndex,
-              weight: set.weight?.toString() ?? null,
+              weight: set.weight ?? null,
               reps: set.reps ?? null,
               sets: set.sets ?? null,
               unit: set.unit as string,
               // Provide Phase 2 nullable fields to satisfy cache type
               rpe: null as unknown as number | null,
               rest_seconds: null as unknown as number | null,
-              is_estimate: false,
-              is_default_applied: false,
-              createdAt: new Date(),
+              is_estimate: 0,
+              is_default_applied: 0,
+              createdAt: new Date().toISOString(),
             })),
           ),
         } as const;
@@ -330,9 +330,7 @@ export function useWorkoutSessionState({
           exerciseName,
           sets: exerciseData.map((sessionExercise) => ({
             id: `existing-${sessionExercise.id}`,
-            weight: sessionExercise.weight
-              ? parseFloat(sessionExercise.weight)
-              : undefined,
+            weight: sessionExercise.weight ?? undefined,
             reps: sessionExercise.reps ?? undefined,
             sets: sessionExercise.sets ?? 1,
             unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",

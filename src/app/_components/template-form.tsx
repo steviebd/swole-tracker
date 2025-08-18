@@ -131,7 +131,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
               ? {
                   ...template,
                   name: updatedTemplate.name,
-                  updatedAt: new Date(),
+                  updatedAt: new Date().toISOString(),
                   exercises: updatedTemplate.exercises.map(
                     (exerciseName, index) => ({
                       id: template.exercises[index]?.id ?? -index - 1,
@@ -141,9 +141,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
                       exerciseName,
                       orderIndex: index,
                       linkingRejected:
-                        template.exercises[index]?.linkingRejected ?? false,
+                        template.exercises[index]?.linkingRejected ?? 0,
                       createdAt:
-                        template.exercises[index]?.createdAt ?? new Date(),
+                        template.exercises[index]?.createdAt ??
+                        new Date().toISOString(),
                     }),
                   ),
                 }

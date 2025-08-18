@@ -5,7 +5,7 @@ import {
   sessionExercises,
   templateExercises,
   exerciseLinks,
-} from "~/server/db/schema-d1";
+} from "~/server/db/schema";
 import { and, desc, eq, gte, inArray, ne } from "drizzle-orm";
 
 function toNumber(n: string | number | null | undefined): number | undefined {
@@ -178,7 +178,7 @@ export const insightsRouter = createTRPCRouter({
           }
           flat.push({
             sessionId: s.id,
-            workoutDate: s.workoutDate,
+            workoutDate: new Date(s.workoutDate),
             weight: toNumber(ex.weight),
             reps: ex.reps,
             sets: ex.sets,
@@ -459,7 +459,7 @@ export const insightsRouter = createTRPCRouter({
         typeof and
       >[number][];
       if (input.since)
-        where.push(gte(workoutSessions.workoutDate, input.since));
+        where.push(gte(workoutSessions.workoutDate, input.since.toISOString()));
 
       const sessions = await ctx.db.query.workoutSessions.findMany({
         where: and(...where),
@@ -503,7 +503,7 @@ export const insightsRouter = createTRPCRouter({
 
           rows.push(
             [
-              s.workoutDate.toISOString(),
+              new Date(s.workoutDate).toISOString(),
               s.id,
               templateName,
               ex.exerciseName,

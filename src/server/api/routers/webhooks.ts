@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { webhookEvents } from "~/server/db/schema-d1";
+import { webhookEvents } from "~/server/db/schema";
 import { desc, eq } from "drizzle-orm";
 
 export const webhooksRouter = createTRPCRouter({

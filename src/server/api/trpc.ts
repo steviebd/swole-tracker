@@ -54,7 +54,9 @@ export const createTRPCContext = async (opts: {
       // Parse cookies to find WorkOS session
       const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
         const [name, value] = cookie.trim().split('=');
-        acc[name] = value;
+        if (name && value !== undefined) {
+          acc[name] = value;
+        }
         return acc;
       }, {} as Record<string, string>);
 

@@ -49,7 +49,7 @@ async function fetchBodyMeasurementFromWhoop(
         and(
           eq(userIntegrations.user_id, userId.toString()),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
         ),
       );
 
@@ -137,12 +137,12 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopBodyMeasurement)
         .set({
-          height_meter: measurementData.height_meter?.toString() || null,
-          weight_kilogram: measurementData.weight_kilogram?.toString() || null,
+          height_meter: measurementData.height_meter ?? null,
+          weight_kilogram: measurementData.weight_kilogram ?? null,
           max_heart_rate: measurementData.max_heart_rate || null,
           measurement_date: measurementDateStr,
-          raw_data: measurementData as unknown,
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(measurementData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
     } else {
@@ -153,11 +153,11 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       await db.insert(whoopBodyMeasurement).values({
         user_id: dbUserId,
         whoop_measurement_id: measurementId,
-        height_meter: measurementData.height_meter?.toString() || null,
-        weight_kilogram: measurementData.weight_kilogram?.toString() || null,
+        height_meter: measurementData.height_meter ?? null,
+        weight_kilogram: measurementData.weight_kilogram ?? null,
         max_heart_rate: measurementData.max_heart_rate || null,
         measurement_date: measurementDateStr,
-        raw_data: measurementData as unknown,
+        raw_data: JSON.stringify(measurementData),
       });
     }
 
@@ -227,13 +227,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

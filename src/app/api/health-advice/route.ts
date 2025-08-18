@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Get authenticated user for WHOOP data fetching
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME);
     if (!sessionCookie) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -102,12 +102,12 @@ export async function POST(req: NextRequest) {
         })
         .from(userIntegrations)
         .where(
-          and(
-            eq(userIntegrations.user_id, user.id),
-            eq(userIntegrations.provider, "whoop"),
-            eq(userIntegrations.isActive, true)
-          ),
-        );
+        and(
+          eq(userIntegrations.user_id, user.id),
+          eq(userIntegrations.provider, "whoop"),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
+        ),
+      );;
       
       if (whoopIntegration?.isActive) {
         // Get date range for historical lookup (2 days as specified in requirements)
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         const latestSleep = await db.query.whoopSleep.findFirst({
           where: and(
             eq(whoopSleep.user_id, user.id),
-            gte(whoopSleep.start, todayMinus2Days) // Sleep uses timestamp, can use Date object
+            gte(whoopSleep.start, todayMinus2Days.toISOString()) // Sleep uses timestamp, can use Date object
           ),
           orderBy: desc(whoopSleep.start)
         });
@@ -138,8 +138,8 @@ export async function POST(req: NextRequest) {
           realWhoopData = {
             recovery_score: latestRecovery?.recovery_score || realWhoopData.recovery_score || defaultWhoopData.recovery_score,
             sleep_performance: latestSleep?.sleep_performance_percentage || realWhoopData.sleep_performance || defaultWhoopData.sleep_performance,
-            hrv_now_ms: latestRecovery?.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : (realWhoopData.hrv_now_ms || defaultWhoopData.hrv_now_ms),
-            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : (realWhoopData.hrv_baseline_ms || defaultWhoopData.hrv_baseline_ms),
+            hrv_now_ms: latestRecovery?.hrv_rmssd_milli || (realWhoopData.hrv_now_ms || defaultWhoopData.hrv_now_ms),
+            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline || (realWhoopData.hrv_baseline_ms || defaultWhoopData.hrv_baseline_ms),
             rhr_now_bpm: latestRecovery?.resting_heart_rate || realWhoopData.rhr_now_bpm || defaultWhoopData.rhr_now_bpm,
             rhr_baseline_bpm: latestRecovery?.resting_heart_rate_baseline || realWhoopData.rhr_baseline_bpm || defaultWhoopData.rhr_baseline_bpm,
             yesterday_strain: realWhoopData.yesterday_strain || defaultWhoopData.yesterday_strain, // Could be fetched from cycles table if needed
@@ -273,8 +273,8 @@ export async function POST(req: NextRequest) {
           rho,
           (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive',
           {
-            linearIncrement: userProgressionPrefs?.linear_progression_kg ? parseFloat(userProgressionPrefs.linear_progression_kg) : 2.5,
-            percentageIncrement: userProgressionPrefs?.percentage_progression ? parseFloat(userProgressionPrefs.percentage_progression) : 2.5,
+            linearIncrement: userProgressionPrefs?.linear_progression_kg ?? 2.5,
+            percentageIncrement: userProgressionPrefs?.percentage_progression ?? 2.5,
           }
         );
       } catch (error) {

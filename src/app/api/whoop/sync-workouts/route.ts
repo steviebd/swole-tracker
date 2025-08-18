@@ -81,8 +81,8 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       expires_in?: number;
     };
 
-    const expiresAt = t.expires_in
-      ? new Date(Date.now() + t.expires_in * 1000)
+    const expiresAtIso = t.expires_in
+      ? new Date(Date.now() + t.expires_in * 1000).toISOString()
       : null;
 
     // Update tokens in database
@@ -91,8 +91,8 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       .set({
         accessToken: t.access_token!,
         refreshToken: t.refresh_token ?? integration.refreshToken,
-        expiresAt,
-        updatedAt: new Date(),
+        expiresAt: expiresAtIso,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(userIntegrations.id, Number(integration.id)));
 
@@ -148,7 +148,7 @@ export async function POST(_request: NextRequest) {
         and(
           eq(userIntegrations.user_id, user.id),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
         ),
       );
 
@@ -240,12 +240,12 @@ export async function POST(_request: NextRequest) {
 
     const existingIds = new Set(existingWorkouts.map(w => w.whoopWorkoutId));
     const existingTimes = new Set(
-      existingWorkouts.map(w => `${w.start.toISOString()}_${w.end.toISOString()}`)
+      existingWorkouts.map(w => `${w.start}_${w.end}`)
     );
 
     // Filter out workouts that already exist by ID or temporal match
     const newWorkoutData = workouts.filter(w => {
-      const timeKey = `${new Date(w.start).toISOString()}_${new Date(w.end).toISOString()}`;
+      const timeKey = `${w.start}_${w.end}`;
       return !existingIds.has(w.id) && !existingTimes.has(timeKey);
     });
     
@@ -258,14 +258,14 @@ export async function POST(_request: NextRequest) {
         const workoutValues = newWorkoutData.map(workout => ({
           user_id: user.id,
           whoopWorkoutId: workout.id,
-          start: new Date(workout.start),
-          end: new Date(workout.end),
+          start: workout.start,
+          end: workout.end,
           timezone_offset: workout.timezone_offset,
           sport_name: workout.sport_name,
           score_state: workout.score_state,
-          score: workout.score ?? null,
-          during: workout.during ?? null,
-          zone_duration: workout.zone_duration ?? null,
+          score: workout.score ? JSON.stringify(workout.score) : null,
+          during: workout.during ? JSON.stringify(workout.during) : null,
+          zone_duration: workout.zone_duration ? JSON.stringify(workout.zone_duration) : null,
         }));
 
         await db.insert(externalWorkoutsWhoop).values(workoutValues);
@@ -279,14 +279,14 @@ export async function POST(_request: NextRequest) {
             await db.insert(externalWorkoutsWhoop).values({
               user_id: user.id,
               whoopWorkoutId: workout.id,
-              start: new Date(workout.start),
-              end: new Date(workout.end),
+              start: workout.start,
+              end: workout.end,
               timezone_offset: workout.timezone_offset,
               sport_name: workout.sport_name,
               score_state: workout.score_state,
-              score: workout.score ?? null,
-              during: workout.during ?? null,
-              zone_duration: workout.zone_duration ?? null,
+              score: workout.score ? JSON.stringify(workout.score) : null,
+              during: workout.during ? JSON.stringify(workout.during) : null,
+              zone_duration: workout.zone_duration ? JSON.stringify(workout.zone_duration) : null,
             });
             newWorkouts++;
           } catch (individualError) {

@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
         .set({
           accessToken: tok.access_token!,
           refreshToken: tok.refresh_token ?? null,
-          expiresAt,
+          expiresAt: expiresAt?.toISOString() ?? null,
           scope: tok.scope ?? "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
-          isActive: true,
-          updatedAt: new Date(),
+          isActive: 1,
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
@@ -146,9 +146,9 @@ export async function GET(request: NextRequest) {
         provider: "whoop",
         accessToken: tok.access_token!,
         refreshToken: tok.refresh_token ?? null,
-        expiresAt,
+        expiresAt: expiresAt?.toISOString() ?? null,
         scope: tok.scope ?? "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
-        isActive: true,
+        isActive: 1,
       });
     }
 

@@ -36,7 +36,7 @@ export async function POST() {
     const temporalGroups = new Map<string, typeof allWorkouts>();
     
     for (const workout of allWorkouts) {
-      const temporalKey = `${workout.start.toISOString()}_${workout.end.toISOString()}`;
+      const temporalKey = `${workout.start}_${workout.end}`;
       if (!temporalGroups.has(temporalKey)) {
         temporalGroups.set(temporalKey, []);
       }
@@ -79,7 +79,7 @@ export async function POST() {
         if (!a.score && b.score) return 1;
         
         // Prefer earliest created (first sync usually has better data)
-        return a.createdAt.getTime() - b.createdAt.getTime();
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
 
       const keepWorkout = sortedWorkouts[0]!;
@@ -98,8 +98,8 @@ export async function POST() {
         kept: keepWorkout.whoopWorkoutId,
         removed: removeWorkouts.map(w => w.whoopWorkoutId),
         sport_name: keepWorkout.sport_name,
-        start: keepWorkout.start.toISOString(),
-        end: keepWorkout.end.toISOString(),
+        start: keepWorkout.start,
+        end: keepWorkout.end,
       });
     }
 

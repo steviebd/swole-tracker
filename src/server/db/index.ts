@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 
 import { env } from "~/env";
-import * as schema from "./schema-d1";
+import * as schema from "./schema";
 
 /**
  * Database connection for D1/SQLite

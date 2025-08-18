@@ -41,17 +41,17 @@ bun run wrangler:config
 #### Production Resources:
 ```bash
 # Create D1 database
-wrangler d1 database create swole-tracker-prod
+wrangler d1 create swole-tracker-prod
 
 # Create KV namespaces
-wrangler kv:namespace create "RATE_LIMIT_KV" --env production
-wrangler kv:namespace create "CACHE_KV" --env production
+wrangler kv namespace create "RATE_LIMIT_KV" --env production
+wrangler kv namespace create "CACHE_KV" --env production
 ```
 
 #### Staging Resources:
 ```bash
 # Create D1 database
-wrangler d1 database create swole-tracker-staging
+wrangler d1 create swole-tracker-staging
 
 # Create KV namespaces  
 wrangler kv:namespace create "RATE_LIMIT_KV" --env staging

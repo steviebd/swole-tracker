@@ -29,7 +29,11 @@ export function useHealthAdvice(sessionId?: number) {
   // Load existing advice if available
   useEffect(() => {
     if (existingAdvice && !advice) {
-      setAdvice(existingAdvice.response as HealthAdviceResponse);
+      const parsed =
+        typeof existingAdvice.response === 'string'
+          ? (JSON.parse(existingAdvice.response) as HealthAdviceResponse)
+          : (existingAdvice.response as unknown as HealthAdviceResponse);
+      setAdvice(parsed);
       setAcceptedSuggestions(existingAdvice.user_accepted_suggestions);
     }
   }, [existingAdvice, advice]);
