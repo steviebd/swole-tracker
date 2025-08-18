@@ -18,7 +18,6 @@ vi.mock("~/lib/supabase-browser", () => {
         eq: vi.fn().mockImplementation((_c: string, _v: any) => chain),
         order: vi.fn().mockImplementation((_c: string, _o: any) => chain),
         insert: vi.fn().mockImplementation((_v: any) => chain),
-        select: vi.fn().mockImplementation((_s?: string) => chain),
         single: vi.fn().mockImplementation(() => chain),
         limit: vi.fn().mockImplementation((_n: number) => chain),
         // When awaited, resolve to the canned result
@@ -45,7 +44,6 @@ vi.mock("~/lib/supabase-server", () => {
         eq: vi.fn().mockImplementation((_c: string, _v: any) => chain),
         order: vi.fn().mockImplementation((_c: string, _o: any) => chain),
         insert: vi.fn().mockImplementation((_v: any) => chain),
-        select: vi.fn().mockImplementation((_s?: string) => chain),
         single: vi.fn().mockImplementation(() => chain),
         limit: vi.fn().mockImplementation((_n: number) => chain),
         // When awaited, resolve to the canned result

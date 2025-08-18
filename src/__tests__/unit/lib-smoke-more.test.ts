@@ -1,6 +1,10 @@
 // Set required server environment variables before any imports
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
-process.env.NODE_ENV = "test";
+Object.defineProperty(process.env, 'NODE_ENV', {
+  value: 'test',
+  writable: true,
+  configurable: true
+});
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -12,7 +16,11 @@ describe("lib smoke extended", () => {
     vi.clearAllMocks();
     // Set required server environment variables before any imports
     process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
-    process.env.NODE_ENV = "test";
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'test',
+      writable: true,
+      configurable: true
+    });
   });
 
   afterEach(() => {

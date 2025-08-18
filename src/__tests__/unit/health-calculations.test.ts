@@ -291,11 +291,11 @@ describe('Health Calculations', () => {
       const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
       
       expect(result).toHaveLength(1);
-      expect(result[0].exerciseName).toBe('Bench Press');
-      expect(result[0].sessions).toHaveLength(2);
-      expect(result[0].sessions[0].sets[0].weight).toBe(100);
-      expect(result[0].sessions[0].sets[0].reps).toBe(5);
-      expect(result[0].sessions[0].sets[0].volume).toBe(500);
+      expect(result[0]?.exerciseName).toBe('Bench Press');
+      expect(result[0]?.sessions).toHaveLength(2);
+      expect(result[0]?.sessions[0]?.sets[0]?.weight).toBe(100);
+      expect(result[0]?.sessions[0]?.sets[0]?.reps).toBe(5);
+      expect(result[0]?.sessions[0]?.sets[0]?.volume).toBe(500);
     });
 
     test('filters sessions without the specified exercise', async () => {
@@ -327,7 +327,7 @@ describe('Health Calculations', () => {
       const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
       
       expect(result).toHaveLength(1);
-      expect(result[0].sessions).toHaveLength(1);
+      expect(result[0]?.sessions).toHaveLength(1);
     });
 
     test('excludes specified session ID', async () => {
@@ -373,9 +373,9 @@ describe('Health Calculations', () => {
       const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
       
       expect(result).toHaveLength(1);
-      expect(result[0].sessions[0].sets[0].weight).toBeNull();
-      expect(result[0].sessions[0].sets[0].reps).toBeNull();
-      expect(result[0].sessions[0].sets[0].volume).toBeNull();
+      expect(result[0]?.sessions[0]?.sets[0]?.weight).toBeNull();
+      expect(result[0]?.sessions[0]?.sets[0]?.reps).toBeNull();
+      expect(result[0]?.sessions[0]?.sets[0]?.volume).toBeNull();
     });
   });
 
@@ -391,11 +391,11 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
       
       expect(result).toHaveLength(1);
-      expect(result[0].exerciseName).toBe('Bench Press');
-      expect(result[0].suggestions).toHaveLength(1);
-      expect(result[0].suggestions[0].type).toBe('weight');
-      expect(result[0].suggestions[0].suggested).toBe(20);
-      expect(result[0].suggestions[0].rationale).toContain('No historical data');
+      expect(result[0]?.exerciseName).toBe('Bench Press');
+      expect(result[0]?.suggestions).toHaveLength(1);
+      expect(result[0]?.suggestions[0]?.type).toBe('weight');
+      expect(result[0]?.suggestions[0]?.suggested).toBe(20);
+      expect(result[0]?.suggestions[0]?.rationale).toContain('No historical data');
     });
 
     test('returns suggestion based on recent performance with weight progression', () => {
@@ -417,11 +417,11 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive', { progressionModel: 'weight' });
       
       expect(result).toHaveLength(1);
-      expect(result[0].suggestions).toHaveLength(1);
-      expect(result[0].suggestions[0].type).toBe('weight');
-      expect(result[0].suggestions[0].current).toBe(90);
-      expect(result[0].suggestions[0].suggested).toBe(95);
-      expect(result[0].suggestions[0].rationale).toContain('excellent readiness');
+      expect(result[0]?.suggestions).toHaveLength(1);
+      expect(result[0]?.suggestions[0]?.type).toBe('weight');
+      expect(result[0]?.suggestions[0]?.current).toBe(90);
+      expect(result[0]?.suggestions[0]?.suggested).toBe(95);
+      expect(result[0]?.suggestions[0]?.rationale).toContain('excellent readiness');
     });
 
     test('returns suggestion based on recent performance with rep progression', () => {
@@ -442,11 +442,11 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.6, 'adaptive', { progressionModel: 'reps' });
       
       expect(result).toHaveLength(1);
-      expect(result[0].suggestions).toHaveLength(1);
-      expect(result[0].suggestions[0].type).toBe('reps');
-      expect(result[0].suggestions[0].current).toBe(5);
-      expect(result[0].suggestions[0].suggested).toBe(6);
-      expect(result[0].suggestions[0].rationale).toContain('Volume progression');
+      expect(result[0]?.suggestions).toHaveLength(1);
+      expect(result[0]?.suggestions[0]?.type).toBe('reps');
+      expect(result[0]?.suggestions[0]?.current).toBe(5);
+      expect(result[0]?.suggestions[0]?.suggested).toBe(6);
+      expect(result[0]?.suggestions[0]?.rationale).toContain('Volume progression');
     });
 
     test('applies deload with low readiness', () => {
@@ -467,11 +467,11 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.3, 'adaptive');
       
       expect(result).toHaveLength(1);
-      expect(result[0].suggestions).toHaveLength(1);
-      expect(result[0].suggestions[0].type).toBe('weight');
-      expect(result[0].suggestions[0].current).toBe(100);
-      expect(result[0].suggestions[0].suggested).toBe(97.5);
-      expect(result[0].suggestions[0].rationale).toContain('low readiness');
+      expect(result[0]?.suggestions).toHaveLength(1);
+      expect(result[0]?.suggestions[0]?.type).toBe('weight');
+      expect(result[0]?.suggestions[0]?.current).toBe(100);
+      expect(result[0]?.suggestions[0]?.suggested).toBe(97.5);
+      expect(result[0]?.suggestions[0]?.rationale).toContain('low readiness');
     });
 
     test('covers edge cases for readiness boundary values', () => {
@@ -490,13 +490,13 @@ describe('Health Calculations', () => {
       ];
       
       const result1 = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive');
-      expect(result1[0].suggestions[0].rationale).toContain('excellent readiness');
+      expect(result1[0]?.suggestions[0]?.rationale).toContain('excellent readiness');
       
       const result2 = calculateProgressionSuggestions(exerciseHistory, 0.7, 'adaptive');
-      expect(result2[0].suggestions[0].rationale).toContain('good readiness');
+      expect(result2[0]?.suggestions[0]?.rationale).toContain('good readiness');
       
       const result3 = calculateProgressionSuggestions(exerciseHistory, 0.5, 'adaptive');
-      expect(result3[0].suggestions[0].rationale).toContain('low readiness');
+      expect(result3[0]?.suggestions[0]?.rationale).toContain('low readiness');
     });
 
     test('handles empty sessions in history', () => {
@@ -515,7 +515,7 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
       
       expect(result).toHaveLength(1);
-      expect(result[0].suggestions).toHaveLength(0);
+      expect(result[0]?.suggestions).toHaveLength(0);
     });
 
     test('handles sessions with sets missing weight or reps', () => {
@@ -537,7 +537,7 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.7);
       
       expect(result).toHaveLength(1);
-      expect(result[0].suggestions).toHaveLength(0);
+      expect(result[0]?.suggestions).toHaveLength(0);
     });
 
     test('covers volume calculation edge cases in getExerciseHistory', async () => {
@@ -568,14 +568,14 @@ describe('Health Calculations', () => {
       const result = await getExerciseHistory(mockDb as any, 'user123', ['Bench Press']);
       
       expect(result).toHaveLength(1);
-      expect(result[0].sessions).toHaveLength(1);
-      expect(result[0].sessions[0].sets).toHaveLength(5);
+      expect(result[0]?.sessions).toHaveLength(1);
+      expect(result[0]?.sessions[0]?.sets).toHaveLength(5);
       
-      expect(result[0].sessions[0].sets[0].volume).toBeNull();
-      expect(result[0].sessions[0].sets[1].volume).toBeNull();
-      expect(result[0].sessions[0].sets[2].volume).toBe(0);
-      expect(result[0].sessions[0].sets[3].volume).toBe(0);
-      expect(result[0].sessions[0].sets[4].volume).toBe(500);
+      expect(result[0]?.sessions[0]?.sets[0]?.volume).toBeNull();
+      expect(result[0]?.sessions[0]?.sets[1]?.volume).toBeNull();
+      expect(result[0]?.sessions[0]?.sets[2]?.volume).toBe(0);
+      expect(result[0]?.sessions[0]?.sets[3]?.volume).toBe(0);
+      expect(result[0]?.sessions[0]?.sets[4]?.volume).toBe(500);
     });
 
     test('handles mixed sets and selects best by volume', () => {
@@ -598,9 +598,9 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive');
       
       expect(result).toHaveLength(1);
-      expect(result[0].suggestions).toHaveLength(1);
-      expect(result[0].suggestions[0].current).toBe(80);
-      expect(result[0].suggestions[0].suggested).toBe(85);
+      expect(result[0]?.suggestions).toHaveLength(1);
+      expect(result[0]?.suggestions[0]?.current).toBe(80);
+      expect(result[0]?.suggestions[0]?.suggested).toBe(85);
     });
 
     test('handles multiple exercises', () => {
@@ -632,10 +632,10 @@ describe('Health Calculations', () => {
       const result = calculateProgressionSuggestions(exerciseHistory, 0.8, 'adaptive');
       
       expect(result).toHaveLength(2);
-      expect(result[0].exerciseName).toBe('Bench Press');
-      expect(result[1].exerciseName).toBe('Squat');
-      expect(result[0].suggestions).toHaveLength(1);
-      expect(result[1].suggestions).toHaveLength(1);
+      expect(result[0]?.exerciseName).toBe('Bench Press');
+      expect(result[1]?.exerciseName).toBe('Squat');
+      expect(result[0]?.suggestions).toHaveLength(1);
+      expect(result[1]?.suggestions).toHaveLength(1);
     });
   });
 });

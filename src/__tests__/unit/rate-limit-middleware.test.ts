@@ -809,10 +809,10 @@ describe("rate-limit-middleware", () => {
 
     it("should handle case when env variables are undefined", async () => {
       // Mock env values to be undefined
-      vi.mocked(env).RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = undefined;
-      vi.mocked(env).RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = undefined;
-      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = undefined;
-      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = undefined;
+      vi.mocked(env).RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = undefined as any;
+      vi.mocked(env).RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = undefined as any;
+      vi.mocked(env).RATE_LIMIT_API_CALLS_PER_MINUTE = undefined as any;
+      vi.mocked(env).WHOOP_SYNC_RATE_LIMIT_PER_HOUR = undefined as any;
       
       const checkRateLimitSpy = vi.spyOn(rateLimitLib, "checkRateLimit" as any).mockResolvedValue({
         allowed: true,

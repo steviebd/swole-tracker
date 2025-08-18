@@ -698,7 +698,7 @@ export function createMockDb(overrides: Partial<MockDb> = {}): MockDb {
         then: <T>(onFulfilled?: (value: unknown[]) => T) => {
           return Promise.resolve([]).then(onFulfilled);
         },
-        catch: <T>(onRejected?: (reason: any) => T) => {
+        catch: (onRejected?: (reason: any) => any) => {
           return Promise.resolve([]).catch(onRejected);
         },
         _table: undefined as string | undefined,
