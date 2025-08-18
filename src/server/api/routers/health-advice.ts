@@ -5,7 +5,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { healthAdvice, wellnessData } from "~/server/db/schema";
+import { healthAdvice, wellnessData } from "~/server/db/schema-d1";
 import { 
   healthAdviceRequestSchema, 
   healthAdviceResponseSchema

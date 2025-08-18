@@ -29,7 +29,12 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
       if (lastIdentifiedUser.current !== user.id) {
         posthog.identify(user.id, {
           email: user.email,
-          name: user.user_metadata?.full_name || user.email,
+          name: user.first_name && user.last_name 
+            ? `${user.first_name} ${user.last_name}` 
+            : user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          emailVerified: user.email_verified,
           createdAt: user.created_at,
         });
         posthog.capture("user_signed_in", {

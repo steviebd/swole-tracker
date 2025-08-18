@@ -1,5 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { userPreferences } from "~/server/db/schema";
+import { userPreferences } from "~/server/db/schema-d1";
 import { eq } from "drizzle-orm";
 import { unitPreferenceSchema } from "~/server/api/schemas/common";
 import { z } from "zod";

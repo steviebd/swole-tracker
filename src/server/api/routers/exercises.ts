@@ -10,7 +10,7 @@ import {
   templateExercises,
   sessionExercises,
   workoutSessions,
-} from "~/server/db/schema";
+} from "~/server/db/schema-d1";
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {

@@ -6,7 +6,7 @@ import {
   templateExercises,
   masterExercises,
   exerciseLinks,
-} from "~/server/db/schema";
+} from "~/server/db/schema-d1";
 import { eq, desc, and } from "drizzle-orm";
 
 // Utility function to normalize exercise names for fuzzy matching

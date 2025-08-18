@@ -2,7 +2,7 @@ import { eq, desc } from "drizzle-orm";
 // Important: import generateText via dynamic import inside the configured branch
 // so tests can vi.doMock("ai") per-test and reliably spy on the call.
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { dailyJokes } from "~/server/db/schema";
+import { dailyJokes } from "~/server/db/schema-d1";
 import { env } from "~/env";
 import { type db } from "~/server/db";
 

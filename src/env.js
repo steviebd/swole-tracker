@@ -38,6 +38,9 @@ export const env = createEnv({
     RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
     // Supabase service role (server-side only for admin operations)
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+    // WorkOS Authentication
+    WORKOS_API_KEY: z.string().optional(),
+    WORKOS_CLIENT_ID: z.string().optional(),
   },
 
   /**
@@ -88,6 +91,8 @@ export const env = createEnv({
     RATE_LIMIT_API_CALLS_PER_MINUTE:
       process.env.RATE_LIMIT_API_CALLS_PER_MINUTE,
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
+    WORKOS_API_KEY: process.env.WORKOS_API_KEY,
+    WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

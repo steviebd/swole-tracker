@@ -14,7 +14,7 @@ import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-
 import { db } from '~/server/db';
 import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep, userPreferences } from '~/server/db/schema';
 import { eq, and, desc, gte } from 'drizzle-orm';
-import { createServerSupabaseClient } from '~/lib/supabase-server';
+import { validateAccessToken, SESSION_COOKIE_NAME } from '~/lib/workos';
 import { logger } from '~/lib/logger';
 
 // Removed edge runtime since we need database access for enhanced features
@@ -61,9 +61,15 @@ export async function POST(req: NextRequest) {
     }
     
     // Get authenticated user for WHOOP data fetching
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
     
+    const user = await validateAccessToken(sessionCookie.value);
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },

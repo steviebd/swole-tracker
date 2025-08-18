@@ -7,7 +7,7 @@ import {
   whoopSleep,
   whoopProfile,
   whoopBodyMeasurement
-} from "~/server/db/schema";
+} from "~/server/db/schema-d1";
 import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 

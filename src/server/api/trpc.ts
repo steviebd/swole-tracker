@@ -10,7 +10,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
 
 import { db } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
@@ -46,16 +46,38 @@ export const createTRPCContext = async (opts: {
   const requestId = randomUUID();
 
   try {
-    const supabase = await createServerSupabaseClient(opts.headers);
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // Get WorkOS session from cookie header
+    const cookieHeader = opts.headers.get('cookie');
+    let user = null;
 
-    if (error) {
-      console.log('tRPC context: Server-side auth failed:', error.message);
+    if (cookieHeader) {
+      // Parse cookies to find WorkOS session
+      const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+        const [name, value] = cookie.trim().split('=');
+        acc[name] = value;
+        return acc;
+      }, {} as Record<string, string>);
+
+      const sessionCookie = cookies[SESSION_COOKIE_NAME];
+      if (sessionCookie) {
+        try {
+          const sessionData = JSON.parse(decodeURIComponent(sessionCookie));
+          if (sessionData.accessToken) {
+            // Validate the access token with WorkOS
+            const workosUser = await validateAccessToken(sessionData.accessToken);
+            if (workosUser) {
+              user = { id: workosUser.id };
+            }
+          }
+        } catch (error) {
+          console.log('tRPC context: Failed to parse WorkOS session:', error);
+        }
+      }
     }
 
     return {
       db,
-      user: (!error && user) ? { id: user.id } : null,
+      user,
       requestId,
       headers: opts.headers,
     };

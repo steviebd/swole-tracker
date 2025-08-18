@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { aiSuggestionHistory } from "~/server/db/schema";
+import { aiSuggestionHistory } from "~/server/db/schema-d1";
 
 export const suggestionsRouter = createTRPCRouter({
   // Track user interaction with AI suggestions

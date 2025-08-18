@@ -7,7 +7,7 @@ import {
   workoutTemplates,
   templateExercises,
   exerciseLinks,
-} from "~/server/db/schema";
+} from "~/server/db/schema-d1";
 import { eq, desc, and, ne, inArray, gte } from "drizzle-orm";
 
 const setInputSchema = z.object({

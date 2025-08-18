@@ -5,7 +5,7 @@ import {
   sessionExercises,
   templateExercises,
   exerciseLinks,
-} from "~/server/db/schema";
+} from "~/server/db/schema-d1";
 import { and, desc, eq, gte, inArray, ne } from "drizzle-orm";
 
 function toNumber(n: string | number | null | undefined): number | undefined {

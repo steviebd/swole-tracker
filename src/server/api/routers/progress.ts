@@ -5,7 +5,7 @@ import {
   workoutSessions, 
   exerciseLinks,
   templateExercises
-} from "~/server/db/schema";
+} from "~/server/db/schema-d1";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { type db } from "~/server/db";
 
@@ -214,7 +214,7 @@ export const progressRouter = createTRPCRouter({
           )
           .orderBy(desc(workoutSessions.workoutDate));
         
-        return workoutDates.map(w => w.workoutDate.toISOString().split('T')[0]!);
+        return workoutDates.map(w => w.workoutDate.toISOString().split('T')[0]!) as string[];
       } catch (error) {
         console.error("Error in getWorkoutDates:", error);
         return [];

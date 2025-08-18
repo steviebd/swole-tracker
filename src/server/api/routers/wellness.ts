@@ -6,7 +6,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { wellnessData, workoutSessions } from "~/server/db/schema";
+import { wellnessData, workoutSessions } from "~/server/db/schema-d1";
 import { 
   saveWellnessSchema,
   getWellnessHistorySchema,

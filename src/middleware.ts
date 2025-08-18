@@ -1,37 +1,28 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { env } from "~/env";
+import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+  const response = NextResponse.next({
     request,
   });
 
-  const supabase = createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options: _options }) => {
-            request.cookies.set(name, value);
-          });
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
+  // Get WorkOS session from cookie
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+  let user = null;
 
-  // This will refresh session if expired - required for Server Components
-  const { data: { user } } = await supabase.auth.getUser();
+  if (sessionCookie) {
+    try {
+      const sessionData = JSON.parse(sessionCookie.value);
+      if (sessionData.accessToken) {
+        // Validate the access token with WorkOS
+        user = await validateAccessToken(sessionData.accessToken);
+      }
+    } catch (error) {
+      console.error('Failed to parse session cookie:', error);
+      // Clear invalid session cookie
+      response.cookies.delete(SESSION_COOKIE_NAME);
+    }
+  }
 
   // Protected routes that require authentication
   const isProtectedRoute = /^\/workout|^\/templates|^\/workouts/.exec(request.nextUrl.pathname);
@@ -43,7 +34,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  return supabaseResponse;
+  return response;
 }
 
 export const config = {

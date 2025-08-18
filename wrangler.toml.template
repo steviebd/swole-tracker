@@ -1,0 +1,64 @@
+# wrangler.toml.template
+# This is a template file. The actual wrangler.toml is generated from environment variables.
+# Run: bun run generate:wrangler to create wrangler.toml with your environment values
+
+name = "swole-tracker"
+compatibility_date = "2024-03-20"
+
+# Production Environment
+[env.production]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "swole-tracker-prod"
+database_id = "${CLOUDFLARE_PROD_D1_DATABASE_ID}"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "${CLOUDFLARE_PROD_RATE_LIMIT_KV_ID}"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE_KV"
+id = "${CLOUDFLARE_PROD_CACHE_KV_ID}"
+
+[env.production.vars]
+WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
+# Note: Sensitive variables like WORKOS_API_KEY should be set via Cloudflare Pages dashboard
+
+# Staging Environment
+[env.staging]
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "swole-tracker-staging"
+database_id = "${CLOUDFLARE_STAGING_D1_DATABASE_ID}"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "${CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID}"
+
+[[env.staging.kv_namespaces]]
+binding = "CACHE_KV"
+id = "${CLOUDFLARE_STAGING_CACHE_KV_ID}"
+
+[env.staging.vars]
+WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
+
+# Development (local) - actual IDs since they're not sensitive for local dev
+[[d1_databases]]
+binding = "DB"
+database_name = "swole-tracker-dev"
+database_id = "fd83bd6b-1d9f-4351-a23a-df3eed070fe1"
+migrations_dir = "drizzle"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "24ffbf891bf1445d82533a65d92a9cd9"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "8314e00d68f24565b5993af382148b63"
+
+[vars]
+WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
+# Note: Additional environment variables loaded from .dev.vars for local development

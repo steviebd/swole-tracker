@@ -7,6 +7,28 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 
 const baseConfig = {
+  // Configure Webpack for Cloudflare compatibility
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // For client-side builds, disable Node.js modules that aren't available in browsers
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        "node:http": false,
+        "node:https": false,
+        "node:net": false,
+        "node:tls": false,
+        "node:fs": false,
+        "node:path": false,
+        "node:stream": false,
+        "node:crypto": false,
+        "node:util": false,
+        "node:url": false,
+        "node:querystring": false,
+        "node:buffer": false,
+      };
+    }
+    return config;
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.
@@ -40,7 +62,7 @@ const baseConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.supabase.co wss: ws:",
+              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://api.workos.com wss: ws:",
               "font-src 'self' data:",
               "object-src 'none'",
               "media-src 'self'",
