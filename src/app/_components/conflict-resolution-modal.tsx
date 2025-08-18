@@ -62,17 +62,23 @@ export function ConflictResolutionModal({
     return new Date(timestamp).toLocaleString();
   };
 
-  const getDataPreview = (data: any, type: string): string => {
+  const getDataPreview = (data: unknown, type: string): string => {
+    const safeData = data as { 
+      exercises?: Array<{ sets?: unknown[] }>; 
+      name?: string; 
+      sets?: number; 
+    };
+    
     switch (type) {
       case 'workout':
-        return `${data.exercises?.length || 0} exercises, ${
-          (data.exercises?.reduce((total: number, ex: any) => 
-            total + (ex.sets?.length || 0), 0) ?? 0)
-        } sets` as string;
+        return `${safeData.exercises?.length || 0} exercises, ${
+          safeData.exercises?.reduce((total: number, ex) => 
+            total + (ex.sets?.length || 0), 0) ?? 0
+        } sets`;
       case 'template':
-        return `"${data.name}" - ${data.exercises?.length || 0} exercises`;
+        return `"${safeData.name || 'Unnamed'}" - ${safeData.exercises?.length || 0} exercises`;
       case 'exercise':
-        return `"${data.name}" - ${data.sets || 0} sets`;
+        return `"${safeData.name || 'Unnamed'}" - ${safeData.sets || 0} sets`;
       default:
         return 'Data preview unavailable';
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '~/app/_components/ui/Button';
+import { Button } from '~/components/ui/button';
 import { WorkoutSession } from '~/app/_components/workout-session';
 import { ReadinessIndicator } from '~/app/_components/health-advice/ReadinessIndicator';
 import { SetSuggestions } from '~/app/_components/health-advice/SetSuggestions';
@@ -358,7 +358,7 @@ export function WorkoutSessionWithHealthAdvice({
         <Button
           onClick={handleGetHealthAdvice}
           disabled={loading || isSubmittingWellness}
-          variant="primary"
+          variant="default"
           size="lg"
         >
           {loading || isSubmittingWellness

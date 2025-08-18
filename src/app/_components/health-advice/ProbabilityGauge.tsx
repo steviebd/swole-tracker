@@ -1,6 +1,6 @@
 'use client';
 
-import { Card } from '~/app/_components/ui/Card';
+import { Card } from '~/components/ui/card';
 
 interface ProbabilityGaugeProps {
   probability: number; // 0-1

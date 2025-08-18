@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '~/app/_components/ui/Button';
-import { Card } from '~/app/_components/ui/Card';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
 
 interface SubjectiveWellnessData {
   energyLevel: number; // 1-10

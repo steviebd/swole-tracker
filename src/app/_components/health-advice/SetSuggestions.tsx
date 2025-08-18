@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Card } from '~/app/_components/ui/Card';
-import { Button } from '~/app/_components/ui/Button';
+import { Card } from '~/components/ui/card';
+import { Button } from '~/components/ui/button';
 import type { HealthAdviceResponse } from '~/server/api/schemas/health-advice';
 import { trackSuggestionInteraction } from '~/lib/analytics/health-advice';
 
@@ -197,7 +197,7 @@ export function SetSuggestions({ exercise, onAcceptSuggestion, onOverrideSuggest
                     <>
                       <Button
                         size="sm"
-                        variant="primary"
+                        variant="default"
                         onClick={() => handleAcceptSet(set.set_id, {
                           weight: set.suggested_weight_kg || undefined,
                           reps: set.suggested_reps || undefined

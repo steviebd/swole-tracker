@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { TemplateForm } from "~/app/_components/template-form";
+import { Button } from "~/components/ui/button";
 
 export default async function NewTemplatePage() {
   const supabase = await createServerSupabaseClient();
@@ -17,12 +18,11 @@ export default async function NewTemplatePage() {
       <div className="container mx-auto px-4 py-6 w-full min-w-0">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
-          <Link
-            href="/templates"
-            className="text-purple-400 hover:text-purple-300"
-          >
-            ← Back
-          </Link>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/templates">
+              ← Back
+            </Link>
+          </Button>
           <h1 className="text-2xl font-bold">New Template</h1>
         </div>
 

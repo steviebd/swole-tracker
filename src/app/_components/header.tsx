@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "~/providers/AuthProvider";
 import { useTheme } from "~/providers/ThemeProvider";
 
@@ -126,18 +126,18 @@ export function Header() {
   if (!mounted) {
     // Return skeleton during hydration to prevent flash
     return (
-      <header className="glass-header sticky top-0 z-50" style={{ backgroundColor: "var(--color-surface-glass)", backdropFilter: "blur(12px)" }}>
+      <header className="glass-header sticky top-0 z-50">
         <div className="container-default">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-primary)" }}>
-                <span className="font-bold text-sm" style={{ color: "var(--color-primary-foreground)" }}>S</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary">
+                <span className="font-bold text-sm text-primary-foreground">S</span>
               </div>
-              <h1 className="text-lg font-bold" style={{ color: "var(--color-text)" }}>Swole Tracker</h1>
+              <h1 className="text-lg font-bold text-foreground">Swole Tracker</h1>
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-2 rounded-lg transition-colors hover:bg-[var(--color-surface-hover)]">
-                <div className="w-5 h-5" style={{ backgroundColor: "var(--color-text-secondary)" }} />
+              <button className="p-2 rounded-lg transition-colors hover:bg-muted">
+                <div className="w-5 h-5 bg-muted-foreground" />
               </button>
             </div>
           </div>
@@ -147,16 +147,16 @@ export function Header() {
   }
 
   return (
-    <header className="glass-header sticky top-0 z-50" style={{ backgroundColor: "var(--color-surface-glass)", backdropFilter: "blur(12px)" }}>
+    <header className="glass-header sticky top-0 z-50">
       <div className="container-default">
         <div className="flex items-center justify-between py-3">
           {/* Logo and Title */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110" style={{ backgroundColor: "var(--color-primary)" }}>
-                <span className="font-bold text-sm" style={{ color: "var(--color-primary-foreground)" }}>S</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 bg-primary">
+                <span className="font-bold text-sm text-primary-foreground">S</span>
               </div>
-              <h1 className="text-lg font-bold transition-colors group-hover:text-[var(--color-primary)]" style={{ color: "var(--color-text)" }}>
+              <h1 className="text-lg font-bold transition-colors group-hover:text-primary text-foreground">
                 Swole Tracker
               </h1>
             </Link>
@@ -173,8 +173,8 @@ export function Header() {
                   href={item.href}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     active
-                      ? "text-[var(--color-primary)] bg-[var(--color-primary-50)]"
-                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
                   aria-current={active ? "page" : undefined}
                 >
@@ -190,14 +190,18 @@ export function Header() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]"
-              aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
+              className="p-2 rounded-lg transition-colors hover:bg-muted text-muted-foreground"
+              aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme. Current theme: ${resolvedTheme}`}
+              aria-pressed={resolvedTheme === "dark"}
               title={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
             >
+              <span className="sr-only">
+                {resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              </span>
               {resolvedTheme === "dark" ? (
-                <SunIcon className="w-5 h-5" />
+                <SunIcon className="w-5 h-5" aria-hidden="true" />
               ) : (
-                <MoonIcon className="w-5 h-5" />
+                <MoonIcon className="w-5 h-5" aria-hidden="true" />
               )}
             </button>
 
@@ -207,18 +211,18 @@ export function Header() {
                 {user ? (
                   <div className="flex items-center gap-2">
                     {/* User Avatar */}
-                    <div className="flex items-center gap-2 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--color-surface-hover)" }}>
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium" style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary-foreground)" }}>
+                    <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-muted">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium bg-primary text-primary-foreground">
                         {getUserInitials()}
                       </div>
-                      <span className="text-sm font-medium" style={{ color: "var(--color-text-secondary)" }}>
+                      <span className="text-sm font-medium text-muted-foreground">
                         {user.email?.split("@")[0]}
                       </span>
                     </div>
                     {/* Sign Out Button */}
                     <button
                       onClick={handleSignOut}
-                      className="p-2 rounded-lg transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]"
+                      className="p-2 rounded-lg transition-colors hover:bg-muted text-muted-foreground"
                       aria-label="Sign out"
                       title="Sign out"
                     >
@@ -228,8 +232,7 @@ export function Header() {
                 ) : (
                   <Link
                     href="/auth/login"
-                    className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
-                    style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     Sign In
                   </Link>
@@ -241,7 +244,7 @@ export function Header() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]"
+            className="md:hidden p-2 rounded-lg transition-colors hover:bg-muted text-muted-foreground"
             aria-label="Toggle mobile menu"
             aria-expanded={mobileMenuOpen}
           >
@@ -255,7 +258,7 @@ export function Header() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t py-2" style={{ borderColor: "var(--color-border)" }}>
+          <div className="md:hidden border-t py-2 border-border">
             <nav className="flex flex-col gap-1" role="navigation" aria-label="Mobile navigation">
               {visibleNavItems.map((item) => {
                 const Icon = item.icon;
@@ -267,8 +270,8 @@ export function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       active
-                        ? "text-[var(--color-primary)] bg-[var(--color-primary-50)]"
-                        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
@@ -280,21 +283,23 @@ export function Header() {
             </nav>
 
             {/* Mobile Actions */}
-            <div className="flex items-center justify-between pt-2 mt-2 border-t" style={{ borderColor: "var(--color-border)" }}>
+            <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-muted text-muted-foreground"
+                aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme. Current theme: ${resolvedTheme}`}
+                aria-pressed={resolvedTheme === "dark"}
               >
                 {resolvedTheme === "dark" ? (
                   <>
-                    <SunIcon className="w-4 h-4" />
-                    Light Mode
+                    <SunIcon className="w-4 h-4" aria-hidden="true" />
+                    <span>Light Mode</span>
                   </>
                 ) : (
                   <>
-                    <MoonIcon className="w-4 h-4" />
-                    Dark Mode
+                    <MoonIcon className="w-4 h-4" aria-hidden="true" />
+                    <span>Dark Mode</span>
                   </>
                 )}
               </button>
@@ -304,13 +309,13 @@ export function Header() {
                 <>
                   {user ? (
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <UserIcon className="w-4 h-4" />
                         {user.email?.split("@")[0]}
                       </div>
                       <button
                         onClick={handleSignOut}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)]"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-muted text-muted-foreground"
                       >
                         <LogoutIcon className="w-4 h-4" />
                         Sign Out
@@ -320,8 +325,7 @@ export function Header() {
                     <Link
                       href="/auth/login"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors"
-                      style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
                     >
                       Sign In
                     </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "~/trpc/react";
-import { Card } from "~/app/_components/ui/Card";
+import { Card } from "~/components/ui/card";
 import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
 import { calculateStreak, getStreakBadge, formatAchievementBadge, type Achievement } from "~/lib/achievements";
 

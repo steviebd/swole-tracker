@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { useMockFeed } from "~/hooks/useMockData";
-import { Card } from "~/app/_components/ui/Card";
+import { Card } from "~/components/ui/card";
 
 interface WorkoutCardProps {
   id: number;

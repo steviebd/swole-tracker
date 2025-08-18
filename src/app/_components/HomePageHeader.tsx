@@ -84,13 +84,17 @@ export function HomePageHeader() {
         <button
           onClick={toggleTheme}
           className="btn-ghost p-1.5 sm:p-2 text-sm font-medium rounded-lg"
-          aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
+          aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme. Current theme: ${resolvedTheme}`}
+          aria-pressed={resolvedTheme === "dark"}
           title={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} theme`}
         >
+          <span className="sr-only">
+            {resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          </span>
           {resolvedTheme === "dark" ? (
-            <SunIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <SunIcon className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
           ) : (
-            <MoonIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <MoonIcon className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
           )}
         </button>
       </div>

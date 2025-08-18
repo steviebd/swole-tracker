@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
-import { Card } from "~/app/_components/ui/Card";
+import { Card } from "~/components/ui/card";
 
 export function WeeklyProgressSection() {
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month">("week");

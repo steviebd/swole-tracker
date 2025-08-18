@@ -19,10 +19,10 @@
   --color-text-secondary: #002137;                 /* Secondary text - medium blue (#002137) */
   --color-text-muted: #003356;                     /* Muted text - lighter blue (#003356) */
   
-  /* Primary accent using warm tan */
-  --color-primary: #D4A373;                        /* Warm tan primary (#D4A373) */
-  --color-primary-hover: #c49660;                  /* Darker tan on hover */
-  --color-primary-active: #b8894d;                 /* Deeper tan when active */
+  /* Primary accent using accessible warm tan */
+  --color-primary: #7f6245;                        /* Accessible dark tan primary (#7f6245) - WCAG 2.2 AA compliant */
+  --color-primary-hover: #735a3e;                  /* Darker tan on hover */
+  --color-primary-active: #665137;                 /* Deeper tan when active */
   
   /* Secondary colors using light sage */
   --color-secondary: #E9EDC9;                      /* Light sage secondary (#E9EDC9) */
@@ -72,9 +72,9 @@
   --gradient-subtle: linear-gradient(180deg, #FEFAE0 0%, #FAEDCD 100%);
   --gradient-surface: linear-gradient(180deg, #FEFAE0 0%, #FAEDCD 100%);
   --gradient-card: linear-gradient(135deg, #FEFAE0 0%, #FAEDCD 50%, #E9EDC9 100%);
-  --gradient-primary: linear-gradient(135deg, #D4A373 0%, #c49660 100%);
+  --gradient-primary: linear-gradient(135deg, #7f6245 0%, #735a3e 100%);
   --gradient-secondary: linear-gradient(135deg, #E9EDC9 0%, #dde4b8 100%);
-  --gradient-accent: linear-gradient(135deg, #D4A373 0%, #c49660 100%);
+  --gradient-accent: linear-gradient(135deg, #7f6245 0%, #735a3e 100%);
   --gradient-input: linear-gradient(180deg, #FAEDCD 0%, #E9EDC9 100%);
   
   /* Enhanced app shell gradients using earth tones */
@@ -84,7 +84,7 @@
   
   /* Enhanced glass effect colors with gradient depth */
   --glass-highlight: rgba(254, 250, 224, 0.6);      /* #FEFAE0 with alpha */
-  --glass-accent: rgba(212, 163, 115, 0.08);        /* #D4A373 with alpha */
+  --glass-accent: rgba(127, 98, 69, 0.08);          /* #7f6245 with alpha */
   --glass-border-mix: rgba(0, 17, 28, 0.25);        /* #00111C with alpha */
   
   /* Enhanced glass effect variants with gradient warmth */

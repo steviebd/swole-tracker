@@ -116,45 +116,45 @@ The refactoring will be done in several phases:
 
 ### Phase 4: Component Refactoring
 
--   [ ] **Audit and Replace Existing Components**:
-    -   [ ] Go through all the components in `src/app/_components/` and identify which ones can be replaced with `shadcn/ui` components or the new components we've created.
-    -   [ ] Replace the existing `Card` component with the `shadcn/ui` `Card`.
--   [ ] **Update Styling**:
-    -   [ ] During the component refactoring, ensure that all components use the new design tokens and utility classes from `globals.css`.
-    -   [ ] Remove any inline styles or old CSS classes that are no longer needed.
+-   [x] **Audit and Replace Existing Components**:
+    -   [x] Go through all the components in `src/app/_components/` and identify which ones can be replaced with `shadcn/ui` components or the new components we've created.
+    -   [x] Replace the existing `Card` component with the `shadcn/ui` `Card`.
+-   [x] **Update Styling**:
+    -   [x] During the component refactoring, ensure that all components use the new design tokens and utility classes from `globals.css`.
+    -   [x] Remove any inline styles or old CSS classes that are no longer needed.
 
 ### Phase 5: Dark Mode
 
--   [ ] **Verify Dark Mode**:
-    -   [ ] The new `globals.css` from the template already includes a dark mode implementation using the `.dark` class.
-    -   [ ] Ensure that the `ThemeProvider` is correctly configured to toggle the dark mode.
-    -   [ ] Thoroughly test all pages and components in both light and dark modes to ensure that the UI is consistent and looks good.
+-   [x] **Verify Dark Mode**:
+    -   [x] The new `globals.css` from the template already includes a dark mode implementation using the `.dark` class.
+    -   [x] Ensure that the `ThemeProvider` is correctly configured to toggle the dark mode.
+    -   [x] Thoroughly test all pages and components in both light and dark modes to ensure that the UI is consistent and looks good.
 
 ### Phase 6: Authentication
 
--   [ ] **Goal:** Refactor the authentication pages to use the new design system.
--   [ ] **Pages:**
-    -   [ ] `/auth/login`
-    -   [ ] `/auth/register`
-    -   [ ] `/auth/auth-code-error`
--   [ ] **Tasks:**
-    -   [ ] Refactor the login and register forms to use `shadcn/ui` form components (`Input`, `Button`, `Label`, etc.).
-    -   [ ] Replace the custom error and success message components with `shadcn/ui` `Alert` and `AlertDescription` components.
-    -   [ ] Ensure the layout of the authentication pages is consistent with the new design system.
-    -   [ ] Restyle the `GoogleAuthButton` to match the new design.
+-   [x] **Goal:** Refactor the authentication pages to use the new design system.
+-   [x] **Pages:**
+    -   [x] `/auth/login`
+    -   [x] `/auth/register`
+    -   [x] `/auth/auth-code-error`
+-   [x] **Tasks:**
+    -   [x] Refactor the login and register forms to use `shadcn/ui` form components (`Input`, `Button`, `Label`, etc.).
+    -   [x] Replace the custom error and success message components with `shadcn/ui` `Alert` and `AlertDescription` components.
+    -   [x] Ensure the layout of the authentication pages is consistent with the new design system.
+    -   [x] Restyle the `GoogleAuthButton` to match the new design.
 
 ### Phase 7: Templates
 
--   [ ] **Goal:** Refactor the workout templates pages to use the new design system.
--   [ ] **Pages:**
-    -   [ ] `/templates`
-    -   [ ] `/templates/new`
-    -   [ ] `/templates/[id]/edit`
--   [ ] **Tasks:**
-    -   [ ] Replace the `GlassHeader` on the templates list page with a standard `shadcn/ui` header.
-    -   [ ] Replace the `glass-surface` card with a `shadcn/ui` `Card`.
-    -   [ ] Refactor the `TemplateForm` component to use `shadcn/ui` form components.
-    -   [ ] Ensure the overall layout and styling of the templates pages are consistent with the new design system.
+-   [x] **Goal:** Refactor the workout templates pages to use the new design system.
+-   [x] **Pages:**
+    -   [x] `/templates`
+    -   [x] `/templates/new`
+    -   [x] `/templates/[id]/edit`
+-   [x] **Tasks:**
+    -   [x] Replace the `GlassHeader` on the templates list page with a standard `shadcn/ui` header.
+    -   [x] Replace the `glass-surface` card with a `shadcn/ui` `Card`.
+    -   [x] Refactor the `TemplateForm` component to use `shadcn/ui` form components.
+    -   [x] Ensure the overall layout and styling of the templates pages are consistent with the new design system.
 
 ### Phase 8: Workouts
 

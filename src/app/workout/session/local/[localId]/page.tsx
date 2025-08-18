@@ -22,7 +22,7 @@ export default async function LocalWorkoutSessionPage({
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="mb-4 text-2xl font-bold text-red-400">
+        <h1 className="mb-4 text-2xl font-bold text-destructive">
           Local Session Not Found
         </h1>
         <p className="mb-6 text-muted-foreground">
@@ -32,7 +32,7 @@ export default async function LocalWorkoutSessionPage({
         <div className="space-x-4">
           <Link
             href="/workouts"
-            className="rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+            className="btn-primary"
           >
             View Workout History
           </Link>

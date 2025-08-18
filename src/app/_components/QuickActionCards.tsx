@@ -1,6 +1,7 @@
 "use client";
 
-import { Card } from "~/app/_components/ui/Card";
+import Link from "next/link";
+import { Card } from "~/components/ui/card";
 
 export function QuickActionCards() {
   // Card definitions matching template design
@@ -46,16 +47,14 @@ export function QuickActionCards() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       {cards.map((card) => (
-        <Card
-          key={card.id}
-          as="a"
-          href={card.href}
-          surface="card"
-          variant="elevated"
-          padding="md"
-          interactive={true}
-          className={`${card.gradient} text-white hover:shadow-lg transition-all group block relative overflow-hidden`} // eslint-disable-line no-restricted-syntax
-        >
+        <Link key={card.id} href={card.href} className="block">
+          <Card
+            surface="card"
+            variant="elevated"
+            padding="md"
+            interactive={true}
+            className={`${card.gradient} text-white hover:shadow-lg transition-all group relative overflow-hidden`} // eslint-disable-line no-restricted-syntax
+          >
           {/* Icon and arrow row */}
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
@@ -95,7 +94,8 @@ export function QuickActionCards() {
               </svg>
             </div>
           </div>
-        </Card>
+          </Card>
+        </Link>
       ))}
     </div>
   );

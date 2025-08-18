@@ -25,6 +25,20 @@
   /* Tailwind color mappings to CSS variables */
   --color-black: var(--color-foreground);
   --color-white: var(--color-background);
+  
+  /* Semantic color tokens for consistent usage */
+  --color-foreground: var(--color-text);
+  --color-background: var(--color-bg-app);
+  --color-muted: var(--color-bg-surface);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-border: var(--color-border);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
+  --color-primary-foreground: var(--color-background);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-background);
+  --color-secondary: var(--color-text-muted);
+  --color-secondary-foreground: var(--color-text);
 }
 
 /* Global defaults - no theme-specific colors here anymore */
@@ -62,6 +76,9 @@ body {
 .btn-secondary:hover {
   background-color: var(--btn-secondary-bg-hover, color-mix(in oklab, var(--color-bg-surface) 85%, white 15%));
 }
+.btn-secondary:active { background-color: color-mix(in oklab, var(--color-bg-surface) 70%, black 30%); }
+.btn-secondary:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-ghost {
   @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors;
@@ -69,18 +86,29 @@ body {
   color: var(--btn-ghost-fg, var(--color-text-secondary));
 }
 .btn-ghost:hover { background-color: color-mix(in oklab, var(--color-bg-surface) 80%, black 20%); }
+.btn-ghost:active { background-color: color-mix(in oklab, var(--color-bg-surface) 60%, black 40%); }
+.btn-ghost:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-destructive {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-danger);
   color: var(--btn-destructive-fg, var(--color-background));
 }
+.btn-destructive:hover { background-color: color-mix(in oklab, var(--color-danger) 85%, black 15%); }
+.btn-destructive:active { background-color: color-mix(in oklab, var(--color-danger) 70%, black 30%); }
+.btn-destructive:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-danger) 50%, transparent); }
+.btn-destructive:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-success {
   @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors;
   background-color: var(--color-success);
   color: var(--btn-success-fg, var(--color-background));
 }
+.btn-success:hover { background-color: color-mix(in oklab, var(--color-success) 85%, black 15%); }
+.btn-success:active { background-color: color-mix(in oklab, var(--color-success) 70%, black 30%); }
+.btn-success:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-success) 50%, transparent); }
+.btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Links */
 .link-primary { @apply underline-offset-4 transition-colors; color: var(--color-primary); }

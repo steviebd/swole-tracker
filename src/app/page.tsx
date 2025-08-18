@@ -28,7 +28,7 @@ export default function Home() {
       <div className="relative mx-auto max-w-4xl text-center flex items-center justify-center min-h-[60vh] px-3 sm:px-4">
         <div className="glass-surface card p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl w-full min-w-0">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-extrabold tracking-tight leading-tight">
-            💪 <span className="text-purple-400">Swole</span> Tracker
+            💪 <span className="text-primary">Swole</span> Tracker
           </h1>
           <p className="text-secondary mx-auto mt-3 sm:mt-4 max-w-2xl text-sm sm:text-base md:text-lg">
             Simple, mobile-first workout tracking. Log your workouts, track

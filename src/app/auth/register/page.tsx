@@ -1,165 +1,194 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
 import Link from "next/link";
 import { GoogleAuthButton } from "~/app/_components/google-auth-button";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+
+const registerSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const _router = useRouter();
-
   const supabase = createBrowserSupabaseClient();
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setMessage(null);
+  const form = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-    if (password !== confirmPassword) {
-      setError("Passwords don't match");
-      setIsLoading(false);
-      return;
-    }
+  const { handleSubmit, formState: { isSubmitting, errors }, setError, setValue } = form;
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
-      setIsLoading(false);
-      return;
-    }
-
+  const onSubmit = async (data: RegisterForm) => {
     try {
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: data.email,
+        password: data.password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (error) {
-        setError(error.message);
+        setError("root", {
+          type: "manual",
+          message: error.message,
+        });
         return;
       }
 
-      setMessage(
-        "Check your email for a verification link to complete your registration."
-      );
+      // Clear the form and show success message
+      setValue("email", "");
+      setValue("password", "");
+      setValue("confirmPassword", "");
+      setError("root", {
+        type: "success",
+        message: "Check your email for a verification link to complete your registration.",
+      });
     } catch (_err) {
-      setError("An unexpected error occurred");
-    } finally {
-      setIsLoading(false);
+      setError("root", {
+        type: "manual",
+        message: "An unexpected error occurred",
+      });
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center overflow-x-hidden w-full px-4">
-      <div className="w-full max-w-md space-y-8 card p-6">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold">Sign Up</h2>
-          <p className="mt-2 text-muted">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-3xl font-bold">Sign Up</CardTitle>
+          <CardDescription>
             Create your Swole Tracker account
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <GoogleAuthButton mode="signup" />
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-muted" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-card px-2 text-muted">
-                Or continue with email
-              </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <GoogleAuthButton mode="signup" />
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with email
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <form onSubmit={handleSignUp} className="space-y-4">
-          {error && (
-            <div className="error-bg error-text">
-              {error}
-            </div>
-          )}
+          <Form {...form}>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {errors.root && (
+                <Alert variant={errors.root.type === "success" ? "default" : "destructive"}>
+                  <AlertDescription>
+                    {errors.root.message}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-          {message && (
-            <div className="success-bg success-text">
-              {message}
-            </div>
-          )}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email" 
+                        placeholder="Enter your email"
+                        autoComplete="email"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 input-primary focus-primary"
-            />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Enter your password"
+                        autoComplete="new-password"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Confirm your password"
+                        autoComplete="new-password"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full"
+                aria-busy={isSubmitting}
+              >
+                {isSubmitting ? "Creating Account..." : "Sign Up"}
+              </Button>
+            </form>
+          </Form>
+
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link
+                href="/auth/login"
+                className="font-medium text-primary hover:text-primary/90 transition-colors"
+              >
+                Sign in
+              </Link>
+            </p>
           </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 input-primary focus-primary"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
-              Confirm Password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="mt-1 input-primary focus-primary"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full btn-primary py-2 animate-button-hover"
-          >
-            {isLoading ? "Creating Account..." : "Sign Up"}
-          </button>
-        </form>
-
-        <div className="text-center">
-          <p className="text-sm text-muted">
-            Already have an account?{" "}
-            <Link
-              href="/auth/login"
-              className="link-primary"
-            >
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -100,7 +100,7 @@ export const enhancedHealthAdviceRequestSchema = z.object({
     })),
   }),
   prior_bests: z.object({
-    by_exercise_id: z.record(z.object({
+    by_exercise_id: z.record(z.string(), z.object({
       best_total_volume_kg: z.number().positive().optional().nullable(),
       best_e1rm_kg: z.number().positive().optional().nullable(),
     })),

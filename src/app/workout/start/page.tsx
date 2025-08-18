@@ -11,7 +11,7 @@ import {
 } from "~/trpc/prefetch";
 import { WorkoutStarter } from "~/app/_components/workout-starter";
 import { GlassHeader } from "~/app/_components/ui/GlassHeader";
-import { Button } from "~/app/_components/ui/Button";
+import { Button } from "~/components/ui/button";
 
 interface StartWorkoutPageProps {
   searchParams: Promise<{ templateId?: string }>;
