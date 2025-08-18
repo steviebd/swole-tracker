@@ -19,7 +19,7 @@ This document defines the project-specific workflow, commands, architecture, and
 - DB: Studio (UI): `bun db:studio` (automatically injects secrets from Infisical)
 
 Notes:
-- Package manager is pinned: `bun@1.1.42` (required).
+- Package manager is pinned: `bun@1.2.15` (required).
 - Node.js 20.19.4 recommended (pinned via Volta).
 
 ## Architecture
