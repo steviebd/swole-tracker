@@ -64,7 +64,7 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full">
       <CardHeader className="text-center space-y-2">
         <CardTitle className="text-2xl sm:text-3xl font-bold">Sign In</CardTitle>
         <CardDescription className="text-sm sm:text-base">
@@ -108,6 +108,7 @@ function LoginForm() {
                       type="email" 
                       placeholder="Enter your email"
                       autoComplete="email"
+                      className="w-full"
                       {...field} 
                     />
                   </FormControl>
@@ -127,6 +128,7 @@ function LoginForm() {
                       type="password" 
                       placeholder="Enter your password"
                       autoComplete="current-password"
+                      className="w-full"
                       {...field} 
                     />
                   </FormControl>
@@ -164,22 +166,24 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 sm:px-6 lg:px-8 overflow-x-hidden w-full">
-      <Suspense fallback={
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-4">
-            <div className="h-6 sm:h-8 skeleton"></div>
-            <div className="h-4 skeleton"></div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-10 skeleton"></div>
-            <div className="h-10 skeleton"></div>
-            <div className="h-10 skeleton"></div>
-          </CardContent>
-        </Card>
-      }>
-        <LoginForm />
-      </Suspense>
+    <div className="flex min-h-screen items-center justify-center p-4 w-full">
+      <div className="w-full max-w-md">
+        <Suspense fallback={
+          <Card className="w-full">
+            <CardHeader className="space-y-4">
+              <div className="h-6 sm:h-8 skeleton"></div>
+              <div className="h-4 skeleton"></div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="h-10 skeleton"></div>
+              <div className="h-10 skeleton"></div>
+              <div className="h-10 skeleton"></div>
+            </CardContent>
+          </Card>
+        }>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

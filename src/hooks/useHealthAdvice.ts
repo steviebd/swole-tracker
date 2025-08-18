@@ -72,9 +72,15 @@ export function useHealthAdvice(sessionId?: number) {
       // Save to database
       if (sessionId) {
         try {
+          // Ensure whoop object is always present for the save operation
+          const requestForSave = {
+            ...request,
+            whoop: request.whoop || {},
+          };
+          
           await saveHealthAdvice.mutateAsync({
             sessionId,
-            request,
+            request: requestForSave,
             response: data,
             responseTimeMs: totalDuration,
             modelUsed: 'health-model',
@@ -199,9 +205,15 @@ export function useHealthAdvice(sessionId?: number) {
       // Save to database with wellness context
       if (sessionId) {
         try {
+          // Ensure whoop object is always present for the save operation
+          const requestForSave = {
+            ...enhancedRequest,
+            whoop: enhancedRequest.whoop || {},
+          };
+          
           await saveHealthAdviceWithWellness.mutateAsync({
             sessionId,
-            request: enhancedRequest,
+            request: requestForSave,
             response: data,
             responseTimeMs: totalDuration,
             modelUsed: 'health-model',

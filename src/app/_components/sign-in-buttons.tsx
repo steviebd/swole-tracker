@@ -27,7 +27,7 @@ export function SignInButtons() {
         <Button variant="default" size="lg" className="px-8 py-3 font-semibold">Sign in</Button>
       </Link>
       <div className="text-secondary text-center text-xs">
-        Welcome to the Calm Dark experience
+        And start lifting heavy
       </div>
     </div>
   );
