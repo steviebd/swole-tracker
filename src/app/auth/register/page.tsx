@@ -1,194 +1,76 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GoogleAuthButton } from "~/app/_components/google-auth-button";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 
-const registerSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") || "/";
 
-type RegisterForm = z.infer<typeof registerSchema>;
-
-export default function RegisterPage() {
-  const _router = useRouter();
-  const supabase = createBrowserSupabaseClient();
-
-  const form = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
-  });
-
-  const { handleSubmit, formState: { isSubmitting, errors }, setError, setValue } = form;
-
-  const onSubmit = async (data: RegisterForm) => {
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) {
-        setError("root", {
-          type: "manual",
-          message: error.message,
-        });
-        return;
-      }
-
-      // Clear the form and show success message
-      setValue("email", "");
-      setValue("password", "");
-      setValue("confirmPassword", "");
-      setError("root", {
-        type: "success",
-        message: "Check your email for a verification link to complete your registration.",
-      });
-    } catch (_err) {
-      setError("root", {
-        type: "manual",
-        message: "An unexpected error occurred",
-      });
-    }
+  // WorkOS registration - redirect to OAuth flow (same as login for WorkOS)
+  const handleRegister = () => {
+    const loginUrl = `/api/auth/login${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+    window.location.href = loginUrl;
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center overflow-x-hidden w-full px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-3xl font-bold">Sign Up</CardTitle>
-          <CardDescription>
-            Create your Swole Tracker account
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <GoogleAuthButton mode="signup" />
-            
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with email
-                </span>
-              </div>
+    <Card className="w-full">
+      <CardHeader className="text-center space-y-2">
+        <CardTitle className="text-2xl sm:text-3xl font-bold">Create Account</CardTitle>
+        <CardDescription className="text-sm sm:text-base">
+          Create your Swole Tracker account to get started
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <GoogleAuthButton mode="signup" redirectTo={redirectTo} />
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
             </div>
           </div>
 
-          <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {errors.root && (
-                <Alert variant={errors.root.type === "success" ? "default" : "destructive"}>
-                  <AlertDescription>
-                    {errors.root.message}
-                  </AlertDescription>
-                </Alert>
-              )}
+          <Button 
+            onClick={handleRegister}
+            className="w-full" 
+            size="lg"
+          >
+            Sign up with WorkOS
+          </Button>
+        </div>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Enter your email"
-                        autoComplete="email"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <div className="text-center text-sm">
+          Already have an account?{" "}
+          <Link 
+            href={`/auth/login${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
+            className="underline underline-offset-4 hover:text-primary"
+          >
+            Sign in
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Enter your password"
-                        autoComplete="new-password"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="password" 
-                        placeholder="Confirm your password"
-                        autoComplete="new-password"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full"
-                aria-busy={isSubmitting}
-              >
-                {isSubmitting ? "Creating Account..." : "Sign Up"}
-              </Button>
-            </form>
-          </Form>
-
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link
-                href="/auth/login"
-                className="font-medium text-primary hover:text-primary/90 transition-colors"
-              >
-                Sign in
-              </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+export default function RegisterPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-sm space-y-8">
+        <Suspense fallback={<div>Loading...</div>}>
+          <RegisterForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

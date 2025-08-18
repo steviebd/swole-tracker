@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "bun run tokens:build && next build",
-    "build:cloudflare": "bun run tokens:build && next build",
+    "build:cloudflare": "bun run tokens:build && next build && npx @cloudflare/next-on-pages",
+    "deploy:cloudflare": "bun run build:cloudflare && npx wrangler pages deploy .vercel/output/static",
     "build:tokens": "node scripts/build-tokens.js",
     "check": "bun run lint && bun run typecheck",
     "db:generate": "drizzle-kit generate",
@@ -91,6 +92,7 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "1.13.13",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.54.2",
     "@tailwindcss/postcss": "^4.1.11",
