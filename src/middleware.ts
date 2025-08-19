@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
+import { validateAccessToken, SESSION_COOKIE_NAME, type WorkOSUser } from "~/lib/workos";
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
 
   // Get WorkOS session from cookie
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
-  let user = null;
+  let user: WorkOSUser | null = null;
 
   if (sessionCookie) {
     try {

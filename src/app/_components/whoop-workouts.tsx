@@ -18,6 +18,29 @@ import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 
+// API Response Types
+interface CleanupResponse {
+  message: string;
+  error?: string;
+}
+
+interface SyncResponse {
+  synced: {
+    workouts: number;
+    recovery: number;
+    cycles: number;
+    sleep: number;
+    profile: number;
+    bodyMeasurements: number;
+    errors?: string[];
+  };
+  totalNewRecords: number;
+  message?: string;
+  error?: string;
+  needsReauthorization?: boolean;
+  resetTime?: string;
+}
+
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
   const [syncLoading, setSyncLoading] = useState(false);
@@ -132,7 +155,7 @@ export function WhoopWorkouts() {
         method: "POST",
       });
 
-      const result = await response.json();
+      const result = await response.json() as CleanupResponse;
 
       if (response.ok) {
         setMessage({
@@ -160,14 +183,14 @@ export function WhoopWorkouts() {
         method: "POST",
       });
 
-      const result = await response.json();
+      const result = await response.json() as SyncResponse;
 
       if (response.ok) {
         const { synced, totalNewRecords } = result;
         let syncSummary = "Comprehensive sync completed! ";
         
         if (totalNewRecords > 0) {
-          const parts = [];
+          const parts: string[] = [];
           if (synced.workouts > 0) parts.push(`${synced.workouts} workouts`);
           if (synced.recovery > 0) parts.push(`${synced.recovery} recovery records`);
           if (synced.cycles > 0) parts.push(`${synced.cycles} cycles`);
@@ -202,7 +225,7 @@ export function WhoopWorkouts() {
           text:
             result.message || "Rate limit exceeded. Please try again later.",
         });
-        setRateLimit({ remaining: 0, resetTime: result.resetTime });
+        setRateLimit({ remaining: 0, resetTime: result.resetTime || "" });
       } else {
         setMessage({ type: "error", text: result.error || "Sync failed" });
       }

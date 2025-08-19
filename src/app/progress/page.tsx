@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 import { redirect } from "next/navigation";
 import { ProgressDashboard } from "../_components/ProgressDashboard";
 
+export const runtime = 'edge';
+
 export default async function ProgressPage() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();

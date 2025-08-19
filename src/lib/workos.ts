@@ -47,7 +47,16 @@ export function getAuthorizationUrl(redirectUri: string, state?: string): string
     params.append('state', state);
   }
 
-  return `https://api.workos.com/user_management/authorize?${params.toString()}`;
+  const authUrl = `https://api.workos.com/user_management/authorize?${params.toString()}`;
+  
+  // Debug logging for troubleshooting
+  console.log('WorkOS authorization params:', {
+    clientId: clientId.substring(0, 20) + '...',
+    redirectUri,
+    authUrl: authUrl.split('?')[0] + '?...',
+  });
+
+  return authUrl;
 }
 
 /**
@@ -62,10 +71,18 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
   }
 
   try {
+    // Debug logging for troubleshooting
+    console.log('WorkOS token exchange params:', {
+      clientId: clientId.substring(0, 20) + '...',
+      redirectUri,
+      codePrefix: code.substring(0, 10) + '...',
+    });
+
     // Exchange code for tokens
     const { accessToken, refreshToken, user } = await workos.userManagement.authenticateWithCode({
       code,
       clientId,
+      redirectUri, // This is required and must match the one used in authorization
     });
 
     return {

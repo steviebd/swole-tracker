@@ -6,6 +6,7 @@ import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutHistory } from "~/app/_components/workout-history";
 import { Button } from "~/components/ui/button";
 
+
 export default async function WorkoutsPage() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();

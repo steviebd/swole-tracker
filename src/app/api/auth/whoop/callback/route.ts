@@ -7,6 +7,8 @@ import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
 
+export const runtime = 'edge';
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();

@@ -7,6 +7,7 @@ import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSession
 import { GlassHeader } from "~/app/_components/ui/GlassHeader";
 import { Button } from "~/components/ui/button";
 
+
 interface WorkoutSessionPageProps {
   params: Promise<{ id: string }>;
 }

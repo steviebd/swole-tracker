@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { refreshAccessToken } from '~/lib/workos';
 
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   try {
-    const { refreshToken } = await request.json();
+    const { refreshToken } = await request.json() as { refreshToken: string };
 
     if (!refreshToken) {
       return NextResponse.json(

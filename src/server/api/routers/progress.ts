@@ -727,7 +727,17 @@ export async function calculatePersonalRecords(
   oneRMEstimate?: number;
   totalVolume?: number;
 }>> {
-  const records = [];
+  const records: Array<{
+    exerciseName: string;
+    recordType: "weight" | "volume";
+    weight: number;
+    reps: number;
+    sets: number;
+    unit: string;
+    workoutDate: Date;
+    oneRMEstimate?: number;
+    totalVolume?: number;
+  }> = [];
   
   for (const exerciseName of exerciseNames) {
     let exerciseData: {

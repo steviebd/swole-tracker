@@ -12,6 +12,7 @@ import {
 import { WorkoutStarter } from "~/app/_components/workout-starter";
 import { Button } from "~/components/ui/button";
 
+
 interface StartWorkoutPageProps {
   searchParams: Promise<{ templateId?: string }>;
 }

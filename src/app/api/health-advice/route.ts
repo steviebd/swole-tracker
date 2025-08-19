@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
         const dateString = todayMinus2Days.toISOString().split('T')[0]!; // Convert to YYYY-MM-DD format
         
         // Fetch latest recovery data from database (stored via webhooks)
-        const latestRecovery = await db.query.whoopRecovery.findFirst({
+        const latestRecovery = await (db.query as any).whoopRecovery?.findFirst({
           where: and(
             eq(whoopRecovery.user_id, user.id),
             gte(whoopRecovery.date, dateString) // Look back 2 days for recent data
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
         });
         
         // Fetch latest sleep data from database (stored via webhooks)
-        const latestSleep = await db.query.whoopSleep.findFirst({
+        const latestSleep = await (db.query as any).whoopSleep?.findFirst({
           where: and(
             eq(whoopSleep.user_id, user.id),
             gte(whoopSleep.start, todayMinus2Days.toISOString()) // Sleep uses timestamp, can use Date object
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     
     try {
       // Get the workout session and its template
-      currentSession = await db.query.workoutSessions.findFirst({
+      currentSession = await (db.query as any).workoutSessions?.findFirst({
         where: eq(workoutSessions.id, sessionId),
         with: {
           template: {
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
     // Fetch user preferences for progression calculations
     let userProgressionPrefs = null;
     try {
-      userProgressionPrefs = await db.query.userPreferences.findFirst({
+      userProgressionPrefs = await (db.query as any).userPreferences?.findFirst({
         where: eq(userPreferences.user_id, user.id)
       });
     } catch (error) {
@@ -271,10 +271,10 @@ export async function POST(req: NextRequest) {
         progressionSuggestions = calculateProgressionSuggestions(
           exerciseHistory,
           rho,
-          (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive',
+          ((userProgressionPrefs as any)?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive',
           {
-            linearIncrement: userProgressionPrefs?.linear_progression_kg ?? 2.5,
-            percentageIncrement: userProgressionPrefs?.percentage_progression ?? 2.5,
+            linearIncrement: (userProgressionPrefs as any)?.linear_progression_kg ?? 2.5,
+            percentageIncrement: (userProgressionPrefs as any)?.percentage_progression ?? 2.5,
           }
         );
       } catch (error) {
@@ -426,14 +426,14 @@ export async function POST(req: NextRequest) {
       const plateauWarnings = plateauCount > 0 ? [`Plateau detected in ${plateauCount} exercise${plateauCount > 1 ? 's' : ''} - consider deload or variation`] : [];
       
       // Build progression type summary
-      const progressionType = (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive';
+      const progressionType = ((userProgressionPrefs as any)?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive';
       let progressionSummary = '';
       switch (progressionType) {
         case 'linear':
-          progressionSummary = `Using linear progression (+${userProgressionPrefs?.linear_progression_kg || '2.5'}kg per session)`;
+          progressionSummary = `Using linear progression (+${(userProgressionPrefs as any)?.linear_progression_kg || '2.5'}kg per session)`;
           break;
         case 'percentage':
-          progressionSummary = `Using percentage progression (+${userProgressionPrefs?.percentage_progression || '2.5'}% per session)`;
+          progressionSummary = `Using percentage progression (+${(userProgressionPrefs as any)?.percentage_progression || '2.5'}% per session)`;
           break;
         case 'adaptive':
         default:
@@ -480,8 +480,8 @@ export async function POST(req: NextRequest) {
           );
 
           // Use actual historical data for targets if available
-          let targetWeight = null;
-          let targetReps = null;
+          let targetWeight: number | null = null;
+          let targetReps: number | null = null;
           
           if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
             const lastSession = exerciseHist.sessions[0];
@@ -523,7 +523,7 @@ export async function POST(req: NextRequest) {
           // templateExerciseIds not used in optimized query - removed for cleaner code
           
           // Batch query: Get all exercise links for template exercises in one query
-          const exerciseLinksForTemplate = await db.query.exerciseLinks.findMany({
+          const exerciseLinksForTemplate = await (db.query as any).exerciseLinks?.findMany({
             where: and(
               eq(exerciseLinks.user_id, user.id)
             ),

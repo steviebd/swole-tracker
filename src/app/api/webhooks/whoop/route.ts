@@ -19,6 +19,7 @@ import {
 import { eq, and } from "drizzle-orm";
 import { broadcastWorkoutUpdate } from "~/lib/sse-broadcast";
 
+
 interface WhoopWorkoutData {
   id: string;
   start: string;

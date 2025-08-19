@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '~/lib/workos';
 
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   try {
-    const { code, redirectUri } = await request.json();
+    const { code, redirectUri } = await request.json() as { code: string; redirectUri: string };
 
     if (!code || !redirectUri) {
       return NextResponse.json(

@@ -29,7 +29,7 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 function levenshteinDistance(str1: string, str2: string): number {
-  const matrix = [];
+  const matrix: number[][] = [];
 
   for (let i = 0; i <= str2.length; i++) {
     matrix[i] = [i];
@@ -738,7 +738,7 @@ export const exercisesRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       // Get linking details to find similar exercises
-      const details = await ctx.db.query.masterExercises.findFirst({
+      const details = await (ctx.db.query as any).masterExercises.findFirst({
         where: and(
           eq(masterExercises.id, input.masterExerciseId),
           eq(masterExercises.user_id, ctx.user.id),

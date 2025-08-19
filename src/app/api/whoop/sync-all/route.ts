@@ -16,6 +16,8 @@ import { eq, and, inArray } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 
+export const runtime = 'edge';
+
 interface WhoopWorkout {
   id: string;
   start: string;
@@ -171,7 +173,11 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       throw new Error(`Token refresh failed: ${response.status}`);
     }
 
-    const tokens = await response.json();
+    const tokens = await response.json() as {
+      access_token: string;
+      refresh_token?: string;
+      expires_in: number;
+    };
 
     // Update integration with new tokens
     await db
@@ -213,7 +219,7 @@ async function fetchWhoopDataV2<T>(
     throw error;
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const records = (data.records || data || []) as T[];
   console.log(`[WHOOP API v2] Successfully fetched ${records.length} records from ${endpoint}`);
   return records;
@@ -515,7 +521,7 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
     const measurement = await response.json();
     console.log(`[Body Measurements Sync] Fetched measurement data:`, measurement);
     
-    if (!measurement || (!measurement.height_meter && !measurement.weight_kilogram && !measurement.max_heart_rate)) {
+    if (!measurement || (!(measurement as any).height_meter && !(measurement as any).weight_kilogram && !(measurement as any).max_heart_rate)) {
       console.log(`[Body Measurements Sync] No measurement data available`);
       return 0;
     }
@@ -531,9 +537,9 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
     const measurementData = {
       user_id: userId,
       whoop_measurement_id: `${userId}-${measurementDate}`, // Create synthetic ID
-      height_meter: measurement.height_meter ?? null,
-      weight_kilogram: measurement.weight_kilogram ?? null,
-      max_heart_rate: measurement.max_heart_rate ?? null,
+      height_meter: (measurement as any).height_meter ?? null,
+      weight_kilogram: (measurement as any).weight_kilogram ?? null,
+      max_heart_rate: (measurement as any).max_heart_rate ?? null,
       measurement_date: measurementDate,
       raw_data: JSON.stringify(measurement),
     };

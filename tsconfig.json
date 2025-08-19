@@ -9,6 +9,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "strict": true,
+    "noImplicitAny": false,
     "noUncheckedIndexedAccess": true,
     "checkJs": true,
     "lib": [
@@ -25,7 +26,7 @@
         "name": "next"
       }
     ],
-    "types": [],
+    "types": ["@cloudflare/workers-types"],
     "incremental": true,
     "baseUrl": ".",
     "paths": {

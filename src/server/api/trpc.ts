@@ -48,7 +48,7 @@ export const createTRPCContext = async (opts: {
   try {
     // Get WorkOS session from cookie header
     const cookieHeader = opts.headers.get('cookie');
-    let user = null;
+    let user: TrpcUser = null;
 
     if (cookieHeader) {
       // Parse cookies to find WorkOS session

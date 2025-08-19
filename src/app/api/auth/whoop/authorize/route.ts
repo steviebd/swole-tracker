@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
 import { env } from "~/env";
 
+export const runtime = 'edge';
+
 export async function GET(request: NextRequest) {
   try {
     // Check if this is a prefetch request and return early to avoid CORS issues

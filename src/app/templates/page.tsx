@@ -11,6 +11,7 @@ import {
 import { TemplatesList } from "~/app/_components/templates-list";
 import { Button } from "~/components/ui/button";
 
+
 export default async function TemplatesPage() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();

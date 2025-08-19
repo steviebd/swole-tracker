@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import type { RouterOutputs } from "~/trpc/react";
+
+type RecentWorkout = RouterOutputs["workouts"]["getRecent"][number];
 
 export function RecentWorkouts() {
   const { data: workouts, isLoading, error } = api.workouts.getRecent.useQuery({ limit: 3 });
@@ -34,7 +37,7 @@ export function RecentWorkouts() {
 
   return (
     <div className="space-y-3">
-      {workouts.map((workout) => (
+      {workouts.map((workout: RecentWorkout) => (
         <Link
           key={workout.id}
           href={`/workout/session/${workout.id}`}

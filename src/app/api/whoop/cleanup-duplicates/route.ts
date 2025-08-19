@@ -4,6 +4,8 @@ import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = 'edge';
+
 
 export async function POST() {
   try {
@@ -61,7 +63,13 @@ export async function POST() {
     }
 
     let duplicatesRemoved = 0;
-    const mergedWorkouts = [];
+    const mergedWorkouts: Array<{
+      kept: string;
+      removed: string[];
+      sport_name: string | null;
+      start: string;
+      end: string;
+    }> = [];
 
     for (const group of duplicates) {
       const workouts = group.workouts;

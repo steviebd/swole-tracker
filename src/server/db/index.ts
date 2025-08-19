@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 
 import { env } from "~/env";
+import { getD1Binding } from "~/lib/cloudflare-bindings";
 import * as schema from "./schema";
 
 /**
@@ -9,49 +10,37 @@ import * as schema from "./schema";
  * For local development, we'll use a local D1 database
  */
 
-// Type for Cloudflare D1 database binding
-type D1Database = {
-  prepare: (query: string) => any;
-  exec: (query: string) => Promise<any>;
-  batch: (statements: any[]) => Promise<any>;
-  dump: () => Promise<ArrayBuffer>;
-};
-
 // Cache the database connection in development
 const globalForDb = globalThis as unknown as {
-  db: ReturnType<typeof drizzle<typeof schema, D1Database>> | undefined;
+  db: ReturnType<typeof drizzle<typeof schema>> | undefined;
 };
 
 // Function to get D1 database binding
 function getD1Database(): D1Database {
-  // In Cloudflare Workers environment, D1 is available via env.DB
-  if (typeof process !== "undefined" && process.env) {
-    // For local development, check if we have access to Cloudflare bindings
-    if ((globalThis as any).DB) {
-      return (globalThis as any).DB as D1Database;
-    }
-    
-    // Fallback for local development - mock D1 interface
-    // In practice, wrangler dev will provide the DB binding
-    console.warn("D1 binding not found, using development fallback");
-    return {
-      prepare: (_query: string) => ({
-        bind: (..._params: any[]) => ({
-          all: () => Promise.resolve({ results: [], meta: {} }),
-          first: () => Promise.resolve(null),
-          run: () => Promise.resolve({ success: true, meta: {} }),
-        }),
-        all: () => Promise.resolve({ results: [], meta: {} }),
-        first: () => Promise.resolve(null),
-        run: () => Promise.resolve({ success: true, meta: {} }),
-      }),
-      exec: () => Promise.resolve({ results: [], meta: {} }),
-      batch: () => Promise.resolve([]),
-      dump: () => Promise.resolve(new ArrayBuffer(0)),
-    };
+  // Try to get D1 binding from Cloudflare runtime
+  const d1Binding = getD1Binding();
+  if (d1Binding) {
+    return d1Binding;
   }
   
-  throw new Error("D1 database binding not available");
+  // For build time and local development - provide fallback
+  console.warn("D1 binding not found, using development fallback");
+  
+  const mockPreparedStatement = {
+    all: () => Promise.resolve({ results: [], meta: {} }),
+    first: () => Promise.resolve(null),
+    run: () => Promise.resolve({ success: true, meta: {} }),
+    raw: () => Promise.resolve([]),
+    bind: (..._params: any[]) => mockPreparedStatement,
+  };
+  
+  return {
+    prepare: (_query: string) => mockPreparedStatement,
+    exec: () => Promise.resolve({ results: [], meta: {} }),
+    batch: () => Promise.resolve([]),
+    dump: () => Promise.resolve(new ArrayBuffer(0)),
+    withSession: (_fn: (session: any) => any) => Promise.resolve(null),
+  } as unknown as D1Database;
 }
 
 const d1Instance = getD1Database();
