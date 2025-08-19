@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
+export const runtime = 'edge';
 import {
   verifyWhoopWebhook,
   extractWebhookHeaders,
@@ -209,11 +211,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });

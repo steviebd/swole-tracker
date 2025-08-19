@@ -14,7 +14,8 @@ import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
 
 import { db } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
-import { randomUUID } from "crypto";
+// Use Web Crypto API for Edge Runtime compatibility
+const randomUUID = () => globalThis.crypto.randomUUID();
 
 /**
  * 1. CONTEXT

@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+
+export const runtime = 'edge';
 import { env } from '~/env';
 import { healthAdviceRequestSchema } from '~/server/api/schemas/health-advice';
 import { enhancedHealthAdviceRequestSchema } from '~/server/api/schemas/wellness';

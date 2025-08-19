@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+export const runtime = 'edge';
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 

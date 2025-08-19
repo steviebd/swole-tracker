@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+export const runtime = 'edge';
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api, HydrateClient } from "~/trpc/server";

@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { exchangeCodeForToken, getBaseRedirectUri, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "~/lib/workos";
 
+export const runtime = 'edge';
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
