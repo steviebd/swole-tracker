@@ -260,11 +260,11 @@ Copy the returned namespace IDs to your environment variables.
 
 ## Cloudflare Portal Configuration
 
-### Workers Dashboard Setup
+### Pages Dashboard Setup
 
-In the Cloudflare Workers dashboard, configure your worker:
+In the Cloudflare Pages dashboard, configure your application:
 
-1. **Go to** Cloudflare Dashboard → Workers & Pages → Create Application → Pages → Connect to Git
+1. **Go to** Cloudflare Dashboard → Workers & Pages → Create Application → **Pages** → Connect to Git
 2. **Select** your GitHub repository  
 3. **Configure build settings**:
    ```

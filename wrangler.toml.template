@@ -3,15 +3,9 @@
 # Run: bun run generate:wrangler to create wrangler.toml with your environment values
 
 name = "swole-tracker"
-main = "./.vercel/output/static/_worker.js/index.js"
+main = ".vercel/output/static/_worker.js/index.js"
 compatibility_date = "2024-03-20"
 compatibility_flags = ["nodejs_compat"]
-
-# Worker configuration for Next.js app
-[build]
-command = "bun run build:cloudflare"
-[build.upload]
-format = "service-worker"
 
 # Worker environment variables (non-sensitive)
 [vars]
