@@ -148,7 +148,20 @@ function generateTomlFromConfig(config: WranglerConfig): string {
 # Run: bun run generate:wrangler to regenerate this file
 
 name = "${config.name}"
+main = "./.vercel/output/static/_worker.js/index.js"
 compatibility_date = "${config.compatibility_date}"
+compatibility_flags = ["nodejs_compat"]
+
+# Worker configuration for Next.js app
+[build]
+command = "bun run build:cloudflare"
+[build.upload]
+format = "service-worker"
+
+# Worker environment variables (non-sensitive)
+[vars]
+ENVIRONMENT = "development"
+WORKOS_CLIENT_ID = "${config.vars?.WORKOS_CLIENT_ID}"
 
 # Production Environment
 [env.production]
@@ -157,6 +170,7 @@ compatibility_date = "${config.compatibility_date}"
 binding = "DB"
 database_name = "swole-tracker-prod"
 database_id = "${config.env.production.d1_databases[0]!.database_id}"
+migrations_dir = "drizzle"
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
@@ -167,8 +181,9 @@ binding = "CACHE_KV"
 id = "${config.env.production.kv_namespaces[1]!.id}"
 
 [env.production.vars]
+ENVIRONMENT = "production"
 WORKOS_CLIENT_ID = "${config.env.production.vars?.WORKOS_CLIENT_ID}"
-# Note: Sensitive variables like WORKOS_API_KEY should be set via Cloudflare Pages dashboard
+# Note: Sensitive variables like WORKOS_API_KEY should be set via Cloudflare Dashboard or GitHub Secrets
 
 # Staging Environment
 [env.staging]
@@ -177,6 +192,7 @@ WORKOS_CLIENT_ID = "${config.env.production.vars?.WORKOS_CLIENT_ID}"
 binding = "DB"
 database_name = "swole-tracker-staging"
 database_id = "${config.env.staging.d1_databases[0]!.database_id}"
+migrations_dir = "drizzle"
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
@@ -187,6 +203,7 @@ binding = "CACHE_KV"
 id = "${config.env.staging.kv_namespaces[1]!.id}"
 
 [env.staging.vars]
+ENVIRONMENT = "staging"
 WORKOS_CLIENT_ID = "${config.env.staging.vars?.WORKOS_CLIENT_ID}"
 
 # Development (local)
@@ -204,9 +221,10 @@ id = "${config.kv_namespaces[0]!.id}"
 binding = "CACHE_KV"
 id = "${config.kv_namespaces[1]!.id}"
 
-[vars]
-WORKOS_CLIENT_ID = "${config.vars?.WORKOS_CLIENT_ID}"
-# Note: Additional environment variables loaded from .dev.vars for local development
+# Note: Sensitive variables like WORKOS_API_KEY, DATABASE_URL, etc. should be set via:
+# - GitHub Secrets for CI/CD deployment  
+# - Cloudflare Dashboard for manual deployment
+# - .env.local for local development
 `;
 }
 

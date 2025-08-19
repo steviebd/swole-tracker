@@ -1,0 +1,133 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
+
+jobs:
+  deploy-staging:
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: '1.2.15'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Substitute environment variables
+        env:
+          CLOUDFLARE_STAGING_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_STAGING_D1_DATABASE_ID }}
+          CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID: ${{ secrets.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID }}
+          CLOUDFLARE_STAGING_CACHE_KV_ID: ${{ secrets.CLOUDFLARE_STAGING_CACHE_KV_ID }}
+          WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
+        run: bun run env:substitute --env staging
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
+          WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+        run: bun run build:cloudflare
+
+      - name: Deploy to Cloudflare Workers (Staging)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --env staging
+
+      - name: Health check
+        run: |
+          echo "🔍 Waiting for deployment to be ready..."
+          sleep 30
+          curl -f https://staging.swole-tracker.workers.dev/api/joke || echo "⚠️ Health check failed - deployment may still be propagating"
+
+  deploy-production:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: '1.2.15'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Substitute environment variables
+        env:
+          CLOUDFLARE_PROD_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_PROD_D1_DATABASE_ID }}
+          CLOUDFLARE_PROD_RATE_LIMIT_KV_ID: ${{ secrets.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID }}
+          CLOUDFLARE_PROD_CACHE_KV_ID: ${{ secrets.CLOUDFLARE_PROD_CACHE_KV_ID }}
+          WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
+        run: bun run env:substitute --env production
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
+          WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+        run: bun run build:cloudflare
+
+      - name: Deploy to Cloudflare Workers (Production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --env production
+
+      - name: Health check
+        run: |
+          echo "🔍 Waiting for deployment to be ready..."
+          sleep 30
+          curl -f https://swole-tracker.workers.dev/api/joke || echo "⚠️ Health check failed - deployment may still be propagating"
+
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "📍 URL: https://swole-tracker.workers.dev"

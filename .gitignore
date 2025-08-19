@@ -53,6 +53,9 @@ yarn-error.log*
 /.clerk/
 .env
 
+# vercel
+/.vercel
+
 # Logs
 logs
 *.log

@@ -5,8 +5,13 @@
   "type": "module",
   "scripts": {
     "build": "bun run tokens:build && next build",
-    "build:cloudflare": "bun run tokens:build && next build && npx @cloudflare/next-on-pages --outdir .cloudflare/output",
-    "deploy:cloudflare": "bun run build:cloudflare && npx wrangler pages deploy .cloudflare/output",
+    "build:cloudflare": "bun run tokens:build && next build && npx @cloudflare/next-on-pages",
+    "deploy": "bun run generate:wrangler && bun run build:cloudflare && npx wrangler deploy",
+    "deploy:staging": "bun run generate:wrangler && bun run build:cloudflare && npx wrangler deploy --env staging",
+    "deploy:production": "bun run generate:wrangler && bun run build:cloudflare && npx wrangler deploy --env production",
+    "deploy:local": "bun run deploy",
+    "deploy:worker:staging": "bun scripts/deploy-workers.ts --env staging",
+    "deploy:worker:production": "bun scripts/deploy-workers.ts --env production",
     "build:tokens": "node scripts/build-tokens.js",
     "check": "bun run lint && bun run typecheck",
     "db:generate": "drizzle-kit generate",
@@ -49,7 +54,8 @@
     "test:mobile:staging": "tsx scripts/mobile-validation.ts --env=staging",
     "test:mobile:verbose": "tsx scripts/mobile-validation.ts --verbose",
     "generate:wrangler": "tsx scripts/generate-wrangler-config.ts",
-    "wrangler:config": "bun run generate:wrangler"
+    "wrangler:config": "bun run generate:wrangler",
+    "env:substitute": "tsx scripts/substitute-env-variables.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.2.22",

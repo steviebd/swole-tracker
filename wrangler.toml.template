@@ -3,7 +3,20 @@
 # Run: bun run generate:wrangler to create wrangler.toml with your environment values
 
 name = "swole-tracker"
+main = "./.vercel/output/static/_worker.js/index.js"
 compatibility_date = "2024-03-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Worker configuration for Next.js app
+[build]
+command = "bun run build:cloudflare"
+[build.upload]
+format = "service-worker"
+
+# Worker environment variables (non-sensitive)
+[vars]
+ENVIRONMENT = "development"
+WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 
 # Production Environment
 [env.production]
@@ -12,6 +25,7 @@ compatibility_date = "2024-03-20"
 binding = "DB"
 database_name = "swole-tracker-prod"
 database_id = "${CLOUDFLARE_PROD_D1_DATABASE_ID}"
+migrations_dir = "drizzle"
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
@@ -22,8 +36,9 @@ binding = "CACHE_KV"
 id = "${CLOUDFLARE_PROD_CACHE_KV_ID}"
 
 [env.production.vars]
+ENVIRONMENT = "production"
 WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
-# Note: Sensitive variables like WORKOS_API_KEY should be set via Cloudflare Pages dashboard
+# Note: Sensitive variables like WORKOS_API_KEY should be set via Cloudflare Dashboard or GitHub Secrets
 
 # Staging Environment
 [env.staging]
@@ -32,6 +47,7 @@ WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 binding = "DB"
 database_name = "swole-tracker-staging"
 database_id = "${CLOUDFLARE_STAGING_D1_DATABASE_ID}"
+migrations_dir = "drizzle"
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
@@ -42,6 +58,7 @@ binding = "CACHE_KV"
 id = "${CLOUDFLARE_STAGING_CACHE_KV_ID}"
 
 [env.staging.vars]
+ENVIRONMENT = "staging"
 WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 
 # Development (local) - actual IDs since they're not sensitive for local dev
@@ -59,6 +76,7 @@ id = "24ffbf891bf1445d82533a65d92a9cd9"
 binding = "CACHE_KV"
 id = "8314e00d68f24565b5993af382148b63"
 
-[vars]
-WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
-# Note: Additional environment variables loaded from .dev.vars for local development
+# Note: Sensitive variables like WORKOS_API_KEY, DATABASE_URL, etc. should be set via:
+# - GitHub Secrets for CI/CD deployment
+# - Cloudflare Dashboard for manual deployment
+# - .env.local for local development

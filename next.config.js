@@ -27,6 +27,15 @@ const baseConfig = {
         "node:buffer": false,
       };
     }
+    
+    // For Cloudflare Workers, ensure proper module resolution
+    if (process.env.CLOUDFLARE_WORKERS) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@': './src',
+      };
+    }
+    
     return config;
   },
   eslint: {
@@ -111,6 +120,15 @@ const baseConfig = {
 // PWA support removed due to incompatibility with Next.js 15 App Router
 // next-pwa v5.6.0 uses Pages Router architecture which conflicts with App Router
 
-const config = baseConfig;
+// Apply Cloudflare-specific configurations
+const config = {
+  ...baseConfig,
+  // Ensure static exports are disabled for Workers
+  output: process.env.CLOUDFLARE_WORKERS ? undefined : baseConfig.output,
+  // Disable image optimization for Workers (not supported)
+  images: process.env.CLOUDFLARE_WORKERS ? {
+    unoptimized: true,
+  } : baseConfig.images,
+};
 
 export default config;
