@@ -19,7 +19,13 @@ export function GoogleAuthButton({ mode, redirectTo = "/" }: GoogleAuthButtonPro
     
     try {
       // Redirect to WorkOS OAuth flow with Google as the provider
-      const loginUrl = `/api/auth/login${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+      const params = new URLSearchParams({
+        provider: 'GoogleOAuth'
+      });
+      if (redirectTo !== '/') {
+        params.append('redirectTo', redirectTo);
+      }
+      const loginUrl = `/api/auth/login?${params.toString()}`;
       window.location.href = loginUrl;
     } catch (err) {
       setError("An unexpected error occurred during authentication");

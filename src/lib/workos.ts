@@ -30,7 +30,11 @@ export type { WorkOSUser } from './workos-types';
 /**
  * Get authorization URL for OAuth flow
  */
-export function getAuthorizationUrl(redirectUri: string, state?: string): string {
+export function getAuthorizationUrl(
+  redirectUri: string, 
+  state?: string, 
+  provider: string = 'authkit'
+): string {
   const clientId = process.env.WORKOS_CLIENT_ID;
   if (!clientId) {
     throw new Error('WORKOS_CLIENT_ID not configured');
@@ -41,6 +45,7 @@ export function getAuthorizationUrl(redirectUri: string, state?: string): string
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid profile email',
+    provider, // Use the provider parameter
   });
 
   if (state) {
@@ -82,7 +87,6 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     const { accessToken, refreshToken, user } = await workos.userManagement.authenticateWithCode({
       code,
       clientId,
-      redirectUri, // This is required and must match the one used in authorization
     });
 
     return {
@@ -102,8 +106,25 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
 export async function getUserFromToken(accessToken: string): Promise<WorkOSUser> {
   const workos = getWorkOSClient();
   try {
-    // Use 'any' to call SDK with accessToken without strict type coupling
-    const user = await (workos as any).userManagement.getUser({ accessToken });
+    // Debug logging to see what we're passing
+    console.log('getUserFromToken called with:', {
+      accessTokenType: typeof accessToken,
+      accessTokenValue: accessToken?.toString?.() || String(accessToken),
+      accessTokenPrefix: String(accessToken).substring(0, 20) + '...',
+    });
+
+    // Decode the JWT to extract the user ID from the 'sub' claim
+    const tokenPayload = JSON.parse(Buffer.from(accessToken.split('.')[1]!, 'base64').toString());
+    const userId = tokenPayload.sub;
+    
+    if (!userId) {
+      throw new Error('No user ID found in access token');
+    }
+
+    console.log('Extracted user ID from token:', userId);
+
+    // Use the user ID to get the user details
+    const user = await workos.userManagement.getUser(userId);
     return user as unknown as WorkOSUser;
   } catch (error) {
     console.error('WorkOS get user failed:', error);
@@ -173,9 +194,18 @@ export async function validateAccessToken(accessToken: string): Promise<WorkOSUs
  * Helper to get the base redirect URI for the current environment
  */
 export function getBaseRedirectUri(req?: { headers: Headers }): string {
-  // In development, use localhost
+  // In development, use localhost with dynamic port detection
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000';
+    // Try to get port from headers first, fallback to environment or default
+    if (req?.headers) {
+      const host = req.headers.get('host');
+      if (host) {
+        return `http://${host}`;
+      }
+    }
+    // Fallback to port from environment or default 3000
+    const port = process.env.PORT || '3000';
+    return `http://localhost:${port}`;
   }
   
   // In production, try to get from headers or environment

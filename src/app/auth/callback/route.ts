@@ -38,6 +38,14 @@ export async function GET(request: NextRequest) {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     };
 
+    // Debug logging to see what we're storing
+    console.log('Storing session data:', {
+      hasUser: !!user,
+      hasAccessToken: !!accessToken,
+      accessTokenType: typeof accessToken,
+      accessTokenPrefix: String(accessToken).substring(0, 20) + '...',
+    });
+
     // Set session cookie and redirect
     const response = NextResponse.redirect(`${origin}${redirectTo}`);
     response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), SESSION_COOKIE_OPTIONS);

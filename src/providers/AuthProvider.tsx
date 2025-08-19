@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session from cookie
     const getInitialSession = () => {
       console.log('AuthProvider: Getting initial session...');
+      console.log('AuthProvider: All cookies:', document.cookie);
       try {
         // Get session cookie
         const cookies = document.cookie.split(';').reduce((acc, cookie) => {
@@ -33,23 +34,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return acc;
         }, {} as Record<string, string>);
 
+        console.log('AuthProvider: Parsed cookies:', Object.keys(cookies));
+        console.log('AuthProvider: Looking for cookie:', SESSION_COOKIE_NAME);
+
         const sessionCookie = cookies[SESSION_COOKIE_NAME];
         if (sessionCookie) {
+          console.log('AuthProvider: Found session cookie, length:', sessionCookie.length);
           const sessionData = JSON.parse(decodeURIComponent(sessionCookie));
-          if (sessionData.user) {
-            console.log('AuthProvider: Found user session:', {
-              userId: sessionData.user.id,
+          console.log('AuthProvider: Parsed session data:', {
+            hasUser: !!sessionData.user,
+            hasAccessToken: !!sessionData.accessToken,
+            userPreview: sessionData.user ? {
+              id: sessionData.user.id,
               email: sessionData.user.email,
-            });
+            } : null,
+          });
+          if (sessionData.user) {
+            console.log('AuthProvider: Setting user from session');
             setUser(sessionData.user);
           }
         } else {
           console.log('AuthProvider: No session cookie found');
         }
       } catch (error) {
-        console.error("Failed to parse session:", error);
+        console.error("AuthProvider: Failed to parse session:", error);
         setUser(null);
       } finally {
+        console.log('AuthProvider: Setting isLoading to false');
         setIsLoading(false);
       }
     };

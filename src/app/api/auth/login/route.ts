@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const redirectTo = searchParams.get('redirectTo') || '/';
+    const provider = searchParams.get('provider') || 'authkit'; // Default to email/password
     
     // Validate environment variables
     const clientId = process.env.WORKOS_CLIENT_ID;
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
       hasApiKey: !!apiKey,
       clientIdPrefix: clientId?.substring(0, 10),
       nodeEnv: process.env.NODE_ENV,
+      provider,
     });
     
     // Generate state parameter to prevent CSRF
@@ -32,9 +34,10 @@ export async function GET(request: NextRequest) {
       baseUrl,
       redirectUri,
       state: state.substring(0, 50) + '...',
+      provider,
     });
     
-    const authUrl = getAuthorizationUrl(redirectUri, state);
+    const authUrl = getAuthorizationUrl(redirectUri, state, provider);
     
     console.log('Login route - Redirecting to:', authUrl.substring(0, 100) + '...');
     
@@ -42,7 +45,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Login route error:', error);
     return NextResponse.json(
-      { error: 'Failed to initiate login', details: error.message },
+      { error: 'Failed to initiate login', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

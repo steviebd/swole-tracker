@@ -11,9 +11,15 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") || "/";
 
-  // WorkOS registration - redirect to OAuth flow (same as login for WorkOS)
+  // WorkOS email/password registration
   const handleRegister = () => {
-    const loginUrl = `/api/auth/login${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+    const params = new URLSearchParams({
+      provider: 'authkit' // Use email/password authentication
+    });
+    if (redirectTo !== '/') {
+      params.append('redirectTo', redirectTo);
+    }
+    const loginUrl = `/api/auth/login?${params.toString()}`;
     window.location.href = loginUrl;
   };
 
@@ -45,7 +51,7 @@ function RegisterForm() {
             className="w-full" 
             size="lg"
           >
-            Sign up with WorkOS
+            Sign up with Email
           </Button>
         </div>
 

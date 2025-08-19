@@ -11,9 +11,15 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") || "/";
 
-  // WorkOS login - redirect to OAuth flow
+  // WorkOS email/password login
   const handleLogin = () => {
-    const loginUrl = `/api/auth/login${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+    const params = new URLSearchParams({
+      provider: 'authkit' // Use email/password authentication
+    });
+    if (redirectTo !== '/') {
+      params.append('redirectTo', redirectTo);
+    }
+    const loginUrl = `/api/auth/login?${params.toString()}`;
     window.location.href = loginUrl;
   };
 
@@ -45,7 +51,7 @@ function LoginForm() {
             className="w-full" 
             size="lg"
           >
-            Sign in with WorkOS
+            Sign in with Email
           </Button>
         </div>
 
