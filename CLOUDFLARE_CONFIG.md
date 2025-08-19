@@ -268,10 +268,13 @@ In the Cloudflare Workers dashboard, configure your worker:
 2. **Select** your GitHub repository  
 3. **Configure build settings**:
    ```
-   Build command: bun run build:cloudflare
+   Build command: npm run build:cloudflare
    Build output directory: .next
    Root directory: (leave empty or specify if in monorepo)
+   Node.js version: 20.19.4
    ```
+
+   **Note**: Use `npm run build:cloudflare` instead of `bun run` for Cloudflare compatibility. The build script is configured to work with npm in CI environments while using bun locally.
 
 4. **Environment Variables**: Set these in the Cloudflare Dashboard:
    ```bash
@@ -527,6 +530,38 @@ bun run env:substitute --env production --dry-run
 # Validate wrangler.toml
 npx wrangler config validate
 ```
+
+## Common Build Issues
+
+### Bun Lockfile Compatibility
+
+**Problem:** Build fails with lockfile version error:
+```
+error: Unknown lockfile version at bun.lock:2:22
+lockfile had changes, but lockfile is frozen
+```
+
+**Solutions:**
+1. **Use npm for Cloudflare builds** (recommended):
+   ```
+   Build command: npm run build:cloudflare
+   ```
+
+2. **Regenerate lockfile locally**:
+   ```bash
+   rm bun.lock && bun install
+   git add bun.lock && git commit -m "Update bun lockfile"
+   ```
+
+### Build Configuration Issues
+
+**Problem:** Build command failed in Cloudflare Portal
+
+**Solutions:**
+- ✅ **Build command**: `npm run build:cloudflare` (not bun)
+- ✅ **Output directory**: `.next` (not `.cloudflare/output`)  
+- ✅ **Node version**: `20.19.4`
+- ✅ **Environment variables**: Set in Cloudflare dashboard
 
 ### Support Resources
 

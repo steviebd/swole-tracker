@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "bun run tokens:build && next build",
-    "build:cloudflare": "bun run tokens:build && next build && npx @cloudflare/next-on-pages",
+    "build:cloudflare": "npm run tokens:build && next build && npx @cloudflare/next-on-pages",
     "deploy": "bun run generate:wrangler && bun run build:cloudflare && npx wrangler deploy",
     "deploy:staging": "bun run generate:wrangler && bun run build:cloudflare && npx wrangler deploy --env staging",
     "deploy:production": "bun run generate:wrangler && bun run build:cloudflare && npx wrangler deploy --env production",
@@ -140,7 +140,11 @@
   "overrides": {
     "esbuild": "^0.25.0"
   },
-  "packageManager": "bun@1.2.15",
+  "packageManager": "bun@1.2.19",
+  "engines": {
+    "node": "20.19.4",
+    "bun": "1.2.19"
+  },
   "volta": {
     "node": "20.19.4"
   },

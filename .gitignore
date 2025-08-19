@@ -95,3 +95,4 @@ apps/template/.next/cache/webpack/server-development/index.pack.gz
 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/34471edfc28f3d0d66760749db998410a845426e3aa5cec98ed04193faf0ec28.sqlite-wal
 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/34471edfc28f3d0d66760749db998410a845426e3aa5cec98ed04193faf0ec28.sqlite-shm
 wrangler.toml
+.nvmrc
