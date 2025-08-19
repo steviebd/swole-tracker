@@ -76,21 +76,29 @@ This ensures your D1 database IDs and KV namespace IDs are correctly populated i
 - The original error was due to trying to upload static assets as a Worker, which has been resolved
 - All D1 database and KV bindings are preserved and working correctly
 
-## Answer to Your Question
+## Universal Build Command - Final Solution
 
-**Yes!** `npm run build:cloudflare` will now build the `wrangler.toml` with the .env files.
+**Both `bun run build:cloudflare` and `npm run build:cloudflare` now work identically!**
 
-The updated command chain is:
+The unified command chain is:
 ```bash
-npm run build:cloudflare
+build:cloudflare
 ↓
-npm run tokens:build && npm run generate:wrangler:npm && next build && npx @cloudflare/next-on-pages
+node scripts/build-tokens.js && node scripts/build-mobile-tokens.js && npx tsx scripts/generate-wrangler-config.ts && next build && npx @cloudflare/next-on-pages
 ```
 
-So when Cloudflare runs the build, it will:
-1. Build design tokens
-2. **Generate wrangler.toml from template using environment variables** ✅
-3. Build Next.js app 
-4. Convert to Workers format
+**What this means:**
+✅ Works with `npm run build:cloudflare` locally  
+✅ Works with `bun run build:cloudflare` locally  
+✅ Works with `npm run build:cloudflare` on Cloudflare  
+✅ Uses direct Node.js commands (no package manager dependencies)  
+✅ Generates `wrangler.toml` from environment variables every time  
 
-Your Cloudflare environment variables (like `CLOUDFLARE_PROD_D1_DATABASE_ID`) will be properly substituted into the `wrangler.toml` during the build process.
+**Build Process:**
+1. Build design tokens (Node.js directly)
+2. Build mobile design tokens (Node.js directly)  
+3. **Generate wrangler.toml from template using environment variables** ✅
+4. Build Next.js app 
+5. Convert to Workers format
+
+Your Cloudflare environment variables (like `CLOUDFLARE_PROD_D1_DATABASE_ID`) will be properly substituted into the `wrangler.toml` during the build process regardless of which package manager is used.

@@ -6,20 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Development workflow:**
 - `bun dev` - Start Next.js dev server with Turbopack
-- `bun build` - Build the application
-- `bun build:cloudflare` - Build for Cloudflare Workers deployment
+- `bun build` or `npm run build` - Build the application
+- `bun run build:cloudflare` or `npm run build:cloudflare` - Build for Cloudflare Workers deployment (identical commands)
 - `bun preview` - Build and start locally
 - `bun check` - Run lint + typecheck (use before commits)
 - `bun typecheck` - TypeScript type checking only
 - `bun lint` / `bun lint:fix` - ESLint checking/fixing
 
 **Deployment (Cloudflare Workers):**
-- `bun deploy` - Deploy to development environment
-- `bun deploy:staging` - Deploy to staging environment
-- `bun deploy:production` - Deploy to production environment
-- `bun deploy:versions` - Upload new version to development
-- `bun deploy:versions:staging` - Upload new version to staging
-- `bun deploy:versions:production` - Upload new version to production
+- `npm run deploy` - Deploy to development environment
+- `npm run deploy:staging` - Deploy to staging environment
+- `npm run deploy:production` - Deploy to production environment
+- `npm run deploy:versions` - Upload new version to development
+- `npm run deploy:versions:staging` - Upload new version to staging
+- `npm run deploy:versions:production` - Upload new version to production
+
+**Universal Build Command:**
+Both `bun run build:cloudflare` and `npm run build:cloudflare` work identically on local and Cloudflare environments.
 
 **Testing:**
 - `bun test` - Run Vitest unit tests
