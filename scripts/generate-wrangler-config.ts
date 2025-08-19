@@ -148,15 +148,9 @@ function generateTomlFromConfig(config: WranglerConfig): string {
 # Run: bun run generate:wrangler to regenerate this file
 
 name = "${config.name}"
-main = "./.vercel/output/static/_worker.js/index.js"
+main = ".vercel/output/static/_worker.js/index.js"
 compatibility_date = "${config.compatibility_date}"
 compatibility_flags = ["nodejs_compat"]
-
-# Worker configuration for Next.js app
-[build]
-command = "bun run build:cloudflare"
-[build.upload]
-format = "service-worker"
 
 # Worker environment variables (non-sensitive)
 [vars]
