@@ -14,6 +14,8 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
+      - 'feat/**'
     paths-ignore:
       - 'README.md'
       - 'docs/**'
@@ -21,7 +23,7 @@ on:
 
 jobs:
   deploy-staging:
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    if: (startsWith(github.ref, 'refs/heads/feature/') || startsWith(github.ref, 'refs/heads/feat/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     runs-on: ubuntu-latest
     environment: staging
     
@@ -74,7 +76,7 @@ jobs:
           curl -f https://staging.swole-tracker.workers.dev/api/joke || echo "⚠️ Health check failed - deployment may still be propagating"
 
   deploy-production:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     runs-on: ubuntu-latest
     environment: production
     

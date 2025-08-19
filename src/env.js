@@ -36,8 +36,6 @@ export const env = createEnv({
     RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: z.coerce.number().default(200),
     RATE_LIMIT_API_CALLS_PER_MINUTE: z.coerce.number().default(60),
     RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
-    // Supabase service role (server-side only for admin operations)
-    SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
     // WorkOS Authentication
     WORKOS_API_KEY: z.string().optional(),
     WORKOS_CLIENT_ID: z.string().optional(),
@@ -54,11 +52,6 @@ export const env = createEnv({
       .string()
       .url()
       .default("https://us.i.posthog.com"),
-    NEXT_PUBLIC_SUPABASE_URL: z
-      .string()
-      .url()
-      .default("https://test.supabase.co"),
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default("supabase_test_key"),
   },
 
   /**
@@ -68,9 +61,6 @@ export const env = createEnv({
   runtimeEnv: {
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,

@@ -1,5 +1,4 @@
-import { createBrowserSupabaseClient } from "./supabase-browser";
-import { createServerSupabaseClient } from "./supabase-server";
+// Note: Supabase removed - this file may need refactoring to use Cloudflare D1
 
 // Types for workout data
 export interface WorkoutTemplate {
