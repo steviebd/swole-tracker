@@ -40,7 +40,7 @@ interface ExerciseHistory {
 }
 
 function getApiKey(): string {
-  const key = env.AI_GATEWAY_API_KEY || env.VERCEL_AI_GATEWAY_API_KEY;
+  const key = env.AI_GATEWAY_API_KEY;
   if (!key) {
     throw new Error('Missing AI gateway API key');
   }
