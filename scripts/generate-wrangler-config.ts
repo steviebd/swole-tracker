@@ -26,6 +26,10 @@ interface WranglerConfig {
         id: string;
       }>;
       vars?: Record<string, string>;
+      routes?: Array<{
+        pattern: string;
+        custom_domain?: boolean;
+      }>;
     };
     staging: {
       d1_databases: Array<{
@@ -38,6 +42,10 @@ interface WranglerConfig {
         id: string;
       }>;
       vars?: Record<string, string>;
+      routes?: Array<{
+        pattern: string;
+        custom_domain?: boolean;
+      }>;
     };
   };
   d1_databases: Array<{
@@ -92,6 +100,12 @@ function generateWranglerConfigs(): void {
           vars: {
             WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_production_example',
           },
+          routes: process.env.CLOUDFLARE_PROD_DOMAIN ? [
+            {
+              pattern: `${process.env.CLOUDFLARE_PROD_DOMAIN}/*`,
+              custom_domain: true,
+            },
+          ] : undefined,
         },
 
         staging: {
@@ -119,6 +133,12 @@ function generateWranglerConfigs(): void {
           vars: {
             WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_staging_example',
           },
+          routes: process.env.CLOUDFLARE_STAGING_DOMAIN ? [
+            {
+              pattern: `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
+              custom_domain: true,
+            },
+          ] : undefined,
         },
       },
 
@@ -210,6 +230,11 @@ id = "${config.env.staging.kv_namespaces[1]!.id}"
 [env.staging.vars]
 ENVIRONMENT = "staging"
 WORKOS_CLIENT_ID = "${config.env.staging.vars?.WORKOS_CLIENT_ID ?? ''}"
+
+${config.env.staging.routes ? config.env.staging.routes.map(route => 
+  `[[env.staging.routes]]
+pattern = "${route.pattern}"`
+).join('\n\n') : ''}
 
 # Production Environment
 [env.production]
