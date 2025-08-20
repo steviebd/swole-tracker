@@ -258,6 +258,11 @@ id = "${config.env.production.kv_namespaces[1]!.id}"
 ENVIRONMENT = "production"
 WORKOS_CLIENT_ID = "${config.env.production.vars?.WORKOS_CLIENT_ID ?? ''}"
 
+${config.env.production.routes ? config.env.production.routes.map(route => 
+  `[[env.production.routes]]
+pattern = "${route.pattern}"`
+).join('\n\n') : ''}
+
 # Local Development (default/root)
 [[d1_databases]]
 binding = "DB"
@@ -286,7 +291,14 @@ function validateEnvironmentVariables(): void {
     'WORKOS_CLIENT_ID',
   ];
 
+  const optionalVars = [
+    'CLOUDFLARE_STAGING_DOMAIN',
+    'CLOUDFLARE_PROD_DOMAIN',
+  ];
+
   const missing = requiredVars.filter((v) => !process.env[v]);
+  const optionalPresent = optionalVars.filter((v) => process.env[v]);
+  
   if (missing.length > 0) {
     console.log('\n⚠️  Missing environment variables:');
     for (const v of missing) console.log(`   - ${v}`);
@@ -294,6 +306,15 @@ function validateEnvironmentVariables(): void {
     console.log('📄 See .env.example for the complete list of required variables\n');
   } else {
     console.log('✅ All required environment variables are configured');
+  }
+
+  if (optionalPresent.length > 0) {
+    console.log('🌐 Custom domain configuration:');
+    for (const v of optionalPresent) {
+      const domain = process.env[v];
+      const env = v.includes('STAGING') ? 'staging' : 'production';
+      console.log(`   - ${env}: https://${domain}/`);
+    }
   }
 }
 
