@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const runtime = 'edge';
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromHeaders } from "~/lib/workos";
 
 import ClientHydrate from "~/trpc/HydrateClient";
 import {
@@ -15,8 +15,7 @@ import { Button } from "~/components/ui/button";
 
 
 export default async function TemplatesPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
 
   if (!user) {
     redirect("/sign-in");

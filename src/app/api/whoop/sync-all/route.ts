@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromRequest } from "~/lib/workos";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { 
@@ -571,10 +571,9 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
   }
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

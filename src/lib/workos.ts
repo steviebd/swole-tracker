@@ -1,5 +1,6 @@
 import { WorkOS } from '@workos-inc/node';
 import type { WorkOSUser } from './workos-types';
+import { SESSION_COOKIE_NAME } from './workos-types';
 
 /**
  * WorkOS client wrapper for authentication and user management
@@ -186,6 +187,55 @@ export async function validateAccessToken(accessToken: string): Promise<WorkOSUs
     return user;
   } catch (error) {
     console.error('Access token validation failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Extract authenticated user from NextRequest (for API routes)
+ */
+export async function getUserFromRequest(request: { cookies: { get: (name: string) => { value?: string } | undefined } }): Promise<WorkOSUser | null> {
+  try {
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie?.value) {
+      return null;
+    }
+
+    const sessionData = JSON.parse(sessionCookie.value);
+    if (!sessionData.accessToken) {
+      return null;
+    }
+
+    return await validateAccessToken(sessionData.accessToken);
+  } catch (error) {
+    console.error('Failed to get user from request:', error);
+    return null;
+  }
+}
+
+/**
+ * Get authenticated user in React Server Components (RSC)
+ * This reads cookies from the dynamic headers() API in Next.js
+ */
+export async function getUserFromHeaders(): Promise<WorkOSUser | null> {
+  try {
+    // Dynamic import to avoid issues if not in server environment
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    
+    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie?.value) {
+      return null;
+    }
+
+    const sessionData = JSON.parse(sessionCookie.value);
+    if (!sessionData.accessToken) {
+      return null;
+    }
+
+    return await validateAccessToken(sessionData.accessToken);
+  } catch (error) {
+    console.error('Failed to get user from headers:', error);
     return null;
   }
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromHeaders } from "~/lib/workos";
 
 export const runtime = 'edge';
 
@@ -11,8 +11,7 @@ interface LocalWorkoutSessionPageProps {
 export default async function LocalWorkoutSessionPage({
   params,
 }: LocalWorkoutSessionPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
   const { localId } = await params;
 
   if (!user) {

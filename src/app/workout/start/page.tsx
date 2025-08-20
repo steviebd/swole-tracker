@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const runtime = 'edge';
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromHeaders } from "~/lib/workos";
 
 import { api } from "~/trpc/server";
 import ClientHydrate from "~/trpc/HydrateClient";
@@ -22,8 +22,7 @@ interface StartWorkoutPageProps {
 export default async function StartWorkoutPage({
   searchParams,
 }: StartWorkoutPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
   const { templateId } = await searchParams;
 
   if (!user) {

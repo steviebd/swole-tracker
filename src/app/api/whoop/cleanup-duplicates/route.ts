@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromRequest } from "~/lib/workos";
 import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import type { NextRequest } from "next/server";
 
 export const runtime = 'edge';
 
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

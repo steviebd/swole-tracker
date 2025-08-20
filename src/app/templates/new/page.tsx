@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromHeaders } from "~/lib/workos";
 
 import { TemplateForm } from "~/app/_components/template-form";
 import { Button } from "~/components/ui/button";
@@ -8,8 +8,7 @@ import { Button } from "~/components/ui/button";
 export const runtime = 'edge';
 
 export default async function NewTemplatePage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
 
   if (!user) {
     redirect("/sign-in");

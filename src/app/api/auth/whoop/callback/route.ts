@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromRequest } from "~/lib/workos";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
@@ -11,8 +11,7 @@ export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(request);
     if (!user) {
       return NextResponse.redirect(
         `${request.nextUrl.origin}/connect-whoop?error=unauthorized`,

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const runtime = 'edge';
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromHeaders } from "~/lib/workos";
 
 import { api } from "~/trpc/server";
 import { TemplateForm } from "~/app/_components/template-form";
@@ -16,8 +16,7 @@ interface EditTemplatePageProps {
 export default async function EditTemplatePage({
   params,
 }: EditTemplatePageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
   const { id } = await params;
 
   if (!user) {
