@@ -237,6 +237,9 @@ main = "${mainPath}"
 compatibility_date = "${config.compatibility_date}"
 compatibility_flags = ["nodejs_compat"]
 
+[observability.logs]
+enabled = false
+
 [vars]
 ENVIRONMENT = "development"
 WORKOS_CLIENT_ID = "${config.vars?.WORKOS_CLIENT_ID ?? ''}"
