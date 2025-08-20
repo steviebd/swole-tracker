@@ -47,14 +47,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Substitute environment variables
-        env:
-          CLOUDFLARE_STAGING_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_STAGING_D1_DATABASE_ID }}
-          CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID: ${{ secrets.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID }}
-          CLOUDFLARE_STAGING_CACHE_KV_ID: ${{ secrets.CLOUDFLARE_STAGING_CACHE_KV_ID }}
-          WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
-        run: bun run env:substitute --env staging
-
       - name: Build application
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
@@ -62,6 +54,9 @@ jobs:
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
           NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+          CLOUDFLARE_STAGING_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_STAGING_D1_DATABASE_ID }}
+          CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID: ${{ secrets.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID }}
+          CLOUDFLARE_STAGING_CACHE_KV_ID: ${{ secrets.CLOUDFLARE_STAGING_CACHE_KV_ID }}
         run: bun run build:cloudflare
 
       - name: Verify build artifacts
@@ -110,14 +105,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Substitute environment variables
-        env:
-          CLOUDFLARE_PROD_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_PROD_D1_DATABASE_ID }}
-          CLOUDFLARE_PROD_RATE_LIMIT_KV_ID: ${{ secrets.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID }}
-          CLOUDFLARE_PROD_CACHE_KV_ID: ${{ secrets.CLOUDFLARE_PROD_CACHE_KV_ID }}
-          WORKOS_CLIENT_ID: ${{ secrets.WORKOS_CLIENT_ID }}
-        run: bun run env:substitute --env production
-
       - name: Build application
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
@@ -125,6 +112,9 @@ jobs:
           WORKOS_API_KEY: ${{ secrets.WORKOS_API_KEY }}
           NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
           NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
+          CLOUDFLARE_PROD_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_PROD_D1_DATABASE_ID }}
+          CLOUDFLARE_PROD_RATE_LIMIT_KV_ID: ${{ secrets.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID }}
+          CLOUDFLARE_PROD_CACHE_KV_ID: ${{ secrets.CLOUDFLARE_PROD_CACHE_KV_ID }}
         run: bun run build:cloudflare
 
       - name: Verify build artifacts
