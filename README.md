@@ -120,38 +120,55 @@ Create two separate Workers Projects in your Cloudflare dashboard:
    - **Build command**: `bun install && bun run build:cloudflare`
    - **Deploy command**: `npx wrangler deploy --env production`
 
-#### **Step 4c: Configure Environment Variables**
-For **both projects**, add these environment variables in **Settings → Environment Variables**:
+#### **Step 4c: Configure Cloudflare Bindings**
 
-**Build Variables:**
+**For each project, you need to:**
+
+1. **Create Resource Bindings** (Settings → Functions → Bindings):
+   - `DB` (D1 Database) → Select your database (swole-tracker-staging or swole-tracker-prod)
+   - `RATE_LIMIT_KV` (KV Namespace) → Select your rate limit KV namespace  
+   - `CACHE_KV` (KV Namespace) → Select your cache KV namespace
+
+2. **Configure Runtime Variables** (Settings → Variables and Secrets):
+
+**Variables (Runtime Environment Variables):**
 ```bash
-# Cloudflare Resources (use appropriate staging/production IDs)
-CLOUDFLARE_STAGING_D1_DATABASE_ID=your_staging_database_id  # staging project only
-CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID=your_staging_rate_limit_kv_id  # staging project only
-CLOUDFLARE_STAGING_CACHE_KV_ID=your_staging_cache_kv_id  # staging project only
+# Authentication (required)
+WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
 
-CLOUDFLARE_PROD_D1_DATABASE_ID=your_prod_database_id  # production project only
-CLOUDFLARE_PROD_RATE_LIMIT_KV_ID=your_prod_rate_limit_kv_id  # production project only
-CLOUDFLARE_PROD_CACHE_KV_ID=your_prod_cache_kv_id  # production project only
-
-# Authentication (both projects)
-WORKOS_CLIENT_ID=your_workos_client_id
-WORKOS_API_KEY=your_workos_api_key
-
-# Analytics (both projects)
-NEXT_PUBLIC_POSTHOG_KEY=your_posthog_key
+# Analytics (optional)
+NEXT_PUBLIC_POSTHOG_KEY=phc_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+
+# WHOOP Integration (optional)
+WHOOP_CLIENT_ID=your_whoop_client_id
+WHOOP_SYNC_RATE_LIMIT_PER_HOUR=10
+
+# AI Features (optional)
+AI_GATEWAY_MODEL=xai/grok-3-mini
+AI_GATEWAY_PROMPT=Tell me a short, funny programming or tech joke.
+
+# Rate Limiting (optional)
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_API_CALLS_PER_MINUTE=60
 ```
 
-**Runtime Secrets** (for sensitive values):
+**Secrets (Encrypted Runtime Variables):**
 ```bash
+# Authentication (required)
+WORKOS_API_KEY=your_workos_api_key
+
 # WHOOP Integration (if used)
 WHOOP_CLIENT_SECRET=your_whoop_client_secret
 WHOOP_WEBHOOK_SECRET=your_whoop_webhook_secret
 
 # AI Gateway (if used)  
-VERCEL_AI_GATEWAY_API_KEY=your_ai_gateway_api_key
+AI_GATEWAY_API_KEY=your_ai_gateway_api_key
 ```
+
+3. **Build Environment Variables** (Optional - leave empty for most cases):
+   - The updated build script now works without build environment variables
+   - Bindings are configured via Dashboard instead of environment variables
 
 ### 5. Start Developing
 
@@ -454,19 +471,30 @@ npx wrangler deploy --env production
 
 ## 🔍 Troubleshooting
 
-### Common Cloudflare CI/CD Build Errors
+### Common Cloudflare Deployment Errors
 
-#### Missing Environment Variable Error
-```bash
-Error: Environment variable CLOUDFLARE_STAGING_D1_DATABASE_ID not found
+#### Internal Server Error After Deployment
 ```
-**Solution:** Add the missing variable to Cloudflare Project settings → Environment Variables.
+Error: Internal Server Error 500
+Deployment successful but site not accessible
+```
+**Solution:** Missing resource bindings. Go to Settings → Functions → Bindings and add:
+- `DB` (D1 Database) → Select your database
+- `RATE_LIMIT_KV` (KV Namespace) → Select your rate limit KV namespace  
+- `CACHE_KV` (KV Namespace) → Select your cache KV namespace
 
-#### Worker Name Mismatch
+#### KV Namespace 'undefined' Error
 ```bash
-Error: Worker name mismatch between dashboard and wrangler.toml
+Error: KV namespace 'undefined' is not valid. [code: 10042]
 ```
-**Solution:** Ensure Worker name in Cloudflare dashboard matches `name` in wrangler.toml file.
+**Solution:** Environment variables are set for runtime but not build. This is now handled automatically by the updated build script.
+
+#### Missing Bindings Error
+```bash
+Error: env.DB is not defined
+Error: env.RATE_LIMIT_KV is not defined
+```
+**Solution:** Configure resource bindings in Cloudflare Dashboard → Settings → Functions → Bindings.
 
 #### Build Command Failed
 ```bash
@@ -474,11 +502,11 @@ Error: Build command failed with exit code 1
 ```
 **Solution:** Check build logs in Cloudflare Dashboard → Project → View build history.
 
-#### D1 Database Connection Error
+#### Worker Not Found Error
 ```bash
-Error: Could not connect to D1 database
+Error: Worker not found
 ```
-**Solution:** Verify D1 database ID in Project environment variables matches your actual database ID.
+**Solution:** Ensure Worker name in Cloudflare dashboard matches project configuration.
 
 ### Branch Deployment Issues
 
@@ -513,6 +541,33 @@ wrangler d1 migrations list swole-tracker-dev
 
 # Apply missing migrations
 wrangler d1 migrations apply swole-tracker-dev
+```
+
+### Quick Fixes for Common Issues
+
+#### 1. Site Shows Internal Server Error
+**Most common cause:** Missing resource bindings
+```bash
+# Solution: Add bindings in Cloudflare Dashboard
+Settings → Functions → Bindings → Add binding:
+- DB: Select your D1 database
+- RATE_LIMIT_KV: Select your KV namespace  
+- CACHE_KV: Select your KV namespace
+```
+
+#### 2. Build Fails with "undefined" Errors
+**Cause:** Missing build environment variables (now fixed automatically)
+```bash
+# Solution: The build script now handles this automatically
+# No action needed - just redeploy
+```
+
+#### 3. Authentication Errors
+**Cause:** Missing WorkOS credentials
+```bash
+# Solution: Add to Variables and Secrets
+WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
+WORKOS_API_KEY=your_workos_api_key  # Add as Secret
 ```
 
 ## 🎉 Congratulations!
