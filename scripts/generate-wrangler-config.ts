@@ -90,18 +90,24 @@ function generateWranglerConfigs(): void {
     console.log('📁 Project root:', projectRoot);
     console.log('📁 Artefact root:', artefactRoot);
 
-    // Debug: Show current environment variable values
-    console.log('🔍 Environment variables check:');
-    const requiredVars = [
-      'CLOUDFLARE_STAGING_D1_DATABASE_ID',
-      'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID', 
-      'CLOUDFLARE_STAGING_CACHE_KV_ID',
-      'WORKOS_CLIENT_ID'
-    ];
+    // Check if we're in Cloudflare build environment (no env vars available during build)
+    const isCloudfareBuild = !process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID && !process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID;
     
-    for (const varName of requiredVars) {
-      const value = process.env[varName];
-      console.log(`   ${varName}: ${value ? 'SET' : 'MISSING'}`);
+    if (isCloudfareBuild) {
+      console.log('🔍 Detected Cloudflare build environment - using dashboard bindings');
+    } else {
+      console.log('🔍 Environment variables check:');
+      const requiredVars = [
+        'CLOUDFLARE_STAGING_D1_DATABASE_ID',
+        'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID', 
+        'CLOUDFLARE_STAGING_CACHE_KV_ID',
+        'WORKOS_CLIENT_ID'
+      ];
+      
+      for (const varName of requiredVars) {
+        const value = process.env[varName];
+        console.log(`   ${varName}: ${value ? 'SET' : 'MISSING'}`);
+      }
     }
 
     const config: WranglerConfig = {
@@ -114,21 +120,21 @@ function generateWranglerConfigs(): void {
             {
               binding: 'DB',
               database_name: 'swole-tracker-prod',
-              database_id: process.env.CLOUDFLARE_PROD_D1_DATABASE_ID!,
+              database_id: process.env.CLOUDFLARE_PROD_D1_DATABASE_ID || 'prod-db-from-dashboard',
             },
           ],
           kv_namespaces: [
             {
               binding: 'RATE_LIMIT_KV',
-              id: process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID!,
+              id: process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID || 'prod-rate-limit-from-dashboard',
             },
             {
               binding: 'CACHE_KV',
-              id: process.env.CLOUDFLARE_PROD_CACHE_KV_ID!,
+              id: process.env.CLOUDFLARE_PROD_CACHE_KV_ID || 'prod-cache-from-dashboard',
             },
           ],
           vars: {
-            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID!,
+            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'workos-from-dashboard',
           },
           routes: process.env.CLOUDFLARE_PROD_DOMAIN ? [
             {
@@ -139,26 +145,26 @@ function generateWranglerConfigs(): void {
         },
 
         staging: {
-          d1_databases: [
+          d1_databases: process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID ? [
             {
               binding: 'DB',
               database_name: 'swole-tracker-staging',
-              database_id: process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID!,
+              database_id: process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID,
             },
-          ],
-          kv_namespaces: [
+          ] : [],
+          kv_namespaces: (process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID && process.env.CLOUDFLARE_STAGING_CACHE_KV_ID) ? [
             {
               binding: 'RATE_LIMIT_KV',
-              id: process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID!,
+              id: process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID,
             },
             {
               binding: 'CACHE_KV',
-              id: process.env.CLOUDFLARE_STAGING_CACHE_KV_ID!,
+              id: process.env.CLOUDFLARE_STAGING_CACHE_KV_ID,
             },
-          ],
-          vars: {
-            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID!,
-          },
+          ] : [],
+          vars: process.env.WORKOS_CLIENT_ID ? {
+            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
+          } : {},
           routes: process.env.CLOUDFLARE_STAGING_DOMAIN ? [
             {
               pattern: `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
@@ -239,23 +245,23 @@ WORKOS_CLIENT_ID = "${config.vars?.WORKOS_CLIENT_ID ?? ''}"
 [env.staging]
 name = "swole-tracker-staging"
 
-[[env.staging.d1_databases]]
+${config.env.staging.d1_databases.length > 0 ? `[[env.staging.d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-staging"
 database_id = "${config.env.staging.d1_databases[0]!.database_id}"
-migrations_dir = "drizzle"
+migrations_dir = "drizzle"` : '# D1 databases configured via Cloudflare Dashboard'}
 
-[[env.staging.kv_namespaces]]
+${config.env.staging.kv_namespaces.length > 0 ? `[[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "${config.env.staging.kv_namespaces[0]!.id}"
 
 [[env.staging.kv_namespaces]]
 binding = "CACHE_KV"
-id = "${config.env.staging.kv_namespaces[1]!.id}"
+id = "${config.env.staging.kv_namespaces[1]!.id}"` : '# KV namespaces configured via Cloudflare Dashboard'}
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-WORKOS_CLIENT_ID = "${config.env.staging.vars?.WORKOS_CLIENT_ID ?? ''}"
+${Object.keys(config.env.staging.vars || {}).length > 0 ? `WORKOS_CLIENT_ID = "${config.env.staging.vars?.WORKOS_CLIENT_ID ?? ''}"` : '# Environment variables configured via Cloudflare Dashboard'}
 
 ${config.env.staging.routes ? config.env.staging.routes.map(route => 
   `[[env.staging.routes]]
