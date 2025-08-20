@@ -254,8 +254,9 @@ main = "${mainPath}"
 compatibility_date = "${config.compatibility_date}"
 compatibility_flags = ["nodejs_compat"]
 
-[observability.logs]
-enabled = false
+[observability]
+enabled = true
+head_sampling_rate = 100
 
 [vars]
 ENVIRONMENT = "development"
