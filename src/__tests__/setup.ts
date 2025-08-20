@@ -36,7 +36,9 @@ vi.mock("~/lib/workos", () => ({
       refreshToken: vi.fn(),
     },
   })),
-  getAuthorizationUrl: vi.fn(() => "https://api.workos.com/user_management/authorize?mock=true"),
+  getAuthorizationUrl: vi.fn(
+    () => "https://api.workos.com/user_management/authorize?mock=true",
+  ),
   exchangeCodeForToken: vi.fn(async () => ({
     accessToken: "mock-access-token",
     refreshToken: "mock-refresh-token",
@@ -75,7 +77,9 @@ vi.mock("~/lib/workos", () => ({
     updated_at: "2024-01-01T00:00:00Z",
     object: "user",
   })),
-  getLogoutUrl: vi.fn(() => "https://api.workos.com/user_management/logout?mock=true"),
+  getLogoutUrl: vi.fn(
+    () => "https://api.workos.com/user_management/logout?mock=true",
+  ),
   getBaseRedirectUri: vi.fn(() => "http://localhost:3000"),
   SESSION_COOKIE_NAME: "workos-session",
   SESSION_COOKIE_OPTIONS: {
@@ -118,20 +122,8 @@ globalThis.CACHE_KV = {
   list: vi.fn(() => Promise.resolve({ keys: [] })),
 };
 
-// Mock rate limiting functions for tests
-vi.mock("~/lib/rate-limit", () => ({
-  checkRateLimit: vi.fn(async () => ({
-    allowed: true,
-    remaining: 10,
-    resetTime: new Date(Date.now() + 3600000),
-  })),
-  cleanupExpiredRateLimits: vi.fn(async () => {}),
-  getRateLimitStatus: vi.fn(async () => ({
-    allowed: true,
-    remaining: 10,
-    resetTime: new Date(Date.now() + 3600000),
-  })),
-}));
+// Note: Rate limiting is now tested with actual implementation
+// The global RATE_LIMIT_KV mock above provides the necessary KV interface
 
 // Mock tRPC API globally for all tests
 vi.mock("~/trpc/react", () => ({
@@ -208,7 +200,7 @@ if (typeof globalThis.window === "undefined") {
   const mockWindow = {
     localStorage: {
       getItem: vi.fn(),
-      setItem: vi.fn(), 
+      setItem: vi.fn(),
       removeItem: vi.fn(),
       clear: vi.fn(),
       length: 0,
@@ -223,13 +215,13 @@ if (typeof globalThis.window === "undefined") {
       cookie: "",
     },
   };
-  
+
   Object.defineProperty(globalThis, "window", {
     value: mockWindow,
     writable: true,
     configurable: true,
   });
-  
+
   Object.defineProperty(globalThis, "document", {
     value: mockWindow.document,
     writable: true,
