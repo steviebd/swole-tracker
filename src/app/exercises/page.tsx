@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-export const runtime = 'edge';
+// Runtime configuration handled by OpenNext
 import { getUserFromHeaders } from "~/lib/workos";
 
 import { api, HydrateClient } from "~/trpc/server";

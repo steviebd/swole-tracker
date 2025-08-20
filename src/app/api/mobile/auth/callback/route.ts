@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '~/lib/workos';
 
-export const runtime = 'edge';
 
 export async function POST(request: NextRequest) {
   try {

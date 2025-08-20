@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const runtime = 'edge';
+// Runtime configuration handled by OpenNext
 import { redirect } from "next/navigation";
 import { getUserFromHeaders } from "~/lib/workos";
 

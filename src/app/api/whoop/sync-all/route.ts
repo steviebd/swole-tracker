@@ -16,7 +16,6 @@ import { eq, and, inArray } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 
-export const runtime = 'edge';
 
 interface WhoopWorkout {
   id: string;

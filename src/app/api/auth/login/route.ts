@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthorizationUrl, getBaseRedirectUri } from '~/lib/workos';
 
-export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   try {

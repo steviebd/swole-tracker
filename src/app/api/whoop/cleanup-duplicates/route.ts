@@ -5,7 +5,6 @@ import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 
-export const runtime = 'edge';
 
 
 export async function POST(request: NextRequest) {

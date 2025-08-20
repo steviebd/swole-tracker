@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import { getUserFromRequest } from "~/lib/workos";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
-export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   const user = await getUserFromRequest(request);

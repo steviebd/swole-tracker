@@ -4,7 +4,7 @@ import Link from "next/link";
 import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 import { Button } from "~/components/ui/button";
 
-export const runtime = 'edge';
+// Runtime configuration handled by OpenNext
 
 export default async function ConnectWhoopPage() {
   const user = await getUserFromHeaders();

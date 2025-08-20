@@ -224,10 +224,10 @@ function generateWranglerConfigs(): void {
 }
 
 function generateTomlFromConfig(config: WranglerConfig, placement: Placement): string {
-  // main path differs depending on where the config file lives
+  // OpenNext generates a different structure than next-on-pages
   const mainPath = placement === 'root'
-    ? '.vercel/output/static/_worker.js/index.js'
-    : 'static/_worker.js/index.js'; // when config lives inside .vercel/output
+    ? '.open-next/worker.js'
+    : '../.open-next/worker.js'; // when config lives inside .open-next/
 
   return `# wrangler.toml - Generated from environment variables
 # Do not commit this file; it is generated each build.

@@ -5,7 +5,7 @@ import { getUserFromHeaders } from "~/lib/workos";
 import { TemplateForm } from "~/app/_components/template-form";
 import { Button } from "~/components/ui/button";
 
-export const runtime = 'edge';
+// Runtime configuration handled by OpenNext
 
 export default async function NewTemplatePage() {
   const user = await getUserFromHeaders();

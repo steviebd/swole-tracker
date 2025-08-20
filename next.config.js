@@ -7,6 +7,8 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 
 const baseConfig = {
+  // Required for OpenNext
+  output: 'standalone',
   // Configure Webpack for Cloudflare compatibility
   webpack: (config, { isServer }) => {
     if (!isServer) {

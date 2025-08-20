@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserFromHeaders } from "~/lib/workos";
 
-export const runtime = 'edge';
+// Runtime configuration handled by OpenNext
 
 interface LocalWorkoutSessionPageProps {
   params: Promise<{ localId: string }>;
