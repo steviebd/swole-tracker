@@ -29,6 +29,7 @@ interface WranglerConfig {
       vars?: Record<string, string>;
       routes?: Array<string | {
         pattern: string;
+        zone_name?: string;
       }>;
     };
     staging: {
@@ -44,6 +45,7 @@ interface WranglerConfig {
       vars?: Record<string, string>;
       routes?: Array<string | {
         pattern: string;
+        zone_name?: string;
       }>;
     };
   };
@@ -76,6 +78,7 @@ function generateWranglerConfigs(): void {
     console.log('  WORKOS_CLIENT_ID:', process.env.WORKOS_CLIENT_ID ? 'SET' : 'MISSING');
     console.log('  CLOUDFLARE_STAGING_D1_DATABASE_ID:', process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID ? 'SET' : 'MISSING');
     console.log('  CLOUDFLARE_STAGING_CACHE_KV_ID:', process.env.CLOUDFLARE_STAGING_CACHE_KV_ID ? 'SET' : 'MISSING');
+    console.log('  CLOUDFLARE_ZONE_NAME:', process.env.CLOUDFLARE_ZONE_NAME ? 'SET' : 'MISSING');
     
     if (!process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID) {
       console.log('🔍 Staging KV ID not found, checking for .env files...');
@@ -151,7 +154,10 @@ function generateWranglerConfigs(): void {
             WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'workos-from-dashboard',
           },
           routes: process.env.CLOUDFLARE_PROD_DOMAIN ? [
-            `${process.env.CLOUDFLARE_PROD_DOMAIN}/*`,
+            {
+              pattern: `${process.env.CLOUDFLARE_PROD_DOMAIN}/*`,
+              zone_name: process.env.CLOUDFLARE_ZONE_NAME || "stevenduong.com",
+            },
           ] : undefined,
         },
 
@@ -177,7 +183,10 @@ function generateWranglerConfigs(): void {
             WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
           } : {},
           routes: process.env.CLOUDFLARE_STAGING_DOMAIN ? [
-            `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
+            {
+              pattern: `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
+              zone_name: process.env.CLOUDFLARE_ZONE_NAME || "stevenduong.com",
+            },
           ] : undefined,
         },
       },
@@ -279,7 +288,8 @@ ${config.env.staging.routes ? config.env.staging.routes.map(route =>
     ? `[[env.staging.routes]]
 pattern = "${route}"`
     : `[[env.staging.routes]]
-pattern = "${route.pattern}"`
+pattern = "${route.pattern}"${route.zone_name ? `
+zone_name = "${route.zone_name}"` : ''}`
 ).join('\n\n') : ''}
 
 # Production Environment
@@ -309,7 +319,8 @@ ${config.env.production.routes ? config.env.production.routes.map(route =>
     ? `[[env.production.routes]]
 pattern = "${route}"`
     : `[[env.production.routes]]
-pattern = "${route.pattern}"`
+pattern = "${route.pattern}"${route.zone_name ? `
+zone_name = "${route.zone_name}"` : ''}`
 ).join('\n\n') : ''}
 
 # Local Development (default/root)
@@ -343,6 +354,7 @@ function validateEnvironmentVariables(): void {
   const optionalVars = [
     'CLOUDFLARE_STAGING_DOMAIN',
     'CLOUDFLARE_PROD_DOMAIN',
+    'CLOUDFLARE_ZONE_NAME',
   ];
 
   const missing = requiredVars.filter((v) => !process.env[v]);
