@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+export const runtime = 'edge';
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 
@@ -11,6 +13,7 @@ import {
 } from "~/trpc/prefetch";
 import { WorkoutStarter } from "~/app/_components/workout-starter";
 import { Button } from "~/components/ui/button";
+
 
 interface StartWorkoutPageProps {
   searchParams: Promise<{ templateId?: string }>;

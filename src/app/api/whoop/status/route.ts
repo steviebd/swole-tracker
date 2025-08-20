@@ -4,6 +4,8 @@ import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
+export const runtime = 'edge';
+
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient();

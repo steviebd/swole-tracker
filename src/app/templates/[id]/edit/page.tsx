@@ -1,10 +1,13 @@
 import Link from "next/link";
+
+export const runtime = 'edge';
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api } from "~/trpc/server";
 import { TemplateForm } from "~/app/_components/template-form";
 import { Button } from "~/components/ui/button";
+
 
 interface EditTemplatePageProps {
   params: Promise<{ id: string }>;

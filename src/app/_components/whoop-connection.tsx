@@ -77,19 +77,19 @@ export function WhoopConnection() {
       if (response.ok) {
         setMessage({
           type: "success",
-          text: `Sync completed! ${result.newWorkouts} new workouts, ${result.duplicates} duplicates skipped.`,
+          text: `Sync completed! ${(result as any)?.newWorkouts || 0} new workouts, ${(result as any)?.duplicates || 0} duplicates skipped.`,
         });
-        setRateLimit(result.rateLimit);
+        setRateLimit((result as any)?.rateLimit);
         void refetchWorkouts();
       } else if (response.status === 429) {
         setMessage({
           type: "error",
           text:
-            result.message || "Rate limit exceeded. Please try again later.",
+            (result as any)?.message || "Rate limit exceeded. Please try again later.",
         });
-        setRateLimit({ remaining: 0, resetTime: result.resetTime });
+        setRateLimit({ remaining: 0, resetTime: (result as any)?.resetTime });
       } else {
-        setMessage({ type: "error", text: result.error || "Sync failed" });
+        setMessage({ type: "error", text: (result as any)?.error || "Sync failed" });
       }
     } catch {
       setMessage({ type: "error", text: "Network error during sync" });

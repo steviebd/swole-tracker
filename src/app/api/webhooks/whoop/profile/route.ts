@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
+export const runtime = 'edge';
 import {
   verifyWhoopWebhook,
   extractWebhookHeaders,
@@ -12,6 +14,7 @@ import {
   whoopProfile,
 } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
+
 
 interface WhoopProfileData {
   user_id: string;
@@ -46,7 +49,7 @@ async function fetchProfileFromWhoop(
         and(
           eq(userIntegrations.user_id, userId.toString()),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
         ),
       );
 
@@ -135,9 +138,9 @@ async function processProfileUpdate(payload: WhoopWebhookPayload) {
           email: profileData.email || null,
           first_name: profileData.first_name || null,
           last_name: profileData.last_name || null,
-          raw_data: profileData as unknown,
-          last_updated: new Date(),
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(profileData),
+          last_updated: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopProfile.user_id, dbUserId));
     } else {
@@ -151,7 +154,7 @@ async function processProfileUpdate(payload: WhoopWebhookPayload) {
         email: profileData.email || null,
         first_name: profileData.first_name || null,
         last_name: profileData.last_name || null,
-        raw_data: profileData as unknown,
+        raw_data: JSON.stringify(profileData),
       });
     }
 
@@ -182,11 +185,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -221,13 +224,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
@@ -250,7 +253,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -270,7 +273,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -293,7 +296,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

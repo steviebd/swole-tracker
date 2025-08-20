@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
+export const runtime = 'edge';
 import {
   verifyWhoopWebhook,
   extractWebhookHeaders,
@@ -12,6 +14,7 @@ import {
   whoopRecovery,
 } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
+
 
 interface WhoopRecoveryData {
   id: string;
@@ -61,7 +64,7 @@ async function fetchRecoveryFromWhoop(
         and(
           eq(userIntegrations.user_id, userId.toString()),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
         ),
       );
 
@@ -152,13 +155,13 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
           cycle_id: recoveryData.cycle_id || null,
           date: recoveryDateStr,
           recovery_score: recoveryData.score?.recovery_score || null,
-          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-          hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline?.toString() || null,
-          resting_heart_rate: recoveryData.score?.resting_heart_rate || null,
-          resting_heart_rate_baseline: recoveryData.score?.resting_heart_rate_baseline || null,
-          raw_data: recoveryData as unknown,
+          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli ?? null,
+          hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline ?? null,
+          resting_heart_rate: recoveryData.score?.resting_heart_rate ?? null,
+          resting_heart_rate_baseline: recoveryData.score?.resting_heart_rate_baseline ?? null,
+          raw_data: JSON.stringify(recoveryData),
           timezone_offset: recoveryData.timezone_offset || null,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
     } else {
@@ -172,11 +175,11 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
         cycle_id: recoveryData.cycle_id || null,
         date: recoveryDateStr,
         recovery_score: recoveryData.score?.recovery_score || null,
-        hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-        hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline?.toString() || null,
-        resting_heart_rate: recoveryData.score?.resting_heart_rate || null,
-        resting_heart_rate_baseline: recoveryData.score?.resting_heart_rate_baseline || null,
-        raw_data: recoveryData as unknown,
+        hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli ?? null,
+        hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline ?? null,
+        resting_heart_rate: recoveryData.score?.resting_heart_rate ?? null,
+        resting_heart_rate_baseline: recoveryData.score?.resting_heart_rate_baseline ?? null,
+        raw_data: JSON.stringify(recoveryData),
         timezone_offset: recoveryData.timezone_offset || null,
       });
     }
@@ -208,11 +211,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -247,13 +250,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
@@ -276,7 +279,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -296,7 +299,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -319,7 +322,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

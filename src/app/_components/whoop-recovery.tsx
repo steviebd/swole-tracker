@@ -16,10 +16,9 @@ export function WhoopRecovery() {
     }).format(new Date(dateString));
   };
 
-  const formatHRV = (hrv: string | null) => {
-    if (!hrv) return "--";
-    const hrvNum = parseFloat(hrv);
-    return isNaN(hrvNum) ? "--" : `${hrvNum.toFixed(1)}ms`;
+  const formatHRV = (hrv: number | null) => {
+    if (hrv === null) return "--";
+    return isNaN(hrv) ? "--" : `${hrv.toFixed(1)}ms`;
   };
 
   if (isLoading) {

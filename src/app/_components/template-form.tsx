@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "~/trpc/react";
+import type { RouterOutputs } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
@@ -100,7 +101,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       submitRef.current = false;
 
       // Update cache with the new template optimistically
-      utils.templates.getAll.setData(undefined, (old) => {
+      utils.templates.getAll.setData(undefined, (old: RouterOutputs["templates"]["getAll"] | undefined) => {
         const newTemplate = data as NonNullable<typeof old>[number];
         return old ? [newTemplate, ...old] : [newTemplate];
       });
@@ -125,14 +126,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
       // Optimistically update the cache
       utils.templates.getAll.setData(
         undefined,
-        (old) =>
-          old?.map((template) =>
-            template.id === updatedTemplate.id
+        (old: RouterOutputs["templates"]["getAll"] | undefined) =>
+          old?.map((template: RouterOutputs["templates"]["getAll"][number]) =>
+            template.id === (updatedTemplate as any)?.id
               ? {
                   ...template,
-                  name: updatedTemplate.name,
-                  updatedAt: new Date(),
-                  exercises: updatedTemplate.exercises.map(
+                  name: (updatedTemplate as any)?.name,
+                  updatedAt: new Date().toISOString(),
+                  exercises: (updatedTemplate as any)?.exercises?.map(
                     (exerciseName, index) => ({
                       id: template.exercises[index]?.id ?? -index - 1,
                       user_id:
@@ -141,9 +142,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
                       exerciseName,
                       orderIndex: index,
                       linkingRejected:
-                        template.exercises[index]?.linkingRejected ?? false,
+                        template.exercises[index]?.linkingRejected ?? 0,
                       createdAt:
-                        template.exercises[index]?.createdAt ?? new Date(),
+                        template.exercises[index]?.createdAt ??
+                        new Date().toISOString(),
                     }),
                   ),
                 }

@@ -29,7 +29,11 @@ export function useHealthAdvice(sessionId?: number) {
   // Load existing advice if available
   useEffect(() => {
     if (existingAdvice && !advice) {
-      setAdvice(existingAdvice.response as HealthAdviceResponse);
+      const parsed =
+        typeof existingAdvice.response === 'string'
+          ? (JSON.parse(existingAdvice.response) as HealthAdviceResponse)
+          : (existingAdvice.response as unknown as HealthAdviceResponse);
+      setAdvice(parsed);
       setAcceptedSuggestions(existingAdvice.user_accepted_suggestions);
     }
   }, [existingAdvice, advice]);
@@ -51,7 +55,7 @@ export function useHealthAdvice(sessionId?: number) {
       const totalDuration = endTime - startTime;
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as { error?: string };
         
         // Track error
         trackHealthAdviceError({
@@ -66,7 +70,7 @@ export function useHealthAdvice(sessionId?: number) {
         throw new Error(errorData.error || 'Failed to fetch advice');
       }
       
-      const data = await response.json();
+      const data = await response.json() as HealthAdviceResponse;
       setAdvice(data);
       
       // Save to database
@@ -92,7 +96,7 @@ export function useHealthAdvice(sessionId?: number) {
       }
       
       // Track successful usage
-      const totalSuggestions = data.per_exercise.reduce((sum: number, ex: HealthAdviceResponse['per_exercise'][0]) => sum + ex.sets.length, 0);
+      const totalSuggestions = data.per_exercise?.reduce((sum: number, ex) => sum + ex.sets.length, 0) || 0;
       
       trackHealthAdviceUsage({
         sessionId: request.session_id,
@@ -184,7 +188,7 @@ export function useHealthAdvice(sessionId?: number) {
       const totalDuration = endTime - startTime;
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as { error?: string };
         
         // Track error
         trackHealthAdviceError({
@@ -199,7 +203,7 @@ export function useHealthAdvice(sessionId?: number) {
         throw new Error(errorData.error || 'Failed to fetch advice');
       }
       
-      const data = await response.json();
+      const data = await response.json() as HealthAdviceResponse;
       setAdvice(data);
       
       // Save to database with wellness context
@@ -226,7 +230,7 @@ export function useHealthAdvice(sessionId?: number) {
       }
       
       // Track successful usage with manual wellness data
-      const totalSuggestions = data.per_exercise.reduce((sum: number, ex: HealthAdviceResponse['per_exercise'][0]) => sum + ex.sets.length, 0);
+      const totalSuggestions = data.per_exercise?.reduce((sum: number, ex) => sum + ex.sets.length, 0) || 0;
       
       // Track manual wellness submission separately
       trackManualWellnessSubmission({

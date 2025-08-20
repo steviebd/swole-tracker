@@ -32,10 +32,9 @@ export function WhoopSleep() {
     return `${hours}h ${minutes}m`;
   };
 
-  const formatPercentage = (value: string | null) => {
-    if (!value) return "--";
-    const num = parseFloat(value);
-    return isNaN(num) ? "--" : `${num.toFixed(0)}%`;
+  const formatPercentage = (value: number | null) => {
+    if (value === null) return "--";
+    return isNaN(value) ? "--" : `${value.toFixed(0)}%`;
   };
 
   if (isLoading) {

@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { api } from "~/trpc/react";
-import { useMockFeed } from "~/hooks/useMockData";
+import type { RouterOutputs } from "~/trpc/react";
+import { useMockFeed, type MockWorkoutSession } from "~/hooks/useMockData";
 import { Card } from "~/components/ui/card";
+
+type RecentWorkout = RouterOutputs["workouts"]["getRecent"][number];
+type WorkoutData = RecentWorkout | MockWorkoutSession;
 
 interface WorkoutCardProps {
   id: number;
@@ -111,7 +115,7 @@ export function RecentWorkoutsSection() {
       </div>
       
       <div className="space-y-3">
-        {workouts?.map((workout) => (
+        {workouts?.map((workout: WorkoutData) => (
           <WorkoutCard
             key={workout.id}
             id={workout.id}

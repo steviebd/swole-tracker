@@ -23,9 +23,8 @@ export function DashboardContent() {
 
   if (!user) return null;
 
-  // Extract display name from user metadata or email
-  const displayName = user.user_metadata?.first_name || 
-                     user.user_metadata?.display_name || 
+  // Extract display name from WorkOS user data or email
+  const displayName = user.first_name || 
                      user.email?.split('@')[0] ||
                      'User';
 

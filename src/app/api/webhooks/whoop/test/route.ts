@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import crypto from "crypto";
+
+export const runtime = 'edge';
 import { env } from "~/env";
 
 /**
@@ -37,17 +38,28 @@ export async function POST(request: NextRequest) {
       user_id: userId ?? 12345,
       id: workoutId ?? "550e8400-e29b-41d4-a716-446655440000", // Test UUID
       type: eventType,
-      trace_id: crypto.randomUUID(),
+      trace_id: globalThis.crypto.randomUUID(),
     };
 
     const payloadString = JSON.stringify(testPayload);
     const timestamp = Date.now().toString();
 
-    // Generate valid webhook signature
+    // Generate valid webhook signature using Web Crypto API
     const message = timestamp + payloadString;
-    const hmac = crypto.createHmac("sha256", env.WHOOP_WEBHOOK_SECRET);
-    hmac.update(message, "utf8");
-    const signature = hmac.digest("base64");
+    const encoder = new TextEncoder();
+    const key = await globalThis.crypto.subtle.importKey(
+      "raw",
+      encoder.encode(env.WHOOP_WEBHOOK_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signatureBuffer = await globalThis.crypto.subtle.sign(
+      "HMAC",
+      key,
+      encoder.encode(message)
+    );
+    const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
 
     // Get the webhook URL
     const baseUrl = request.nextUrl.origin;
