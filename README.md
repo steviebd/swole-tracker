@@ -324,7 +324,7 @@ CLOUDFLARE_DEV_CACHE_KV_ID=your_dev_cache_kv_id
 
 # Authentication (required)
 WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
-WORKOS_API_KEY=sk_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+WORKOS_API_KEY=workos-api-key
 
 # Environment Settings
 NODE_ENV=development                    # Hot reload, detailed errors
