@@ -109,7 +109,7 @@ Create two separate Workers Projects in your Cloudflare dashboard:
    - **Production branch**: Leave empty (we'll use build branches)
    - **Build branches**: Enable and set pattern: `feature/*,feat/*`
    - **Build command**: `bun install && bun run build:cloudflare`
-   - **Deploy command**: `npx wrangler deploy --env staging`
+   - **Deploy command**: `bun run deploy:staging`
 
 #### **Step 4b: Create Production Project**
 1. Go to **Cloudflare Dashboard → Workers & Pages → Create**
@@ -118,57 +118,49 @@ Create two separate Workers Projects in your Cloudflare dashboard:
    - **Project name**: `swole-tracker-production`
    - **Production branch**: `main`
    - **Build command**: `bun install && bun run build:cloudflare`
-   - **Deploy command**: `npx wrangler deploy --env production`
+   - **Deploy command**: `bun run deploy:production`
 
-#### **Step 4c: Configure Cloudflare Bindings**
+#### **Step 4c: Configure Environment Variables and Secrets**
 
-**For each project, you need to:**
+This project uses a combination of build-time environment variables and runtime secrets.
 
-1. **Create Resource Bindings** (Settings → Functions → Bindings):
-   - `DB` (D1 Database) → Select your database (swole-tracker-staging or swole-tracker-prod)
-   - `RATE_LIMIT_KV` (KV Namespace) → Select your rate limit KV namespace  
-   - `CACHE_KV` (KV Namespace) → Select your cache KV namespace
+**Build-Time Variables (Non-Secret):**
 
-2. **Configure Runtime Variables** (Settings → Variables and Secrets):
+These variables are used by the `generate-wrangler-config.ts` script at build time to create the `wrangler.toml` file. They are safe to store in `.env.local` for local development and should be set as **environment variables** in your Cloudflare project settings for CI/CD.
 
-**Variables (Runtime Environment Variables):**
-```bash
-# Authentication (required)
-WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_PROD_D1_DATABASE_ID`
+- `CLOUDFLARE_PROD_RATE_LIMIT_KV_ID`
+- `CLOUDFLARE_PROD_CACHE_KV_ID`
+- `CLOUDFLARE_STAGING_D1_DATABASE_ID`
+- `CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID`
+- `CLOUDFLARE_STAGING_CACHE_KV_ID`
+- `WORKOS_CLIENT_ID`
+- `NEXT_PUBLIC_POSTHOG_KEY`
+- `NEXT_PUBLIC_POSTHOG_HOST`
+- `WHOOP_CLIENT_ID`
+- `WHOOP_SYNC_RATE_LIMIT_PER_HOUR`
+- `AI_GATEWAY_MODEL`
+- `AI_GATEWAY_PROMPT`
+- `RATE_LIMIT_ENABLED`
+- `RATE_LIMIT_API_CALLS_PER_MINUTE`
 
-# Analytics (optional)
-NEXT_PUBLIC_POSTHOG_KEY=phc_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+**Runtime Secrets (Encrypted):**
 
-# WHOOP Integration (optional)
-WHOOP_CLIENT_ID=your_whoop_client_id
-WHOOP_SYNC_RATE_LIMIT_PER_HOUR=10
+These are sensitive values and should be set as **secrets** in your Cloudflare project settings. They are accessed at runtime by your worker.
 
-# AI Features (optional)
-AI_GATEWAY_MODEL=xai/grok-3-mini
-AI_GATEWAY_PROMPT=Tell me a short, funny programming or tech joke.
+- `WORKOS_API_KEY`
+- `WHOOP_CLIENT_SECRET`
+- `WHOOP_WEBHOOK_SECRET`
+- `VERCEL_AI_GATEWAY_API_KEY`
+- `AI_GATEWAY_API_KEY`
 
-# Rate Limiting (optional)
-RATE_LIMIT_ENABLED=true
-RATE_LIMIT_API_CALLS_PER_MINUTE=60
-```
+**How to Configure in Cloudflare Dashboard:**
 
-**Secrets (Encrypted Runtime Variables):**
-```bash
-# Authentication (required)
-WORKOS_API_KEY=your_workos_api_key
-
-# WHOOP Integration (if used)
-WHOOP_CLIENT_SECRET=your_whoop_client_secret
-WHOOP_WEBHOOK_SECRET=your_whoop_webhook_secret
-
-# AI Gateway (if used)  
-AI_GATEWAY_API_KEY=your_ai_gateway_api_key
-```
-
-3. **Build Environment Variables** (Optional - leave empty for most cases):
-   - The updated build script now works without build environment variables
-   - Bindings are configured via Dashboard instead of environment variables
+For each project (staging and production):
+1. Go to **Settings → Variables**.
+2. Add the **Build-Time Variables** under **Environment Variables**.
+3. Add the **Runtime Secrets** under **Encrypted Secrets**.
 
 ### 5. Start Developing
 

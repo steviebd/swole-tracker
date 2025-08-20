@@ -101,3 +101,4 @@ apps/template/.next/cache/webpack/server-development/index.pack.gz
 wrangler.toml
 .nvmrc
 .env.template
+.open-next

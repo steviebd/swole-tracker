@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "npm run tokens:build && next build",
-    "build:cloudflare": "node scripts/build-tokens.js && node scripts/build-mobile-tokens.js && next build && npx @cloudflare/next-on-pages && bun scripts/generate-wrangler-config.ts && echo '✅ Generated wrangler.toml'",
-    "deploy": "npm run build:cloudflare && npx wrangler deploy --env=\"\"",
-    "deploy:staging": "npm run build:cloudflare && npx wrangler deploy --env staging",
-    "deploy:production": "npm run build:cloudflare && npx wrangler deploy --env production",
+    "build:cloudflare": "bun run tokens:build && next build && opennextjs-cloudflare build && bun run generate:wrangler",
+    "deploy": "bun run build:cloudflare && opennextjs-cloudflare deploy",
+    "deploy:staging": "bun run build:cloudflare && opennextjs-cloudflare deploy --env staging",
+    "deploy:production": "bun run build:cloudflare && opennextjs-cloudflare deploy --env production",
     "deploy:local": "npm run deploy",
     "deploy:versions": "tsx scripts/deploy-versions.ts",
     "deploy:versions:staging": "tsx scripts/deploy-versions.ts --env=staging",
@@ -101,8 +101,9 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "1.13.14",
+    
     "@cloudflare/workers-types": "4.20250816.0",
+    "@opennextjs/cloudflare": "^1.6.5",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/mcp": "0.0.34",
     "@playwright/test": "^1.54.2",
