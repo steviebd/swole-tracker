@@ -29,7 +29,6 @@ interface WranglerConfig {
       vars?: Record<string, string>;
       routes?: Array<{
         pattern: string;
-        custom_domain?: boolean;
       }>;
     };
     staging: {
@@ -45,7 +44,6 @@ interface WranglerConfig {
       vars?: Record<string, string>;
       routes?: Array<{
         pattern: string;
-        custom_domain?: boolean;
       }>;
     };
   };
@@ -155,7 +153,6 @@ function generateWranglerConfigs(): void {
           routes: process.env.CLOUDFLARE_PROD_DOMAIN ? [
             {
               pattern: `${process.env.CLOUDFLARE_PROD_DOMAIN}/*`,
-              custom_domain: true,
             },
           ] : undefined,
         },
@@ -184,7 +181,6 @@ function generateWranglerConfigs(): void {
           routes: process.env.CLOUDFLARE_STAGING_DOMAIN ? [
             {
               pattern: `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
-              custom_domain: true,
             },
           ] : undefined,
         },
