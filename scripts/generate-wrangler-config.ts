@@ -108,11 +108,6 @@ function generateWranglerConfigs(): void {
     const hasDev = !!process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID;
     const isCloudfareBuild = !hasStaging && !hasDev;
     
-    console.log('🔍 Environment type detection:');
-    console.log('  hasStaging:', hasStaging);
-    console.log('  hasDev:', hasDev);
-    console.log('  isCloudfareBuild:', isCloudfareBuild);
-    
     if (isCloudfareBuild) {
       console.log('🔍 Detected Cloudflare build environment - using dashboard bindings');
       console.log('  ℹ️  This means environment variables will be configured via Cloudflare Dashboard');
@@ -131,11 +126,9 @@ function generateWranglerConfigs(): void {
       }
     }
 
-    console.log('🔧 Building configuration object...');
-    
     const config: WranglerConfig = {
       name: 'swole-tracker',
-      compatibility_date: '2024-03-20',
+      compatibility_date: '2024-09-23',
 
       env: {
         production: {
@@ -221,16 +214,8 @@ function generateWranglerConfigs(): void {
       },
     };
 
-    console.log('🔧 Configuration object built successfully');
-    console.log('📋 Staging config summary:');
-    console.log('  D1 databases count:', config.env.staging.d1_databases.length);
-    console.log('  KV namespaces count:', config.env.staging.kv_namespaces.length);
-    console.log('  Variables count:', Object.keys(config.env.staging.vars || {}).length);
-    
-    console.log('🔧 Generating TOML content...');
     const rootToml = generateTomlFromConfig(config, 'root');
     const outputToml = generateTomlFromConfig(config, 'output');
-    console.log('✅ TOML content generated (', rootToml.length, 'characters for root)');
 
     // Ensure artefact dir exists
     mkdirSync(artefactRoot, { recursive: true });
@@ -239,15 +224,8 @@ function generateWranglerConfigs(): void {
     const rootPath = join(projectRoot, 'wrangler.toml');
     const outputPath = join(artefactRoot, 'wrangler.toml');
     
-    console.log('📝 About to write wrangler config files...');
-    console.log('📁 Root path:', rootPath);
-    console.log('📁 Output path:', outputPath);
-    
     writeFileSync(rootPath, rootToml);
-    console.log('✅ Root wrangler.toml written');
-    
     writeFileSync(outputPath, outputToml);
-    console.log('✅ Output wrangler.toml written');
 
     console.log('✅ Generated wrangler.toml successfully');
     console.log('📁 Root    :', rootPath);
