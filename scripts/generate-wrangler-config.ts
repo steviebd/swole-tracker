@@ -27,7 +27,7 @@ interface WranglerConfig {
         id: string;
       }>;
       vars?: Record<string, string>;
-      routes?: Array<{
+      routes?: Array<string | {
         pattern: string;
       }>;
     };
@@ -42,7 +42,7 @@ interface WranglerConfig {
         id: string;
       }>;
       vars?: Record<string, string>;
-      routes?: Array<{
+      routes?: Array<string | {
         pattern: string;
       }>;
     };
@@ -151,9 +151,7 @@ function generateWranglerConfigs(): void {
             WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'workos-from-dashboard',
           },
           routes: process.env.CLOUDFLARE_PROD_DOMAIN ? [
-            {
-              pattern: `${process.env.CLOUDFLARE_PROD_DOMAIN}/*`,
-            },
+            `${process.env.CLOUDFLARE_PROD_DOMAIN}/*`,
           ] : undefined,
         },
 
@@ -179,9 +177,7 @@ function generateWranglerConfigs(): void {
             WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
           } : {},
           routes: process.env.CLOUDFLARE_STAGING_DOMAIN ? [
-            {
-              pattern: `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
-            },
+            `${process.env.CLOUDFLARE_STAGING_DOMAIN}/*`,
           ] : undefined,
         },
       },
@@ -279,7 +275,10 @@ ENVIRONMENT = "staging"
 ${Object.keys(config.env.staging.vars || {}).length > 0 ? `WORKOS_CLIENT_ID = "${config.env.staging.vars?.WORKOS_CLIENT_ID ?? ''}"` : '# Environment variables configured via Cloudflare Dashboard'}
 
 ${config.env.staging.routes ? config.env.staging.routes.map(route => 
-  `[[env.staging.routes]]
+  typeof route === 'string' 
+    ? `[[env.staging.routes]]
+pattern = "${route}"`
+    : `[[env.staging.routes]]
 pattern = "${route.pattern}"`
 ).join('\n\n') : ''}
 
@@ -306,7 +305,10 @@ ENVIRONMENT = "production"
 WORKOS_CLIENT_ID = "${config.env.production.vars?.WORKOS_CLIENT_ID ?? ''}"
 
 ${config.env.production.routes ? config.env.production.routes.map(route => 
-  `[[env.production.routes]]
+  typeof route === 'string' 
+    ? `[[env.production.routes]]
+pattern = "${route}"`
+    : `[[env.production.routes]]
 pattern = "${route.pattern}"`
 ).join('\n\n') : ''}
 
