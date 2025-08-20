@@ -72,14 +72,27 @@ function generateWranglerConfigs(): void {
 
     // Load environment variables from .env files (only if not already in process.env)
     // In Cloudflare builds, env vars are already available in process.env
+    console.log('🔍 Environment variable detection:');
+    console.log('  CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID:', process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID ? 'SET' : 'MISSING');
+    console.log('  CLOUDFLARE_DEV_RATE_LIMIT_KV_ID:', process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID ? 'SET' : 'MISSING');
+    console.log('  WORKOS_CLIENT_ID:', process.env.WORKOS_CLIENT_ID ? 'SET' : 'MISSING');
+    console.log('  CLOUDFLARE_STAGING_D1_DATABASE_ID:', process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID ? 'SET' : 'MISSING');
+    console.log('  CLOUDFLARE_STAGING_CACHE_KV_ID:', process.env.CLOUDFLARE_STAGING_CACHE_KV_ID ? 'SET' : 'MISSING');
+    
     if (!process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID) {
+      console.log('🔍 Staging KV ID not found, checking for .env files...');
       const envFiles = ['.env.local', '.env'];
       for (const envFile of envFiles) {
         const envPath = join(projectRoot, envFile);
+        console.log(`📂 Checking for ${envFile} at: ${envPath}`);
         if (existsSync(envPath)) {
           config({ path: envPath });
           console.log(`📄 Loaded environment variables from ${envFile}`);
+          // Re-check after loading
+          console.log('  After loading - CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID:', process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID ? 'SET' : 'STILL MISSING');
           break;
+        } else {
+          console.log(`❌ File not found: ${envPath}`);
         }
       }
     } else {
@@ -91,12 +104,20 @@ function generateWranglerConfigs(): void {
     console.log('📁 Artefact root:', artefactRoot);
 
     // Check if we're in Cloudflare build environment (no env vars available during build)
-    const isCloudfareBuild = !process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID && !process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID;
+    const hasStaging = !!process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID;
+    const hasDev = !!process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID;
+    const isCloudfareBuild = !hasStaging && !hasDev;
+    
+    console.log('🔍 Environment type detection:');
+    console.log('  hasStaging:', hasStaging);
+    console.log('  hasDev:', hasDev);
+    console.log('  isCloudfareBuild:', isCloudfareBuild);
     
     if (isCloudfareBuild) {
       console.log('🔍 Detected Cloudflare build environment - using dashboard bindings');
+      console.log('  ℹ️  This means environment variables will be configured via Cloudflare Dashboard');
     } else {
-      console.log('🔍 Environment variables check:');
+      console.log('🔍 Environment variables check (local/CI with env vars):');
       const requiredVars = [
         'CLOUDFLARE_STAGING_D1_DATABASE_ID',
         'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID', 
@@ -106,10 +127,12 @@ function generateWranglerConfigs(): void {
       
       for (const varName of requiredVars) {
         const value = process.env[varName];
-        console.log(`   ${varName}: ${value ? 'SET' : 'MISSING'}`);
+        console.log(`   ${varName}: ${value ? 'SET (' + value.substring(0, 8) + '...)' : 'MISSING'}`);
       }
     }
 
+    console.log('🔧 Building configuration object...');
+    
     const config: WranglerConfig = {
       name: 'swole-tracker',
       compatibility_date: '2024-03-20',
@@ -198,8 +221,16 @@ function generateWranglerConfigs(): void {
       },
     };
 
+    console.log('🔧 Configuration object built successfully');
+    console.log('📋 Staging config summary:');
+    console.log('  D1 databases count:', config.env.staging.d1_databases.length);
+    console.log('  KV namespaces count:', config.env.staging.kv_namespaces.length);
+    console.log('  Variables count:', Object.keys(config.env.staging.vars || {}).length);
+    
+    console.log('🔧 Generating TOML content...');
     const rootToml = generateTomlFromConfig(config, 'root');
     const outputToml = generateTomlFromConfig(config, 'output');
+    console.log('✅ TOML content generated (', rootToml.length, 'characters for root)');
 
     // Ensure artefact dir exists
     mkdirSync(artefactRoot, { recursive: true });
@@ -208,8 +239,15 @@ function generateWranglerConfigs(): void {
     const rootPath = join(projectRoot, 'wrangler.toml');
     const outputPath = join(artefactRoot, 'wrangler.toml');
     
+    console.log('📝 About to write wrangler config files...');
+    console.log('📁 Root path:', rootPath);
+    console.log('📁 Output path:', outputPath);
+    
     writeFileSync(rootPath, rootToml);
+    console.log('✅ Root wrangler.toml written');
+    
     writeFileSync(outputPath, outputToml);
+    console.log('✅ Output wrangler.toml written');
 
     console.log('✅ Generated wrangler.toml successfully');
     console.log('📁 Root    :', rootPath);
@@ -353,7 +391,9 @@ function validateEnvironmentVariables(): void {
   }
 }
 
-if (import.meta.main) {
+// Run if this script is executed directly
+// Handles both Bun (import.meta.main) and tsx/node execution
+if (import.meta.main || process.argv[1]?.endsWith('generate-wrangler-config.ts')) {
   generateWranglerConfigs();
 }
 
