@@ -7,7 +7,8 @@
  * - ./.vercel/output/wrangler.toml                   (for Deploy/Versions step)
  */
 
-import { writeFileSync, mkdirSync } from 'fs';
+import { config } from 'dotenv';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -68,6 +69,17 @@ function generateWranglerConfigs(): void {
     // Resolve project and artefact roots reliably
     const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
     const artefactRoot = join(projectRoot, '.vercel', 'output');
+
+    // Load environment variables from .env files
+    const envFiles = ['.env.local', '.env'];
+    for (const envFile of envFiles) {
+      const envPath = join(projectRoot, envFile);
+      if (existsSync(envPath)) {
+        config({ path: envPath });
+        console.log(`📄 Loaded environment variables from ${envFile}`);
+        break;
+      }
+    }
     
     console.log('🔧 Generating wrangler configurations...');
     console.log('📁 Project root:', projectRoot);
@@ -83,22 +95,21 @@ function generateWranglerConfigs(): void {
             {
               binding: 'DB',
               database_name: 'swole-tracker-prod',
-              database_id:
-                process.env.CLOUDFLARE_PROD_D1_DATABASE_ID || 'your_production_d1_database_id',
+              database_id: process.env.CLOUDFLARE_PROD_D1_DATABASE_ID!,
             },
           ],
           kv_namespaces: [
             {
               binding: 'RATE_LIMIT_KV',
-              id: process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID || 'your_production_rate_limit_kv_id',
+              id: process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID!,
             },
             {
               binding: 'CACHE_KV',
-              id: process.env.CLOUDFLARE_PROD_CACHE_KV_ID || 'your_production_cache_kv_id',
+              id: process.env.CLOUDFLARE_PROD_CACHE_KV_ID!,
             },
           ],
           vars: {
-            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_production_example',
+            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID!,
           },
           routes: process.env.CLOUDFLARE_PROD_DOMAIN ? [
             {
@@ -113,25 +124,21 @@ function generateWranglerConfigs(): void {
             {
               binding: 'DB',
               database_name: 'swole-tracker-staging',
-              database_id:
-                process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID || 'staging-database-id',
+              database_id: process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID!,
             },
           ],
           kv_namespaces: [
             {
               binding: 'RATE_LIMIT_KV',
-              id:
-                process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID ||
-                '6bee9b5d291c426e8d68c188720a504e',
+              id: process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID!,
             },
             {
               binding: 'CACHE_KV',
-              id:
-                process.env.CLOUDFLARE_STAGING_CACHE_KV_ID || 'c7322688c2a845c9aee5570769aa9817',
+              id: process.env.CLOUDFLARE_STAGING_CACHE_KV_ID!,
             },
           ],
           vars: {
-            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_staging_example',
+            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID!,
           },
           routes: process.env.CLOUDFLARE_STAGING_DOMAIN ? [
             {
@@ -142,27 +149,27 @@ function generateWranglerConfigs(): void {
         },
       },
 
-      // Local dev bindings (safe IDs)
+      // Local dev bindings
       d1_databases: [
         {
           binding: 'DB',
           database_name: 'swole-tracker-dev',
-          database_id: 'fd83bd6b-1d9f-4351-a23a-df3eed070fe1',
+          database_id: process.env.CLOUDFLARE_DEV_D1_DATABASE_ID!,
           migrations_dir: 'drizzle',
         },
       ],
       kv_namespaces: [
         {
           binding: 'RATE_LIMIT_KV',
-          id: '24ffbf891bf1445d82533a65d92a9cd9',
+          id: process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID!,
         },
         {
           binding: 'CACHE_KV',
-          id: '8314e00d68f24565b5993af382148b63',
+          id: process.env.CLOUDFLARE_DEV_CACHE_KV_ID!,
         },
       ],
       vars: {
-        WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_development_example',
+        WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID!,
       },
     };
 

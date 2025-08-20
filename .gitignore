@@ -42,6 +42,9 @@ yarn-error.log*
 .env*.local
 .env.test
 
+# infisical configuration (contains workspace ID)
+.infisical.json
+
 # cloudflare build output
 .cloudflare/
 
