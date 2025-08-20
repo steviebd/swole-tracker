@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "npm run tokens:build && next build",
-    "build:cloudflare": "bun run tokens:build && next build && opennextjs-cloudflare build && bun run generate:wrangler",
+    "build:cloudflare": "bun run tokens:build && bun run generate:wrangler && next build && opennextjs-cloudflare build",
     "deploy": "bun run build:cloudflare && opennextjs-cloudflare deploy",
     "deploy:staging": "bun run build:cloudflare && opennextjs-cloudflare deploy --env staging",
     "deploy:production": "bun run build:cloudflare && opennextjs-cloudflare deploy --env production",

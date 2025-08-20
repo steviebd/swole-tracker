@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 // Runtime configuration handled by OpenNext
 import { getUserFromHeaders } from "~/lib/workos";
 
+export const dynamic = "force-dynamic";
+
 import { api, HydrateClient } from "~/trpc/server";
 import { ExerciseManager } from "~/app/_components/exercise-manager";
 import { Button } from "~/components/ui/button";

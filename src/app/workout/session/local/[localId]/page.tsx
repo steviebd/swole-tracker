@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserFromHeaders } from "~/lib/workos";
 
 // Runtime configuration handled by OpenNext
+export const dynamic = "force-dynamic";
 
 interface LocalWorkoutSessionPageProps {
   params: Promise<{ localId: string }>;

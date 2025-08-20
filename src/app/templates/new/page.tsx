@@ -6,6 +6,7 @@ import { TemplateForm } from "~/app/_components/template-form";
 import { Button } from "~/components/ui/button";
 
 // Runtime configuration handled by OpenNext
+export const dynamic = "force-dynamic";
 
 export default async function NewTemplatePage() {
   const user = await getUserFromHeaders();

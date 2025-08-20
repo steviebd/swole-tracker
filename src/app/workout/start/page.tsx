@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 // Runtime configuration handled by OpenNext
+export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { getUserFromHeaders } from "~/lib/workos";
 

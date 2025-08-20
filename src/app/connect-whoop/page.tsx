@@ -5,6 +5,7 @@ import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 import { Button } from "~/components/ui/button";
 
 // Runtime configuration handled by OpenNext
+export const dynamic = "force-dynamic";
 
 export default async function ConnectWhoopPage() {
   const user = await getUserFromHeaders();

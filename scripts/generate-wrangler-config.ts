@@ -179,22 +179,22 @@ function generateWranglerConfigs(): void {
         {
           binding: 'DB',
           database_name: 'swole-tracker-dev',
-          database_id: process.env.CLOUDFLARE_DEV_D1_DATABASE_ID!,
+          database_id: process.env.CLOUDFLARE_DEV_D1_DATABASE_ID || 'undefined',
           migrations_dir: 'drizzle',
         },
       ],
       kv_namespaces: [
         {
           binding: 'RATE_LIMIT_KV',
-          id: process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID!,
+          id: process.env.CLOUDFLARE_DEV_RATE_LIMIT_KV_ID || 'undefined',
         },
         {
           binding: 'CACHE_KV',
-          id: process.env.CLOUDFLARE_DEV_CACHE_KV_ID!,
+          id: process.env.CLOUDFLARE_DEV_CACHE_KV_ID || 'undefined',
         },
       ],
       vars: {
-        WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID!,
+        WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || '',
       },
     };
 
@@ -227,7 +227,7 @@ function generateTomlFromConfig(config: WranglerConfig, placement: Placement): s
   // OpenNext generates a different structure than next-on-pages
   const mainPath = placement === 'root'
     ? '.open-next/worker.js'
-    : '../.open-next/worker.js'; // when config lives inside .open-next/
+    : '.open-next/worker.js'; // Use the same path for both locations
 
   return `# wrangler.toml - Generated from environment variables
 # Do not commit this file; it is generated each build.
