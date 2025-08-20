@@ -64,6 +64,16 @@ jobs:
           NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
         run: bun run build:cloudflare
 
+      - name: Verify build artifacts
+        run: |
+          echo "🔍 Checking for wrangler.toml..."
+          ls -la wrangler.toml || echo "❌ wrangler.toml not found in root"
+          ls -la .vercel/output/wrangler.toml || echo "❌ wrangler.toml not found in .vercel/output"
+          echo "📁 Current directory contents:"
+          ls -la
+          echo "📁 .vercel/output contents:"
+          ls -la .vercel/output/ || echo "❌ .vercel/output directory not found"
+
       - name: Deploy to Cloudflare Workers (Staging)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -116,6 +126,16 @@ jobs:
           NEXT_PUBLIC_POSTHOG_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY }}
           NEXT_PUBLIC_POSTHOG_HOST: ${{ secrets.NEXT_PUBLIC_POSTHOG_HOST }}
         run: bun run build:cloudflare
+
+      - name: Verify build artifacts
+        run: |
+          echo "🔍 Checking for wrangler.toml..."
+          ls -la wrangler.toml || echo "❌ wrangler.toml not found in root"
+          ls -la .vercel/output/wrangler.toml || echo "❌ wrangler.toml not found in .vercel/output"
+          echo "📁 Current directory contents:"
+          ls -la
+          echo "📁 .vercel/output contents:"
+          ls -la .vercel/output/ || echo "❌ .vercel/output directory not found"
 
       - name: Deploy to Cloudflare Workers (Production)
         env:

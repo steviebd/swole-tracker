@@ -56,107 +56,119 @@ interface WranglerConfig {
 type Placement = 'root' | 'output';
 
 function generateWranglerConfigs(): void {
-  // Resolve project and artefact roots reliably
-  const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-  const artefactRoot = join(projectRoot, '.vercel', 'output');
+  try {
+    // Resolve project and artefact roots reliably
+    const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+    const artefactRoot = join(projectRoot, '.vercel', 'output');
+    
+    console.log('🔧 Generating wrangler configurations...');
+    console.log('📁 Project root:', projectRoot);
+    console.log('📁 Artefact root:', artefactRoot);
 
-  const config: WranglerConfig = {
-    name: 'swole-tracker',
-    compatibility_date: '2024-03-20',
+    const config: WranglerConfig = {
+      name: 'swole-tracker',
+      compatibility_date: '2024-03-20',
 
-    env: {
-      production: {
-        d1_databases: [
-          {
-            binding: 'DB',
-            database_name: 'swole-tracker-prod',
-            database_id:
-              process.env.CLOUDFLARE_PROD_D1_DATABASE_ID || 'your_production_d1_database_id',
+      env: {
+        production: {
+          d1_databases: [
+            {
+              binding: 'DB',
+              database_name: 'swole-tracker-prod',
+              database_id:
+                process.env.CLOUDFLARE_PROD_D1_DATABASE_ID || 'your_production_d1_database_id',
+            },
+          ],
+          kv_namespaces: [
+            {
+              binding: 'RATE_LIMIT_KV',
+              id: process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID || 'your_production_rate_limit_kv_id',
+            },
+            {
+              binding: 'CACHE_KV',
+              id: process.env.CLOUDFLARE_PROD_CACHE_KV_ID || 'your_production_cache_kv_id',
+            },
+          ],
+          vars: {
+            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_production_example',
           },
-        ],
-        kv_namespaces: [
-          {
-            binding: 'RATE_LIMIT_KV',
-            id: process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID || 'your_production_rate_limit_kv_id',
+        },
+
+        staging: {
+          d1_databases: [
+            {
+              binding: 'DB',
+              database_name: 'swole-tracker-staging',
+              database_id:
+                process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID || 'staging-database-id',
+            },
+          ],
+          kv_namespaces: [
+            {
+              binding: 'RATE_LIMIT_KV',
+              id:
+                process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID ||
+                '6bee9b5d291c426e8d68c188720a504e',
+            },
+            {
+              binding: 'CACHE_KV',
+              id:
+                process.env.CLOUDFLARE_STAGING_CACHE_KV_ID || 'c7322688c2a845c9aee5570769aa9817',
+            },
+          ],
+          vars: {
+            WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_staging_example',
           },
-          {
-            binding: 'CACHE_KV',
-            id: process.env.CLOUDFLARE_PROD_CACHE_KV_ID || 'your_production_cache_kv_id',
-          },
-        ],
-        vars: {
-          WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_production_example',
         },
       },
 
-      staging: {
-        d1_databases: [
-          {
-            binding: 'DB',
-            database_name: 'swole-tracker-staging',
-            database_id:
-              process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID || 'staging-database-id',
-          },
-        ],
-        kv_namespaces: [
-          {
-            binding: 'RATE_LIMIT_KV',
-            id:
-              process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID ||
-              '6bee9b5d291c426e8d68c188720a504e',
-          },
-          {
-            binding: 'CACHE_KV',
-            id:
-              process.env.CLOUDFLARE_STAGING_CACHE_KV_ID || 'c7322688c2a845c9aee5570769aa9817',
-          },
-        ],
-        vars: {
-          WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_staging_example',
+      // Local dev bindings (safe IDs)
+      d1_databases: [
+        {
+          binding: 'DB',
+          database_name: 'swole-tracker-dev',
+          database_id: 'fd83bd6b-1d9f-4351-a23a-df3eed070fe1',
+          migrations_dir: 'drizzle',
         },
+      ],
+      kv_namespaces: [
+        {
+          binding: 'RATE_LIMIT_KV',
+          id: '24ffbf891bf1445d82533a65d92a9cd9',
+        },
+        {
+          binding: 'CACHE_KV',
+          id: '8314e00d68f24565b5993af382148b63',
+        },
+      ],
+      vars: {
+        WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_development_example',
       },
-    },
+    };
 
-    // Local dev bindings (safe IDs)
-    d1_databases: [
-      {
-        binding: 'DB',
-        database_name: 'swole-tracker-dev',
-        database_id: 'fd83bd6b-1d9f-4351-a23a-df3eed070fe1',
-        migrations_dir: 'drizzle',
-      },
-    ],
-    kv_namespaces: [
-      {
-        binding: 'RATE_LIMIT_KV',
-        id: '24ffbf891bf1445d82533a65d92a9cd9',
-      },
-      {
-        binding: 'CACHE_KV',
-        id: '8314e00d68f24565b5993af382148b63',
-      },
-    ],
-    vars: {
-      WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID || 'client_development_example',
-    },
-  };
+    const rootToml = generateTomlFromConfig(config, 'root');
+    const outputToml = generateTomlFromConfig(config, 'output');
 
-  const rootToml = generateTomlFromConfig(config, 'root');
-  const outputToml = generateTomlFromConfig(config, 'output');
+    // Ensure artefact dir exists
+    mkdirSync(artefactRoot, { recursive: true });
 
-  // Ensure artefact dir exists
-  mkdirSync(artefactRoot, { recursive: true });
+    // Write to both locations
+    const rootPath = join(projectRoot, 'wrangler.toml');
+    const outputPath = join(artefactRoot, 'wrangler.toml');
+    
+    writeFileSync(rootPath, rootToml);
+    writeFileSync(outputPath, outputToml);
 
-  // Write to both locations
-  writeFileSync(join(projectRoot, 'wrangler.toml'), rootToml);
-  writeFileSync(join(artefactRoot, 'wrangler.toml'), outputToml);
+    console.log('✅ Generated wrangler.toml successfully');
+    console.log('📁 Root    :', rootPath);
+    console.log('📁 Artefact:', outputPath);
 
-  console.log('✅ Generated wrangler.toml successfully');
-  console.log('📁 Root    :', join(projectRoot, 'wrangler.toml'));
-  console.log('📁 Artefact:', join(artefactRoot, 'wrangler.toml'));
-
-  // Validate required environment variables
-  validateEnvironmentVariables();
+    // Validate required environment variables
+    validateEnvironmentVariables();
+  } catch (error) {
+    console.error('❌ Failed to generate wrangler.toml:', error);
+    process.exit(1);
+  }
 }
 
 function generateTomlFromConfig(config: WranglerConfig, placement: Placement): string {
