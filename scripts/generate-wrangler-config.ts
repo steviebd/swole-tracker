@@ -70,20 +70,39 @@ function generateWranglerConfigs(): void {
     const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
     const artefactRoot = join(projectRoot, '.vercel', 'output');
 
-    // Load environment variables from .env files
-    const envFiles = ['.env.local', '.env'];
-    for (const envFile of envFiles) {
-      const envPath = join(projectRoot, envFile);
-      if (existsSync(envPath)) {
-        config({ path: envPath });
-        console.log(`📄 Loaded environment variables from ${envFile}`);
-        break;
+    // Load environment variables from .env files (only if not already in process.env)
+    // In Cloudflare builds, env vars are already available in process.env
+    if (!process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID) {
+      const envFiles = ['.env.local', '.env'];
+      for (const envFile of envFiles) {
+        const envPath = join(projectRoot, envFile);
+        if (existsSync(envPath)) {
+          config({ path: envPath });
+          console.log(`📄 Loaded environment variables from ${envFile}`);
+          break;
+        }
       }
+    } else {
+      console.log(`📄 Using environment variables from process.env (Cloudflare build)`);
     }
     
     console.log('🔧 Generating wrangler configurations...');
     console.log('📁 Project root:', projectRoot);
     console.log('📁 Artefact root:', artefactRoot);
+
+    // Debug: Show current environment variable values
+    console.log('🔍 Environment variables check:');
+    const requiredVars = [
+      'CLOUDFLARE_STAGING_D1_DATABASE_ID',
+      'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID', 
+      'CLOUDFLARE_STAGING_CACHE_KV_ID',
+      'WORKOS_CLIENT_ID'
+    ];
+    
+    for (const varName of requiredVars) {
+      const value = process.env[varName];
+      console.log(`   ${varName}: ${value ? 'SET' : 'MISSING'}`);
+    }
 
     const config: WranglerConfig = {
       name: 'swole-tracker',
