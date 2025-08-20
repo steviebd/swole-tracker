@@ -31,8 +31,7 @@ export function HomePageHeader() {
   if (!user) return null;
 
   // Extract display name from user metadata or email
-  const displayName = user.user_metadata?.first_name || 
-                     user.user_metadata?.display_name || 
+  const displayName = user.first_name || 
                      user.email?.split('@')[0] ||
                      'User';
 

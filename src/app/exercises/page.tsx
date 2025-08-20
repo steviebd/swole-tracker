@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
+export const runtime = 'edge';
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { ExerciseManager } from "~/app/_components/exercise-manager";
 import { Button } from "~/components/ui/button";
+
 
 export default async function ExercisesPage() {
   const supabase = await createServerSupabaseClient();

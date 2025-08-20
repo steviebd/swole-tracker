@@ -21,8 +21,8 @@ export function PersonalRecordsSection() {
   const titleClass = "text-xl font-bold mb-4 text-theme-primary";
   const subtitleClass = "text-sm font-medium mb-2 text-theme-secondary";
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -191,7 +191,7 @@ export function PersonalRecordsSection() {
                   
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-medium text-theme-secondary">
-                      {formatDate(record.workoutDate.toISOString())}
+                      {formatDate(record.workoutDate)}
                     </p>
                     
                     {/* Celebration indicator for recent PRs */}

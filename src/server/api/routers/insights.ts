@@ -98,7 +98,7 @@ export const insightsRouter = createTRPCRouter({
       let templateExerciseIds: number[] | undefined;
 
       if (input.templateExerciseId) {
-        const link = await ctx.db.query.exerciseLinks.findFirst({
+        const link = await (ctx.db.query as any).exerciseLinks.findFirst({
           where: and(
             eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
             eq(exerciseLinks.user_id, ctx.user.id),
@@ -107,7 +107,7 @@ export const insightsRouter = createTRPCRouter({
         });
 
         if (link) {
-          const linked = await ctx.db.query.exerciseLinks.findMany({
+          const linked = await (ctx.db.query as any).exerciseLinks.findMany({
             where: and(
               eq(exerciseLinks.masterExerciseId, link.masterExerciseId),
               eq(exerciseLinks.user_id, ctx.user.id),
@@ -120,7 +120,7 @@ export const insightsRouter = createTRPCRouter({
           templateExerciseIds = linked.map((l) => l.templateExerciseId);
         } else {
           // Fallback to name of provided template exercise
-          const te = await ctx.db.query.templateExercises.findFirst({
+          const te = await (ctx.db.query as any).templateExercises.findFirst({
             where: and(
               eq(templateExercises.id, input.templateExerciseId),
               eq(templateExercises.user_id, ctx.user.id),
@@ -142,7 +142,7 @@ export const insightsRouter = createTRPCRouter({
       
       // Only proceed if we have exercises to search for
       if (exerciseNamesToSearch.length > 0 || (templateExerciseIds && templateExerciseIds.length > 0)) {
-        recentSessions = await ctx.db.query.workoutSessions.findMany({
+        recentSessions = await (ctx.db.query as any).workoutSessions.findMany({
           where: and(...sessionWhere),
           orderBy: [desc(workoutSessions.workoutDate)],
           limit: input.limitSessions,
@@ -178,7 +178,7 @@ export const insightsRouter = createTRPCRouter({
           }
           flat.push({
             sessionId: s.id,
-            workoutDate: s.workoutDate,
+            workoutDate: new Date(s.workoutDate),
             weight: toNumber(ex.weight),
             reps: ex.reps,
             sets: ex.sets,
@@ -392,7 +392,7 @@ export const insightsRouter = createTRPCRouter({
     )
     .query(async ({ input, ctx }): Promise<SessionInsightsResponse> => {
       try {
-      const session = await ctx.db.query.workoutSessions.findFirst({
+      const session = await (ctx.db.query as any).workoutSessions.findFirst({
         where: and(
           eq(workoutSessions.id, input.sessionId),
           eq(workoutSessions.user_id, ctx.user.id),
@@ -459,9 +459,9 @@ export const insightsRouter = createTRPCRouter({
         typeof and
       >[number][];
       if (input.since)
-        where.push(gte(workoutSessions.workoutDate, input.since));
+        where.push(gte(workoutSessions.workoutDate, input.since.toISOString()));
 
-      const sessions = await ctx.db.query.workoutSessions.findMany({
+      const sessions = await (ctx.db.query as any).workoutSessions.findMany({
         where: and(...where),
         orderBy: [desc(workoutSessions.workoutDate)],
         limit: input.limit,
@@ -503,7 +503,7 @@ export const insightsRouter = createTRPCRouter({
 
           rows.push(
             [
-              s.workoutDate.toISOString(),
+              new Date(s.workoutDate).toISOString(),
               s.id,
               templateName,
               ex.exerciseName,

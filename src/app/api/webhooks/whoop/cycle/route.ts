@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
+export const runtime = 'edge';
 import {
   verifyWhoopWebhook,
   extractWebhookHeaders,
@@ -12,6 +14,7 @@ import {
   whoopCycles,
 } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
+
 
 interface WhoopCycleData {
   id: string;
@@ -59,7 +62,7 @@ async function fetchCycleFromWhoop(
         and(
           eq(userIntegrations.user_id, userId.toString()),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
         ),
       );
 
@@ -144,15 +147,15 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopCycles)
         .set({
-          start: cycleData.start ? new Date(cycleData.start) : new Date(),
-          end: cycleData.end ? new Date(cycleData.end) : new Date(),
+          start: cycleData.start ? new Date(cycleData.start).toISOString() : new Date().toISOString(),
+          end: cycleData.end ? new Date(cycleData.end).toISOString() : new Date().toISOString(),
           timezone_offset: cycleData.timezone_offset || null,
-          day_strain: cycleData.score?.strain?.toString() || null,
+          day_strain: cycleData.score?.strain ?? null,
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
-          kilojoule: cycleData.score?.kilojoule?.toString() || null,
-          raw_data: cycleData as unknown,
-          updatedAt: new Date(),
+          kilojoule: cycleData.score?.kilojoule ?? null,
+          raw_data: JSON.stringify(cycleData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopCycles.whoop_cycle_id, cycleId));
     } else {
@@ -163,14 +166,14 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       await db.insert(whoopCycles).values({
         user_id: dbUserId,
         whoop_cycle_id: cycleId,
-        start: cycleData.start ? new Date(cycleData.start) : new Date(),
-        end: cycleData.end ? new Date(cycleData.end) : new Date(),
+        start: cycleData.start ? new Date(cycleData.start).toISOString() : new Date().toISOString(),
+        end: cycleData.end ? new Date(cycleData.end).toISOString() : new Date().toISOString(),
         timezone_offset: cycleData.timezone_offset || null,
-        day_strain: cycleData.score?.strain?.toString() || null,
+        day_strain: cycleData.score?.strain ?? null,
         average_heart_rate: cycleData.score?.average_heart_rate || null,
         max_heart_rate: cycleData.score?.max_heart_rate || null,
-        kilojoule: cycleData.score?.kilojoule?.toString() || null,
-        raw_data: cycleData as unknown,
+        kilojoule: cycleData.score?.kilojoule ?? null,
+        raw_data: JSON.stringify(cycleData),
       });
     }
 
@@ -201,11 +204,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -240,13 +243,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
@@ -269,7 +272,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -289,7 +292,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -312,7 +315,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

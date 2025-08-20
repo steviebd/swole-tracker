@@ -82,7 +82,13 @@ export function RecentAchievements() {
   const motivationalMessage = getMotivationalMessage();
 
   // Calculate achievements
-  const achievements = [];
+  const achievements: Array<{
+    category: string;
+    level: string;
+    title: string;
+    description: string;
+    value: number;
+  }> = [];
   
   if (personalRecords && personalRecords.length > 0) {
     achievements.push({

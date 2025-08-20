@@ -5,6 +5,8 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 import { TemplateForm } from "~/app/_components/template-form";
 import { Button } from "~/components/ui/button";
 
+export const runtime = 'edge';
+
 export default async function NewTemplatePage() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+export const runtime = 'edge';
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 
@@ -6,6 +8,7 @@ import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
 import { GlassHeader } from "~/app/_components/ui/GlassHeader";
 import { Button } from "~/components/ui/button";
+
 
 interface WorkoutSessionPageProps {
   params: Promise<{ id: string }>;

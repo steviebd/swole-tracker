@@ -41,18 +41,18 @@ export const suggestionsRouter = createTRPCRouter({
           setId: input.setId,
           setIndex: input.setIndex,
           
-          suggested_weight_kg: input.suggestedWeightKg?.toString(),
+          suggested_weight_kg: input.suggestedWeightKg,
           suggested_reps: input.suggestedReps,
           suggested_rest_seconds: input.suggestedRestSeconds,
           suggestion_rationale: input.suggestionRationale,
           
           action: input.action,
-          accepted_weight_kg: input.acceptedWeightKg?.toString(),
+          accepted_weight_kg: input.acceptedWeightKg,
           accepted_reps: input.acceptedReps,
           
           progression_type: input.progressionType,
-          readiness_score: input.readinessScore?.toString(),
-          plateau_detected: input.plateauDetected,
+          readiness_score: input.readinessScore,
+          plateau_detected: input.plateauDetected ? 1 : 0,
           
           interaction_time_ms: input.interactionTimeMs,
         });
@@ -79,7 +79,7 @@ export const suggestionsRouter = createTRPCRouter({
       const interactions = await ctx.db.query.aiSuggestionHistory.findMany({
         where: (history, { eq, and, gte }) => and(
           eq(history.user_id, ctx.user.id),
-          gte(history.createdAt, cutoffDate)
+          gte(history.createdAt, cutoffDate.toISOString())
         ),
         orderBy: (history, { desc }) => [desc(history.createdAt)],
         limit: 100,

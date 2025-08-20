@@ -1,15 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
-import { Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { supabase } from '../../lib/supabase';
+import { AppState, AppStateStatus, Linking } from 'react-native';
+import { WorkOSAuth, type WorkOSSession, type WorkOSUser } from '../../lib/workos-auth';
 
 interface AuthContextType {
-  session: Session | null;
+  session: WorkOSSession | null;
+  user: WorkOSUser | null;
   isLoading: boolean;
   isInitialized: boolean;
   signOut: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ error?: string; requiresVerification?: boolean }>;
+  signInWithBrowser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,17 +18,17 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<WorkOSSession | null>(null);
+  const [user, setUser] = useState<WorkOSUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Handle app state changes for auto-refresh
+  // Handle app state changes for session refresh
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
       if (state === 'active') {
-        supabase.auth.startAutoRefresh();
-      } else {
-        supabase.auth.stopAutoRefresh();
+        // Refresh session when app becomes active
+        refreshSessionIfNeeded();
       }
     };
 
@@ -40,38 +39,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  // Initialize auth state and listen for changes
+  // Function to refresh session if needed
+  const refreshSessionIfNeeded = async () => {
+    try {
+      const currentSession = await WorkOSAuth.getSession();
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+      } else {
+        setSession(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Session refresh error:', error);
+      setSession(null);
+      setUser(null);
+    }
+  };
+
+  // Initialize auth state
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
-        console.log('🔑 Initializing auth...');
+        console.log('🔑 Initializing WorkOS auth...');
         
-        // For debugging - clear any invalid sessions
-        // Uncomment this line to force logout for testing:
-        // await supabase.auth.signOut();
-        
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('🔑 Error getting session:', error);
-        }
+        const currentSession = await WorkOSAuth.getSession();
         
         console.log('🔑 Auth initialization result:', { 
-          hasSession: !!session, 
-          sessionData: session ? 'valid session' : 'null',
-          error: error?.message 
+          hasSession: !!currentSession,
+          userId: currentSession?.user?.id,
         });
         
         if (mounted) {
-          setSession(session);
+          setSession(currentSession);
+          setUser(currentSession?.user || null);
           setIsInitialized(true);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
         if (mounted) {
+          setSession(null);
+          setUser(null);
           setIsInitialized(true);
         }
       } finally {
@@ -83,73 +94,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initializeAuth();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, newSession: Session | null) => {
-        console.log('Auth state changed:', event);
-        
-        if (mounted) {
-          setSession(newSession);
-          
-          // Handle specific auth events
-          if (event === 'SIGNED_OUT') {
-            // Clear any cached data or reset app state
-            console.log('User signed out');
-          } else if (event === 'SIGNED_IN') {
-            console.log('User signed in');
-          } else if (event === 'TOKEN_REFRESHED') {
-            console.log('Token refreshed');
-          }
-        }
-      }
-    );
+    // Listen for deep links (auth callbacks)
+    const handleDeepLink = (url: string) => {
+      console.log('Deep link received:', url);
+      // Handle auth callback URLs here if needed
+      // This would be for handling the return from WorkOS auth flow
+    };
+
+    // Add URL event listener
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      subscription?.remove();
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signInWithBrowser = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      
+      // Generate a state parameter for security
+      const state = JSON.stringify({
+        timestamp: Date.now(),
+        randomId: Math.random().toString(36).substring(7),
       });
-
-      if (error) {
-        return { error: error.message };
+      
+      // Use a custom scheme for mobile deep linking
+      const redirectUri = 'exp://localhost:8081/--/auth/callback'; // Expo development URL
+      
+      const authUrl = WorkOSAuth.getAuthorizationUrl(redirectUri, state);
+      
+      console.log('Opening auth URL:', authUrl);
+      
+      // Open the browser for authentication
+      const canOpen = await Linking.canOpenURL(authUrl);
+      if (canOpen) {
+        await Linking.openURL(authUrl);
+      } else {
+        throw new Error('Cannot open authentication URL');
       }
-
-      return {};
     } catch (error) {
-      return { error: 'An unexpected error occurred' };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-      });
-
-      if (error) {
-        return { error: error.message };
-      }
-
-      // Check if email confirmation is required
-      if (data.user && !data.session) {
-        return { requiresVerification: true };
-      }
-
-      return {};
-    } catch (error) {
-      return { error: 'An unexpected error occurred' };
+      console.error('Sign in error:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -158,12 +147,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async () => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signOut();
       
-      if (error) {
-        console.error('Sign out error:', error);
-        throw error;
-      }
+      await WorkOSAuth.signOut();
+      
+      // Clear local state
+      setSession(null);
+      setUser(null);
+      
+      console.log('User signed out successfully');
     } catch (error) {
       console.error('Sign out failed:', error);
       throw error;
@@ -174,11 +165,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     session,
+    user,
     isLoading,
     isInitialized,
     signOut,
-    signIn,
-    signUp,
+    signInWithBrowser,
   };
 
   return (

@@ -35,7 +35,7 @@ export function ConsistencySection() {
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
     
-    const calendar = [];
+    const calendar: (Date | null)[] = [];
     
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {

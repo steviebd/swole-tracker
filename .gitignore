@@ -41,8 +41,8 @@ yarn-error.log*
 .env*.local
 .env.test
 
-# vercel
-.vercel
+# cloudflare build output
+.cloudflare/
 
 # typescript
 *.tsbuildinfo
@@ -52,6 +52,9 @@ yarn-error.log*
 # clerk configuration (can include secrets)
 /.clerk/
 .env
+
+# vercel
+/.vercel
 
 # Logs
 logs
@@ -83,3 +86,14 @@ apps/template/.next/cache/webpack/client-development/index.pack.gz
 apps/template/.next/cache/webpack/client-development/index.pack.gz.old
 apps/template/.next/cache/webpack/server-development/0.pack.gz
 apps/template/.next/cache/webpack/server-development/index.pack.gz
+.dev.vars
+
+# Cloudflare - local development state
+.wrangler/
+.wrangler/state/v3/d1/miniflare-D1DatabaseObject/34471edfc28f3d0d66760749db998410a845426e3aa5cec98ed04193faf0ec28.sqlite
+.gitignore
+.wrangler/state/v3/d1/miniflare-D1DatabaseObject/34471edfc28f3d0d66760749db998410a845426e3aa5cec98ed04193faf0ec28.sqlite-wal
+.wrangler/state/v3/d1/miniflare-D1DatabaseObject/34471edfc28f3d0d66760749db998410a845426e3aa5cec98ed04193faf0ec28.sqlite-shm
+wrangler.toml
+.nvmrc
+.env.template

@@ -1,5 +1,4 @@
 import tseslint from "typescript-eslint";
-// @ts-expect-error -- no types for this plugin
 import drizzle from "eslint-plugin-drizzle";
 
 /**

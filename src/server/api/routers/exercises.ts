@@ -29,7 +29,7 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 function levenshteinDistance(str1: string, str2: string): number {
-  const matrix = [];
+  const matrix: number[][] = [];
 
   for (let i = 0; i <= str2.length; i++) {
     matrix[i] = [i];
@@ -115,7 +115,7 @@ export const exercisesRouter = createTRPCRouter({
         id: number;
         name: string;
         normalizedName: string;
-        createdAt: Date;
+        createdAt: string;
       }> = [];
       try {
         const prefixBuilder = ctx.db
@@ -154,7 +154,7 @@ export const exercisesRouter = createTRPCRouter({
           id: number;
           name: string;
           normalizedName: string;
-          createdAt: Date;
+          createdAt: string;
         }> = [];
         try {
           const containsBuilder = ctx.db
@@ -595,7 +595,7 @@ export const exercisesRouter = createTRPCRouter({
         )
         .limit(1);
 
-      return templateExercise[0]?.linkingRejected ?? false;
+      return (templateExercise[0]?.linkingRejected ?? 0) === 1;
     }),
 
   // Mark template exercise as linking rejected (user chose not to link)
@@ -626,7 +626,7 @@ export const exercisesRouter = createTRPCRouter({
       // Mark as linking rejected
       await ctx.db
         .update(templateExercises)
-        .set({ linkingRejected: true })
+        .set({ linkingRejected: 1 })
         .where(eq(templateExercises.id, input.templateExerciseId));
 
       return { success: true };
@@ -738,7 +738,7 @@ export const exercisesRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       // Get linking details to find similar exercises
-      const details = await ctx.db.query.masterExercises.findFirst({
+      const details = await (ctx.db.query as any).masterExercises.findFirst({
         where: and(
           eq(masterExercises.id, input.masterExerciseId),
           eq(masterExercises.user_id, ctx.user.id),
@@ -764,7 +764,7 @@ export const exercisesRouter = createTRPCRouter({
           and(
             eq(templateExercises.user_id, ctx.user.id),
             sql`${exerciseLinks.id} IS NULL`,
-            eq(templateExercises.linkingRejected, false), // Don't link rejected exercises
+            eq(templateExercises.linkingRejected, 0), // Don't link rejected exercises
           ),
         );
 
