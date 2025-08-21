@@ -314,6 +314,10 @@ main = "${mainPath}"
 compatibility_date = "${config.compatibility_date}"
 compatibility_flags = ["nodejs_compat"]
 
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
 [observability]
 enabled = true
 head_sampling_rate = 1
