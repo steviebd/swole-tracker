@@ -28,11 +28,11 @@ export function injectCloudflareBindings(env: CloudflareEnv) {
 // Get D1 database binding
 export function getD1Binding(): D1Database | null {
   if (typeof globalThis !== "undefined" && (globalThis as any).DB) {
-    return (globalThis as any).DB;
+    return (globalThis as any).DB as D1Database;
   }
   
   if (typeof globalThis !== "undefined" && (globalThis as any).CloudflareEnv?.DB) {
-    return (globalThis as any).CloudflareEnv.DB;
+    return (globalThis as any).CloudflareEnv.DB as D1Database;
   }
   
   return null;
@@ -41,11 +41,11 @@ export function getD1Binding(): D1Database | null {
 // Get KV namespace binding
 export function getKVBinding(binding: 'RATE_LIMIT_KV' | 'CACHE_KV'): KVNamespace | null {
   if (typeof globalThis !== "undefined" && (globalThis as any)[binding]) {
-    return (globalThis as any)[binding];
+    return (globalThis as any)[binding] as KVNamespace;
   }
   
   if (typeof globalThis !== "undefined" && (globalThis as any).CloudflareEnv?.[binding]) {
-    return (globalThis as any).CloudflareEnv[binding];
+    return (globalThis as any).CloudflareEnv[binding] as KVNamespace;
   }
   
   return null;

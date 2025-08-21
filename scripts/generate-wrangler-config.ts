@@ -166,7 +166,7 @@ function generateWranglerConfigs(): void {
 
     const config: WranglerConfig = {
       name: "swole-tracker",
-      compatibility_date: "2024-09-23",
+      compatibility_date: "2025-08-21",
 
       env: {
         production: {

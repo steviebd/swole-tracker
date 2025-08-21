@@ -34,7 +34,7 @@ export type { WorkOSUser } from './workos-types';
 export function getAuthorizationUrl(
   redirectUri: string, 
   state?: string, 
-  provider: string = 'authkit'
+  provider = 'authkit'
 ): string {
   const clientId = process.env.WORKOS_CLIENT_ID;
   if (!clientId) {
