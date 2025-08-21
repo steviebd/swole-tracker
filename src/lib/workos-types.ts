@@ -25,8 +25,9 @@ export const SESSION_COOKIE_NAME = 'workos-session';
 
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: false, // Allow client-side access for AuthProvider
-  secure: process.env.NODE_ENV === 'production',
+  secure: true, // Always use secure cookies for HTTPS
   sameSite: 'lax' as const,
   maxAge: 60 * 60 * 24 * 7, // 7 days
   path: '/',
+  // Don't set domain to allow cookie to work across subdomains
 };
