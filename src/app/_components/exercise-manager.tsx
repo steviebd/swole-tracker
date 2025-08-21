@@ -316,7 +316,7 @@ function ExerciseDetails({
                     {latestPerformance.reps} reps × {latestPerformance.sets} sets
                   </span>
                   <span className="text-muted-foreground ml-2 text-xs">
-                    ({latestPerformance.workoutDate.toLocaleDateString()})
+                    ({new Date(latestPerformance.workoutDate).toLocaleDateString()})
                   </span>
                 </div>
               </div>

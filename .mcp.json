@@ -1,10 +1,11 @@
 {
   "mcpServers": {
     "playwright": {
-      "type": "stdio",
-      "command": "npx -y @executeautomation/playwright-mcp-server",
-      "args": [],
-      "env": {}
+      "command": "npx",
+      "args": ["@playwright/mcp"],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "./node_modules/.cache/ms-playwright"
+      }
     }
   }
 }

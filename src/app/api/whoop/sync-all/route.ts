@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromRequest } from "~/lib/workos";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { 
@@ -15,6 +15,7 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
+
 
 interface WhoopWorkout {
   id: string;
@@ -171,7 +172,11 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       throw new Error(`Token refresh failed: ${response.status}`);
     }
 
-    const tokens = await response.json();
+    const tokens = await response.json() as {
+      access_token: string;
+      refresh_token?: string;
+      expires_in: number;
+    };
 
     // Update integration with new tokens
     await db
@@ -179,8 +184,8 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
       .set({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token || integration.refreshToken,
-        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-        updatedAt: new Date(),
+        expiresAt: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(userIntegrations.id, integration.id));
 
@@ -213,7 +218,7 @@ async function fetchWhoopDataV2<T>(
     throw error;
   }
 
-  const data = await response.json();
+  const data = await response.json() as any;
   const records = (data.records || data || []) as T[];
   console.log(`[WHOOP API v2] Successfully fetched ${records.length} records from ${endpoint}`);
   return records;
@@ -238,12 +243,12 @@ async function syncWorkouts(userId: string, accessToken: string): Promise<number
 
     const existingIds = new Set(existingWorkouts.map(w => w.whoopWorkoutId));
     const existingTimes = new Set(
-      existingWorkouts.map(w => `${w.start.toISOString()}_${w.end.toISOString()}`)
+      existingWorkouts.map(w => `${w.start}_${w.end}`)
     );
 
     // Filter out workouts that already exist by ID or temporal match
     const newWorkouts = workouts.filter(w => {
-      const timeKey = `${new Date(w.start).toISOString()}_${new Date(w.end).toISOString()}`;
+      const timeKey = `${w.start}_${w.end}`;
       return !existingIds.has(w.id) && !existingTimes.has(timeKey);
     });
 
@@ -253,14 +258,14 @@ async function syncWorkouts(userId: string, accessToken: string): Promise<number
           await db.insert(externalWorkoutsWhoop).values({
             user_id: userId,
             whoopWorkoutId: workout.id,
-            start: new Date(workout.start),
-            end: new Date(workout.end),
+            start: workout.start,
+            end: workout.end,
             timezone_offset: workout.timezone_offset,
             sport_name: workout.sport_name,
             score_state: workout.score_state,
-            score: workout.score,
-            during: workout.during,
-            zone_duration: workout.zone_duration,
+            score: workout.score ? JSON.stringify(workout.score) : null,
+            during: workout.during ? JSON.stringify(workout.during) : null,
+            zone_duration: workout.zone_duration ? JSON.stringify(workout.zone_duration) : null,
           }).onConflictDoNothing();
         } catch (insertError) {
           console.log(`Skipping duplicate workout ${workout.id}:`, insertError);
@@ -322,11 +327,11 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
             cycle_id: recovery.cycle_id?.toString() || null,
             date: date,
             recovery_score: recovery.score?.recovery_score || null,
-            hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli?.toString() || null,
+            hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli ?? null,
             hrv_rmssd_baseline: null, // hrv_baseline not available in v2 API structure
-            resting_heart_rate: recovery.score?.resting_heart_rate || null,
+            resting_heart_rate: recovery.score?.resting_heart_rate ?? null,
             resting_heart_rate_baseline: null, // hr_baseline not available in v2 API structure  
-            raw_data: recovery,
+            raw_data: JSON.stringify(recovery),
             timezone_offset: null,
           };
         })
@@ -365,14 +370,14 @@ async function syncCycles(userId: string, accessToken: string): Promise<number> 
         newCycles.map(cycle => ({
           user_id: userId,
           whoop_cycle_id: cycle.id,
-          start: new Date(cycle.start),
-          end: new Date(cycle.end),
+          start: cycle.start,
+          end: cycle.end,
           timezone_offset: cycle.timezone_offset || null,
-          day_strain: cycle.score?.strain?.toString() || null,
-          average_heart_rate: cycle.score?.average_heart_rate || null,
-          max_heart_rate: cycle.score?.max_heart_rate || null,
-          kilojoule: cycle.score?.kilojoule?.toString() || null,
-          raw_data: cycle,
+          day_strain: cycle.score?.strain ?? null,
+          average_heart_rate: cycle.score?.average_heart_rate ?? null,
+          max_heart_rate: cycle.score?.max_heart_rate ?? null,
+          kilojoule: cycle.score?.kilojoule ?? null,
+          raw_data: JSON.stringify(cycle),
         }))
       ).onConflictDoNothing();
     }
@@ -409,20 +414,20 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
         newSleeps.map(sleep => ({
           user_id: userId,
           whoop_sleep_id: sleep.id,
-          start: new Date(sleep.start),
-          end: new Date(sleep.end),
+          start: sleep.start,
+          end: sleep.end,
           timezone_offset: sleep.timezone_offset || null,
-          sleep_performance_percentage: sleep.score?.sleep_performance_percentage || null,
-          total_sleep_time_milli: sleep.score?.stage_summary?.total_in_bed_time_milli || null,
-          sleep_efficiency_percentage: sleep.score?.sleep_efficiency_percentage?.toString() || null,
-          slow_wave_sleep_time_milli: sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli || null,
-          rem_sleep_time_milli: sleep.score?.stage_summary?.total_rem_sleep_time_milli || null,
-          light_sleep_time_milli: sleep.score?.stage_summary?.total_light_sleep_time_milli || null,
-          wake_time_milli: sleep.score?.stage_summary?.total_awake_time_milli || null,
-          arousal_time_milli: sleep.score?.stage_summary?.total_awake_time_milli || null, // Using awake as proxy
-          disturbance_count: sleep.score?.stage_summary?.disturbance_count || null,
+          sleep_performance_percentage: sleep.score?.sleep_performance_percentage ?? null,
+          total_sleep_time_milli: sleep.score?.stage_summary?.total_in_bed_time_milli ?? null,
+          sleep_efficiency_percentage: sleep.score?.sleep_efficiency_percentage ?? null,
+          slow_wave_sleep_time_milli: sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ?? null,
+          rem_sleep_time_milli: sleep.score?.stage_summary?.total_rem_sleep_time_milli ?? null,
+          light_sleep_time_milli: sleep.score?.stage_summary?.total_light_sleep_time_milli ?? null,
+          wake_time_milli: sleep.score?.stage_summary?.total_awake_time_milli ?? null,
+          arousal_time_milli: sleep.score?.stage_summary?.total_awake_time_milli ?? null, // Using awake as proxy
+          disturbance_count: sleep.score?.stage_summary?.disturbance_count ?? null,
           sleep_latency_milli: null, // Not available in API data
-          raw_data: sleep,
+          raw_data: JSON.stringify(sleep),
         }))
       ).onConflictDoNothing();
     }
@@ -466,9 +471,9 @@ async function syncProfile(userId: string, accessToken: string): Promise<number>
           email: profile.email,
           first_name: profile.first_name,
           last_name: profile.last_name,
-          raw_data: profile,
-          last_updated: new Date(),
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(profile),
+          last_updated: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopProfile.user_id, userId));
       return 0; // Updated, not new
@@ -480,7 +485,7 @@ async function syncProfile(userId: string, accessToken: string): Promise<number>
         email: profile.email,
         first_name: profile.first_name,
         last_name: profile.last_name,
-        raw_data: profile,
+        raw_data: JSON.stringify(profile),
       });
       return 1; // New profile
     }
@@ -515,7 +520,7 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
     const measurement = await response.json();
     console.log(`[Body Measurements Sync] Fetched measurement data:`, measurement);
     
-    if (!measurement || (!measurement.height_meter && !measurement.weight_kilogram && !measurement.max_heart_rate)) {
+    if (!measurement || (!(measurement as any).height_meter && !(measurement as any).weight_kilogram && !(measurement as any).max_heart_rate)) {
       console.log(`[Body Measurements Sync] No measurement data available`);
       return 0;
     }
@@ -531,11 +536,11 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
     const measurementData = {
       user_id: userId,
       whoop_measurement_id: `${userId}-${measurementDate}`, // Create synthetic ID
-      height_meter: measurement.height_meter?.toString() || null,
-      weight_kilogram: measurement.weight_kilogram?.toString() || null,
-      max_heart_rate: measurement.max_heart_rate || null,
+      height_meter: (measurement as any).height_meter ?? null,
+      weight_kilogram: (measurement as any).weight_kilogram ?? null,
+      max_heart_rate: (measurement as any).max_heart_rate ?? null,
       measurement_date: measurementDate,
-      raw_data: measurement,
+      raw_data: JSON.stringify(measurement),
     };
 
     if (existingMeasurement) {
@@ -549,7 +554,7 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
           max_heart_rate: measurementData.max_heart_rate,
           measurement_date: measurementData.measurement_date,
           raw_data: measurementData.raw_data,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopBodyMeasurement.user_id, userId));
       return 0; // Updated, not new
@@ -565,10 +570,9 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
   }
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -594,7 +598,7 @@ export async function POST(_req: NextRequest) {
         and(
           eq(userIntegrations.user_id, user.id),
           eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true)
+          eq(userIntegrations.isActive, 1) // SQLite boolean as integer: 1 = true
         )
       )
       .limit(1);
@@ -723,8 +727,8 @@ export async function POST(_req: NextRequest) {
       await db
         .update(userIntegrations)
         .set({
-          isActive: false,
-          updatedAt: new Date(),
+          isActive: 0,
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(userIntegrations.id, integration.id));
 

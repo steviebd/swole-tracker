@@ -339,11 +339,11 @@ export function ExerciseCard({
                     <span className="text-sm">
                       Best:{" "}
                       <strong>
-                        {insights.bestSet.weight}
-                        {insights.bestSet.unit}
+                        {(insights.bestSet as any)?.weight || 0}
+                        {(insights.bestSet as any)?.unit || exercise.unit}
                       </strong>
-                      {insights.bestSet.reps ? (
-                        <> × {insights.bestSet.reps}</>
+                      {(insights.bestSet as any)?.reps ? (
+                        <> × {(insights.bestSet as any).reps}</>
                       ) : null}
                       {typeof insights.best1RM === "number" ? (
                         <span className="text-muted ml-2 text-xs">
@@ -368,7 +368,7 @@ export function ExerciseCard({
                         vibrate(5);
                       } catch {}
                       try {
-                        const recommendation = insights.recommendation;
+                        const recommendation = insights?.recommendation;
                         posthog.capture("insights_apply_recommendation", {
                           exerciseName: exercise.exerciseName,
                           type: recommendation?.type,
@@ -388,7 +388,7 @@ export function ExerciseCard({
                         }
                       }
                       // Prefill the last set with recommendation conservatively
-                      const rec = insights.recommendation;
+                      const rec = insights?.recommendation;
                       if (
                         rec &&
                         rec.type === "weight" &&
@@ -426,11 +426,11 @@ export function ExerciseCard({
                         );
                       }
                     }}
-                    title={insights.recommendation.rationale}
+                    title={insights.recommendation?.rationale || ""}
                   >
-                    {insights.recommendation.type === "weight"
+                    {insights.recommendation?.type === "weight"
                       ? `Suggest: ${insights.recommendation.nextWeight}${insights.recommendation.unit}`
-                      : `Suggest: +${insights.recommendation.nextReps} rep`}
+                      : `Suggest: +${insights.recommendation?.nextReps} rep`}
                   </button>
                 ) : null}
               </div>
@@ -444,13 +444,13 @@ export function ExerciseCard({
                       aria-hidden="true"
                     >
                       {(() => {
-                        const vols = insights.volumeSparkline.map(
+                        const vols = insights?.volumeSparkline?.map(
                           (p) => p.volume,
-                        );
+                        ) || [];
                         const max = Math.max(...vols);
                         const min = Math.min(...vols);
                         const range = Math.max(1, max - min);
-                        return insights.volumeSparkline.map((p, i) => {
+                        return insights?.volumeSparkline?.map((p, i) => {
                           const h = Math.round(
                             ((p.volume - min) / range) * 100,
                           );

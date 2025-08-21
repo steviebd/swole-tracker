@@ -56,7 +56,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   // Sync local state with preferences
   useEffect(() => {
     if (!isLoading && preferences) {
-      setManualWellnessEnabled(preferences.enable_manual_wellness ?? false);
+      setManualWellnessEnabled(Boolean(preferences.enable_manual_wellness ?? false));
       
       // Sync the preferences from the old modal
       const predictive = "predictive_defaults_enabled" in preferences

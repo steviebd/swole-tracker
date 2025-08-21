@@ -1,195 +1,157 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import {
+  WorkoutOperationsClient,
+  useWorkoutOperations,
+  type WorkoutTemplate,
+  type WorkoutSession,
+  type SessionExercise,
+} from "~/lib/workout-operations";
 
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||= "pk_test_dummy";
-process.env.NEXT_PUBLIC_POSTHOG_KEY ||= "phc_test_dummy";
-process.env.NEXT_PUBLIC_POSTHOG_HOST ||= "https://us.i.posthog.com";
-process.env.NEXT_PUBLIC_SUPABASE_URL ||= "https://test.supabase.co";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= "supabase_test_key";
-
-// Mock supabase modules at the top level before any imports
-vi.mock("~/lib/supabase-browser", () => {
-  return {
-    createBrowserSupabaseClient: () => {
-      // Chainable query builder that returns the final promise when awaited.
-      // supabase-js query builder is thenable at each step, so we mimic that.
-      let finalResult: any = { data: null, error: null };
-      const chain: any = {
-        select: vi.fn().mockImplementation((_s?: string) => chain),
-        eq: vi.fn().mockImplementation((_c: string, _v: any) => chain),
-        order: vi.fn().mockImplementation((_c: string, _o: any) => chain),
-        insert: vi.fn().mockImplementation((_v: any) => chain),
-        single: vi.fn().mockImplementation(() => chain),
-        limit: vi.fn().mockImplementation((_n: number) => chain),
-        // When awaited, resolve to the canned result
-        then: (onFulfilled: any, _onRejected?: any) =>
-          Promise.resolve(finalResult).then(onFulfilled),
-        // Ensure await works by providing a catch as well
-        catch: (onRejected: any) =>
-          Promise.resolve(finalResult).catch(onRejected),
-      };
-      const from = vi.fn().mockImplementation((_table: string) => chain);
-      return { from };
-    }
-  };
+// Mock console to avoid noise during tests
+beforeEach(() => {
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
-vi.mock("~/lib/supabase-server", () => {
-  return {
-    createServerSupabaseClient: async () => {
-      // Chainable query builder that returns the final promise when awaited.
-      // supabase-js query builder is thenable at each step, so we mimic that.
-      let finalResult: any = { data: null, error: null };
-      const chain: any = {
-        select: vi.fn().mockImplementation((_s?: string) => chain),
-        eq: vi.fn().mockImplementation((_c: string, _v: any) => chain),
-        order: vi.fn().mockImplementation((_c: string, _o: any) => chain),
-        insert: vi.fn().mockImplementation((_v: any) => chain),
-        single: vi.fn().mockImplementation(() => chain),
-        limit: vi.fn().mockImplementation((_n: number) => chain),
-        // When awaited, resolve to the canned result
-        then: (onFulfilled: any, _onRejected?: any) =>
-          Promise.resolve(finalResult).then(onFulfilled),
-        // Ensure await works by providing a catch as well
-        catch: (onRejected: any) =>
-          Promise.resolve(finalResult).catch(onRejected),
-      };
-      const from = vi.fn().mockImplementation((_table: string) => chain);
-      return { from };
-    }
-  };
-});
-
-describe("workout-operations client and server wrappers", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
+describe("WorkoutOperationsClient", () => {
+  it("should warn when instantiated", () => {
+    const consoleSpy = vi.spyOn(console, "warn");
+    new WorkoutOperationsClient();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "WorkoutOperationsClient is deprecated. Use tRPC procedures instead.",
+    );
   });
 
-  it("WorkoutOperationsClient.getWorkoutTemplates queries by user and orders", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
+  it("should throw error for getWorkoutTemplates", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(client.getWorkoutTemplates("user1")).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC templates.getAll instead.",
     );
-
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const res = await inst.getWorkoutTemplates("user_1");
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(res).toBeDefined();
   });
 
-  it("WorkoutOperationsClient.createWorkoutTemplate inserts and returns single", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
+  it("should throw error for createWorkoutTemplate", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(
+      client.createWorkoutTemplate("user1", "Test Template"),
+    ).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC templates.create instead.",
     );
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const created = await inst.createWorkoutTemplate("user_2", "Leg Day");
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(created).toBeDefined();
   });
 
-  it("WorkoutOperationsClient.getRecentWorkouts limits, orders, and returns fields", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
+  it("should throw error for getRecentWorkouts", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(client.getRecentWorkouts("user1")).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.getRecent instead.",
     );
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const recent = await inst.getRecentWorkouts("user_3", 7);
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(recent).toBeDefined();
   });
 
-  it("WorkoutOperationsClient.getWorkoutSession queries by id and user", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
+  it("should throw error for getWorkoutSession", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(client.getWorkoutSession("user1", 1)).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.getSession instead.",
     );
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const sess = await inst.getWorkoutSession("user_4", 55);
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(sess).toBeDefined();
   });
 
-  it("WorkoutOperationsClient.createWorkoutSession inserts and returns single", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
+  it("should throw error for createWorkoutSession", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(
+      client.createWorkoutSession("user1", 1, "2024-01-01"),
+    ).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.create instead.",
     );
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const out = await inst.createWorkoutSession("user_5", 2, "2025-01-01");
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(out).toBeDefined();
   });
 
-  it("WorkoutOperationsClient.getSessionExercises filters and orders", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
+  it("should throw error for getSessionExercises", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(client.getSessionExercises("user1", 1)).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.getSessionExercises instead.",
     );
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const list = await inst.getSessionExercises("user_6", 99);
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(list).toBeDefined();
   });
 
-  it("WorkoutOperationsClient.addSessionExercise inserts partial and returns single", async () => {
-    const { WorkoutOperationsClient } = await import(
-      "~/lib/workout-operations"
-    );
-    const inst = new WorkoutOperationsClient();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const ex = await inst.addSessionExercise("user_7", 1, {
+  it("should throw error for createSessionExercise", async () => {
+    const client = new WorkoutOperationsClient();
+    const exercise = {
       templateExerciseId: null,
-      exerciseName: "Row",
-      weight: "50",
-      reps: 10,
+      exerciseName: "Bench Press",
+      weight: "100",
+      reps: 8,
       sets: 3,
       unit: "kg",
-      updatedAt: null as any, // not required by type; ensure it spreads okay
-    } as any);
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(ex).toBeDefined();
-  });
-
-  it("WorkoutOperationsServer.getRecentWorkouts uses server client factory", async () => {
-    const { WorkoutOperationsServer } = await import(
-      "~/lib/workout-operations"
+    };
+    await expect(
+      client.createSessionExercise("user1", 1, exercise),
+    ).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.addExercise instead.",
     );
-    const serverOps = new WorkoutOperationsServer();
-    // This should not throw an error now that we've properly mocked the supabase client
-    const recent = await serverOps.getRecentWorkouts("user_8", 3);
-    
-    // Since we're using top-level mocks, we can't easily verify the specific calls
-    // But the test should pass without throwing fetch errors
-    expect(recent).toBeDefined();
   });
 
-  it("useWorkoutOperations returns a client instance; getServerWorkoutOperations returns server instance", async () => {
-    const {
-      useWorkoutOperations,
-      getServerWorkoutOperations,
-      WorkoutOperationsClient,
-      WorkoutOperationsServer,
-    } = await import("~/lib/workout-operations");
+  it("should throw error for updateSessionExercise", async () => {
+    const client = new WorkoutOperationsClient();
+    const updates = { weight: "110" };
+    await expect(
+      client.updateSessionExercise("user1", 1, updates),
+    ).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.updateExercise instead.",
+    );
+  });
 
-    const client = useWorkoutOperations();
-    expect(client).toBeInstanceOf(WorkoutOperationsClient);
+  it("should throw error for deleteSessionExercise", async () => {
+    const client = new WorkoutOperationsClient();
+    await expect(client.deleteSessionExercise("user1", 1)).rejects.toThrow(
+      "WorkoutOperationsClient is deprecated. Use tRPC workouts.deleteExercise instead.",
+    );
+  });
+});
 
-    const server = getServerWorkoutOperations();
-    expect(server).toBeInstanceOf(WorkoutOperationsServer);
+describe("useWorkoutOperations", () => {
+  it("should warn when called", () => {
+    const consoleSpy = vi.spyOn(console, "warn");
+    useWorkoutOperations();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "useWorkoutOperations is deprecated. Use tRPC hooks instead.",
+    );
+  });
+
+  it("should return a WorkoutOperationsClient instance", () => {
+    const result = useWorkoutOperations();
+    expect(result).toBeInstanceOf(WorkoutOperationsClient);
+  });
+});
+
+describe("WorkoutOperationsClient types", () => {
+  it("should have proper TypeScript interfaces", () => {
+    // This test ensures the type definitions are correct
+    const workoutTemplate: WorkoutTemplate = {
+      id: 1,
+      name: "Test Template",
+      user_id: "user1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: null,
+    };
+
+    const workoutSession: WorkoutSession = {
+      id: 1,
+      user_id: "user1",
+      templateId: 1,
+      workoutDate: "2024-01-01",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: null,
+    };
+
+    const sessionExercise: SessionExercise = {
+      id: 1,
+      user_id: "user1",
+      sessionId: 1,
+      templateExerciseId: null,
+      exerciseName: "Bench Press",
+      weight: "100",
+      reps: 8,
+      sets: 3,
+      unit: "kg",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    expect(workoutTemplate.id).toBe(1);
+    expect(workoutSession.templateId).toBe(1);
+    expect(sessionExercise.exerciseName).toBe("Bench Press");
   });
 });

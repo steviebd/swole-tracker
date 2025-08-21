@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
 import { env } from "~/env";
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,8 +10,14 @@ export async function GET(request: NextRequest) {
     if (purpose === "prefetch" || request.nextUrl.searchParams.has("_rsc")) {
       return new NextResponse(null, { status: 204 });
     }
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Get user from WorkOS session
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    
+    const user = await validateAccessToken(sessionCookie.value);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

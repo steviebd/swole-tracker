@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+
+// Runtime configuration handled by OpenNext
+import { getUserFromHeaders } from "~/lib/workos";
+
+export const dynamic = "force-dynamic";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { ExerciseManager } from "~/app/_components/exercise-manager";
 import { Button } from "~/components/ui/button";
 
+
 export default async function ExercisesPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
 
   if (!user) {
     redirect("/sign-in");

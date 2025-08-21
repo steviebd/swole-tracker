@@ -20,7 +20,7 @@ export function WellnessHistorySection({ timeRange = 'month' }: WellnessHistoryS
 
   // Fetch user preferences to check if manual wellness is enabled
   const { data: preferences } = api.preferences.get.useQuery();
-  const isManualWellnessEnabled = preferences?.enable_manual_wellness ?? false;
+  const isManualWellnessEnabled = !!(preferences?.enable_manual_wellness ?? false);
 
   // Calculate date range for querying
   const getDaysForTimeRange = (range: string) => {

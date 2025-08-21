@@ -1,16 +1,16 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromRequest } from "~/lib/workos";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
 
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(request);
     if (!user) {
       return NextResponse.redirect(
         `${request.nextUrl.origin}/connect-whoop?error=unauthorized`,
@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
         .set({
           accessToken: tok.access_token!,
           refreshToken: tok.refresh_token ?? null,
-          expiresAt,
+          expiresAt: expiresAt?.toISOString() ?? null,
           scope: tok.scope ?? "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
-          isActive: true,
-          updatedAt: new Date(),
+          isActive: 1,
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
@@ -146,9 +146,9 @@ export async function GET(request: NextRequest) {
         provider: "whoop",
         accessToken: tok.access_token!,
         refreshToken: tok.refresh_token ?? null,
-        expiresAt,
+        expiresAt: expiresAt?.toISOString() ?? null,
         scope: tok.scope ?? "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
-        isActive: true,
+        isActive: 1,
       });
     }
 

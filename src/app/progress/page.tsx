@@ -1,10 +1,12 @@
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromHeaders } from "~/lib/workos";
 import { redirect } from "next/navigation";
 import { ProgressDashboard } from "../_components/ProgressDashboard";
 
+// Runtime configuration handled by OpenNext
+export const dynamic = "force-dynamic";
+
 export default async function ProgressPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUserFromHeaders();
 
   if (!user) {
     redirect("/");

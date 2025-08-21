@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+
 import { env } from '~/env';
 import { healthAdviceRequestSchema } from '~/server/api/schemas/health-advice';
 import { enhancedHealthAdviceRequestSchema } from '~/server/api/schemas/wellness';
@@ -14,7 +15,7 @@ import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-
 import { db } from '~/server/db';
 import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep, userPreferences } from '~/server/db/schema';
 import { eq, and, desc, gte } from 'drizzle-orm';
-import { createServerSupabaseClient } from '~/lib/supabase-server';
+import { validateAccessToken, SESSION_COOKIE_NAME } from '~/lib/workos';
 import { logger } from '~/lib/logger';
 
 // Removed edge runtime since we need database access for enhanced features
@@ -38,7 +39,7 @@ interface ExerciseHistory {
 }
 
 function getApiKey(): string {
-  const key = env.AI_GATEWAY_API_KEY || env.VERCEL_AI_GATEWAY_API_KEY;
+  const key = env.AI_GATEWAY_API_KEY;
   if (!key) {
     throw new Error('Missing AI gateway API key');
   }
@@ -61,9 +62,15 @@ export async function POST(req: NextRequest) {
     }
     
     // Get authenticated user for WHOOP data fetching
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const sessionCookie = req.cookies.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
     
+    const user = await validateAccessToken(sessionCookie.value);
     if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -96,12 +103,12 @@ export async function POST(req: NextRequest) {
         })
         .from(userIntegrations)
         .where(
-          and(
-            eq(userIntegrations.user_id, user.id),
-            eq(userIntegrations.provider, "whoop"),
-            eq(userIntegrations.isActive, true)
-          ),
-        );
+        and(
+          eq(userIntegrations.user_id, user.id),
+          eq(userIntegrations.provider, "whoop"),
+          eq(userIntegrations.isActive, 1), // SQLite boolean as integer: 1 = true
+        ),
+      );;
       
       if (whoopIntegration?.isActive) {
         // Get date range for historical lookup (2 days as specified in requirements)
@@ -110,7 +117,7 @@ export async function POST(req: NextRequest) {
         const dateString = todayMinus2Days.toISOString().split('T')[0]!; // Convert to YYYY-MM-DD format
         
         // Fetch latest recovery data from database (stored via webhooks)
-        const latestRecovery = await db.query.whoopRecovery.findFirst({
+        const latestRecovery = await (db.query as any).whoopRecovery?.findFirst({
           where: and(
             eq(whoopRecovery.user_id, user.id),
             gte(whoopRecovery.date, dateString) // Look back 2 days for recent data
@@ -119,10 +126,10 @@ export async function POST(req: NextRequest) {
         });
         
         // Fetch latest sleep data from database (stored via webhooks)
-        const latestSleep = await db.query.whoopSleep.findFirst({
+        const latestSleep = await (db.query as any).whoopSleep?.findFirst({
           where: and(
             eq(whoopSleep.user_id, user.id),
-            gte(whoopSleep.start, todayMinus2Days) // Sleep uses timestamp, can use Date object
+            gte(whoopSleep.start, todayMinus2Days.toISOString()) // Sleep uses timestamp, can use Date object
           ),
           orderBy: desc(whoopSleep.start)
         });
@@ -132,8 +139,8 @@ export async function POST(req: NextRequest) {
           realWhoopData = {
             recovery_score: latestRecovery?.recovery_score || realWhoopData.recovery_score || defaultWhoopData.recovery_score,
             sleep_performance: latestSleep?.sleep_performance_percentage || realWhoopData.sleep_performance || defaultWhoopData.sleep_performance,
-            hrv_now_ms: latestRecovery?.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : (realWhoopData.hrv_now_ms || defaultWhoopData.hrv_now_ms),
-            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : (realWhoopData.hrv_baseline_ms || defaultWhoopData.hrv_baseline_ms),
+            hrv_now_ms: latestRecovery?.hrv_rmssd_milli || (realWhoopData.hrv_now_ms || defaultWhoopData.hrv_now_ms),
+            hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline || (realWhoopData.hrv_baseline_ms || defaultWhoopData.hrv_baseline_ms),
             rhr_now_bpm: latestRecovery?.resting_heart_rate || realWhoopData.rhr_now_bpm || defaultWhoopData.rhr_now_bpm,
             rhr_baseline_bpm: latestRecovery?.resting_heart_rate_baseline || realWhoopData.rhr_baseline_bpm || defaultWhoopData.rhr_baseline_bpm,
             yesterday_strain: realWhoopData.yesterday_strain || defaultWhoopData.yesterday_strain, // Could be fetched from cycles table if needed
@@ -156,7 +163,7 @@ export async function POST(req: NextRequest) {
     
     try {
       // Get the workout session and its template
-      currentSession = await db.query.workoutSessions.findFirst({
+      currentSession = await (db.query as any).workoutSessions?.findFirst({
         where: eq(workoutSessions.id, sessionId),
         with: {
           template: {
@@ -223,7 +230,7 @@ export async function POST(req: NextRequest) {
     // Fetch user preferences for progression calculations
     let userProgressionPrefs = null;
     try {
-      userProgressionPrefs = await db.query.userPreferences.findFirst({
+      userProgressionPrefs = await (db.query as any).userPreferences?.findFirst({
         where: eq(userPreferences.user_id, user.id)
       });
     } catch (error) {
@@ -265,10 +272,10 @@ export async function POST(req: NextRequest) {
         progressionSuggestions = calculateProgressionSuggestions(
           exerciseHistory,
           rho,
-          (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive',
+          ((userProgressionPrefs as any)?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive',
           {
-            linearIncrement: userProgressionPrefs?.linear_progression_kg ? parseFloat(userProgressionPrefs.linear_progression_kg) : 2.5,
-            percentageIncrement: userProgressionPrefs?.percentage_progression ? parseFloat(userProgressionPrefs.percentage_progression) : 2.5,
+            linearIncrement: (userProgressionPrefs as any)?.linear_progression_kg ?? 2.5,
+            percentageIncrement: (userProgressionPrefs as any)?.percentage_progression ?? 2.5,
           }
         );
       } catch (error) {
@@ -420,14 +427,14 @@ export async function POST(req: NextRequest) {
       const plateauWarnings = plateauCount > 0 ? [`Plateau detected in ${plateauCount} exercise${plateauCount > 1 ? 's' : ''} - consider deload or variation`] : [];
       
       // Build progression type summary
-      const progressionType = (userProgressionPrefs?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive';
+      const progressionType = ((userProgressionPrefs as any)?.progression_type as 'linear' | 'percentage' | 'adaptive') || 'adaptive';
       let progressionSummary = '';
       switch (progressionType) {
         case 'linear':
-          progressionSummary = `Using linear progression (+${userProgressionPrefs?.linear_progression_kg || '2.5'}kg per session)`;
+          progressionSummary = `Using linear progression (+${(userProgressionPrefs as any)?.linear_progression_kg || '2.5'}kg per session)`;
           break;
         case 'percentage':
-          progressionSummary = `Using percentage progression (+${userProgressionPrefs?.percentage_progression || '2.5'}% per session)`;
+          progressionSummary = `Using percentage progression (+${(userProgressionPrefs as any)?.percentage_progression || '2.5'}% per session)`;
           break;
         case 'adaptive':
         default:
@@ -474,8 +481,8 @@ export async function POST(req: NextRequest) {
           );
 
           // Use actual historical data for targets if available
-          let targetWeight = null;
-          let targetReps = null;
+          let targetWeight: number | null = null;
+          let targetReps: number | null = null;
           
           if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
             const lastSession = exerciseHist.sessions[0];
@@ -517,7 +524,7 @@ export async function POST(req: NextRequest) {
           // templateExerciseIds not used in optimized query - removed for cleaner code
           
           // Batch query: Get all exercise links for template exercises in one query
-          const exerciseLinksForTemplate = await db.query.exerciseLinks.findMany({
+          const exerciseLinksForTemplate = await (db.query as any).exerciseLinks?.findMany({
             where: and(
               eq(exerciseLinks.user_id, user.id)
             ),

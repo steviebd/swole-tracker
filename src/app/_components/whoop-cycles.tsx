@@ -23,15 +23,13 @@ export function WhoopCycles() {
     return `${startTime} - ${endTime}`;
   };
 
-  const formatEnergy = (kilojoules: string | null) => {
-    if (!kilojoules) return "--";
-    const kj = parseFloat(kilojoules);
+  const formatEnergy = (kj: number | null) => {
+    if (kj === null) return "--";
     return isNaN(kj) ? "--" : `${kj.toFixed(0)} kJ`;
   };
 
-  const formatStrain = (strain: string | null) => {
-    if (!strain) return "--";
-    const strainNum = parseFloat(strain);
+  const formatStrain = (strainNum: number | null) => {
+    if (strainNum === null) return "--";
     return isNaN(strainNum) ? "--" : strainNum.toFixed(1);
   };
 
@@ -75,9 +73,9 @@ export function WhoopCycles() {
                     className="text-lg font-bold"
                     style={{
                       color: item.day_strain 
-                        ? parseFloat(item.day_strain) >= 15 
+                        ? item.day_strain >= 15 
                           ? 'var(--color-danger)'
-                          : parseFloat(item.day_strain) >= 10
+                          : item.day_strain >= 10
                           ? 'var(--color-warning)'
                           : 'var(--color-success)'
                         : 'var(--color-text)'

@@ -110,7 +110,7 @@ export function WorkoutSessionWithHealthAdvice({
         return {
           set_id: `${templateExercise.id}_${setIndex + 1}`, // Use template exercise ID for consistency
           target_reps: existingSet?.reps || null,
-          target_weight_kg: existingSet?.weight ? parseFloat(existingSet.weight) : null,
+          target_weight_kg: existingSet?.weight ?? null,
           target_rpe: existingSet?.rpe || null,
         };
       });

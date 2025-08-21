@@ -1,269 +1,269 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { buildTokens, generateCSSVariables } from '../../../scripts/build-tokens.js';
+import { describe, it, expect } from "vitest";
+import {
+  DesignTokens,
+  TokenUtils,
+  type SurfaceLevel,
+  type VisualStyle,
+  type SpacingSize,
+  type TypographySize,
+  type ShadowLevel,
+} from "~/lib/design-tokens";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+describe("DesignTokens structure", () => {
+  it("should have all required color categories", () => {
+    expect(DesignTokens.colors).toHaveProperty("primary");
+    expect(DesignTokens.colors).toHaveProperty("secondary");
+    expect(DesignTokens.colors).toHaveProperty("accent");
+    expect(DesignTokens.colors).toHaveProperty("background");
+    expect(DesignTokens.colors).toHaveProperty("text");
+    expect(DesignTokens.colors).toHaveProperty("border");
+    expect(DesignTokens.colors).toHaveProperty("status");
+    expect(DesignTokens.colors).toHaveProperty("glass");
+    expect(DesignTokens.colors).toHaveProperty("chart");
+  });
 
-describe("Design Token System", () => {
-  const mockTokens = {
-    color: {
-      primary: {
-        default: {
-          $value: "oklch(0.985 0 0)",
-          $description: "Primary brand color"
-        }
-      },
-      text: {
-        primary: {
-          $value: "oklch(0.985 0 0)",
-          $description: "Primary text color"
-        }
-      }
-    },
-    spacing: {
-      component: {
-        padding: {
-          sm: {
-            $value: "0.75rem",
-            $description: "Small component padding"
-          }
-        }
-      }
-    },
-    typography: {
-      fontSize: {
-        base: {
-          $value: "1rem",
-          $description: "Base font size"
-        }
-      }
-    }
-  };
+  it("should have all required spacing categories", () => {
+    expect(DesignTokens.spacing).toHaveProperty("component");
+    expect(DesignTokens.spacing).toHaveProperty("gap");
+    expect(DesignTokens.spacing).toHaveProperty("layout");
+  });
 
-  describe("generateCSSVariables", () => {
-    it("should generate CSS variables from token object", () => {
-      const css = generateCSSVariables(mockTokens.color, 'color');
-      
-      expect(css).toContain('--color-primary-default: oklch(0.985 0 0);');
-      expect(css).toContain('--color-text-primary: oklch(0.985 0 0);');
-      expect(css).not.toContain('$value');
-      expect(css).not.toContain('$description');
+  it("should have all required typography categories", () => {
+    expect(DesignTokens.typography).toHaveProperty("fontFamily");
+    expect(DesignTokens.typography).toHaveProperty("fontSize");
+    expect(DesignTokens.typography).toHaveProperty("fontWeight");
+    expect(DesignTokens.typography).toHaveProperty("lineHeight");
+  });
+
+  it("should have all required border radius values", () => {
+    expect(DesignTokens.borderRadius).toHaveProperty("sm");
+    expect(DesignTokens.borderRadius).toHaveProperty("md");
+    expect(DesignTokens.borderRadius).toHaveProperty("lg");
+    expect(DesignTokens.borderRadius).toHaveProperty("card");
+    expect(DesignTokens.borderRadius).toHaveProperty("full");
+  });
+
+  it("should have all required shadow levels", () => {
+    expect(DesignTokens.shadow).toHaveProperty("xs");
+    expect(DesignTokens.shadow).toHaveProperty("sm");
+    expect(DesignTokens.shadow).toHaveProperty("md");
+    expect(DesignTokens.shadow).toHaveProperty("lg");
+    expect(DesignTokens.shadow).toHaveProperty("focus");
+  });
+
+  it("should have all required motion tokens", () => {
+    expect(DesignTokens.motion).toHaveProperty("duration");
+    expect(DesignTokens.motion).toHaveProperty("easing");
+  });
+
+  it("should have component-specific tokens", () => {
+    expect(DesignTokens.component).toHaveProperty("button");
+    expect(DesignTokens.component).toHaveProperty("card");
+    expect(DesignTokens.component).toHaveProperty("input");
+  });
+});
+
+describe("TokenUtils.getSurfaceBackground", () => {
+  it("should return correct background for app surface", () => {
+    const result = TokenUtils.getSurfaceBackground("app");
+    expect(result).toBe(DesignTokens.colors.background.app);
+  });
+
+  it("should return correct background for surface", () => {
+    const result = TokenUtils.getSurfaceBackground("surface");
+    expect(result).toBe(DesignTokens.colors.background.surface);
+  });
+
+  it("should return correct background for card", () => {
+    const result = TokenUtils.getSurfaceBackground("card");
+    expect(result).toBe(DesignTokens.colors.background.card);
+  });
+
+  it("should return correct background for elevated", () => {
+    const result = TokenUtils.getSurfaceBackground("elevated");
+    expect(result).toBe(DesignTokens.colors.background.card);
+  });
+
+  it("should handle all surface levels", () => {
+    const surfaceLevels: SurfaceLevel[] = [
+      "app",
+      "surface",
+      "card",
+      "elevated",
+    ];
+    surfaceLevels.forEach((level) => {
+      expect(() => TokenUtils.getSurfaceBackground(level)).not.toThrow();
     });
+  });
+});
 
-    it("should handle nested token structures", () => {
-      const css = generateCSSVariables(mockTokens.spacing, 'spacing');
-      
-      expect(css).toContain('--spacing-component-padding-sm: 0.75rem;');
+describe("TokenUtils.getStatusColor", () => {
+  it("should return primary text color for default style", () => {
+    const result = TokenUtils.getStatusColor("default");
+    expect(result).toBe(DesignTokens.colors.text.primary);
+  });
+
+  it("should return success colors", () => {
+    const defaultResult = TokenUtils.getStatusColor("success", "default");
+    const mutedResult = TokenUtils.getStatusColor("success", "muted");
+
+    expect(defaultResult).toBe(DesignTokens.colors.status.success.default);
+    expect(mutedResult).toBe(DesignTokens.colors.status.success.muted);
+  });
+
+  it("should return warning colors", () => {
+    const defaultResult = TokenUtils.getStatusColor("warning", "default");
+    const mutedResult = TokenUtils.getStatusColor("warning", "muted");
+
+    expect(defaultResult).toBe(DesignTokens.colors.status.warning.default);
+    expect(mutedResult).toBe(DesignTokens.colors.status.warning.muted);
+  });
+
+  it("should return danger colors", () => {
+    const defaultResult = TokenUtils.getStatusColor("danger", "default");
+    const mutedResult = TokenUtils.getStatusColor("danger", "muted");
+
+    expect(defaultResult).toBe(DesignTokens.colors.status.danger.default);
+    expect(mutedResult).toBe(DesignTokens.colors.status.danger.muted);
+  });
+
+  it("should return info colors", () => {
+    const defaultResult = TokenUtils.getStatusColor("info", "default");
+    const mutedResult = TokenUtils.getStatusColor("info", "muted");
+
+    expect(defaultResult).toBe(DesignTokens.colors.status.info.default);
+    expect(mutedResult).toBe(DesignTokens.colors.status.info.muted);
+  });
+
+  it("should handle all visual styles", () => {
+    const visualStyles: VisualStyle[] = [
+      "default",
+      "success",
+      "warning",
+      "danger",
+      "info",
+    ];
+    visualStyles.forEach((style) => {
+      expect(() => TokenUtils.getStatusColor(style)).not.toThrow();
+      expect(() => TokenUtils.getStatusColor(style, "default")).not.toThrow();
+      expect(() => TokenUtils.getStatusColor(style, "muted")).not.toThrow();
     });
+  });
+});
 
-    it("should handle typography tokens", () => {
-      const css = generateCSSVariables(mockTokens.typography, 'font');
-      
-      expect(css).toContain('--font-fontSize-base: 1rem;');
+describe("TokenUtils.getSpacing", () => {
+  it("should return component spacing", () => {
+    const result = TokenUtils.getSpacing("component", "md");
+    expect(result).toBe(DesignTokens.spacing.component.md);
+  });
+
+  it("should return gap spacing", () => {
+    const result = TokenUtils.getSpacing("gap", "lg");
+    expect(result).toBe(DesignTokens.spacing.gap.lg);
+  });
+
+  it("should handle all spacing sizes", () => {
+    const spacingSizes: SpacingSize[] = ["xs", "sm", "md", "lg", "xl"];
+    spacingSizes.forEach((size) => {
+      expect(() => TokenUtils.getSpacing("component", size)).not.toThrow();
+      expect(() => TokenUtils.getSpacing("gap", size)).not.toThrow();
+    });
+  });
+});
+
+describe("TokenUtils.getTypography", () => {
+  it("should return font size values", () => {
+    const result = TokenUtils.getTypography("fontSize", "lg");
+    expect(result).toBe(DesignTokens.typography.fontSize.lg);
+  });
+
+  it("should return font weight values", () => {
+    const result = TokenUtils.getTypography("fontWeight", "bold");
+    expect(result).toBe(DesignTokens.typography.fontWeight.bold);
+  });
+
+  it("should handle all typography sizes", () => {
+    const typographySizes: TypographySize[] = [
+      "xs",
+      "sm",
+      "base",
+      "lg",
+      "xl",
+      "2xl",
+      "3xl",
+    ];
+    typographySizes.forEach((size) => {
+      expect(() => TokenUtils.getTypography("fontSize", size)).not.toThrow();
     });
   });
 
-  describe("Token File Generation", () => {
-    it("should have design tokens schema file", () => {
-      const tokensPath = path.resolve(__dirname, '../../../src/styles/tokens/design-tokens.json');
-      expect(fs.existsSync(tokensPath)).toBe(true);
-      
-      const tokensContent = fs.readFileSync(tokensPath, 'utf8');
-      const tokens = JSON.parse(tokensContent);
-      
-      // Validate schema structure
-      expect(tokens).toHaveProperty('color');
-      expect(tokens).toHaveProperty('spacing');
-      expect(tokens).toHaveProperty('typography');
-      expect(tokens).toHaveProperty('borderRadius');
-      expect(tokens).toHaveProperty('shadow');
-    });
-
-    it("should have light theme overrides", () => {
-      const lightThemePath = path.resolve(__dirname, '../../../src/styles/tokens/themes/light.json');
-      expect(fs.existsSync(lightThemePath)).toBe(true);
-      
-      const lightThemeContent = fs.readFileSync(lightThemePath, 'utf8');
-      const lightTheme = JSON.parse(lightThemeContent);
-      
-      // Validate light theme has color overrides
-      expect(lightTheme).toHaveProperty('color');
-      expect(lightTheme.color).toHaveProperty('semantic');
-    });
-
-    it("should generate consistent CSS from tokens", () => {
-      const generatedBasePath = path.resolve(__dirname, '../../../src/styles/tokens/generated-base.css');
-      const generatedLightPath = path.resolve(__dirname, '../../../src/styles/tokens/generated-light.css');
-      
-      expect(fs.existsSync(generatedBasePath)).toBe(true);
-      expect(fs.existsSync(generatedLightPath)).toBe(true);
-      
-      const baseCSS = fs.readFileSync(generatedBasePath, 'utf8');
-      const lightCSS = fs.readFileSync(generatedLightPath, 'utf8');
-      
-      // Check for expected CSS structure
-      expect(baseCSS).toContain('@theme {');
-      expect(baseCSS).toContain('--color-');
-      expect(baseCSS).toContain('.btn-primary');
-      expect(baseCSS).toContain('.card');
-      
-      expect(lightCSS).toContain(':root,');
-      expect(lightCSS).toContain('[data-theme="light"]');
-      expect(lightCSS).toContain('color-scheme: light;');
+  it("should handle all font weights", () => {
+    const fontWeights = ["normal", "medium", "semibold", "bold", "black"];
+    fontWeights.forEach((weight) => {
+      expect(() =>
+        TokenUtils.getTypography("fontWeight", weight as any),
+      ).not.toThrow();
     });
   });
+});
 
-  describe("CSS Variable Naming", () => {
-    it("should use consistent naming conventions", () => {
-      const css = generateCSSVariables(mockTokens, '');
-      
-      // Should use kebab-case and logical structure
-      expect(css).toMatch(/--color-primary-default:/);
-      expect(css).toMatch(/--color-text-primary:/);
-      expect(css).toMatch(/--spacing-component-padding-sm:/);
-      expect(css).toMatch(/--typography-fontSize-base:/);
-    });
-
-    it("should not include internal properties in CSS", () => {
-      const css = generateCSSVariables(mockTokens, '');
-      
-      expect(css).not.toContain('$value');
-      expect(css).not.toContain('$description');
-      expect(css).not.toContain('$type');
-    });
+describe("TokenUtils.getShadow", () => {
+  it("should return shadow values", () => {
+    const result = TokenUtils.getShadow("md");
+    expect(result).toBe(DesignTokens.shadow.md);
   });
 
-  describe("Token Value Validation", () => {
-    it("should handle OKLCH color values", () => {
-      const colorTokens = {
-        test: {
-          $value: "oklch(0.5 0.2 180)",
-          $description: "Test color"
-        }
-      };
-      
-      const css = generateCSSVariables(colorTokens, 'color');
-      expect(css).toContain('--color-test: oklch(0.5 0.2 180);');
-    });
-
-    it("should handle rem and px spacing values", () => {
-      const spacingTokens = {
-        small: { $value: "0.5rem" },
-        large: { $value: "24px" }
-      };
-      
-      const css = generateCSSVariables(spacingTokens, 'spacing');
-      expect(css).toContain('--spacing-small: 0.5rem;');
-      expect(css).toContain('--spacing-large: 24px;');
-    });
-
-    it("should handle numeric font weights", () => {
-      const fontTokens = {
-        weight: {
-          normal: { $value: 400 },
-          bold: { $value: 700 }
-        }
-      };
-      
-      const css = generateCSSVariables(fontTokens, 'font');
-      expect(css).toContain('--font-weight-normal: 400;');
-      expect(css).toContain('--font-weight-bold: 700;');
+  it("should handle all shadow levels", () => {
+    const shadowLevels: ShadowLevel[] = ["xs", "sm", "md", "lg"];
+    shadowLevels.forEach((level) => {
+      expect(() => TokenUtils.getShadow(level)).not.toThrow();
     });
   });
+});
 
-  describe("Mobile Token Integration", () => {
-    it("should generate mobile-compatible config", () => {
-      const mobileConfigPath = path.resolve(__dirname, '../../../apps/mobile/tailwind.config.js');
-      
-      if (fs.existsSync(mobileConfigPath)) {
-        const configContent = fs.readFileSync(mobileConfigPath, 'utf8');
-        
-        // Should contain our semantic color tokens
-        expect(configContent).toMatch(/"500":\s*"#fafafa"/);
-        expect(configContent).toMatch(/background/);
-        expect(configContent).toMatch(/foreground/);
-        expect(configContent).toMatch(/surface/);
+describe("Type definitions", () => {
+  it("should have proper type definitions", () => {
+    // Test that the types are properly defined
+    const surfaceLevel: SurfaceLevel = "app";
+    const visualStyle: VisualStyle = "success";
+    const spacingSize: SpacingSize = "md";
+    const typographySize: TypographySize = "lg";
+    const shadowLevel: ShadowLevel = "sm";
+
+    expect(surfaceLevel).toBe("app");
+    expect(visualStyle).toBe("success");
+    expect(spacingSize).toBe("md");
+    expect(typographySize).toBe("lg");
+    expect(shadowLevel).toBe("sm");
+  });
+});
+
+describe("DesignTokens constants", () => {
+  it("should be defined as const and immutable", () => {
+    expect(DesignTokens).toBeDefined();
+    expect(typeof DesignTokens).toBe("object");
+  });
+
+  it("should have consistent CSS custom property format", () => {
+    // Test a few examples to ensure consistent format
+    expect(DesignTokens.colors.primary.default).toMatch(/^var\(--color-/);
+    expect(DesignTokens.spacing.component.md).toMatch(/^var\(--spacing-/);
+    expect(DesignTokens.typography.fontSize.base).toMatch(/^var\(--font-/);
+    expect(DesignTokens.shadow.md).toMatch(/^var\(--shadow-/);
+  });
+
+  it("should have all tokens as strings", () => {
+    // Recursively check that all values are strings (CSS custom properties)
+    const checkAllStrings = (obj: any): boolean => {
+      if (typeof obj === "string") {
+        return obj.startsWith("var(--");
       }
-    });
-
-    it("should generate TypeScript constants", () => {
-      const constantsPath = path.resolve(__dirname, '../../../apps/mobile/lib/design-tokens.ts');
-      
-      if (fs.existsSync(constantsPath)) {
-        const constantsContent = fs.readFileSync(constantsPath, 'utf8');
-        
-        // Should export DesignTokens object
-        expect(constantsContent).toContain('export const DesignTokens');
-        expect(constantsContent).toContain('colors:');
-        expect(constantsContent).toContain('spacing:');
-        expect(constantsContent).toContain('typography:');
-        
-        // Should use hex color values for React Native
-        expect(constantsContent).toMatch(/#[0-9a-fA-F]{6}/);
+      if (typeof obj === "object" && obj !== null) {
+        return Object.values(obj).every(checkAllStrings);
       }
-    });
-  });
+      return false;
+    };
 
-  describe("Theme System Integration", () => {
-    it("should work with data-theme attribute strategy", () => {
-      // Test that generated CSS uses data-theme selectors
-      const lightThemePath = path.resolve(__dirname, '../../../src/styles/tokens/generated-light.css');
-      
-      if (fs.existsSync(lightThemePath)) {
-        const lightCSS = fs.readFileSync(lightThemePath, 'utf8');
-        
-        expect(lightCSS).toContain('[data-theme="light"]');
-        expect(lightCSS).toContain('[data-theme="system"] html:not(.dark)');
-        expect(lightCSS).toContain('color-scheme: light;');
-      }
-    });
-
-    it("should maintain dark theme compatibility", () => {
-      const darkThemePath = path.resolve(__dirname, '../../../src/styles/tokens/dark.css');
-      
-      if (fs.existsSync(darkThemePath)) {
-        const darkCSS = fs.readFileSync(darkThemePath, 'utf8');
-        
-        expect(darkCSS).toContain('[data-theme="dark"]');
-        expect(darkCSS).toContain('html.dark');
-        expect(darkCSS).toContain('color-scheme: dark;');
-      }
-    });
-  });
-
-  describe("Semantic Token Usage", () => {
-    it("should provide semantic component classes", () => {
-      const baseCSS = fs.readFileSync(
-        path.resolve(__dirname, '../../../src/styles/tokens/generated-base.css'),
-        'utf8'
-      );
-      
-      // Check for semantic utility classes
-      expect(baseCSS).toContain('.text-primary');
-      expect(baseCSS).toContain('.text-secondary');
-      expect(baseCSS).toContain('.text-muted');
-      expect(baseCSS).toContain('.bg-app');
-      expect(baseCSS).toContain('.bg-surface');
-      expect(baseCSS).toContain('.bg-card');
-    });
-
-    it("should provide component base styles", () => {
-      const baseCSS = fs.readFileSync(
-        path.resolve(__dirname, '../../../src/styles/tokens/generated-base.css'),
-        'utf8'
-      );
-      
-      // Check for component base styles
-      expect(baseCSS).toContain('.btn-primary');
-      expect(baseCSS).toContain('.card');
-      expect(baseCSS).toContain('.input-primary');
-      
-      // Should use token variables
-      expect(baseCSS).toContain('var(--color-');
-      expect(baseCSS).toContain('var(--component-');
-    });
+    expect(checkAllStrings(DesignTokens)).toBe(true);
   });
 });

@@ -61,8 +61,8 @@ export const progressRouter = createTRPCRouter({
         // Get all session exercises for the specified time range and exercises
         const whereConditions = [
           eq(sessionExercises.user_id, ctx.user.id),
-          gte(workoutSessions.workoutDate, startDate),
-          lte(workoutSessions.workoutDate, endDate)
+          gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+          lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
         ];
 
         // Add exercise name filter
@@ -87,8 +87,13 @@ export const progressRouter = createTRPCRouter({
           .orderBy(desc(workoutSessions.workoutDate), desc(sessionExercises.weight));
 
         // Add oneRMEstimate to progress data
-        const enhancedProgressData = progressData.map(item => ({
-          ...item,
+        const enhancedProgressData: ProgressDataRow[] = progressData.map(item => ({
+          workoutDate: new Date(item.workoutDate),
+          exerciseName: item.exerciseName,
+          weight: item.weight !== null ? String(item.weight) : null,
+          reps: item.reps,
+          sets: item.sets,
+          unit: item.unit,
           oneRMEstimate: calculateOneRM(parseFloat(String(item.weight || "0")), item.reps || 1)
         }));
 
@@ -125,17 +130,17 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate)
+              gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+              lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
             )
           )
           .orderBy(desc(workoutSessions.workoutDate));
 
         // Transform data to match expected types
         const transformedData = volumeData.map(row => ({
-          workoutDate: row.workoutDate,
+          workoutDate: new Date(row.workoutDate),
           exerciseName: row.exerciseName,
-          weight: row.weight ? parseFloat(row.weight) : 0,
+          weight: row.weight ? row.weight : 0,
           reps: row.reps || 0,
           sets: row.sets || 0,
         }));
@@ -167,14 +172,14 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(workoutSessions.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate)
+              gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+              lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
             )
           )
           .orderBy(desc(workoutSessions.workoutDate));
 
         const consistency = calculateConsistencyMetrics(
-          workoutDates.map(row => row.workoutDate), 
+          workoutDates.map(row => new Date(row.workoutDate)), 
           startDate, 
           endDate
         );
@@ -208,13 +213,13 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(workoutSessions.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate)
+              gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+              lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
             )
           )
           .orderBy(desc(workoutSessions.workoutDate));
         
-        return workoutDates.map(w => w.workoutDate.toISOString().split('T')[0]!);
+        return workoutDates.map(w => w.workoutDate) as string[];
       } catch (error) {
         console.error("Error in getWorkoutDates:", error);
         return [];
@@ -335,8 +340,8 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate)
+              gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+              lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
             )
           )
           .orderBy(desc(workoutSessions.workoutDate));
@@ -344,10 +349,10 @@ export const progressRouter = createTRPCRouter({
         // Transform data to match expected types
         const transformedData = volumeData.map(row => ({
           exerciseName: row.exerciseName,
-          weight: row.weight ? parseFloat(row.weight) : 0,
+          weight: row.weight ? row.weight : 0,
           reps: row.reps || 0,
           sets: row.sets || 0,
-          workoutDate: row.workoutDate,
+          workoutDate: new Date(row.workoutDate),
         }));
 
         // Calculate volume metrics by exercise
@@ -379,8 +384,8 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate)
+              gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+              lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
             )
           );
 
@@ -722,7 +727,17 @@ export async function calculatePersonalRecords(
   oneRMEstimate?: number;
   totalVolume?: number;
 }>> {
-  const records = [];
+  const records: Array<{
+    exerciseName: string;
+    recordType: "weight" | "volume";
+    weight: number;
+    reps: number;
+    sets: number;
+    unit: string;
+    workoutDate: Date;
+    oneRMEstimate?: number;
+    totalVolume?: number;
+  }> = [];
   
   for (const exerciseName of exerciseNames) {
     let exerciseData: {
@@ -734,7 +749,7 @@ export async function calculatePersonalRecords(
     }[] = [];
     
     try {
-      exerciseData = await ctx.db
+      exerciseData = (await ctx.db
         .select({
           workoutDate: workoutSessions.workoutDate,
           weight: sessionExercises.weight,
@@ -748,11 +763,16 @@ export async function calculatePersonalRecords(
           and(
             eq(sessionExercises.user_id, ctx.user.id),
             eq(sessionExercises.exerciseName, exerciseName),
-            gte(workoutSessions.workoutDate, startDate),
-            lte(workoutSessions.workoutDate, endDate)
+            gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+            lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
           )
         )
-        .orderBy(desc(workoutSessions.workoutDate));
+        .orderBy(desc(workoutSessions.workoutDate)))
+        .map(row => ({
+          ...row,
+          workoutDate: new Date(row.workoutDate),
+          weight: row.weight !== null ? String(row.weight) : null
+        }));
 
     } catch (error) {
       console.error("Error fetching exercise data for", exerciseName, error);
@@ -828,8 +848,8 @@ export async function getVolumeAndStrengthData(ctx: { db: typeof db; user: { id:
       .where(
         and(
           eq(sessionExercises.user_id, ctx.user.id),
-          gte(workoutSessions.workoutDate, startDate),
-          lte(workoutSessions.workoutDate, endDate)
+          gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+          lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
         )
       );
 

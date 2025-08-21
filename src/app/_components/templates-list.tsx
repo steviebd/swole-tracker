@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import type { RouterOutputs } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -13,8 +14,8 @@ export function TemplatesList() {
   // Deduplicate templates by ID to prevent any rendering duplicates
   const templates = templatesRaw
     ? templatesRaw.filter(
-        (template, index, array) =>
-          array.findIndex((t) => t.id === template.id) === index,
+        (template: RouterOutputs["templates"]["getAll"][number], index: number, array: RouterOutputs["templates"]["getAll"]) =>
+          array.findIndex((t: RouterOutputs["templates"]["getAll"][number]) => t.id === template.id) === index,
       )
     : undefined;
 
@@ -39,7 +40,7 @@ export function TemplatesList() {
       utils.templates.getAll.setData(
         undefined,
         (old) =>
-          old?.filter((template) => template.id !== deletedTemplate.id) ?? [],
+          old?.filter((template) => template.id !== (deletedTemplate as any)?.id) ?? [],
       );
 
       return { previousTemplates };
