@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { PRIVACY_POLICY, TERMS_OF_SERVICE } from "~/lib/legal-content";
 
 interface LegalLayoutProps {
   filename: string;
@@ -7,8 +6,8 @@ interface LegalLayoutProps {
 }
 
 export async function LegalLayout({ filename, title }: LegalLayoutProps) {
-  const filePath = path.join(process.cwd(), filename);
-  const content = await fs.readFile(filePath, "utf8");
+  // Get content from imported constants instead of reading files at runtime
+  const content = filename === "PRIVACY_POLICY.md" ? PRIVACY_POLICY : TERMS_OF_SERVICE;
 
   // Convert basic markdown to HTML with improved shadcn/ui typography
   const htmlContent = content
