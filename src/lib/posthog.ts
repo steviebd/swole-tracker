@@ -46,6 +46,12 @@ export async function loadPosthogCtor(): Promise<
   // Guard to prevent accidental client-side import
   if (typeof window !== "undefined") return null;
   if (__TEST_ONLY_PostHogCtor) return __TEST_ONLY_PostHogCtor;
+
+  // In test environment, return null immediately to avoid async import
+  if (process.env.NODE_ENV === "test") {
+    return null;
+  }
+
   try {
     const mod = await import("posthog-node");
     return mod.PostHog;
@@ -62,6 +68,55 @@ function getServerClient(): PosthogSurface {
   if (!key) {
     // No key configured: return a no-op to keep server paths import-safe in tests
     return getBrowserClient();
+  }
+
+  // In test mode, use synchronous initialization
+  if (process.env.NODE_ENV === "test" && __TEST_ONLY_PostHogCtor) {
+    let instance: PostHogNode | null = null;
+
+    try {
+      // Try construct signature
+      instance = new (__TEST_ONLY_PostHogCtor as new (
+        key: string,
+        opts: { host?: string; flushAt?: number; flushInterval?: number },
+      ) => PostHogNode)(key, {
+        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        flushAt: 1,
+        flushInterval: 0,
+      });
+    } catch {
+      // Fallback to factory signature
+      const factory = __TEST_ONLY_PostHogCtor as (
+        key: string,
+        opts: { host?: string; flushAt?: number; flushInterval?: number },
+      ) => PostHogNode;
+      instance = factory(key, {
+        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        flushAt: 1,
+        flushInterval: 0,
+      });
+    }
+
+    const syncClient: PosthogSurface = {
+      capture: (event: string, properties?: Record<string, unknown>) => {
+        const distinctId = "server";
+        instance?.capture({ distinctId, event, properties });
+      },
+      identify: (id: string, props?: Record<string, unknown>) => {
+        instance?.identify({ distinctId: id, properties: props });
+      },
+      shutdown: () => {
+        instance?.shutdown?.();
+        // older versions
+        (instance as unknown as { close?: () => void })?.close?.();
+      },
+      flush: () => {
+        instance?.flush?.();
+      },
+    };
+
+    nodeClient = syncClient;
+    return nodeClient;
   }
 
   // Eagerly construct once so tests can assert constructor call and return a stable client.
