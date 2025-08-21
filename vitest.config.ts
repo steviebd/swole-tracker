@@ -13,9 +13,13 @@ export default defineConfig({
         pretendToBeVisual: true,
       },
     },
-    include: [
-      "src/__tests__/**/*.test.{ts,tsx}"
-    ],
+    // Ensure mocking is properly enabled
+    mockReset: true,
+    restoreMocks: true,
+    // Explicitly enable vi functions
+    unstubEnvs: true,
+    unstubGlobals: true,
+    include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: [
       "**/*.spec.{ts,tsx}",
       "src/__e2e__/**/*",
@@ -25,7 +29,7 @@ export default defineConfig({
       "**/*.e2e.{ts,tsx}",
       "**/e2e/**/*",
       "**/playwright/**/*",
-      "playwright.config.ts"
+      "playwright.config.ts",
     ],
     coverage: {
       provider: "v8",

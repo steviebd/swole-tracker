@@ -44,14 +44,18 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
   // Generate detailed calendar for the selected time range
   const generateExtendedCalendar = () => {
     const now = new Date();
-    const calendars = [];
+    const calendars: Array<{
+      label: string;
+      days: (Date | null)[];
+      monthYear: string;
+    }> = [];
     
     if (timeRange === "week") {
       // Show current week
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
       
-      const weekDays = [];
+      const weekDays: (Date | null)[] = [];
       for (let i = 0; i < 7; i++) {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + i);
@@ -72,7 +76,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
       const daysInMonth = lastDay.getDate();
       const startingDayOfWeek = firstDay.getDay();
       
-      const monthDays = [];
+      const monthDays: (Date | null)[] = [];
       
       // Add empty cells for days before the first day of the month
       for (let i = 0; i < startingDayOfWeek; i++) {
@@ -101,7 +105,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
         const daysInMonth = lastDay.getDate();
         const startingDayOfWeek = firstDay.getDay();
         
-        const monthDays = [];
+        const monthDays: (Date | null)[] = [];
         
         // Add empty cells for days before the first day of the month
         for (let j = 0; j < startingDayOfWeek; j++) {
@@ -174,7 +178,7 @@ export function ConsistencyAnalysisModal({ isOpen, onClose, timeRange }: Consist
       .map(d => new Date(d))
       .sort((a, b) => b.getTime() - a.getTime());
 
-    const streaks = [];
+    const streaks: number[] = [];
     let currentStreak = 0;
     let longestStreak = 0;
     

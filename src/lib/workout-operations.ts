@@ -1,5 +1,5 @@
-import { createBrowserSupabaseClient } from "./supabase-browser";
-import { createServerSupabaseClient } from "./supabase-server";
+// Note: This file has been migrated from Supabase to use tRPC APIs
+// Legacy WorkoutOperationsClient has been removed in favor of tRPC procedures
 
 // Types for workout data
 export interface WorkoutTemplate {
@@ -32,216 +32,52 @@ export interface SessionExercise {
   createdAt: string;
 }
 
-// Client-side operations (use in React components)
+// Legacy client-side operations - replaced with tRPC
+// This is a stub to prevent build errors during migration
 export class WorkoutOperationsClient {
-  private client: ReturnType<typeof createBrowserSupabaseClient>;
-
   constructor() {
-    this.client = createBrowserSupabaseClient();
+    console.warn('WorkoutOperationsClient is deprecated. Use tRPC procedures instead.');
   }
 
-  async getWorkoutTemplates(userId: string) {
-    const { data, error } = await this.client
-      .from("swole-tracker_workout_template")
-      .select("*")
-      .eq("user_id", userId)
-      .order("createdAt", { ascending: false });
-
-    if (error) throw error;
-    return data as WorkoutTemplate[];
+  async getWorkoutTemplates(userId: string): Promise<WorkoutTemplate[]> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC templates.getAll instead.');
   }
 
-  async createWorkoutTemplate(
-    userId: string,
-    name: string,
-  ): Promise<WorkoutTemplate> {
-    const { data, error } = await this.client
-      .from("swole-tracker_workout_template")
-      .insert({
-        name,
-        user_id: userId,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as WorkoutTemplate;
+  async createWorkoutTemplate(userId: string, name: string): Promise<WorkoutTemplate> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC templates.create instead.');
   }
 
-  async getRecentWorkouts(
-    userId: string,
-    limit = 5,
-  ): Promise<
-    Pick<WorkoutSession, "id" | "templateId" | "workoutDate" | "createdAt">[]
-  > {
-    const { data, error } = await this.client
-      .from("swole-tracker_workout_session")
-      .select(
-        `
-        id,
-        templateId,
-        workoutDate,
-        createdAt
-      `,
-      )
-      .eq("user_id", userId)
-      .order("workoutDate", { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data as Pick<
-      WorkoutSession,
-      "id" | "templateId" | "workoutDate" | "createdAt"
-    >[];
+  async getRecentWorkouts(userId: string, limit = 5): Promise<Pick<WorkoutSession, "id" | "templateId" | "workoutDate" | "createdAt">[]> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.getRecent instead.');
   }
 
-  async getWorkoutSession(
-    userId: string,
-    sessionId: number,
-  ): Promise<WorkoutSession> {
-    const { data, error } = await this.client
-      .from("swole-tracker_workout_session")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("id", sessionId)
-      .single();
-
-    if (error) throw error;
-    return data as WorkoutSession;
+  async getWorkoutSession(userId: string, sessionId: number): Promise<WorkoutSession> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.getSession instead.');
   }
 
-  async createWorkoutSession(
-    userId: string,
-    templateId: number,
-    workoutDate: string,
-  ): Promise<WorkoutSession> {
-    const { data, error } = await this.client
-      .from("swole-tracker_workout_session")
-      .insert({
-        user_id: userId,
-        templateId,
-        workoutDate,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as WorkoutSession;
+  async createWorkoutSession(userId: string, templateId: number, workoutDate: string): Promise<WorkoutSession> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.create instead.');
   }
 
-  async getSessionExercises(
-    userId: string,
-    sessionId: number,
-  ): Promise<SessionExercise[]> {
-    const { data, error } = await this.client
-      .from("swole-tracker_session_exercise")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("sessionId", sessionId)
-      .order("createdAt", { ascending: true });
-
-    if (error) throw error;
-    return data as SessionExercise[];
+  async getSessionExercises(userId: string, sessionId: number): Promise<SessionExercise[]> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.getSessionExercises instead.');
   }
 
-  async addSessionExercise(
-    userId: string,
-    sessionId: number,
-    exercise: Omit<
-      SessionExercise,
-      "id" | "user_id" | "sessionId" | "createdAt"
-    >,
-  ): Promise<SessionExercise> {
-    const { data, error } = await this.client
-      .from("swole-tracker_session_exercise")
-      .insert({
-        user_id: userId,
-        sessionId,
-        ...exercise,
-      })
-      .select()
-      .single();
+  async createSessionExercise(userId: string, sessionId: number, exercise: Omit<SessionExercise, 'id' | 'user_id' | 'sessionId' | 'createdAt'>): Promise<SessionExercise> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.addExercise instead.');
+  }
 
-    if (error) throw error;
-    return data as SessionExercise;
+  async updateSessionExercise(userId: string, exerciseId: number, updates: Partial<Omit<SessionExercise, 'id' | 'user_id' | 'sessionId' | 'createdAt'>>): Promise<SessionExercise> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.updateExercise instead.');
+  }
+
+  async deleteSessionExercise(userId: string, exerciseId: number): Promise<void> {
+    throw new Error('WorkoutOperationsClient is deprecated. Use tRPC workouts.deleteExercise instead.');
   }
 }
 
-// Server-side operations (use in Server Components and API routes)
-export class WorkoutOperationsServer {
-  private getClient = createServerSupabaseClient;
-
-  constructor() {
-    // Client getter is initialized above
-  }
-
-  async getWorkoutTemplates(userId: string) {
-    const client = await this.getClient();
-
-    const { data, error } = await client
-      .from("swole-tracker_workout_template")
-      .select("*")
-      .eq("user_id", userId)
-      .order("createdAt", { ascending: false });
-
-    if (error) throw error;
-    return data as WorkoutTemplate[];
-  }
-
-  async createWorkoutTemplate(
-    userId: string,
-    name: string,
-  ): Promise<WorkoutTemplate> {
-    const client = await this.getClient();
-
-    const { data, error } = await client
-      .from("swole-tracker_workout_template")
-      .insert({
-        name,
-        user_id: userId,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as WorkoutTemplate;
-  }
-
-  async getRecentWorkouts(
-    userId: string,
-    limit = 5,
-  ): Promise<
-    Pick<WorkoutSession, "id" | "templateId" | "workoutDate" | "createdAt">[]
-  > {
-    const client = await this.getClient();
-
-    const { data, error } = await client
-      .from("swole-tracker_workout_session")
-      .select(
-        `
-        id,
-        templateId,
-        workoutDate,
-        createdAt
-      `,
-      )
-      .eq("user_id", userId)
-      .order("workoutDate", { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data as Pick<
-      WorkoutSession,
-      "id" | "templateId" | "workoutDate" | "createdAt"
-    >[];
-  }
-}
-
-// Convenience hooks and functions
+// Legacy hook - replaced with tRPC
 export function useWorkoutOperations() {
+  console.warn('useWorkoutOperations is deprecated. Use tRPC hooks instead.');
   return new WorkoutOperationsClient();
-}
-
-export function getServerWorkoutOperations() {
-  return new WorkoutOperationsServer();
 }

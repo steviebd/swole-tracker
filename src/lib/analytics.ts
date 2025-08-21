@@ -4,8 +4,14 @@ import posthog from "posthog-js";
 
 const safeOnline = () =>
   typeof navigator === "undefined" ? false : navigator.onLine === true;
+
+const isLocalhost = () =>
+  typeof window !== "undefined" && window.location.hostname === "localhost";
+
 const safeCapture = (event: string, props?: Record<string, unknown>) => {
   try {
+    // Skip analytics on localhost to prevent PostHog issues in development
+    if (isLocalhost()) return;
     if (!safeOnline()) return;
     posthog.capture(event, props ?? {});
   } catch {

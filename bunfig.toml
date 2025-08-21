@@ -1,2 +1,7 @@
 [serve.static]
 env = "BUN_PUBLIC_*"
+
+# Ensure lockfile compatibility
+[install]
+# Use exact versions for better reproducibility
+exact = true

@@ -84,8 +84,8 @@ export const whoopRouter = createTRPCRouter({
     await ctx.db
       .update(userIntegrations)
       .set({
-        isActive: false,
-        updatedAt: new Date(),
+        isActive: 0,
+        updatedAt: new Date().toISOString(),
       })
       .where(
         and(
@@ -190,8 +190,8 @@ export const whoopRouter = createTRPCRouter({
       return {
         recovery_score: latestRecovery.recovery_score || null,
         sleep_performance: latestSleep?.sleep_performance_percentage || null,
-        hrv_now_ms: latestRecovery.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : null,
-        hrv_baseline_ms: latestRecovery.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : null,
+        hrv_now_ms: latestRecovery.hrv_rmssd_milli || null,
+        hrv_baseline_ms: latestRecovery.hrv_rmssd_baseline || null,
         rhr_now_bpm: latestRecovery.resting_heart_rate || null,
         rhr_baseline_bpm: latestRecovery.resting_heart_rate_baseline || null,
         yesterday_strain: null, // Could be calculated from cycles table if needed

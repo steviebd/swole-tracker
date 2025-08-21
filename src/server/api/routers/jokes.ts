@@ -7,7 +7,7 @@ import { env } from "~/env";
 import { type db } from "~/server/db";
 
 // Supported AI models via Vercel AI Gateway
-const SUPPORTED_MODELS = {
+export const SUPPORTED_MODELS = {
   // XAI (fast, good for creative tasks)
   "xai/grok-3-mini": "XAI Grok 3 Mini",
   "xai/grok-beta": "XAI Grok Beta",
@@ -28,7 +28,7 @@ const SUPPORTED_MODELS = {
   "meta/llama-3.1-405b-instruct": "Meta Llama 3.1 405B",
 } as const;
 
-function getModelInfo(modelId: string) {
+export function getModelInfo(modelId: string) {
   const modelName = SUPPORTED_MODELS[modelId as keyof typeof SUPPORTED_MODELS];
   return {
     id: modelId,

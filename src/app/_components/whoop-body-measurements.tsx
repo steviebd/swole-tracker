@@ -14,9 +14,8 @@ export function WhoopBodyMeasurements() {
     }).format(new Date(dateString));
   };
 
-  const formatHeight = (heightMeter: string | null) => {
-    if (!heightMeter) return "--";
-    const height = parseFloat(heightMeter);
+  const formatHeight = (height: number | null) => {
+    if (height === null) return "--";
     if (isNaN(height)) return "--";
     
     // Convert to feet and inches for display
@@ -27,9 +26,8 @@ export function WhoopBodyMeasurements() {
     return `${height.toFixed(2)}m (${feet}′${inches}″)`;
   };
 
-  const formatWeight = (weightKg: string | null) => {
-    if (!weightKg) return "--";
-    const weight = parseFloat(weightKg);
+  const formatWeight = (weight: number | null) => {
+    if (weight === null) return "--";
     if (isNaN(weight)) return "--";
     
     const weightLbs = weight * 2.20462;

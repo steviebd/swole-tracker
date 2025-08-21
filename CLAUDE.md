@@ -6,11 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Development workflow:**
 - `bun dev` - Start Next.js dev server with Turbopack
-- `bun build` - Build the application
+- `bun build` or `npm run build` - Build the application
+- `bun run build:cloudflare` or `npm run build:cloudflare` - Build for Cloudflare Workers deployment (identical commands)
 - `bun preview` - Build and start locally
 - `bun check` - Run lint + typecheck (use before commits)
 - `bun typecheck` - TypeScript type checking only
 - `bun lint` / `bun lint:fix` - ESLint checking/fixing
+
+**Deployment (Cloudflare Workers):**
+- `npm run deploy` - Deploy to development environment
+- `npm run deploy:staging` - Deploy to staging environment
+- `npm run deploy:production` - Deploy to production environment
+- `npm run deploy:versions` - Upload new version to development
+- `npm run deploy:versions:staging` - Upload new version to staging
+- `npm run deploy:versions:production` - Upload new version to production
+
+**Universal Build Command:**
+Both `bun run build:cloudflare` and `npm run build:cloudflare` work identically on local and Cloudflare environments.
 
 **Testing:**
 - `bun test` - Run Vitest unit tests
@@ -102,3 +114,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Mobile-first design with offline capabilities
 - Progressive Web App with service worker
 - Tailwind CSS v4 for styling
+
+## Visual Development
+
+### Design Principles
+- Comprehensive design checklist in `DESIGN_PRINCIPLES.md`
+- Brand style guide in `DESIGN_SYSTEM.md`
+- When making visual (front-end, UI/UX) changes, always refer to these files for guidance
+
+### Quick Visual Check
+IMMEDIATELY after implementing any front-end change:
+1. **Identify what changed** - Review the modified components/pages
+2. **Navigate to affected pages** - Use `mcp__playwright__browser_navigate` to visit each changed view
+3. **Verify design compliance** - Compare against `DESIGN_PRINCIPLES.md` and `DESIGN_SYSTEM.md`
+4. **Validate feature implementation** - Ensure the change fulfills the user's specific request
+5. **Check acceptance criteria** - Review any provided context files or requirements
+6. **Capture evidence** - Take full page screenshot at desktop viewport (1440px) of each changed view
+7. **Check for errors** - Run `mcp__playwright__browser_console_messages`
+
+This verification ensures changes meet design standards and user requirements.
+
+### Comprehensive Design Review
+Invoke the `@agent-design-review` subagent for thorough design validation when:
+- Completing significant UI/UX features
+- Before finalizing PRs with visual changes
+- Needing comprehensive accessibility and responsiveness testing

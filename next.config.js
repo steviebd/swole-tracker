@@ -7,6 +7,39 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 
 const baseConfig = {
+  // Required for OpenNext
+  output: 'standalone',
+  // Configure Webpack for Cloudflare compatibility
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // For client-side builds, disable Node.js modules that aren't available in browsers
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        "node:http": false,
+        "node:https": false,
+        "node:net": false,
+        "node:tls": false,
+        "node:fs": false,
+        "node:path": false,
+        "node:stream": false,
+        "node:crypto": false,
+        "node:util": false,
+        "node:url": false,
+        "node:querystring": false,
+        "node:buffer": false,
+      };
+    }
+    
+    // For Cloudflare Workers, ensure proper module resolution
+    if (process.env.CLOUDFLARE_WORKERS) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@': './src',
+      };
+    }
+    
+    return config;
+  },
   eslint: {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.
@@ -37,10 +70,10 @@ const baseConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com https://static.cloudflareinsights.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.supabase.co wss: ws:",
+              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://api.workos.com wss: ws:",
               "font-src 'self' data:",
               "object-src 'none'",
               "media-src 'self'",
@@ -89,6 +122,15 @@ const baseConfig = {
 // PWA support removed due to incompatibility with Next.js 15 App Router
 // next-pwa v5.6.0 uses Pages Router architecture which conflicts with App Router
 
-const config = baseConfig;
+// Apply Cloudflare-specific configurations
+const config = {
+  ...baseConfig,
+  // Ensure static exports are disabled for Workers
+  output: process.env.CLOUDFLARE_WORKERS ? undefined : baseConfig.output,
+  // Disable image optimization for Workers (not supported)
+  images: process.env.CLOUDFLARE_WORKERS ? {
+    unoptimized: true,
+  } : baseConfig.images,
+};
 
 export default config;

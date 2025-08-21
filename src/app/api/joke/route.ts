@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+
 export async function GET() {
   // This route is deprecated - using tRPC jokes.getCurrent instead
   return NextResponse.json(

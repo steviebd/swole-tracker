@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUserFromRequest } from "~/lib/workos";
 import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import type { NextRequest } from "next/server";
 
 
-export async function POST() {
+
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,7 +37,7 @@ export async function POST() {
     const temporalGroups = new Map<string, typeof allWorkouts>();
     
     for (const workout of allWorkouts) {
-      const temporalKey = `${workout.start.toISOString()}_${workout.end.toISOString()}`;
+      const temporalKey = `${workout.start}_${workout.end}`;
       if (!temporalGroups.has(temporalKey)) {
         temporalGroups.set(temporalKey, []);
       }
@@ -61,7 +62,13 @@ export async function POST() {
     }
 
     let duplicatesRemoved = 0;
-    const mergedWorkouts = [];
+    const mergedWorkouts: Array<{
+      kept: string;
+      removed: string[];
+      sport_name: string | null;
+      start: string;
+      end: string;
+    }> = [];
 
     for (const group of duplicates) {
       const workouts = group.workouts;
@@ -79,7 +86,7 @@ export async function POST() {
         if (!a.score && b.score) return 1;
         
         // Prefer earliest created (first sync usually has better data)
-        return a.createdAt.getTime() - b.createdAt.getTime();
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
 
       const keepWorkout = sortedWorkouts[0]!;
@@ -98,8 +105,8 @@ export async function POST() {
         kept: keepWorkout.whoopWorkoutId,
         removed: removeWorkouts.map(w => w.whoopWorkoutId),
         sport_name: keepWorkout.sport_name,
-        start: keepWorkout.start.toISOString(),
-        end: keepWorkout.end.toISOString(),
+        start: keepWorkout.start,
+        end: keepWorkout.end,
       });
     }
 
