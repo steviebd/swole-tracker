@@ -48,10 +48,6 @@ export async function GET(request: NextRequest) {
       accessTokenPrefix: String(accessToken).substring(0, 20) + '...',
     });
 
-    // Set session cookie and redirect
-    const response = NextResponse.redirect(`${origin}${redirectTo}`);
-    response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), SESSION_COOKIE_OPTIONS);
-
     console.log('Auth callback success:', {
       userId: user.id,
       email: user.email,
@@ -62,9 +58,14 @@ export async function GET(request: NextRequest) {
     const forwardedHost = request.headers.get("x-forwarded-host");
     const isLocalEnv = process.env.NODE_ENV === "development";
     
+    let finalRedirectUrl = `${origin}${redirectTo}`;
     if (!isLocalEnv && forwardedHost) {
-      return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
+      finalRedirectUrl = `https://${forwardedHost}${redirectTo}`;
     }
+
+    // Set session cookie and redirect
+    const response = NextResponse.redirect(finalRedirectUrl);
+    response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), SESSION_COOKIE_OPTIONS);
 
     return response;
   } catch (error) {

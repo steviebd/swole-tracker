@@ -36,6 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log('AuthProvider: Parsed cookies:', Object.keys(cookies));
         console.log('AuthProvider: Looking for cookie:', SESSION_COOKIE_NAME);
+        console.log('AuthProvider: Available cookie names:', Object.keys(cookies));
+        console.log('AuthProvider: Current origin:', window.location.origin);
+        console.log('AuthProvider: Current hostname:', window.location.hostname);
 
         const sessionCookie = cookies[SESSION_COOKIE_NAME];
         if (sessionCookie) {
