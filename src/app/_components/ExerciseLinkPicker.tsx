@@ -120,10 +120,15 @@ export function ExerciseLinkPicker({
   // Merge page results
   useEffect(() => {
     if (!search.data) return;
-    const page: Item[] = (search.data.items as any[]).map((it: any): Item => ({
-      ...it,
-      createdAt: new Date(it.createdAt),
-    }));
+    const page: Item[] = (search.data.items as unknown[]).map((it: unknown): Item => {
+      const item = it as { id: number; name: string; normalizedName: string; createdAt: string | Date };
+      return {
+        id: item.id,
+        name: item.name,
+        normalizedName: item.normalizedName,
+        createdAt: new Date(item.createdAt),
+      };
+    });
     const merged =
       cursor === 0
         ? page

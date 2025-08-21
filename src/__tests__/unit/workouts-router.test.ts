@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { workoutsRouter } from "~/server/api/routers/workouts";
+import type { TRPCContext } from "~/server/api/trpc";
 
 // Mock database
 const mockDb = {
@@ -16,7 +17,8 @@ const mockCtx = {
   db: mockDb,
   user: { id: "test-user" },
   requestId: "test-request",
-};
+  headers: new Headers(),
+} as unknown as TRPCContext;
 
 describe("workoutsRouter", () => {
   beforeEach(() => {

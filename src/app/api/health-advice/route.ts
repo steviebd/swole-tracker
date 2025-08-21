@@ -169,7 +169,8 @@ export async function POST(req: NextRequest) {
           template: {
             with: {
               exercises: {
-                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+                orderBy: (exercises: any, { asc }: any) => [asc(exercises.orderIndex)],
               },
             },
           },

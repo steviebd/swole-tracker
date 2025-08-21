@@ -115,9 +115,9 @@ export const insightsRouter = createTRPCRouter({
             with: { templateExercise: true },
           });
           exerciseNamesToSearch = linked.map(
-            (l) => l.templateExercise.exerciseName,
+            (l) => l.templateExercise.exerciseName as string,
           );
-          templateExerciseIds = linked.map((l) => l.templateExerciseId);
+          templateExerciseIds = linked.map((l) => l.templateExerciseId as number);
         } else {
           // Fallback to name of provided template exercise
           const te = await (ctx.db.query as any).templateExercises.findFirst({
