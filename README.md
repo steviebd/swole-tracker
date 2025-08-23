@@ -258,22 +258,35 @@ wrangler d1 migrations apply swole-tracker-dev
     ```
     - Then use: `infisical run --token $INFISICAL_TOKEN -- [command]`
 
- 5. **Test Integration:**
+  5. **Test Integration:**
     - Run `bun dev` to verify secrets are injected correctly
     - Check that the application starts without missing environment errors
 
- 6. **Troubleshooting:**
-    - If you get "Project not found" errors, verify the machine identity was created in the correct Infisical project/workspace
-    - Test the connection: `infisical run -- echo "Connection successful"`
-    - Check that your machine identity has access to all required secrets
-    - Ensure environment variable names in Infisical match what your application expects
+  ### Remote Development with D1 Database
 
- **Benefits:**
- - **Secure**: No secrets stored in code or environment files
- - **Automated**: Secrets injected automatically at build time
- - **Environment-aware**: Different secrets for dev, staging, and production
+  For development that connects to your actual Cloudflare D1 database and KV namespaces:
 
- ### Development Features
+  ```bash
+  # Start development with remote D1 database and KV namespaces
+  bun run dev:remote
+
+  # Run database migrations on remote D1
+  bun run db:migrate:remote
+
+  # Open Drizzle Studio with remote connection
+  bun run db:studio:remote
+
+  # Push schema changes to remote D1
+  bun run db:push:remote
+  ```
+
+  **Note:** Remote development will be slower due to network calls to Cloudflare, but provides access to your actual database and KV namespaces for realistic testing.
+
+  **When to use:**
+  - `bun run dev` - Fast local development (recommended for most work)
+  - `bun run dev:remote` - Development with real D1/KV resources (for database testing)
+
+  ### Development Features
 
 - **Hot reload** with Next.js Turbopack
 - **Real-time database** via Cloudflare D1 local development
@@ -294,6 +307,12 @@ bun db:push               # Push schema changes to D1
 bun db:studio             # Open Drizzle Studio (database UI)
 bun db:generate           # Generate migration files
 bun db:migrate            # Apply migrations
+
+# Remote Database (with real D1)
+bun run dev:remote        # Development with remote D1/KV
+bun db:migrate:remote     # Apply migrations to remote D1
+bun db:studio:remote      # Drizzle Studio with remote connection
+bun db:push:remote        # Push schema to remote D1
 
 # Code Quality
 bun check                 # Run lint + typecheck
