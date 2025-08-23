@@ -119,10 +119,6 @@ main = ".open-next/worker.js"
 compatibility_date = "2025-08-21"
 compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = ".open-next/assets"
-binding = "ASSETS"
-
 [observability]
 enabled = true
 head_sampling_rate = 1
@@ -142,6 +138,14 @@ ${
 pattern = "${env.CLOUDFLARE_STAGING_DOMAIN}"
 zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
     : "# No staging route configured in environment variables"
+}
+
+${
+  env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME
+    ? `[[env.staging.r2_buckets]]
+binding = "ASSETS"
+bucket_name = "${env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME}-staging"`
+    : "# No R2 asset bucket configured for staging"
 }
 
 ${
@@ -186,6 +190,14 @@ zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
     : "# No production route configured in environment variables"
 }
 
+${
+  env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME
+    ? `[[env.production.r2_buckets]]
+binding = "ASSETS"
+bucket_name = "${env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME}-production"`
+    : "# No R2 asset bucket configured for production"
+}
+
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-prod"
@@ -209,6 +221,15 @@ WORKOS_CLIENT_ID = "${env.PRODUCTION_WORKOS_CLIENT_ID || env.WORKOS_CLIENT_ID ||
 WORKOS_API_KEY = "${env.PRODUCTION_WORKOS_API_KEY || env.WORKOS_API_KEY || "workos-api-from-dashboard"}"
 
 # Local Development (default/root)
+${
+  env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME
+    ? `[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "${env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME}-dev"
+preview_bucket_name = "${env.CLOUDFLARE_R2_ASSETS_BUCKET_NAME}-dev"`
+    : "# No R2 asset bucket configured for local development"
+}
+
 [[d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-dev"
@@ -240,7 +261,8 @@ const requiredVars = [
   "CLOUDFLARE_RATE_LIMIT_KV_ID", 
   "CLOUDFLARE_CACHE_KV_ID",
   "WORKOS_CLIENT_ID",
-  "WORKOS_API_KEY"
+  "WORKOS_API_KEY",
+  "CLOUDFLARE_R2_ASSETS_BUCKET_NAME"
 ];
 
 const missing = requiredVars.filter(v => !env[v]);
