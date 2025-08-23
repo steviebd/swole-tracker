@@ -5,7 +5,7 @@
 
 set -e
 
-DB_NAME="swole-tracker-local"
+DB_NAME="swole-tracker-dev"
 ENV_FILE=".env.local"
 FLAG="USE_LOCAL_D1=true"
 
@@ -17,13 +17,9 @@ if ! command -v wrangler &> /dev/null; then
     exit 1
 fi
 
-# Create local D1 database if it doesn't exist
-if ! wrangler d1 list | grep -q "$DB_NAME"; then
-    echo "Creating local D1 database: $DB_NAME"
-    wrangler d1 create "$DB_NAME" --local
-else
-    echo "Local D1 database $DB_NAME already exists"
-fi
+# Note: Local D1 databases are created automatically when using --local flag
+# We don't need to explicitly create them with wrangler d1 create
+echo "Local D1 database will be created automatically when needed"
 
 # Apply migrations
 echo "Applying database migrations..."

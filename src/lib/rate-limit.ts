@@ -19,27 +19,25 @@ type KVNamespace = {
   list: (options?: { prefix?: string }) => Promise<{ keys: Array<{ name: string }> }>;
 };
 
+import { getKVBinding } from "./cloudflare-bindings";
+
 // Function to get KV namespace binding
 function getRateLimitKV(): KVNamespace {
-  // In Cloudflare Workers environment, KV is available via env.RATE_LIMIT_KV
-  if (typeof process !== "undefined" && process.env) {
-    // For local development, check if we have access to Cloudflare bindings
-    if ((globalThis as any).RATE_LIMIT_KV) {
-      return (globalThis as any).RATE_LIMIT_KV as KVNamespace;
-    }
-    
-    // Fallback for local development - mock KV interface
-    // In practice, wrangler dev will provide the KV binding
-    console.warn("RATE_LIMIT_KV binding not found, using development fallback");
-    return {
-      get: async () => null,
-      put: async () => Promise.resolve(),
-      delete: async () => Promise.resolve(),
-      list: async () => ({ keys: [] }),
-    };
+  // Try to get KV binding via our improved binding system
+  const kvBinding = getKVBinding('RATE_LIMIT_KV');
+  if (kvBinding) {
+    return kvBinding;
   }
   
-  throw new Error("RATE_LIMIT_KV binding not available");
+  // Fallback for local development - mock KV interface
+  // In practice, wrangler dev will provide the KV binding
+  console.warn("RATE_LIMIT_KV binding not found, using development fallback");
+  return {
+    get: async () => null,
+    put: async () => Promise.resolve(),
+    delete: async () => Promise.resolve(),
+    list: async () => ({ keys: [] }),
+  };
 }
 
 export async function checkRateLimit(

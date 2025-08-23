@@ -12,8 +12,9 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
 
-import { db } from "~/server/db";
+import { createDbWithBindings } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
+import { ensureCloudflareBindings } from "~/lib/cloudflare-context";
 // Use Web Crypto API for Edge Runtime compatibility
 const randomUUID = () => globalThis.crypto.randomUUID();
 
@@ -34,7 +35,7 @@ type TrpcUser = {
 } | null;
 
 export type TRPCContext = {
-  db: typeof db;
+  db: ReturnType<typeof createDbWithBindings>;
   user: TrpcUser;
   requestId: string;
   headers: Headers;
@@ -42,7 +43,15 @@ export type TRPCContext = {
 
 export const createTRPCContext = async (opts: {
   headers: Headers;
+  env?: {
+    DB?: D1Database;
+  };
 }): Promise<TRPCContext> => {
+  // Ensure Cloudflare bindings are available before any database operations
+  ensureCloudflareBindings();
+  
+  const db = createDbWithBindings({ DB: opts.env?.DB });
+  
   // Generate a requestId for correlating logs across middlewares/routers
   const requestId = randomUUID();
 

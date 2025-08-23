@@ -12,10 +12,39 @@ import { createTRPCContext } from "~/server/api/trpc";
  * handling a HTTP request (e.g. when you make requests from Client Components).
  */
 const createContext = async (req: NextRequest) => {
+  // Try to get Cloudflare bindings if available (for Workers runtime)
+  const cloudflareEnv = getCloudflareEnv(req);
+  
   return createTRPCContext({
     headers: req.headers,
+    env: cloudflareEnv,
   });
 };
+
+// Helper to get Cloudflare environment bindings from request context
+function getCloudflareEnv(req: NextRequest): { DB?: D1Database } | undefined {
+  try {
+    // Method 1: OpenNext Cloudflare context
+    const cloudflareContext = (globalThis as any)[Symbol.for("__cloudflare-context__")];
+    if (cloudflareContext?.env?.DB) {
+      return { DB: cloudflareContext.env.DB };
+    }
+    
+    // Method 2: Direct global env
+    if ((globalThis as any).env?.DB) {
+      return { DB: (globalThis as any).env.DB };
+    }
+    
+    // Method 3: Already injected on global scope
+    if ((globalThis as any).DB) {
+      return { DB: (globalThis as any).DB };
+    }
+  } catch (error) {
+    // Ignore errors and use fallback
+  }
+  
+  return undefined;
+}
 
 const handler = (req: NextRequest) =>
   fetchRequestHandler({
