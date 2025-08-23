@@ -18,16 +18,16 @@ WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-prod"
-database_id = "${CLOUDFLARE_PROD_D1_DATABASE_ID}"
+database_id = "${CLOUDFLARE_D1_DATABASE_ID}"
 migrations_dir = "drizzle"
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "${CLOUDFLARE_PROD_RATE_LIMIT_KV_ID}"
+id = "${CLOUDFLARE_RATE_LIMIT_KV_ID}"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE_KV"
-id = "${CLOUDFLARE_PROD_CACHE_KV_ID}"
+id = "${CLOUDFLARE_CACHE_KV_ID}"
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -40,16 +40,16 @@ WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-staging"
-database_id = "${CLOUDFLARE_STAGING_D1_DATABASE_ID}"
+database_id = "${CLOUDFLARE_D1_DATABASE_ID}"
 migrations_dir = "drizzle"
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "${CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID}"
+id = "${CLOUDFLARE_RATE_LIMIT_KV_ID}"
 
 [[env.staging.kv_namespaces]]
 binding = "CACHE_KV"
-id = "${CLOUDFLARE_STAGING_CACHE_KV_ID}"
+id = "${CLOUDFLARE_CACHE_KV_ID}"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"

@@ -15,6 +15,8 @@ interface EnvSubstitutionOptions {
   dryRun?: boolean;
 }
 
+
+
 function substituteEnvironmentVariables(options: EnvSubstitutionOptions = {}): void {
   const {
     inputFile = 'wrangler.toml',
@@ -33,14 +35,11 @@ function substituteEnvironmentVariables(options: EnvSubstitutionOptions = {}): v
 
     // Define environment variable mappings
     const envMappings: Record<string, string | undefined> = {
-      'CLOUDFLARE_PROD_D1_DATABASE_ID': process.env.CLOUDFLARE_PROD_D1_DATABASE_ID,
-      'CLOUDFLARE_PROD_RATE_LIMIT_KV_ID': process.env.CLOUDFLARE_PROD_RATE_LIMIT_KV_ID,
-      'CLOUDFLARE_PROD_CACHE_KV_ID': process.env.CLOUDFLARE_PROD_CACHE_KV_ID,
-      'CLOUDFLARE_STAGING_D1_DATABASE_ID': process.env.CLOUDFLARE_STAGING_D1_DATABASE_ID,
-      'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID': process.env.CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID,
-      'CLOUDFLARE_STAGING_CACHE_KV_ID': process.env.CLOUDFLARE_STAGING_CACHE_KV_ID,
-      'WORKOS_CLIENT_ID': process.env.WORKOS_CLIENT_ID,
-    };
+       'CLOUDFLARE_D1_DATABASE_ID': process.env.CLOUDFLARE_D1_DATABASE_ID,
+       'CLOUDFLARE_RATE_LIMIT_KV_ID': process.env.CLOUDFLARE_RATE_LIMIT_KV_ID,
+       'CLOUDFLARE_CACHE_KV_ID': process.env.CLOUDFLARE_CACHE_KV_ID,
+       'WORKOS_CLIENT_ID': process.env.WORKOS_CLIENT_ID,
+     };
 
     // Track substitutions
     const substitutions: string[] = [];
@@ -100,35 +99,22 @@ function validateCriticalVariables(
   environment: string,
   envMappings: Record<string, string | undefined>
 ): void {
-  const criticalVars: Record<string, string[]> = {
-    production: [
-      'CLOUDFLARE_PROD_D1_DATABASE_ID',
-      'CLOUDFLARE_PROD_RATE_LIMIT_KV_ID',
-      'CLOUDFLARE_PROD_CACHE_KV_ID'
-    ],
-    staging: [
-      'CLOUDFLARE_STAGING_D1_DATABASE_ID',
-      'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID',
-      'CLOUDFLARE_STAGING_CACHE_KV_ID'
-    ],
-    development: []
-  };
+  // Check for the unified variables that should be set by the build system
+  const criticalVars = [
+    'CLOUDFLARE_D1_DATABASE_ID',
+    'CLOUDFLARE_RATE_LIMIT_KV_ID',
+    'CLOUDFLARE_CACHE_KV_ID'
+  ];
 
-  const requiredVars = criticalVars[environment] || [];
-  const missing = requiredVars.filter(varName => !envMappings[varName]);
+  const missing = criticalVars.filter(varName => !envMappings[varName]);
 
   if (missing.length > 0) {
-    console.log(`\n🚨 Missing critical variables for ${environment} environment:`);
+    console.log(`\n🚨 Missing critical variables:`);
     missing.forEach(varName => console.log(`   - ${varName}`));
-    
-    if (environment === 'production') {
-      console.log('\n💥 Production deployment will fail without these variables!');
-      process.exit(1);
-    } else {
-      console.log(`\n⚠️  ${environment} deployment may not work correctly without these variables.`);
-    }
-  } else if (requiredVars.length > 0) {
-    console.log(`\n✅ All critical variables for ${environment} environment are configured.`);
+    console.log('\n💡 These should be set by your build/deployment system (GitHub Actions, CI/CD, etc.)');
+    console.log('   based on the target environment (production, staging, development).');
+  } else {
+    console.log(`\n✅ All critical variables are configured.`);
   }
 }
 
@@ -188,17 +174,14 @@ EXAMPLES:
   bun run env:substitute --dry-run
   bun run env:substitute --input wrangler.toml.template --output wrangler.toml
 
-ENVIRONMENT VARIABLES:
-  CLOUDFLARE_PROD_D1_DATABASE_ID       Production D1 database ID
-  CLOUDFLARE_PROD_RATE_LIMIT_KV_ID     Production rate limit KV ID
-  CLOUDFLARE_PROD_CACHE_KV_ID          Production cache KV ID
-  CLOUDFLARE_STAGING_D1_DATABASE_ID    Staging D1 database ID
-  CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID  Staging rate limit KV ID
-  CLOUDFLARE_STAGING_CACHE_KV_ID       Staging cache KV ID
-  WORKOS_CLIENT_ID                     WorkOS client ID
+ ENVIRONMENT VARIABLES:
+   CLOUDFLARE_D1_DATABASE_ID            D1 database ID (set by build system)
+   CLOUDFLARE_RATE_LIMIT_KV_ID          Rate limit KV ID (set by build system)
+   CLOUDFLARE_CACHE_KV_ID               Cache KV ID (set by build system)
+   WORKOS_CLIENT_ID                     WorkOS client ID
 
-For GitHub Actions, set these as repository secrets.
-For local development, set these in .env.local
+ These variables should be set by your build/deployment system (GitHub Actions, CI/CD, etc.)
+ based on the target environment. For local development, set them in .env.local
 `);
 }
 

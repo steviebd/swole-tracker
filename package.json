@@ -57,7 +57,7 @@
     "test:mobile": "tsx scripts/mobile-validation.ts",
     "test:mobile:staging": "tsx scripts/mobile-validation.ts --env=staging",
     "test:mobile:verbose": "tsx scripts/mobile-validation.ts --verbose",
-    "generate:wrangler": "npx tsx scripts/generate-wrangler-config.ts",
+    "generate:wrangler": "npx tsx scripts/generate-wrangler-simple.ts",
     "wrangler:config": "npm run generate:wrangler",
     "env:substitute": "tsx scripts/substitute-env-variables.ts"
   },
@@ -98,11 +98,10 @@
     "server-only": "^0.0.1",
     "superjson": "^2.2.2",
     "tailwind-merge": "^3.3.1",
-    "wrangler": "^4.31.0",
+    "wrangler": "4.32.0",
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    
     "@cloudflare/workers-types": "^4.20250821.0",
     "@opennextjs/cloudflare": "^1.6.5",
     "@eslint/eslintrc": "^3.3.1",
