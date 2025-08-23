@@ -100,7 +100,7 @@ export function TemplatesList() {
             Create your first workout template to get started
           </p>
           <Button asChild>
-            <Link href="/templates/new">
+            <Link href="/templates/new" prefetch={false}>
               Create Template
             </Link>
           </Button>
@@ -118,7 +118,7 @@ export function TemplatesList() {
               <CardTitle className="text-lg">{template.name}</CardTitle>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/templates/${template.id}/edit`}>
+                  <Link href={`/templates/${template.id}/edit`} prefetch={false}>
                     Edit
                   </Link>
                 </Button>
@@ -149,7 +149,7 @@ export function TemplatesList() {
           </CardContent>
           <CardFooter className="pt-0">
             <Button size="sm" asChild>
-              <Link href={`/workout/start?templateId=${template.id}`}>
+              <Link href={`/workout/start?templateId=${template.id}`} prefetch={false}>
                 Start Workout
               </Link>
             </Button>

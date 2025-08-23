@@ -38,6 +38,9 @@ const mockCtx = {
   user: { id: "test-user" },
   requestId: "test-request",
   headers: new Headers(),
+  authCache: {
+    userByToken: new Map(),
+  },
 } as unknown as TRPCContext;
 
 describe("templatesRouter", () => {

@@ -86,7 +86,7 @@ export class WranglerD1Client implements D1Database {
           resolve(result);
         } catch (error) {
           console.error(`[WranglerD1] Failed to parse response:`, stdout);
-          reject(new Error(`Failed to parse wrangler response: ${error}`));
+          reject(new Error(`Failed to parse wrangler response: ${String(error)}`));
         }
       });
     });
@@ -96,15 +96,15 @@ export class WranglerD1Client implements D1Database {
    * Prepare a statement (returns a prepared statement object)
    */
   prepare(query: string): D1PreparedStatement {
-    const client = this;
+    const self = this;
     
     const preparedStatement = {
       bind(...values: unknown[]): D1PreparedStatement {
-        return client.prepare(query).bind(...values);
+        return self.prepare(query).bind(...values);
       },
 
       async first(colName?: string): Promise<any> {
-        const response = await client.executeQuery(query);
+        const response = await self.executeQuery(query);
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -116,7 +116,7 @@ export class WranglerD1Client implements D1Database {
       },
 
       async run(): Promise<D1Result> {
-        const response = await client.executeQuery(query);
+        const response = await self.executeQuery(query);
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -136,7 +136,7 @@ export class WranglerD1Client implements D1Database {
       },
 
       async all(): Promise<D1Result> {
-        const response = await client.executeQuery(query);
+        const response = await self.executeQuery(query);
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -157,7 +157,7 @@ export class WranglerD1Client implements D1Database {
       },
 
       async raw(options?: { columnNames?: boolean }): Promise<any> {
-        const response = await client.executeQuery(query);
+        const response = await self.executeQuery(query);
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }

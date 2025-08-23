@@ -21,7 +21,7 @@ function getCloudflareEnv(): any {
   const now = Date.now();
   
   // Return cached result if still valid
-  if (bindingsCache && bindingsCache.timestamp && (now - bindingsCache.timestamp) < CACHE_TTL) {
+  if (bindingsCache?.timestamp && (now - bindingsCache.timestamp) < CACHE_TTL) {
     return bindingsCache.env;
   }
   

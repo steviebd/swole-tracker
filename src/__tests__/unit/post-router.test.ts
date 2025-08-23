@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { postRouter } from "~/server/api/routers/post";
+import type { RequestAuthCache } from "~/server/api/trpc";
 
 // Mock the tRPC context
 const mockCtx = {
@@ -7,6 +8,9 @@ const mockCtx = {
   db: {} as any, // Mock database
   requestId: "test-request",
   headers: new Headers(),
+  authCache: {
+    userByToken: new Map(),
+  } as RequestAuthCache,
 };
 
 describe("postRouter", () => {

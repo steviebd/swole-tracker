@@ -97,8 +97,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
         data.id.toString(),
         form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
       );
-      // Reset submission flag
-      submitRef.current = false;
 
       // Update cache with the new template optimistically
       utils.templates.getAll.setData(undefined, (old: RouterOutputs["templates"]["getAll"] | undefined) => {
@@ -106,12 +104,16 @@ export function TemplateForm({ template }: TemplateFormProps) {
         return old ? [newTemplate, ...old] : [newTemplate];
       });
 
-      // Navigate immediately with updated cache
+      // Wait for cache invalidation to complete before navigation
+      try {
+        await utils.templates.getAll.invalidate();
+      } catch (error) {
+        console.warn("Cache invalidation failed, but proceeding with navigation:", error);
+      }
+
+      // Reset submission flag and navigate after cache is settled
+      submitRef.current = false;
       router.push("/templates");
-    },
-    onSettled: () => {
-      // Ensure cache is invalidated
-      void utils.templates.getAll.invalidate();
     },
   });
 
@@ -161,18 +163,22 @@ export function TemplateForm({ template }: TemplateFormProps) {
         utils.templates.getAll.setData(undefined, context.previousTemplates);
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       analytics.templateEdited(
         template!.id.toString(),
         form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
       );
-      // Reset submission flag
+
+      // Wait for cache invalidation to complete before navigation
+      try {
+        await utils.templates.getAll.invalidate();
+      } catch (error) {
+        console.warn("Cache invalidation failed, but proceeding with navigation:", error);
+      }
+
+      // Reset submission flag and navigate after cache is settled
       submitRef.current = false;
       router.push("/templates");
-    },
-    onSettled: () => {
-      // Always refetch to ensure we have the latest data
-      void utils.templates.getAll.invalidate();
     },
   });
 

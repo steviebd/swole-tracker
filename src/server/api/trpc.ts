@@ -10,13 +10,83 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
+import { validateAccessToken, SESSION_COOKIE_NAME, type WorkOSUser } from "~/lib/workos";
 
 import { createDbWithBindings } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
 import { ensureCloudflareBindings } from "~/lib/cloudflare-context";
 // Use Web Crypto API for Edge Runtime compatibility
 const randomUUID = () => globalThis.crypto.randomUUID();
+
+/**
+ * Cache-aware access token validation to eliminate redundant WorkOS API calls
+ * within the same request. This function checks the request-scoped cache first
+ * before making API calls to WorkOS.
+ * 
+ * The cache is request-scoped and automatically cleaned up when the request ends.
+ * Failed validations are also cached to prevent repeated API calls for invalid tokens.
+ */
+async function validateAccessTokenWithCache(
+  accessToken: string, 
+  authCache: RequestAuthCache
+): Promise<WorkOSUser | null> {
+  // Validate inputs
+  if (!accessToken || typeof accessToken !== 'string') {
+    console.warn('tRPC context: Invalid access token provided to cache');
+    return null;
+  }
+
+  if (!authCache || !authCache.userByToken) {
+    console.warn('tRPC context: Invalid auth cache provided, falling back to direct validation');
+    return await validateAccessToken(accessToken);
+  }
+
+  // Check cache first
+  if (authCache.userByToken.has(accessToken)) {
+    const cachedResult = authCache.userByToken.get(accessToken);
+    console.log('tRPC context: Using cached auth result for token:', {
+      tokenPrefix: accessToken.substring(0, 20) + '...',
+      hasUser: !!cachedResult,
+      userId: cachedResult?.id,
+      cacheSize: authCache.userByToken.size
+    });
+    return cachedResult ?? null;
+  }
+
+  // Cache miss - validate with WorkOS and cache the result
+  console.log('tRPC context: Cache miss, validating token with WorkOS:', {
+    tokenPrefix: accessToken.substring(0, 20) + '...',
+    cacheSize: authCache.userByToken.size
+  });
+  
+  try {
+    const workosUser = await validateAccessToken(accessToken);
+    
+    // Cache the result (both success and failure)
+    // Prevent cache from growing too large within a single request
+    if (authCache.userByToken.size < 10) {
+      authCache.userByToken.set(accessToken, workosUser);
+    } else {
+      console.warn('tRPC context: Auth cache size limit reached, not caching additional tokens');
+    }
+    
+    console.log('tRPC context: Cached auth result:', {
+      tokenPrefix: accessToken.substring(0, 20) + '...',
+      hasUser: !!workosUser,
+      userId: workosUser?.id,
+      cacheSize: authCache.userByToken.size
+    });
+    
+    return workosUser;
+  } catch (error) {
+    // Cache null result for failed validations to avoid repeated failures
+    if (authCache.userByToken.size < 10) {
+      authCache.userByToken.set(accessToken, null);
+    }
+    console.error('tRPC context: Auth validation failed, cached null result:', error);
+    return null;
+  }
+}
 
 /**
  * 1. CONTEXT
@@ -34,11 +104,17 @@ type TrpcUser = {
   id: string;
 } | null;
 
+// Request-scoped authentication cache to avoid redundant WorkOS API calls
+export type RequestAuthCache = {
+  userByToken: Map<string, WorkOSUser | null>;
+};
+
 export type TRPCContext = {
   db: ReturnType<typeof createDbWithBindings>;
   user: TrpcUser;
   requestId: string;
   headers: Headers;
+  authCache: RequestAuthCache;
 };
 
 export const createTRPCContext = async (opts: {
@@ -54,6 +130,11 @@ export const createTRPCContext = async (opts: {
   
   // Generate a requestId for correlating logs across middlewares/routers
   const requestId = randomUUID();
+
+  // Create request-scoped authentication cache
+  const authCache: RequestAuthCache = {
+    userByToken: new Map<string, WorkOSUser | null>(),
+  };
 
   try {
     // Get WorkOS session from cookie header
@@ -75,8 +156,8 @@ export const createTRPCContext = async (opts: {
         try {
           const sessionData = JSON.parse(decodeURIComponent(sessionCookie));
           if (sessionData.accessToken) {
-            // Validate the access token with WorkOS
-            const workosUser = await validateAccessToken(sessionData.accessToken);
+            // Validate the access token with WorkOS using cache-aware validation
+            const workosUser = await validateAccessTokenWithCache(sessionData.accessToken, authCache);
             if (workosUser) {
               user = { id: workosUser.id };
             }
@@ -92,6 +173,7 @@ export const createTRPCContext = async (opts: {
       user,
       requestId,
       headers: opts.headers,
+      authCache,
     };
   } catch (error) {
     console.error('tRPC context: Failed to get user:', error);
@@ -101,6 +183,7 @@ export const createTRPCContext = async (opts: {
       user: null,
       requestId,
       headers: opts.headers,
+      authCache,
     };
   }
 };
