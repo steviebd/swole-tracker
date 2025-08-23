@@ -25,7 +25,7 @@
     "db:studio:remote": "infisical run -- wrangler d1 execute swole-tracker-dev --command='SELECT 1' --remote && drizzle-kit studio",
     "db:push:remote": "infisical run -- wrangler d1 execute swole-tracker-dev --file=./schema.sql --remote",
     "dev": "bun run tokens:build && infisical run -- next dev --turbo",
-    "dev:remote": "bun run build:cloudflare && infisical run -- wrangler dev --x-remote-bindings",
+    "dev:remote": "infisical run -- sh -c 'bun run build:cloudflare && wrangler dev --x-remote-bindings'",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
