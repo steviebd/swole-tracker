@@ -61,7 +61,8 @@ ${
 binding = "DB"
 database_name = "swole-tracker-staging"
 database_id = "${process.env.CLOUDFLARE_D1_DATABASE_ID}"
-migrations_dir = "drizzle"`
+migrations_dir = "drizzle"
+experimental_remote = true`
     : "# D1 databases configured via Cloudflare Dashboard"
 }
 
@@ -70,10 +71,12 @@ ${
     ? `[[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "${process.env.CLOUDFLARE_RATE_LIMIT_KV_ID}"
+experimental_remote = true
 
 [[env.staging.kv_namespaces]]
 binding = "CACHE_KV"
-id = "${process.env.CLOUDFLARE_CACHE_KV_ID}"`
+id = "${process.env.CLOUDFLARE_CACHE_KV_ID}"
+experimental_remote = true`
     : "# KV namespaces configured via Cloudflare Dashboard"
 }
 
@@ -90,14 +93,17 @@ binding = "DB"
 database_name = "swole-tracker-prod"
 database_id = "${process.env.CLOUDFLARE_D1_DATABASE_ID || "prod-db-from-dashboard"}"
 migrations_dir = "drizzle"
+experimental_remote = true
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "${process.env.CLOUDFLARE_RATE_LIMIT_KV_ID || "prod-rate-limit-from-dashboard"}"
+experimental_remote = true
 
 [[env.production.kv_namespaces]]
 binding = "CACHE_KV"
 id = "${process.env.CLOUDFLARE_CACHE_KV_ID || "prod-cache-from-dashboard"}"
+experimental_remote = true
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -109,14 +115,17 @@ binding = "DB"
 database_name = "swole-tracker-dev"
 database_id = "${process.env.CLOUDFLARE_D1_DATABASE_ID || "undefined"}"
 migrations_dir = "drizzle"
+experimental_remote = true
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "${process.env.CLOUDFLARE_RATE_LIMIT_KV_ID || "undefined"}"
+experimental_remote = true
 
 [[kv_namespaces]]
 binding = "CACHE_KV"
 id = "${process.env.CLOUDFLARE_CACHE_KV_ID || "undefined"}"
+experimental_remote = true
 `;
 
 const wranglerPath = join(projectRoot, "wrangler.toml");
