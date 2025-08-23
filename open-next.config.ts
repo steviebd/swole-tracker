@@ -23,6 +23,8 @@ const config = {
       queue: "dummy",
     },
   },
+  // Skip problematic static routes that cause Html import errors
+  skipStaticGeneration: ["404", "_error", "500"],
 };
 
 export default config;

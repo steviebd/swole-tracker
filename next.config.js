@@ -9,6 +9,22 @@ import "./src/env.js";
 const baseConfig = {
   // Required for OpenNext
   output: 'standalone',
+  // Fix for OpenNext Cloudflare Workers Html import error
+  skipMiddlewareUrlNormalize: true,
+  // Disable static generation for error pages to prevent OpenNext conflicts
+  experimental: {
+    workerThreads: false,
+    optimizeCss: false,
+  },
+  // Force all pages to be dynamic to prevent prerendering issues
+  ...(process.env.NODE_ENV === 'production' ? {
+    poweredByHeader: false,
+    trailingSlash: false,
+  } : {}),
+  // Generate build ID to avoid caching issues
+  generateBuildId: async () => {
+    return 'swole-tracker-' + Math.random().toString(36).substring(2, 15)
+  },
   // Configure Webpack for Cloudflare compatibility
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -29,6 +45,13 @@ const baseConfig = {
         "node:buffer": false,
       };
     }
+
+    // For OpenNext Cloudflare Workers compatibility
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Prevent problematic Next.js internal imports
+      'next/document': './src/app/global-error.tsx',
+    };
     
     // For Cloudflare Workers, ensure proper module resolution
     if (process.env.CLOUDFLARE_WORKERS) {

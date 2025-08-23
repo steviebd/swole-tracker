@@ -50,6 +50,7 @@ head_sampling_rate = 1
 [vars]
 ENVIRONMENT = "development"
 WORKOS_CLIENT_ID = "${process.env.WORKOS_CLIENT_ID || ""}"
+WORKOS_API_KEY = "${process.env.WORKOS_API_KEY || ""}"
 
 # Staging Environment
 [env.staging]
@@ -83,6 +84,7 @@ experimental_remote = true`
 [env.staging.vars]
 ENVIRONMENT = "staging"
 WORKOS_CLIENT_ID = "${process.env.WORKOS_CLIENT_ID || ""}"
+WORKOS_API_KEY = "${process.env.WORKOS_API_KEY || ""}"
 
 # Production Environment
 [env.production]
@@ -108,12 +110,14 @@ experimental_remote = true
 [env.production.vars]
 ENVIRONMENT = "production"
 WORKOS_CLIENT_ID = "${process.env.WORKOS_CLIENT_ID || "workos-from-dashboard"}"
+WORKOS_API_KEY = "${process.env.WORKOS_API_KEY || "workos-api-from-dashboard"}"
 
 # Local Development (default/root)
 [[d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-dev"
 database_id = "${process.env.CLOUDFLARE_D1_DATABASE_ID || "undefined"}"
+preview_database_id = "${process.env.CLOUDFLARE_D1_DATABASE_ID || "undefined"}"
 migrations_dir = "drizzle"
 experimental_remote = true
 
@@ -139,7 +143,8 @@ const requiredVars = [
   "CLOUDFLARE_D1_DATABASE_ID",
   "CLOUDFLARE_RATE_LIMIT_KV_ID", 
   "CLOUDFLARE_CACHE_KV_ID",
-  "WORKOS_CLIENT_ID"
+  "WORKOS_CLIENT_ID",
+  "WORKOS_API_KEY"
 ];
 
 const missing = requiredVars.filter(v => !process.env[v]);

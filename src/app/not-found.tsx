@@ -1,20 +1,38 @@
-import Link from "next/link";
-
+// Override built-in 404 to prevent Html import issues
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404 - Page Not Found</h1>
-        <p className="text-muted-foreground mb-6">
+    <div style={{ 
+      display: 'flex', 
+      minHeight: '100vh', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      fontFamily: 'system-ui, -apple-system, sans-serif'
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+          404 - Page Not Found
+        </h1>
+        <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
           The page you're looking for doesn't exist.
         </p>
-        <Link 
-          href="/" 
-          className="btn-primary px-6 py-2 rounded-lg"
+        <a 
+          href="/"
+          style={{ 
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            padding: '0.5rem 1.5rem',
+            borderRadius: '0.5rem',
+            textDecoration: 'none',
+            display: 'inline-block'
+          }}
         >
           Go Home
-        </Link>
+        </a>
       </div>
     </div>
   );
 }
+
+// Disable static generation for this page to prevent prerendering issues
+export const dynamic = 'force-dynamic';

@@ -12,11 +12,20 @@ export async function middleware(request: NextRequest) {
 
   if (sessionCookie) {
     try {
-      const sessionData = JSON.parse(sessionCookie.value);
-      // Simple check for access token presence (we'll validate it in API routes)
-      hasValidSession = !!(sessionData.accessToken && sessionData.user);
+      // Check if the cookie value is empty or only whitespace
+      if (!sessionCookie.value || sessionCookie.value.trim() === '') {
+        console.warn('Empty session cookie found, clearing it');
+        response.cookies.delete(SESSION_COOKIE_NAME);
+      } else {
+        const sessionData = JSON.parse(sessionCookie.value);
+        // Simple check for access token presence (we'll validate it in API routes)
+        hasValidSession = !!(sessionData.accessToken && sessionData.user);
+      }
     } catch (error) {
-      console.error('Failed to parse session cookie:', error);
+      console.error('Failed to parse session cookie:', {
+        error: error instanceof Error ? error.message : String(error),
+        cookieValue: sessionCookie.value?.substring(0, 100) + '...' // Log first 100 chars for debugging
+      });
       // Clear invalid session cookie
       response.cookies.delete(SESSION_COOKIE_NAME);
     }

@@ -195,9 +195,10 @@ export async function validateAccessToken(accessToken: string): Promise<WorkOSUs
  * Extract authenticated user from NextRequest (for API routes)
  */
 export async function getUserFromRequest(request: { cookies: { get: (name: string) => { value?: string } | undefined } }): Promise<WorkOSUser | null> {
+  let sessionCookie: { value?: string } | undefined;
   try {
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
-    if (!sessionCookie?.value) {
+    sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie?.value || sessionCookie.value.trim() === '') {
       return null;
     }
 
@@ -208,7 +209,10 @@ export async function getUserFromRequest(request: { cookies: { get: (name: strin
 
     return await validateAccessToken(sessionData.accessToken);
   } catch (error) {
-    console.error('Failed to get user from request:', error);
+    console.error('Failed to get user from request:', {
+      error: error instanceof Error ? error.message : String(error),
+      cookieValue: sessionCookie?.value?.substring(0, 100) + '...'
+    });
     return null;
   }
 }
@@ -218,13 +222,14 @@ export async function getUserFromRequest(request: { cookies: { get: (name: strin
  * This reads cookies from the dynamic headers() API in Next.js
  */
 export async function getUserFromHeaders(): Promise<WorkOSUser | null> {
+  let sessionCookie: { value?: string } | undefined;
   try {
     // Dynamic import to avoid issues if not in server environment
     const { cookies } = await import('next/headers');
     const cookieStore = await cookies();
     
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-    if (!sessionCookie?.value) {
+    sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+    if (!sessionCookie?.value || sessionCookie.value.trim() === '') {
       return null;
     }
 
@@ -235,7 +240,10 @@ export async function getUserFromHeaders(): Promise<WorkOSUser | null> {
 
     return await validateAccessToken(sessionData.accessToken);
   } catch (error) {
-    console.error('Failed to get user from headers:', error);
+    console.error('Failed to get user from headers:', {
+      error: error instanceof Error ? error.message : String(error),
+      cookieValue: sessionCookie?.value?.substring(0, 100) + '...'
+    });
     return null;
   }
 }

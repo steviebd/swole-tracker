@@ -19,17 +19,18 @@
 
 **This application uses Cloudflare Workers CI/CD Builds** with automatic branch-based deployments directly from GitHub:
 
-| Branch Pattern | Environment | Worker Name | Database | Deployment | URL |
-|----------------|-------------|-------------|----------|------------|-----|
-| `main` | **Production** | `swole-tracker-production` | `swole-tracker-prod` | 🔄 **Automatic** | `https://swole-tracker.workers.dev` |
-| `feature/*` | **Staging** | `swole-tracker-staging` | `swole-tracker-staging` | 🔄 **Automatic** | `https://staging.swole-tracker.workers.dev` |
-| Local dev | **Development** | Local worker | `swole-tracker-dev` | 🔧 **Manual** | `http://localhost:3000` |
+| Branch Pattern | Environment     | Worker Name                | Database                | Deployment       | URL                                         |
+| -------------- | --------------- | -------------------------- | ----------------------- | ---------------- | ------------------------------------------- |
+| `main`         | **Production**  | `swole-tracker-production` | `swole-tracker-prod`    | 🔄 **Automatic** | `https://swole-tracker.workers.dev`         |
+| `feature/*`    | **Staging**     | `swole-tracker-staging`    | `swole-tracker-staging` | 🔄 **Automatic** | `https://staging.swole-tracker.workers.dev` |
+| Local dev      | **Development** | Local worker               | `swole-tracker-dev`     | 🔧 **Manual**    | `http://localhost:3000`                     |
 
 **✅ Setup once → Deploy forever:** Configure Cloudflare Projects once, then every git push automatically builds and deploys to the correct environment using Cloudflare's native CI/CD.
 
 ## 🏗️ Architecture
 
 ### Stack
+
 - **Framework**: Next.js 15 + React 19 + TypeScript
 - **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
 - **Auth**: WorkOS (enterprise-grade authentication)
@@ -39,7 +40,9 @@
 - **Integrations**: WHOOP fitness tracking (optional)
 
 ### Environment Isolation
+
 Each environment has completely isolated resources:
+
 - **Separate D1 databases** for data isolation
 - **Separate KV namespaces** for caching and rate limiting
 - **Environment-specific configuration** via Cloudflare Project settings
@@ -50,7 +53,7 @@ Each environment has completely isolated resources:
 ### Prerequisites
 
 1. **GitHub Repository** connected to Cloudflare Workers
-2. **Cloudflare Account** with Workers plan 
+2. **Cloudflare Account** with Workers plan
 3. **Admin access** to Cloudflare account for project configuration
 4. **Node.js 20.19.4** and **bun** package manager
 5. **Cloudflare CLI**: `npm install -g wrangler` (for local development)
@@ -102,6 +105,7 @@ wrangler kv namespace create "CACHE_KV" --env production
 Create two separate Workers Projects in your Cloudflare dashboard:
 
 #### **Step 4a: Create Staging Project**
+
 1. Go to **Cloudflare Dashboard → Workers & Pages → Create**
 2. Select **"Connect to Git"** → Choose your GitHub repository
 3. Configure project:
@@ -112,8 +116,9 @@ Create two separate Workers Projects in your Cloudflare dashboard:
    - **Deploy command**: `bun run deploy:staging`
 
 #### **Step 4b: Create Production Project**
+
 1. Go to **Cloudflare Dashboard → Workers & Pages → Create**
-2. Select **"Connect to Git"** → Choose your GitHub repository  
+2. Select **"Connect to Git"** → Choose your GitHub repository
 3. Configure project:
    - **Project name**: `swole-tracker-production`
    - **Production branch**: `main`
@@ -158,6 +163,7 @@ These are sensitive values and should be set as **secrets** in your Cloudflare p
 **How to Configure in Cloudflare Dashboard:**
 
 For each project (staging and production):
+
 1. Go to **Settings → Variables**.
 2. Add the **Build-Time Variables** under **Environment Variables**.
 3. Add the **Runtime Secrets** under **Encrypted Secrets**.
@@ -165,6 +171,7 @@ For each project (staging and production):
 ### 5. Start Developing
 
 **Local Development:**
+
 ```bash
 # Create .env.local with development resource IDs
 cp .env.example .env.local
@@ -175,6 +182,7 @@ bun dev
 ```
 
 **Deploy to Staging:**
+
 ```bash
 git checkout -b feature/your-feature
 git commit -am "Your changes"
@@ -183,6 +191,7 @@ git push origin feature/your-feature
 ```
 
 **Deploy to Production:**
+
 ```bash
 git checkout main
 git commit -am "Production ready changes"
@@ -195,6 +204,7 @@ git push origin main
 ### Setup
 
 1. **Create `.env.local`** with development resource IDs:
+
 ```bash
 # Copy template
 cp .env.example .env.local
@@ -210,21 +220,82 @@ WORKOS_API_KEY=your_workos_api_key
 ```
 
 2. **Run database migrations:**
+
 ```bash
 # Apply migrations to development D1 database
 wrangler d1 migrations apply swole-tracker-dev
 ```
 
- 3. **Start development server:**
- ```bash
- bun dev
- ```
+3. **Start development server:**
 
- ### Infisical Machine Identity Setup
+```bash
+bun dev
+```
 
- For enhanced security and automation, this project supports Infisical for secrets management. Follow these steps to set up machine identity for build-time secret injection:
+### Local D1 Development with SQLite
 
- 1. **Create Machine Identity:**
+For faster local development with persistent SQLite database instead of connecting to remote Cloudflare D1:
+
+1. **Set up local D1 database:**
+
+```bash
+# Run the setup script to create local database and update .env.local
+./scripts/setup-local-d1.sh
+```
+
+2. **Enable local D1 in your `.env.local`:**
+
+```bash
+# Add or update this line in .env.local
+USE_LOCAL_D1=true
+```
+
+3. **Start development with local D1:**
+
+```bash
+# Use the standard dev command - it will automatically detect local D1
+bun run dev
+
+# Or use the explicit local command
+bun run dev:local
+```
+
+**How it works:**
+
+- Uses Wrangler's local D1 development mode with SQLite
+- Data persists in `.wrangler/state/swole-tracker-local.db`
+- Infisical still injects non-conflicting values (e.g., API keys)
+- Local overrides take precedence for D1-related variables
+- Automatic fallback to standard development if local D1 is not configured
+
+**Benefits:**
+
+- ⚡ **Faster development** - No network calls to Cloudflare
+- 💾 **Persistent data** - Your local database state is maintained
+- 🔄 **Seamless switching** - Easy toggle between local and remote development
+- 🛡️ **Isolated testing** - Test with local data without affecting remote databases
+
+**Commands:**
+
+```bash
+# Set up local D1 (one-time setup)
+./scripts/setup-local-d1.sh
+
+# Start with local D1
+bun run dev:local
+
+# Start with remote D1 (existing behavior)
+bun run dev:remote
+
+# Reset local database
+wrangler d1 delete swole-tracker-local --local
+```
+
+### Infisical Machine Identity Setup
+
+For enhanced security and automation, this project supports Infisical for secrets management. Follow these steps to set up machine identity for build-time secret injection:
+
+1.  **Create Machine Identity:**
     - Go to your [Infisical dashboard](https://app.infisical.com/)
     - Navigate to **Identities** → **Machine Identities**
     - Create a new machine identity (e.g., "swole-tracker-dev")
@@ -232,15 +303,16 @@ wrangler d1 migrations apply swole-tracker-dev
     - Assign appropriate permissions to access required secrets
     - Copy the **Client ID** and **Client Secret** (not the access token)
 
- 2. **Configure Environment Variables:**
+2.  **Configure Environment Variables:**
     - Add the following to your `.env.local` file:
+
     ```bash
     # Infisical Machine Identity for Secret Injection
     INFISICAL_CLIENT_ID=your_infisical_client_id
     INFISICAL_SECRET=your_infisical_secret
     ```
 
- 3. **Grant Access to Secrets:**
+3.  **Grant Access to Secrets:**
     - Ensure the machine identity has read access to secrets like:
       - `CLOUDFLARE_D1_DATABASE_ID` - Your D1 database ID
       - `CLOUDFLARE_RATE_LIMIT_KV_ID` - Your rate limit KV namespace ID
@@ -250,43 +322,48 @@ wrangler d1 migrations apply swole-tracker-dev
       - `WORKOS_API_KEY` - WorkOS API key
       - Any other sensitive configuration values
 
- 4. **Alternative: Use Service Token (Optional)**
+4.  **Alternative: Use Service Token (Optional)**
     - Instead of machine identity, you can use a service token:
+
     ```bash
     # Add to .env.local
     INFISICAL_TOKEN=your_service_token
     ```
+
     - Then use: `infisical run --token $INFISICAL_TOKEN -- [command]`
 
-  5. **Test Integration:**
+5.  **Test Integration:**
+
+
     - Run `bun dev` to verify secrets are injected correctly
     - Check that the application starts without missing environment errors
 
-  ### Remote Development with D1 Database
+### Remote Development with D1 Database
 
-  For development that connects to your actual Cloudflare D1 database and KV namespaces:
+For development that connects to your actual Cloudflare D1 database and KV namespaces:
 
-  ```bash
-  # Start development with remote D1 database and KV namespaces
-  bun run dev:remote
+```bash
+# Start development with remote D1 database and KV namespaces
+bun run dev:remote
 
-  # Run database migrations on remote D1
-  bun run db:migrate:remote
+# Run database migrations on remote D1
+bun run db:migrate:remote
 
-  # Open Drizzle Studio with remote connection
-  bun run db:studio:remote
+# Open Drizzle Studio with remote connection
+bun run db:studio:remote
 
-  # Push schema changes to remote D1
-  bun run db:push:remote
-  ```
+# Push schema changes to remote D1
+bun run db:push:remote
+```
 
-  **Note:** Remote development will be slower due to network calls to Cloudflare, but provides access to your actual database and KV namespaces for realistic testing.
+**Note:** Remote development will be slower due to network calls to Cloudflare, but provides access to your actual database and KV namespaces for realistic testing.
 
-  **When to use:**
-  - `bun run dev` - Fast local development (recommended for most work)
-  - `bun run dev:remote` - Development with real D1/KV resources (for database testing)
+**When to use:**
 
-  ### Development Features
+- `bun run dev` - Fast local development (recommended for most work)
+- `bun run dev:remote` - Development with real D1/KV resources (for database testing)
+
+### Development Features
 
 - **Hot reload** with Next.js Turbopack
 - **Real-time database** via Cloudflare D1 local development
@@ -330,6 +407,7 @@ bun e2e                   # End-to-end tests with Playwright
 ## 🌐 Staging Environment
 
 ### Purpose
+
 - **Feature testing** before production
 - **Integration testing** with real Cloudflare Workers
 - **Client demos** and stakeholder previews
@@ -374,6 +452,7 @@ wrangler d1 migrations apply swole-tracker-staging --env staging
 ## 🏭 Production Environment
 
 ### Purpose
+
 - **Live application** serving real users
 - **Optimized performance** with production builds
 - **Full security** with rate limiting and monitoring
@@ -451,7 +530,7 @@ WHOOP_CLIENT_ID=your_whoop_client_id
 WHOOP_CLIENT_SECRET=your_whoop_client_secret
 WHOOP_WEBHOOK_SECRET=your_whoop_webhook_secret
 
-# Optional: AI Features  
+# Optional: AI Features
 VERCEL_AI_GATEWAY_API_KEY=your_ai_gateway_api_key
 AI_GATEWAY_MODEL=xai/grok-3-mini
 ```
@@ -459,6 +538,7 @@ AI_GATEWAY_MODEL=xai/grok-3-mini
 ### Staging/Production (Cloudflare Projects)
 
 All environment-specific values are managed as Cloudflare Project environment variables and automatically injected during CI/CD builds:
+
 - **Build Variables**: Available during build process (non-sensitive configuration)
 - **Runtime Secrets**: Available during runtime (sensitive API keys, encrypted values)
 - **Configuration**: Set via Cloudflare Dashboard → Workers & Pages → [Project] → Settings → Environment Variables
@@ -468,11 +548,13 @@ All environment-specific values are managed as Cloudflare Project environment va
 For local development, you'll need the Cloudflare CLI (wrangler):
 
 ### Wrangler Authentication:
+
 1. Install: `npm install -g wrangler`
 2. Login: `wrangler login`
 3. Verify: `wrangler whoami`
 
 ### Local Environment:
+
 - Create `.env.local` with development resource IDs
 - All production deployments happen automatically via Cloudflare CI/CD Builds
 - Local CLI is only needed for development and emergency manual deployments
@@ -484,6 +566,7 @@ For local development, you'll need the Cloudflare CLI (wrangler):
 **Automatic deployments** via native Cloudflare integration with GitHub:
 
 #### Benefits:
+
 - **🔄 Automatic deployments** on git push via Cloudflare CI/CD Builds
 - **🌿 Branch-based environments** (`main` → production, `feature/*` → staging)
 - **🔒 Secure secret management** via Cloudflare Project settings
@@ -492,6 +575,7 @@ For local development, you'll need the Cloudflare CLI (wrangler):
 - **🔄 Version management** and easy rollbacks via Cloudflare Workers
 
 #### Usage:
+
 ```bash
 # Production deployment (main branch)
 git checkout main
@@ -511,7 +595,7 @@ For local testing and emergency deployments only:
 ```bash
 # Local development deployment
 bun run deploy                    # Deploy to development worker
-bun run deploy:staging           # Emergency staging deployment  
+bun run deploy:staging           # Emergency staging deployment
 bun run deploy:production        # Emergency production deployment
 ```
 
@@ -526,7 +610,7 @@ For complete manual control:
 # 1. Generate config
 bun run env:substitute --env production
 
-# 2. Build application  
+# 2. Build application
 bun run build:cloudflare
 
 # 3. Deploy with wrangler
@@ -538,50 +622,65 @@ npx wrangler deploy --env production
 ### Common Cloudflare Deployment Errors
 
 #### Internal Server Error After Deployment
+
 ```
 Error: Internal Server Error 500
 Deployment successful but site not accessible
 ```
+
 **Solution:** Missing resource bindings. Go to Settings → Functions → Bindings and add:
+
 - `DB` (D1 Database) → Select your database
-- `RATE_LIMIT_KV` (KV Namespace) → Select your rate limit KV namespace  
+- `RATE_LIMIT_KV` (KV Namespace) → Select your rate limit KV namespace
 - `CACHE_KV` (KV Namespace) → Select your cache KV namespace
 
 #### KV Namespace 'undefined' Error
+
 ```bash
 Error: KV namespace 'undefined' is not valid. [code: 10042]
 ```
+
 **Solution:** Environment variables are set for runtime but not build. This is now handled automatically by the updated build script.
 
 #### Missing Bindings Error
+
 ```bash
 Error: env.DB is not defined
 Error: env.RATE_LIMIT_KV is not defined
 ```
+
 **Solution:** Configure resource bindings in Cloudflare Dashboard → Settings → Functions → Bindings.
 
 #### Build Command Failed
+
 ```bash
 Error: Build command failed with exit code 1
 ```
+
 **Solution:** Check build logs in Cloudflare Dashboard → Project → View build history.
 
 #### Worker Not Found Error
+
 ```bash
 Error: Worker not found
 ```
+
 **Solution:** Ensure Worker name in Cloudflare dashboard matches project configuration.
 
 ### Branch Deployment Issues
 
 #### Feature Branch Not Building
+
 **Check:**
+
 1. Branch name matches pattern: `feature/*` or `feat/*`
 2. Project has "Build branches" enabled for staging
 3. Build logs in Cloudflare Dashboard → Project → View build history
 
 #### Build Timeout
+
 **Solutions:**
+
 1. Check [Cloudflare status](https://status.cloudflare.com)
 2. Re-trigger build by pushing another commit
 3. Check build logs for specific error details
@@ -589,13 +688,16 @@ Error: Worker not found
 ### Development Issues
 
 #### Local Development Not Working
+
 **Check:**
+
 1. `.env.local` file exists with correct resource IDs
-2. `wrangler login` completed successfully  
+2. `wrangler login` completed successfully
 3. Development D1 database created and accessible
 4. WorkOS credentials are valid
 
 #### Database Connection Issues
+
 ```bash
 # Verify D1 database exists
 wrangler d1 info swole-tracker-dev
@@ -610,24 +712,30 @@ wrangler d1 migrations apply swole-tracker-dev
 ### Quick Fixes for Common Issues
 
 #### 1. Site Shows Internal Server Error
+
 **Most common cause:** Missing resource bindings
+
 ```bash
 # Solution: Add bindings in Cloudflare Dashboard
 Settings → Functions → Bindings → Add binding:
 - DB: Select your D1 database
-- RATE_LIMIT_KV: Select your KV namespace  
+- RATE_LIMIT_KV: Select your KV namespace
 - CACHE_KV: Select your KV namespace
 ```
 
 #### 2. Build Fails with "undefined" Errors
+
 **Cause:** Missing build environment variables (now fixed automatically)
+
 ```bash
 # Solution: The build script now handles this automatically
 # No action needed - just redeploy
 ```
 
 #### 3. Authentication Errors
+
 **Cause:** Missing WorkOS credentials
+
 ```bash
 # Solution: Add to Variables and Secrets
 WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
@@ -639,7 +747,7 @@ WORKOS_API_KEY=your_workos_api_key  # Add as Secret
 You now have a **production-ready DevOps pipeline** with:
 
 - ✅ **Automatic deployments** on every git push via Cloudflare CI/CD Builds
-- ✅ **Environment isolation** (development, staging, production)  
+- ✅ **Environment isolation** (development, staging, production)
 - ✅ **Secure secret management** via Cloudflare Project settings
 - ✅ **Native Cloudflare integration** with optimized build environment
 - ✅ **Team collaboration** with deployment history and build logs

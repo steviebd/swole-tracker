@@ -56,11 +56,34 @@ export async function GET(request: NextRequest) {
 
     // Handle forwarded host for production deployments
     const forwardedHost = request.headers.get("x-forwarded-host");
+    const xForwardedProto = request.headers.get("x-forwarded-proto");
     const isLocalEnv = process.env.NODE_ENV === "development";
+    const isWranglerDev = origin.includes('localhost') || origin.includes('127.0.0.1');
+    
+    console.log('Auth callback redirect logic:', {
+      origin,
+      forwardedHost,
+      xForwardedProto,
+      isLocalEnv,
+      isWranglerDev,
+      redirectTo,
+    });
     
     let finalRedirectUrl = `${origin}${redirectTo}`;
-    if (!isLocalEnv && forwardedHost) {
-      finalRedirectUrl = `https://${forwardedHost}${redirectTo}`;
+    
+    // Only use forwardedHost logic for true production deployments (not wrangler dev)
+    if (!isLocalEnv && !isWranglerDev && forwardedHost) {
+      // Use the same protocol detection logic as getBaseRedirectUri
+      const protocol = xForwardedProto || 'https';
+      finalRedirectUrl = `${protocol}://${forwardedHost}${redirectTo}`;
+      console.log('Using forwarded host redirect:', finalRedirectUrl);
+    } else if (isWranglerDev && xForwardedProto === 'http') {
+      // For wrangler dev, construct URL with correct HTTP protocol
+      const host = forwardedHost || origin.replace(/^https?:\/\//, '');
+      finalRedirectUrl = `http://${host}${redirectTo}`;
+      console.log('Using wrangler dev HTTP redirect:', finalRedirectUrl);
+    } else {
+      console.log('Using origin-based redirect:', finalRedirectUrl);
     }
 
     // Set session cookie and redirect

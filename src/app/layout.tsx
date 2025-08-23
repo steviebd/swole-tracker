@@ -20,7 +20,9 @@ import { Header } from "~/app/_components/header";
 export const metadata: Metadata = {
   title: "Swole Tracker",
   description: "Simple workout tracking application",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export const viewport = {
