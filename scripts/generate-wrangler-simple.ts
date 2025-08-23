@@ -137,6 +137,14 @@ WORKOS_API_KEY = "${env.WORKOS_API_KEY || ""}"
 name = "swole-tracker-staging"
 
 ${
+  env.CLOUDFLARE_STAGING_DOMAIN && env.CLOUDFLARE_ZONE_NAME
+    ? `[env.staging.routes]
+pattern = "${env.CLOUDFLARE_STAGING_DOMAIN}"
+zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
+    : "# No staging route configured in environment variables"
+}
+
+${
   env.CLOUDFLARE_D1_DATABASE_ID || env.STAGING_CLOUDFLARE_D1_DATABASE_ID
     ? `[[env.staging.d1_databases]]
 binding = "DB"
@@ -169,6 +177,14 @@ WORKOS_API_KEY = "${env.STAGING_WORKOS_API_KEY || env.WORKOS_API_KEY || ""}"
 # Production Environment
 [env.production]
 name = "swole-tracker-production"
+
+${
+  env.CLOUDFLARE_PROD_DOMAIN && env.CLOUDFLARE_ZONE_NAME
+    ? `[env.production.routes]
+pattern = "${env.CLOUDFLARE_PROD_DOMAIN}"
+zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
+    : "# No production route configured in environment variables"
+}
 
 [[env.production.d1_databases]]
 binding = "DB"
