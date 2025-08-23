@@ -215,12 +215,65 @@ WORKOS_API_KEY=your_workos_api_key
 wrangler d1 migrations apply swole-tracker-dev
 ```
 
-3. **Start development server:**
-```bash
-bun dev
-```
+ 3. **Start development server:**
+ ```bash
+ bun dev
+ ```
 
-### Development Features
+ ### Infisical Machine Identity Setup
+
+ For enhanced security and automation, this project supports Infisical for secrets management. Follow these steps to set up machine identity for build-time secret injection:
+
+ 1. **Create Machine Identity:**
+    - Go to your [Infisical dashboard](https://app.infisical.com/)
+    - Navigate to **Identities** → **Machine Identities**
+    - Create a new machine identity (e.g., "swole-tracker-dev")
+    - **Important**: Make sure to select the correct project/workspace
+    - Assign appropriate permissions to access required secrets
+    - Copy the **Client ID** and **Client Secret** (not the access token)
+
+ 2. **Configure Environment Variables:**
+    - Add the following to your `.env.local` file:
+    ```bash
+    # Infisical Machine Identity for Secret Injection
+    INFISICAL_CLIENT_ID=your_infisical_client_id
+    INFISICAL_SECRET=your_infisical_secret
+    ```
+
+ 3. **Grant Access to Secrets:**
+    - Ensure the machine identity has read access to secrets like:
+      - `CLOUDFLARE_D1_DATABASE_ID` - Your D1 database ID
+      - `CLOUDFLARE_RATE_LIMIT_KV_ID` - Your rate limit KV namespace ID
+      - `CLOUDFLARE_CACHE_KV_ID` - Your cache KV namespace ID
+      - `CLOUDFLARE_API_TOKEN` - Cloudflare API token
+      - `WORKOS_CLIENT_ID` - WorkOS client ID
+      - `WORKOS_API_KEY` - WorkOS API key
+      - Any other sensitive configuration values
+
+ 4. **Alternative: Use Service Token (Optional)**
+    - Instead of machine identity, you can use a service token:
+    ```bash
+    # Add to .env.local
+    INFISICAL_TOKEN=your_service_token
+    ```
+    - Then use: `infisical run --token $INFISICAL_TOKEN -- [command]`
+
+ 5. **Test Integration:**
+    - Run `bun dev` to verify secrets are injected correctly
+    - Check that the application starts without missing environment errors
+
+ 6. **Troubleshooting:**
+    - If you get "Project not found" errors, verify the machine identity was created in the correct Infisical project/workspace
+    - Test the connection: `infisical run -- echo "Connection successful"`
+    - Check that your machine identity has access to all required secrets
+    - Ensure environment variable names in Infisical match what your application expects
+
+ **Benefits:**
+ - **Secure**: No secrets stored in code or environment files
+ - **Automated**: Secrets injected automatically at build time
+ - **Environment-aware**: Different secrets for dev, staging, and production
+
+ ### Development Features
 
 - **Hot reload** with Next.js Turbopack
 - **Real-time database** via Cloudflare D1 local development
