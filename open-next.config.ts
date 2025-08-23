@@ -3,7 +3,7 @@
 const config = {
   default: {
     override: {
-      wrapper: "cloudflare-node",
+      wrapper: "cloudflare-pages",
       converter: "edge",
       proxyExternalRequest: "fetch",
       incrementalCache: "dummy",
