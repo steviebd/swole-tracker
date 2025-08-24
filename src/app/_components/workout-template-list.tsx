@@ -7,6 +7,7 @@ import {
   type WorkoutTemplate,
 } from "~/lib/workout-operations";
 import Link from "next/link";
+import { formatSafeDate } from "~/lib/utils";
 
 export function WorkoutTemplateList() {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
@@ -84,7 +85,7 @@ export function WorkoutTemplateList() {
           <div className="mb-2 flex items-center justify-between">
             <h4 className="font-medium">{template.name}</h4>
             <div className="text-xs text-gray-400">
-              {new Date(template.createdAt).toLocaleDateString()}
+              {formatSafeDate(template.createdAt)}
             </div>
           </div>
 

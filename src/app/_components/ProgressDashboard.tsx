@@ -8,6 +8,7 @@ import { VolumeTrackingSection } from "./VolumeTrackingSection";
 import { ConsistencySection } from "./ConsistencySection";
 import { PersonalRecordsSection } from "./PersonalRecordsSection";
 import { RecentAchievements } from "./RecentAchievements";
+import { formatSafeDate } from "~/lib/utils";
 import { WhoopIntegrationSection } from "./WhoopIntegrationSection";
 import { WellnessHistorySection } from "./WellnessHistorySection";
 
@@ -185,7 +186,7 @@ export function ProgressDashboard() {
                     </p>
                     <p className="text-muted-foreground text-sm">
                       Last used:{" "}
-                      {new Date(exercise.lastUsed).toLocaleDateString()}
+                      {formatSafeDate(exercise.lastUsed)}
                     </p>
                   </div>
                   <div className="text-right">

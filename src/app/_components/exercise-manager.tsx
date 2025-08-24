@@ -7,6 +7,7 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { formatSafeDate } from "~/lib/utils";
 
 interface MasterExercise {
   id: number;
@@ -173,11 +174,11 @@ function ExerciseRow({ exercise, onUpdate }: ExerciseRowProps) {
         <TableCell>
           <div className="font-medium">{exercise.name}</div>
           <div className="text-sm text-muted-foreground sm:hidden">
-            Created {exercise.createdAt.toLocaleDateString()}
+            Created {formatSafeDate(exercise.createdAt)}
           </div>
         </TableCell>
         <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-          {exercise.createdAt.toLocaleDateString()}
+          {formatSafeDate(exercise.createdAt)}
         </TableCell>
         <TableCell>
           <div className="text-sm">
@@ -316,7 +317,7 @@ function ExerciseDetails({
                     {latestPerformance.reps} reps × {latestPerformance.sets} sets
                   </span>
                   <span className="text-muted-foreground ml-2 text-xs">
-                    ({new Date(latestPerformance.workoutDate).toLocaleDateString()})
+                    ({formatSafeDate(latestPerformance.workoutDate)})
                   </span>
                 </div>
               </div>

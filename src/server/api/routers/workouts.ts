@@ -226,6 +226,20 @@ export const workoutsRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       debugLog("getById: input", input);
       debugLog("getById: user", { userId: ctx.user.id });
+      
+      // CRITICAL DEBUG: Check for user ID corruption  
+      // Note: ctx.user.id is a string (Supabase UUID), input.id is a number (workout ID)
+      // These should never be equal, but let's check anyway for debugging
+      if (ctx.user.id === String(input.id)) {
+        console.error("CRITICAL BUG DETECTED: user.id equals session ID", {
+          userId: ctx.user.id,
+          userIdType: typeof ctx.user.id,
+          sessionId: input.id,
+          sessionIdType: typeof input.id,
+          requestId: ctx.requestId,
+        });
+        throw new Error(`Authentication corruption detected: user.id (${ctx.user.id}) equals session.id (${input.id})`);
+      }
 
       try {
         // Step 1: Get the workout session first (simple query)

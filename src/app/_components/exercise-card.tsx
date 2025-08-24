@@ -7,7 +7,8 @@ import {
 } from "~/hooks/use-swipe-gestures";
 import { ExerciseHeader } from "./workout/ExerciseHeader";
 import { SetList } from "./workout/SetList";
-import posthog from "posthog-js";
+import { formatSafeDate } from "~/lib/utils";
+
 import { vibrate } from "~/lib/client-telemetry";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { useExerciseInsights } from "~/hooks/use-insights";
@@ -100,9 +101,7 @@ export function ExerciseCard({
         try {
           vibrate(10);
         } catch {}
-        try {
-          posthog.capture("haptic_action", { kind: "swipe" });
-        } catch {}
+
         try {
           announce(`Moved ${exercise.exerciseName} to end`, {
             assertive: true,
@@ -367,26 +366,7 @@ export function ExerciseCard({
                       try {
                         vibrate(5);
                       } catch {}
-                      try {
-                        const recommendation = insights?.recommendation;
-                        posthog.capture("insights_apply_recommendation", {
-                          exerciseName: exercise.exerciseName,
-                          type: recommendation?.type,
-                          nextWeight:
-                            recommendation?.type === "weight"
-                              ? recommendation.nextWeight
-                              : undefined,
-                          nextReps:
-                            recommendation?.type === "reps"
-                              ? recommendation.nextReps
-                              : undefined,
-                          unit: recommendation?.unit,
-                        });
-                      } catch (err: unknown) {
-                        if (err instanceof Error) {
-                          // handle error
-                        }
-                      }
+
                       // Prefill the last set with recommendation conservatively
                       const rec = insights?.recommendation;
                       if (
@@ -444,9 +424,8 @@ export function ExerciseCard({
                       aria-hidden="true"
                     >
                       {(() => {
-                        const vols = insights?.volumeSparkline?.map(
-                          (p) => p.volume,
-                        ) || [];
+                        const vols =
+                          insights?.volumeSparkline?.map((p) => p.volume) || [];
                         const max = Math.max(...vols);
                         const min = Math.min(...vols);
                         const range = Math.max(1, max - min);
@@ -459,7 +438,7 @@ export function ExerciseCard({
                               key={i}
                               className="w-1.5 rounded-sm bg-emerald-500/70 dark:bg-emerald-400/70"
                               style={{ height: `${Math.max(8, h)}%` }}
-                              title={`${new Date(p.date).toLocaleDateString()}: Vol ${p.volume.toFixed(0)}`}
+                              title={`${formatSafeDate(p.date)}: Vol ${p.volume.toFixed(0)}`}
                             />
                           );
                         });
@@ -508,7 +487,7 @@ export function ExerciseCard({
                         className={`flex items-center gap-3 text-sm ${isHighestWeight ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}`}
                       >
                         <div
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "bg-green-600 text-background" : "bg-muted text-muted-foreground"}`}
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "text-background bg-green-600" : "bg-muted text-muted-foreground"}`}
                         >
                           {originalIndex + 1}
                         </div>

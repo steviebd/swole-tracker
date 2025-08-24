@@ -6,6 +6,7 @@ import { api } from "~/trpc/react";
 import { useExportWorkoutsCSV } from "~/hooks/use-insights";
 import { Card, CardHeader, CardContent, CardFooter } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
+import { formatSafeDate } from "~/lib/utils";
 import { 
   Table, 
   TableBody, 
@@ -251,7 +252,7 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
                   className="text-sm text-muted-foreground shrink-0"
                   dateTime={new Date(workout.workoutDate).toISOString()}
                 >
-                  {new Date(workout.workoutDate).toLocaleDateString()}
+                  {formatSafeDate(workout.workoutDate)}
                 </time>
               </div>
             </CardHeader>
@@ -313,7 +314,7 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
                 </TableCell>
                 <TableCell>
                   <time dateTime={new Date(workout.workoutDate).toISOString()}>
-                    {new Date(workout.workoutDate).toLocaleDateString()}
+                    {formatSafeDate(workout.workoutDate)}
                   </time>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
