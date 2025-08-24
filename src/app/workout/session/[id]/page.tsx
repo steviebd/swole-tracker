@@ -18,22 +18,41 @@ interface WorkoutSessionPageProps {
 export default async function WorkoutSessionPage({
   params,
 }: WorkoutSessionPageProps) {
+  console.log(`[WorkoutSession] Route accessed with params:`, { params });
+  
   const user = await getUserFromHeaders();
+  console.log(`[WorkoutSession] User authentication result:`, { hasUser: !!user, userId: user?.id });
+  
   const { id } = await params;
+  console.log(`[WorkoutSession] Extracted session ID:`, { id });
 
   if (!user) {
+    console.log(`[WorkoutSession] No user found, redirecting to sign-in`);
     redirect("/sign-in");
   }
 
   const sessionId = parseInt(id);
   if (isNaN(sessionId)) {
+    console.error(`[WorkoutSession] Invalid session ID format:`, { id, sessionId });
     notFound();
   }
 
+  console.log(`[WorkoutSession] Attempting to fetch workout session:`, { sessionId });
+  
   let workoutSession;
   try {
     workoutSession = await api.workouts.getById({ id: sessionId });
-  } catch {
+    console.log(`[WorkoutSession] Successfully fetched workout:`, { 
+      workoutId: workoutSession.id, 
+      templateName: workoutSession.template.name,
+      exerciseCount: workoutSession.exercises.length 
+    });
+  } catch (error) {
+    console.error(`[WorkoutSession] Failed to fetch workout session:`, { 
+      sessionId, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     notFound();
   }
 

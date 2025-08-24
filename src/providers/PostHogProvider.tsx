@@ -26,7 +26,21 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
       return;
     }
 
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+    // Get PostHog key with validation
+    const postHogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    
+    if (!postHogKey || postHogKey === "phc_test_dummy") {
+      console.warn("PostHog key not configured properly, skipping initialization", {
+        key: postHogKey ? postHogKey.substring(0, 8) + "..." : "undefined",
+        hostname: typeof window !== "undefined" ? window.location.hostname : "server",
+        env: process.env.NODE_ENV
+      });
+      return;
+    }
+
+    console.log("Initializing PostHog with key:", postHogKey.substring(0, 8) + "...");
+
+    posthog.init(postHogKey, {
       api_host: "/ingest",
       ui_host: "https://us.posthog.com",
       defaults: "2025-05-24",

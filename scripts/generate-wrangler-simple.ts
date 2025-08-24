@@ -224,17 +224,21 @@ const mergedVars = { ...existingVars, ...buildTimeVars };
 const allSecrets = Array.from(new Set([...existingSecrets, ...runtimeSecrets]));
 
 console.log(
-  `📊 Categorized ${Object.keys(buildTimeVars).length} build-time vars and ${allSecrets.length} runtime secrets`,
+  `📊 Found ${Object.keys(buildTimeVars).length} build-time vars and ${allSecrets.length} runtime secrets`,
 );
 console.log(
-  `🔄 Preserved ${Object.keys(existingVars).length} existing vars and ${existingSecrets.length} existing secrets`,
+  `⚠️  Variables and Secrets are managed via Cloudflare Dashboard - not included in wrangler.toml`,
 );
 console.log(
-  `📝 Final config: ${Object.keys(mergedVars).length} total vars and ${allSecrets.length} total secrets`,
+  `📝 Generated infrastructure-only config (D1, KV, routes)`,
 );
 
 const wranglerConfig = `# wrangler.toml - Generated from environment variables
 # Do not commit this file; it is generated each build.
+# 
+# IMPORTANT: All runtime Variables and Secrets are managed via Cloudflare Dashboard
+# This file only contains infrastructure configuration (D1, KV, routes)
+# Do NOT add [vars] sections here as they will override Dashboard settings
 
 name = "swole-tracker"
 main = ".open-next/worker.js"
@@ -249,11 +253,8 @@ binding = "ASSETS"
 enabled = true
 head_sampling_rate = 1
 
-[vars]
-${Object.entries(mergedVars)
-  .filter(([key]) => key !== "ENVIRONMENT")
-  .map(([key, value]) => `${key} = "${value}"`)
-  .join("\n")}
+# Variables and Secrets are managed via Cloudflare Dashboard
+# Do not add [vars] sections here to avoid overriding Dashboard settings
 
 # Staging Environment
 [env.staging]
@@ -295,12 +296,8 @@ experimental_remote = true`
     : "# KV namespaces configured via Cloudflare Dashboard"
 }
 
-[env.staging.vars]
-ENVIRONMENT = "staging"
-${Object.entries(mergedVars)
-  .filter(([key]) => key !== "ENVIRONMENT")
-  .map(([key, value]) => `${key} = "${value}"`)
-  .join("\n")}
+# Variables and Secrets for staging are managed via Cloudflare Dashboard
+# Set ENVIRONMENT=staging and other variables in the Dashboard Variables section
 
 ${
   allSecrets.length > 0
@@ -341,12 +338,8 @@ binding = "CACHE_KV"
 id = "${env.PRODUCTION_CLOUDFLARE_CACHE_KV_ID || env.CLOUDFLARE_CACHE_KV_ID || "prod-cache-from-dashboard"}"
 experimental_remote = true
 
-[env.production.vars]
-ENVIRONMENT = "production"
-${Object.entries(buildTimeVars)
-  .filter(([key]) => key !== "ENVIRONMENT")
-  .map(([key, value]) => `${key} = "${value}"`)
-  .join("\n")}
+# Variables and Secrets for production are managed via Cloudflare Dashboard
+# Set ENVIRONMENT=production and other variables in the Dashboard Variables section
 
 ${
   allSecrets.length > 0
@@ -382,6 +375,11 @@ writeFileSync(wranglerPath, wranglerConfig);
 
 console.log("✅ Generated wrangler.toml successfully");
 console.log("📁 Location:", wranglerPath);
+console.log("\n🔒 IMPORTANT: Set your Variables and Secrets in the Cloudflare Dashboard:");
+console.log("   - Go to your Worker in Cloudflare Dashboard");
+console.log("   - Navigate to Settings > Variables and Secrets");
+console.log("   - Add your environment variables and secrets there");
+console.log("   - They will persist across deployments unlike wrangler.toml [vars] sections");
 
 // Validate required variables
 const requiredVars = [
