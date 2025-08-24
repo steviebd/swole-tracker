@@ -4,8 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/react";
-import { analytics } from "~/lib/analytics";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
+
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 
@@ -16,8 +22,15 @@ export function TemplatesList() {
   // Deduplicate templates by ID to prevent any rendering duplicates
   const templates = templatesRaw
     ? templatesRaw.filter(
-        (template: RouterOutputs["templates"]["getAll"][number], index: number, array: RouterOutputs["templates"]["getAll"]) =>
-          array.findIndex((t: RouterOutputs["templates"]["getAll"][number]) => t.id === template.id) === index,
+        (
+          template: RouterOutputs["templates"]["getAll"][number],
+          index: number,
+          array: RouterOutputs["templates"]["getAll"],
+        ) =>
+          array.findIndex(
+            (t: RouterOutputs["templates"]["getAll"][number]) =>
+              t.id === template.id,
+          ) === index,
       )
     : undefined;
 
@@ -42,7 +55,9 @@ export function TemplatesList() {
       utils.templates.getAll.setData(
         undefined,
         (old) =>
-          old?.filter((template) => template.id !== (deletedTemplate as any)?.id) ?? [],
+          old?.filter(
+            (template) => template.id !== (deletedTemplate as any)?.id,
+          ) ?? [],
       );
 
       return { previousTemplates };
@@ -63,13 +78,8 @@ export function TemplatesList() {
     if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
       try {
         await deleteTemplate.mutateAsync({ id });
-        analytics.templateDeleted(id.toString());
       } catch (error) {
         console.error("Error deleting template:", error);
-        analytics.error(error as Error, {
-          context: "template_delete",
-          templateId: id.toString(),
-        });
       }
     }
   };
@@ -119,9 +129,9 @@ export function TemplatesList() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{template.name}</CardTitle>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => router.push(`/templates/${template.id}/edit`)}
                 >
                   Edit
@@ -153,7 +163,10 @@ export function TemplatesList() {
           </CardContent>
           <CardFooter className="pt-0">
             <Button size="sm" asChild>
-              <Link href={`/workout/start?templateId=${template.id}`} prefetch={false}>
+              <Link
+                href={`/workout/start?templateId=${template.id}`}
+                prefetch={false}
+              >
                 Start Workout
               </Link>
             </Button>

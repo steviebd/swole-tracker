@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/react";
-import { analytics } from "~/lib/analytics";
+
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -23,12 +23,20 @@ import {
 
 // Zod schema for form validation
 const templateFormSchema = z.object({
-  name: z.string().min(1, "Template name is required").max(256, "Template name is too long"),
-  exercises: z.array(
-    z.object({
-      exerciseName: z.string().min(1, "Exercise name is required").max(256, "Exercise name is too long"),
-    })
-  ).min(1, "At least one exercise is required"),
+  name: z
+    .string()
+    .min(1, "Template name is required")
+    .max(256, "Template name is too long"),
+  exercises: z
+    .array(
+      z.object({
+        exerciseName: z
+          .string()
+          .min(1, "Exercise name is required")
+          .max(256, "Exercise name is too long"),
+      }),
+    )
+    .min(1, "At least one exercise is required"),
 });
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
@@ -55,8 +63,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
       name: template?.name ?? "",
-      exercises: template?.exercises.length 
-        ? template.exercises.map(ex => ({ exerciseName: ex.exerciseName }))
+      exercises: template?.exercises.length
+        ? template.exercises.map((ex) => ({ exerciseName: ex.exerciseName }))
         : [{ exerciseName: "" }],
     },
   });
@@ -93,22 +101,24 @@ export function TemplateForm({ template }: TemplateFormProps) {
         user_id: data.user_id,
         createdAt: data.createdAt,
       });
-      analytics.templateCreated(
-        data.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
-      );
 
       // Update cache with the new template optimistically
-      utils.templates.getAll.setData(undefined, (old: RouterOutputs["templates"]["getAll"] | undefined) => {
-        const newTemplate = data as NonNullable<typeof old>[number];
-        return old ? [newTemplate, ...old] : [newTemplate];
-      });
+      utils.templates.getAll.setData(
+        undefined,
+        (old: RouterOutputs["templates"]["getAll"] | undefined) => {
+          const newTemplate = data as NonNullable<typeof old>[number];
+          return old ? [newTemplate, ...old] : [newTemplate];
+        },
+      );
 
       // Wait for cache invalidation to complete before navigation
       try {
         await utils.templates.getAll.invalidate();
       } catch (error) {
-        console.warn("Cache invalidation failed, but proceeding with navigation:", error);
+        console.warn(
+          "Cache invalidation failed, but proceeding with navigation:",
+          error,
+        );
       }
 
       // Reset submission flag and navigate after cache is settled
@@ -164,16 +174,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     },
     onSuccess: async () => {
-      analytics.templateEdited(
-        template!.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
-      );
-
       // Wait for cache invalidation to complete before navigation
       try {
         await utils.templates.getAll.invalidate();
       } catch (error) {
-        console.warn("Cache invalidation failed, but proceeding with navigation:", error);
+        console.warn(
+          "Cache invalidation failed, but proceeding with navigation:",
+          error,
+        );
       }
 
       // Reset submission flag and navigate after cache is settled
@@ -200,8 +208,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
 
     const filteredExercises = data.exercises
-      .map(ex => ex.exerciseName.trim())
-      .filter(ex => ex !== "");
+      .map((ex) => ex.exerciseName.trim())
+      .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
     // Check if this is a duplicate submission (same data within 5 seconds)
@@ -251,10 +259,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      analytics.error(error as Error, {
-        context: template ? "template_edit" : "template_create",
-        templateId: template?.id.toString(),
-      });
+
       alert("Error saving template. Please try again.");
       submitRef.current = false;
     }
@@ -265,13 +270,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
   return (
     <Card padding="lg">
       <CardHeader>
-        <CardTitle>
-          {template ? "Edit Template" : "Create Template"}
-        </CardTitle>
+        <CardTitle>{template ? "Edit Template" : "Create Template"}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             {/* Template Name */}
             <FormField
               control={form.control}
@@ -347,7 +353,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   type="button"
                   variant="outline"
                   onClick={addExercise}
-                  className="w-full h-20 border-dashed"
+                  className="h-20 w-full border-dashed"
                 >
                   + Add your first exercise
                 </Button>
@@ -356,10 +362,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-4">
-              <Button
-                type="submit"
-                disabled={isLoading || submitRef.current}
-              >
+              <Button type="submit" disabled={isLoading || submitRef.current}>
                 {isLoading || submitRef.current
                   ? "Saving..."
                   : template

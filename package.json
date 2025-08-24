@@ -97,8 +97,6 @@
     "oauth4webapi": "^3.6.2",
     "playwright": "^1.55.0",
     "postgres": "^3.4.7",
-    "posthog-js": "^1.259.0",
-    "posthog-node": "^5.6.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",

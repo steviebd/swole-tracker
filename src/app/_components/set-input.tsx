@@ -1,7 +1,5 @@
 "use client";
 
-import { analytics } from "~/lib/analytics";
-
 export interface SetData {
   id: string;
   weight?: number;
@@ -66,14 +64,6 @@ export function SetInput({
 
   const handleWeightChange = (value: number | undefined) => {
     onUpdate(exerciseIndex, setIndex, "weight", value);
-    if (value && set.sets) {
-      analytics.exerciseLogged(
-        templateExerciseId?.toString() ?? "custom",
-        exerciseName,
-        set.sets,
-        value,
-      );
-    }
   };
 
   const handleRepsChange = (value: number | undefined) => {
@@ -93,9 +83,15 @@ export function SetInput({
   };
 
   return (
-    <div className="glass-card glass-hairline flex items-center gap-3 rounded-lg p-3 text-foreground select-none card-interactive">
+    <div className="glass-card glass-hairline text-foreground card-interactive flex items-center gap-3 rounded-lg p-3 select-none">
       {/* Set Number */}
-      <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium" style={{ backgroundColor: 'var(--color-primary)', color: 'var(--btn-primary-fg)' }}>
+      <div
+        className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium"
+        style={{
+          backgroundColor: "var(--color-primary)",
+          color: "var(--btn-primary-fg)",
+        }}
+      >
         {setIndex + 1}
       </div>
 
@@ -103,7 +99,12 @@ export function SetInput({
       <div className="flex flex-1 flex-wrap gap-3">
         {/* Weight */}
         <div className="min-w-[120px] flex-1">
-          <label className="mb-1 block text-xs" style={{ color: 'var(--color-text-secondary)' }}>Weight</label>
+          <label
+            className="mb-1 block text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            Weight
+          </label>
           <div className="relative flex items-center">
             <input
               ref={weightInputRef}
@@ -132,7 +133,10 @@ export function SetInput({
               disabled={readOnly}
               className={`input-primary w-full pr-12 ${readOnly ? "cursor-not-allowed opacity-60" : ""}`}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none select-none" style={{ color: 'var(--color-text-muted)' }}>
+            <span
+              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs select-none"
+              style={{ color: "var(--color-text-muted)" }}
+            >
               {preferredUnit}
             </span>
           </div>
@@ -140,7 +144,12 @@ export function SetInput({
 
         {/* Reps */}
         <div className="min-w-[100px] flex-1">
-          <label className="mb-1 block text-xs" style={{ color: 'var(--color-text-secondary)' }}>Reps</label>
+          <label
+            className="mb-1 block text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            Reps
+          </label>
           <input
             ref={repsInputRef}
             type="number"
@@ -170,7 +179,12 @@ export function SetInput({
 
         {/* Sets */}
         <div className="min-w-[100px] flex-1">
-          <label className="mb-1 block text-xs" style={{ color: 'var(--color-text-secondary)' }}>Sets</label>
+          <label
+            className="mb-1 block text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            Sets
+          </label>
           <input
             type="number"
             inputMode="numeric"
@@ -197,7 +211,12 @@ export function SetInput({
         </div>
         {/* RPE segmented [6-10] */}
         <div className="min-w-[160px]">
-          <label className="mb-1 block text-xs" style={{ color: 'var(--color-text-secondary)' }}>RPE</label>
+          <label
+            className="mb-1 block text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            RPE
+          </label>
           <div className="flex items-center gap-1">
             {[6, 7, 8, 9, 10].map((r) => {
               const active = set.rpe === r;
@@ -218,7 +237,12 @@ export function SetInput({
 
         {/* Rest with quick chips */}
         <div className="min-w-[160px] flex-1">
-          <label className="mb-1 block text-xs" style={{ color: 'var(--color-text-secondary)' }}>Rest (s)</label>
+          <label
+            className="mb-1 block text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            Rest (s)
+          </label>
           <div className="flex items-center gap-1">
             <input
               ref={restInputRef}
@@ -275,9 +299,13 @@ export function SetInput({
             }}
             disabled={!onMoveUp}
             className="px-1 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
-            style={{ color: 'var(--color-text-secondary)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+            style={{ color: "var(--color-text-secondary)" }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "var(--color-text)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "var(--color-text-secondary)")
+            }
             title="Move set up"
             aria-label="Move set up"
           >
@@ -298,9 +326,13 @@ export function SetInput({
             }}
             disabled={!onMoveDown}
             className="px-1 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
-            style={{ color: 'var(--color-text-secondary)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+            style={{ color: "var(--color-text-secondary)" }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "var(--color-text)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "var(--color-text-secondary)")
+            }
             title="Move set down"
             aria-label="Move set down"
           >

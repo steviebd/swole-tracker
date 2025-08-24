@@ -9,7 +9,7 @@ import { ConnectionStatus } from "~/app/_components/connection-status";
 import { SyncIndicator } from "~/app/_components/sync-indicator";
 import { EnhancedSyncIndicator } from "~/app/_components/enhanced-sync-indicator";
 import { NetworkStatusBanner } from "~/app/_components/network-status-banner";
-import { PostHogProvider } from "~/providers/PostHogProvider";
+
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
@@ -78,7 +78,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable} overflow-x-hidden`}
     >
-      <body className="page-shell flex min-h-screen flex-col overflow-x-hidden" style={{ color: "var(--color-text)" }}>
+      <body
+        className="page-shell flex min-h-screen flex-col overflow-x-hidden"
+        style={{ color: "var(--color-text)" }}
+      >
         {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
         <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
         {/* Skip to content link */}
@@ -89,57 +92,54 @@ export default function RootLayout({
           Skip to main content
         </a>
         <AuthProvider>
-          <PostHogProvider>
-            <ThemeProvider>
-              <LiveRegionProvider>
-                <ClientPerfInit />
-                <div className="page-backdrop" aria-hidden="true" />
-                <PageTracker />
-                <NetworkStatusBanner />
-                <ConnectionStatus />
-                <TRPCReactProvider>
-                  <SyncIndicator />
-                  <EnhancedSyncIndicator />
-                  
-                  <Header />
+          <ThemeProvider>
+            <LiveRegionProvider>
+              <ClientPerfInit />
+              <div className="page-backdrop" aria-hidden="true" />
+              <PageTracker />
+              <NetworkStatusBanner />
+              <ConnectionStatus />
+              <TRPCReactProvider>
+                <SyncIndicator />
+                <EnhancedSyncIndicator />
 
-                  <main
-                    id="main-content"
-                    className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
-                    role="main"
-                    tabIndex={-1}
-                  >
-                    <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
-                  </main>
+                <Header />
 
+                <main
+                  id="main-content"
+                  className="container-default flex-1 overflow-x-hidden py-4 sm:py-6"
+                  role="main"
+                  tabIndex={-1}
+                >
+                  <div className="grid w-full min-w-0 gap-2 overflow-x-hidden sm:gap-3 md:gap-4 lg:gap-6">
+                    {children}
+                  </div>
+                </main>
 
-                  <footer className="app-footer mt-auto py-6">
-                    <div className="container mx-auto px-4 text-center">
-                      <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                        <Link
-                          href="/privacy"
-                          className="link-primary"
-                          prefetch
-                        >
-                          Privacy Policy
-                        </Link>
-                        <Link
-                          href="/terms"
-                          className="link-primary"
-                          prefetch
-                        >
-                          Terms of Service
-                        </Link>
-                      </div>
-                      <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                        © 2025 Steven Duong. All rights reserved.
-                      </div>
+                <footer className="app-footer mt-auto py-6">
+                  <div className="container mx-auto px-4 text-center">
+                    <div
+                      className="flex justify-center space-x-6 text-sm"
+                      style={{ color: "var(--color-text-secondary)" }}
+                    >
+                      <Link href="/privacy" className="link-primary" prefetch>
+                        Privacy Policy
+                      </Link>
+                      <Link href="/terms" className="link-primary" prefetch>
+                        Terms of Service
+                      </Link>
                     </div>
-                  </footer>
-                </TRPCReactProvider>
-              </LiveRegionProvider>
-            </ThemeProvider>
-          </PostHogProvider>
+                    <div
+                      className="mt-3 text-xs"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      © 2025 Steven Duong. All rights reserved.
+                    </div>
+                  </div>
+                </footer>
+              </TRPCReactProvider>
+            </LiveRegionProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

@@ -159,7 +159,22 @@ export const createTRPCContext = async (opts: {
             // Validate the access token with WorkOS using cache-aware validation
             const workosUser = await validateAccessTokenWithCache(sessionData.accessToken, authCache);
             if (workosUser) {
-              user = { id: workosUser.id };
+              // Validate user ID is a proper string, not a number
+              if (typeof workosUser.id !== 'string' || workosUser.id.trim() === '') {
+                console.error('tRPC context: Invalid user ID from WorkOS', {
+                  userId: workosUser.id,
+                  userIdType: typeof workosUser.id,
+                  requestId,
+                });
+                user = null;
+              } else {
+                user = { id: workosUser.id };
+                console.log('tRPC context: User authenticated', {
+                  userId: workosUser.id,
+                  userIdType: typeof workosUser.id,
+                  requestId,
+                });
+              }
             }
           }
         } catch (error) {
