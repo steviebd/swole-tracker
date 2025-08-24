@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Simple wrangler.toml generator for consolidated variables
- * Uses Infisical CLI to inject environment variables
+ * Uses environment variables from .env files or process.env
  */
 
 import { writeFileSync } from "fs";
@@ -29,7 +29,9 @@ for (const envFile of envFiles) {
 }
 
 if (!envLoaded) {
-  console.log("⚠️  No .env files found, using environment variables from process.env");
+  console.log(
+    "⚠️  No .env files found, using environment variables from process.env",
+  );
 }
 
 const env = process.env;
@@ -43,47 +45,67 @@ function categorizeEnvironmentVariables() {
 
   // Define which variables should be build-time vs runtime
   const buildTimePatterns = [
-    'NODE_ENV',
-    'NEXT_PUBLIC_',
-    'RATE_LIMIT_',
-    'ENVIRONMENT',
-    'SKIP_ENV_VALIDATION',
-    'NEXT_TELEMETRY_DISABLED',
-    'WHOOP_CLIENT_ID',
-    'WHOOP_SYNC_RATE_LIMIT_PER_HOUR',
-    'AI_GATEWAY_MODEL',
-    'AI_GATEWAY_PROMPT',
-    'AI_GATEWAY_JOKE_MEMORY_NUMBER',
-    'AI_GATEWAY_MODEL_HEALTH'
+    "NODE_ENV",
+    "NEXT_PUBLIC_",
+    "RATE_LIMIT_",
+    "ENVIRONMENT",
+    "SKIP_ENV_VALIDATION",
+    "NEXT_TELEMETRY_DISABLED",
+    "WHOOP_CLIENT_ID",
+    "WHOOP_SYNC_RATE_LIMIT_PER_HOUR",
+    "AI_GATEWAY_MODEL",
+    "AI_GATEWAY_PROMPT",
+    "AI_GATEWAY_JOKE_MEMORY_NUMBER",
+    "AI_GATEWAY_MODEL_HEALTH",
   ];
 
   const runtimeSecretPatterns = [
-    'API_KEY',
-    'SECRET',
-    'TOKEN',
-    'PASSWORD',
-    'DATABASE_URL',
-    'WORKOS_API_KEY',
-    'WHOOP_CLIENT_SECRET',
-    'WHOOP_WEBHOOK_SECRET',
-    'VERCEL_AI_GATEWAY_API_KEY',
-    'AI_GATEWAY_API_KEY'
+    "API_KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "DATABASE_URL",
+    "WORKOS_API_KEY",
+    "WHOOP_CLIENT_SECRET",
+    "WHOOP_WEBHOOK_SECRET",
+    "VERCEL_AI_GATEWAY_API_KEY",
+    "AI_GATEWAY_API_KEY",
   ];
 
   // System environment variables to exclude from wrangler.toml
   const systemEnvVarsToExclude = [
-    'HOME', 'PATH', 'USER', 'SHELL', 'PWD', 'OLDPWD', 'TERM', 'LANG', 'LC_',
-    'ANDROID_HOME', 'BUN_INSTALL', 'COLORTERM', 'COMMAND_MODE', 'GHOSTTY_',
-    'TMPDIR', '_', 'VOLTA_HOME', 'JAVA_HOME', 'EDITOR', 'PAGER', 'SSH_',
-    'XDG_', 'DISPLAY', 'SESSION_MANAGER'
+    "HOME",
+    "PATH",
+    "USER",
+    "SHELL",
+    "PWD",
+    "OLDPWD",
+    "TERM",
+    "LANG",
+    "LC_",
+    "ANDROID_HOME",
+    "BUN_INSTALL",
+    "COLORTERM",
+    "COMMAND_MODE",
+    "GHOSTTY_",
+    "TMPDIR",
+    "_",
+    "VOLTA_HOME",
+    "JAVA_HOME",
+    "EDITOR",
+    "PAGER",
+    "SSH_",
+    "XDG_",
+    "DISPLAY",
+    "SESSION_MANAGER",
   ];
 
   Object.entries(env).forEach(([key, value]) => {
     if (!value) return;
 
     // Skip system environment variables
-    const isSystemVar = systemEnvVarsToExclude.some(pattern => 
-      key.startsWith(pattern) || key === pattern
+    const isSystemVar = systemEnvVarsToExclude.some(
+      (pattern) => key.startsWith(pattern) || key === pattern,
     );
 
     if (isSystemVar) {
@@ -91,13 +113,13 @@ function categorizeEnvironmentVariables() {
     }
 
     // Check if it's a build-time variable
-    const isBuildTime = buildTimePatterns.some(pattern => 
-      key.startsWith(pattern) || key === pattern
+    const isBuildTime = buildTimePatterns.some(
+      (pattern) => key.startsWith(pattern) || key === pattern,
     );
 
     // Check if it's a runtime secret
-    const isRuntimeSecret = runtimeSecretPatterns.some(pattern => 
-      key.includes(pattern) || key.endsWith(pattern)
+    const isRuntimeSecret = runtimeSecretPatterns.some(
+      (pattern) => key.includes(pattern) || key.endsWith(pattern),
     );
 
     if (isBuildTime) {
@@ -113,7 +135,9 @@ function categorizeEnvironmentVariables() {
 // Categorize environment variables
 const { buildTimeVars, runtimeSecrets } = categorizeEnvironmentVariables();
 
-console.log(`📊 Categorized ${Object.keys(buildTimeVars).length} build-time vars and ${runtimeSecrets.length} runtime secrets`);
+console.log(
+  `📊 Categorized ${Object.keys(buildTimeVars).length} build-time vars and ${runtimeSecrets.length} runtime secrets`,
+);
 
 const wranglerConfig = `# wrangler.toml - Generated from environment variables
 # Do not commit this file; it is generated each build.
@@ -134,16 +158,17 @@ head_sampling_rate = 1
 [vars]
 ENVIRONMENT = "development"
 ${Object.entries(buildTimeVars)
-  .filter(([key]) => key !== 'ENVIRONMENT')
+  .filter(([key]) => key !== "ENVIRONMENT")
   .map(([key, value]) => `${key} = "${value}"`)
-  .join('\n')}
+  .join("\n")}
 
 # Staging Environment
 [env.staging]
 name = "swole-tracker-staging"
 
 ${
-  (env.STAGING_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN) && env.CLOUDFLARE_ZONE_NAME
+  (env.STAGING_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN) &&
+  env.CLOUDFLARE_ZONE_NAME
     ? `[[env.staging.routes]]
 pattern = "${env.STAGING_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN}/*"
 zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
@@ -162,7 +187,9 @@ experimental_remote = true`
 }
 
 ${
-  (env.CLOUDFLARE_RATE_LIMIT_KV_ID || env.STAGING_CLOUDFLARE_RATE_LIMIT_KV_ID) && (env.CLOUDFLARE_CACHE_KV_ID || env.STAGING_CLOUDFLARE_CACHE_KV_ID)
+  (env.CLOUDFLARE_RATE_LIMIT_KV_ID ||
+    env.STAGING_CLOUDFLARE_RATE_LIMIT_KV_ID) &&
+  (env.CLOUDFLARE_CACHE_KV_ID || env.STAGING_CLOUDFLARE_CACHE_KV_ID)
     ? `[[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
 id = "${env.STAGING_CLOUDFLARE_RATE_LIMIT_KV_ID || env.CLOUDFLARE_RATE_LIMIT_KV_ID}"
@@ -178,23 +205,26 @@ experimental_remote = true`
 [env.staging.vars]
 ENVIRONMENT = "staging"
 ${Object.entries(buildTimeVars)
-  .filter(([key]) => key !== 'ENVIRONMENT')
+  .filter(([key]) => key !== "ENVIRONMENT")
   .map(([key, value]) => `${key} = "${value}"`)
-  .join('\n')}
+  .join("\n")}
 
-${runtimeSecrets.length > 0 
-  ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
+${
+  runtimeSecrets.length > 0
+    ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
 ${runtimeSecrets
-  .map(key => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
-  .join('\n')}`
-  : '# No runtime secrets configured'}
+  .map((key) => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
+  .join("\n")}`
+    : "# No runtime secrets configured"
+}
 
 # Production Environment
 [env.production]
 name = "swole-tracker-production"
 
 ${
-  (env.PRODUCTION_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN) && env.CLOUDFLARE_ZONE_NAME
+  (env.PRODUCTION_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN) &&
+  env.CLOUDFLARE_ZONE_NAME
     ? `[[env.production.routes]]
 pattern = "${env.PRODUCTION_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN}/*"
 zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
@@ -221,16 +251,18 @@ experimental_remote = true
 [env.production.vars]
 ENVIRONMENT = "production"
 ${Object.entries(buildTimeVars)
-  .filter(([key]) => key !== 'ENVIRONMENT')
+  .filter(([key]) => key !== "ENVIRONMENT")
   .map(([key, value]) => `${key} = "${value}"`)
-  .join('\n')}
+  .join("\n")}
 
-${runtimeSecrets.length > 0 
-  ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
+${
+  runtimeSecrets.length > 0
+    ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
 ${runtimeSecrets
-  .map(key => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
-  .join('\n')}`
-  : '# No runtime secrets configured'}
+  .map((key) => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
+  .join("\n")}`
+    : "# No runtime secrets configured"
+}
 
 # Local Development (default/root)
 [[d1_databases]]
@@ -261,18 +293,20 @@ console.log("📁 Location:", wranglerPath);
 // Validate required variables
 const requiredVars = [
   "CLOUDFLARE_D1_DATABASE_ID",
-  "CLOUDFLARE_RATE_LIMIT_KV_ID", 
+  "CLOUDFLARE_RATE_LIMIT_KV_ID",
   "CLOUDFLARE_CACHE_KV_ID",
   "WORKOS_CLIENT_ID",
-  "WORKOS_API_KEY"
+  "WORKOS_API_KEY",
 ];
 
-const missing = requiredVars.filter(v => !env[v]);
+const missing = requiredVars.filter((v) => !env[v]);
 
 if (missing.length > 0) {
   console.log("\n⚠️  Missing environment variables:");
-  missing.forEach(v => console.log(`   - ${v}`));
-  console.log("\n💡 Add these to your .env.local file or Infisical");
+  missing.forEach((v) => console.log(`   - ${v}`));
+  console.log(
+    "\n💡 Add these to your .env.local file or set them in Cloudflare Dashboard",
+  );
 } else {
   console.log("\n✅ All required environment variables are configured");
 }
