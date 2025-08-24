@@ -96,11 +96,6 @@ wrangler kv namespace create "CACHE_KV" --env staging
 wrangler d1 create swole-tracker-prod
 wrangler kv namespace create "RATE_LIMIT_KV" --env production
 wrangler kv namespace create "CACHE_KV" --env production
-
-# R2 Asset Buckets (for static assets like CSS/JS)
-wrangler r2 bucket create swole-tracker-assets-dev
-wrangler r2 bucket create swole-tracker-assets-staging
-wrangler r2 bucket create swole-tracker-assets-production
 ```
 
 **💡 Save all resource IDs** - you'll need them for local setup and GitHub Secrets.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
@@ -9,6 +10,7 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 
 export function TemplatesList() {
+  const router = useRouter();
   const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
 
   // Deduplicate templates by ID to prevent any rendering duplicates
@@ -117,10 +119,12 @@ export function TemplatesList() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{template.name}</CardTitle>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/templates/${template.id}/edit`} prefetch={false}>
-                    Edit
-                  </Link>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => router.push(`/templates/${template.id}/edit`)}
+                >
+                  Edit
                 </Button>
                 <Button
                   variant="ghost"
