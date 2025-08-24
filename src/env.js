@@ -9,7 +9,7 @@ export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url().optional(),
     NODE_ENV: z
-      .enum(["development", "test", "production"])
+      .enum(["development", "test", "staging", "production"])
       .default("development"),
     // Vercel AI Gateway configuration (AI SDK 5 beta)
     VERCEL_AI_GATEWAY_API_KEY: z.string().optional(),
