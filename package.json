@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "npm run tokens:build && next build",
-    "build:cloudflare": "NODE_ENV=production bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
-    "build:cloudflare:staging": "NODE_ENV=production bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
+    "build:cloudflare": "NODE_ENV=production bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml --noMinify",
+    "build:cloudflare:staging": "NODE_ENV=production bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml --noMinify",
     "build:cloudflare:production": "NODE_ENV=production bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
     "deploy": "bun run build:cloudflare && wrangler deploy --keep-vars",
     "deploy:staging": "bun run build:cloudflare:staging && wrangler deploy --env staging --keep-vars",

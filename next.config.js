@@ -16,6 +16,15 @@ const baseConfig = {
     workerThreads: false,
     optimizeCss: false,
   },
+  // Disable static optimization to prevent Html import errors
+  optimizePackageImports: [],
+  optimizeCss: false,
+  // Force dynamic rendering to prevent static generation issues
+  trailingSlash: false,
+  // Generate build ID to avoid caching issues
+  generateBuildId: async () => {
+    return "swole-tracker-" + Math.random().toString(36).substring(2, 15);
+  },
   // Force all pages to be dynamic to prevent prerendering issues
   ...(process.env.NODE_ENV === "production"
     ? {
@@ -24,10 +33,6 @@ const baseConfig = {
       }
     : {}),
 
-  // Generate build ID to avoid caching issues
-  generateBuildId: async () => {
-    return "swole-tracker-" + Math.random().toString(36).substring(2, 15);
-  },
   // Configure Webpack for Cloudflare compatibility
   webpack: (config, { isServer }) => {
     if (!isServer) {

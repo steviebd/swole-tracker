@@ -1,6 +1,6 @@
 /**
  * Query Performance Monitoring for D1/SQLite Compatibility
- * 
+ *
  * Provides utilities for monitoring and optimizing database queries
  * specifically for Cloudflare D1's limitations and performance characteristics.
  */
@@ -33,11 +33,11 @@ class QueryPerformanceTracker {
 
   constructor() {
     // Enable in development, tests, or when specifically requested
-    this.enabled = 
-      process.env.NODE_ENV === 'development' || 
-      process.env.ENABLE_QUERY_PERFORMANCE === 'true' ||
+    this.enabled =
+      process.env.NODE_ENV === "development" ||
+      process.env.ENABLE_QUERY_PERFORMANCE === "true" ||
       Boolean(process.env.VITEST) ||
-      process.env.NODE_ENV === 'test';
+      process.env.NODE_ENV === "test";
   }
 
   /**
@@ -50,7 +50,7 @@ class QueryPerformanceTracker {
       userId?: string;
       parameterCount?: number;
       expectedMaxResults?: number;
-    } = {}
+    } = {},
   ): Promise<T> {
     if (!this.enabled) {
       return queryFn();
@@ -63,33 +63,36 @@ class QueryPerformanceTracker {
 
     try {
       result = await queryFn();
-      
+
       // Check for potential D1 limit violations
       const executionTime = performance.now() - startTime;
-      if (executionTime > D1_LIMITS.CPU_TIME_MS * 0.8) { // 80% of limit
+      if (executionTime > D1_LIMITS.CPU_TIME_MS * 0.8) {
+        // 80% of limit
         logger.warn(`Query "${queryName}" approaching D1 CPU limit`, {
           executionTimeMs: executionTime,
           limit: D1_LIMITS.CPU_TIME_MS,
-          userId: options.userId
+          userId: options.userId,
         });
       }
 
       // Check result count if it's an array
-      if (Array.isArray(result) && result.length > D1_LIMITS.MAX_RESULT_ROWS * 0.8) {
+      if (
+        Array.isArray(result) &&
+        result.length > D1_LIMITS.MAX_RESULT_ROWS * 0.8
+      ) {
         logger.warn(`Query "${queryName}" returning large result set`, {
           resultCount: result.length,
           limit: D1_LIMITS.MAX_RESULT_ROWS,
-          userId: options.userId
+          userId: options.userId,
         });
       }
-
     } catch (err) {
       success = false;
-      error = err instanceof Error ? err.message : 'Unknown error';
+      error = err instanceof Error ? err.message : "Unknown error";
       logger.error(`Query "${queryName}" failed`, {
         error,
         userId: options.userId,
-        executionTimeMs: performance.now() - startTime
+        executionTimeMs: performance.now() - startTime,
       });
       throw err;
     }
@@ -101,7 +104,7 @@ class QueryPerformanceTracker {
       parameterCount: options.parameterCount,
       userId: options.userId,
       success,
-      error
+      error,
     };
 
     this.logMetrics(metrics);
@@ -113,14 +116,19 @@ class QueryPerformanceTracker {
    */
   validateInArrayParams<T>(params: T[], queryName: string): T[] {
     if (params.length > D1_LIMITS.MAX_INARRAY_PARAMS) {
-      logger.warn(`Query "${queryName}" inArray params exceed recommended limit`, {
-        paramCount: params.length,
-        limit: D1_LIMITS.MAX_INARRAY_PARAMS
-      });
-      
+      logger.warn(
+        `Query "${queryName}" inArray params exceed recommended limit`,
+        {
+          paramCount: params.length,
+          limit: D1_LIMITS.MAX_INARRAY_PARAMS,
+        },
+      );
+
       // In production, we might want to batch the query
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`Query parameter count (${params.length}) exceeds D1 limit (${D1_LIMITS.MAX_INARRAY_PARAMS})`);
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          `Query parameter count (${params.length}) exceeds D1 limit (${D1_LIMITS.MAX_INARRAY_PARAMS})`,
+        );
       }
     }
     return params;
@@ -133,7 +141,7 @@ class QueryPerformanceTracker {
     params: TParam[],
     batchSize: number = D1_LIMITS.MAX_INARRAY_PARAMS,
     queryFn: (batchParams: TParam[]) => Promise<TResult[]>,
-    queryName: string = 'batchInArrayQuery'
+    queryName: string = "batchInArrayQuery",
   ): Promise<TResult[]> {
     if (params.length <= batchSize) {
       // No batching needed
@@ -142,11 +150,11 @@ class QueryPerformanceTracker {
 
     const results: TResult[] = [];
     const batches = chunkInArrayParams(params, batchSize);
-    
+
     logger.info(`Batching large inArray query "${queryName}"`, {
       totalParams: params.length,
       batchCount: batches.length,
-      batchSize
+      batchSize,
     });
 
     for (let i = 0; i < batches.length; i++) {
@@ -154,11 +162,11 @@ class QueryPerformanceTracker {
       const batchResults = await this.trackQuery(
         `${queryName}_batch_${i}`,
         () => queryFn(batch),
-        { parameterCount: batch.length }
+        { parameterCount: batch.length },
       );
       results.push(...batchResults);
     }
-    
+
     return results;
   }
 
@@ -172,7 +180,7 @@ class QueryPerformanceTracker {
       maxResults?: number;
       queryName: string;
       userId?: string;
-    }
+    },
   ): Promise<TResult[]> {
     const pageSize = Math.min(options.pageSize ?? 1000, 1000); // Max 1000 per page
     const maxResults = options.maxResults ?? D1_LIMITS.MAX_RESULT_ROWS;
@@ -182,14 +190,14 @@ class QueryPerformanceTracker {
 
     while (hasMore && results.length < maxResults) {
       const currentPageSize = Math.min(pageSize, maxResults - results.length);
-      
+
       const pageResults = await this.trackQuery(
         `${options.queryName}_page_${Math.floor(offset / pageSize)}`,
         () => queryFn(currentPageSize, offset),
         {
           userId: options.userId,
-          expectedMaxResults: currentPageSize
-        }
+          expectedMaxResults: currentPageSize,
+        },
       );
 
       results.push(...pageResults);
@@ -198,11 +206,14 @@ class QueryPerformanceTracker {
 
       // Safety break to prevent infinite loops
       if (offset > maxResults) {
-        logger.warn(`Pagination limit reached for query "${options.queryName}"`, {
-          offset,
-          maxResults,
-          userId: options.userId
-        });
+        logger.warn(
+          `Pagination limit reached for query "${options.queryName}"`,
+          {
+            offset,
+            maxResults,
+            userId: options.userId,
+          },
+        );
         break;
       }
     }
@@ -212,15 +223,16 @@ class QueryPerformanceTracker {
 
   private logMetrics(metrics: QueryMetrics): void {
     // Log performance metrics
-    if (metrics.executionTimeMs > 100) { // Log slow queries (>100ms)
-      logger.info('Slow query detected', metrics);
-    } else if (process.env.NODE_ENV === 'development') {
-      logger.debug('Query performance', metrics);
+    if (metrics.executionTimeMs > 100) {
+      // Log slow queries (>100ms)
+      logger.info("Slow query detected", metrics as any);
+    } else if (process.env.NODE_ENV === "development") {
+      logger.debug("Query performance", metrics as any);
     }
 
     // Store metrics for analysis (in memory for now, could be sent to analytics)
     this.metrics.push(metrics);
-    
+
     // Keep only recent metrics (last 1000)
     if (this.metrics.length > 1000) {
       this.metrics = this.metrics.slice(-1000);
@@ -237,18 +249,20 @@ class QueryPerformanceTracker {
     failedQueries: QueryMetrics[];
   } {
     const totalQueries = this.metrics.length;
-    const avgExecutionTime = totalQueries > 0 
-      ? this.metrics.reduce((sum, m) => sum + m.executionTimeMs, 0) / totalQueries 
-      : 0;
-    
-    const slowQueries = this.metrics.filter(m => m.executionTimeMs > 100);
-    const failedQueries = this.metrics.filter(m => !m.success);
+    const avgExecutionTime =
+      totalQueries > 0
+        ? this.metrics.reduce((sum, m) => sum + m.executionTimeMs, 0) /
+          totalQueries
+        : 0;
+
+    const slowQueries = this.metrics.filter((m) => m.executionTimeMs > 100);
+    const failedQueries = this.metrics.filter((m) => !m.success);
 
     return {
       totalQueries,
       avgExecutionTime,
       slowQueries,
-      failedQueries
+      failedQueries,
     };
   }
 
@@ -269,7 +283,7 @@ export const queryPerformanceTracker = new QueryPerformanceTracker();
 export function createPaginationQuery<T>(
   baseQuery: T,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
 ) {
   // Ensure reasonable pagination limits for D1
   const safeLimit = Math.min(limit, 1000); // Max 1000 results per query
@@ -286,8 +300,8 @@ export function createPaginationQuery<T>(
  * Helper to safely chunk large inArray operations
  */
 export function chunkInArrayParams<T>(
-  params: T[], 
-  chunkSize: number = D1_LIMITS.MAX_INARRAY_PARAMS
+  params: T[],
+  chunkSize: number = D1_LIMITS.MAX_INARRAY_PARAMS,
 ): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < params.length; i += chunkSize) {
