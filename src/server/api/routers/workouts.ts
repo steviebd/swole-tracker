@@ -45,42 +45,143 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
       debugLog("getRecent: input", input);
-      return ctx.db.query.workoutSessions.findMany({
-        where: eq(workoutSessions.user_id, ctx.user.id),
-        orderBy: [desc(workoutSessions.workoutDate)],
-        limit: input.limit,
-        with: {
-          template: {
-            with: {
-              exercises: true,
-            },
-          },
-          exercises: true,
-        },
-      });
+      
+      try {
+        // Step 1: Get recent workout sessions (simple query)
+        const sessions = await ctx.db.query.workoutSessions.findMany({
+          where: eq(workoutSessions.user_id, ctx.user.id),
+          orderBy: [desc(workoutSessions.workoutDate)],
+          limit: input.limit,
+        });
+
+        debugLog("getRecent: found sessions", sessions.length);
+        
+        if (sessions.length === 0) {
+          return [];
+        }
+
+        // Step 2: Get all unique template IDs
+        const templateIds = [...new Set(sessions.map(s => s.templateId))];
+        
+        // Step 3: Get templates and their exercises
+        const templates = await ctx.db.query.workoutTemplates.findMany({
+          where: inArray(workoutTemplates.id, templateIds),
+        });
+        
+        const templateExercisesData = await ctx.db.query.templateExercises.findMany({
+          where: inArray(templateExercises.templateId, templateIds),
+          orderBy: [templateExercises.orderIndex],
+        });
+
+        // Step 4: Get session exercises for all sessions
+        const sessionIds = sessions.map(s => s.id);
+        const allSessionExercises = await ctx.db.query.sessionExercises.findMany({
+          where: inArray(sessionExercises.sessionId, sessionIds),
+          orderBy: [sessionExercises.setOrder],
+        });
+
+        debugLog("getRecent: found data", {
+          templates: templates.length,
+          templateExercises: templateExercisesData.length,
+          sessionExercises: allSessionExercises.length
+        });
+
+        // Step 5: Reconstruct the expected nested structure
+        const result = sessions.map(session => {
+          const template = templates.find(t => t.id === session.templateId);
+          const templateExercisesForTemplate = templateExercisesData.filter(te => te.templateId === session.templateId);
+          const exercisesForSession = allSessionExercises.filter(se => se.sessionId === session.id);
+          
+          return {
+            ...session,
+            template: template ? {
+              ...template,
+              exercises: templateExercisesForTemplate,
+            } : null,
+            exercises: exercisesForSession,
+          };
+        });
+
+        debugLog("getRecent: returning structured results");
+        return result;
+      } catch (err: any) {
+        debugLog("getRecent: caught error", err);
+        const { TRPCError } = await import("@trpc/server");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err?.message ?? "Failed to fetch recent workouts",
+          cause: err,
+        });
+      }
     }),
 
   // Get a specific workout session
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const workout = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.id),
-        with: {
+      debugLog("getById: input", input);
+      
+      try {
+        // Step 1: Get the workout session first (simple query)
+        const workout = await ctx.db.query.workoutSessions.findFirst({
+          where: and(
+            eq(workoutSessions.id, input.id),
+            eq(workoutSessions.user_id, ctx.user.id)
+          ),
+        });
+
+        debugLog("getById: found workout", !!workout);
+        if (!workout) {
+          throw new Error("Workout not found");
+        }
+
+        // Step 2: Get the template and its exercises separately to avoid complex nested JSON
+        const template = await ctx.db.query.workoutTemplates.findFirst({
+          where: eq(workoutTemplates.id, workout.templateId),
+        });
+
+        debugLog("getById: found template", !!template);
+        if (!template) {
+          throw new Error("Template not found");
+        }
+
+        // Step 3: Get template exercises separately
+        const templateExercisesList = await ctx.db.query.templateExercises.findMany({
+          where: eq(templateExercises.templateId, template.id),
+          orderBy: [templateExercises.orderIndex],
+        });
+
+        debugLog("getById: found template exercises", templateExercisesList.length);
+
+        // Step 4: Get session exercises separately
+        const exercises = await ctx.db.query.sessionExercises.findMany({
+          where: eq(sessionExercises.sessionId, workout.id),
+          orderBy: [sessionExercises.setOrder],
+        });
+
+        debugLog("getById: found session exercises", exercises.length);
+
+        // Reconstruct the expected structure
+        const result = {
+          ...workout,
           template: {
-            with: {
-              exercises: true,
-            },
+            ...template,
+            exercises: templateExercisesList,
           },
-          exercises: true,
-        },
-      });
+          exercises,
+        };
 
-      if (!workout || workout.user_id !== ctx.user.id) {
-        throw new Error("Workout not found");
+        debugLog("getById: returning structured result");
+        return result;
+      } catch (err: any) {
+        debugLog("getById: caught error", err);
+        const { TRPCError } = await import("@trpc/server");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err?.message ?? "Failed to fetch workout session",
+          cause: err,
+        });
       }
-
-      return workout;
     }),
 
   // Get last workout data for a specific exercise (for pre-populating)

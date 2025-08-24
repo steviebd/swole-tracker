@@ -6,7 +6,7 @@ import {
   exerciseLinks,
   templateExercises
 } from "~/server/db/schema";
-import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, inArray, max } from "drizzle-orm";
 import { type db } from "~/server/db";
 
 /* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
@@ -425,7 +425,7 @@ export const progressRouter = createTRPCRouter({
           .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
           .where(eq(sessionExercises.user_id, ctx.user.id))
           .groupBy(sessionExercises.exerciseName)
-          .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
+          .orderBy(desc(max(workoutSessions.workoutDate)));
 
         debugLog("getExerciseList: result count", exercises.length);
         return exercises;
