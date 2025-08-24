@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { exchangeCodeForToken, getBaseRedirectUri, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "~/lib/workos";
+import { exchangeCodeForToken, getBaseRedirectUri } from "~/lib/auth/workos";
+import { createSessionCookie, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "~/lib/auth/session";
 
 // Runtime configuration handled by OpenNext
 
@@ -32,13 +33,8 @@ export async function GET(request: NextRequest) {
     
     const { accessToken, refreshToken, user } = await exchangeCodeForToken(code, redirectUri);
 
-    // Create session data
-    const sessionData = {
-      user,
-      accessToken,
-      refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    };
+    // Create session cookie data using centralized function
+    const sessionCookieValue = createSessionCookie(user, accessToken, refreshToken);
 
     // Debug logging to see what we're storing
     console.log('Storing session data:', {
@@ -88,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Set session cookie and redirect
     const response = NextResponse.redirect(finalRedirectUrl);
-    response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), SESSION_COOKIE_OPTIONS);
+    response.cookies.set(SESSION_COOKIE_NAME, sessionCookieValue, SESSION_COOKIE_OPTIONS);
 
     return response;
   } catch (error) {

@@ -15,7 +15,8 @@ import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-
 import { db } from '~/server/db';
 import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep, userPreferences } from '~/server/db/schema';
 import { eq, and, desc, gte } from 'drizzle-orm';
-import { validateAccessToken, SESSION_COOKIE_NAME } from '~/lib/workos';
+import { validateAccessToken } from '~/lib/auth/user';
+import { SESSION_COOKIE_NAME } from '~/lib/workos-types';
 import { logger } from '~/lib/logger';
 
 // Removed edge runtime since we need database access for enhanced features

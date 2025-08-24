@@ -3,7 +3,7 @@ import Link from "next/link";
 // Runtime configuration handled by OpenNext
 export const dynamic = "force-dynamic";
 import { redirect, notFound } from "next/navigation";
-import { getUserFromHeaders } from "~/lib/workos";
+import { getUserFromHeaders } from "~/lib/auth/user";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutSession } from "~/app/_components/workout-session";

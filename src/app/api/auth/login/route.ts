@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { getAuthorizationUrl, getBaseRedirectUri } from '~/lib/workos';
+import { getAuthorizationUrl, getBaseRedirectUri } from '~/lib/auth/workos';
 
 
 export async function GET(request: NextRequest) {

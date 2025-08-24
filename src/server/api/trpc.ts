@@ -10,7 +10,8 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { validateAccessToken, SESSION_COOKIE_NAME, type WorkOSUser } from "~/lib/workos";
+import { validateAccessToken, type WorkOSUser } from "~/lib/auth/user";
+import { SESSION_COOKIE_NAME } from "~/lib/workos-types";
 
 import { createDbWithBindings } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";

@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getUserFromRequest } from "~/lib/workos";
+import { getUserFromRequest } from "~/lib/auth/user";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
 

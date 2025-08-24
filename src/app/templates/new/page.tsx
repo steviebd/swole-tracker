@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getUserFromHeaders } from "~/lib/workos";
+import { getUserFromHeaders } from "~/lib/auth/user";
 
 import { TemplateForm } from "~/app/_components/template-form";
 import { Button } from "~/components/ui/button";
