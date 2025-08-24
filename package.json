@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npm run tokens:build && next build",
     "build:cloudflare": "bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
-    "build:cloudflare:staging": "bun run tokens:build && bun add -g @infisical/cli && export PATH=\"$PATH:/opt/buildhome/.bun/bin\" && infisical run --env=staging --projectId=\"$INFISICAL_PROJECT_ID\" -- bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
+    "build:cloudflare:staging": "bun run tokens:build && bun add -g @infisical/cli && export PATH=\"$PATH:/opt/buildhome/.bun/bin\" && export INFISICAL_TOKEN=$(infisical login --method=universal-auth --client-id=\"$INFISICAL_CLIENT_ID\" --client-secret=\"$INFISICAL_SECRET\" --silent --plain) && infisical export --format=dotenv-export --projectId=\"$INFISICAL_PROJECT_ID\" --env=staging > .env && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
     "build:cloudflare:production": "bun run tokens:build && infisical run --env=production --projectId=\"$INFISICAL_PROJECT_ID\" -- bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
     "deploy": "bun run build:cloudflare && opennextjs-cloudflare deploy",
     "deploy:staging": "bun run build:cloudflare:staging && opennextjs-cloudflare deploy --env staging",
