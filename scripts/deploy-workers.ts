@@ -150,11 +150,11 @@ async function healthCheck(environment: string): Promise<void> {
   // Use custom domains if available, fall back to worker URLs
   const urls: Record<string, string> = {
     development: 'https://swole-tracker.workers.dev',
-    staging: process.env.CLOUDFLARE_DOMAIN 
-      ? `https://${process.env.CLOUDFLARE_DOMAIN}`
+    staging: process.env.STAGING_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN
+      ? `https://${process.env.STAGING_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN}`
       : 'https://staging.swole-tracker.workers.dev',
-    production: process.env.CLOUDFLARE_DOMAIN
-      ? `https://${process.env.CLOUDFLARE_DOMAIN}`
+    production: process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN
+      ? `https://${process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN}`
       : 'https://swole-tracker.workers.dev'
   };
 
@@ -186,11 +186,11 @@ async function healthCheck(environment: string): Promise<void> {
 function printDeploymentSummary(environment: string): void {
   const urls: Record<string, string> = {
     development: 'https://swole-tracker.workers.dev',
-    staging: process.env.CLOUDFLARE_DOMAIN 
-      ? `https://${process.env.CLOUDFLARE_DOMAIN}`
+    staging: process.env.STAGING_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN
+      ? `https://${process.env.STAGING_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN}`
       : 'https://staging.swole-tracker.workers.dev',
-    production: process.env.CLOUDFLARE_DOMAIN
-      ? `https://${process.env.CLOUDFLARE_DOMAIN}`
+    production: process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN
+      ? `https://${process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.CLOUDFLARE_DOMAIN}`
       : 'https://swole-tracker.workers.dev'
   };
 

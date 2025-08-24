@@ -143,9 +143,9 @@ ${Object.entries(buildTimeVars)
 name = "swole-tracker-staging"
 
 ${
-  env.CLOUDFLARE_DOMAIN && env.CLOUDFLARE_ZONE_NAME
+  (env.STAGING_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN) && env.CLOUDFLARE_ZONE_NAME
     ? `[env.staging.routes]
-pattern = "${env.CLOUDFLARE_DOMAIN}"
+pattern = "${env.STAGING_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN}"
 zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
     : "# No staging route configured in environment variables"
 }
@@ -194,9 +194,9 @@ ${runtimeSecrets
 name = "swole-tracker-production"
 
 ${
-  env.CLOUDFLARE_DOMAIN && env.CLOUDFLARE_ZONE_NAME
+  (env.PRODUCTION_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN) && env.CLOUDFLARE_ZONE_NAME
     ? `[env.production.routes]
-pattern = "${env.CLOUDFLARE_DOMAIN}"
+pattern = "${env.PRODUCTION_CLOUDFLARE_DOMAIN || env.CLOUDFLARE_DOMAIN}"
 zone_name = "${env.CLOUDFLARE_ZONE_NAME}"`
     : "# No production route configured in environment variables"
 }
