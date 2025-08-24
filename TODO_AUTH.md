@@ -32,3 +32,6 @@ After refactoring the core authentication logic, consider refactoring the Whoop 
 
 - [ ] Update the Whoop authorize route (`src/app/api/auth/whoop/authorize/route.ts`) to use the `getUserFromRequest` function from `src/lib/auth/user.ts`.
 - [ ] Update the Whoop callback route (`src/app/api/auth/whoop/callback/route.ts`) to use the `getUserFromRequest` function from `src/lib/auth/user.ts`.
+
+
+Make sure it works with infisical
