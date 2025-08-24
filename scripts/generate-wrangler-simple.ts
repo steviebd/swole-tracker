@@ -4,7 +4,7 @@
  * Uses environment variables from .env files or process.env
  */
 
-import { writeFileSync } from "fs";
+import { writeFileSync, readFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { config } from "dotenv";
 
@@ -35,6 +35,85 @@ if (!envLoaded) {
 }
 
 const env = process.env;
+
+/**
+ * Reads existing wrangler.toml file and extracts existing variables
+ */
+function readExistingWranglerConfig() {
+  const wranglerPath = join(projectRoot, "wrangler.toml");
+
+  if (!existsSync(wranglerPath)) {
+    return { existingVars: {}, existingSecrets: [] };
+  }
+
+  try {
+    const content = readFileSync(wranglerPath, "utf8");
+    const existingVars: Record<string, string> = {};
+    const existingSecrets: string[] = [];
+
+    // Simple TOML parser for [vars] and secrets sections
+    const lines = content.split("\n");
+    let inVarsSection = false;
+    let inSecretsSection = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (trimmed === "[vars]") {
+        inVarsSection = true;
+        inSecretsSection = false;
+        continue;
+      }
+
+      if (trimmed.startsWith("[env.") && trimmed.includes(".vars]")) {
+        inVarsSection = true;
+        inSecretsSection = false;
+        continue;
+      }
+
+      if (trimmed.includes("# Runtime Secrets")) {
+        inSecretsSection = true;
+        inVarsSection = false;
+        continue;
+      }
+
+      if (trimmed.startsWith("[") && trimmed !== "[vars]") {
+        inVarsSection = false;
+        inSecretsSection = false;
+      }
+
+      if (inVarsSection && trimmed.includes("=") && !trimmed.startsWith("#")) {
+        const [key, ...valueParts] = trimmed.split("=");
+        if (key && valueParts.length > 0) {
+          const varName = key.trim();
+          const varValue = valueParts
+            .join("=")
+            .trim()
+            .replace(/^["']|["']$/g, "");
+          existingVars[varName] = varValue;
+        }
+      }
+
+      if (
+        inSecretsSection &&
+        trimmed.startsWith("#") &&
+        trimmed.includes("=")
+      ) {
+        const commentMatch = trimmed.match(/^#\s*(\w+)\s*=/);
+        if (commentMatch) {
+          existingSecrets.push(commentMatch[1]);
+        }
+      }
+    }
+
+    return { existingVars, existingSecrets };
+  } catch (error) {
+    console.log(
+      "⚠️  Could not read existing wrangler.toml, will create new one",
+    );
+    return { existingVars: {}, existingSecrets: [] };
+  }
+}
 
 /**
  * Categorizes environment variables into build-time vars and runtime secrets
@@ -132,11 +211,26 @@ function categorizeEnvironmentVariables() {
   return { buildTimeVars, runtimeSecrets };
 }
 
+// Read existing wrangler.toml to preserve dashboard variables
+const { existingVars, existingSecrets } = readExistingWranglerConfig();
+
 // Categorize environment variables
 const { buildTimeVars, runtimeSecrets } = categorizeEnvironmentVariables();
 
+// Merge existing vars with new ones (new ones take precedence)
+const mergedVars = { ...existingVars, ...buildTimeVars };
+
+// Merge existing secrets with new ones
+const allSecrets = Array.from(new Set([...existingSecrets, ...runtimeSecrets]));
+
 console.log(
-  `📊 Categorized ${Object.keys(buildTimeVars).length} build-time vars and ${runtimeSecrets.length} runtime secrets`,
+  `📊 Categorized ${Object.keys(buildTimeVars).length} build-time vars and ${allSecrets.length} runtime secrets`,
+);
+console.log(
+  `🔄 Preserved ${Object.keys(existingVars).length} existing vars and ${existingSecrets.length} existing secrets`,
+);
+console.log(
+  `📝 Final config: ${Object.keys(mergedVars).length} total vars and ${allSecrets.length} total secrets`,
 );
 
 const wranglerConfig = `# wrangler.toml - Generated from environment variables
@@ -156,8 +250,7 @@ enabled = true
 head_sampling_rate = 1
 
 [vars]
-ENVIRONMENT = "development"
-${Object.entries(buildTimeVars)
+${Object.entries(mergedVars)
   .filter(([key]) => key !== "ENVIRONMENT")
   .map(([key, value]) => `${key} = "${value}"`)
   .join("\n")}
@@ -204,15 +297,15 @@ experimental_remote = true`
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-${Object.entries(buildTimeVars)
+${Object.entries(mergedVars)
   .filter(([key]) => key !== "ENVIRONMENT")
   .map(([key, value]) => `${key} = "${value}"`)
   .join("\n")}
 
 ${
-  runtimeSecrets.length > 0
+  allSecrets.length > 0
     ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
-${runtimeSecrets
+${allSecrets
   .map((key) => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
   .join("\n")}`
     : "# No runtime secrets configured"
@@ -256,9 +349,9 @@ ${Object.entries(buildTimeVars)
   .join("\n")}
 
 ${
-  runtimeSecrets.length > 0
+  allSecrets.length > 0
     ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
-${runtimeSecrets
+${allSecrets
   .map((key) => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
   .join("\n")}`
     : "# No runtime secrets configured"
