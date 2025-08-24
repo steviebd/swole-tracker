@@ -550,7 +550,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   vibrateSafe(10);
                 }}
                 disabled={deleteWorkout.isPending}
-                className="btn-destructive px-3 py-1.5 text-xs font-semibold disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
+                className="btn-destructive text-xs disabled:opacity-50 sm:text-sm"
                 aria-describedby="delete-workout-help"
               >
                 {deleteWorkout.isPending ? "Deleting…" : "Delete Workout"}
@@ -575,7 +575,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={deleteWorkout.isPending}
-            className="btn-destructive w-full py-2.5 text-base font-medium disabled:opacity-50 sm:py-3 sm:text-lg"
+            className="btn-destructive w-full text-base disabled:opacity-50 sm:text-lg"
           >
             {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
@@ -591,7 +591,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div
-          className="bg-opacity-75 bg-foreground fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-workout-title"
@@ -614,8 +614,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             >
               <h3
                 id="delete-workout-title"
-                className="mb-3 text-lg font-bold sm:mb-4 sm:text-xl"
-                style={{ color: "var(--color-danger)" }}
+                className="mb-3 text-lg font-bold text-danger sm:mb-4 sm:text-xl"
               >
                 Delete Workout
               </h3>
@@ -625,7 +624,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               >
                 Are you sure you want to delete this workout?
                 <br />
-                <strong style={{ color: "var(--color-danger)" }}>
+                <strong className="text-danger">
                   This action cannot be undone.
                 </strong>
               </p>
@@ -635,7 +634,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     restoreFocusInline();
                     setShowDeleteConfirm(false);
                   }}
-                  className="btn-secondary flex-1 py-2.5 text-sm font-medium sm:py-3 sm:text-base"
+                  className="btn-secondary flex-1 text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -646,7 +645,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     void handleDelete();
                   }}
                   disabled={deleteWorkout.isPending}
-                  className="btn-destructive flex-1 py-2.5 text-sm font-medium disabled:opacity-50 sm:py-3 sm:text-base"
+                  className="btn-destructive flex-1 text-sm disabled:opacity-50 sm:text-base"
                 >
                   {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
                 </button>

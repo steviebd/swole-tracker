@@ -178,12 +178,42 @@ export function getLogoutUrl(redirectUri: string): string {
   return `https://api.workos.com/user_management/logout?${params.toString()}`;
 }
 
+// Simple memory cache for user validation to reduce API calls
+const userCache = new Map<string, { user: WorkOSUser; expires: number }>();
+const CACHE_DURATION = 60000; // 1 minute cache
+
 /**
- * Validate and decode access token (for middleware use)
+ * Validate and decode access token (for middleware use) with caching
  */
 export async function validateAccessToken(accessToken: string): Promise<WorkOSUser | null> {
   try {
+    // Check cache first
+    const cached = userCache.get(accessToken);
+    if (cached && cached.expires > Date.now()) {
+      console.log('Using cached user data');
+      return cached.user;
+    }
+
     const user = await getUserFromToken(accessToken);
+    
+    // Cache the result
+    if (user) {
+      userCache.set(accessToken, {
+        user,
+        expires: Date.now() + CACHE_DURATION
+      });
+      
+      // Clean up expired entries periodically
+      if (userCache.size > 100) {
+        const now = Date.now();
+        for (const [key, value] of userCache.entries()) {
+          if (value.expires < now) {
+            userCache.delete(key);
+          }
+        }
+      }
+    }
+    
     return user;
   } catch (error) {
     console.error('Access token validation failed:', error);

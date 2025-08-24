@@ -197,26 +197,45 @@ export const templatesRouter = createTRPCRouter({
       });
       const userId = ctx.user.id;
 
-      // Add server-side deduplication check - prevent creating duplicate templates with same name
-      // within a short time window (useful for detecting double-clicks)
-      const recentTemplate = await ctx.db.query.workoutTemplates.findFirst({
+      // Enhanced server-side deduplication check
+      // Create a fingerprint based on name and exercises for stronger deduplication
+      const exerciseFingerprint = input.exercises.sort().join("|");
+      const templateFingerprint = `${input.name}:${exerciseFingerprint}`;
+      
+      debugLog("templates.create: checking for duplicates", {
+        templateFingerprint,
+        requestId: ctx.requestId,
+      });
+
+      // Check for recent templates with same name AND exercises (stronger deduplication)
+      const recentTemplates = await ctx.db.query.workoutTemplates.findMany({
         where: and(
           eq(workoutTemplates.user_id, userId),
           eq(workoutTemplates.name, input.name),
         ),
         orderBy: [desc(workoutTemplates.createdAt)],
+        limit: 3, // Check last 3 templates with same name
+        with: {
+          exercises: {
+            orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+          },
+        },
       });
 
-      // If a template with same name was created in the last 5 seconds, return it instead
-      if (recentTemplate) {
+      // If a template with same name and exercises was created recently, return it instead
+      for (const recentTemplate of recentTemplates) {
         const timeDiff = Date.now() - new Date(recentTemplate.createdAt).getTime();
-        if (timeDiff < 5000) {
-          debugLog("templates.create: returning existing recent template", {
-            templateId: recentTemplate.id,
-            timeDiff,
-            requestId: ctx.requestId,
-          });
-          return recentTemplate;
+        if (timeDiff < 10000) { // Increased to 10 seconds
+          const recentFingerprint = `${recentTemplate.name}:${recentTemplate.exercises.map(e => e.exerciseName).sort().join("|")}`;
+          if (recentFingerprint === templateFingerprint) {
+            debugLog("templates.create: returning existing recent template with same fingerprint", {
+              templateId: recentTemplate.id,
+              timeDiff,
+              templateFingerprint,
+              requestId: ctx.requestId,
+            });
+            return recentTemplate;
+          }
         }
       }
 

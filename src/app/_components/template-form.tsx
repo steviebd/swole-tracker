@@ -102,28 +102,37 @@ export function TemplateForm({ template }: TemplateFormProps) {
         createdAt: data.createdAt,
       });
 
-      // Update cache with the new template optimistically
+      // Improved optimistic update with deduplication
       utils.templates.getAll.setData(
         undefined,
         (old: RouterOutputs["templates"]["getAll"] | undefined) => {
+          if (!old) return [data as NonNullable<typeof old>[number]];
+          
+          // Check if template already exists to prevent duplicates
+          const exists = old.some(template => template.id === data.id);
+          if (exists) {
+            console.log("Template already exists in cache, skipping duplicate");
+            return old;
+          }
+          
           const newTemplate = data as NonNullable<typeof old>[number];
-          return old ? [newTemplate, ...old] : [newTemplate];
+          return [newTemplate, ...old];
         },
       );
 
-      // Wait for cache invalidation to complete before navigation
-      try {
-        await utils.templates.getAll.invalidate();
-      } catch (error) {
-        console.warn(
-          "Cache invalidation failed, but proceeding with navigation:",
-          error,
-        );
-      }
-
-      // Reset submission flag and navigate after cache is settled
-      submitRef.current = false;
-      router.push("/templates");
+      // Delay navigation to allow cache to settle
+      setTimeout(async () => {
+        try {
+          // Gentle cache refresh rather than full invalidation
+          await utils.templates.getAll.refetch();
+        } catch (error) {
+          console.warn("Cache refetch failed:", error);
+        }
+        
+        // Reset submission flag and navigate
+        submitRef.current = false;
+        router.push("/templates");
+      }, 100); // Small delay to let React settle
     },
   });
 
@@ -201,7 +210,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const handleSubmit = async (data: TemplateFormData) => {
     console.log("handleSubmit called");
 
-    // Prevent double submission using both loading state and ref
+    // Enhanced double-submission prevention for React 19 concurrent rendering
     if (isLoading || submitRef.current) {
       console.log("Form already submitting, preventing double submission");
       return;
@@ -212,9 +221,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
-    // Check if this is a duplicate submission (same data within 5 seconds)
+    // Enhanced duplicate submission check with stronger deduplication
     const now = Date.now();
     const lastSubmit = lastSubmitRef.current;
+    const submissionKey = `${trimmedName}:${JSON.stringify(filteredExercises)}`;
 
     if (!template && lastSubmit) {
       const timeDiff = now - lastSubmit.timestamp;
@@ -223,16 +233,16 @@ export function TemplateForm({ template }: TemplateFormProps) {
         JSON.stringify(lastSubmit.exercises) ===
           JSON.stringify(filteredExercises);
 
-      if (sameData && timeDiff < 5000) {
+      if (sameData && timeDiff < 10000) { // Increased to 10 seconds for better protection
         console.log(
-          "Preventing duplicate submission - same data within 5 seconds",
-          { timeDiff },
+          "Preventing duplicate submission - same data within 10 seconds",
+          { timeDiff, submissionKey },
         );
         return;
       }
     }
 
-    // Set submission flag and record this attempt
+    // Set submission flag FIRST to prevent race conditions
     submitRef.current = true;
     lastSubmitRef.current = {
       name: trimmedName,
@@ -251,6 +261,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         console.log("Creating template with data:", {
           name: trimmedName,
           exercises: filteredExercises,
+          submissionKey,
         });
         await createTemplate.mutateAsync({
           name: trimmedName,
@@ -259,9 +270,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     } catch (error) {
       console.error("Error saving template:", error);
-
-      alert("Error saving template. Please try again.");
+      // Reset submission flag on error
       submitRef.current = false;
+      alert("Error saving template. Please try again.");
     }
   };
 
@@ -362,7 +373,17 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-4">
-              <Button type="submit" disabled={isLoading || submitRef.current}>
+              <Button 
+                type="submit" 
+                disabled={isLoading || submitRef.current}
+                onClick={(e) => {
+                  // Prevent any possibility of double clicks
+                  if (isLoading || submitRef.current) {
+                    e.preventDefault();
+                    return;
+                  }
+                }}
+              >
                 {isLoading || submitRef.current
                   ? "Saving..."
                   : template
@@ -373,6 +394,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 type="button"
                 variant="ghost"
                 onClick={() => router.back()}
+                disabled={isLoading || submitRef.current}
               >
                 Cancel
               </Button>

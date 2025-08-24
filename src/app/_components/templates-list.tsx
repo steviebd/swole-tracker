@@ -17,29 +17,38 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 export function TemplatesList() {
   const router = useRouter();
-  const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
+  const { 
+    data: templatesRaw, 
+    isLoading, 
+    isRefetching,
+    dataUpdatedAt 
+  } = api.templates.getAll.useQuery(undefined, {
+    // Enhanced query options for better cache management
+    staleTime: 30000, // Consider data stale after 30 seconds
+    gcTime: 300000, // Keep in garbage collection for 5 minutes
+    refetchOnWindowFocus: false, // Prevent excessive refetching
+    refetchOnMount: false, // Use cached data when possible
+  });
 
-  // Deduplicate templates by ID to prevent any rendering duplicates
+  // Enhanced deduplication with stable sorting and better performance
   const templates = templatesRaw
-    ? templatesRaw.filter(
-        (
-          template: RouterOutputs["templates"]["getAll"][number],
-          index: number,
-          array: RouterOutputs["templates"]["getAll"],
-        ) =>
-          array.findIndex(
-            (t: RouterOutputs["templates"]["getAll"][number]) =>
-              t.id === template.id,
-          ) === index,
-      )
+    ? templatesRaw
+        .filter(
+          (template, index, array) =>
+            array.findIndex(t => t.id === template.id) === index
+        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     : undefined;
 
-  // Debug logging to track template duplication
+  // Enhanced debug logging with cache timing information
   console.log("TemplatesList render:", {
     rawCount: templatesRaw?.length ?? 0,
     deduplicatedCount: templates?.length ?? 0,
-    templates: templates?.map((t) => ({ id: t.id, name: t.name })) ?? [],
+    templates: templates?.map((t) => ({ id: t.id, name: t.name, createdAt: t.createdAt })) ?? [],
     duplicates: (templatesRaw?.length ?? 0) - (templates?.length ?? 0),
+    isLoading,
+    isRefetching,
+    dataUpdatedAt: dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : null,
     timestamp: new Date().toISOString(),
   });
   const utils = api.useUtils();
