@@ -21,6 +21,7 @@ import {
   FormLabel,
   FormMessage,
 } from "~/components/ui/form";
+import { Toast } from "~/app/_components/ui/Toast";
 
 // Zod schema for form validation
 const templateFormSchema = z.object({
@@ -60,8 +61,12 @@ interface TemplateFormProps {
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [clientId] = useState(() => crypto.randomUUID()); // Generate client ID on mount
+  const [clientId] = useState(() => crypto.randomUUID());
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+    showRetry?: boolean;
+  }>({ type: null, message: '' });
 
   // Initialize form with default values
   const form = useForm<TemplateFormData>({
@@ -80,12 +85,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
   });
 
   const utils = api.useUtils();
-  
-  // Pre-warm D1 connection
-  api.templates.warmConnection.useQuery(undefined, {
-    staleTime: Infinity,
-    retry: false,
-  });
   
   // LocalStorage utilities
   const getDraftKey = useCallback(() => {
@@ -180,44 +179,63 @@ export function TemplateForm({ template }: TemplateFormProps) {
     };
   }, [template, form, saveDraft]);
 
+  // Cleanup feedback state on unmount
+  useEffect(() => {
+    return () => {
+      setFeedback({ type: null, message: '' });
+    };
+  }, []);
+
   const createTemplate = api.templates.create.useMutation({
     onError: (err) => {
-      setIsSubmitting(false);
       console.error("Error creating template:", err);
-      alert("Error creating template. Please try again.");
+      setFeedback({
+        type: 'error',
+        message: 'Failed to create template. Please check your connection and try again.',
+        showRetry: true
+      });
     },
-    onSuccess: async (data) => {
+    onSuccess: (data) => {
       console.log("Template created successfully:", data.id);
       
       // Clear draft on successful submission
       clearDraft();
       
-      try {
-        await utils.templates.getAll.invalidate();
-      } catch (error) {
-        console.warn("Cache invalidation failed:", error);
-      }
+      // Show brief success feedback and navigate immediately (optimistic)
+      setFeedback({
+        type: 'success',
+        message: 'Template created successfully!'
+      });
       
-      setIsSubmitting(false);
+      // Optimistic navigation - navigate immediately
       router.push("/templates");
+      
+      // Simple cache invalidation - no await needed
+      utils.templates.getAll.invalidate();
     },
   });
 
   const updateTemplate = api.templates.update.useMutation({
     onError: (err) => {
-      setIsSubmitting(false);
       console.error("Error updating template:", err);
-      alert("Error updating template. Please try again.");
+      setFeedback({
+        type: 'error',
+        message: 'Failed to update template. Please check your connection and try again.',
+        showRetry: true
+      });
     },
-    onSuccess: async () => {
-      try {
-        await utils.templates.getAll.invalidate();
-      } catch (error) {
-        console.warn("Cache invalidation failed:", error);
-      }
-
-      setIsSubmitting(false);
+    onSuccess: () => {
+      // Show brief success feedback and navigate immediately (optimistic)
+      setFeedback({
+        type: 'success',
+        message: 'Template updated successfully!'
+      });
+      
+      // Optimistic navigation - navigate immediately  
       router.push("/templates");
+      
+      // Simple cache invalidation - no await needed
+      utils.templates.getAll.invalidate();
     },
   });
 
@@ -229,42 +247,45 @@ export function TemplateForm({ template }: TemplateFormProps) {
     remove(index);
   };
 
-  const handleSubmit = async (data: TemplateFormData) => {
-    // Prevent double submission
-    if (isSubmitting) {
-      return;
-    }
-
+  const handleSubmit = (data: TemplateFormData) => {
+    // Clear any previous feedback
+    setFeedback({ type: null, message: '' });
+    
     const filteredExercises = data.exercises
       .map((ex) => ex.exerciseName.trim())
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
-    setIsSubmitting(true);
+    // Validate we have exercises after filtering
+    if (filteredExercises.length === 0) {
+      setFeedback({
+        type: 'error',
+        message: 'Please add at least one exercise'
+      });
+      return;
+    }
 
-    try {
-      if (template) {
-        await updateTemplate.mutateAsync({
-          id: template.id,
-          name: trimmedName,
-          exercises: filteredExercises,
-        });
-      } else {
-        await createTemplate.mutateAsync({
-          name: trimmedName,
-          exercises: filteredExercises,
-          clientId, // Use the generated client ID
-        });
-      }
-    } catch (error) {
-      console.error("Error saving template:", error);
-      setIsSubmitting(false);
-      // Error handling is done in the mutation callbacks
+    if (template) {
+      updateTemplate.mutate({
+        id: template.id,
+        name: trimmedName,
+        exercises: filteredExercises,
+      });
+    } else {
+      createTemplate.mutate({
+        name: trimmedName,
+        exercises: filteredExercises,
+        clientId,
+      });
     }
   };
 
+  const handleRetry = () => {
+    form.handleSubmit(handleSubmit)();
+  };
 
-  const isLoading = createTemplate.isPending || updateTemplate.isPending || isSubmitting;
+
+  const isLoading = createTemplate.isPending || updateTemplate.isPending;
 
   return (
     <Card padding="lg">
@@ -272,6 +293,31 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <CardTitle>{template ? "Edit Template" : "Create Template"}</CardTitle>
       </CardHeader>
       <CardContent>
+        {feedback.type && (
+          <div className="mb-6">
+            <Toast
+              open={true}
+              type={feedback.type}
+              message={
+                <div className="flex items-center justify-between w-full">
+                  <span>{feedback.message}</span>
+                  {feedback.showRetry && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRetry}
+                      className="ml-2 h-auto p-1 text-xs"
+                    >
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              }
+              onClose={() => setFeedback({ type: null, message: '' })}
+            />
+          </div>
+        )}
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
@@ -288,6 +334,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                     <Input
                       placeholder="e.g., Push Day, Pull Day, Legs"
                       disabled={isLoading}
+                      aria-describedby={form.formState.errors.name ? `${field.name}-error` : undefined}
                       {...field}
                     />
                   </FormControl>
@@ -306,6 +353,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   size="sm"
                   disabled={isLoading}
                   onClick={addExercise}
+                  aria-label="Add another exercise"
                 >
                   + Add Exercise
                 </Button>
@@ -328,6 +376,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                 placeholder={`Exercise ${index + 1}`}
                                 className="w-full"
                                 disabled={isLoading}
+                                aria-label={`Exercise ${index + 1}`}
+                                aria-describedby={form.formState.errors.exercises?.[index]?.exerciseName ? `exercises-${index}-error` : undefined}
                               />
                             </FormControl>
                           </div>
@@ -339,6 +389,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               disabled={isLoading}
                               onClick={() => removeExercise(index)}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              aria-label={`Remove exercise ${index + 1}`}
                             >
                               Remove
                             </Button>
@@ -358,6 +409,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   disabled={isLoading}
                   onClick={addExercise}
                   className="h-20 w-full border-dashed"
+                  aria-label="Add your first exercise"
                 >
                   + Add your first exercise
                 </Button>
@@ -369,6 +421,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
               <Button 
                 type="submit" 
                 disabled={isLoading}
+                aria-describedby={isLoading ? "loading-description" : undefined}
               >
                 {isLoading
                   ? "Saving..."
@@ -376,6 +429,11 @@ export function TemplateForm({ template }: TemplateFormProps) {
                     ? "Update Template"
                     : "Create Template"}
               </Button>
+              {isLoading && (
+                <span id="loading-description" className="sr-only">
+                  {template ? "Updating template, please wait" : "Creating template, please wait"}
+                </span>
+              )}
               <Button
                 type="button"
                 variant="ghost"

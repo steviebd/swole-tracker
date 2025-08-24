@@ -248,7 +248,7 @@ export const d1BatchOperations = new D1BatchOperations();
  */
 export async function withD1Transaction<T>(
   operation: () => Promise<T>,
-  context: string = 'transaction'
+  context = 'transaction'
 ): Promise<T> {
   // For now, D1 doesn't support transactions, so we just wrap with retry logic
   return withD1Retry(operation, { context });

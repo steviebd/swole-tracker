@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { getLogoutUrl, getBaseRedirectUri, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '~/lib/workos';
 
 

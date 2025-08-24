@@ -112,17 +112,24 @@ export function ExerciseInputWithLinking({
           <button
             type="button"
             onClick={handleRejectLinking}
-            disabled={rejectLinking.isPending}
+            disabled={disabled || rejectLinking.isPending}
             className="text-xs transition-colors"
-            style={{ color: "var(--color-text-muted)" }}
+            style={{ 
+              color: disabled || rejectLinking.isPending ? "var(--color-muted-foreground)" : "var(--color-text-muted)",
+              cursor: disabled || rejectLinking.isPending ? "not-allowed" : "pointer"
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--color-text-secondary)";
+              if (!disabled && !rejectLinking.isPending) {
+                e.currentTarget.style.color = "var(--color-text-secondary)";
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--color-text-muted)";
+              if (!disabled && !rejectLinking.isPending) {
+                e.currentTarget.style.color = "var(--color-text-muted)";
+              }
             }}
           >
-            {rejectLinking.isPending ? "Saving..." : "Don’t link this exercise"}
+            {rejectLinking.isPending ? "Saving..." : "Don't link this exercise"}
           </button>
         </div>
       )}

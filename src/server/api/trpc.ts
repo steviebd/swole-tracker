@@ -36,7 +36,7 @@ async function validateAccessTokenWithCache(
     return null;
   }
 
-  if (!authCache || !authCache.userByToken) {
+  if (!authCache?.userByToken) {
     console.warn('tRPC context: Invalid auth cache provided, falling back to direct validation');
     return await validateAccessToken(accessToken);
   }

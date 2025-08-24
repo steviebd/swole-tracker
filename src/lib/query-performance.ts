@@ -141,7 +141,7 @@ class QueryPerformanceTracker {
     params: TParam[],
     batchSize: number = D1_LIMITS.MAX_INARRAY_PARAMS,
     queryFn: (batchParams: TParam[]) => Promise<TResult[]>,
-    queryName: string = "batchInArrayQuery",
+    queryName = "batchInArrayQuery",
   ): Promise<TResult[]> {
     if (params.length <= batchSize) {
       // No batching needed
@@ -282,8 +282,8 @@ export const queryPerformanceTracker = new QueryPerformanceTracker();
  */
 export function createPaginationQuery<T>(
   baseQuery: T,
-  limit: number = 50,
-  offset: number = 0,
+  limit = 50,
+  offset = 0,
 ) {
   // Ensure reasonable pagination limits for D1
   const safeLimit = Math.min(limit, 1000); // Max 1000 results per query

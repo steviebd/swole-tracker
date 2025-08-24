@@ -16,6 +16,7 @@ export const workoutTemplates = createTable(
     id: d.integer().primaryKey({ autoIncrement: true }),
     name: d.text().notNull(),
     user_id: d.text().notNull(),
+    clientId: d.text(), // Client-generated UUID for idempotency
     createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
@@ -24,6 +25,8 @@ export const workoutTemplates = createTable(
     index("template_name_idx").on(t.name),
     // Composite index to prevent rapid duplicates and improve query performance
     index("template_user_name_created_idx").on(t.user_id, t.name, t.createdAt),
+    // Index for clientId for idempotent operations
+    index("template_user_client_id_idx").on(t.user_id, t.clientId),
   ],
 ); // RLS disabled - using application-level security
 

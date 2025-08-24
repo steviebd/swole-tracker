@@ -40,7 +40,7 @@ export function toUTCDateString(date: Date): string {
  */
 export function parseDBTimestamp(timestamp: string): Date {
   // Handle SQLite datetime format (YYYY-MM-DD HH:MM:SS)
-  if (timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.exec(timestamp)) {
     // Add UTC timezone indicator for SQLite format
     return new Date(timestamp + 'Z');
   }

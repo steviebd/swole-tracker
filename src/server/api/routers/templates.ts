@@ -124,7 +124,7 @@ export const templatesRouter = createTRPCRouter({
   // Pre-warm the D1 connection for better performance
   warmConnection: protectedProcedure.query(async ({ ctx }) => {
     // Lightweight D1 ping to establish connection
-    await ctx.db.select({ exists: sql`1` }).limit(1);
+    await ctx.db.select({ exists: sql`1` });
     return { ready: true, timestamp: Date.now() };
   }),
 
