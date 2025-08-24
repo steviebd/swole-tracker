@@ -9,6 +9,7 @@ import {
   exerciseLinks,
 } from "~/server/db/schema";
 import { eq, desc, and, ne, inArray, gte } from "drizzle-orm";
+import { queryPerformanceTracker, chunkInArrayParams } from "~/lib/query-performance";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -34,12 +35,55 @@ const exerciseInputSchema = z.object({
 const debugEnabled =
   process.env.VITEST ||
   process.env.NODE_ENV === "test" ||
-  (process.env.NODE_ENV === "development" && process.env.DEBUG_WORKOUTS);
+  (process.env.NODE_ENV === "development" && process.env.DEBUG_WORKOUTS) ||
+  process.env.DEBUG_WORKOUTS === "true";
 function debugLog(...args: unknown[]) {
   if (debugEnabled) console.log("[workoutsRouter]", ...args);
 }
 
 export const workoutsRouter = createTRPCRouter({
+  // Diagnostic endpoint for database connection testing
+  diagnostics: protectedProcedure
+    .input(z.object({ sessionId: z.number().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const sessionId = input?.sessionId;
+      debugLog("diagnostics: checking database connection", { userId: ctx.user.id, sessionId });
+      
+      try {
+        // Test 1: Count total workout sessions for user
+        const userSessionCount = await ctx.db.query.workoutSessions.findMany({
+          where: eq(workoutSessions.user_id, ctx.user.id),
+        });
+        
+        // Test 2: Get all session IDs for user (limited to first 10)
+        const userSessions = await ctx.db.query.workoutSessions.findMany({
+          where: eq(workoutSessions.user_id, ctx.user.id),
+          columns: { id: true, workoutDate: true },
+          limit: 10,
+        });
+        
+        // Test 3: If sessionId provided, check if it exists
+        let specificSession = null;
+        if (sessionId) {
+          specificSession = await ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, sessionId),
+            columns: { id: true, user_id: true, templateId: true, workoutDate: true },
+          });
+        }
+        
+        return {
+          userId: ctx.user.id,
+          totalSessions: userSessionCount.length,
+          userSessionIds: userSessions.map(s => ({ id: s.id, date: s.workoutDate })),
+          specificSession: specificSession || null,
+          databaseConnection: "success",
+          timestamp: new Date().toISOString(),
+        };
+      } catch (error) {
+        debugLog("diagnostics: database error", error);
+        throw new Error(`Database diagnostics failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }),
   // Get recent workouts for the current user
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
@@ -63,22 +107,34 @@ export const workoutsRouter = createTRPCRouter({
         // Step 2: Get all unique template IDs
         const templateIds = [...new Set(sessions.map(s => s.templateId))];
         
-        // Step 3: Get templates and their exercises
-        const templates = await ctx.db.query.workoutTemplates.findMany({
-          where: inArray(workoutTemplates.id, templateIds),
-        });
+        // Step 3: Get templates and their exercises (with D1 optimization)
+        const templates = await queryPerformanceTracker.trackQuery(
+          'getRecent_templates',
+          () => ctx.db.query.workoutTemplates.findMany({
+            where: inArray(workoutTemplates.id, queryPerformanceTracker.validateInArrayParams(templateIds, 'getRecent_templates')),
+          }),
+          { userId: ctx.user.id, parameterCount: templateIds.length }
+        );
         
-        const templateExercisesData = await ctx.db.query.templateExercises.findMany({
-          where: inArray(templateExercises.templateId, templateIds),
-          orderBy: [templateExercises.orderIndex],
-        });
+        const templateExercisesData = await queryPerformanceTracker.trackQuery(
+          'getRecent_templateExercises',
+          () => ctx.db.query.templateExercises.findMany({
+            where: inArray(templateExercises.templateId, queryPerformanceTracker.validateInArrayParams(templateIds, 'getRecent_templateExercises')),
+            orderBy: [templateExercises.orderIndex],
+          }),
+          { userId: ctx.user.id, parameterCount: templateIds.length }
+        );
 
-        // Step 4: Get session exercises for all sessions
+        // Step 4: Get session exercises for all sessions (with D1 optimization)
         const sessionIds = sessions.map(s => s.id);
-        const allSessionExercises = await ctx.db.query.sessionExercises.findMany({
-          where: inArray(sessionExercises.sessionId, sessionIds),
-          orderBy: [sessionExercises.setOrder],
-        });
+        const allSessionExercises = await queryPerformanceTracker.trackQuery(
+          'getRecent_sessionExercises',
+          () => ctx.db.query.sessionExercises.findMany({
+            where: inArray(sessionExercises.sessionId, queryPerformanceTracker.validateInArrayParams(sessionIds, 'getRecent_sessionExercises')),
+            orderBy: [sessionExercises.setOrder],
+          }),
+          { userId: ctx.user.id, parameterCount: sessionIds.length }
+        );
 
         debugLog("getRecent: found data", {
           templates: templates.length,
@@ -120,9 +176,16 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       debugLog("getById: input", input);
+      debugLog("getById: user", { userId: ctx.user.id });
       
       try {
         // Step 1: Get the workout session first (simple query)
+        debugLog("getById: executing workout session query", {
+          sessionId: input.id,
+          userId: ctx.user.id,
+          query: "workoutSessions.findFirst with id and user_id filter"
+        });
+        
         const workout = await ctx.db.query.workoutSessions.findFirst({
           where: and(
             eq(workoutSessions.id, input.id),
@@ -130,9 +193,33 @@ export const workoutsRouter = createTRPCRouter({
           ),
         });
 
-        debugLog("getById: found workout", !!workout);
+        debugLog("getById: workout query result", { 
+          found: !!workout,
+          workoutData: workout ? { 
+            id: workout.id, 
+            userId: workout.user_id,
+            templateId: workout.templateId 
+          } : null 
+        });
+        
         if (!workout) {
-          throw new Error("Workout not found");
+          // Enhanced debugging: Check if session exists for any user
+          debugLog("getById: checking if session exists for any user");
+          const anyUserWorkout = await ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.id),
+          });
+          
+          if (anyUserWorkout) {
+            debugLog("getById: session exists but for different user", {
+              sessionId: input.id,
+              sessionUserId: anyUserWorkout.user_id,
+              requestUserId: ctx.user.id
+            });
+            throw new Error(`Workout session ${input.id} not found for user ${ctx.user.id}`);
+          } else {
+            debugLog("getById: session does not exist in database", { sessionId: input.id });
+            throw new Error(`Workout session ${input.id} does not exist`);
+          }
         }
 
         // Step 2: Get the template and its exercises separately to avoid complex nested JSON

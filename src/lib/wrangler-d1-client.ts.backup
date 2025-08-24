@@ -40,31 +40,20 @@ export class WranglerD1Client implements D1Database {
     params: any[] = [],
   ): Promise<D1Response> {
     return new Promise((resolve, reject) => {
-      // Replace parameter placeholders with actual values
-      let processedQuery = query;
-      if (params.length > 0) {
-        // Replace ? placeholders with actual parameter values
-        // Note: This is a simple implementation. In production, you'd want proper SQL escaping
-        params.forEach((param, index) => {
-          const placeholder = new RegExp(`\\?`, "g");
-          processedQuery = processedQuery.replace(placeholder, () => {
-            if (typeof param === "string") {
-              return `'${param.replace(/'/g, "''")}'`; // Escape single quotes
-            }
-            return String(param);
-          });
-        });
-      }
-
       // Use wrangler d1 execute command with JSON output
       const args = [
         "d1",
         "execute",
         this.databaseId,
         "--command",
-        processedQuery,
+        query,
         "--json",
       ];
+
+      // Add parameters if provided
+      if (params.length > 0) {
+        args.push("--params", ...params.map(String));
+      }
 
       console.log(`[WranglerD1] Executing: wrangler ${args.join(" ")}`);
 
@@ -186,6 +175,74 @@ export class WranglerD1Client implements D1Database {
 
         if (options?.columnNames) {
           // Return column names as first element, then data rows
+          const columnNames = result.length > 0 ? Object.keys(result[0] || {}) : [];
+          return [columnNames, ...result];
+        }
+
+        return result;
+      },
+    };
+
+    return preparedStatement as any;
+  }
+        const result = response.result?.[0] || null;
+        if (colName && result) {
+          return (result as any)[colName] || null;
+        }
+        return result;
+      },
+
+      async run(): Promise<D1Result<unknown>> {
+        const response = await self.executeQuery(query, boundValues); // Use stored values
+        if (!response.success) {
+          throw new Error(response.error || "Query failed");
+        }
+
+        return {
+          success: response.success,
+          meta: {
+            changes: response.meta?.changes || 0,
+            last_row_id: response.meta?.last_row_id || 0,
+            duration: response.meta?.duration || 0,
+            rows_read: response.meta?.rows_read || 0,
+            rows_written: response.meta?.rows_written || 0,
+            size_after: response.meta?.size_after || 0,
+            changed_db: response.meta?.changed_db || false,
+          },
+        } as D1Result<unknown>;
+      },
+
+      async all(): Promise<D1Result<unknown>> {
+        const response = await self.executeQuery(query, boundValues); // Use stored values
+        if (!response.success) {
+          throw new Error(response.error || "Query failed");
+        }
+
+        return {
+          success: response.success,
+          results: response.result || [],
+          meta: {
+            changes: response.meta?.changes || 0,
+            last_row_id: response.meta?.last_row_id || 0,
+            duration: response.meta?.duration || 0,
+            rows_read: response.meta?.rows_read || 0,
+            rows_written: response.meta?.rows_written || 0,
+            size_after: response.meta?.size_after || 0,
+            changed_db: response.meta?.changed_db || false,
+          },
+        } as D1Result<unknown>;
+      },
+
+      async raw(options?: { columnNames?: boolean }): Promise<any> {
+        const response = await self.executeQuery(query, boundValues); // Use stored values
+        if (!response.success) {
+          throw new Error(response.error || "Query failed");
+        }
+
+        const result = response.result || [];
+
+        if (options?.columnNames) {
+          // Return column names as first element, then data rows
           const columnNames =
             result.length > 0 ? Object.keys(result[0] || {}) : [];
           return [columnNames, ...result];
@@ -195,7 +252,7 @@ export class WranglerD1Client implements D1Database {
       },
     };
 
-    return preparedStatement as any;
+    return preparedStatement as unknown as D1PreparedStatement;
   }
 
   /**
@@ -210,7 +267,7 @@ export class WranglerD1Client implements D1Database {
     // TODO: Optimize with proper batch support if wrangler adds it
     for (const statement of statements) {
       const result = await statement.run();
-      results.push(result as D1Result<T>);
+      results.push(result as unknown as D1Result<T>);
     }
 
     return results;
