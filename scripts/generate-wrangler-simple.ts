@@ -239,6 +239,7 @@ const wranglerConfig = `# wrangler.toml - Generated from environment variables
 # IMPORTANT: All runtime Variables and Secrets are managed via Cloudflare Dashboard
 # This file only contains infrastructure configuration (D1, KV, routes)
 # Do NOT add [vars] sections here as they will override Dashboard settings
+# OPENNEXT_SKIP_ENV_VARS=true prevents OpenNext from adding environment variables
 
 name = "swole-tracker"
 main = ".open-next/worker.js"
