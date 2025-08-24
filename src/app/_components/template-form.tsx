@@ -1,25 +1,13 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-// Enhanced submission deduplication with crypto hashing
-function createSubmissionHash(name: string, exercises: string[]): string {
-  const data = JSON.stringify({ name: name.trim(), exercises: exercises.sort() });
-  // Simple hash function for client-side deduplication (not cryptographically secure)
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString(36);
-}
 import { api } from "~/trpc/react";
-import type { RouterOutputs } from "~/trpc/react";
+import { useAuth } from "~/providers/AuthProvider";
 
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
@@ -54,6 +42,13 @@ const templateFormSchema = z.object({
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
 
+interface TemplateDraft {
+  clientId: string;
+  name: string;
+  exercises: string[];
+  timestamp: number;
+}
+
 interface TemplateFormProps {
   template?: {
     id: number;
@@ -64,15 +59,9 @@ interface TemplateFormProps {
 
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
-  const submitRef = useRef(false);
-  const submissionHashRef = useRef(new Set<string>());
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const lastSubmitRef = useRef<{
-    name: string;
-    exercises: string[];
-    hash: string;
-    timestamp: number;
-  } | null>(null);
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clientId] = useState(() => crypto.randomUUID()); // Generate client ID on mount
 
   // Initialize form with default values
   const form = useForm<TemplateFormData>({
@@ -91,50 +80,143 @@ export function TemplateForm({ template }: TemplateFormProps) {
   });
 
   const utils = api.useUtils();
+  
+  // Pre-warm D1 connection
+  api.templates.warmConnection.useQuery(undefined, {
+    staleTime: Infinity,
+    retry: false,
+  });
+  
+  // LocalStorage utilities
+  const getDraftKey = useCallback(() => {
+    return user?.id ? `template_draft_${user.id}` : null;
+  }, [user?.id]);
+
+  const saveDraft = useCallback((data: TemplateFormData) => {
+    const draftKey = getDraftKey();
+    if (!draftKey) return;
+
+    try {
+      const draft: TemplateDraft = {
+        clientId,
+        name: data.name,
+        exercises: data.exercises.map(ex => ex.exerciseName.trim()).filter(Boolean),
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (error) {
+      console.warn("Failed to save draft:", error);
+    }
+  }, [clientId, getDraftKey]);
+
+  const loadDraft = useCallback((): TemplateDraft | null => {
+    const draftKey = getDraftKey();
+    if (!draftKey) return null;
+
+    try {
+      const stored = localStorage.getItem(draftKey);
+      if (!stored) return null;
+      return JSON.parse(stored) as TemplateDraft;
+    } catch (error) {
+      console.warn("Failed to load draft:", error);
+      return null;
+    }
+  }, [getDraftKey]);
+
+  const clearDraft = useCallback(() => {
+    const draftKey = getDraftKey();
+    if (!draftKey) return;
+
+    try {
+      localStorage.removeItem(draftKey);
+    } catch (error) {
+      console.warn("Failed to clear draft:", error);
+    }
+  }, [getDraftKey]);
+
+  // Restore draft on mount (only for new templates)
+  useEffect(() => {
+    if (template) return; // Don't restore draft when editing existing template
+
+    const draft = loadDraft();
+    if (!draft) return;
+
+    // Ask user if they want to restore the draft
+    if (confirm("You have an unsaved draft. Would you like to restore it?")) {
+      form.setValue("name", draft.name);
+      
+      // Set exercises
+      const exerciseValues = draft.exercises.map(name => ({ exerciseName: name }));
+      if (exerciseValues.length > 0) {
+        form.setValue("exercises", exerciseValues);
+      }
+    } else {
+      // Clear the draft if user doesn't want to restore
+      clearDraft();
+    }
+  }, [template, loadDraft, clearDraft, form]);
+
+  // Debounced save to localStorage
+  useEffect(() => {
+    if (template) return; // Don't save drafts when editing existing template
+
+    let timeoutId: NodeJS.Timeout;
+
+    const subscription = form.watch((value) => {
+      // Clear any existing timeout
+      clearTimeout(timeoutId);
+      
+      // Set new timeout
+      timeoutId = setTimeout(() => {
+        if (value.name || (value.exercises?.some(ex => ex?.exerciseName))) {
+          saveDraft(value as TemplateFormData);
+        }
+      }, 1000); // 1 second debounce
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, [template, form, saveDraft]);
 
   const createTemplate = api.templates.create.useMutation({
-    onError: (err, newTemplate, context) => {
-      // Reset submission flag on error
-      submitRef.current = false;
+    onError: (err) => {
+      setIsSubmitting(false);
       console.error("Error creating template:", err);
+      alert("Error creating template. Please try again.");
     },
     onSuccess: async (data) => {
-      console.log("Template created successfully:", {
-        id: data.id,
-        name: data.name,
-        user_id: data.user_id,
-        createdAt: data.createdAt,
-      });
-
-      // Simple invalidation instead of optimistic updates to prevent race conditions
+      console.log("Template created successfully:", data.id);
+      
+      // Clear draft on successful submission
+      clearDraft();
+      
       try {
         await utils.templates.getAll.invalidate();
       } catch (error) {
         console.warn("Cache invalidation failed:", error);
       }
       
-      // Reset submission flag and navigate immediately
-      submitRef.current = false;
+      setIsSubmitting(false);
       router.push("/templates");
     },
   });
 
   const updateTemplate = api.templates.update.useMutation({
-    onError: (err, updatedTemplate, context) => {
-      // Reset submission flag on error
-      submitRef.current = false;
+    onError: (err) => {
+      setIsSubmitting(false);
       console.error("Error updating template:", err);
+      alert("Error updating template. Please try again.");
     },
     onSuccess: async () => {
-      // Simple invalidation instead of optimistic updates
       try {
         await utils.templates.getAll.invalidate();
       } catch (error) {
         console.warn("Cache invalidation failed:", error);
       }
 
-      // Reset submission flag and navigate
-      submitRef.current = false;
+      setIsSubmitting(false);
       router.push("/templates");
     },
   });
@@ -148,11 +230,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
   };
 
   const handleSubmit = async (data: TemplateFormData) => {
-    console.log("handleSubmit called");
-
-    // Enhanced double-submission prevention for React 19 concurrent rendering
-    if (isLoading || submitRef.current) {
-      console.log("Form already submitting, preventing double submission");
+    // Prevent double submission
+    if (isSubmitting) {
       return;
     }
 
@@ -161,48 +240,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
-    // Enhanced hash-based duplicate submission prevention
-    const now = Date.now();
-    const submissionHash = createSubmissionHash(trimmedName, filteredExercises);
-    
-    // Check if this exact submission hash was already processed recently
-    if (submissionHashRef.current.has(submissionHash)) {
-      console.log("Preventing duplicate submission - hash already processed", {
-        submissionHash,
-        trimmedName,
-        exerciseCount: filteredExercises.length,
-      });
-      return;
-    }
-
-    const lastSubmit = lastSubmitRef.current;
-    if (!template && lastSubmit) {
-      const timeDiff = now - lastSubmit.timestamp;
-      
-      // Check both hash and time-based deduplication for extra safety
-      if (lastSubmit.hash === submissionHash && timeDiff < 30000) { // Extended to 30 seconds to match server
-        console.log(
-          "Preventing duplicate submission - same hash within 30 seconds",
-          { timeDiff, submissionHash, trimmedName },
-        );
-        return;
-      }
-    }
-
-    // Set submission flag FIRST to prevent race conditions
-    submitRef.current = true;
-    submissionHashRef.current.add(submissionHash);
-    lastSubmitRef.current = {
-      name: trimmedName,
-      exercises: filteredExercises,
-      hash: submissionHash,
-      timestamp: now,
-    };
-
-    // Clean up old hashes after 60 seconds
-    setTimeout(() => {
-      submissionHashRef.current.delete(submissionHash);
-    }, 60000);
+    setIsSubmitting(true);
 
     try {
       if (template) {
@@ -212,48 +250,21 @@ export function TemplateForm({ template }: TemplateFormProps) {
           exercises: filteredExercises,
         });
       } else {
-        console.log("Creating template with data:", {
-          name: trimmedName,
-          exercises: filteredExercises,
-          submissionHash,
-        });
         await createTemplate.mutateAsync({
           name: trimmedName,
           exercises: filteredExercises,
+          clientId, // Use the generated client ID
         });
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      // Reset submission flag on error
-      submitRef.current = false;
-      alert("Error saving template. Please try again.");
+      setIsSubmitting(false);
+      // Error handling is done in the mutation callbacks
     }
   };
 
-  // Debounced submit handler to prevent rapid successive submissions
-  const debouncedSubmit = useCallback((data: TemplateFormData) => {
-    // Clear any pending debounced submission
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
 
-    // Set up new debounced submission with 500ms delay
-    debounceRef.current = setTimeout(() => {
-      void handleSubmit(data);
-    }, 500);
-  }, []);
-
-  // Cleanup debounce on unmount
-  useCallback(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  const isLoading = createTemplate.isPending || updateTemplate.isPending;
-  const isSubmitting = isLoading || submitRef.current;
+  const isLoading = createTemplate.isPending || updateTemplate.isPending || isSubmitting;
 
   return (
     <Card padding="lg">
@@ -263,7 +274,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       <CardContent>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(debouncedSubmit)}
+            onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-6"
           >
             {/* Template Name */}
@@ -276,7 +287,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   <FormControl>
                     <Input
                       placeholder="e.g., Push Day, Pull Day, Legs"
-                      disabled={isSubmitting}
+                      disabled={isLoading}
                       {...field}
                     />
                   </FormControl>
@@ -293,7 +304,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isSubmitting}
+                  disabled={isLoading}
                   onClick={addExercise}
                 >
                   + Add Exercise
@@ -316,7 +327,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                 onChange={exerciseField.onChange}
                                 placeholder={`Exercise ${index + 1}`}
                                 className="w-full"
-                                disabled={isSubmitting}
+                                disabled={isLoading}
                               />
                             </FormControl>
                           </div>
@@ -325,7 +336,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               type="button"
                               variant="ghost"
                               size="sm"
-                              disabled={isSubmitting}
+                              disabled={isLoading}
                               onClick={() => removeExercise(index)}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
@@ -344,7 +355,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={isSubmitting}
+                  disabled={isLoading}
                   onClick={addExercise}
                   className="h-20 w-full border-dashed"
                 >
@@ -357,16 +368,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
             <div className="flex items-center gap-4 pt-4">
               <Button 
                 type="submit" 
-                disabled={isSubmitting}
-                onClick={(e) => {
-                  // Prevent any possibility of double clicks
-                  if (isSubmitting) {
-                    e.preventDefault();
-                    return;
-                  }
-                }}
+                disabled={isLoading}
               >
-                {isSubmitting
+                {isLoading
                   ? "Saving..."
                   : template
                     ? "Update Template"
@@ -376,7 +380,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 type="button"
                 variant="ghost"
                 onClick={() => router.back()}
-                disabled={isSubmitting}
+                disabled={isLoading}
               >
                 Cancel
               </Button>

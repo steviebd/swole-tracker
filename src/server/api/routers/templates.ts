@@ -7,35 +7,18 @@ import {
   masterExercises,
   exerciseLinks,
 } from "~/server/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
-// In-memory request deduplication cache for concurrent request protection
-const requestCache = new Map<string, { result: any; timestamp: number }>();
-const REQUEST_CACHE_TTL = 30000; // 30 seconds
-
-// Cleanup expired requests every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of requestCache.entries()) {
-    if (now - value.timestamp > REQUEST_CACHE_TTL) {
-      requestCache.delete(key);
-    }
-  }
-}, 300000);
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
+  if (!name || typeof name !== 'string') {
+    console.warn('normalizeExerciseName received invalid name:', name);
+    return '';
+  }
   return name.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
-/* DEBUG LOGGING ENABLED FOR TESTS */
-const debugEnabled =
-  Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
-function debugLog(...args: unknown[]) {
-  if (debugEnabled) {
-    console.log("[templatesRouter]", ...args);
-  }
-}
 
 // Helper function to create or get master exercise and link it to template exercise
 import type { db } from "~/server/db";
@@ -58,13 +41,6 @@ async function createAndLinkMasterExercise(
   const normalizedName = normalizeExerciseName(exerciseName);
 
   // Try to find existing master exercise
-  debugLog("createAndLinkMasterExercise: start", {
-    userId,
-    exerciseName,
-    templateExerciseId,
-    linkingRejected,
-  });
-
   const existing = await db
     .select()
     .from(masterExercises)
@@ -85,12 +61,10 @@ async function createAndLinkMasterExercise(
       }
     | undefined;
 
-  debugLog("createAndLinkMasterExercise: lookup existing", existing);
   if (existing.length > 0) {
     masterExercise = existing[0];
   } else {
     // Create new master exercise
-    debugLog("createAndLinkMasterExercise: inserting new master exercise");
     const newMasterExercise = await db
       .insert(masterExercises)
       .values({
@@ -100,7 +74,6 @@ async function createAndLinkMasterExercise(
       })
       .returning();
 
-    // Defensive: some mocked drivers may return undefined or empty array
     if (Array.isArray(newMasterExercise) && newMasterExercise.length > 0) {
       masterExercise =
         newMasterExercise[0] as typeof masterExercises.$inferInsert & {
@@ -109,21 +82,11 @@ async function createAndLinkMasterExercise(
     }
   }
 
-  // If we still don't have a master exercise, skip linking gracefully
-  debugLog(
-    "createAndLinkMasterExercise: resolved masterExercise",
-    masterExercise,
-  );
   if (masterExercise?.id == null) {
-    debugLog(
-      "createAndLinkMasterExercise: no masterExercise id, aborting link",
-    );
     return null;
   }
 
   // Create the link
-  // Upsert link without relying on onConflictDoUpdate (not available in some drivers/mocks)
-  debugLog("createAndLinkMasterExercise: inserting link");
   const insertLink = db.insert(exerciseLinks).values({
     templateExerciseId,
     masterExerciseId: masterExercise.id,
@@ -147,7 +110,6 @@ async function createAndLinkMasterExercise(
   }
 
   // Ensure the link points to the latest masterExerciseId (idempotent)
-  debugLog("createAndLinkMasterExercise: ensuring latest link via update");
   await db
     .update(exerciseLinks)
     .set({
@@ -155,13 +117,17 @@ async function createAndLinkMasterExercise(
     })
     .where(eq(exerciseLinks.templateExerciseId, templateExerciseId));
 
-  debugLog("createAndLinkMasterExercise: done", {
-    masterExerciseId: masterExercise.id,
-  });
   return masterExercise;
 }
 
 export const templatesRouter = createTRPCRouter({
+  // Pre-warm the D1 connection for better performance
+  warmConnection: protectedProcedure.query(async ({ ctx }) => {
+    // Lightweight D1 ping to establish connection
+    await ctx.db.select({ exists: sql`1` }).limit(1);
+    return { ready: true, timestamp: Date.now() };
+  }),
+
   // Get all templates for the current user
   getAll: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.workoutTemplates.findMany({
@@ -202,53 +168,18 @@ export const templatesRouter = createTRPCRouter({
       z.object({
         name: z.string().min(1).max(256),
         exercises: z.array(z.string().min(1).max(256)),
+        clientId: z.string().min(1).max(256), // Client-generated UUID for idempotency
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      debugLog("templates.create: resolver entered", {
-        input,
-        userId: ctx?.user?.id,
-        requestId: ctx.requestId,
-      });
       const userId = ctx.user.id;
 
-      // Enhanced server-side deduplication check
-      // Create a fingerprint based on name and exercises for stronger deduplication
-      const exerciseFingerprint = input.exercises.sort().join("|");
-      const templateFingerprint = `${input.name}:${exerciseFingerprint}`;
-      
-      // Create request cache key for concurrent request deduplication
-      const requestCacheKey = `${userId}:${templateFingerprint}`;
-      
-      debugLog("templates.create: checking request cache", {
-        requestCacheKey,
-        requestId: ctx.requestId,
-      });
-
-      // Check if this exact request is already being processed
-      const cachedRequest = requestCache.get(requestCacheKey);
-      if (cachedRequest && (Date.now() - cachedRequest.timestamp) < REQUEST_CACHE_TTL) {
-        debugLog("templates.create: returning cached result for concurrent request", {
-          templateId: cachedRequest.result.id,
-          cacheAge: Date.now() - cachedRequest.timestamp,
-          requestId: ctx.requestId,
-        });
-        return cachedRequest.result;
-      }
-      
-      debugLog("templates.create: checking for duplicates", {
-        templateFingerprint,
-        requestId: ctx.requestId,
-      });
-
-      // Check for recent templates with same name AND exercises (stronger deduplication)
-      const recentTemplates = await ctx.db.query.workoutTemplates.findMany({
+      // Check if a template with this clientId already exists for this user
+      const existingTemplate = await ctx.db.query.workoutTemplates.findFirst({
         where: and(
           eq(workoutTemplates.user_id, userId),
-          eq(workoutTemplates.name, input.name),
+          eq(workoutTemplates.clientId, input.clientId),
         ),
-        orderBy: [desc(workoutTemplates.createdAt)],
-        limit: 3, // Check last 3 templates with same name
         with: {
           exercises: {
             orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
@@ -256,89 +187,75 @@ export const templatesRouter = createTRPCRouter({
         },
       });
 
-      // If a template with same name and exercises was created recently, return it instead
-      for (const recentTemplate of recentTemplates) {
-        const timeDiff = Date.now() - new Date(recentTemplate.createdAt).getTime();
-        if (timeDiff < 30000) { // Extended to 30 seconds for React 19 concurrent rendering protection
-          const recentFingerprint = `${recentTemplate.name}:${recentTemplate.exercises.map(e => e.exerciseName).sort().join("|")}`;
-          if (recentFingerprint === templateFingerprint) {
-            debugLog("templates.create: returning existing recent template with same fingerprint", {
-              templateId: recentTemplate.id,
-              timeDiff,
-              templateFingerprint,
-              requestId: ctx.requestId,
-            });
-            return recentTemplate;
-          }
-        }
+      // If template with this clientId already exists, return it (natural idempotency)
+      if (existingTemplate) {
+        return existingTemplate;
       }
 
-      debugLog("templates.create: creating new template", {
-        requestId: ctx.requestId,
-      });
+      // Create new template with clientId
+      const [newTemplate] = await ctx.db
+        .insert(workoutTemplates)
+        .values({
+          name: input.name,
+          user_id: userId,
+          clientId: input.clientId,
+        })
+        .returning();
 
-      // Use transaction for atomic template creation with better isolation
-      const template = await ctx.db.transaction(async (tx) => {
-        // Insert template within transaction
-        const [newTemplate] = await tx
-          .insert(workoutTemplates)
-          .values({
-            name: input.name,
-            user_id: userId,
-          })
-          .returning();
+      if (!newTemplate) {
+        throw new Error("Failed to create template");
+      }
 
-        if (!newTemplate) {
-          throw new Error("Failed to create template");
-        }
-
-        debugLog("templates.create: template created in transaction", {
-          templateId: newTemplate.id,
-          requestId: ctx.requestId,
-        });
-
-        // Insert exercises within same transaction
-        if (input.exercises.length > 0) {
-          const insertedExercises = await tx
-            .insert(templateExercises)
-            .values(
-              input.exercises.map((exerciseName, index) => ({
+      // Insert exercises if provided
+      if (input.exercises.length > 0) {
+        try {
+          // Insert exercises sequentially
+          const insertedExercises: Array<typeof templateExercises.$inferInsert & { id: number }> = [];
+          
+          for (let index = 0; index < input.exercises.length; index++) {
+            const exerciseName = input.exercises[index];
+            if (!exerciseName) continue;
+            
+            const [templateExercise] = await ctx.db
+              .insert(templateExercises)
+              .values({
                 user_id: ctx.user.id,
                 templateId: newTemplate.id,
                 exerciseName,
                 orderIndex: index,
                 linkingRejected: 0,
-              })),
-            )
-            .returning();
+              })
+              .returning();
+              
+            if (templateExercise) {
+              insertedExercises.push(templateExercise);
+            }
+          }
 
-          // Create master exercise links within transaction
+          // Create master exercise links for each template exercise
           for (const templateExercise of insertedExercises) {
             await createAndLinkMasterExercise(
-              tx,
+              ctx.db,
               ctx.user.id,
               templateExercise.exerciseName,
               templateExercise.id,
               false,
             );
           }
+        } catch (error) {
+          // If exercise creation fails, clean up the template
+          await ctx.db
+            .delete(workoutTemplates)
+            .where(eq(workoutTemplates.id, newTemplate.id))
+            .catch(() => {
+              // Ignore cleanup failure to avoid masking original error
+            });
+          
+          throw error;
         }
+      }
 
-        return newTemplate;
-      });
-
-      debugLog("templates.create: completed", {
-        templateId: template.id,
-        requestId: ctx.requestId,
-      });
-
-      // Cache the result for concurrent request deduplication
-      requestCache.set(requestCacheKey, {
-        result: template,
-        timestamp: Date.now(),
-      });
-
-      return template;
+      return newTemplate;
     }),
 
   // Update a template
