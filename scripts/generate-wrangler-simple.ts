@@ -12,7 +12,7 @@ const projectRoot = resolve(process.cwd());
 
 console.log("🔧 Generating wrangler.toml with consolidated variables...");
 
-// Load local environment variables as fallback
+// Try to load .env.local or .env as fallback
 const envFiles = [".env.local", ".env"];
 let envLoaded = false;
 
@@ -20,7 +20,7 @@ for (const envFile of envFiles) {
   const envPath = join(projectRoot, envFile);
   try {
     config({ path: envPath });
-    console.log(`📄 Loaded local environment from ${envFile}`);
+    console.log(`📄 Loaded environment from ${envFile}`);
     envLoaded = true;
     break;
   } catch (e) {
@@ -28,10 +28,11 @@ for (const envFile of envFiles) {
   }
 }
 
-// Use environment variables (injected by Infisical CLI or local .env)
-const env = process.env;
+if (!envLoaded) {
+  console.log("⚠️  No .env files found, using environment variables from process.env");
+}
 
-console.log(`🔑 Using ${envLoaded ? 'local' : 'injected'} environment variables`);
+const env = process.env;
 
 /**
  * Categorizes environment variables into build-time vars and runtime secrets

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "npm run tokens:build && next build",
-    "build:cloudflare": "bun run tokens:build && infisical run -- bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
+    "build:cloudflare": "bun run tokens:build && bun run generate:wrangler && opennextjs-cloudflare build --config ./wrangler.toml",
     "deploy": "bun run build:cloudflare && opennextjs-cloudflare deploy",
     "deploy:staging": "opennextjs-cloudflare deploy --env staging",
     "deploy:production": "opennextjs-cloudflare deploy --env production",
