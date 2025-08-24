@@ -1,91 +1,16 @@
 #!/usr/bin/env bun
 /**
  * Simple wrangler.toml generator for consolidated variables
- * Fetches secrets from Infisical using machine identity authentication
+ * Uses Infisical CLI to inject environment variables
  */
 
 import { writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { config } from "dotenv";
-import { InfisicalSDK } from "@infisical/sdk";
 
 const projectRoot = resolve(process.cwd());
 
 console.log("🔧 Generating wrangler.toml with consolidated variables...");
-
-/**
- * Fetch secrets from Infisical using machine identity
- */
-async function fetchInfisicalSecrets(): Promise<Record<string, string>> {
-  const clientId = process.env.INFISICAL_CLIENT_ID;
-  const clientSecret = process.env.INFISICAL_SECRET;
-  const projectId = process.env.INFISICAL_PROJECT_ID;
-
-  console.log("🔍 Checking Infisical credentials...");
-  console.log(`   INFISICAL_CLIENT_ID: ${clientId ? '✅ Found' : '❌ Missing'}`);
-  console.log(`   INFISICAL_SECRET: ${clientSecret ? '✅ Found' : '❌ Missing'}`);
-  console.log(`   INFISICAL_PROJECT_ID: ${projectId ? '✅ Found' : '❌ Missing'}`);
-
-  if (!clientId || !clientSecret) {
-    console.log("⚠️  Infisical machine identity credentials not found, falling back to local .env files");
-    console.log("💡 Add INFISICAL_CLIENT_ID and INFISICAL_SECRET to your .env.local or environment");
-    return {};
-  }
-
-  if (!projectId) {
-    console.log("⚠️  INFISICAL_PROJECT_ID not found - this may be required depending on your Infisical setup");
-  }
-
-  try {
-    console.log("🔐 Authenticating with Infisical...");
-    
-    const client = new InfisicalSDK();
-    
-    await client.auth().universalAuth.login({
-      clientId,
-      clientSecret,
-    });
-    
-    console.log("✅ Successfully authenticated with Infisical");
-    
-    // If no project ID is provided, we need to handle this case
-    if (!projectId) {
-      console.log("⚠️  Cannot fetch secrets without INFISICAL_PROJECT_ID");
-      console.log("💡 Please add INFISICAL_PROJECT_ID to your environment variables");
-      return {};
-    }
-    
-    // Fetch secrets from different environments
-    const environments = ["dev", "staging", "production"];
-    const secrets: Record<string, string> = {};
-    
-    for (const env of environments) {
-      try {
-        console.log(`📦 Fetching secrets for environment: ${env}`);
-        const envSecrets = await client.secrets().listSecrets({
-          environment: env,
-          projectId,
-        });
-        
-        // Add environment prefix to avoid conflicts
-        envSecrets.secrets.forEach((secret) => {
-          const key = env === "dev" ? secret.secretKey : `${env.toUpperCase()}_${secret.secretKey}`;
-          secrets[key] = secret.secretValue;
-        });
-        
-        console.log(`✅ Fetched ${envSecrets.secrets.length} secrets for ${env}`);
-      } catch (error) {
-        console.log(`⚠️  Could not fetch secrets for ${env}:`, error instanceof Error ? error.message : error);
-      }
-    }
-    
-    return secrets;
-  } catch (error) {
-    console.log("❌ Failed to fetch secrets from Infisical:", error instanceof Error ? error.message : error);
-    console.log("🔍 Error details:", error);
-    return {};
-  }
-}
 
 // Load local environment variables as fallback
 const envFiles = [".env.local", ".env"];
@@ -103,13 +28,91 @@ for (const envFile of envFiles) {
   }
 }
 
-// Fetch secrets from Infisical
-const infisicalSecrets = await fetchInfisicalSecrets();
+// Use environment variables (injected by Infisical CLI or local .env)
+const env = process.env;
 
-// Merge environment variables (Infisical secrets take precedence)
-const env = { ...process.env, ...infisicalSecrets };
+console.log(`🔑 Using ${envLoaded ? 'local' : 'injected'} environment variables`);
 
-console.log(`🔑 Using ${Object.keys(infisicalSecrets).length} secrets from Infisical + ${envLoaded ? 'local' : 'system'} environment variables`);
+/**
+ * Categorizes environment variables into build-time vars and runtime secrets
+ */
+function categorizeEnvironmentVariables() {
+  const buildTimeVars: Record<string, string> = {};
+  const runtimeSecrets: string[] = [];
+
+  // Define which variables should be build-time vs runtime
+  const buildTimePatterns = [
+    'NODE_ENV',
+    'NEXT_PUBLIC_',
+    'RATE_LIMIT_',
+    'ENVIRONMENT',
+    'SKIP_ENV_VALIDATION',
+    'NEXT_TELEMETRY_DISABLED',
+    'WHOOP_CLIENT_ID',
+    'WHOOP_SYNC_RATE_LIMIT_PER_HOUR',
+    'AI_GATEWAY_MODEL',
+    'AI_GATEWAY_PROMPT',
+    'AI_GATEWAY_JOKE_MEMORY_NUMBER',
+    'AI_GATEWAY_MODEL_HEALTH'
+  ];
+
+  const runtimeSecretPatterns = [
+    'API_KEY',
+    'SECRET',
+    'TOKEN',
+    'PASSWORD',
+    'DATABASE_URL',
+    'WORKOS_API_KEY',
+    'WHOOP_CLIENT_SECRET',
+    'WHOOP_WEBHOOK_SECRET',
+    'VERCEL_AI_GATEWAY_API_KEY',
+    'AI_GATEWAY_API_KEY'
+  ];
+
+  // System environment variables to exclude from wrangler.toml
+  const systemEnvVarsToExclude = [
+    'HOME', 'PATH', 'USER', 'SHELL', 'PWD', 'OLDPWD', 'TERM', 'LANG', 'LC_',
+    'ANDROID_HOME', 'BUN_INSTALL', 'COLORTERM', 'COMMAND_MODE', 'GHOSTTY_',
+    'TMPDIR', '_', 'VOLTA_HOME', 'JAVA_HOME', 'EDITOR', 'PAGER', 'SSH_',
+    'XDG_', 'DISPLAY', 'SESSION_MANAGER'
+  ];
+
+  Object.entries(env).forEach(([key, value]) => {
+    if (!value) return;
+
+    // Skip system environment variables
+    const isSystemVar = systemEnvVarsToExclude.some(pattern => 
+      key.startsWith(pattern) || key === pattern
+    );
+
+    if (isSystemVar) {
+      return;
+    }
+
+    // Check if it's a build-time variable
+    const isBuildTime = buildTimePatterns.some(pattern => 
+      key.startsWith(pattern) || key === pattern
+    );
+
+    // Check if it's a runtime secret
+    const isRuntimeSecret = runtimeSecretPatterns.some(pattern => 
+      key.includes(pattern) || key.endsWith(pattern)
+    );
+
+    if (isBuildTime) {
+      buildTimeVars[key] = value;
+    } else if (isRuntimeSecret) {
+      runtimeSecrets.push(key);
+    }
+  });
+
+  return { buildTimeVars, runtimeSecrets };
+}
+
+// Categorize environment variables
+const { buildTimeVars, runtimeSecrets } = categorizeEnvironmentVariables();
+
+console.log(`📊 Categorized ${Object.keys(buildTimeVars).length} build-time vars and ${runtimeSecrets.length} runtime secrets`);
 
 const wranglerConfig = `# wrangler.toml - Generated from environment variables
 # Do not commit this file; it is generated each build.
@@ -129,8 +132,10 @@ head_sampling_rate = 1
 
 [vars]
 ENVIRONMENT = "development"
-WORKOS_CLIENT_ID = "${env.WORKOS_CLIENT_ID || ""}"
-WORKOS_API_KEY = "${env.WORKOS_API_KEY || ""}"
+${Object.entries(buildTimeVars)
+  .filter(([key]) => key !== 'ENVIRONMENT')
+  .map(([key, value]) => `${key} = "${value}"`)
+  .join('\n')}
 
 # Staging Environment
 [env.staging]
@@ -171,8 +176,17 @@ experimental_remote = true`
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-WORKOS_CLIENT_ID = "${env.STAGING_WORKOS_CLIENT_ID || env.WORKOS_CLIENT_ID || ""}"
-WORKOS_API_KEY = "${env.STAGING_WORKOS_API_KEY || env.WORKOS_API_KEY || ""}"
+${Object.entries(buildTimeVars)
+  .filter(([key]) => key !== 'ENVIRONMENT')
+  .map(([key, value]) => `${key} = "${value}"`)
+  .join('\n')}
+
+${runtimeSecrets.length > 0 
+  ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
+${runtimeSecrets
+  .map(key => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
+  .join('\n')}`
+  : '# No runtime secrets configured'}
 
 # Production Environment
 [env.production]
@@ -205,8 +219,17 @@ experimental_remote = true
 
 [env.production.vars]
 ENVIRONMENT = "production"
-WORKOS_CLIENT_ID = "${env.PRODUCTION_WORKOS_CLIENT_ID || env.WORKOS_CLIENT_ID || "workos-from-dashboard"}"
-WORKOS_API_KEY = "${env.PRODUCTION_WORKOS_API_KEY || env.WORKOS_API_KEY || "workos-api-from-dashboard"}"
+${Object.entries(buildTimeVars)
+  .filter(([key]) => key !== 'ENVIRONMENT')
+  .map(([key, value]) => `${key} = "${value}"`)
+  .join('\n')}
+
+${runtimeSecrets.length > 0 
+  ? `# Runtime Secrets (set via Cloudflare Dashboard or wrangler secret put)
+${runtimeSecrets
+  .map(key => `# ${key} = "[REDACTED - SET VIA DASHBOARD]"`)
+  .join('\n')}`
+  : '# No runtime secrets configured'}
 
 # Local Development (default/root)
 [[d1_databases]]
