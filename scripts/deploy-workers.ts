@@ -86,15 +86,15 @@ async function deployToWorkers(options: DeployOptions): Promise<void> {
 async function validateEnvironment(environment: string): Promise<void> {
   const requiredEnvVars: Record<string, string[]> = {
     production: [
-      'CLOUDFLARE_PROD_D1_DATABASE_ID',
-      'CLOUDFLARE_PROD_RATE_LIMIT_KV_ID',
-      'CLOUDFLARE_PROD_CACHE_KV_ID',
+      'CLOUDFLARE_D1_DATABASE_ID',
+      'CLOUDFLARE_RATE_LIMIT_KV_ID',
+      'CLOUDFLARE_CACHE_KV_ID',
       'CLOUDFLARE_API_TOKEN'
     ],
     staging: [
-      'CLOUDFLARE_STAGING_D1_DATABASE_ID',
-      'CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID',
-      'CLOUDFLARE_STAGING_CACHE_KV_ID',
+      'CLOUDFLARE_D1_DATABASE_ID',
+      'CLOUDFLARE_RATE_LIMIT_KV_ID',
+      'CLOUDFLARE_CACHE_KV_ID',
       'CLOUDFLARE_API_TOKEN'
     ],
     development: [
@@ -267,17 +267,20 @@ ENVIRONMENT VARIABLES:
   Development:
     - CLOUDFLARE_API_TOKEN
 
-  Staging:
+  Staging (via Infisical):
     - CLOUDFLARE_API_TOKEN
-    - CLOUDFLARE_STAGING_D1_DATABASE_ID
-    - CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID
-    - CLOUDFLARE_STAGING_CACHE_KV_ID
+    - CLOUDFLARE_D1_DATABASE_ID
+    - CLOUDFLARE_RATE_LIMIT_KV_ID
+    - CLOUDFLARE_CACHE_KV_ID
 
-  Production:
+  Production (via Infisical):
     - CLOUDFLARE_API_TOKEN
-    - CLOUDFLARE_PROD_D1_DATABASE_ID
-    - CLOUDFLARE_PROD_RATE_LIMIT_KV_ID
-    - CLOUDFLARE_PROD_CACHE_KV_ID
+    - CLOUDFLARE_D1_DATABASE_ID
+    - CLOUDFLARE_RATE_LIMIT_KV_ID
+    - CLOUDFLARE_CACHE_KV_ID
+
+Note: Run with Infisical for environment-specific deployments:
+  infisical run --env=staging -- bun scripts/deploy-workers.ts --env staging
 `);
 }
 
