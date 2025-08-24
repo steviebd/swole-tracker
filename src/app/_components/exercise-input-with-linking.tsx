@@ -10,6 +10,7 @@ interface ExerciseInputProps {
   placeholder: string;
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
   templateExerciseId?: number; // For existing template exercises
 }
 
@@ -19,6 +20,7 @@ export function ExerciseInputWithLinking({
   placeholder,
   className,
   style,
+  disabled = false,
   templateExerciseId,
 }: ExerciseInputProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -67,24 +69,31 @@ export function ExerciseInputWithLinking({
           placeholder={placeholder}
           className={className}
           style={style}
+          disabled={disabled}
         />
         {!linkingRejected && (
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
+            disabled={disabled}
             className="shrink-0 rounded px-2 py-1 text-xs transition-colors"
             style={{
-              backgroundColor: "var(--color-primary)",
-              border: "1px solid var(--color-primary)",
-              color: "var(--btn-primary-fg)"
+              backgroundColor: disabled ? "var(--color-muted)" : "var(--color-primary)",
+              border: `1px solid ${disabled ? "var(--color-muted)" : "var(--color-primary)"}`,
+              color: disabled ? "var(--color-muted-foreground)" : "var(--btn-primary-fg)",
+              cursor: disabled ? "not-allowed" : "pointer"
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+              if (!disabled) {
+                e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-primary)";
+              if (!disabled) {
+                e.currentTarget.style.backgroundColor = "var(--color-primary)";
+              }
             }}
-            title="Link to existing exercise"
+            title={disabled ? "Disabled during form submission" : "Link to existing exercise"}
           >
             Link
           </button>

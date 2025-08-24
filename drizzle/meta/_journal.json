@@ -15,6 +15,13 @@
       "when": 1756021069104,
       "tag": "0001_steady_ma_gnuci",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1756029254739,
+      "tag": "0002_soft_the_captain",
+      "breakpoints": true
     }
   ]
 }

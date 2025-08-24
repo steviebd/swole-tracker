@@ -9,6 +9,20 @@ import {
 } from "~/server/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
+// In-memory request deduplication cache for concurrent request protection
+const requestCache = new Map<string, { result: any; timestamp: number }>();
+const REQUEST_CACHE_TTL = 30000; // 30 seconds
+
+// Cleanup expired requests every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of requestCache.entries()) {
+    if (now - value.timestamp > REQUEST_CACHE_TTL) {
+      requestCache.delete(key);
+    }
+  }
+}, 300000);
+
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, " ");
@@ -27,9 +41,10 @@ function debugLog(...args: unknown[]) {
 import type { db } from "~/server/db";
 
 type Db = typeof db;
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 async function createAndLinkMasterExercise(
-  db: Db,
+  db: Db | DbTransaction,
   userId: string,
   exerciseName: string,
   templateExerciseId: number,
@@ -202,6 +217,25 @@ export const templatesRouter = createTRPCRouter({
       const exerciseFingerprint = input.exercises.sort().join("|");
       const templateFingerprint = `${input.name}:${exerciseFingerprint}`;
       
+      // Create request cache key for concurrent request deduplication
+      const requestCacheKey = `${userId}:${templateFingerprint}`;
+      
+      debugLog("templates.create: checking request cache", {
+        requestCacheKey,
+        requestId: ctx.requestId,
+      });
+
+      // Check if this exact request is already being processed
+      const cachedRequest = requestCache.get(requestCacheKey);
+      if (cachedRequest && (Date.now() - cachedRequest.timestamp) < REQUEST_CACHE_TTL) {
+        debugLog("templates.create: returning cached result for concurrent request", {
+          templateId: cachedRequest.result.id,
+          cacheAge: Date.now() - cachedRequest.timestamp,
+          requestId: ctx.requestId,
+        });
+        return cachedRequest.result;
+      }
+      
       debugLog("templates.create: checking for duplicates", {
         templateFingerprint,
         requestId: ctx.requestId,
@@ -225,7 +259,7 @@ export const templatesRouter = createTRPCRouter({
       // If a template with same name and exercises was created recently, return it instead
       for (const recentTemplate of recentTemplates) {
         const timeDiff = Date.now() - new Date(recentTemplate.createdAt).getTime();
-        if (timeDiff < 10000) { // Increased to 10 seconds
+        if (timeDiff < 30000) { // Extended to 30 seconds for React 19 concurrent rendering protection
           const recentFingerprint = `${recentTemplate.name}:${recentTemplate.exercises.map(e => e.exerciseName).sort().join("|")}`;
           if (recentFingerprint === templateFingerprint) {
             debugLog("templates.create: returning existing recent template with same fingerprint", {
@@ -242,52 +276,68 @@ export const templatesRouter = createTRPCRouter({
       debugLog("templates.create: creating new template", {
         requestId: ctx.requestId,
       });
-      const [template] = await ctx.db
-        .insert(workoutTemplates)
-        .values({
-          name: input.name,
-          user_id: userId,
-        })
-        .returning();
 
-      if (!template) {
-        throw new Error("Failed to create template");
-      }
-
-      debugLog("templates.create: template created", {
-        templateId: template.id,
-        requestId: ctx.requestId,
-      });
-
-      if (input.exercises.length > 0) {
-        const insertedExercises = await ctx.db
-          .insert(templateExercises)
-          .values(
-            input.exercises.map((exerciseName, index) => ({
-              user_id: ctx.user.id,
-              templateId: template.id,
-              exerciseName,
-              orderIndex: index,
-              linkingRejected: 0,
-            })),
-          )
+      // Use transaction for atomic template creation with better isolation
+      const template = await ctx.db.transaction(async (tx) => {
+        // Insert template within transaction
+        const [newTemplate] = await tx
+          .insert(workoutTemplates)
+          .values({
+            name: input.name,
+            user_id: userId,
+          })
           .returning();
 
-        for (const templateExercise of insertedExercises) {
-          await createAndLinkMasterExercise(
-            ctx.db,
-            ctx.user.id,
-            templateExercise.exerciseName,
-            templateExercise.id,
-            false,
-          );
+        if (!newTemplate) {
+          throw new Error("Failed to create template");
         }
-      }
+
+        debugLog("templates.create: template created in transaction", {
+          templateId: newTemplate.id,
+          requestId: ctx.requestId,
+        });
+
+        // Insert exercises within same transaction
+        if (input.exercises.length > 0) {
+          const insertedExercises = await tx
+            .insert(templateExercises)
+            .values(
+              input.exercises.map((exerciseName, index) => ({
+                user_id: ctx.user.id,
+                templateId: newTemplate.id,
+                exerciseName,
+                orderIndex: index,
+                linkingRejected: 0,
+              })),
+            )
+            .returning();
+
+          // Create master exercise links within transaction
+          for (const templateExercise of insertedExercises) {
+            await createAndLinkMasterExercise(
+              tx,
+              ctx.user.id,
+              templateExercise.exerciseName,
+              templateExercise.id,
+              false,
+            );
+          }
+        }
+
+        return newTemplate;
+      });
 
       debugLog("templates.create: completed", {
         templateId: template.id,
         requestId: ctx.requestId,
       });
+
+      // Cache the result for concurrent request deduplication
+      requestCache.set(requestCacheKey, {
+        result: template,
+        timestamp: Date.now(),
+      });
+
       return template;
     }),
 

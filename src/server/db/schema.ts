@@ -22,6 +22,8 @@ export const workoutTemplates = createTable(
   (t) => [
     index("template_user_id_idx").on(t.user_id),
     index("template_name_idx").on(t.name),
+    // Composite index to prevent rapid duplicates and improve query performance
+    index("template_user_name_created_idx").on(t.user_id, t.name, t.createdAt),
   ],
 ); // RLS disabled - using application-level security
 

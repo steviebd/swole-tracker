@@ -1,10 +1,23 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
+// Enhanced submission deduplication with crypto hashing
+function createSubmissionHash(name: string, exercises: string[]): string {
+  const data = JSON.stringify({ name: name.trim(), exercises: exercises.sort() });
+  // Simple hash function for client-side deduplication (not cryptographically secure)
+  let hash = 0;
+  for (let i = 0; i < data.length; i++) {
+    const char = data.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
 import { api } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/react";
 
@@ -52,9 +65,12 @@ interface TemplateFormProps {
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const submitRef = useRef(false);
+  const submissionHashRef = useRef(new Set<string>());
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastSubmitRef = useRef<{
     name: string;
     exercises: string[];
+    hash: string;
     timestamp: number;
   } | null>(null);
 
@@ -77,22 +93,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const utils = api.useUtils();
 
   const createTemplate = api.templates.create.useMutation({
-    onMutate: async (_newTemplate) => {
-      // Cancel any outgoing refetches to prevent race conditions
-      await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value for error rollback
-      const previousTemplates = utils.templates.getAll.getData();
-
-      return { previousTemplates };
-    },
     onError: (err, newTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
-      }
       // Reset submission flag on error
       submitRef.current = false;
+      console.error("Error creating template:", err);
     },
     onSuccess: async (data) => {
       console.log("Template created successfully:", {
@@ -102,98 +106,34 @@ export function TemplateForm({ template }: TemplateFormProps) {
         createdAt: data.createdAt,
       });
 
-      // Improved optimistic update with deduplication
-      utils.templates.getAll.setData(
-        undefined,
-        (old: RouterOutputs["templates"]["getAll"] | undefined) => {
-          if (!old) return [data as NonNullable<typeof old>[number]];
-          
-          // Check if template already exists to prevent duplicates
-          const exists = old.some(template => template.id === data.id);
-          if (exists) {
-            console.log("Template already exists in cache, skipping duplicate");
-            return old;
-          }
-          
-          const newTemplate = data as NonNullable<typeof old>[number];
-          return [newTemplate, ...old];
-        },
-      );
-
-      // Delay navigation to allow cache to settle
-      setTimeout(async () => {
-        try {
-          // Gentle cache refresh rather than full invalidation
-          await utils.templates.getAll.refetch();
-        } catch (error) {
-          console.warn("Cache refetch failed:", error);
-        }
-        
-        // Reset submission flag and navigate
-        submitRef.current = false;
-        router.push("/templates");
-      }, 100); // Small delay to let React settle
+      // Simple invalidation instead of optimistic updates to prevent race conditions
+      try {
+        await utils.templates.getAll.invalidate();
+      } catch (error) {
+        console.warn("Cache invalidation failed:", error);
+      }
+      
+      // Reset submission flag and navigate immediately
+      submitRef.current = false;
+      router.push("/templates");
     },
   });
 
   const updateTemplate = api.templates.update.useMutation({
-    onMutate: async (updatedTemplate) => {
-      // Cancel any outgoing refetches
-      await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value
-      const previousTemplates = utils.templates.getAll.getData();
-
-      // Optimistically update the cache
-      utils.templates.getAll.setData(
-        undefined,
-        (old: RouterOutputs["templates"]["getAll"] | undefined) =>
-          old?.map((template: RouterOutputs["templates"]["getAll"][number]) =>
-            template.id === (updatedTemplate as any)?.id
-              ? {
-                  ...template,
-                  name: (updatedTemplate as any)?.name,
-                  updatedAt: new Date().toISOString(),
-                  exercises: (updatedTemplate as any)?.exercises?.map(
-                    (exerciseName, index) => ({
-                      id: template.exercises[index]?.id ?? -index - 1,
-                      user_id:
-                        template.exercises[index]?.user_id ?? "temp-user",
-                      templateId: template.id,
-                      exerciseName,
-                      orderIndex: index,
-                      linkingRejected:
-                        template.exercises[index]?.linkingRejected ?? 0,
-                      createdAt:
-                        template.exercises[index]?.createdAt ??
-                        new Date().toISOString(),
-                    }),
-                  ),
-                }
-              : template,
-          ) ?? [],
-      );
-
-      return { previousTemplates };
-    },
     onError: (err, updatedTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
-      }
+      // Reset submission flag on error
+      submitRef.current = false;
+      console.error("Error updating template:", err);
     },
     onSuccess: async () => {
-      // Wait for cache invalidation to complete before navigation
+      // Simple invalidation instead of optimistic updates
       try {
         await utils.templates.getAll.invalidate();
       } catch (error) {
-        console.warn(
-          "Cache invalidation failed, but proceeding with navigation:",
-          error,
-        );
+        console.warn("Cache invalidation failed:", error);
       }
 
-      // Reset submission flag and navigate after cache is settled
+      // Reset submission flag and navigate
       submitRef.current = false;
       router.push("/templates");
     },
@@ -221,22 +161,29 @@ export function TemplateForm({ template }: TemplateFormProps) {
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
-    // Enhanced duplicate submission check with stronger deduplication
+    // Enhanced hash-based duplicate submission prevention
     const now = Date.now();
-    const lastSubmit = lastSubmitRef.current;
-    const submissionKey = `${trimmedName}:${JSON.stringify(filteredExercises)}`;
+    const submissionHash = createSubmissionHash(trimmedName, filteredExercises);
+    
+    // Check if this exact submission hash was already processed recently
+    if (submissionHashRef.current.has(submissionHash)) {
+      console.log("Preventing duplicate submission - hash already processed", {
+        submissionHash,
+        trimmedName,
+        exerciseCount: filteredExercises.length,
+      });
+      return;
+    }
 
+    const lastSubmit = lastSubmitRef.current;
     if (!template && lastSubmit) {
       const timeDiff = now - lastSubmit.timestamp;
-      const sameData =
-        lastSubmit.name === trimmedName &&
-        JSON.stringify(lastSubmit.exercises) ===
-          JSON.stringify(filteredExercises);
-
-      if (sameData && timeDiff < 10000) { // Increased to 10 seconds for better protection
+      
+      // Check both hash and time-based deduplication for extra safety
+      if (lastSubmit.hash === submissionHash && timeDiff < 30000) { // Extended to 30 seconds to match server
         console.log(
-          "Preventing duplicate submission - same data within 10 seconds",
-          { timeDiff, submissionKey },
+          "Preventing duplicate submission - same hash within 30 seconds",
+          { timeDiff, submissionHash, trimmedName },
         );
         return;
       }
@@ -244,11 +191,18 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
     // Set submission flag FIRST to prevent race conditions
     submitRef.current = true;
+    submissionHashRef.current.add(submissionHash);
     lastSubmitRef.current = {
       name: trimmedName,
       exercises: filteredExercises,
+      hash: submissionHash,
       timestamp: now,
     };
+
+    // Clean up old hashes after 60 seconds
+    setTimeout(() => {
+      submissionHashRef.current.delete(submissionHash);
+    }, 60000);
 
     try {
       if (template) {
@@ -261,7 +215,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         console.log("Creating template with data:", {
           name: trimmedName,
           exercises: filteredExercises,
-          submissionKey,
+          submissionHash,
         });
         await createTemplate.mutateAsync({
           name: trimmedName,
@@ -276,7 +230,30 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   };
 
+  // Debounced submit handler to prevent rapid successive submissions
+  const debouncedSubmit = useCallback((data: TemplateFormData) => {
+    // Clear any pending debounced submission
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Set up new debounced submission with 500ms delay
+    debounceRef.current = setTimeout(() => {
+      void handleSubmit(data);
+    }, 500);
+  }, []);
+
+  // Cleanup debounce on unmount
+  useCallback(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
   const isLoading = createTemplate.isPending || updateTemplate.isPending;
+  const isSubmitting = isLoading || submitRef.current;
 
   return (
     <Card padding="lg">
@@ -286,7 +263,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       <CardContent>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSubmit)}
+            onSubmit={form.handleSubmit(debouncedSubmit)}
             className="space-y-6"
           >
             {/* Template Name */}
@@ -299,6 +276,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   <FormControl>
                     <Input
                       placeholder="e.g., Push Day, Pull Day, Legs"
+                      disabled={isSubmitting}
                       {...field}
                     />
                   </FormControl>
@@ -315,6 +293,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={isSubmitting}
                   onClick={addExercise}
                 >
                   + Add Exercise
@@ -337,6 +316,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                 onChange={exerciseField.onChange}
                                 placeholder={`Exercise ${index + 1}`}
                                 className="w-full"
+                                disabled={isSubmitting}
                               />
                             </FormControl>
                           </div>
@@ -345,6 +325,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               type="button"
                               variant="ghost"
                               size="sm"
+                              disabled={isSubmitting}
                               onClick={() => removeExercise(index)}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
@@ -363,6 +344,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isSubmitting}
                   onClick={addExercise}
                   className="h-20 w-full border-dashed"
                 >
@@ -375,16 +357,16 @@ export function TemplateForm({ template }: TemplateFormProps) {
             <div className="flex items-center gap-4 pt-4">
               <Button 
                 type="submit" 
-                disabled={isLoading || submitRef.current}
+                disabled={isSubmitting}
                 onClick={(e) => {
                   // Prevent any possibility of double clicks
-                  if (isLoading || submitRef.current) {
+                  if (isSubmitting) {
                     e.preventDefault();
                     return;
                   }
                 }}
               >
-                {isLoading || submitRef.current
+                {isSubmitting
                   ? "Saving..."
                   : template
                     ? "Update Template"
@@ -394,7 +376,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 type="button"
                 variant="ghost"
                 onClick={() => router.back()}
-                disabled={isLoading || submitRef.current}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
