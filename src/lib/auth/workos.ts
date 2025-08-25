@@ -1,15 +1,18 @@
 import { WorkOS } from '@workos-inc/node';
-import type { WorkOSUser } from './workos-types';
-import { SESSION_COOKIE_NAME } from './workos-types';
+import type { WorkOSUser } from '../workos-types';
 
 /**
- * WorkOS client wrapper for authentication and user management
- * Provides helper functions for user authentication flow
+ * WorkOS client wrapper for authentication and OAuth flow
+ * Provides core WorkOS functionality for authentication
  */
 
 let workos: WorkOS | null = null;
 
-// Initialize WorkOS client
+/**
+ * Initialize and return WorkOS client
+ * @returns WorkOS client instance
+ * @throws Error if WorkOS credentials are not configured
+ */
 export function getWorkOSClient(): WorkOS {
   if (!workos) {
     const apiKey = process.env.WORKOS_API_KEY;
@@ -25,11 +28,13 @@ export function getWorkOSClient(): WorkOS {
   return workos;
 }
 
-// Re-export types for compatibility
-export type { WorkOSUser } from './workos-types';
-
 /**
  * Get authorization URL for OAuth flow
+ * @param redirectUri - The redirect URI after authorization
+ * @param state - Optional state parameter for CSRF protection
+ * @param provider - OAuth provider (defaults to 'authkit')
+ * @returns Authorization URL string
+ * @throws Error if WORKOS_CLIENT_ID is not configured
  */
 export function getAuthorizationUrl(
   redirectUri: string, 
@@ -67,6 +72,10 @@ export function getAuthorizationUrl(
 
 /**
  * Exchange authorization code for access token and user info
+ * @param code - Authorization code from OAuth callback
+ * @param redirectUri - The redirect URI used in authorization
+ * @returns Object containing accessToken, refreshToken, and user data
+ * @throws Error if token exchange fails
  */
 export async function exchangeCodeForToken(code: string, redirectUri: string) {
   const workos = getWorkOSClient();
@@ -103,6 +112,9 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
 
 /**
  * Get user info from access token
+ * @param accessToken - JWT access token
+ * @returns User data from WorkOS
+ * @throws Error if user retrieval fails
  */
 export async function getUserFromToken(accessToken: string): Promise<WorkOSUser> {
   const workos = getWorkOSClient();
@@ -135,6 +147,9 @@ export async function getUserFromToken(accessToken: string): Promise<WorkOSUser>
 
 /**
  * Refresh access token using refresh token
+ * @param refreshToken - Refresh token for renewing access
+ * @returns Object containing new accessToken and refreshToken
+ * @throws Error if token refresh fails
  */
 export async function refreshAccessToken(refreshToken: string) {
   const workos = getWorkOSClient();
@@ -163,6 +178,9 @@ export async function refreshAccessToken(refreshToken: string) {
 
 /**
  * Create a logout URL
+ * @param redirectUri - Where to redirect after logout
+ * @returns Logout URL string
+ * @throws Error if WORKOS_CLIENT_ID is not configured
  */
 export function getLogoutUrl(redirectUri: string): string {
   const clientId = process.env.WORKOS_CLIENT_ID;
@@ -179,69 +197,10 @@ export function getLogoutUrl(redirectUri: string): string {
 }
 
 /**
- * Validate and decode access token (for middleware use)
- */
-export async function validateAccessToken(accessToken: string): Promise<WorkOSUser | null> {
-  try {
-    const user = await getUserFromToken(accessToken);
-    return user;
-  } catch (error) {
-    console.error('Access token validation failed:', error);
-    return null;
-  }
-}
-
-/**
- * Extract authenticated user from NextRequest (for API routes)
- */
-export async function getUserFromRequest(request: { cookies: { get: (name: string) => { value?: string } | undefined } }): Promise<WorkOSUser | null> {
-  try {
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
-    if (!sessionCookie?.value) {
-      return null;
-    }
-
-    const sessionData = JSON.parse(sessionCookie.value);
-    if (!sessionData.accessToken) {
-      return null;
-    }
-
-    return await validateAccessToken(sessionData.accessToken);
-  } catch (error) {
-    console.error('Failed to get user from request:', error);
-    return null;
-  }
-}
-
-/**
- * Get authenticated user in React Server Components (RSC)
- * This reads cookies from the dynamic headers() API in Next.js
- */
-export async function getUserFromHeaders(): Promise<WorkOSUser | null> {
-  try {
-    // Dynamic import to avoid issues if not in server environment
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-    if (!sessionCookie?.value) {
-      return null;
-    }
-
-    const sessionData = JSON.parse(sessionCookie.value);
-    if (!sessionData.accessToken) {
-      return null;
-    }
-
-    return await validateAccessToken(sessionData.accessToken);
-  } catch (error) {
-    console.error('Failed to get user from headers:', error);
-    return null;
-  }
-}
-
-/**
  * Helper to get the base redirect URI for the current environment
+ * @param req - Optional request object with headers
+ * @returns Base redirect URI string
+ * @throws Error if unable to determine base URI
  */
 export function getBaseRedirectUri(req?: { headers: Headers }): string {
   // In development, use localhost with dynamic port detection
@@ -276,15 +235,5 @@ export function getBaseRedirectUri(req?: { headers: Headers }): string {
   throw new Error('Unable to determine base redirect URI');
 }
 
-/**
- * Types for session management
- */
-export interface WorkOSSession {
-  user: WorkOSUser;
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt?: Date;
-}
-
-// Re-export constants for compatibility
-export { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from './workos-types';
+// Re-export types for compatibility
+export type { WorkOSUser } from '../workos-types';

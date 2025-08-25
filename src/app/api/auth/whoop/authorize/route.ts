@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { validateAccessToken, SESSION_COOKIE_NAME } from "~/lib/workos";
+import { getUserFromRequest } from "~/lib/auth/user";
 import { env } from "~/env";
 
 
@@ -11,13 +11,8 @@ export async function GET(request: NextRequest) {
       return new NextResponse(null, { status: 204 });
     }
     
-    // Get user from WorkOS session
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
-    if (!sessionCookie) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    const user = await validateAccessToken(sessionCookie.value);
+    // Get user from request using centralized auth library
+    const user = await getUserFromRequest(request);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

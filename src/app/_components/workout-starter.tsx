@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
-import { analytics } from "~/lib/analytics";
+
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -20,7 +20,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
     initialTemplateId ?? null,
   );
   const [isStarting, setIsStarting] = useState(false);
-  const [recentlyCreated, setRecentlyCreated] = useState<Set<number>>(new Set());
+  const [recentlyCreated, setRecentlyCreated] = useState<Set<number>>(
+    new Set(),
+  );
   const [workoutDate, setWorkoutDate] = useState(() => {
     // Default to current date/time in local timezone
     const now = new Date();
@@ -50,7 +52,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
     // Check if we recently created this template (client-side deduplication)
     if (recentlyCreated.has(selectedTemplateId)) {
-      alert("You just started this workout! Check your workout history or refresh the page.");
+      alert(
+        "You just started this workout! Check your workout history or refresh the page.",
+      );
       return;
     }
 
@@ -65,19 +69,12 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         theme_used: "system", // Could be from theme context
       });
 
-      // Track analytics
-      const template = templates?.find((t) => t.id === selectedTemplateId);
-      analytics.workoutStarted(
-        selectedTemplateId.toString(),
-        template?.name ?? "Unknown Template",
-      );
-
       // Mark this template as recently created
-      setRecentlyCreated(prev => new Set([...prev, selectedTemplateId]));
-      
+      setRecentlyCreated((prev) => new Set([...prev, selectedTemplateId]));
+
       // Clear the recent creation flag after 2 minutes
       setTimeout(() => {
-        setRecentlyCreated(prev => {
+        setRecentlyCreated((prev) => {
           const newSet = new Set(prev);
           newSet.delete(selectedTemplateId);
           return newSet;
@@ -92,17 +89,15 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         // Don't show error to user - they can find the workout in history
         // Just log for debugging
       }
-
     } catch (error) {
       console.error("Error creating workout session:", error);
-      analytics.error(error as Error, {
-        context: "workout_start",
-        templateId: selectedTemplateId.toString(),
-      });
-      
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       if (errorMessage.includes("Recent session found")) {
-        alert("You already have a recent workout with this template. Check your workout history!");
+        alert(
+          "You already have a recent workout with this template. Check your workout history!",
+        );
       } else {
         alert("Error starting workout. Please try again.");
       }
@@ -116,7 +111,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       <div className="space-y-4">
         <Card>
           <CardContent className="p-4">
-            <Skeleton className="h-4 w-1/3 mb-4" />
+            <Skeleton className="mb-4 h-4 w-1/3" />
             <Skeleton className="h-10 w-full" />
           </CardContent>
         </Card>
@@ -126,16 +121,16 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
   if (!templates?.length) {
     return (
-      <div className="py-8 sm:py-12 text-center">
+      <div className="py-8 text-center sm:py-12">
         <div className="mb-4 text-4xl sm:text-6xl">📋</div>
-        <h3 className="mb-2 text-lg sm:text-xl font-semibold">No templates available</h3>
-        <p className="text-muted-foreground mb-6 text-sm sm:text-base px-4">
+        <h3 className="mb-2 text-lg font-semibold sm:text-xl">
+          No templates available
+        </h3>
+        <p className="text-muted-foreground mb-6 px-4 text-sm sm:text-base">
           You need to create a workout template before you can start a workout
         </p>
         <Button asChild>
-          <Link href="/templates/new">
-            Create Your First Template
-          </Link>
+          <Link href="/templates/new">Create Your First Template</Link>
         </Button>
       </div>
     );
@@ -148,23 +143,25 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         <h2 className="mb-4 text-lg font-semibold">Select Workout Template</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
-            <Card 
+            <Card
               key={template.id}
               className={`cursor-pointer transition-all hover:shadow-md ${
-                selectedTemplateId === template.id 
-                  ? 'ring-2 ring-primary shadow-md' 
-                  : 'hover:ring-1 hover:ring-muted-foreground/20'
+                selectedTemplateId === template.id
+                  ? "ring-primary shadow-md ring-2"
+                  : "hover:ring-muted-foreground/20 hover:ring-1"
               }`}
               onClick={() => setSelectedTemplateId(template.id)}
             >
               <CardContent className="p-4">
-                <h3 className="mb-2 truncate font-semibold text-sm sm:text-base">{template.name}</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+                <h3 className="mb-2 truncate text-sm font-semibold sm:text-base">
+                  {template.name}
+                </h3>
+                <p className="text-muted-foreground text-xs sm:text-sm">
                   {template.exercises.length} exercise
                   {template.exercises.length !== 1 ? "s" : ""}
                 </p>
                 {template.exercises.length > 0 && (
-                  <div className="mt-2 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground mt-2 text-xs">
                     {template.exercises
                       .slice(0, 3)
                       .map((ex) => ex.exerciseName)
@@ -183,29 +180,39 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base sm:text-lg">
-              Selected: {(() => {
-                const template = templates.find((t) => t.id === selectedTemplateId);
+              Selected:{" "}
+              {(() => {
+                const template = templates.find(
+                  (t) => t.id === selectedTemplateId,
+                );
                 return template?.name;
               })()}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {(() => {
-              const template = templates.find((t) => t.id === selectedTemplateId);
+              const template = templates.find(
+                (t) => t.id === selectedTemplateId,
+              );
               return template ? (
                 <>
                   <div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">
+                    <div className="text-muted-foreground text-xs sm:text-sm">
                       {template.exercises.length === 0 ? (
                         "No exercises in this template"
                       ) : (
                         <div className="space-y-1">
                           {template.exercises.map((exercise, index) => (
-                            <div key={exercise.id} className="flex items-center">
-                              <span className="mr-2 flex h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                            <div
+                              key={exercise.id}
+                              className="flex items-center"
+                            >
+                              <span className="bg-primary text-primary-foreground mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:h-6 sm:w-6">
                                 {index + 1}
                               </span>
-                              <span className="text-xs sm:text-sm">{exercise.exerciseName}</span>
+                              <span className="text-xs sm:text-sm">
+                                {exercise.exerciseName}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -216,7 +223,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                   {/* Date/Time Selection */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="workoutDate" className="text-xs sm:text-sm font-medium">
+                      <Label
+                        htmlFor="workoutDate"
+                        className="text-xs font-medium sm:text-sm"
+                      >
                         Workout Date & Time
                       </Label>
                       <Button
@@ -227,11 +237,19 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                         onClick={() => {
                           const now = new Date();
                           const year = now.getFullYear();
-                          const month = String(now.getMonth() + 1).padStart(2, "0");
+                          const month = String(now.getMonth() + 1).padStart(
+                            2,
+                            "0",
+                          );
                           const day = String(now.getDate()).padStart(2, "0");
                           const hours = String(now.getHours()).padStart(2, "0");
-                          const minutes = String(now.getMinutes()).padStart(2, "0");
-                          setWorkoutDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+                          const minutes = String(now.getMinutes()).padStart(
+                            2,
+                            "0",
+                          );
+                          setWorkoutDate(
+                            `${year}-${month}-${day}T${hours}:${minutes}`,
+                          );
                         }}
                       >
                         Use Now
@@ -254,7 +272,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                     className="w-full"
                     size="lg"
                   >
-                    {isStarting || createWorkoutMutation.isPending ? "Starting..." : "Start Workout"}
+                    {isStarting || createWorkoutMutation.isPending
+                      ? "Starting..."
+                      : "Start Workout"}
                   </Button>
                 </>
               ) : null;
@@ -265,8 +285,8 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
       {/* No Selection State */}
       {!selectedTemplateId && (
-        <div className="py-6 sm:py-8 text-center">
-          <p className="text-sm sm:text-base text-muted-foreground">
+        <div className="py-6 text-center sm:py-8">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Select a workout template above to continue
           </p>
         </div>

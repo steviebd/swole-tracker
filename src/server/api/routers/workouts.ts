@@ -9,6 +9,10 @@ import {
   exerciseLinks,
 } from "~/server/db/schema";
 import { eq, desc, and, ne, inArray, gte } from "drizzle-orm";
+import {
+  queryPerformanceTracker,
+  chunkInArrayParams,
+} from "~/lib/query-performance";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -34,53 +38,310 @@ const exerciseInputSchema = z.object({
 const debugEnabled =
   process.env.VITEST ||
   process.env.NODE_ENV === "test" ||
-  (process.env.NODE_ENV === "development" && process.env.DEBUG_WORKOUTS);
+  (process.env.NODE_ENV === "development" && process.env.DEBUG_WORKOUTS) ||
+  process.env.DEBUG_WORKOUTS === "true";
 function debugLog(...args: unknown[]) {
   if (debugEnabled) console.log("[workoutsRouter]", ...args);
 }
 
 export const workoutsRouter = createTRPCRouter({
+  // Diagnostic endpoint for database connection testing
+  diagnostics: protectedProcedure
+    .input(z.object({ sessionId: z.number().optional() }).optional())
+    .query(async ({ input, ctx }) => {
+      const sessionId = input?.sessionId;
+      debugLog("diagnostics: checking database connection", {
+        userId: ctx.user.id,
+        sessionId,
+      });
+
+      try {
+        // Test 1: Count total workout sessions for user
+        const userSessionCount = await ctx.db.query.workoutSessions.findMany({
+          where: eq(workoutSessions.user_id, ctx.user.id),
+        });
+
+        // Test 2: Get all session IDs for user (limited to first 10)
+        const userSessions = await ctx.db.query.workoutSessions.findMany({
+          where: eq(workoutSessions.user_id, ctx.user.id),
+          columns: { id: true, workoutDate: true },
+          limit: 10,
+        });
+
+        // Test 3: If sessionId provided, check if it exists
+        let specificSession: {
+          id: number;
+          user_id: string;
+          templateId: number;
+          workoutDate: string;
+        } | null = null;
+        if (sessionId) {
+          specificSession =
+            (await ctx.db.query.workoutSessions.findFirst({
+              where: eq(workoutSessions.id, sessionId),
+              columns: {
+                id: true,
+                user_id: true,
+                templateId: true,
+                workoutDate: true,
+              },
+            })) || null;
+        }
+
+        return {
+          userId: ctx.user.id,
+          totalSessions: userSessionCount.length,
+          userSessionIds: userSessions.map((s) => ({
+            id: s.id,
+            date: s.workoutDate,
+          })),
+          specificSession: specificSession || null,
+          databaseConnection: "success",
+          timestamp: new Date().toISOString(),
+        };
+      } catch (error) {
+        debugLog("diagnostics: database error", error);
+        throw new Error(
+          `Database diagnostics failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    }),
   // Get recent workouts for the current user
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
       debugLog("getRecent: input", input);
-      return ctx.db.query.workoutSessions.findMany({
-        where: eq(workoutSessions.user_id, ctx.user.id),
-        orderBy: [desc(workoutSessions.workoutDate)],
-        limit: input.limit,
-        with: {
-          template: {
-            with: {
-              exercises: true,
-            },
-          },
-          exercises: true,
-        },
-      });
+
+      try {
+        // Step 1: Get recent workout sessions (simple query)
+        const sessions = await ctx.db.query.workoutSessions.findMany({
+          where: eq(workoutSessions.user_id, ctx.user.id),
+          orderBy: [desc(workoutSessions.workoutDate)],
+          limit: input.limit,
+        });
+
+        debugLog("getRecent: found sessions", sessions.length);
+
+        if (sessions.length === 0) {
+          return [];
+        }
+
+        // Step 2: Get all unique template IDs
+        const templateIds = [...new Set(sessions.map((s) => s.templateId))];
+
+        // Step 3: Get templates and their exercises (with D1 optimization)
+        const templates = await queryPerformanceTracker.trackQuery(
+          "getRecent_templates",
+          () =>
+            ctx.db.query.workoutTemplates.findMany({
+              where: inArray(
+                workoutTemplates.id,
+                queryPerformanceTracker.validateInArrayParams(
+                  templateIds,
+                  "getRecent_templates",
+                ),
+              ),
+            }),
+          { userId: ctx.user.id, parameterCount: templateIds.length },
+        );
+
+        const templateExercisesData = await queryPerformanceTracker.trackQuery(
+          "getRecent_templateExercises",
+          () =>
+            ctx.db.query.templateExercises.findMany({
+              where: inArray(
+                templateExercises.templateId,
+                queryPerformanceTracker.validateInArrayParams(
+                  templateIds,
+                  "getRecent_templateExercises",
+                ),
+              ),
+              orderBy: [templateExercises.orderIndex],
+            }),
+          { userId: ctx.user.id, parameterCount: templateIds.length },
+        );
+
+        // Step 4: Get session exercises for all sessions (with D1 optimization)
+        const sessionIds = sessions.map((s) => s.id);
+        const allSessionExercises = await queryPerformanceTracker.trackQuery(
+          "getRecent_sessionExercises",
+          () =>
+            ctx.db.query.sessionExercises.findMany({
+              where: inArray(
+                sessionExercises.sessionId,
+                queryPerformanceTracker.validateInArrayParams(
+                  sessionIds,
+                  "getRecent_sessionExercises",
+                ),
+              ),
+              orderBy: [sessionExercises.setOrder],
+            }),
+          { userId: ctx.user.id, parameterCount: sessionIds.length },
+        );
+
+        debugLog("getRecent: found data", {
+          templates: templates.length,
+          templateExercises: templateExercisesData.length,
+          sessionExercises: allSessionExercises.length,
+        });
+
+        // Step 5: Reconstruct the expected nested structure
+        const result = sessions.map((session) => {
+          const template = templates.find((t) => t.id === session.templateId);
+          const templateExercisesForTemplate = templateExercisesData.filter(
+            (te) => te.templateId === session.templateId,
+          );
+          const exercisesForSession = allSessionExercises.filter(
+            (se) => se.sessionId === session.id,
+          );
+
+          return {
+            ...session,
+            template: template
+              ? {
+                  ...template,
+                  exercises: templateExercisesForTemplate,
+                }
+              : null,
+            exercises: exercisesForSession,
+          };
+        });
+
+        debugLog("getRecent: returning structured results");
+        return result;
+      } catch (err: any) {
+        debugLog("getRecent: caught error", err);
+        const { TRPCError } = await import("@trpc/server");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err?.message ?? "Failed to fetch recent workouts",
+          cause: err,
+        });
+      }
     }),
 
   // Get a specific workout session
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const workout = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.id),
-        with: {
-          template: {
-            with: {
-              exercises: true,
-            },
-          },
-          exercises: true,
-        },
-      });
-
-      if (!workout || workout.user_id !== ctx.user.id) {
-        throw new Error("Workout not found");
+      debugLog("getById: input", input);
+      debugLog("getById: user", { userId: ctx.user.id });
+      
+      // CRITICAL DEBUG: Check for user ID corruption  
+      // Note: ctx.user.id is a string (Supabase UUID), input.id is a number (workout ID)
+      // These should never be equal, but let's check anyway for debugging
+      if (ctx.user.id === String(input.id)) {
+        console.error("CRITICAL BUG DETECTED: user.id equals session ID", {
+          userId: ctx.user.id,
+          userIdType: typeof ctx.user.id,
+          sessionId: input.id,
+          sessionIdType: typeof input.id,
+          requestId: ctx.requestId,
+        });
+        throw new Error(`Authentication corruption detected: user.id (${ctx.user.id}) equals session.id (${input.id})`);
       }
 
-      return workout;
+      try {
+        // Step 1: Get the workout session first (simple query)
+        debugLog("getById: executing workout session query", {
+          sessionId: input.id,
+          userId: ctx.user.id,
+          query: "workoutSessions.findFirst with id and user_id filter",
+        });
+
+        const workout = await ctx.db.query.workoutSessions.findFirst({
+          where: and(
+            eq(workoutSessions.id, input.id),
+            eq(workoutSessions.user_id, ctx.user.id),
+          ),
+        });
+
+        debugLog("getById: workout query result", {
+          found: !!workout,
+          workoutData: workout
+            ? {
+                id: workout.id,
+                userId: workout.user_id,
+                templateId: workout.templateId,
+              }
+            : null,
+        });
+
+        if (!workout) {
+          // Enhanced debugging: Check if session exists for any user
+          debugLog("getById: checking if session exists for any user");
+          const anyUserWorkout = await ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.id),
+          });
+
+          if (anyUserWorkout) {
+            debugLog("getById: session exists but for different user", {
+              sessionId: input.id,
+              sessionUserId: anyUserWorkout.user_id,
+              requestUserId: ctx.user.id,
+            });
+            throw new Error(
+              `Workout session ${input.id} not found for user ${ctx.user.id}`,
+            );
+          } else {
+            debugLog("getById: session does not exist in database", {
+              sessionId: input.id,
+            });
+            throw new Error(`Workout session ${input.id} does not exist`);
+          }
+        }
+
+        // Step 2: Get the template and its exercises separately to avoid complex nested JSON
+        const template = await ctx.db.query.workoutTemplates.findFirst({
+          where: eq(workoutTemplates.id, workout.templateId),
+        });
+
+        debugLog("getById: found template", !!template);
+        if (!template) {
+          throw new Error("Template not found");
+        }
+
+        // Step 3: Get template exercises separately
+        const templateExercisesList =
+          await ctx.db.query.templateExercises.findMany({
+            where: eq(templateExercises.templateId, template.id),
+            orderBy: [templateExercises.orderIndex],
+          });
+
+        debugLog(
+          "getById: found template exercises",
+          templateExercisesList.length,
+        );
+
+        // Step 4: Get session exercises separately
+        const exercises = await ctx.db.query.sessionExercises.findMany({
+          where: eq(sessionExercises.sessionId, workout.id),
+          orderBy: [sessionExercises.setOrder],
+        });
+
+        debugLog("getById: found session exercises", exercises.length);
+
+        // Reconstruct the expected structure
+        const result = {
+          ...workout,
+          template: {
+            ...template,
+            exercises: templateExercisesList,
+          },
+          exercises,
+        };
+
+        debugLog("getById: returning structured result");
+        return result;
+      } catch (err: any) {
+        debugLog("getById: caught error", err);
+        const { TRPCError } = await import("@trpc/server");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err?.message ?? "Failed to fetch workout session",
+          cause: err,
+        });
+      }
     }),
 
   // Get last workout data for a specific exercise (for pre-populating)
@@ -398,13 +659,16 @@ export const workoutsRouter = createTRPCRouter({
     .mutation(async ({ input, ctx }) => {
       try {
         debugLog("start: input", input);
-        
+
         // Check for recent duplicate session (within last 2 minutes)
         const recentSession = await ctx.db.query.workoutSessions.findFirst({
           where: and(
             eq(workoutSessions.user_id, ctx.user.id),
             eq(workoutSessions.templateId, input.templateId),
-            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000).toISOString()) // Within last 2 minutes
+            gte(
+              workoutSessions.workoutDate,
+              new Date(Date.now() - 120000).toISOString(),
+            ), // Within last 2 minutes
           ),
           orderBy: [desc(workoutSessions.workoutDate)],
           with: {
@@ -414,8 +678,11 @@ export const workoutsRouter = createTRPCRouter({
 
         // If we found a recent session with the same template and no exercises (just started), return it
         if (recentSession && recentSession.exercises.length === 0) {
-          debugLog("start: returning existing recent session", recentSession.id);
-          
+          debugLog(
+            "start: returning existing recent session",
+            recentSession.id,
+          );
+
           // Get the template info for the response
           const template = await ctx.db.query.workoutTemplates.findFirst({
             where: eq(workoutTemplates.id, input.templateId),
@@ -431,7 +698,7 @@ export const workoutsRouter = createTRPCRouter({
             template,
           };
         }
-        
+
         // Verify template ownership
         const template = await ctx.db.query.workoutTemplates.findFirst({
           where: eq(workoutTemplates.id, input.templateId),
@@ -458,7 +725,9 @@ export const workoutsRouter = createTRPCRouter({
             // Phase 3 persistence
             theme_used: input.theme_used ?? null,
             device_type: input.device_type ?? null,
-            perf_metrics: input.perf_metrics ? JSON.stringify(input.perf_metrics) : null,
+            perf_metrics: input.perf_metrics
+              ? JSON.stringify(input.perf_metrics)
+              : null,
           })
           .returning();
 
@@ -596,9 +865,9 @@ export const workoutsRouter = createTRPCRouter({
             weight: z.number().optional(),
             reps: z.number().int().positive().optional(),
             unit: z.enum(["kg", "lbs"]).default("kg"),
-          })
+          }),
         ),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       // Verify session ownership
@@ -619,10 +888,12 @@ export const workoutsRouter = createTRPCRouter({
 
       // Apply updates to session exercises
       for (const update of input.updates) {
-        console.log(`Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`);
-        
+        console.log(
+          `Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`,
+        );
+
         let setIndex: number;
-        
+
         // Use setIndex if provided, otherwise parse from setId
         if (update.setIndex !== undefined) {
           setIndex = update.setIndex;
@@ -635,21 +906,27 @@ export const workoutsRouter = createTRPCRouter({
             continue;
           }
           setIndex = parseInt(setIdMatch[1]) - 1; // Convert to 0-based index
-          console.log(`Parsed setIndex from setId: ${setIndex} (from ${setIdMatch[1]})`);
+          console.log(
+            `Parsed setIndex from setId: ${setIndex} (from ${setIdMatch[1]})`,
+          );
         }
 
         // Find exercises matching the exercise name
         const exerciseMatches = session.exercises.filter(
-          (ex) => ex.exerciseName === update.exerciseName
+          (ex) => ex.exerciseName === update.exerciseName,
         );
-        console.log(`Found ${exerciseMatches.length} matching exercises for ${update.exerciseName}`);
+        console.log(
+          `Found ${exerciseMatches.length} matching exercises for ${update.exerciseName}`,
+        );
 
         // Find the specific set by index within the exercise
         if (setIndex >= 0 && setIndex < exerciseMatches.length) {
           const targetExercise = exerciseMatches[setIndex];
-          
+
           if (targetExercise) {
-            console.log(`Updating exercise ID ${targetExercise.id} with weight: ${update.weight}, reps: ${update.reps}`);
+            console.log(
+              `Updating exercise ID ${targetExercise.id} with weight: ${update.weight}, reps: ${update.reps}`,
+            );
             // Update the existing set
             await ctx.db
               .update(sessionExercises)
@@ -659,12 +936,14 @@ export const workoutsRouter = createTRPCRouter({
                 unit: update.unit,
               })
               .where(eq(sessionExercises.id, targetExercise.id));
-            
+
             updatedCount++;
             console.log(`Successfully updated set ${targetExercise.id}`);
           }
         } else {
-          console.warn(`Set index ${setIndex} out of range for exercise ${update.exerciseName}. Available sets: ${exerciseMatches.length}`);
+          console.warn(
+            `Set index ${setIndex} out of range for exercise ${update.exerciseName}. Available sets: ${exerciseMatches.length}`,
+          );
         }
       }
 

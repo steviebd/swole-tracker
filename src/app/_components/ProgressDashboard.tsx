@@ -8,6 +8,7 @@ import { VolumeTrackingSection } from "./VolumeTrackingSection";
 import { ConsistencySection } from "./ConsistencySection";
 import { PersonalRecordsSection } from "./PersonalRecordsSection";
 import { RecentAchievements } from "./RecentAchievements";
+import { formatSafeDate } from "~/lib/utils";
 import { WhoopIntegrationSection } from "./WhoopIntegrationSection";
 import { WellnessHistorySection } from "./WellnessHistorySection";
 
@@ -15,52 +16,67 @@ type TimeRange = "week" | "month" | "year";
 
 export function ProgressDashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
-  
-  // Fetch progress data using our new API endpoints
-  const { data: volumeData, isLoading: volumeLoading } = api.progress.getVolumeProgression.useQuery({
-    timeRange,
-  });
-  
-  const { data: consistencyData, isLoading: consistencyLoading } = api.progress.getConsistencyStats.useQuery({
-    timeRange,
-  });
-  
-  const { data: exerciseList, isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
 
+  // Fetch progress data using our new API endpoints
+  const { data: volumeData, isLoading: volumeLoading } =
+    api.progress.getVolumeProgression.useQuery({
+      timeRange,
+    });
+
+  const { data: consistencyData, isLoading: consistencyLoading } =
+    api.progress.getConsistencyStats.useQuery({
+      timeRange,
+    });
+
+  const { data: exerciseList, isLoading: exerciseListLoading } =
+    api.progress.getExerciseList.useQuery({
+      limit: 100,
+      offset: 0,
+    });
 
   const cardClass = `bg-card border border-border rounded-lg shadow-sm transition-all duration-300 card-interactive hover:-translate-y-1 hover:shadow-xl`;
 
   return (
-    <div className="min-h-screen bg-horizon">
+    <div className="bg-horizon min-h-screen">
       {/* Header with Navigation */}
-      <div className="sticky top-0 z-40 glass-header">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="glass-header sticky top-0 z-40">
+        <div className="mx-auto max-w-7xl px-4 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Link 
+              <Link
                 href="/"
-                className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                className="text-muted-foreground hover:text-primary inline-flex items-center text-sm font-medium transition-colors"
               >
-                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                <svg
+                  className="mr-1 h-4 w-4 sm:mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                  />
                 </svg>
                 <span className="hidden sm:inline">Back to Dashboard</span>
                 <span className="sm:hidden">Back</span>
               </Link>
-              <span className="hidden sm:inline text-border">/</span>
-              <h1 className="text-lg sm:text-xl font-serif font-black gradient-text-primary">
+              <span className="text-border hidden sm:inline">/</span>
+              <h1 className="gradient-text-primary font-serif text-lg font-black sm:text-xl">
                 <span className="hidden sm:inline">Progress Dashboard</span>
                 <span className="sm:hidden">Progress</span>
               </h1>
             </div>
-            
+
             {/* Time Range Selector */}
-            <div className="flex space-x-1 rounded-lg p-1 self-start sm:self-center card-interactive">
+            <div className="card-interactive flex space-x-1 self-start rounded-lg p-1 sm:self-center">
               {(["week", "month", "year"] as TimeRange[]).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  className={`rounded-md px-2 py-1.5 text-xs font-medium transition-all sm:px-3 ${
                     timeRange === range
                       ? "gradient-primary text-white shadow-md"
                       : "btn-ghost hover:bg-primary/10"
@@ -74,48 +90,66 @@ export function ProgressDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:mb-8 sm:gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
           {/* Total Volume */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Total Volume</h3>
+            <h3 className="text-muted-foreground mb-2 text-sm font-medium">
+              Total Volume
+            </h3>
             {volumeLoading ? (
-              <div className="animate-pulse h-8 w-20 rounded bg-border"></div>
+              <div className="bg-border h-8 w-20 animate-pulse rounded"></div>
             ) : (
-              <p className="text-2xl font-serif font-black text-foreground">
-{(volumeData?.reduce((sum, day) => sum + day.totalVolume, 0) || 0).toLocaleString()} kg
+              <p className="text-foreground font-serif text-2xl font-black">
+                {(
+                  volumeData?.reduce((sum, day) => sum + day.totalVolume, 0) ||
+                  0
+                ).toLocaleString()}{" "}
+                kg
               </p>
             )}
           </div>
 
           {/* Total Workouts */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Workouts</h3>
+            <h3 className="text-muted-foreground mb-2 text-sm font-medium">
+              Workouts
+            </h3>
             {consistencyLoading ? (
-              <div className="animate-pulse h-8 w-12 rounded bg-border"></div>
+              <div className="bg-border h-8 w-12 animate-pulse rounded"></div>
             ) : (
-              <p className="text-2xl font-serif font-black text-foreground">{consistencyData?.totalWorkouts || 0}</p>
+              <p className="text-foreground font-serif text-2xl font-black">
+                {consistencyData?.totalWorkouts || 0}
+              </p>
             )}
           </div>
 
           {/* Workout Frequency */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Weekly Frequency</h3>
+            <h3 className="text-muted-foreground mb-2 text-sm font-medium">
+              Weekly Frequency
+            </h3>
             {consistencyLoading ? (
-              <div className="animate-pulse h-8 w-16 rounded bg-border"></div>
+              <div className="bg-border h-8 w-16 animate-pulse rounded"></div>
             ) : (
-              <p className="text-2xl font-serif font-black text-foreground">{consistencyData?.frequency || 0}x</p>
+              <p className="text-foreground font-serif text-2xl font-black">
+                {consistencyData?.frequency || 0}x
+              </p>
             )}
           </div>
 
           {/* Current Streak */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Current Streak</h3>
+            <h3 className="text-muted-foreground mb-2 text-sm font-medium">
+              Current Streak
+            </h3>
             {consistencyLoading ? (
-              <div className="animate-pulse h-8 w-12 rounded bg-border"></div>
+              <div className="bg-border h-8 w-12 animate-pulse rounded"></div>
             ) : (
-              <p className="text-2xl font-serif font-black text-foreground">{consistencyData?.currentStreak || 0} days</p>
+              <p className="text-foreground font-serif text-2xl font-black">
+                {consistencyData?.currentStreak || 0} days
+              </p>
             )}
           </div>
         </div>
@@ -126,26 +160,37 @@ export function ProgressDashboard() {
         </div>
 
         {/* Exercise List */}
-        <div className={cardClass + " p-6 mb-8"}>
-          <h2 className="text-xl font-serif font-black mb-4 gradient-text-accent">Your Exercises</h2>
+        <div className={cardClass + " mb-8 p-6"}>
+          <h2 className="gradient-text-accent mb-4 font-serif text-xl font-black">
+            Your Exercises
+          </h2>
           {exerciseListLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="animate-pulse h-12 rounded bg-border"></div>
+                <div
+                  key={i}
+                  className="bg-border h-12 animate-pulse rounded"
+                ></div>
               ))}
             </div>
-          ) : exerciseList && exerciseList.length > 0 ? (
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              {exerciseList.map((exercise, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted hover:bg-primary/5 transition-colors">
+          ) : exerciseList && exerciseList.exercises.length > 0 ? (
+            <div className="max-h-80 space-y-3 overflow-y-auto">
+              {exerciseList.exercises.map((exercise, index) => (
+                <div
+                  key={index}
+                  className="bg-muted hover:bg-primary/5 flex items-center justify-between rounded-lg p-3 transition-colors"
+                >
                   <div>
-                    <p className="font-medium text-foreground">{exercise.exerciseName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Last used: {new Date(exercise.lastUsed).toLocaleDateString()}
+                    <p className="text-foreground font-medium">
+                      {exercise.exerciseName}
+                    </p>
+                    <p className="text-muted-foreground text-sm">
+                      Last used:{" "}
+                      {formatSafeDate(exercise.lastUsed)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-muted-foreground">
+                    <p className="text-muted-foreground text-sm font-medium">
                       {exercise.totalSets} sets
                     </p>
                   </div>
@@ -153,7 +198,7 @@ export function ProgressDashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-center py-8 text-muted-foreground">
+            <p className="text-muted-foreground py-8 text-center">
               No exercises found. Complete some workouts to see your progress!
             </p>
           )}

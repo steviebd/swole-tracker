@@ -11,6 +11,7 @@
 /playwright-report/
 src/__e2e__/storage/auth.json
 src/__e2e__/screenshots/
+/.playwright-mcp
 
 # database
 /prisma/db.sqlite
@@ -78,7 +79,7 @@ node_modules/
 
 # Task files
 # tasks.json
-# tasks/ 
+# tasks/
 .env.production
 src/__tests__/unit/supabase.coverage.test.ts.skip
 src/__tests__/unit/supabase.more.coverage2.test.ts.skip
@@ -103,3 +104,7 @@ wrangler.toml
 .env.template
 .open-next
 .playwright-mcp/7cba1811e3c25a15-s-p.woff2
+.infisical.json
+.infisical.json
+.infisical.json
+.infisical.json

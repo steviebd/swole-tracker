@@ -2,7 +2,35 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SESSION_COOKIE_NAME, type WorkOSUser } from "~/lib/workos-types";
+import { type WorkOSUser, SESSION_COOKIE_NAME } from "~/lib/workos-types";
+import { 
+  readSessionCookieFromDocument, 
+  handleSessionError
+} from "~/lib/auth/session";
+
+/**
+ * Basic client-side validation for user data
+ * This is a simplified version that doesn't require server-side imports
+ */
+function isValidUser(user: any): user is WorkOSUser {
+  return user && 
+    typeof user === 'object' && 
+    typeof user.id === 'string' && 
+    typeof user.email === 'string' && 
+    user.object === 'user';
+}
+
+/**
+ * Simple client-side auth status checker
+ */
+function getBasicAuthStatus(user: WorkOSUser | null) {
+  return {
+    isAuthenticated: user !== null,
+    isEmailVerified: user?.email_verified ?? false,
+    userId: user?.id ?? null,
+    email: user?.email ?? null,
+  };
+}
 
 interface AuthContextType {
   user: WorkOSUser | null;
@@ -18,33 +46,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Get initial session from cookie
+    // Get initial session from cookie using centralized auth library
     const getInitialSession = () => {
       console.log('AuthProvider: Getting initial session...');
       console.log('AuthProvider: All cookies:', document.cookie);
+      
       try {
-        // Get session cookie
-        const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-          const [rawName, ...rest] = cookie.trim().split('=');
-          const name = rawName?.trim();
-          if (name) {
-            const value = rest.join('=');
-            acc[name] = value ?? '';
-          }
-          return acc;
-        }, {} as Record<string, string>);
-
-        console.log('AuthProvider: Parsed cookies:', Object.keys(cookies));
-        console.log('AuthProvider: Looking for cookie:', SESSION_COOKIE_NAME);
-        console.log('AuthProvider: Available cookie names:', Object.keys(cookies));
-        console.log('AuthProvider: Current origin:', window.location.origin);
-        console.log('AuthProvider: Current hostname:', window.location.hostname);
-
-        const sessionCookie = cookies[SESSION_COOKIE_NAME];
-        if (sessionCookie) {
-          console.log('AuthProvider: Found session cookie, length:', sessionCookie.length);
-          const sessionData = JSON.parse(decodeURIComponent(sessionCookie));
-          console.log('AuthProvider: Parsed session data:', {
+        const sessionData = readSessionCookieFromDocument();
+        
+        if (sessionData) {
+          console.log('AuthProvider: Found valid session data:', {
             hasUser: !!sessionData.user,
             hasAccessToken: !!sessionData.accessToken,
             userPreview: sessionData.user ? {
@@ -52,16 +63,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: sessionData.user.email,
             } : null,
           });
-          if (sessionData.user) {
+          
+          // Basic validation of user data from session
+          if (sessionData.user && isValidUser(sessionData.user)) {
             console.log('AuthProvider: Setting user from session');
             setUser(sessionData.user);
+          } else {
+            console.warn('AuthProvider: Invalid user data in session');
+            setUser(null);
           }
         } else {
-          console.log('AuthProvider: No session cookie found');
+          console.log('AuthProvider: No valid session found');
+          setUser(null);
         }
       } catch (error) {
-        console.error("AuthProvider: Failed to parse session:", error);
+        console.error('AuthProvider: Session initialization failed');
+        const { error: errorMessage } = handleSessionError(
+          error, 
+          'AuthProvider initialization'
+        );
+        
+        console.error(errorMessage);
         setUser(null);
+        
+        // If we should clear the session, we could trigger a logout here
+        // but for now, we'll just set user to null
       } finally {
         console.log('AuthProvider: Setting isLoading to false');
         setIsLoading(false);
@@ -130,28 +156,22 @@ if (typeof window !== 'undefined') {
       window.location.reload();
     },
     checkAuth: () => {
-      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-        const [rawName, ...rest] = cookie.trim().split('=');
-        const name = rawName?.trim();
-        if (name) {
-          const value = rest.join('=');
-          acc[name] = value ?? '';
-        }
-        return acc;
-      }, {} as Record<string, string>);
-
-      const sessionCookie = cookies[SESSION_COOKIE_NAME];
-      if (sessionCookie) {
-        try {
-          const sessionData = JSON.parse(decodeURIComponent(sessionCookie));
-          console.log('Current auth state:', sessionData);
-          return sessionData as WorkOSUser | null;
-        } catch (error) {
-          console.error('Failed to parse session cookie:', error);
+      try {
+        const sessionData = readSessionCookieFromDocument();
+        if (sessionData) {
+          console.log('Current auth state:', {
+            user: sessionData.user,
+            hasAccessToken: !!sessionData.accessToken,
+            authStatus: getBasicAuthStatus(sessionData.user)
+          });
+          return sessionData.user;
+        } else {
+          console.log('No valid session found');
           return null;
         }
-      } else {
-        console.log('No session cookie found');
+      } catch (error) {
+        const { error: errorMessage } = handleSessionError(error, 'debug checkAuth');
+        console.error(errorMessage);
         return null;
       }
     },
@@ -160,6 +180,15 @@ if (typeof window !== 'undefined') {
     },
     logout: () => {
       window.location.href = '/api/auth/logout';
+    },
+    validateUser: (user: any) => {
+      const isValid = isValidUser(user);
+      console.log('User validation result:', isValid);
+      if (isValid) {
+        console.log('User data:', user);
+        console.log('Auth status:', getBasicAuthStatus(user));
+      }
+      return isValid;
     }
   };
 }

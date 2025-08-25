@@ -1,13 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
 import { api } from "~/trpc/react";
-import type { RouterOutputs } from "~/trpc/react";
-import { analytics } from "~/lib/analytics";
+import { useAuth } from "~/providers/AuthProvider";
+
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -20,18 +21,42 @@ import {
   FormLabel,
   FormMessage,
 } from "~/components/ui/form";
+import { Toast } from "~/app/_components/ui/Toast";
 
 // Zod schema for form validation
 const templateFormSchema = z.object({
-  name: z.string().min(1, "Template name is required").max(256, "Template name is too long"),
-  exercises: z.array(
-    z.object({
-      exerciseName: z.string().min(1, "Exercise name is required").max(256, "Exercise name is too long"),
-    })
-  ).min(1, "At least one exercise is required"),
+  name: z
+    .string()
+    .min(1, "Template name is required")
+    .max(256, "Template name is too long"),
+  exercises: z
+    .array(
+      z.object({
+        exerciseName: z
+          .string()
+          .min(1, "Exercise name is required")
+          .max(256, "Exercise name is too long"),
+      }),
+    )
+    .min(1, "At least one exercise is required"),
 });
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
+
+interface TemplateDraft {
+  clientId: string;
+  name: string;
+  exercises: string[];
+  timestamp: number;
+}
+
+// Simplified creation state tracking - rely on existing sync indicators
+type CreationState = 'idle' | 'success' | 'error';
+
+interface CreationStatus {
+  state: CreationState;
+  canRetry: boolean;
+}
 
 interface TemplateFormProps {
   template?: {
@@ -43,20 +68,27 @@ interface TemplateFormProps {
 
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
-  const submitRef = useRef(false);
-  const lastSubmitRef = useRef<{
-    name: string;
-    exercises: string[];
-    timestamp: number;
-  } | null>(null);
+  const { user } = useAuth();
+  const [clientId] = useState(() => crypto.randomUUID());
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+    showRetry?: boolean;
+  }>({ type: null, message: '' });
+  const [creationStatus, setCreationStatus] = useState<CreationStatus>({
+    state: 'idle',
+    canRetry: false
+  });
+  const [preservedFormData, setPreservedFormData] = useState<TemplateFormData | null>(null);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize form with default values
   const form = useForm<TemplateFormData>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
       name: template?.name ?? "",
-      exercises: template?.exercises.length 
-        ? template.exercises.map(ex => ({ exerciseName: ex.exerciseName }))
+      exercises: template?.exercises.length
+        ? template.exercises.map((ex) => ({ exerciseName: ex.exerciseName }))
         : [{ exerciseName: "" }],
     },
   });
@@ -67,112 +99,235 @@ export function TemplateForm({ template }: TemplateFormProps) {
   });
 
   const utils = api.useUtils();
+  
+  // LocalStorage utilities
+  const getDraftKey = useCallback(() => {
+    return user?.id ? `template_draft_${user.id}` : null;
+  }, [user?.id]);
+
+  const saveDraft = useCallback((data: TemplateFormData) => {
+    const draftKey = getDraftKey();
+    if (!draftKey) return;
+
+    try {
+      const draft: TemplateDraft = {
+        clientId,
+        name: data.name,
+        exercises: data.exercises.map(ex => ex.exerciseName.trim()).filter(Boolean),
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (error) {
+      console.warn("Failed to save draft:", error);
+    }
+  }, [clientId, getDraftKey]);
+
+  const loadDraft = useCallback((): TemplateDraft | null => {
+    const draftKey = getDraftKey();
+    if (!draftKey) return null;
+
+    try {
+      const stored = localStorage.getItem(draftKey);
+      if (!stored) return null;
+      return JSON.parse(stored) as TemplateDraft;
+    } catch (error) {
+      console.warn("Failed to load draft:", error);
+      return null;
+    }
+  }, [getDraftKey]);
+
+  const clearDraft = useCallback(() => {
+    const draftKey = getDraftKey();
+    if (!draftKey) return;
+
+    try {
+      localStorage.removeItem(draftKey);
+    } catch (error) {
+      console.warn("Failed to clear draft:", error);
+    }
+  }, [getDraftKey]);
+
+  // Enhanced preview state utilities with error tracking
+  const setPreviewInStorage = useCallback((data: { name: string; exercises: string[] }, withError = false) => {
+    try {
+      const preview = {
+        id: clientId,
+        name: data.name,
+        exercises: data.exercises,
+        timestamp: Date.now(),
+        isOptimistic: true,
+        hasError: withError,
+      };
+      sessionStorage.setItem('template_creating_preview', JSON.stringify(preview));
+      
+      // Also set error state if needed
+      if (withError) {
+        sessionStorage.setItem('template_creation_error', JSON.stringify({
+          clientId,
+          timestamp: Date.now(),
+          formData: data,
+        }));
+      }
+    } catch (error) {
+      console.warn("Failed to store preview:", error);
+    }
+  }, [clientId]);
+
+  const clearPreviewFromStorage = useCallback(() => {
+    try {
+      sessionStorage.removeItem('template_creating_preview');
+      sessionStorage.removeItem('template_creation_error');
+    } catch (error) {
+      console.warn("Failed to clear preview from storage:", error);
+    }
+  }, []);
+
+  // Simplified error recovery utilities
+  const setCreationError = useCallback((formData: TemplateFormData, _error: string) => {
+    setCreationStatus({
+      state: 'error',
+      canRetry: true
+    });
+    setPreservedFormData(formData);
+    setPreviewInStorage({
+      name: formData.name,
+      exercises: formData.exercises.map(ex => ex.exerciseName.trim()).filter(Boolean)
+    }, true);
+  }, [setPreviewInStorage]);
+
+  const clearCreationState = useCallback(() => {
+    setCreationStatus({ state: 'idle', canRetry: false });
+    setPreservedFormData(null);
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
+      redirectTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Restore draft on mount (only for new templates)
+  useEffect(() => {
+    if (template) return; // Don't restore draft when editing existing template
+
+    const draft = loadDraft();
+    if (!draft) return;
+
+    // Ask user if they want to restore the draft
+    if (confirm("You have an unsaved draft. Would you like to restore it?")) {
+      form.setValue("name", draft.name);
+      
+      // Set exercises
+      const exerciseValues = draft.exercises.map(name => ({ exerciseName: name }));
+      if (exerciseValues.length > 0) {
+        form.setValue("exercises", exerciseValues);
+      }
+    } else {
+      // Clear the draft if user doesn't want to restore
+      clearDraft();
+    }
+  }, [template, loadDraft, clearDraft, form]);
+
+  // Debounced save to localStorage
+  useEffect(() => {
+    if (template) return; // Don't save drafts when editing existing template
+
+    let timeoutId: NodeJS.Timeout;
+
+    const subscription = form.watch((value) => {
+      // Clear any existing timeout
+      clearTimeout(timeoutId);
+      
+      // Set new timeout
+      timeoutId = setTimeout(() => {
+        if (value.name || (value.exercises?.some(ex => ex?.exerciseName))) {
+          saveDraft(value as TemplateFormData);
+        }
+      }, 1000); // 1 second debounce
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, [template, form, saveDraft]);
+
+  // Cleanup feedback state and preview on unmount
+  useEffect(() => {
+    return () => {
+      setFeedback({ type: null, message: '' });
+      clearPreviewFromStorage();
+      clearCreationState();
+    };
+  }, [clearPreviewFromStorage, clearCreationState]);
 
   const createTemplate = api.templates.create.useMutation({
-    onMutate: async (_newTemplate) => {
-      // Cancel any outgoing refetches to prevent race conditions
-      await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value for error rollback
-      const previousTemplates = utils.templates.getAll.getData();
-
-      return { previousTemplates };
+    onMutate: () => {
+      // Let the existing sync indicator handle the "saving" state
+      // No need to set custom creation status here
     },
-    onError: (err, newTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
+    onError: (err) => {
+      console.error("Error creating template:", err);
+      
+      const errorMessage = 'Failed to create template. Please check your connection and try again.';
+      
+      // Preserve form data for retry and set error state
+      if (preservedFormData) {
+        setCreationError(preservedFormData, errorMessage);
       }
-      // Reset submission flag on error
-      submitRef.current = false;
-    },
-    onSuccess: async (data) => {
-      console.log("Template created successfully:", {
-        id: data.id,
-        name: data.name,
-        user_id: data.user_id,
-        createdAt: data.createdAt,
+      
+      setFeedback({
+        type: 'error',
+        message: errorMessage,
+        showRetry: true
       });
-      analytics.templateCreated(
-        data.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
-      );
-      // Reset submission flag
-      submitRef.current = false;
-
-      // Update cache with the new template optimistically
-      utils.templates.getAll.setData(undefined, (old: RouterOutputs["templates"]["getAll"] | undefined) => {
-        const newTemplate = data as NonNullable<typeof old>[number];
-        return old ? [newTemplate, ...old] : [newTemplate];
-      });
-
-      // Navigate immediately with updated cache
-      router.push("/templates");
     },
-    onSettled: () => {
-      // Ensure cache is invalidated
-      void utils.templates.getAll.invalidate();
+    onSuccess: (data) => {
+      console.log("Template created successfully:", data.id);
+      
+      // Set simple success state
+      setCreationStatus({
+        state: 'success',
+        canRetry: false
+      });
+      
+      // Clear states
+      clearPreviewFromStorage();
+      clearDraft();
+      
+      // Show success feedback
+      setFeedback({
+        type: 'success',
+        message: 'Template created successfully!'
+      });
+      
+      // Delayed redirect for better UX
+      redirectTimeoutRef.current = setTimeout(() => {
+        router.push("/templates");
+        utils.templates.getAll.invalidate();
+      }, 1000);
     },
   });
 
   const updateTemplate = api.templates.update.useMutation({
-    onMutate: async (updatedTemplate) => {
-      // Cancel any outgoing refetches
-      await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value
-      const previousTemplates = utils.templates.getAll.getData();
-
-      // Optimistically update the cache
-      utils.templates.getAll.setData(
-        undefined,
-        (old: RouterOutputs["templates"]["getAll"] | undefined) =>
-          old?.map((template: RouterOutputs["templates"]["getAll"][number]) =>
-            template.id === (updatedTemplate as any)?.id
-              ? {
-                  ...template,
-                  name: (updatedTemplate as any)?.name,
-                  updatedAt: new Date().toISOString(),
-                  exercises: (updatedTemplate as any)?.exercises?.map(
-                    (exerciseName, index) => ({
-                      id: template.exercises[index]?.id ?? -index - 1,
-                      user_id:
-                        template.exercises[index]?.user_id ?? "temp-user",
-                      templateId: template.id,
-                      exerciseName,
-                      orderIndex: index,
-                      linkingRejected:
-                        template.exercises[index]?.linkingRejected ?? 0,
-                      createdAt:
-                        template.exercises[index]?.createdAt ??
-                        new Date().toISOString(),
-                    }),
-                  ),
-                }
-              : template,
-          ) ?? [],
-      );
-
-      return { previousTemplates };
-    },
-    onError: (err, updatedTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
-      }
+    onError: (err) => {
+      console.error("Error updating template:", err);
+      setFeedback({
+        type: 'error',
+        message: 'Failed to update template. Please check your connection and try again.',
+        showRetry: true
+      });
     },
     onSuccess: () => {
-      analytics.templateEdited(
-        template!.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
-      );
-      // Reset submission flag
-      submitRef.current = false;
+      // Show brief success feedback and navigate immediately (optimistic)
+      setFeedback({
+        type: 'success',
+        message: 'Template updated successfully!'
+      });
+      
+      // Optimistic navigation - navigate immediately  
       router.push("/templates");
-    },
-    onSettled: () => {
-      // Always refetch to ensure we have the latest data
-      void utils.templates.getAll.invalidate();
+      
+      // Simple cache invalidation - no await needed
+      utils.templates.getAll.invalidate();
     },
   });
 
@@ -184,88 +339,129 @@ export function TemplateForm({ template }: TemplateFormProps) {
     remove(index);
   };
 
-  const handleSubmit = async (data: TemplateFormData) => {
-    console.log("handleSubmit called");
+  const handleSubmit = (data: TemplateFormData) => {
+    // Clear any previous feedback and reset state
+    setFeedback({ type: null, message: '' });
+    clearCreationState();
+    
+    const filteredExercises = data.exercises
+      .map((ex) => ex.exerciseName.trim())
+      .filter((ex) => ex !== "");
+    const trimmedName = data.name.trim();
 
-    // Prevent double submission using both loading state and ref
-    if (isLoading || submitRef.current) {
-      console.log("Form already submitting, preventing double submission");
+    // Validate we have exercises after filtering
+    if (filteredExercises.length === 0) {
+      setFeedback({
+        type: 'error',
+        message: 'Please add at least one exercise'
+      });
       return;
     }
 
-    const filteredExercises = data.exercises
-      .map(ex => ex.exerciseName.trim())
-      .filter(ex => ex !== "");
-    const trimmedName = data.name.trim();
-
-    // Check if this is a duplicate submission (same data within 5 seconds)
-    const now = Date.now();
-    const lastSubmit = lastSubmitRef.current;
-
-    if (!template && lastSubmit) {
-      const timeDiff = now - lastSubmit.timestamp;
-      const sameData =
-        lastSubmit.name === trimmedName &&
-        JSON.stringify(lastSubmit.exercises) ===
-          JSON.stringify(filteredExercises);
-
-      if (sameData && timeDiff < 5000) {
-        console.log(
-          "Preventing duplicate submission - same data within 5 seconds",
-          { timeDiff },
-        );
-        return;
-      }
-    }
-
-    // Set submission flag and record this attempt
-    submitRef.current = true;
-    lastSubmitRef.current = {
+    const processedData: TemplateFormData = {
       name: trimmedName,
-      exercises: filteredExercises,
-      timestamp: now,
+      exercises: filteredExercises.map(ex => ({ exerciseName: ex }))
     };
 
-    try {
-      if (template) {
-        await updateTemplate.mutateAsync({
-          id: template.id,
-          name: trimmedName,
-          exercises: filteredExercises,
-        });
-      } else {
-        console.log("Creating template with data:", {
-          name: trimmedName,
-          exercises: filteredExercises,
-        });
-        await createTemplate.mutateAsync({
-          name: trimmedName,
-          exercises: filteredExercises,
-        });
-      }
-    } catch (error) {
-      console.error("Error saving template:", error);
-      analytics.error(error as Error, {
-        context: template ? "template_edit" : "template_create",
-        templateId: template?.id.toString(),
+    if (template) {
+      updateTemplate.mutate({
+        id: template.id,
+        name: trimmedName,
+        exercises: filteredExercises,
       });
-      alert("Error saving template. Please try again.");
-      submitRef.current = false;
+    } else {
+      // Simplified optimistic workflow - rely on sync indicators for loading states
+      setPreservedFormData(processedData);
+      
+      // Set optimistic preview in storage immediately
+      setPreviewInStorage({
+        name: trimmedName,
+        exercises: filteredExercises,
+      });
+      
+      // Start server save - sync indicator will show loading state
+      createTemplate.mutate({
+        name: trimmedName,
+        exercises: filteredExercises,
+        clientId,
+      });
     }
   };
 
+  const handleRetry = () => {
+    if (preservedFormData && creationStatus.canRetry) {
+      // Restore preserved form data
+      form.setValue('name', preservedFormData.name);
+      form.setValue('exercises', preservedFormData.exercises);
+      
+      // Clear error state and retry
+      clearCreationState();
+      handleSubmit(preservedFormData);
+    } else {
+      form.handleSubmit(handleSubmit)();
+    }
+  };
+
+
   const isLoading = createTemplate.isPending || updateTemplate.isPending;
+  
+  // Simplified button state - rely on mutation loading states
+  const getButtonState = () => {
+    if (template) {
+      return {
+        text: isLoading ? "Updating..." : "Update Template",
+        disabled: isLoading
+      };
+    }
+    
+    switch (creationStatus.state) {
+      case 'success':
+        return { text: "Template created!", disabled: true };
+      case 'error':
+        return { text: "Create Template", disabled: false };
+      default:
+        return { text: isLoading ? "Creating..." : "Create Template", disabled: isLoading };
+    }
+  };
+  
+  const buttonState = getButtonState();
 
   return (
     <Card padding="lg">
       <CardHeader>
-        <CardTitle>
-          {template ? "Edit Template" : "Create Template"}
-        </CardTitle>
+        <CardTitle>{template ? "Edit Template" : "Create Template"}</CardTitle>
       </CardHeader>
       <CardContent>
+        {feedback.type && (
+          <div className="mb-6">
+            <Toast
+              open={true}
+              type={feedback.type}
+              message={
+                <div className="flex items-center justify-between w-full">
+                  <span>{feedback.message}</span>
+                  {feedback.showRetry && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRetry}
+                      className="ml-2 h-auto p-1 text-xs"
+                    >
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              }
+              onClose={() => setFeedback({ type: null, message: '' })}
+            />
+          </div>
+        )}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             {/* Template Name */}
             <FormField
               control={form.control}
@@ -276,6 +472,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   <FormControl>
                     <Input
                       placeholder="e.g., Push Day, Pull Day, Legs"
+                      disabled={isLoading}
+                      aria-describedby={form.formState.errors.name ? `${field.name}-error` : undefined}
                       {...field}
                     />
                   </FormControl>
@@ -292,7 +490,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
+                  disabled={isLoading}
                   onClick={addExercise}
+                  aria-label="Add another exercise"
                 >
                   + Add Exercise
                 </Button>
@@ -314,6 +514,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                 onChange={exerciseField.onChange}
                                 placeholder={`Exercise ${index + 1}`}
                                 className="w-full"
+                                disabled={isLoading}
+                                aria-label={`Exercise ${index + 1}`}
+                                aria-describedby={form.formState.errors.exercises?.[index]?.exerciseName ? `exercises-${index}-error` : undefined}
                               />
                             </FormControl>
                           </div>
@@ -322,8 +525,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               type="button"
                               variant="ghost"
                               size="sm"
+                              disabled={isLoading}
                               onClick={() => removeExercise(index)}
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              aria-label={`Remove exercise ${index + 1}`}
                             >
                               Remove
                             </Button>
@@ -340,8 +545,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isLoading}
                   onClick={addExercise}
-                  className="w-full h-20 border-dashed"
+                  className="h-20 w-full border-dashed"
+                  aria-label="Add your first exercise"
                 >
                   + Add your first exercise
                 </Button>
@@ -350,20 +557,23 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-4">
-              <Button
-                type="submit"
-                disabled={isLoading || submitRef.current}
+              <Button 
+                type="submit" 
+                disabled={buttonState.disabled}
+                aria-describedby={buttonState.disabled ? "loading-description" : undefined}
               >
-                {isLoading || submitRef.current
-                  ? "Saving..."
-                  : template
-                    ? "Update Template"
-                    : "Create Template"}
+                {buttonState.text}
               </Button>
+              {buttonState.disabled && (
+                <span id="loading-description" className="sr-only">
+                  {template ? "Updating template, please wait" : "Creating template, please wait"}
+                </span>
+              )}
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => router.back()}
+                disabled={isLoading}
               >
                 Cancel
               </Button>

@@ -73,7 +73,16 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-sm space-y-8">
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={
+          <Card className="w-full">
+            <CardHeader className="text-center space-y-2">
+              <CardTitle className="text-2xl sm:text-3xl font-bold">Create Account</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                Loading...
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        }>
           <RegisterForm />
         </Suspense>
       </div>

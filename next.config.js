@@ -8,7 +8,31 @@ import "./src/env.js";
 
 const baseConfig = {
   // Required for OpenNext
-  output: 'standalone',
+  output: "standalone",
+  // Fix for OpenNext Cloudflare Workers Html import error
+  skipMiddlewareUrlNormalize: true,
+  // Disable static generation for error pages to prevent OpenNext conflicts
+  experimental: {
+    workerThreads: false,
+    optimizeCss: false,
+  },
+  // Disable static optimization to prevent Html import errors
+  optimizePackageImports: [],
+  optimizeCss: false,
+  // Force dynamic rendering to prevent static generation issues
+  trailingSlash: false,
+  // Generate build ID to avoid caching issues
+  generateBuildId: async () => {
+    return "swole-tracker-" + Math.random().toString(36).substring(2, 15);
+  },
+  // Force all pages to be dynamic to prevent prerendering issues
+  ...(process.env.NODE_ENV === "production"
+    ? {
+        poweredByHeader: false,
+        trailingSlash: false,
+      }
+    : {}),
+
   // Configure Webpack for Cloudflare compatibility
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -29,15 +53,20 @@ const baseConfig = {
         "node:buffer": false,
       };
     }
-    
+
+    // For OpenNext Cloudflare Workers compatibility
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
+
     // For Cloudflare Workers, ensure proper module resolution
     if (process.env.CLOUDFLARE_WORKERS) {
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@': './src',
+        "@": "./src",
       };
     }
-    
+
     return config;
   },
   eslint: {
@@ -83,7 +112,7 @@ const baseConfig = {
               "form-action 'self'",
               "frame-ancestors 'none'",
               "base-uri 'self'",
-              "manifest-src 'self'"
+              "manifest-src 'self'",
             ].join("; "),
           },
         ],
@@ -128,9 +157,11 @@ const config = {
   // Ensure static exports are disabled for Workers
   output: process.env.CLOUDFLARE_WORKERS ? undefined : baseConfig.output,
   // Disable image optimization for Workers (not supported)
-  images: process.env.CLOUDFLARE_WORKERS ? {
-    unoptimized: true,
-  } : baseConfig.images,
+  images: process.env.CLOUDFLARE_WORKERS
+    ? {
+        unoptimized: true,
+      }
+    : baseConfig.images,
 };
 
 export default config;

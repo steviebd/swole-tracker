@@ -1,583 +1,477 @@
-# Swole Tracker - Complete DevOps & Development Guide
+# Swole Tracker
 
-> **Production-ready fitness tracking application** with Cloudflare Workers CI/CD Builds and native deployment.
+> **Production-ready fitness tracking application** with Infisical secrets management and Cloudflare Workers deployment.
 
-## 📋 Table of Contents
+## 🎯 Overview
 
-- [🎯 DevOps Overview](#-devops-overview)
-- [🏗️ Architecture](#️-architecture)
-- [🚀 Quick Start](#-quick-start)
-- [🔧 Development Environment](#-development-environment)
-- [🌐 Staging Environment](#-staging-environment)
-- [🏭 Production Environment](#-production-environment)
-- [⚙️ Environment Variables](#️-environment-variables)
-- [🔑 API Token Setup](#-api-token-setup)
-- [📦 Deployment Methods](#-deployment-methods)
-- [🔍 Troubleshooting](#-troubleshooting)
+**Stack:** Next.js 15 + React 19 + TypeScript + Cloudflare Workers + Infisical + Drizzle ORM
 
-## 🎯 DevOps Overview
-
-**This application uses Cloudflare Workers CI/CD Builds** with automatic branch-based deployments directly from GitHub:
-
-| Branch Pattern | Environment | Worker Name | Database | Deployment | URL |
-|----------------|-------------|-------------|----------|------------|-----|
-| `main` | **Production** | `swole-tracker-production` | `swole-tracker-prod` | 🔄 **Automatic** | `https://swole-tracker.workers.dev` |
-| `feature/*` | **Staging** | `swole-tracker-staging` | `swole-tracker-staging` | 🔄 **Automatic** | `https://staging.swole-tracker.workers.dev` |
-| Local dev | **Development** | Local worker | `swole-tracker-dev` | 🔧 **Manual** | `http://localhost:3000` |
-
-**✅ Setup once → Deploy forever:** Configure Cloudflare Projects once, then every git push automatically builds and deploys to the correct environment using Cloudflare's native CI/CD.
-
-## 🏗️ Architecture
-
-### Stack
-- **Framework**: Next.js 15 + React 19 + TypeScript
-- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
-- **Auth**: WorkOS (enterprise-grade authentication)
-- **Deployment**: Cloudflare Workers + Cloudflare CI/CD Builds
-- **Storage**: Cloudflare KV (rate limiting & caching)
-- **Analytics**: PostHog (optional)
-- **Integrations**: WHOOP fitness tracking (optional)
-
-### Environment Isolation
-Each environment has completely isolated resources:
-- **Separate D1 databases** for data isolation
-- **Separate KV namespaces** for caching and rate limiting
-- **Environment-specific configuration** via Cloudflare Project settings
-- **Branch-based automatic deployments** via Cloudflare CI/CD Builds
+This application uses **Infisical Machine Identity** for secure secrets management across all environments, eliminating the need for manual environment variable configuration.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-1. **GitHub Repository** connected to Cloudflare Workers
-2. **Cloudflare Account** with Workers plan 
-3. **Admin access** to Cloudflare account for project configuration
-4. **Node.js 20.19.4** and **bun** package manager
-5. **Cloudflare CLI**: `npm install -g wrangler` (for local development)
+1. **Node.js 20.19.4** with **bun** package manager
+2. **Cloudflare Account** with Workers plan
+3. **Infisical Account** with Machine Identity configured
+4. **Wrangler CLI**: `npm install -g wrangler`
 
-### 1. Fork/Clone Repository
+### 1. Setup Project
 
 ```bash
-# Fork the repository on GitHub, then clone your fork
-git clone https://github.com/YOUR_USERNAME/swole-tracker.git
+# Clone and install
+git clone <your-repo>
 cd swole-tracker
-
-# Install dependencies
 bun install
-```
 
-### 2. Authenticate with Cloudflare
-
-```bash
-# Login to Cloudflare
+# Authenticate with Cloudflare
 wrangler login
-
-# Verify authentication
-wrangler whoami
 ```
 
-### 3. Create All Cloudflare Resources
+### 2. Configure Infisical Machine Identity
+
+1. **Create Machine Identity** in your [Infisical dashboard](https://app.infisical.com/)
+2. **Set up environments** in Infisical:
+   - `dev` - Development secrets
+   - `staging` - Staging deployment secrets
+   - `production` - Production deployment secrets
+
+3. **Create `.env.local`** with your Infisical credentials:
 
 ```bash
-# Development environment (local dev)
+# Copy template
+cp .env.example .env.local
+
+# Add your Infisical Machine Identity credentials
+INFISICAL_CLIENT_ID=your_client_id
+INFISICAL_SECRET=your_client_secret
+INFISICAL_PROJECT_ID=your_project_id
+INFISICAL_ENVIRONMENT=dev
+
+# Local development overrides (optional)
+USE_LOCAL_D1=true
+CLOUDFLARE_D1_DATABASE_ID=local-swole-tracker-dev
+DATABASE_URL=sqlite:.wrangler/state/swole-tracker-dev.db
+```
+
+### 3. Create Cloudflare Resources
+
+Create the required D1 databases and KV namespaces, then store their IDs in Infisical:
+
+```bash
+# Development
 wrangler d1 create swole-tracker-dev
 wrangler kv namespace create "RATE_LIMIT_KV"
 wrangler kv namespace create "CACHE_KV"
 
-# Staging environment
+# Staging
 wrangler d1 create swole-tracker-staging
 wrangler kv namespace create "RATE_LIMIT_KV" --env staging
 wrangler kv namespace create "CACHE_KV" --env staging
 
-# Production environment
+# Production
 wrangler d1 create swole-tracker-prod
 wrangler kv namespace create "RATE_LIMIT_KV" --env production
 wrangler kv namespace create "CACHE_KV" --env production
 ```
 
-**💡 Save all resource IDs** - you'll need them for local setup and GitHub Secrets.
+**Store all resource IDs in your Infisical environments** (dev/staging/production).
 
-### 4. Configure Cloudflare Projects
+## 🔧 Development Commands
 
-Create two separate Workers Projects in your Cloudflare dashboard:
+The application uses **4 core commands** for all development and deployment workflows:
 
-#### **Step 4a: Create Staging Project**
-1. Go to **Cloudflare Dashboard → Workers & Pages → Create**
-2. Select **"Connect to Git"** → Choose your GitHub repository
-3. Configure project:
-   - **Project name**: `swole-tracker-staging`
-   - **Production branch**: Leave empty (we'll use build branches)
-   - **Build branches**: Enable and set pattern: `feature/*,feat/*`
-   - **Build command**: `bun install && bun run build:cloudflare`
-   - **Deploy command**: `bun run deploy:staging`
+### Local Development
 
-#### **Step 4b: Create Production Project**
-1. Go to **Cloudflare Dashboard → Workers & Pages → Create**
-2. Select **"Connect to Git"** → Choose your GitHub repository  
-3. Configure project:
-   - **Project name**: `swole-tracker-production`
-   - **Production branch**: `main`
-   - **Build command**: `bun install && bun run build:cloudflare`
-   - **Deploy command**: `bun run deploy:production`
-
-#### **Step 4c: Configure Environment Variables and Secrets**
-
-This project uses a combination of build-time environment variables and runtime secrets.
-
-**Build-Time Variables (Non-Secret):**
-
-These variables are used by the `generate-wrangler-config.ts` script at build time to create the `wrangler.toml` file. They are safe to store in `.env.local` for local development and should be set as **environment variables** in your Cloudflare project settings for CI/CD.
-
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_PROD_D1_DATABASE_ID`
-- `CLOUDFLARE_PROD_RATE_LIMIT_KV_ID`
-- `CLOUDFLARE_PROD_CACHE_KV_ID`
-- `CLOUDFLARE_STAGING_D1_DATABASE_ID`
-- `CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID`
-- `CLOUDFLARE_STAGING_CACHE_KV_ID`
-- `WORKOS_CLIENT_ID`
-- `NEXT_PUBLIC_POSTHOG_KEY`
-- `NEXT_PUBLIC_POSTHOG_HOST`
-- `WHOOP_CLIENT_ID`
-- `WHOOP_SYNC_RATE_LIMIT_PER_HOUR`
-- `AI_GATEWAY_MODEL`
-- `AI_GATEWAY_PROMPT`
-- `RATE_LIMIT_ENABLED`
-- `RATE_LIMIT_API_CALLS_PER_MINUTE`
-
-**Runtime Secrets (Encrypted):**
-
-These are sensitive values and should be set as **secrets** in your Cloudflare project settings. They are accessed at runtime by your worker.
-
-- `WORKOS_API_KEY`
-- `WHOOP_CLIENT_SECRET`
-- `WHOOP_WEBHOOK_SECRET`
-- `VERCEL_AI_GATEWAY_API_KEY`
-- `AI_GATEWAY_API_KEY`
-
-**How to Configure in Cloudflare Dashboard:**
-
-For each project (staging and production):
-1. Go to **Settings → Variables**.
-2. Add the **Build-Time Variables** under **Environment Variables**.
-3. Add the **Runtime Secrets** under **Encrypted Secrets**.
-
-### 5. Start Developing
-
-**Local Development:**
 ```bash
-# Create .env.local with development resource IDs
-cp .env.example .env.local
-# Edit .env.local with your development resource IDs and WorkOS credentials
-
-# Start development server
+# Local development with local SQLite database
 bun dev
+
+# Local development with remote Cloudflare resources (D1, KV)
+bun run dev:remote
 ```
 
-**Deploy to Staging:**
-```bash
-git checkout -b feature/your-feature
-git commit -am "Your changes"
-git push origin feature/your-feature
-# → Automatic staging deployment via Cloudflare CI/CD Builds
-```
-
-**Deploy to Production:**
-```bash
-git checkout main
-git commit -am "Production ready changes"
-git push origin main
-# → Automatic production deployment via Cloudflare CI/CD Builds
-```
-
-## 🔧 Development Environment
-
-### Setup
-
-1. **Create `.env.local`** with development resource IDs:
-```bash
-# Copy template
-cp .env.example .env.local
-
-# Add your development resource IDs from step 3 above
-CLOUDFLARE_DEV_D1_DATABASE_ID=your_dev_database_id
-CLOUDFLARE_DEV_RATE_LIMIT_KV_ID=your_dev_rate_limit_kv_id
-CLOUDFLARE_DEV_CACHE_KV_ID=your_dev_cache_kv_id
-
-# Add WorkOS credentials (required for auth)
-WORKOS_CLIENT_ID=your_workos_client_id
-WORKOS_API_KEY=your_workos_api_key
-```
-
-2. **Run database migrations:**
-```bash
-# Apply migrations to development D1 database
-wrangler d1 migrations apply swole-tracker-dev
-```
-
-3. **Start development server:**
-```bash
-bun dev
-```
-
-### Development Features
-
-- **Hot reload** with Next.js Turbopack
-- **Real-time database** via Cloudflare D1 local development
-- **Environment validation** with helpful error messages
-- **Type-safe APIs** with tRPC and Zod validation
-- **Offline-first** PWA capabilities for mobile testing
-
-### Development Commands
+### Deployment
 
 ```bash
-# Development
-bun dev                    # Start dev server with hot reload
-bun build                  # Build for development testing
-bun preview               # Build and start locally
-
-# Database
-bun db:push               # Push schema changes to D1
-bun db:studio             # Open Drizzle Studio (database UI)
-bun db:generate           # Generate migration files
-bun db:migrate            # Apply migrations
-
-# Code Quality
-bun check                 # Run lint + typecheck
-bun lint                  # ESLint checking
-bun lint:fix              # Auto-fix ESLint issues
-bun format:write          # Format code with Prettier
-
-# Testing
-bun test                  # Unit tests with Vitest
-bun test:watch            # Watch mode testing
-bun coverage              # Generate coverage report
-bun e2e                   # End-to-end tests with Playwright
-```
-
-## 🌐 Staging Environment
-
-### Purpose
-- **Feature testing** before production
-- **Integration testing** with real Cloudflare Workers
-- **Client demos** and stakeholder previews
-- **Performance testing** under production-like conditions
-
-### Automatic Deployment
-
-Push any `feature/*` or `feat/*` branch:
-
-```bash
-# Create and push feature branch
-git checkout -b feature/user-dashboard
-git commit -am "Add user dashboard feature"
-git push origin feature/user-dashboard
-
-# ✅ Automatic staging deployment triggered via Cloudflare CI/CD Builds
-# ✅ Available at: https://staging.swole-tracker.workers.dev
-```
-
-### Staging Features
-
-- **Production-identical infrastructure** (Cloudflare Workers + D1)
-- **Isolated staging database** with test data
-- **Environment-specific configuration** via Cloudflare Project settings
-- **Automatic builds and deployments** via Cloudflare CI/CD Builds
-- **Real-world performance** testing capabilities
-
-### Staging Commands
-
-```bash
-# Manual staging deployment (if needed)
+# Deploy to staging environment (uses Infisical 'staging' secrets)
 bun run deploy:staging
 
-# Check staging deployment
-curl -f https://staging.swole-tracker.workers.dev/api/joke
-
-# Staging database operations
-wrangler d1 info swole-tracker-staging
-wrangler d1 migrations apply swole-tracker-staging --env staging
+# Deploy to production environment (uses Infisical 'production' secrets)
+bun run deploy:production
 ```
 
-## 🏭 Production Environment
+## 🔐 Infisical Integration
 
-### Purpose
-- **Live application** serving real users
-- **Optimized performance** with production builds
-- **Full security** with rate limiting and monitoring
-- **Zero-downtime deployments** via Cloudflare Workers
+### How It Works
 
-### Automatic Deployment
+1. **Build Time**: Scripts pull secrets from Infisical using Machine Identity
+2. **Runtime**: Secrets are injected into `wrangler.toml` `[vars]` section
+3. **Environment-Specific**: Each command uses different Infisical environment:
+   - `dev:remote` → `dev` environment
+   - `deploy:staging` → `staging` environment
+   - `deploy:production` → `production` environment
 
-Push to `main` branch:
+### Required Secrets in Infisical
+
+Store these secrets in **each environment** (dev/staging/production):
+
+**Infrastructure:**
+
+- `CLOUDFLARE_D1_DATABASE_ID` - D1 database ID
+- `CLOUDFLARE_RATE_LIMIT_KV_ID` - Rate limit KV namespace ID
+- `CLOUDFLARE_CACHE_KV_ID` - Cache KV namespace ID
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+- `CLOUDFLARE_API_TOKEN` - Cloudflare API token for Wrangler
+
+**Authentication:**
+
+- `WORKOS_CLIENT_ID` - WorkOS client ID
+- `WORKOS_API_KEY` - WorkOS API key
+
+**Optional Integrations:**
+
+- `WHOOP_CLIENT_ID` - WHOOP fitness tracker integration
+- `WHOOP_CLIENT_SECRET` - WHOOP client secret
+- `WHOOP_WEBHOOK_SECRET` - WHOOP webhook verification secret
+- `AI_GATEWAY_API_KEY` - AI gateway for jokes/health advice
+- `VERCEL_AI_GATEWAY_API_KEY` - Alternative AI gateway
+
+**Domains (staging/production only):**
+
+- `STAGING_CLOUDFLARE_DOMAIN` - Staging custom domain
+- `PRODUCTION_CLOUDFLARE_DOMAIN` - Production custom domain
+- `CLOUDFLARE_ZONE_NAME` - Root domain for custom domains
+
+### Environment Variables vs Secrets
+
+- **Local Development**: Uses `.env.local` with fallback to Infisical `dev` environment
+- **Remote Development**: Pulls all values from Infisical `dev` environment
+- **Staging**: Pulls all values from Infisical `staging` environment
+- **Production**: Pulls all values from Infisical `production` environment
+
+## 🗄️ Database Management
+
+The application supports **4 database environments** with consistent command patterns:
+
+### Local Development (SQLite)
+
+```bash
+# Schema management
+bun run db:generate        # Generate migration files from schema changes
+bun run db:push           # Push schema changes directly (development only)
+bun run db:migrate        # Apply migrations to local database
+bun run db:studio         # Open Drizzle Studio for local database
+```
+
+### Remote Development (Cloudflare D1)
+
+```bash
+# Schema management
+bun run db:generate:remote # Generate migration files (same as local)
+bun run db:migrate:remote  # Apply migrations to remote D1 database
+bun run db:studio:remote   # Open Drizzle Studio with remote connection
+bun run db:push:remote     # Push schema changes to remote D1 (development only)
+```
+
+### Staging Environment
+
+```bash
+bun run db:migrate:staging # Apply migrations to staging D1 database
+bun run db:studio:staging  # Open Drizzle Studio for staging database
+```
+
+### Production Environment
+
+```bash
+bun run db:migrate:production # Apply migrations to production D1 database
+bun run db:studio:production  # Open Drizzle Studio for production database
+```
+
+### Database Workflow
+
+**For Schema Changes:**
+
+1. **Local**: Make schema changes in `src/server/db/schema.ts`
+2. **Generate**: `bun run db:generate` (creates migration files)
+3. **Test Locally**: `bun run db:migrate` (apply to local SQLite)
+4. **Deploy**: Use appropriate remote command for target environment
+
+**Database Names by Environment:**
+
+- **Local**: SQLite file (`.wrangler/state/swole-tracker-dev.db`)
+- **Remote Dev**: `swole-tracker-dev` D1 database
+- **Staging**: `swole-tracker-staging` D1 database
+- **Production**: `swole-tracker-prod` D1 database
+
+## 🛠️ Database Operations with Wrangler
+
+For direct control over database operations, use these wrangler commands. These are the official Cloudflare D1 commands that provide full control over migrations and database management.
+
+### Prerequisites
+
+Before using wrangler commands, ensure you have:
+
+1. **Wrangler CLI installed**: `npm install -g wrangler`
+2. **Authenticated with Cloudflare**: `wrangler login`
+3. **Proper wrangler.toml**: Generate with `bun run scripts/generate-wrangler-infisical.ts`
+
+### Migration Commands
+
+```bash
+# Create a new migration
+wrangler d1 migrations create swole-tracker-dev "add_user_preferences"
+
+# List all migrations for a database
+wrangler d1 migrations list swole-tracker-dev
+
+# Apply migrations to a database
+wrangler d1 migrations apply swole-tracker-dev --remote
+```
+
+### Database Commands by Environment
+
+#### Development Database
+
+```bash
+# Create migration
+wrangler d1 migrations create swole-tracker-dev "migration_description"
+
+# List migrations
+wrangler d1 migrations list swole-tracker-dev
+
+# Apply migrations
+wrangler d1 migrations apply swole-tracker-dev --remote
+
+# Execute SQL queries
+wrangler d1 execute swole-tracker-dev --command="SELECT * FROM users LIMIT 5"
+wrangler d1 execute swole-tracker-dev --file=./queries.sql --remote
+```
+
+#### Staging Database
+
+```bash
+# Apply migrations to staging
+wrangler d1 migrations apply swole-tracker-staging --remote
+
+# List staging migrations
+wrangler d1 migrations list swole-tracker-staging
+
+# Execute queries on staging
+wrangler d1 execute swole-tracker-staging --command="SELECT COUNT(*) FROM users" --remote
+```
+
+#### Production Database
+
+```bash
+# Apply migrations to production (CAUTION!)
+wrangler d1 migrations apply swole-tracker-prod --remote
+
+# List production migrations
+wrangler d1 migrations list swole-tracker-prod
+
+# Execute queries on production (CAUTION!)
+wrangler d1 execute swole-tracker-prod --command="SELECT * FROM users WHERE created_at > '2024-01-01'" --remote
+```
+
+### Advanced Wrangler Commands
+
+```bash
+# Query with local file
+wrangler d1 execute swole-tracker-dev --file=./migration.sql --remote
+
+# Batch multiple queries
+wrangler d1 execute swole-tracker-dev --command="BEGIN; INSERT INTO...; COMMIT;" --remote
+
+# Check database info
+wrangler d1 info swole-tracker-dev
+
+# Delete database (DESTRUCTION!)
+wrangler d1 delete swole-tracker-dev
+```
+
+### Environment-Specific Usage
+
+The wrangler commands use the database names defined in your `wrangler.toml`. For environment-specific operations:
+
+```bash
+# Development (uses local resources when available)
+wrangler d1 migrations apply swole-tracker-dev --remote
+
+# Staging (requires staging resources in wrangler.toml)
+wrangler d1 migrations apply swole-tracker-staging --remote
+
+# Production (requires production resources in wrangler.toml)
+wrangler d1 migrations apply swole-tracker-prod --remote
+```
+
+### Workflow with Wrangler Commands
+
+**For Schema Changes:**
+
+1. **Update Schema**: Modify `src/server/db/schema.ts`
+2. **Generate Migration**: `bun run db:generate` (creates migration files)
+3. **Test Locally**: `bun run db:migrate` (local SQLite)
+4. **Apply to Remote**: Use appropriate wrangler command for target environment
+
+**Example Migration Workflow:**
+
+```bash
+# 1. Make schema changes in src/server/db/schema.ts
+# 2. Generate migration file
+bun run db:generate
+
+# 3. Test on local database
+bun run db:migrate
+
+# 4. Apply to development D1
+wrangler d1 migrations apply swole-tracker-dev --remote
+
+# 5. Apply to staging D1
+wrangler d1 migrations apply swole-tracker-staging --remote
+
+# 6. Apply to production D1 (when ready)
+wrangler d1 migrations apply swole-tracker-prod --remote
+```
+
+### Important Notes
+
+- **Always test migrations locally first** before applying to remote databases
+- **Use `--remote` flag** when working with Cloudflare-hosted D1 databases
+- **Database names must match** the names in your `wrangler.toml` configuration
+- **Production migrations are irreversible** - always backup before applying
+- **Environment isolation** - each environment uses separate database instances
+
+## 🧪 Testing & Quality
+
+```bash
+# Code quality
+bun check                  # Run lint + typecheck
+bun lint                   # ESLint checking
+bun lint:fix               # Auto-fix ESLint issues
+bun typecheck              # TypeScript type checking
+
+# Testing
+bun test                   # Unit tests with Vitest
+bun test:watch             # Watch mode testing
+bun coverage               # Generate coverage report
+bun e2e                    # End-to-end tests with Playwright
+```
+
+## 🌐 Deployment Workflow
+
+### Staging Deployment
+
+```bash
+# Deploy feature to staging
+bun run deploy:staging
+```
+
+**What happens:**
+
+1. Sets `INFISICAL_ENVIRONMENT=staging`
+2. Pulls secrets from Infisical `staging` environment
+3. Generates `wrangler.toml` with staging configuration
+4. Builds Next.js application with staging environment
+5. Deploys to `swole-tracker-staging` worker
+
+### Production Deployment
 
 ```bash
 # Deploy to production
-git checkout main
-git merge feature/your-feature    # or PR merge
-git push origin main
-
-# ✅ Automatic production deployment triggered via Cloudflare CI/CD Builds
-# ✅ Available at: https://swole-tracker.workers.dev
-```
-
-### Production Features
-
-- **Optimized builds** with minification and compression via Cloudflare CI/CD
-- **Production logging** with minimal verbose output
-- **Rate limiting** enabled for API protection
-- **Analytics tracking** with PostHog
-- **Native Cloudflare integration** with zero-downtime deployments
-- **CDN distribution** via Cloudflare's global network
-
-### Production Commands
-
-```bash
-# Manual production deployment (emergency only)
 bun run deploy:production
-
-# Check production health
-curl -f https://swole-tracker.workers.dev/api/joke
-
-# Production database operations (careful!)
-wrangler d1 info swole-tracker-prod --env production
-wrangler d1 migrations apply swole-tracker-prod --env production
-
-# Monitor production logs (local CLI)
-wrangler tail --env production
-
-# View build logs (Cloudflare Dashboard)
-# Navigate to Workers & Pages → swole-tracker-production → View build history
 ```
 
-## ⚙️ Environment Variables
+**What happens:**
 
-### Development (.env.local)
+1. Sets `INFISICAL_ENVIRONMENT=production`
+2. Pulls secrets from Infisical `production` environment
+3. Generates `wrangler.toml` with production configuration
+4. Builds Next.js application with production environment
+5. Deploys to `swole-tracker-production` worker
 
-```bash
-# Cloudflare Development Resources
-CLOUDFLARE_DEV_D1_DATABASE_ID=your_dev_database_id
-CLOUDFLARE_DEV_RATE_LIMIT_KV_ID=your_dev_rate_limit_kv_id
-CLOUDFLARE_DEV_CACHE_KV_ID=your_dev_cache_kv_id
+## 🏗️ Architecture
 
-# Authentication (required)
-WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
-WORKOS_API_KEY=workos-api-key
+### Tech Stack
 
-# Environment Settings
-NODE_ENV=development                    # Hot reload, detailed errors
-NEXT_TELEMETRY_DISABLED=1              # Disable Vercel data collection
-SKIP_ENV_VALIDATION=0                  # Validate all env vars
-ENVIRONMENT=development                # Environment identifier
+- **Frontend**: Next.js 15 + React 19 + TypeScript
+- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
+- **Auth**: WorkOS enterprise authentication
+- **Deployment**: Cloudflare Workers
+- **Secrets**: Infisical Machine Identity
+- **Storage**: Cloudflare KV (rate limiting & caching)
 
-# Optional: Analytics
-NEXT_PUBLIC_POSTHOG_KEY=phc_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+### Environment Isolation
 
-# Optional: WHOOP Integration
-WHOOP_CLIENT_ID=your_whoop_client_id
-WHOOP_CLIENT_SECRET=your_whoop_client_secret
-WHOOP_WEBHOOK_SECRET=your_whoop_webhook_secret
+- **Development**: Local SQLite or remote D1 for testing
+- **Staging**: Dedicated D1 database + KV namespaces
+- **Production**: Separate production resources
 
-# Optional: AI Features  
-VERCEL_AI_GATEWAY_API_KEY=your_ai_gateway_api_key
-AI_GATEWAY_MODEL=xai/grok-3-mini
-```
+### Security
 
-### Staging/Production (Cloudflare Projects)
-
-All environment-specific values are managed as Cloudflare Project environment variables and automatically injected during CI/CD builds:
-- **Build Variables**: Available during build process (non-sensitive configuration)
-- **Runtime Secrets**: Available during runtime (sensitive API keys, encrypted values)
-- **Configuration**: Set via Cloudflare Dashboard → Workers & Pages → [Project] → Settings → Environment Variables
-
-## 🔑 Local Development Setup
-
-For local development, you'll need the Cloudflare CLI (wrangler):
-
-### Wrangler Authentication:
-1. Install: `npm install -g wrangler`
-2. Login: `wrangler login`
-3. Verify: `wrangler whoami`
-
-### Local Environment:
-- Create `.env.local` with development resource IDs
-- All production deployments happen automatically via Cloudflare CI/CD Builds
-- Local CLI is only needed for development and emergency manual deployments
-
-## 📦 Deployment Methods
-
-### 🚀 Method 1: Cloudflare CI/CD Builds (Primary/Recommended)
-
-**Automatic deployments** via native Cloudflare integration with GitHub:
-
-#### Benefits:
-- **🔄 Automatic deployments** on git push via Cloudflare CI/CD Builds
-- **🌿 Branch-based environments** (`main` → production, `feature/*` → staging)
-- **🔒 Secure secret management** via Cloudflare Project settings
-- **📊 Deployment monitoring** with Cloudflare Dashboard build history
-- **⚡ Native Cloudflare integration** with optimized build environment
-- **🔄 Version management** and easy rollbacks via Cloudflare Workers
-
-#### Usage:
-```bash
-# Production deployment (main branch)
-git checkout main
-git push origin main
-# ✅ Automatic production deployment via Cloudflare CI/CD Builds
-
-# Staging deployment (feature branch)
-git checkout -b feature/user-dashboard
-git push origin feature/user-dashboard
-# ✅ Automatic staging deployment via Cloudflare CI/CD Builds
-```
-
-### 🛠️ Method 2: Local Development Deployment (Secondary)
-
-For local testing and emergency deployments only:
-
-```bash
-# Local development deployment
-bun run deploy                    # Deploy to development worker
-bun run deploy:staging           # Emergency staging deployment  
-bun run deploy:production        # Emergency production deployment
-```
-
-**Prerequisites:** `.env.local` with required variables and `wrangler login`
-**Note:** Production deployments should normally use Cloudflare CI/CD Builds
-
-### 🔧 Method 3: Manual Wrangler (Advanced)
-
-For complete manual control:
-
-```bash
-# 1. Generate config
-bun run env:substitute --env production
-
-# 2. Build application  
-bun run build:cloudflare
-
-# 3. Deploy with wrangler
-npx wrangler deploy --env production
-```
+- **No secrets in code**: All sensitive values in Infisical
+- **Machine Identity**: Secure API-based secret retrieval
+- **Environment isolation**: Separate secrets per environment
+- **Build-time injection**: Secrets baked into worker at build time
 
 ## 🔍 Troubleshooting
 
-### Common Cloudflare Deployment Errors
+### Common Issues
 
-#### Internal Server Error After Deployment
-```
-Error: Internal Server Error 500
-Deployment successful but site not accessible
-```
-**Solution:** Missing resource bindings. Go to Settings → Functions → Bindings and add:
-- `DB` (D1 Database) → Select your database
-- `RATE_LIMIT_KV` (KV Namespace) → Select your rate limit KV namespace  
-- `CACHE_KV` (KV Namespace) → Select your cache KV namespace
+**"WORKOS_CLIENT_ID not configured"**
 
-#### KV Namespace 'undefined' Error
+- Check Infisical has `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` in correct environment
+- Verify Infisical Machine Identity has access to secrets
+
+**"KV namespace 'undefined' is not valid"**
+
+- Ensure Cloudflare resource IDs are stored in Infisical
+- Check `CLOUDFLARE_RATE_LIMIT_KV_ID` and `CLOUDFLARE_CACHE_KV_ID` exist
+
+**Build fails with missing environment variables**
+
+- Verify all required secrets exist in target Infisical environment
+- Check Infisical Machine Identity permissions
+
+**"Infisical integration enabled but pulled 0 secrets"**
+
+- Verify `INFISICAL_ENVIRONMENT` matches your Infisical environment name
+- Check Infisical Machine Identity credentials in `.env.local`
+
+### Debug Commands
+
 ```bash
-Error: KV namespace 'undefined' is not valid. [code: 10042]
-```
-**Solution:** Environment variables are set for runtime but not build. This is now handled automatically by the updated build script.
+# Test Infisical connection
+bun run scripts/test-infisical.ts
 
-#### Missing Bindings Error
+# Generate wrangler config only (for debugging)
+bun run scripts/generate-wrangler-infisical.ts
+
+# Check current environment variables
+env | grep INFISICAL
+```
+
+## 📦 Utility Scripts
+
+Additional scripts available for specific workflows:
+
 ```bash
-Error: env.DB is not defined
-Error: env.RATE_LIMIT_KV is not defined
+# Design tokens
+bun tokens:build           # Build design tokens
+bun tokens:watch           # Watch for token changes
+
+# Code formatting
+bun format:write           # Format code with Prettier
+bun format:check           # Check code formatting
+
+# Build
+bun build                  # Build Next.js application
+bun preview                # Build and preview locally
 ```
-**Solution:** Configure resource bindings in Cloudflare Dashboard → Settings → Functions → Bindings.
-
-#### Build Command Failed
-```bash
-Error: Build command failed with exit code 1
-```
-**Solution:** Check build logs in Cloudflare Dashboard → Project → View build history.
-
-#### Worker Not Found Error
-```bash
-Error: Worker not found
-```
-**Solution:** Ensure Worker name in Cloudflare dashboard matches project configuration.
-
-### Branch Deployment Issues
-
-#### Feature Branch Not Building
-**Check:**
-1. Branch name matches pattern: `feature/*` or `feat/*`
-2. Project has "Build branches" enabled for staging
-3. Build logs in Cloudflare Dashboard → Project → View build history
-
-#### Build Timeout
-**Solutions:**
-1. Check [Cloudflare status](https://status.cloudflare.com)
-2. Re-trigger build by pushing another commit
-3. Check build logs for specific error details
-
-### Development Issues
-
-#### Local Development Not Working
-**Check:**
-1. `.env.local` file exists with correct resource IDs
-2. `wrangler login` completed successfully  
-3. Development D1 database created and accessible
-4. WorkOS credentials are valid
-
-#### Database Connection Issues
-```bash
-# Verify D1 database exists
-wrangler d1 info swole-tracker-dev
-
-# Check database migrations
-wrangler d1 migrations list swole-tracker-dev
-
-# Apply missing migrations
-wrangler d1 migrations apply swole-tracker-dev
-```
-
-### Quick Fixes for Common Issues
-
-#### 1. Site Shows Internal Server Error
-**Most common cause:** Missing resource bindings
-```bash
-# Solution: Add bindings in Cloudflare Dashboard
-Settings → Functions → Bindings → Add binding:
-- DB: Select your D1 database
-- RATE_LIMIT_KV: Select your KV namespace  
-- CACHE_KV: Select your KV namespace
-```
-
-#### 2. Build Fails with "undefined" Errors
-**Cause:** Missing build environment variables (now fixed automatically)
-```bash
-# Solution: The build script now handles this automatically
-# No action needed - just redeploy
-```
-
-#### 3. Authentication Errors
-**Cause:** Missing WorkOS credentials
-```bash
-# Solution: Add to Variables and Secrets
-WORKOS_CLIENT_ID=client_01XXXXXXXXXXXXXXXXXX
-WORKOS_API_KEY=your_workos_api_key  # Add as Secret
-```
-
-## 🎉 Congratulations!
-
-You now have a **production-ready DevOps pipeline** with:
-
-- ✅ **Automatic deployments** on every git push via Cloudflare CI/CD Builds
-- ✅ **Environment isolation** (development, staging, production)  
-- ✅ **Secure secret management** via Cloudflare Project settings
-- ✅ **Native Cloudflare integration** with optimized build environment
-- ✅ **Team collaboration** with deployment history and build logs
-- ✅ **Zero-downtime deployments** with Cloudflare Workers
-- ✅ **Scalable infrastructure** with global CDN and version management
-
-**Ready to deploy?** Just push your code! 🚀
 
 ---
 
-**Stack**: Next.js 15 + React 19 + Cloudflare Workers + D1 + Cloudflare CI/CD Builds  
-**Status**: Production Ready with Native Cloudflare CI/CD  
-**Updated**: January 2025
+**🔐 Secure by Design**: All secrets managed through Infisical  
+**🚀 Simple Deployment**: Four commands handle all environments  
+**⚡ Modern Stack**: Next.js 15 + Cloudflare Workers + TypeScript

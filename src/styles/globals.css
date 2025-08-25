@@ -412,6 +412,17 @@ html.dark {
   font-weight: var(--component-button-fontWeight);
   background-color: var(--color-status-danger-default);
   color: var(--btn-destructive-fg, var(--color-text-primary));
+  border: 1px solid transparent;
+}
+.btn-destructive:hover {
+  background-color: var(--btn-destructive-bg-hover, color-mix(in oklab, var(--color-status-danger-default) 85%, black 15%));
+}
+.btn-destructive:active {
+  background-color: var(--btn-destructive-bg-active, color-mix(in oklab, var(--color-status-danger-default) 70%, black 30%));
+}
+.btn-destructive:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-status-danger-default), 0 0 0 4px rgba(239, 68, 68, 0.2);
 }
 .btn-destructive.text-sm {
   padding: var(--spacing-component-xs) var(--spacing-component-sm);

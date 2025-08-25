@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserFromRequest } from "~/lib/workos";
+import { getUserFromRequest } from "~/lib/auth/user";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";

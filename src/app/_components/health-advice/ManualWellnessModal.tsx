@@ -1,15 +1,14 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
-import { 
-  getManualWellnessLabels, 
+import React, { useState } from "react";
+import { Button } from "~/components/ui/button";
+import { Card } from "~/components/ui/card";
+import {
+  getManualWellnessLabels,
   getWellnessPresets,
-  validateManualWellnessData 
-} from '~/lib/subjective-wellness-mapper';
-import type { ManualWellnessData } from '~/lib/subjective-wellness-mapper';
-import { trackWellnessModalInteraction } from '~/lib/analytics/health-advice';
+  validateManualWellnessData,
+} from "~/lib/subjective-wellness-mapper";
+import type { ManualWellnessData } from "~/lib/subjective-wellness-mapper";
 
 interface ManualWellnessModalProps {
   isOpen: boolean;
@@ -36,7 +35,7 @@ export function ManualWellnessModal({
 }: ManualWellnessModalProps) {
   const [energyLevel, setEnergyLevel] = useState(5);
   const [sleepQuality, setSleepQuality] = useState(5);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [modalOpenTime] = useState(Date.now());
   const [initialValues] = useState({ energy: 5, sleep: 5 });
@@ -50,13 +49,6 @@ export function ManualWellnessModal({
     setEnergyLevel(preset.energyLevel);
     setSleepQuality(preset.sleepQuality);
     setValidationError(null);
-    
-    // Track preset usage
-    trackWellnessModalInteraction({
-      sessionId: sessionId?.toString() || 'unknown',
-      action: 'preset_selected',
-      presetUsed: preset.label.toLowerCase().replace(/\s+/g, '_')
-    });
   };
 
   const handleSubmit = () => {
@@ -71,60 +63,64 @@ export function ManualWellnessModal({
 
     // Validate the data
     if (!validateManualWellnessData(wellnessData)) {
-      setValidationError('Please ensure all values are between 1-10 and notes are under 500 characters');
+      setValidationError(
+        "Please ensure all values are between 1-10 and notes are under 500 characters",
+      );
       return;
     }
 
-    // Track submission
-    trackWellnessModalInteraction({
-      sessionId: sessionId?.toString() || 'unknown',
-      action: 'submitted',
-      timeSpent: Date.now() - modalOpenTime,
-      initialValues,
-      finalValues: { energy: energyLevel, sleep: sleepQuality }
-    });
-    
     onSubmit(wellnessData);
   };
 
   const getEnergyLabel = (value: number) => {
-    if (value <= 2) return 'Very Low';
-    if (value <= 4) return 'Low';
-    if (value <= 6) return 'Moderate';
-    if (value <= 8) return 'Good';
-    return 'Excellent';
+    if (value <= 2) return "Very Low";
+    if (value <= 4) return "Low";
+    if (value <= 6) return "Moderate";
+    if (value <= 8) return "Good";
+    return "Excellent";
   };
 
   const getSleepLabel = (value: number) => {
-    if (value <= 2) return 'Very Poor';
-    if (value <= 4) return 'Poor';
-    if (value <= 6) return 'Fair';
-    if (value <= 8) return 'Good';
-    return 'Excellent';
+    if (value <= 2) return "Very Poor";
+    if (value <= 4) return "Poor";
+    if (value <= 6) return "Fair";
+    if (value <= 8) return "Good";
+    return "Excellent";
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-6 space-y-6">
+    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+      <Card className="max-h-[90vh] w-full max-w-md overflow-y-auto">
+        <div className="space-y-6 p-6">
           {/* Header with improved messaging for simplified system */}
-          <div className="text-center space-y-2">
-            <h2 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <div className="space-y-2 text-center">
+            <h2
+              className="text-xl font-bold"
+              style={{ color: "var(--color-text)" }}
+            >
               Quick Wellness Check
             </h2>
-            <p className="text-sm text-muted">
+            <p className="text-muted text-sm">
               Just 2 quick inputs for personalized workout recommendations
             </p>
-            
+
             {!hasWhoopIntegration && (
-              <div className="p-3 rounded-lg text-left" style={{ backgroundColor: 'color-mix(in oklab, var(--color-warning) 10%, var(--color-bg-surface))', borderColor: 'var(--color-warning)' }}>
-                <p className="text-sm text-secondary">
-                  💡 Quick 30-second wellness check to get personalized workout recommendations
+              <div
+                className="rounded-lg p-3 text-left"
+                style={{
+                  backgroundColor:
+                    "color-mix(in oklab, var(--color-warning) 10%, var(--color-bg-surface))",
+                  borderColor: "var(--color-warning)",
+                }}
+              >
+                <p className="text-secondary text-sm">
+                  💡 Quick 30-second wellness check to get personalized workout
+                  recommendations
                 </p>
                 {onConnectWhoop && (
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={onConnectWhoop}
                     className="mt-2 w-full"
                   >
@@ -135,14 +131,22 @@ export function ManualWellnessModal({
             )}
 
             {hasWhoopIntegration && !isWhoopConnected && (
-              <div className="p-3 rounded-lg text-left" style={{ backgroundColor: 'color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))', borderColor: 'var(--color-danger)' }}>
-                <p className="text-sm text-secondary">
-                  ⚠️ WHOOP disconnected. Quick wellness check will be used for recommendations.
+              <div
+                className="rounded-lg p-3 text-left"
+                style={{
+                  backgroundColor:
+                    "color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))",
+                  borderColor: "var(--color-danger)",
+                }}
+              >
+                <p className="text-secondary text-sm">
+                  ⚠️ WHOOP disconnected. Quick wellness check will be used for
+                  recommendations.
                 </p>
                 {onConnectWhoop && (
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={onConnectWhoop}
                     className="mt-2 w-full"
                   >
@@ -153,9 +157,17 @@ export function ManualWellnessModal({
             )}
 
             {hasWhoopIntegration && isWhoopConnected && (
-              <div className="p-3 rounded-lg text-left" style={{ backgroundColor: 'color-mix(in oklab, var(--color-success) 10%, var(--color-bg-surface))', borderColor: 'var(--color-success)' }}>
-                <p className="text-sm text-secondary">
-                  ✅ WHOOP connected! Your input will enhance the WHOOP data for even better recommendations.
+              <div
+                className="rounded-lg p-3 text-left"
+                style={{
+                  backgroundColor:
+                    "color-mix(in oklab, var(--color-success) 10%, var(--color-bg-surface))",
+                  borderColor: "var(--color-success)",
+                }}
+              >
+                <p className="text-secondary text-sm">
+                  ✅ WHOOP connected! Your input will enhance the WHOOP data for
+                  even better recommendations.
                 </p>
               </div>
             )}
@@ -163,7 +175,10 @@ export function ManualWellnessModal({
 
           {/* Quick Presets for Mobile UX */}
           <div className="space-y-3">
-            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+            <label
+              className="text-sm font-medium"
+              style={{ color: "var(--color-text)" }}
+            >
               Quick Presets
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -171,15 +186,22 @@ export function ManualWellnessModal({
                 <button
                   key={preset.label}
                   onClick={() => handlePresetSelect(preset)}
-                  className="p-3 text-center border rounded-lg hover:bg-opacity-80 transition-colors text-xs"
-                  style={{ 
-                    borderColor: 'var(--color-border)',
-                    backgroundColor: 'color-mix(in oklab, var(--color-primary) 5%, var(--color-bg-surface))'
+                  className="hover:bg-opacity-80 rounded-lg border p-3 text-center text-xs transition-colors"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    backgroundColor:
+                      "color-mix(in oklab, var(--color-primary) 5%, var(--color-bg-surface))",
                   }}
                 >
-                  <div className="text-lg mb-1">{preset.label.split(' ')[0]}</div>
-                  <div className="font-medium text-[10px]">{preset.label.split(' ').slice(1).join(' ')}</div>
-                  <div className="text-[10px] text-muted mt-1">{preset.description}</div>
+                  <div className="mb-1 text-lg">
+                    {preset.label.split(" ")[0]}
+                  </div>
+                  <div className="text-[10px] font-medium">
+                    {preset.label.split(" ").slice(1).join(" ")}
+                  </div>
+                  <div className="text-muted mt-1 text-[10px]">
+                    {preset.description}
+                  </div>
                 </button>
               ))}
             </div>
@@ -189,11 +211,14 @@ export function ManualWellnessModal({
           <div className="space-y-6">
             {/* Energy Level */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+              <div className="flex items-center justify-between">
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: "var(--color-text)" }}
+                >
                   How energetic do you feel?
                 </label>
-                <span className="text-sm text-muted">
+                <span className="text-muted text-sm">
                   {getEnergyLabel(energyLevel)} ({energyLevel}/10)
                 </span>
               </div>
@@ -206,10 +231,10 @@ export function ManualWellnessModal({
                   setEnergyLevel(Number(e.target.value));
                   setValidationError(null);
                 }}
-                className="w-full h-3 rounded-lg appearance-none cursor-pointer slider-primary"
-                style={{ backgroundColor: 'var(--color-border)' }}
+                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg"
+                style={{ backgroundColor: "var(--color-border)" }}
               />
-              <div className="flex justify-between text-xs text-muted">
+              <div className="text-muted flex justify-between text-xs">
                 <span>Drained</span>
                 <span>Peak Energy</span>
               </div>
@@ -217,11 +242,14 @@ export function ManualWellnessModal({
 
             {/* Sleep Quality */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+              <div className="flex items-center justify-between">
+                <label
+                  className="text-sm font-medium"
+                  style={{ color: "var(--color-text)" }}
+                >
                   How well did you sleep?
                 </label>
-                <span className="text-sm text-muted">
+                <span className="text-muted text-sm">
                   {getSleepLabel(sleepQuality)} ({sleepQuality}/10)
                 </span>
               </div>
@@ -234,10 +262,10 @@ export function ManualWellnessModal({
                   setSleepQuality(Number(e.target.value));
                   setValidationError(null);
                 }}
-                className="w-full h-3 rounded-lg appearance-none cursor-pointer slider-primary"
-                style={{ backgroundColor: 'var(--color-border)' }}
+                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg"
+                style={{ backgroundColor: "var(--color-border)" }}
               />
-              <div className="flex justify-between text-xs text-muted">
+              <div className="text-muted flex justify-between text-xs">
                 <span>Terrible</span>
                 <span>Perfect</span>
               </div>
@@ -245,7 +273,10 @@ export function ManualWellnessModal({
 
             {/* Optional Notes */}
             <div className="space-y-3">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+              <label
+                className="text-sm font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
                 Additional Notes (Optional)
               </label>
               <textarea
@@ -257,16 +288,16 @@ export function ManualWellnessModal({
                   }
                 }}
                 placeholder="Any other factors affecting your wellness today? (e.g., stress, illness, excitement)"
-                className="w-full p-3 border rounded-lg resize-none text-sm"
-                style={{ 
-                  borderColor: 'var(--color-border)',
-                  backgroundColor: 'var(--color-bg-surface)',
-                  color: 'var(--color-text)'
+                className="w-full resize-none rounded-lg border p-3 text-sm"
+                style={{
+                  borderColor: "var(--color-border)",
+                  backgroundColor: "var(--color-bg-surface)",
+                  color: "var(--color-text)",
                 }}
                 rows={3}
                 maxLength={500}
               />
-              <div className="text-xs text-muted text-right">
+              <div className="text-muted text-right text-xs">
                 {notes.length}/500 characters
               </div>
             </div>
@@ -274,8 +305,15 @@ export function ManualWellnessModal({
 
           {/* Error Messages */}
           {(validationError || submitError) && (
-            <div className="p-3 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))', borderColor: 'var(--color-danger)' }}>
-              <p className="text-sm text-danger">
+            <div
+              className="rounded-lg p-3"
+              style={{
+                backgroundColor:
+                  "color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))",
+                borderColor: "var(--color-danger)",
+              }}
+            >
+              <p className="text-danger text-sm">
                 {validationError || submitError}
               </p>
             </div>
@@ -293,20 +331,29 @@ export function ManualWellnessModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              className="flex-1 btn-primary"
+              className="btn-primary flex-1"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Getting Recommendations...' : 'Get Workout Intelligence'}
+              {isSubmitting
+                ? "Getting Recommendations..."
+                : "Get Workout Intelligence"}
             </Button>
           </div>
 
           {/* Mobile-Optimized Disclaimer */}
-          <div className="text-xs text-muted text-center pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+          <div
+            className="text-muted border-t pt-2 text-center text-xs"
+            style={{ borderColor: "var(--color-border)" }}
+          >
             <div className="space-y-1">
-              <div>💡 Quick wellness check for personalized recommendations</div>
+              <div>
+                💡 Quick wellness check for personalized recommendations
+              </div>
               <div>Not medical advice - always listen to your body</div>
               {sessionId && (
-                <div className="text-[10px] opacity-75">Session #{sessionId}</div>
+                <div className="text-[10px] opacity-75">
+                  Session #{sessionId}
+                </div>
               )}
             </div>
           </div>

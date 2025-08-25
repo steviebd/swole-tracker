@@ -1,4 +1,4 @@
-import { getUserFromHeaders } from "~/lib/workos";
+import { getUserFromHeaders } from "~/lib/auth/user";
 import { redirect } from "next/navigation";
 import { ProgressDashboard } from "../_components/ProgressDashboard";
 

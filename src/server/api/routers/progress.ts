@@ -6,8 +6,10 @@ import {
   exerciseLinks,
   templateExercises
 } from "~/server/db/schema";
-import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, inArray, max } from "drizzle-orm";
 import { type db } from "~/server/db";
+import { queryPerformanceTracker, chunkInArrayParams } from "~/lib/query-performance";
+import { withD1Retry, d1BatchOperations, validateD1Operation } from "~/lib/d1-safeguards";
 
 /* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
 const debugEnabled =
@@ -65,26 +67,36 @@ export const progressRouter = createTRPCRouter({
           lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
         ];
 
-        // Add exercise name filter
+        // Add exercise name filter with D1 optimization
         const exerciseCondition = exerciseNamesToSearch.length === 1 
           ? eq(sessionExercises.exerciseName, exerciseNamesToSearch[0]!)
-          : inArray(sessionExercises.exerciseName, exerciseNamesToSearch);
+          : inArray(sessionExercises.exerciseName, queryPerformanceTracker.validateInArrayParams(
+              exerciseNamesToSearch, 
+              'getStrengthProgression'
+            ));
 
         whereConditions.push(exerciseCondition);
 
-        const progressData = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            exerciseName: sessionExercises.exerciseName,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-          })
-          .from(sessionExercises)
-          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
-          .where(and(...whereConditions))
-          .orderBy(desc(workoutSessions.workoutDate), desc(sessionExercises.weight));
+        const progressData = await queryPerformanceTracker.trackQuery(
+          'getStrengthProgression',
+          () => ctx.db
+            .select({
+              workoutDate: workoutSessions.workoutDate,
+              exerciseName: sessionExercises.exerciseName,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+              sets: sessionExercises.sets,
+              unit: sessionExercises.unit,
+            })
+            .from(sessionExercises)
+            .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+            .where(and(...whereConditions))
+            .orderBy(desc(workoutSessions.workoutDate), desc(sessionExercises.weight)),
+          {
+            userId: ctx.user.id,
+            parameterCount: exerciseNamesToSearch.length,
+          }
+        );
 
         // Add oneRMEstimate to progress data
         const enhancedProgressData: ProgressDataRow[] = progressData.map(item => ({
@@ -116,25 +128,32 @@ export const progressRouter = createTRPCRouter({
         const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
         debugLog("getVolumeProgression: date range", { startDate, endDate });
         
-        const volumeData = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            exerciseName: sessionExercises.exerciseName,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-          })
-          .from(sessionExercises)
-          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
-              lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
+        const volumeData = await queryPerformanceTracker.trackQuery(
+          'getVolumeProgression',
+          () => ctx.db
+            .select({
+              workoutDate: workoutSessions.workoutDate,
+              exerciseName: sessionExercises.exerciseName,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+              sets: sessionExercises.sets,
+              unit: sessionExercises.unit,
+            })
+            .from(sessionExercises)
+            .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+            .where(
+              and(
+                eq(sessionExercises.user_id, ctx.user.id),
+                gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+                lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
+              )
             )
-          )
-          .orderBy(desc(workoutSessions.workoutDate));
+            .orderBy(desc(workoutSessions.workoutDate))
+            .limit(5000), // D1 safety limit for large time ranges
+          {
+            userId: ctx.user.id,
+          }
+        );
 
         // Transform data to match expected types
         const transformedData = volumeData.map(row => ({
@@ -410,12 +429,18 @@ export const progressRouter = createTRPCRouter({
       }
     }),
 
-  // Get exercise list for dropdown/selection
+  // Get exercise list for dropdown/selection (with pagination)
   getExerciseList: protectedProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({
+      limit: z.number().int().min(1).max(1000).default(100),
+      offset: z.number().int().min(0).default(0),
+      search: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
       try {
-        debugLog("getExerciseList: user_id", ctx.user.id);
-        const exercises = await ctx.db
+        debugLog("getExerciseList: user_id", ctx.user.id, "input", input);
+        
+        const baseQuery = ctx.db
           .select({
             exerciseName: sessionExercises.exerciseName,
             lastUsed: sql<Date>`MAX(${workoutSessions.workoutDate})`,
@@ -425,13 +450,55 @@ export const progressRouter = createTRPCRouter({
           .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
           .where(eq(sessionExercises.user_id, ctx.user.id))
           .groupBy(sessionExercises.exerciseName)
-          .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
+          .orderBy(desc(max(workoutSessions.workoutDate)))
+          .limit(input.limit)
+          .offset(input.offset);
+
+        const exercises = await queryPerformanceTracker.trackQuery(
+          'getExerciseList',
+          () => baseQuery,
+          {
+            userId: ctx.user.id,
+            expectedMaxResults: input.limit
+          }
+        );
 
         debugLog("getExerciseList: result count", exercises.length);
-        return exercises;
+        
+        // Get total count for pagination
+        const totalCountResult = await queryPerformanceTracker.trackQuery(
+          'getExerciseList_count',
+          () => ctx.db
+            .select({
+              count: sql<number>`COUNT(DISTINCT ${sessionExercises.exerciseName})`
+            })
+            .from(sessionExercises)
+            .where(eq(sessionExercises.user_id, ctx.user.id)),
+          { userId: ctx.user.id }
+        );
+
+        const totalCount = totalCountResult[0]?.count ?? 0;
+
+        return {
+          exercises,
+          pagination: {
+            total: totalCount,
+            limit: input.limit,
+            offset: input.offset,
+            hasMore: input.offset + exercises.length < totalCount
+          }
+        };
       } catch (error) {
         console.error("Error in getExerciseList:", error);
-        return [];
+        return {
+          exercises: [],
+          pagination: {
+            total: 0,
+            limit: input.limit,
+            offset: input.offset,
+            hasMore: false
+          }
+        };
       }
     }),
 });
@@ -727,6 +794,12 @@ export async function calculatePersonalRecords(
   oneRMEstimate?: number;
   totalVolume?: number;
 }>> {
+  // Validate operation parameters for D1 compatibility
+  validateD1Operation({
+    parameterCount: exerciseNames.length,
+    operationName: 'calculatePersonalRecords'
+  });
+
   const records: Array<{
     exerciseName: string;
     recordType: "weight" | "volume";
@@ -738,47 +811,87 @@ export async function calculatePersonalRecords(
     oneRMEstimate?: number;
     totalVolume?: number;
   }> = [];
-  
-  for (const exerciseName of exerciseNames) {
-    let exerciseData: {
-      weight: string | null;
-      reps: number | null;
-      sets: number | null;
-      workoutDate: Date;
-      unit: string;
-    }[] = [];
-    
-    try {
-      exerciseData = (await ctx.db
-        .select({
-          workoutDate: workoutSessions.workoutDate,
-          weight: sessionExercises.weight,
-          reps: sessionExercises.reps,
-          sets: sessionExercises.sets,
-          unit: sessionExercises.unit,
-        })
-        .from(sessionExercises)
-        .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            eq(sessionExercises.exerciseName, exerciseName),
-            gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
-            lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
-          )
-        )
-        .orderBy(desc(workoutSessions.workoutDate)))
-        .map(row => ({
-          ...row,
-          workoutDate: new Date(row.workoutDate),
-          weight: row.weight !== null ? String(row.weight) : null
-        }));
 
-    } catch (error) {
-      console.error("Error fetching exercise data for", exerciseName, error);
-      // When there's a database error, return empty array (as expected by the test)
-      continue;
+  // Use batch operations for D1 efficiency
+  const exerciseDataResults = await d1BatchOperations.executeBatch(
+    exerciseNames,
+    async (exerciseNameBatch: string[]) => {
+      return queryPerformanceTracker.trackQuery(
+        'calculatePersonalRecords_batch',
+        async () => {
+          const batchResults: Array<{
+            exerciseName: string;
+            weight: string | null;
+            reps: number | null;
+            sets: number | null;
+            workoutDate: Date;
+            unit: string;
+          }> = [];
+
+          // Process each exercise in the batch
+          for (const exerciseName of exerciseNameBatch) {
+            try {
+              const exerciseData = await withD1Retry(
+                () => ctx.db
+                  .select({
+                    workoutDate: workoutSessions.workoutDate,
+                    weight: sessionExercises.weight,
+                    reps: sessionExercises.reps,
+                    sets: sessionExercises.sets,
+                    unit: sessionExercises.unit,
+                  })
+                  .from(sessionExercises)
+                  .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+                  .where(
+                    and(
+                      eq(sessionExercises.user_id, ctx.user.id),
+                      eq(sessionExercises.exerciseName, exerciseName),
+                      gte(workoutSessions.workoutDate, startDate.toISOString().split('T')[0]!),
+                      lte(workoutSessions.workoutDate, endDate.toISOString().split('T')[0]!)
+                    )
+                  )
+                  .orderBy(desc(workoutSessions.workoutDate))
+                  .limit(1000), // D1 safety limit
+                { context: `calculatePersonalRecords_${exerciseName}` }
+              );
+
+              batchResults.push(...exerciseData.map(row => ({
+                exerciseName,
+                ...row,
+                workoutDate: new Date(row.workoutDate),
+                weight: row.weight !== null ? String(row.weight) : null
+              })));
+
+            } catch (error) {
+              console.error("Error fetching exercise data for", exerciseName, error);
+              // Continue with other exercises
+            }
+          }
+
+          return batchResults;
+        },
+        {
+          userId: ctx.user.id,
+          parameterCount: exerciseNameBatch.length
+        }
+      );
+    },
+    {
+      batchSize: 10, // Process 10 exercises per batch for D1 efficiency
+      context: 'calculatePersonalRecords'
     }
+  );
+
+  // Process results to calculate personal records
+  const exerciseDataMap = new Map<string, typeof exerciseDataResults>();
+  for (const data of exerciseDataResults.flat()) {
+    if (!exerciseDataMap.has(data.exerciseName)) {
+      exerciseDataMap.set(data.exerciseName, []);
+    }
+    exerciseDataMap.get(data.exerciseName)!.push(data);
+  }
+
+  for (const [exerciseName, exerciseData] of exerciseDataMap.entries()) {
 
     // When exerciseData is empty, return empty array (as expected by the test)
     if (exerciseData.length === 0) continue;

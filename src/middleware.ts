@@ -1,25 +1,43 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE_NAME } from "~/lib/workos-types";
+import { readSessionCookie, handleSessionError, SESSION_COOKIE_NAME } from "~/lib/auth/session";
+import { checkUserAuthenticationStatus } from "~/lib/auth/user";
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
     request,
   });
 
-  // Get WorkOS session from cookie
-  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+  // Read and parse session using centralized auth library
   let hasValidSession = false;
 
-  if (sessionCookie) {
-    try {
-      const sessionData = JSON.parse(sessionCookie.value);
-      // Simple check for access token presence (we'll validate it in API routes)
-      hasValidSession = !!(sessionData.accessToken && sessionData.user);
-    } catch (error) {
-      console.error('Failed to parse session cookie:', error);
-      // Clear invalid session cookie
+  try {
+    const session = readSessionCookie(request);
+    
+    if (session) {
+      // Use centralized user authentication status check
+      const authStatus = checkUserAuthenticationStatus(session.user);
+      hasValidSession = authStatus.isAuthenticated;
+    } else {
+      // Check if there was an empty cookie that needs clearing
+      const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+      if (sessionCookie?.value && sessionCookie.value.trim() === '') {
+        response.cookies.delete(SESSION_COOKIE_NAME);
+      }
+    }
+  } catch (error) {
+    // Use centralized error handling
+    const { error: errorMessage, shouldClearSession } = handleSessionError(
+      error, 
+      'middleware session validation'
+    );
+    
+    console.error(errorMessage);
+    
+    if (shouldClearSession) {
       response.cookies.delete(SESSION_COOKIE_NAME);
     }
+    
+    hasValidSession = false;
   }
 
   // Protected routes that require authentication

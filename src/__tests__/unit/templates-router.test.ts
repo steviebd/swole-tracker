@@ -21,7 +21,9 @@ const mockDb = {
     })),
   })),
   delete: vi.fn(() => ({
-    where: vi.fn(),
+    where: vi.fn(() => ({
+      catch: vi.fn(),
+    })),
   })),
   select: vi.fn(() => ({
     from: vi.fn(() => ({
@@ -38,6 +40,9 @@ const mockCtx = {
   user: { id: "test-user" },
   requestId: "test-request",
   headers: new Headers(),
+  authCache: {
+    userByToken: new Map(),
+  },
 } as unknown as TRPCContext;
 
 describe("templatesRouter", () => {
@@ -132,16 +137,16 @@ describe("templatesRouter", () => {
       // Mock no recent template
       mockDb.query.workoutTemplates.findFirst.mockResolvedValue(null);
 
-      // Mock template creation
-      mockDb.insert.mockReturnValue({
+      // Mock template creation (first insert call)
+      mockDb.insert.mockReturnValueOnce({
         values: vi.fn(() => ({
           returning: vi.fn(() => [mockTemplate]),
         })),
       });
 
-      // Mock exercises creation
+      // Mock exercises creation (second insert call)
       const mockExercises = [
-        { id: 1, exerciseName: "Bench Press", templateId: 1 },
+        { id: 1, exerciseName: "Bench Press", templateId: 1, user_id: "test-user", orderIndex: 0, linkingRejected: 0 },
       ];
       mockDb.insert.mockReturnValueOnce({
         values: vi.fn(() => ({
@@ -149,10 +154,39 @@ describe("templatesRouter", () => {
         })),
       });
 
+      // Mock master exercise creation (third insert call)
+      const mockMasterExercise = [
+        { id: 1, user_id: "test-user", name: "Bench Press", normalizedName: "bench press" },
+      ];
+      mockDb.insert.mockReturnValue({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => mockMasterExercise),
+        })),
+      });
+      
+      // Mock master exercise lookup (returns empty, will create new one)
+      mockDb.select.mockReturnValue({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve([])),
+          })),
+        })),
+      });
+      
+      // Mock update for exercise links
+      mockDb.update.mockReturnValue({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+          catch: vi.fn()
+        })),
+        })),
+      });
+
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.create({
         name: "Push Day",
         exercises: ["Bench Press"],
+        clientId: crypto.randomUUID(),
       });
 
       expect(result).toEqual(mockTemplate);
@@ -172,6 +206,7 @@ describe("templatesRouter", () => {
       const result = await caller.create({
         name: "Push Day",
         exercises: ["Bench Press"],
+        clientId: crypto.randomUUID(),
       });
 
       expect(result).toEqual(recentTemplate);
@@ -191,11 +226,14 @@ describe("templatesRouter", () => {
           returning: vi.fn(() => [mockTemplate]),
         })),
       });
+      
+      // For create test with empty exercises, we don't need to mock the exercise creation
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.create({
         name: "Push Day",
         exercises: [],
+        clientId: crypto.randomUUID(),
       });
 
       expect(result).toEqual(mockTemplate);
@@ -216,11 +254,40 @@ describe("templatesRouter", () => {
       );
       mockDb.update.mockReturnValue({
         set: vi.fn(() => ({
-          where: vi.fn(() => Promise.resolve()),
+          where: vi.fn(() => ({
+          catch: vi.fn()
+        })),
         })),
       });
       mockDb.delete.mockReturnValue({
-        where: vi.fn(() => Promise.resolve()),
+        where: vi.fn(() => ({
+          catch: vi.fn()
+        })),
+      });
+      
+      // Mock template exercises insert
+      mockDb.insert.mockReturnValue({
+        values: vi.fn(() => ({
+          returning: vi.fn(() => [
+            {
+              id: 1,
+              user_id: "test-user",
+              templateId: 1,
+              exerciseName: "Squat",
+              orderIndex: 0,
+              linkingRejected: 0,
+            },
+          ]),
+        })),
+      });
+
+      // Mock master exercise search (returns empty to create new one)
+      mockDb.select.mockReturnValue({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve([])),
+          })),
+        })),
       });
 
       const caller = templatesRouter.createCaller(mockCtx);
@@ -282,7 +349,9 @@ describe("templatesRouter", () => {
         existingTemplate,
       );
       mockDb.delete.mockReturnValue({
-        where: vi.fn(() => Promise.resolve()),
+        where: vi.fn(() => ({
+          catch: vi.fn()
+        })),
       });
 
       const caller = templatesRouter.createCaller(mockCtx);

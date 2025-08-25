@@ -16,12 +16,17 @@ export const workoutTemplates = createTable(
     id: d.integer().primaryKey({ autoIncrement: true }),
     name: d.text().notNull(),
     user_id: d.text().notNull(),
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    clientId: d.text(), // Client-generated UUID for idempotency
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
     index("template_user_id_idx").on(t.user_id),
     index("template_name_idx").on(t.name),
+    // Composite index to prevent rapid duplicates and improve query performance
+    index("template_user_name_created_idx").on(t.user_id, t.name, t.createdAt),
+    // Index for clientId for idempotent operations
+    index("template_user_client_id_idx").on(t.user_id, t.clientId),
   ],
 ); // RLS disabled - using application-level security
 
@@ -38,7 +43,7 @@ export const templateExercises = createTable(
     exerciseName: d.text().notNull(),
     orderIndex: d.integer().notNull().default(0),
     linkingRejected: d.integer().notNull().default(0), // SQLite boolean as integer: 0 = false, 1 = true
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
   }),
   (t) => [
     index("template_exercise_user_id_idx").on(t.user_id),
@@ -62,7 +67,7 @@ export const workoutSessions = createTable(
     theme_used: d.text(), // 'dark' | 'light' | 'system' (validated in app layer)
     device_type: d.text(), // 'android' | 'ios' | 'desktop' | 'ipad' | 'other'
     perf_metrics: d.text(), // JSON stored as text
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -96,7 +101,7 @@ export const sessionExercises = createTable(
     rest_seconds: d.integer(),
     is_estimate: d.integer().notNull().default(0), // Boolean as integer
     is_default_applied: d.integer().notNull().default(0), // Boolean as integer
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
   }),
   (t) => [
     index("session_exercise_user_id_idx").on(t.user_id),
@@ -128,7 +133,7 @@ export const userPreferences = createTable(
       .default("adaptive"), // "linear" | "percentage" | "adaptive"
     linear_progression_kg: d.real().default(2.5), // Default 2.5kg increment
     percentage_progression: d.real().default(2.5), // Default 2.5% increment
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [index("user_preferences_user_id_idx").on(t.user_id)],
@@ -142,7 +147,7 @@ export const userMigration = createTable(
     supabase_user_id: d.text().unique().notNull(),
     workos_user_id: d.text().unique().notNull(),
     migration_status: d.text().notNull().default("pending"), // 'pending', 'completed', 'failed'
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     migrated_at: d.text(),
   }),
   (t) => [
@@ -162,7 +167,7 @@ export const dailyJokes = createTable(
     joke: d.text().notNull(),
     aiModel: d.text().notNull(),
     prompt: d.text().notNull(),
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
   }),
   (t) => [
     index("daily_joke_user_id_idx").on(t.user_id),
@@ -183,7 +188,7 @@ export const userIntegrations = createTable(
     expiresAt: d.text(), // ISO timestamp string
     scope: d.text(), // OAuth scopes granted
     isActive: d.integer().notNull().default(1), // Boolean as integer
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -208,7 +213,7 @@ export const externalWorkoutsWhoop = createTable(
     score: d.text(), // JSON stored as text
     during: d.text(), // JSON stored as text
     zone_duration: d.text(), // JSON stored as text
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -229,7 +234,7 @@ export const rateLimits = createTable(
     endpoint: d.text().notNull(), // e.g., 'whoop_sync'
     requests: d.integer().notNull().default(0),
     windowStart: d.text().notNull(), // ISO timestamp string
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -246,7 +251,7 @@ export const masterExercises = createTable(
     user_id: d.text().notNull(),
     name: d.text().notNull(),
     normalizedName: d.text().notNull(), // Lowercased, trimmed name for fuzzy matching
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -276,7 +281,7 @@ export const exerciseLinks = createTable(
       .notNull()
       .references(() => masterExercises.id, { onDelete: "cascade" }),
     user_id: d.text().notNull(),
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
   }),
   (t) => [
     index("exercise_link_template_exercise_idx").on(t.templateExerciseId),
@@ -310,7 +315,7 @@ export const healthAdvice = createTable(
     // Performance tracking
     response_time_ms: d.integer(),
     model_used: d.text(),
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
   }),
   (t) => [
     index("health_advice_user_id_idx").on(t.user_id),
@@ -337,7 +342,7 @@ export const webhookEvents = createTable(
     status: d.text().notNull().default("received"), // 'received', 'processed', 'failed', 'ignored'
     error: d.text(), // Error message if processing failed
     processingTime: d.integer(), // Processing time in ms
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     processedAt: d.text(),
   }),
   (t) => [
@@ -367,14 +372,14 @@ export const wellnessData = createTable(
     
     // Metadata
     device_timezone: d.text(), // Store device timezone for context
-    submitted_at: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    submitted_at: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     
     // Context
     has_whoop_data: d.integer().notNull().default(0), // Boolean as integer
     whoop_data: d.text(), // JSON stored as text
     notes: d.text(), // User notes (max 500 chars enforced in app)
     
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -410,9 +415,9 @@ export const whoopRecovery = createTable(
     
     // Metadata
     timezone_offset: d.text(),
-    webhook_received_at: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    webhook_received_at: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -448,9 +453,9 @@ export const whoopCycles = createTable(
     raw_data: d.text(), // JSON stored as text
     
     // Metadata
-    webhook_received_at: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    webhook_received_at: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -490,9 +495,9 @@ export const whoopSleep = createTable(
     raw_data: d.text(), // JSON stored as text
     
     // Metadata
-    webhook_received_at: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    webhook_received_at: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -520,10 +525,10 @@ export const whoopProfile = createTable(
     raw_data: d.text(), // JSON stored as text
     
     // Metadata
-    webhook_received_at: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
-    last_updated: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    webhook_received_at: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
+    last_updated: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -553,9 +558,9 @@ export const whoopBodyMeasurement = createTable(
     raw_data: d.text(), // JSON stored as text
     
     // Metadata
-    webhook_received_at: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    webhook_received_at: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
     updatedAt: d.text(),
   }),
   (t) => [
@@ -597,7 +602,7 @@ export const aiSuggestionHistory = createTable(
     
     // Metadata
     interaction_time_ms: d.integer(), // Time from suggestion to interaction
-    createdAt: d.text().default(sql`(CURRENT_TIMESTAMP)`).notNull(),
+    createdAt: d.text().default(sql`(datetime('now', 'utc'))`).notNull(),
   }),
   (t) => [
     index("ai_suggestion_history_user_id_idx").on(t.user_id),

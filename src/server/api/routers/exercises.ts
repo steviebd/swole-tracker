@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, sql, desc, ilike, inArray } from "drizzle-orm";
+import { eq, and, sql, desc, ilike, inArray, isNotNull, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
@@ -553,7 +553,7 @@ export const exercisesRouter = createTRPCRouter({
           exerciseName: templateExercises.exerciseName,
           masterExerciseId: masterExercises.id,
           masterExerciseName: masterExercises.name,
-          isLinked: sql<boolean>`${exerciseLinks.id} IS NOT NULL`,
+          isLinked: isNotNull(exerciseLinks.id),
         })
         .from(templateExercises)
         .leftJoin(
@@ -678,7 +678,7 @@ export const exercisesRouter = createTRPCRouter({
         .where(
           and(
             eq(templateExercises.user_id, ctx.user.id),
-            sql`${exerciseLinks.id} IS NULL`, // Not linked to any master exercise
+            isNull(exerciseLinks.id), // Not linked to any master exercise
           ),
         );
 
@@ -763,7 +763,7 @@ export const exercisesRouter = createTRPCRouter({
         .where(
           and(
             eq(templateExercises.user_id, ctx.user.id),
-            sql`${exerciseLinks.id} IS NULL`,
+            isNull(exerciseLinks.id),
             eq(templateExercises.linkingRejected, 0), // Don't link rejected exercises
           ),
         );
@@ -833,7 +833,7 @@ export const exercisesRouter = createTRPCRouter({
         .where(
           and(
             eq(templateExercises.user_id, ctx.user.id),
-            sql`${exerciseLinks.id} IS NULL`,
+            isNull(exerciseLinks.id),
           ),
         );
 

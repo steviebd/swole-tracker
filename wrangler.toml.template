@@ -4,7 +4,7 @@
 
 name = "swole-tracker"
 main = ".vercel/output/static/_worker.js/index.js"
-compatibility_date = "2024-03-20"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 # Worker environment variables (non-sensitive)
@@ -18,16 +18,16 @@ WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-prod"
-database_id = "${CLOUDFLARE_PROD_D1_DATABASE_ID}"
+database_id = "${CLOUDFLARE_D1_DATABASE_ID}"
 migrations_dir = "drizzle"
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "${CLOUDFLARE_PROD_RATE_LIMIT_KV_ID}"
+id = "${CLOUDFLARE_RATE_LIMIT_KV_ID}"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE_KV"
-id = "${CLOUDFLARE_PROD_CACHE_KV_ID}"
+id = "${CLOUDFLARE_CACHE_KV_ID}"
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -40,16 +40,16 @@ WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-staging"
-database_id = "${CLOUDFLARE_STAGING_D1_DATABASE_ID}"
+database_id = "${CLOUDFLARE_D1_DATABASE_ID}"
 migrations_dir = "drizzle"
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "${CLOUDFLARE_STAGING_RATE_LIMIT_KV_ID}"
+id = "${CLOUDFLARE_RATE_LIMIT_KV_ID}"
 
 [[env.staging.kv_namespaces]]
 binding = "CACHE_KV"
-id = "${CLOUDFLARE_STAGING_CACHE_KV_ID}"
+id = "${CLOUDFLARE_CACHE_KV_ID}"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
@@ -59,16 +59,18 @@ WORKOS_CLIENT_ID = "${WORKOS_CLIENT_ID}"
 [[d1_databases]]
 binding = "DB"
 database_name = "swole-tracker-dev"
-database_id = "fd83bd6b-1d9f-4351-a23a-df3eed070fe1"
+database_id = "${CLOUDFLARE_D1_DATABASE_ID}"
 migrations_dir = "drizzle"
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "24ffbf891bf1445d82533a65d92a9cd9"
+id = "${CLOUDFLARE_RATE_LIMIT_KV_ID}"
+
 
 [[kv_namespaces]]
 binding = "CACHE_KV"
-id = "8314e00d68f24565b5993af382148b63"
+id = "${CLOUDFLARE_CACHE_KV_ID}"
+
 
 # Note: Sensitive variables like WORKOS_API_KEY, DATABASE_URL, etc. should be set via:
 # - GitHub Secrets for CI/CD deployment

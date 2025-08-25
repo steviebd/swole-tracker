@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { refreshAccessToken } from '~/lib/workos';
+import { type NextRequest, NextResponse } from 'next/server';
+import { refreshAccessToken } from '~/lib/auth/workos';
 
 
 export async function POST(request: NextRequest) {

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { exchangeCodeForToken, getBaseRedirectUri, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "~/lib/workos";
+import { exchangeCodeForToken, getBaseRedirectUri } from "~/lib/auth/workos";
+import { createSessionCookie, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from "~/lib/auth/session";
 
 // Runtime configuration handled by OpenNext
 
@@ -32,13 +33,8 @@ export async function GET(request: NextRequest) {
     
     const { accessToken, refreshToken, user } = await exchangeCodeForToken(code, redirectUri);
 
-    // Create session data
-    const sessionData = {
-      user,
-      accessToken,
-      refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    };
+    // Create session cookie data using centralized function
+    const sessionCookieValue = createSessionCookie(user, accessToken, refreshToken);
 
     // Debug logging to see what we're storing
     console.log('Storing session data:', {
@@ -56,16 +52,39 @@ export async function GET(request: NextRequest) {
 
     // Handle forwarded host for production deployments
     const forwardedHost = request.headers.get("x-forwarded-host");
+    const xForwardedProto = request.headers.get("x-forwarded-proto");
     const isLocalEnv = process.env.NODE_ENV === "development";
+    const isWranglerDev = origin.includes('localhost') || origin.includes('127.0.0.1');
+    
+    console.log('Auth callback redirect logic:', {
+      origin,
+      forwardedHost,
+      xForwardedProto,
+      isLocalEnv,
+      isWranglerDev,
+      redirectTo,
+    });
     
     let finalRedirectUrl = `${origin}${redirectTo}`;
-    if (!isLocalEnv && forwardedHost) {
-      finalRedirectUrl = `https://${forwardedHost}${redirectTo}`;
+    
+    // Only use forwardedHost logic for true production deployments (not wrangler dev)
+    if (!isLocalEnv && !isWranglerDev && forwardedHost) {
+      // Use the same protocol detection logic as getBaseRedirectUri
+      const protocol = xForwardedProto || 'https';
+      finalRedirectUrl = `${protocol}://${forwardedHost}${redirectTo}`;
+      console.log('Using forwarded host redirect:', finalRedirectUrl);
+    } else if (isWranglerDev && xForwardedProto === 'http') {
+      // For wrangler dev, construct URL with correct HTTP protocol
+      const host = forwardedHost || origin.replace(/^https?:\/\//, '');
+      finalRedirectUrl = `http://${host}${redirectTo}`;
+      console.log('Using wrangler dev HTTP redirect:', finalRedirectUrl);
+    } else {
+      console.log('Using origin-based redirect:', finalRedirectUrl);
     }
 
     // Set session cookie and redirect
     const response = NextResponse.redirect(finalRedirectUrl);
-    response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), SESSION_COOKIE_OPTIONS);
+    response.cookies.set(SESSION_COOKIE_NAME, sessionCookieValue, SESSION_COOKIE_OPTIONS);
 
     return response;
   } catch (error) {

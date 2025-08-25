@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getUserFromRequest } from "~/lib/workos";
+import { getUserFromRequest } from "~/lib/auth/user";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { 

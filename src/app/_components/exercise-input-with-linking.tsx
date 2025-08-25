@@ -10,6 +10,7 @@ interface ExerciseInputProps {
   placeholder: string;
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
   templateExerciseId?: number; // For existing template exercises
 }
 
@@ -19,6 +20,7 @@ export function ExerciseInputWithLinking({
   placeholder,
   className,
   style,
+  disabled = false,
   templateExerciseId,
 }: ExerciseInputProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -67,24 +69,31 @@ export function ExerciseInputWithLinking({
           placeholder={placeholder}
           className={className}
           style={style}
+          disabled={disabled}
         />
         {!linkingRejected && (
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
+            disabled={disabled}
             className="shrink-0 rounded px-2 py-1 text-xs transition-colors"
             style={{
-              backgroundColor: "var(--color-primary)",
-              border: "1px solid var(--color-primary)",
-              color: "var(--btn-primary-fg)"
+              backgroundColor: disabled ? "var(--color-muted)" : "var(--color-primary)",
+              border: `1px solid ${disabled ? "var(--color-muted)" : "var(--color-primary)"}`,
+              color: disabled ? "var(--color-muted-foreground)" : "var(--btn-primary-fg)",
+              cursor: disabled ? "not-allowed" : "pointer"
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+              if (!disabled) {
+                e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-primary)";
+              if (!disabled) {
+                e.currentTarget.style.backgroundColor = "var(--color-primary)";
+              }
             }}
-            title="Link to existing exercise"
+            title={disabled ? "Disabled during form submission" : "Link to existing exercise"}
           >
             Link
           </button>
@@ -103,17 +112,24 @@ export function ExerciseInputWithLinking({
           <button
             type="button"
             onClick={handleRejectLinking}
-            disabled={rejectLinking.isPending}
+            disabled={disabled || rejectLinking.isPending}
             className="text-xs transition-colors"
-            style={{ color: "var(--color-text-muted)" }}
+            style={{ 
+              color: disabled || rejectLinking.isPending ? "var(--color-muted-foreground)" : "var(--color-text-muted)",
+              cursor: disabled || rejectLinking.isPending ? "not-allowed" : "pointer"
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--color-text-secondary)";
+              if (!disabled && !rejectLinking.isPending) {
+                e.currentTarget.style.color = "var(--color-text-secondary)";
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--color-text-muted)";
+              if (!disabled && !rejectLinking.isPending) {
+                e.currentTarget.style.color = "var(--color-text-muted)";
+              }
             }}
           >
-            {rejectLinking.isPending ? "Saving..." : "Don’t link this exercise"}
+            {rejectLinking.isPending ? "Saving..." : "Don't link this exercise"}
           </button>
         </div>
       )}
@@ -181,7 +197,7 @@ function InlineSearchFallback({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center p-4" style={{
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{
       backgroundColor: "hsl(var(--foreground) / 0.5)"
     }}>
       <div className="w-full max-w-lg rounded-lg shadow-xl" style={{

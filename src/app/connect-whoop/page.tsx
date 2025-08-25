@@ -1,4 +1,4 @@
-import { getUserFromHeaders } from "~/lib/workos";
+import { getUserFromHeaders } from "~/lib/auth/user";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { WhoopWorkouts } from "~/app/_components/whoop-workouts";

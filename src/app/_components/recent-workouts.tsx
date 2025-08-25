@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import type { RouterOutputs } from "~/trpc/react";
+import { formatSafeDate } from "~/lib/utils";
 
 type RecentWorkout = RouterOutputs["workouts"]["getRecent"][number];
 
@@ -49,7 +50,7 @@ export function RecentWorkouts() {
                 {workout.template?.name || "Unknown Template"}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {new Date(workout.workoutDate).toLocaleDateString()}
+                {formatSafeDate(workout.workoutDate)}
               </p>
             </div>
             <div className="text-sm text-muted-foreground">

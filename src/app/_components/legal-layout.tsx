@@ -1,4 +1,5 @@
 import { PRIVACY_POLICY, TERMS_OF_SERVICE } from "~/lib/legal-content";
+import { formatSafeDate } from "~/lib/utils";
 
 interface LegalLayoutProps {
   filename: string;
@@ -38,7 +39,7 @@ export async function LegalLayout({ filename, title }: LegalLayoutProps) {
           {title}
         </h1>
         <p className="text-xl text-muted-foreground mt-4">
-          Last updated: {new Date().toLocaleDateString()}
+          Last updated: {formatSafeDate(new Date())}
         </p>
       </div>
 

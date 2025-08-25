@@ -7,14 +7,7 @@ import { ExerciseCard, type ExerciseData } from "./exercise-card";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
 
-import { analytics } from "~/lib/analytics";
-import posthog from "posthog-js";
-import {
-  vibrate,
-  getDeviceType,
-  getThemeUsed,
-  snapshotMetricsBlob,
-} from "~/lib/client-telemetry";
+import { vibrate } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 
@@ -70,11 +63,11 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const [scrollY, setScrollY] = useState(0);
   const _listContainerRef = useRef<HTMLDivElement | null>(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  
+
   // Accessibility live region
   const announce = useLiveRegion();
   useAttachLiveRegion(announce);
-  
+
   // Focus restore for inline modals
   const { restoreFocus: restoreFocusInline } = useReturnFocus();
 
@@ -205,7 +198,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // use handler from hook
   // handleSwipeToBottom provided by hook
 
-
   // buildSavePayload provided by hook
 
   const handleSave = async () => {
@@ -268,10 +260,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       await saveWorkout.mutateAsync(payload);
     } catch (error) {
       console.error("Error saving workout:", error);
-      analytics.error(error as Error, {
-        context: "workout_save",
-        sessionId: sessionId?.toString() || "unknown",
-      });
 
       // If likely a network error, enqueue for offline
       const message =
@@ -330,10 +318,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     } catch (error) {
       // This should rarely happen now due to our error handling in the mutation
       console.error("Unexpected error during workout deletion:", error);
-      analytics.error(error as Error, {
-        context: "workout_delete",
-        sessionId: sessionId?.toString() || "unknown",
-      });
 
       // Even on error, close dialog and navigate away since the optimistic update already happened
       setShowDeleteConfirm(false);
@@ -345,12 +329,28 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     return (
       <div className="space-y-3 sm:space-y-4">
         {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg p-3 sm:p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
-            <div className="mb-3 sm:mb-4 h-3 sm:h-4 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+          <div
+            key={i}
+            className="animate-pulse rounded-lg p-3 sm:p-4"
+            style={{ backgroundColor: "var(--color-bg-surface)" }}
+          >
+            <div
+              className="mb-3 h-3 w-1/2 rounded sm:mb-4 sm:h-4"
+              style={{ backgroundColor: "var(--color-border)" }}
+            ></div>
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
+              <div
+                className="h-8 rounded sm:h-10"
+                style={{ backgroundColor: "var(--color-border)" }}
+              ></div>
+              <div
+                className="h-8 rounded sm:h-10"
+                style={{ backgroundColor: "var(--color-border)" }}
+              ></div>
+              <div
+                className="h-8 rounded sm:h-10"
+                style={{ backgroundColor: "var(--color-border)" }}
+              ></div>
             </div>
           </div>
         ))}
@@ -362,7 +362,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     <div className="space-y-3 sm:space-y-4">
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
-        <div className="text-muted mb-2 text-center text-xs sm:text-sm px-2">
+        <div className="text-muted mb-2 px-2 text-center text-xs sm:text-sm">
           💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to
           reorder & move between sections • Works on mobile & desktop
         </div>
@@ -372,75 +372,100 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {(shouldVirtualize
         ? displayOrder
             .slice(startIndex, endIndex + 1)
-            .map((entry: { exercise: any; originalIndex: number }, i: number) => ({ ...entry, windowIndex: startIndex + i }))
-        : displayOrder.map((entry: { exercise: any; originalIndex: number }, i: number) => ({ ...entry, windowIndex: i }))
-      ).map(({ exercise, originalIndex, windowIndex }: { exercise: any; originalIndex: number; windowIndex: number }) => {
-        const displayIndex = windowIndex;
-        // Collapsed state is derived from collapsedIndexes mapped to current order
-        const isCollapsed = collapsedIndexes.includes(displayIndex);
-        const isExpandedNow =
-          !isCollapsed && expandedExercises.includes(originalIndex);
+            .map(
+              (entry: { exercise: any; originalIndex: number }, i: number) => ({
+                ...entry,
+                windowIndex: startIndex + i,
+              }),
+            )
+        : displayOrder.map(
+            (entry: { exercise: any; originalIndex: number }, i: number) => ({
+              ...entry,
+              windowIndex: i,
+            }),
+          )
+      ).map(
+        ({
+          exercise,
+          originalIndex,
+          windowIndex,
+        }: {
+          exercise: any;
+          originalIndex: number;
+          windowIndex: number;
+        }) => {
+          const displayIndex = windowIndex;
+          // Collapsed state is derived from collapsedIndexes mapped to current order
+          const isCollapsed = collapsedIndexes.includes(displayIndex);
+          const isExpandedNow =
+            !isCollapsed && expandedExercises.includes(originalIndex);
 
-        return (
-          <div
-            key={exercise.templateExerciseId ?? originalIndex}
-            style={shouldVirtualize ? { minHeight: 0 } : undefined}
-          >
-            {/* Swiped Exercises Section Header */}
-            <ExerciseCard
-              exercise={exercise}
-              exerciseIndex={originalIndex}
-              onUpdate={updateSet}
-              onToggleUnit={toggleUnit}
-              onAddSet={addSet}
-              onDeleteSet={deleteSet}
-              onMoveSet={moveSet}
-              isExpanded={isExpandedNow}
-              onToggleExpansion={toggleExpansion}
-              previousBest={
-                previousExerciseData.get(exercise.exerciseName)?.best
-              }
-              previousSets={
-                previousExerciseData.get(exercise.exerciseName)?.sets
-              }
-              readOnly={isReadOnly}
-              onSwipeToBottom={handleSwipeToBottom}
-              swipeSettings={swipeSettings}
-              isSwiped={isCollapsed}
-              draggable={!isReadOnly}
-              isDraggedOver={
-                dragState.dragOverIndex === displayIndex ||
-                dragState.dragOverIndex === displayIndex + 1
-              }
-              isDragging={
-                dragState.isDragging && dragState.draggedIndex === displayIndex
-              }
-              dragOffset={dragState.dragOffset}
-              onPointerDown={dragHandlers.onPointerDown(displayIndex)}
-              setCardElement={(element) =>
-                dragHandlers.setCardElement?.(displayIndex, element)
-              }
-              preferredUnit={(preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"}
-            />
-          </div>
-        );
-      })}
+          return (
+            <div
+              key={exercise.templateExerciseId ?? originalIndex}
+              style={shouldVirtualize ? { minHeight: 0 } : undefined}
+            >
+              {/* Swiped Exercises Section Header */}
+              <ExerciseCard
+                exercise={exercise}
+                exerciseIndex={originalIndex}
+                onUpdate={updateSet}
+                onToggleUnit={toggleUnit}
+                onAddSet={addSet}
+                onDeleteSet={deleteSet}
+                onMoveSet={moveSet}
+                isExpanded={isExpandedNow}
+                onToggleExpansion={toggleExpansion}
+                previousBest={
+                  previousExerciseData.get(exercise.exerciseName)?.best
+                }
+                previousSets={
+                  previousExerciseData.get(exercise.exerciseName)?.sets
+                }
+                readOnly={isReadOnly}
+                onSwipeToBottom={handleSwipeToBottom}
+                swipeSettings={swipeSettings}
+                isSwiped={isCollapsed}
+                draggable={!isReadOnly}
+                isDraggedOver={
+                  dragState.dragOverIndex === displayIndex ||
+                  dragState.dragOverIndex === displayIndex + 1
+                }
+                isDragging={
+                  dragState.isDragging &&
+                  dragState.draggedIndex === displayIndex
+                }
+                dragOffset={dragState.dragOffset}
+                onPointerDown={dragHandlers.onPointerDown(displayIndex)}
+                setCardElement={(element) =>
+                  dragHandlers.setCardElement?.(displayIndex, element)
+                }
+                preferredUnit={
+                  (preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"
+                }
+              />
+            </div>
+          );
+        },
+      )}
 
       {/* No Exercises State */}
       {exercises.length === 0 && (
-        <div className="py-6 sm:py-8 text-center">
-          <p className="text-secondary text-sm sm:text-base">No exercises in this template</p>
+        <div className="py-6 text-center sm:py-8">
+          <p className="text-secondary text-sm sm:text-base">
+            No exercises in this template
+          </p>
         </div>
       )}
 
       {/* Bottom action bar - editable only */}
       {!isReadOnly && (
         <div
-          className="sticky bottom-2 sm:bottom-4 z-50 pt-4 sm:pt-6"
+          className="sticky bottom-2 z-50 pt-4 sm:bottom-4 sm:pt-6"
           role="region"
           aria-label="Workout actions"
         >
-          <div className="glass-surface glass-hairline rounded-xl p-2 sm:p-3 shadow-lg">
+          <div className="glass-surface glass-hairline rounded-xl p-2 shadow-lg sm:p-3">
             <div className="grid grid-cols-3 gap-1 sm:gap-2">
               <button
                 onClick={(e) => {
@@ -461,9 +486,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     setLastAction(null);
                     // Haptic + PostHog
                     vibrateSafe(10);
-                    try {
-                      posthog.capture("haptic_action", { kind: "add_set" });
-                    } catch {}
+
                     // Live announcement
                     try {
                       announce("Set added", { assertive: false });
@@ -480,7 +503,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
-                className="btn-secondary py-2 sm:py-3 text-sm sm:text-base"
+                className="btn-secondary py-2 text-sm sm:py-3 sm:text-base"
                 aria-label="Add set to current exercise"
               >
                 Add Set
@@ -489,32 +512,17 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               <button
                 onClick={async () => {
                   // PostHog-only telemetry snapshot at save tap
-                  try {
-                    const theme_used = getThemeUsed();
-                    const device_type = getDeviceType();
-                    const perf = snapshotMetricsBlob();
-                    posthog.capture("workout_save", {
-                      theme_used,
-                      device_type,
-                      tti: perf.tti,
-                      tbt: perf.tbt,
-                      input_latency_avg: (perf.inputLatency as any)?.avg,
-                      input_latency_p95: (perf.inputLatency as any)?.p95,
-                    });
-                  } catch {}
+
                   await handleSave();
                   // Haptic feedback on save attempt (short-long-short)
                   vibrateSafe([10, 30, 10]);
-                  try {
-                    posthog.capture("haptic_action", { kind: "save" });
-                  } catch {}
                   // Live announcement
                   try {
                     announce("Workout saved", { assertive: true });
                   } catch {}
                 }}
                 disabled={saveWorkout.isPending}
-                className="btn-secondary py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50"
+                className="btn-secondary py-2 text-sm disabled:opacity-50 sm:py-3 sm:text-base"
                 aria-busy={saveWorkout.isPending ? "true" : "false"}
                 aria-label="Save workout"
               >
@@ -526,18 +534,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   openCompleteModal();
                   // Optional subtle haptic to acknowledge opening modal
                   vibrateSafe(10);
-                  try {
-                    posthog.capture("haptic_action", { kind: "save" });
-                  } catch {}
                 }}
-                className="btn-primary py-2 sm:py-3 text-sm sm:text-base"
+                className="btn-primary py-2 text-sm sm:py-3 sm:text-base"
               >
                 Complete
               </button>
             </div>
 
             {/* Delete is secondary; keep outside the primary row */}
-            <div className="mt-1.5 sm:mt-2 text-center">
+            <div className="mt-1.5 text-center sm:mt-2">
               <button
                 onClick={() => {
                   setShowDeleteConfirm(true);
@@ -545,7 +550,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   vibrateSafe(10);
                 }}
                 disabled={deleteWorkout.isPending}
-                className="btn-destructive px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold disabled:opacity-50"
+                className="btn-destructive text-xs disabled:opacity-50 sm:text-sm"
                 aria-describedby="delete-workout-help"
               >
                 {deleteWorkout.isPending ? "Deleting…" : "Delete Workout"}
@@ -560,23 +565,23 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       {/* Read-only Actions */}
       {isReadOnly && (
-        <div className="sticky bottom-4 space-y-2 sm:space-y-3 pt-6">
+        <div className="sticky bottom-4 space-y-2 pt-6 sm:space-y-3">
           <Link
             href={`/workout/start?templateId=${session?.templateId}`}
-            className="btn-primary block w-full py-2.5 sm:py-3 text-center text-base sm:text-lg font-medium"
+            className="btn-primary block w-full py-2.5 text-center text-base font-medium sm:py-3 sm:text-lg"
           >
             Repeat This Workout
           </Link>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={deleteWorkout.isPending}
-            className="btn-destructive w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium disabled:opacity-50"
+            className="btn-destructive w-full text-base disabled:opacity-50 sm:text-lg"
           >
             {deleteWorkout.isPending ? "Deleting..." : "Delete Workout"}
           </button>
           <button
             onClick={() => router.back()}
-            className="btn-secondary w-full py-2.5 sm:py-3 text-base sm:text-lg font-medium"
+            className="btn-secondary w-full py-2.5 text-base font-medium sm:py-3 sm:text-lg"
           >
             Back to History
           </button>
@@ -586,7 +591,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div
-          className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-foreground p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-workout-title"
@@ -604,23 +609,22 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="card w-full max-w-md p-4 sm:p-6 shadow-2xl"
+              className="card w-full max-w-md p-4 shadow-2xl sm:p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <h3
                 id="delete-workout-title"
-                className="mb-3 sm:mb-4 text-lg sm:text-xl font-bold"
-                style={{ color: "var(--color-danger)" }}
+                className="mb-3 text-lg font-bold text-danger sm:mb-4 sm:text-xl"
               >
                 Delete Workout
               </h3>
               <p
                 id="delete-workout-desc"
-                className="text-secondary mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base"
+                className="text-secondary mb-4 text-sm leading-relaxed sm:mb-6 sm:text-base"
               >
                 Are you sure you want to delete this workout?
                 <br />
-                <strong style={{ color: "var(--color-danger)" }}>
+                <strong className="text-danger">
                   This action cannot be undone.
                 </strong>
               </p>
@@ -630,7 +634,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     restoreFocusInline();
                     setShowDeleteConfirm(false);
                   }}
-                  className="btn-secondary flex-1 py-2.5 sm:py-3 font-medium text-sm sm:text-base"
+                  className="btn-secondary flex-1 text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -641,7 +645,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     void handleDelete();
                   }}
                   disabled={deleteWorkout.isPending}
-                  className="btn-destructive flex-1 py-2.5 sm:py-3 font-medium text-sm sm:text-base disabled:opacity-50"
+                  className="btn-destructive flex-1 text-sm disabled:opacity-50 sm:text-base"
                 >
                   {deleteWorkout.isPending ? "Deleting..." : "Yes, Delete"}
                 </button>
@@ -651,11 +655,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
-
       {/* Complete Workout Modal */}
       {showCompleteModal && (
         <div
-          className="bg-opacity-75 fixed inset-0 z-[9999] flex items-center justify-center bg-foreground p-4"
+          className="bg-opacity-75 bg-foreground fixed inset-0 z-[9999] flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="complete-workout-title"
@@ -673,19 +676,19 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             preventScroll
           >
             <div
-              className="card w-full max-w-lg p-4 sm:p-6 shadow-2xl"
+              className="card w-full max-w-lg p-4 shadow-2xl sm:p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <h3
                 id="complete-workout-title"
-                className="mb-1 text-lg sm:text-xl font-bold"
+                className="mb-1 text-lg font-bold sm:text-xl"
                 style={{ color: "var(--color-primary)" }}
               >
                 Complete Workout
               </h3>
               <p
                 id="complete-workout-desc"
-                className="text-secondary mb-3 sm:mb-4 text-xs sm:text-sm"
+                className="text-secondary mb-3 text-xs sm:mb-4 sm:text-sm"
               >
                 Review your performance compared to your previous best for each
                 exercise.
@@ -702,24 +705,26 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     const currWeight = curr.bestWeight?.weight ?? 0;
                     const prevWeight = prev?.weight ?? 0;
                     const weightDelta = currWeight - prevWeight;
-                    const weightBadgeStyle = curr.bestWeight && prev
-                      ? weightDelta > 0
-                        ? { color: "var(--color-success)" }
-                        : weightDelta < 0
-                          ? { color: "var(--color-danger)" }
-                          : { color: "var(--color-text-muted)" }
-                      : { color: "var(--color-text-muted)" };
+                    const weightBadgeStyle =
+                      curr.bestWeight && prev
+                        ? weightDelta > 0
+                          ? { color: "var(--color-success)" }
+                          : weightDelta < 0
+                            ? { color: "var(--color-danger)" }
+                            : { color: "var(--color-text-muted)" }
+                        : { color: "var(--color-text-muted)" };
 
                     const currVol = curr.bestVolume?.volume ?? 0;
                     const prevVol = (prev?.weight ?? 0) * (prev?.reps ?? 0);
                     const volDelta = currVol - prevVol;
-                    const volBadgeStyle = currVol && prev
-                      ? volDelta > 0
-                        ? { color: "var(--color-success)" }
-                        : volDelta < 0
-                          ? { color: "var(--color-danger)" }
-                          : { color: "var(--color-text-muted)" }
-                      : { color: "var(--color-text-muted)" };
+                    const volBadgeStyle =
+                      currVol && prev
+                        ? volDelta > 0
+                          ? { color: "var(--color-success)" }
+                          : volDelta < 0
+                            ? { color: "var(--color-danger)" }
+                            : { color: "var(--color-text-muted)" }
+                        : { color: "var(--color-text-muted)" };
 
                     const fmtSet = (
                       w?: number,
@@ -791,7 +796,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   })}
                 </div>
               </div>
-              <div className="mt-4 sm:mt-5 flex items-center gap-3">
+              <div className="mt-4 flex items-center gap-3 sm:mt-5">
                 <button
                   onClick={async () => {
                     closeCompleteModal();
@@ -799,13 +804,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                     // Navigate to main page after successful workout completion
                     router.push("/");
                   }}
-                  className="btn-primary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-semibold"
+                  className="btn-primary flex-1 py-2.5 text-base font-semibold sm:py-3 sm:text-lg"
                 >
                   Complete Workout
                 </button>
                 <button
                   onClick={closeCompleteModal}
-                  className="btn-secondary flex-1 py-2.5 sm:py-3 text-base sm:text-lg font-medium"
+                  className="btn-secondary flex-1 py-2.5 text-base font-medium sm:py-3 sm:text-lg"
                 >
                   Continue Workout
                 </button>

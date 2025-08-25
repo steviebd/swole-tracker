@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForToken } from '~/lib/workos';
+import { type NextRequest, NextResponse } from 'next/server';
+import { exchangeCodeForToken } from '~/lib/auth/workos';
+import { type WorkOSSession } from '~/lib/auth/session';
 
 
 export async function POST(request: NextRequest) {
@@ -16,8 +17,8 @@ export async function POST(request: NextRequest) {
     // Exchange code for tokens
     const { accessToken, refreshToken, user } = await exchangeCodeForToken(code, redirectUri);
 
-    // Create session data for mobile
-    const sessionData = {
+    // Create session data for mobile using the standard session structure
+    const sessionData: WorkOSSession = {
       user,
       accessToken,
       refreshToken,

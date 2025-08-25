@@ -102,6 +102,10 @@ html.dark {
   /* Button foreground colors for better contrast */
   --btn-success-fg: #ffffff;
   --btn-destructive-fg: #ffffff;
+  
+  /* Destructive button specific dark mode enhancements */
+  --btn-destructive-bg-hover: #dc2626;
+  --btn-destructive-bg-active: #b91c1c;
 }
 
 /* Ensure dark mode is active for dark theme */

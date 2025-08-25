@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getLogoutUrl, getBaseRedirectUri, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '~/lib/workos';
+import { type NextRequest, NextResponse } from 'next/server';
+import { getBaseRedirectUri } from '~/lib/auth/workos';
+import { getClearSessionCookieOptions, SESSION_COOKIE_NAME } from '~/lib/auth/session';
 
 
 export async function GET(request: NextRequest) {
@@ -12,10 +13,7 @@ export async function GET(request: NextRequest) {
     
     // Clear the session cookie
     const response = NextResponse.redirect(redirectUri);
-    response.cookies.set(SESSION_COOKIE_NAME, '', {
-      ...SESSION_COOKIE_OPTIONS,
-      expires: new Date(0),
-    });
+    response.cookies.set(SESSION_COOKIE_NAME, '', getClearSessionCookieOptions());
     
     return response;
   } catch (error) {
@@ -23,10 +21,7 @@ export async function GET(request: NextRequest) {
     
     // Still clear the cookie even if there's an error
     const response = NextResponse.redirect('/');
-    response.cookies.set(SESSION_COOKIE_NAME, '', {
-      ...SESSION_COOKIE_OPTIONS,
-      expires: new Date(0),
-    });
+    response.cookies.set(SESSION_COOKIE_NAME, '', getClearSessionCookieOptions());
     
     return response;
   }

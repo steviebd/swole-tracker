@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { analytics } from "~/lib/analytics";
 
 export function usePageTracking() {
   const pathname = usePathname();
@@ -19,7 +18,5 @@ export function usePageTracking() {
       if (path === "/workouts") return "workout_history";
       return "unknown";
     };
-
-    analytics.pageView(getPageName(pathname));
   }, [pathname]);
 }
