@@ -15,10 +15,10 @@
  *  - INFISICAL_CLIENT_ID
  *  - INFISICAL_SECRET
  *  - INFISICAL_PROJECT_ID (workspaceId)
- *  - INFISICAL_ENVIRONMENT (dev, staging, production)
+ *  - INFISICAL_ENVIRONMENT (dev, staging, prod)
  */
 
-import { writeFileSync, readFileSync, existsSync } from "fs";
+import { writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { config } from "dotenv";
 
@@ -137,16 +137,24 @@ async function pullInfisicalAndInject(): Promise<{
   }
 
   // Use explicit INFISICAL_ENVIRONMENT or fallback with validation
-  const normalizedEnv = INFISICAL_ENVIRONMENT || (() => {
-    const e = (ENVIRONMENT || "dev").toLowerCase();
-    if (e === "production" || e === "prod") return "production";
-    if (e === "staging") return "staging"; 
-    return "dev"; // default to dev
-  })();
-  
-  // Validate environment
-  if (!['dev', 'staging', 'production'].includes(normalizedEnv)) {
-    throw new Error(`Invalid INFISICAL_ENVIRONMENT: ${normalizedEnv}. Must be 'dev', 'staging', or 'production'`);
+  const normalizedEnv =
+    INFISICAL_ENVIRONMENT ||
+    (() => {
+      const e = (ENVIRONMENT || "dev").toLowerCase();
+      if (e === "production" || e === "prod") return "production";
+      if (e === "staging") return "staging";
+      return "dev"; // default to dev
+    })();
+
+  // Validate environment (accept both original and normalized forms)
+  const validEnvs = ["dev", "staging", "production", "prod"];
+  if (
+    !validEnvs.includes(normalizedEnv) &&
+    !validEnvs.includes(INFISICAL_ENVIRONMENT || "")
+  ) {
+    throw new Error(
+      `Invalid INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT}. Must be 'dev', 'staging', 'prod', or 'production'`,
+    );
   }
 
   const secretPath = process.env.INFISICAL_SECRET_PATH || "/";
@@ -156,10 +164,7 @@ async function pullInfisicalAndInject(): Promise<{
       `path="${secretPath}"`,
   );
 
-  const token = await getInfisicalToken(
-    INFISICAL_CLIENT_ID,
-    INFISICAL_SECRET,
-  );
+  const token = await getInfisicalToken(INFISICAL_CLIENT_ID, INFISICAL_SECRET);
 
   const fetched = await getInfisicalSecrets({
     token,
@@ -179,78 +184,6 @@ async function pullInfisicalAndInject(): Promise<{
   }
 
   return { fetched, envName: normalizedEnv };
-}
-
-/**
- * Reads existing wrangler.toml to collect existing secret names (comments)
- */
-function readExistingWranglerConfig(): {
-  existingVars: Record<string, string>;
-  existingSecrets: string[];
-} {
-  const wranglerPath = join(projectRoot, "wrangler.toml");
-  if (!existsSync(wranglerPath)) {
-    return { existingVars: {}, existingSecrets: [] };
-  }
-  try {
-    const content = readFileSync(wranglerPath, "utf8");
-    const existingVars: Record<string, string> = {};
-    const existingSecrets: string[] = [];
-
-    const lines = content.split("\n");
-    let inVarsSection = false;
-    let inSecretsSection = false;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      if (trimmed === "[vars]") {
-        inVarsSection = true;
-        inSecretsSection = false;
-        continue;
-      }
-      if (trimmed.startsWith("[env.") && trimmed.includes(".vars]")) {
-        inVarsSection = true;
-        inSecretsSection = false;
-        continue;
-      }
-      if (trimmed.includes("# Runtime Secrets")) {
-        inSecretsSection = true;
-        inVarsSection = false;
-        continue;
-      }
-      if (trimmed.startsWith("[") && trimmed !== "[vars]") {
-        inVarsSection = false;
-        inSecretsSection = false;
-      }
-
-      if (inVarsSection && trimmed.includes("=") && !trimmed.startsWith("#")) {
-        const [key, ...valueParts] = trimmed.split("=");
-        if (key && valueParts.length > 0) {
-          const varName = key.trim();
-          const varValue = valueParts
-            .join("=")
-            .trim()
-            .replace(/^["']|["']$/g, "");
-          existingVars[varName] = varValue;
-        }
-      }
-
-      if (inSecretsSection && trimmed.startsWith("#") && trimmed.includes("=")) {
-        const commentMatch = trimmed.match(/^#\s*(\w+)\s*=/);
-        if (commentMatch) {
-          existingSecrets.push(commentMatch[1]);
-        }
-      }
-    }
-
-    return { existingVars, existingSecrets };
-  } catch {
-    console.log(
-      "⚠️  Could not read existing wrangler.toml, will create new one",
-    );
-    return { existingVars: {}, existingSecrets: [] };
-  }
 }
 
 /**
@@ -279,12 +212,12 @@ function categorizeEnvironmentVariables(
     // Cloudflare infrastructure IDs (can be in [vars] for dev, but secrets for prod)
     "CLOUDFLARE_ACCOUNT_ID",
     "CLOUDFLARE_D1_DATABASE_ID",
-    "CLOUDFLARE_RATE_LIMIT_KV_ID", 
+    "CLOUDFLARE_RATE_LIMIT_KV_ID",
     "CLOUDFLARE_CACHE_KV_ID",
     "STAGING_CLOUDFLARE_D1_DATABASE_ID",
     "STAGING_CLOUDFLARE_RATE_LIMIT_KV_ID",
     "STAGING_CLOUDFLARE_CACHE_KV_ID",
-    "PRODUCTION_CLOUDFLARE_D1_DATABASE_ID", 
+    "PRODUCTION_CLOUDFLARE_D1_DATABASE_ID",
     "PRODUCTION_CLOUDFLARE_RATE_LIMIT_KV_ID",
     "PRODUCTION_CLOUDFLARE_CACHE_KV_ID",
     // Domain configuration
@@ -385,7 +318,7 @@ async function main() {
       );
     }
 
-    // 2) Categorize env after Infisical injection  
+    // 2) Categorize env after Infisical injection
     const env = process.env;
     const infisicalKeySet = new Set(Object.keys(infisicalSecrets));
     const { buildTimeVars, runtimeSecrets } = categorizeEnvironmentVariables(
@@ -400,23 +333,26 @@ async function main() {
         runtimeVars[key] = env[key];
       }
     }
-    
+
     // Combine all variables for the [vars] section
     const allVars = { ...buildTimeVars, ...runtimeVars };
-    
+
     console.log(
       `📊 Found ${Object.keys(buildTimeVars).length} build-time vars and ` +
         `${runtimeSecrets.length} runtime secrets`,
     );
-    console.log(`📝 Generating single wrangler.toml for environment: ${envName || 'local'}`);
+    console.log(
+      `📝 Generating single wrangler.toml for environment: ${envName || "local"}`,
+    );
 
     // 4) Generate environment-specific wrangler.toml (single config approach)
     // Use the actual INFISICAL_ENVIRONMENT for targeting, not the ENVIRONMENT variable from Infisical
-    const INFISICAL_ENVIRONMENT = process.env.INFISICAL_ENVIRONMENT || process.env.INFISICAL_ENVIROMENT;
-    const targetEnv = INFISICAL_ENVIRONMENT || 'dev';
+    const INFISICAL_ENVIRONMENT =
+      process.env.INFISICAL_ENVIRONMENT || process.env.INFISICAL_ENVIROMENT;
+    const targetEnv = INFISICAL_ENVIRONMENT || "dev";
     const workerName = getWorkerName(targetEnv);
     const databaseName = getDatabaseName(targetEnv);
-    
+
     let wranglerConfig = `# wrangler.toml - Generated for ${targetEnv} environment
 # Do not commit this file; it is generated each build.
 # Source: Infisical environment '${targetEnv}'
@@ -438,14 +374,14 @@ head_sampling_rate = 1
 [vars]
 ${Object.entries(allVars)
   .map(([key, value]) => `${key} = "${value.replace(/"/g, '\\"')}"`)
-  .join('\n')}
+  .join("\n")}
 `;
 
     // Add routes for staging/production
-    if (targetEnv !== 'dev') {
+    if (targetEnv !== "dev") {
       const domain = getDomain(env, targetEnv);
       const zoneName = env.CLOUDFLARE_ZONE_NAME;
-      
+
       if (domain && zoneName) {
         wranglerConfig += `
 # Custom Domain Route
@@ -471,9 +407,9 @@ experimental_remote = true
     }
 
     // Add KV namespaces
-    const rateLimitKvId = getKvId(env, targetEnv, 'RATE_LIMIT');
-    const cacheKvId = getKvId(env, targetEnv, 'CACHE');
-    
+    const rateLimitKvId = getKvId(env, targetEnv, "RATE_LIMIT");
+    const cacheKvId = getKvId(env, targetEnv, "CACHE");
+
     if (rateLimitKvId) {
       wranglerConfig += `
 # Rate Limit KV
@@ -483,7 +419,7 @@ id = "${rateLimitKvId}"
 experimental_remote = true
 `;
     }
-    
+
     if (cacheKvId) {
       wranglerConfig += `
 # Cache KV
@@ -534,9 +470,7 @@ experimental_remote = true
           Object.keys(infisicalSecrets).length
         }):`,
       );
-      console.log(
-        "   " + Object.keys(infisicalSecrets).sort().join(", "),
-      );
+      console.log("   " + Object.keys(infisicalSecrets).sort().join(", "));
     }
   } catch (error) {
     console.error("❌ Error generating wrangler.toml:", error);
@@ -549,50 +483,88 @@ experimental_remote = true
  */
 function getWorkerName(env: string): string {
   switch (env) {
-    case 'staging': return 'swole-tracker-staging';
-    case 'production': return 'swole-tracker-production';
-    default: return 'swole-tracker';
+    case "staging":
+      return "swole-tracker-staging";
+    case "production":
+      return "swole-tracker-production";
+    default:
+      return "swole-tracker";
   }
 }
 
 function getDatabaseName(env: string): string {
   switch (env) {
-    case 'staging': return 'swole-tracker-staging';
-    case 'production': return 'swole-tracker-prod';
-    default: return 'swole-tracker-dev';
+    case "staging":
+      return "swole-tracker-staging";
+    case "production":
+      return "swole-tracker-prod";
+    default:
+      return "swole-tracker-dev";
   }
 }
 
-function getDomain(envVars: Record<string, string | undefined>, targetEnv: string): string | null {
+function getDomain(
+  envVars: Record<string, string | undefined>,
+  targetEnv: string,
+): string | null {
   switch (targetEnv) {
-    case 'staging':
-      return envVars.STAGING_CLOUDFLARE_DOMAIN || envVars.CLOUDFLARE_DOMAIN || null;
-    case 'production':
-      return envVars.PRODUCTION_CLOUDFLARE_DOMAIN || envVars.CLOUDFLARE_DOMAIN || null;
+    case "staging":
+      return (
+        envVars.STAGING_CLOUDFLARE_DOMAIN || envVars.CLOUDFLARE_DOMAIN || null
+      );
+    case "production":
+      return (
+        envVars.PRODUCTION_CLOUDFLARE_DOMAIN ||
+        envVars.CLOUDFLARE_DOMAIN ||
+        null
+      );
     default:
       return null;
   }
 }
 
-function getDatabaseId(envVars: Record<string, string | undefined>, targetEnv: string): string | null {
+function getDatabaseId(
+  envVars: Record<string, string | undefined>,
+  targetEnv: string,
+): string | null {
   switch (targetEnv) {
-    case 'staging':
-      return envVars.STAGING_CLOUDFLARE_D1_DATABASE_ID || envVars.CLOUDFLARE_D1_DATABASE_ID || null;
-    case 'production':
-      return envVars.PRODUCTION_CLOUDFLARE_D1_DATABASE_ID || envVars.CLOUDFLARE_D1_DATABASE_ID || null;
+    case "staging":
+      return (
+        envVars.STAGING_CLOUDFLARE_D1_DATABASE_ID ||
+        envVars.CLOUDFLARE_D1_DATABASE_ID ||
+        null
+      );
+    case "production":
+      return (
+        envVars.PRODUCTION_CLOUDFLARE_D1_DATABASE_ID ||
+        envVars.CLOUDFLARE_D1_DATABASE_ID ||
+        null
+      );
     default:
       return envVars.CLOUDFLARE_D1_DATABASE_ID || null;
   }
 }
 
-function getKvId(envVars: Record<string, string | undefined>, targetEnv: string, kvType: 'RATE_LIMIT' | 'CACHE'): string | null {
-  const suffix = kvType === 'RATE_LIMIT' ? 'RATE_LIMIT_KV_ID' : 'CACHE_KV_ID';
-  
+function getKvId(
+  envVars: Record<string, string | undefined>,
+  targetEnv: string,
+  kvType: "RATE_LIMIT" | "CACHE",
+): string | null {
+  const suffix = kvType === "RATE_LIMIT" ? "RATE_LIMIT_KV_ID" : "CACHE_KV_ID";
+
   switch (targetEnv) {
-    case 'staging':
-      return envVars[`STAGING_CLOUDFLARE_${suffix}`] || envVars[`CLOUDFLARE_${suffix}`] || null;
-    case 'production':
-      return envVars[`PRODUCTION_CLOUDFLARE_${suffix}`] || envVars[`CLOUDFLARE_${suffix}`] || null;
+    case "staging":
+      return (
+        envVars[`STAGING_CLOUDFLARE_${suffix}`] ||
+        envVars[`CLOUDFLARE_${suffix}`] ||
+        null
+      );
+    case "production":
+      return (
+        envVars[`PRODUCTION_CLOUDFLARE_${suffix}`] ||
+        envVars[`CLOUDFLARE_${suffix}`] ||
+        null
+      );
     default:
       return envVars[`CLOUDFLARE_${suffix}`] || null;
   }
