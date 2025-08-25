@@ -64,7 +64,11 @@ export function getAuthorizationUrl(
   console.log('WorkOS authorization params:', {
     clientId: clientId.substring(0, 20) + '...',
     redirectUri,
+    redirectUriEncoded: encodeURIComponent(redirectUri),
+    redirectUriLength: redirectUri.length,
+    redirectUriBytes: Buffer.from(redirectUri).toString('hex'),
     authUrl: authUrl.split('?')[0] + '?...',
+    fullParams: Object.fromEntries(params.entries()),
   });
 
   return authUrl;
@@ -201,36 +205,67 @@ export function getLogoutUrl(redirectUri: string): string {
  * @throws Error if unable to determine base URI
  */
 export function getBaseRedirectUri(req?: { headers: Headers }): string {
+  let baseUrl = '';
+  let source = '';
+  
   // In development, use localhost with dynamic port detection
   if (process.env.NODE_ENV === 'development') {
     // Try to get port from headers first, fallback to environment or default
     if (req?.headers) {
       const host = req.headers.get('host');
       if (host) {
-        return `http://${host}`;
+        baseUrl = `http://${host}`;
+        source = 'dev-headers';
       }
     }
-    // Fallback to port from environment or default 3000
-    const port = process.env.PORT || '3000';
-    return `http://localhost:${port}`;
-  }
-  
-  // In production, try to get from headers or environment
-  if (req?.headers) {
-    const host = req.headers.get('host');
-    const protocol = req.headers.get('x-forwarded-proto') || 'https';
-    if (host) {
-      return `${protocol}://${host}`;
+    if (!baseUrl) {
+      // Fallback to port from environment or default 3000
+      const port = process.env.PORT || '3000';
+      baseUrl = `http://localhost:${port}`;
+      source = 'dev-port';
+    }
+  } else {
+    // In production, try to get from headers or environment
+    if (req?.headers) {
+      const host = req.headers.get('host');
+      const protocol = req.headers.get('x-forwarded-proto') || 'https';
+      if (host) {
+        baseUrl = `${protocol}://${host}`;
+        source = 'prod-headers';
+      }
+    }
+    
+    if (!baseUrl) {
+      // Fallback to environment variable or error
+      const deployUrl = process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SITE_URL;
+      if (deployUrl) {
+        baseUrl = deployUrl.startsWith('http') ? deployUrl : `https://${deployUrl}`;
+        source = 'env-var';
+      }
     }
   }
   
-  // Fallback to environment variable or error
-  const deployUrl = process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SITE_URL;
-  if (deployUrl) {
-    return deployUrl.startsWith('http') ? deployUrl : `https://${deployUrl}`;
+  console.log('getBaseRedirectUri debug:', {
+    baseUrl,
+    source,
+    nodeEnv: process.env.NODE_ENV,
+    headers: req?.headers ? {
+      host: req.headers.get('host'),
+      'x-forwarded-proto': req.headers.get('x-forwarded-proto'),
+      'x-forwarded-host': req.headers.get('x-forwarded-host'),
+    } : 'no-headers',
+    envVars: {
+      PRODUCTION_CLOUDFLARE_DOMAIN: process.env.PRODUCTION_CLOUDFLARE_DOMAIN,
+      VERCEL_URL: process.env.VERCEL_URL,
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    }
+  });
+  
+  if (!baseUrl) {
+    throw new Error('Unable to determine base redirect URI');
   }
   
-  throw new Error('Unable to determine base redirect URI');
+  return baseUrl;
 }
 
 // Re-export types for compatibility
