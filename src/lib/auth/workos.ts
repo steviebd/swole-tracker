@@ -225,7 +225,7 @@ export function getBaseRedirectUri(req?: { headers: Headers }): string {
   }
   
   // Fallback to environment variable or error
-  const deployUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  const deployUrl = process.env.PRODUCTION_CLOUDFLARE_DOMAIN || process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SITE_URL;
   if (deployUrl) {
     return deployUrl.startsWith('http') ? deployUrl : `https://${deployUrl}`;
   }
