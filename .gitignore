@@ -2,8 +2,12 @@
 
 # dependencies
 /node_modules
-/.pnp
+.pnp
 .pnp.js
+.expo
+.taskmaster
+.local-db
+/.claude
 
 # testing
 /coverage
