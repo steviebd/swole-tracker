@@ -2,6 +2,7 @@
 /**
  * Simple wrangler.toml generator for consolidated variables
  * Uses environment variables from .env files or process.env
+ * No longer needed as it's been replaced by generate-wrangler-infisical.ts
  */
 
 import { writeFileSync, readFileSync, existsSync } from "fs";
