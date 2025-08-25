@@ -173,7 +173,7 @@ export function ExerciseLinkPicker({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
       onKeyDown={onKeyDown}
     >
       <div className="w-full max-w-lg rounded-lg border border-border bg-background shadow-xl">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,6 +50,14 @@ interface TemplateDraft {
   timestamp: number;
 }
 
+// Simplified creation state tracking - rely on existing sync indicators
+type CreationState = 'idle' | 'success' | 'error';
+
+interface CreationStatus {
+  state: CreationState;
+  canRetry: boolean;
+}
+
 interface TemplateFormProps {
   template?: {
     id: number;
@@ -67,6 +75,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
     message: string;
     showRetry?: boolean;
   }>({ type: null, message: '' });
+  const [creationStatus, setCreationStatus] = useState<CreationStatus>({
+    state: 'idle',
+    canRetry: false
+  });
+  const [preservedFormData, setPreservedFormData] = useState<TemplateFormData | null>(null);
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize form with default values
   const form = useForm<TemplateFormData>({
@@ -133,6 +147,63 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   }, [getDraftKey]);
 
+  // Enhanced preview state utilities with error tracking
+  const setPreviewInStorage = useCallback((data: { name: string; exercises: string[] }, withError = false) => {
+    try {
+      const preview = {
+        id: clientId,
+        name: data.name,
+        exercises: data.exercises,
+        timestamp: Date.now(),
+        isOptimistic: true,
+        hasError: withError,
+      };
+      sessionStorage.setItem('template_creating_preview', JSON.stringify(preview));
+      
+      // Also set error state if needed
+      if (withError) {
+        sessionStorage.setItem('template_creation_error', JSON.stringify({
+          clientId,
+          timestamp: Date.now(),
+          formData: data,
+        }));
+      }
+    } catch (error) {
+      console.warn("Failed to store preview:", error);
+    }
+  }, [clientId]);
+
+  const clearPreviewFromStorage = useCallback(() => {
+    try {
+      sessionStorage.removeItem('template_creating_preview');
+      sessionStorage.removeItem('template_creation_error');
+    } catch (error) {
+      console.warn("Failed to clear preview from storage:", error);
+    }
+  }, []);
+
+  // Simplified error recovery utilities
+  const setCreationError = useCallback((formData: TemplateFormData, _error: string) => {
+    setCreationStatus({
+      state: 'error',
+      canRetry: true
+    });
+    setPreservedFormData(formData);
+    setPreviewInStorage({
+      name: formData.name,
+      exercises: formData.exercises.map(ex => ex.exerciseName.trim()).filter(Boolean)
+    }, true);
+  }, [setPreviewInStorage]);
+
+  const clearCreationState = useCallback(() => {
+    setCreationStatus({ state: 'idle', canRetry: false });
+    setPreservedFormData(null);
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
+      redirectTimeoutRef.current = null;
+    }
+  }, []);
+
   // Restore draft on mount (only for new templates)
   useEffect(() => {
     if (template) return; // Don't restore draft when editing existing template
@@ -179,39 +250,60 @@ export function TemplateForm({ template }: TemplateFormProps) {
     };
   }, [template, form, saveDraft]);
 
-  // Cleanup feedback state on unmount
+  // Cleanup feedback state and preview on unmount
   useEffect(() => {
     return () => {
       setFeedback({ type: null, message: '' });
+      clearPreviewFromStorage();
+      clearCreationState();
     };
-  }, []);
+  }, [clearPreviewFromStorage, clearCreationState]);
 
   const createTemplate = api.templates.create.useMutation({
+    onMutate: () => {
+      // Let the existing sync indicator handle the "saving" state
+      // No need to set custom creation status here
+    },
     onError: (err) => {
       console.error("Error creating template:", err);
+      
+      const errorMessage = 'Failed to create template. Please check your connection and try again.';
+      
+      // Preserve form data for retry and set error state
+      if (preservedFormData) {
+        setCreationError(preservedFormData, errorMessage);
+      }
+      
       setFeedback({
         type: 'error',
-        message: 'Failed to create template. Please check your connection and try again.',
+        message: errorMessage,
         showRetry: true
       });
     },
     onSuccess: (data) => {
       console.log("Template created successfully:", data.id);
       
-      // Clear draft on successful submission
+      // Set simple success state
+      setCreationStatus({
+        state: 'success',
+        canRetry: false
+      });
+      
+      // Clear states
+      clearPreviewFromStorage();
       clearDraft();
       
-      // Show brief success feedback and navigate immediately (optimistic)
+      // Show success feedback
       setFeedback({
         type: 'success',
         message: 'Template created successfully!'
       });
       
-      // Optimistic navigation - navigate immediately
-      router.push("/templates");
-      
-      // Simple cache invalidation - no await needed
-      utils.templates.getAll.invalidate();
+      // Delayed redirect for better UX
+      redirectTimeoutRef.current = setTimeout(() => {
+        router.push("/templates");
+        utils.templates.getAll.invalidate();
+      }, 1000);
     },
   });
 
@@ -248,8 +340,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
   };
 
   const handleSubmit = (data: TemplateFormData) => {
-    // Clear any previous feedback
+    // Clear any previous feedback and reset state
     setFeedback({ type: null, message: '' });
+    clearCreationState();
     
     const filteredExercises = data.exercises
       .map((ex) => ex.exerciseName.trim())
@@ -265,6 +358,11 @@ export function TemplateForm({ template }: TemplateFormProps) {
       return;
     }
 
+    const processedData: TemplateFormData = {
+      name: trimmedName,
+      exercises: filteredExercises.map(ex => ({ exerciseName: ex }))
+    };
+
     if (template) {
       updateTemplate.mutate({
         id: template.id,
@@ -272,6 +370,16 @@ export function TemplateForm({ template }: TemplateFormProps) {
         exercises: filteredExercises,
       });
     } else {
+      // Simplified optimistic workflow - rely on sync indicators for loading states
+      setPreservedFormData(processedData);
+      
+      // Set optimistic preview in storage immediately
+      setPreviewInStorage({
+        name: trimmedName,
+        exercises: filteredExercises,
+      });
+      
+      // Start server save - sync indicator will show loading state
       createTemplate.mutate({
         name: trimmedName,
         exercises: filteredExercises,
@@ -281,11 +389,42 @@ export function TemplateForm({ template }: TemplateFormProps) {
   };
 
   const handleRetry = () => {
-    form.handleSubmit(handleSubmit)();
+    if (preservedFormData && creationStatus.canRetry) {
+      // Restore preserved form data
+      form.setValue('name', preservedFormData.name);
+      form.setValue('exercises', preservedFormData.exercises);
+      
+      // Clear error state and retry
+      clearCreationState();
+      handleSubmit(preservedFormData);
+    } else {
+      form.handleSubmit(handleSubmit)();
+    }
   };
 
 
   const isLoading = createTemplate.isPending || updateTemplate.isPending;
+  
+  // Simplified button state - rely on mutation loading states
+  const getButtonState = () => {
+    if (template) {
+      return {
+        text: isLoading ? "Updating..." : "Update Template",
+        disabled: isLoading
+      };
+    }
+    
+    switch (creationStatus.state) {
+      case 'success':
+        return { text: "Template created!", disabled: true };
+      case 'error':
+        return { text: "Create Template", disabled: false };
+      default:
+        return { text: isLoading ? "Creating..." : "Create Template", disabled: isLoading };
+    }
+  };
+  
+  const buttonState = getButtonState();
 
   return (
     <Card padding="lg">
@@ -420,16 +559,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
             <div className="flex items-center gap-4 pt-4">
               <Button 
                 type="submit" 
-                disabled={isLoading}
-                aria-describedby={isLoading ? "loading-description" : undefined}
+                disabled={buttonState.disabled}
+                aria-describedby={buttonState.disabled ? "loading-description" : undefined}
               >
-                {isLoading
-                  ? "Saving..."
-                  : template
-                    ? "Update Template"
-                    : "Create Template"}
+                {buttonState.text}
               </Button>
-              {isLoading && (
+              {buttonState.disabled && (
                 <span id="loading-description" className="sr-only">
                   {template ? "Updating template, please wait" : "Creating template, please wait"}
                 </span>

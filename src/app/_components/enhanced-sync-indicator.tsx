@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
+import { useIsFetching, useIsMutating, useMutationState } from "@tanstack/react-query";
 import { onSyncStatusChange, triggerManualSync } from "~/lib/enhanced-offline-storage";
 import { useOnlineStatus } from "~/hooks/use-online-status";
 
@@ -18,6 +18,17 @@ export function EnhancedSyncIndicator() {
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const isOnline = useOnlineStatus();
+  
+  // Detect specific template mutations for enhanced status messages
+  const templateMutations = useMutationState({
+    filters: { mutationKey: ['templates'] },
+    select: (mutation) => ({
+      status: mutation.state.status,
+      variables: mutation.state.variables as any,
+      isPending: mutation.state.status === 'pending',
+      mutationType: mutation.options.mutationKey?.[1], // 'create', 'update', 'delete'
+    }),
+  });
   
   const [syncState, setSyncState] = useState<SyncIndicatorState>({
     isActive: false,
@@ -89,6 +100,22 @@ export function EnhancedSyncIndicator() {
   };
 
   const getStatusText = () => {
+    // Check for specific template operations
+    const activeTemplateMutation = templateMutations.find(m => m.isPending);
+    
+    if (activeTemplateMutation) {
+      switch (activeTemplateMutation.mutationType) {
+        case 'create':
+          return 'Creating template...';
+        case 'update':
+          return 'Updating template...';
+        case 'delete':
+          return 'Deleting template...';
+        default:
+          return 'Saving template...';
+      }
+    }
+    
     switch (syncState.status) {
       case 'offline':
         return `Offline${syncState.pendingOperations > 0 ? ` (${syncState.pendingOperations} pending)` : ''}`;
@@ -182,6 +209,16 @@ export function EnhancedSyncIndicator() {
                   {isOnline ? 'Online' : 'Offline'}
                 </span>
               </div>
+              
+              {/* Template operation status */}
+              {templateMutations.some(m => m.isPending) && (
+                <div className="flex justify-between">
+                  <span>Template operation:</span>
+                  <span className="text-blue-600">
+                    {getStatusText()}
+                  </span>
+                </div>
+              )}
 
               <div className="flex justify-between">
                 <span>Pending operations:</span>

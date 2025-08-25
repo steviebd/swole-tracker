@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { api } from "~/trpc/react";
-import type { RouterOutputs } from "~/trpc/react";
 
 import {
   Card,
@@ -15,8 +15,57 @@ import {
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 
+// Type for real templates from the database
+type RealTemplate = {
+  id: number;
+  name: string;
+  user_id: string;
+  clientId: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  exercises: Array<{
+    id: number;
+    user_id: string;
+    createdAt: string;
+    templateId: number;
+    exerciseName: string;
+    orderIndex: number;
+    linkingRejected: number;
+  }>;
+};
+
+// Type for the optimistic preview template
+type OptimisticTemplate = {
+  id: string; // clientId
+  name: string;
+  exercises: Array<{ exerciseName: string }>;
+  createdAt: Date;
+  isOptimistic: true;
+};
+
+// Union type for templates in the display
+type DisplayTemplate = RealTemplate | OptimisticTemplate;
+
+// Type for preview data stored in sessionStorage
+type PreviewData = {
+  clientId: string;
+  name: string;
+  exercises: string[];
+  timestamp: number;
+  isOptimistic: boolean;
+  hasError?: boolean;
+};
+
+// Error state simplified - handled by sync indicators
+
+// Optimistic preview configuration - simplified
+
 export function TemplatesList() {
   const router = useRouter();
+  const [previewTemplate, setPreviewTemplate] = useState<OptimisticTemplate | null>(null);
+  // Simplified state - rely on existing sync indicators for status
+  const utils = api.useUtils();
+  
   const { 
     data: templatesRaw, 
     isLoading, 
@@ -30,6 +79,46 @@ export function TemplatesList() {
     refetchOnMount: false, // Use cached data when possible
   });
 
+  // Function to read preview from sessionStorage
+  const readPreviewFromStorage = (): OptimisticTemplate | null => {
+    try {
+      const stored = sessionStorage.getItem('template_creating_preview');
+      if (!stored) return null;
+      
+      const previewData: PreviewData = JSON.parse(stored);
+      
+      // Check if preview template already exists in real data (by clientId)
+      const existsInRealData = templatesRaw?.some(
+        template => template.clientId === previewData.clientId
+      );
+      
+      if (existsInRealData) {
+        // Clean up preview since real data now exists
+        sessionStorage.removeItem('template_creating_preview');
+        return null;
+      }
+      
+      // Format preview to match template structure
+      return {
+        id: previewData.clientId,
+        name: previewData.name,
+        exercises: previewData.exercises.map(exerciseName => ({ exerciseName })),
+        createdAt: new Date(previewData.timestamp),
+        isOptimistic: true,
+      };
+    } catch (error) {
+      console.warn('Failed to read preview from storage:', error);
+      return null;
+    }
+  };
+
+  // Update preview when component mounts or data updates
+  useEffect(() => {
+    const preview = readPreviewFromStorage();
+    setPreviewTemplate(preview);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templatesRaw, dataUpdatedAt]);
+
   // Enhanced deduplication with stable sorting and better performance
   const templates = templatesRaw
     ? templatesRaw
@@ -40,18 +129,25 @@ export function TemplatesList() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     : undefined;
 
+  // Merge preview template with real templates data
+  const templatesWithPreview: DisplayTemplate[] = templates && previewTemplate
+    ? [previewTemplate, ...templates]
+    : templates ?? [];
+
   // Enhanced debug logging with cache timing information
   console.log("TemplatesList render:", {
     rawCount: templatesRaw?.length ?? 0,
     deduplicatedCount: templates?.length ?? 0,
+    finalCount: templatesWithPreview?.length ?? 0,
     templates: templates?.map((t) => ({ id: t.id, name: t.name, createdAt: t.createdAt })) ?? [],
+    previewTemplate: previewTemplate ? { id: previewTemplate.id, name: previewTemplate.name, isOptimistic: previewTemplate.isOptimistic } : null,
     duplicates: (templatesRaw?.length ?? 0) - (templates?.length ?? 0),
     isLoading,
     isRefetching,
     dataUpdatedAt: dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : null,
     timestamp: new Date().toISOString(),
   });
-  const utils = api.useUtils();
+  
   const deleteTemplate = api.templates.delete.useMutation({
     onMutate: async (deletedTemplate) => {
       // Cancel any outgoing refetches
@@ -111,7 +207,7 @@ export function TemplatesList() {
     );
   }
 
-  if (!templates?.length) {
+  if (!templatesWithPreview?.length) {
     return (
       <Card padding="lg" className="text-center">
         <CardContent className="py-12">
@@ -132,29 +228,40 @@ export function TemplatesList() {
 
   return (
     <div className="space-y-4">
-      {templates.map((template) => (
-        <Card key={template.id} padding="md">
+      {templatesWithPreview.map((template) => {
+        const isOptimistic = 'isOptimistic' in template && template.isOptimistic;
+        return (
+        <Card key={template.id} padding="md" className={isOptimistic ? "opacity-75 border-dashed" : ""}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">{template.name}</CardTitle>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push(`/templates/${template.id}/edit`)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(template.id, template.name)}
-                  disabled={deleteTemplate.isPending}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  Delete
-                </Button>
+                <CardTitle className="text-lg">{template.name}</CardTitle>
+                {isOptimistic && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    Preview
+                  </span>
+                )}
               </div>
+              {!isOptimistic && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(`/templates/${template.id}/edit`)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(template.id as number, template.name)}
+                    disabled={deleteTemplate.isPending}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="pb-3">
@@ -165,23 +272,35 @@ export function TemplatesList() {
                 <>
                   {template.exercises.length} exercise
                   {template.exercises.length !== 1 ? "s" : ""}:{" "}
-                  {template.exercises.map((ex) => ex.exerciseName).join(", ")}
+                  {template.exercises.map((ex: { exerciseName: string }) => ex.exerciseName).join(", ")}
                 </>
               )}
             </p>
+            
+            {/* Error messaging handled by sync indicator */}
+            {isOptimistic && (template as any).hasError && (
+              <p className="text-red-600 text-sm mt-2">
+                Preview - check sync status above
+              </p>
+            )}
           </CardContent>
           <CardFooter className="pt-0">
-            <Button size="sm" asChild>
-              <Link
-                href={`/workout/start?templateId=${template.id}`}
-                prefetch={false}
-              >
-                Start Workout
-              </Link>
-            </Button>
+            {!isOptimistic && (
+              <Button size="sm" asChild>
+                <Link
+                  href={`/workout/start?templateId=${template.id}`}
+                  prefetch={false}
+                >
+                  Start Workout
+                </Link>
+              </Button>
+            )}
+            
+            {/* Success state handled by sync indicator */}
           </CardFooter>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
