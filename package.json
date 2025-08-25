@@ -7,7 +7,7 @@
     "dev": "bun run tokens:build && ./scripts/dev-with-d1.sh",
     "dev:remote": "bun run scripts/generate-wrangler-infisical.ts && NODE_ENV=production bun run tokens:build && opennextjs-cloudflare build --config ./wrangler.toml --noMinify && wrangler dev --x-remote-bindings",
     "deploy:staging": "INFISICAL_ENVIRONMENT=staging bun run scripts/generate-wrangler-infisical.ts && NODE_ENV=production bun run tokens:build && opennextjs-cloudflare build --config ./wrangler.toml && wrangler deploy",
-    "deploy:production": "INFISICAL_ENVIRONMENT=production bun run scripts/generate-wrangler-infisical.ts && NODE_ENV=production bun run tokens:build && opennextjs-cloudflare build --config ./wrangler.toml && wrangler deploy",
+    "deploy:production": "INFISICAL_ENVIRONMENT=prod bun run scripts/generate-wrangler-infisical.ts && NODE_ENV=production bun run tokens:build && opennextjs-cloudflare build --config ./wrangler.toml && wrangler deploy",
     "build": "npm run tokens:build && next build",
     "preview": "bun run tokens:build && next build && next start",
     "start": "next start",

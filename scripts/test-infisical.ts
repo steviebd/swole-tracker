@@ -106,7 +106,7 @@ async function main() {
     console.log("2️⃣ Skipping environment listing (API endpoint may vary)");
 
     // 3. Test getting secrets from different environment names
-    const testEnvironments = ["Development", "Staging", "Production", "dev", "staging", "production", "development"];
+    const testEnvironments = ["dev", "staging", "prod"];
     
     for (const env of testEnvironments) {
       console.log(`\n3️⃣ Testing environment: "${env}"`);
