@@ -15,8 +15,8 @@ const baseConfig = {
   experimental: {
     workerThreads: false,
     optimizeCss: false,
-    // Use less memory for webpack
-    webpackMemoryOptimizations: true,
+    // Disable memory optimizations that can cause SIGBUS errors in constrained environments
+    webpackMemoryOptimizations: false,
   },
   // Force dynamic rendering to prevent static generation issues
   trailingSlash: false,
