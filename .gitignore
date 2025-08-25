@@ -7,7 +7,7 @@
 .expo
 .taskmaster
 .local-db
-/.claude
+
 
 # testing
 /coverage
@@ -30,6 +30,10 @@ next-env.d.ts
 # production
 /build
 /.cloudflare
+.claude/
+.cursor/
+.expo/
+.taskmaster/
 
 # misc
 .DS_Store

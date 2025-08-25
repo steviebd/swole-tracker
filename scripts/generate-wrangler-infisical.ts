@@ -485,7 +485,7 @@ function getWorkerName(env: string): string {
   switch (env) {
     case "staging":
       return "swole-tracker-staging";
-    case "production":
+    case "prod":
       return "swole-tracker-production";
     default:
       return "swole-tracker";
@@ -505,7 +505,7 @@ function getDatabaseName(
   switch (targetEnv) {
     case "staging":
       return "swole-tracker-staging";
-    case "production":
+    case "prod":
       return "swole-tracker-prod";
     default:
       return "swole-tracker-dev";
