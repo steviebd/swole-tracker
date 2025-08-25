@@ -97,6 +97,7 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     const { accessToken, refreshToken, user } = await workos.userManagement.authenticateWithCode({
       code,
       clientId,
+      redirectUri,
     });
 
     return {
