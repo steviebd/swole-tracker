@@ -28,7 +28,7 @@
     "db:push:remote": "wrangler d1 execute swole-tracker-dev --file=./schema.sql --remote",
     "dev": "bun run tokens:build && ./scripts/dev-with-d1.sh",
     "dev:local": "bun run tokens:build && ./scripts/dev-with-d1.sh",
-    "dev:remote": "infisical run --env=staging -- bun run build:cloudflare && wrangler dev --x-remote-bindings",
+    "dev:remote": "bun run scripts/generate-wrangler-infisical.ts && NODE_ENV=production bun run tokens:build && opennextjs-cloudflare build --config ./wrangler.toml --noMinify && wrangler dev --x-remote-bindings",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
