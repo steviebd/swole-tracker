@@ -82,6 +82,17 @@ wrangler kv namespace create "CACHE_KV" --env production
 
 The application uses a migration-first workflow for all database schema changes. This ensures that all changes are tracked and can be applied consistently across all environments.
 
+### Initial Database Setup
+
+For **new or blank databases**, use the initialization command to create a complete schema migration:
+
+```bash
+# Generate initial setup migration with all tables and indexes
+bun run db:init
+```
+
+This creates an idempotent migration file with `CREATE TABLE IF NOT EXISTS` statements that can safely run on both blank and existing databases.
+
 ### Database Workflow
 
 1.  **Make Schema Changes:** Modify the schema in `src/server/db/schema.ts`.
@@ -100,6 +111,9 @@ This workflow applies to both the initial schema setup and all subsequent change
 For local development, you can also use `bun run db:push` to quickly push schema changes without creating a migration file. This is useful for rapid iteration, but it is recommended to use the migration workflow for most changes.
 
 ```bash
+# Generate initial setup migration (for new databases)
+bun run db:init
+
 # Generate migration files from schema changes
 bun run db:generate
 
@@ -118,7 +132,10 @@ bun run db:studio
 For all remote environments (development, staging, and production), you should always use the migration workflow.
 
 ```bash
-# Generate migration files
+# Generate initial setup migration (for new databases)
+bun run db:init
+
+# Generate migration files from schema changes  
 bun run db:generate
 
 # Apply migrations to remote development database
