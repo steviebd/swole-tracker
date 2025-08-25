@@ -500,24 +500,50 @@ async function main() {
     writeFileSync(sqlFile, initialSetupSQL);
     console.log("✅ Migration SQL file created successfully");
 
-    // Create meta.json for Drizzle
-    const metaJson = {
+    // Create meta directory if it doesn't exist
+    const metaDir = join(migrationsDir, "meta");
+    if (!existsSync(metaDir)) {
+      await Bun.spawn(["mkdir", "-p", metaDir]).exited;
+    }
+
+    // Create _journal.json for Drizzle
+    const journalEntry = {
+      idx: 0,
       version: "7",
-      dialect: "sqlite",
-      entries: [
-        {
-          idx: 0,
-          version: "7",
-          when: Date.now(),
-          tag: migrationName,
-          breakpoints: true
-        }
-      ]
+      when: Date.now(),
+      tag: migrationName,
+      breakpoints: true
     };
 
-    const metaFile = join(migrationsDir, "meta.json");
-    writeFileSync(metaFile, JSON.stringify(metaJson, null, 2));
-    console.log("✅ Migration meta.json created successfully");
+    const journalJson = {
+      version: "7",
+      dialect: "sqlite",
+      entries: [journalEntry]
+    };
+
+    const journalFile = join(metaDir, "_journal.json");
+    writeFileSync(journalFile, JSON.stringify(journalJson, null, 2));
+    console.log("✅ Migration _journal.json created successfully");
+
+    // Create snapshot.json
+    const snapshotJson = {
+      version: "7",
+      dialect: "sqlite",
+      id: `${migrationName}`,
+      prevId: "00000000-0000-0000-0000-000000000000",
+      tables: {},
+      indexes: {},
+      foreignKeys: {},
+      _meta: {
+        schemas: {},
+        tables: {},
+        columns: {}
+      }
+    };
+
+    const snapshotFile = join(metaDir, "0000_snapshot.json");
+    writeFileSync(snapshotFile, JSON.stringify(snapshotJson, null, 2));
+    console.log("✅ Migration snapshot.json created successfully");
 
     console.log("\n🎉 Initial setup migration generated successfully!");
     console.log(`📁 Migration file: ${migrationName}.sql`);

@@ -43,16 +43,24 @@ export class WranglerD1Client implements D1Database {
       // Replace parameter placeholders with actual values
       let processedQuery = query;
       if (params.length > 0) {
-        // Replace ? placeholders with actual parameter values
+        // Replace ? placeholders with actual parameter values one by one
         // Note: This is a simple implementation. In production, you'd want proper SQL escaping
-        params.forEach((param, index) => {
-          const placeholder = new RegExp(`\\?`, "g");
-          processedQuery = processedQuery.replace(placeholder, () => {
+        params.forEach((param) => {
+          // Find and replace only the FIRST occurrence of ?
+          const placeholderIndex = processedQuery.indexOf('?');
+          if (placeholderIndex !== -1) {
+            const before = processedQuery.substring(0, placeholderIndex);
+            const after = processedQuery.substring(placeholderIndex + 1);
+            
+            let paramValue: string;
             if (typeof param === "string") {
-              return `'${param.replace(/'/g, "''")}'`; // Escape single quotes
+              paramValue = `'${param.replace(/'/g, "''")}'`; // Escape single quotes
+            } else {
+              paramValue = String(param);
             }
-            return String(param);
-          });
+            
+            processedQuery = before + paramValue + after;
+          }
         });
       }
 
@@ -114,17 +122,17 @@ export class WranglerD1Client implements D1Database {
    * Prepare a statement (returns a prepared statement object)
    */
   prepare<T = unknown>(query: string): D1PreparedStatement {
-    const self = this;
     let boundValues: unknown[] = []; // Store bound parameters
+    const executeQuery = this.executeQuery.bind(this);
 
     const preparedStatement = {
       bind(...values: unknown[]): D1PreparedStatement {
         boundValues = values; // Store the values instead of recursing
-        return preparedStatement as any; // Return the same object
+        return preparedStatement;
       },
 
       async first(colName?: string): Promise<any> {
-        const response = await self.executeQuery(query, boundValues); // Use stored values
+        const response = await executeQuery(query, boundValues); // Use stored values
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -136,7 +144,7 @@ export class WranglerD1Client implements D1Database {
       },
 
       async run(): Promise<D1Result<T>> {
-        const response = await self.executeQuery(query, boundValues); // Use stored values
+        const response = await executeQuery(query, boundValues); // Use stored values
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -156,7 +164,7 @@ export class WranglerD1Client implements D1Database {
       },
 
       async all(): Promise<D1Result<T>> {
-        const response = await self.executeQuery(query, boundValues); // Use stored values
+        const response = await executeQuery(query, boundValues); // Use stored values
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -177,7 +185,7 @@ export class WranglerD1Client implements D1Database {
       },
 
       async raw(options?: { columnNames?: boolean }): Promise<any> {
-        const response = await self.executeQuery(query, boundValues); // Use stored values
+        const response = await executeQuery(query, boundValues); // Use stored values
         if (!response.success) {
           throw new Error(response.error || "Query failed");
         }
@@ -195,7 +203,7 @@ export class WranglerD1Client implements D1Database {
       },
     };
 
-    return preparedStatement as any;
+    return preparedStatement as D1PreparedStatement;
   }
 
   /**
@@ -238,7 +246,7 @@ export class WranglerD1Client implements D1Database {
   /**
    * Session support - creates a database session
    */
-  withSession(constraintOrBookmark?: string): any {
+  withSession(_constraintOrBookmark?: string): any {
     // For build-time usage via Wrangler, we don't have full session support
     // Return a mock session that delegates to the main database
     return {
@@ -282,6 +290,11 @@ export function createWranglerD1Client(): D1Database | null {
  * Check if we should use remote D1 connection
  */
 export function shouldUseRemoteD1(): boolean {
+  // If explicitly configured to use local D1, don't use remote
+  if (process.env.USE_LOCAL_D1 === 'true') {
+    return false;
+  }
+  
   return !!(
     process.env.CLOUDFLARE_D1_DATABASE_ID &&
     process.env.CLOUDFLARE_ACCOUNT_ID &&

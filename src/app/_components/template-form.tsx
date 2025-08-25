@@ -81,6 +81,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
   });
   const [preservedFormData, setPreservedFormData] = useState<TemplateFormData | null>(null);
   const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Draft notification state for non-blocking UI
+  const [showDraftNotification, setShowDraftNotification] = useState(false);
+  const [availableDraft, setAvailableDraft] = useState<TemplateDraft | null>(null);
 
   // Initialize form with default values
   const form = useForm<TemplateFormData>({
@@ -204,27 +208,37 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   }, []);
 
-  // Restore draft on mount (only for new templates)
+  // Non-blocking draft handlers
+  const handleRestoreDraft = useCallback(() => {
+    if (availableDraft) {
+      form.setValue("name", availableDraft.name);
+      const exerciseValues = availableDraft.exercises.map(name => ({ exerciseName: name }));
+      if (exerciseValues.length > 0) {
+        form.setValue("exercises", exerciseValues);
+      }
+    }
+    setShowDraftNotification(false);
+    setAvailableDraft(null);
+  }, [availableDraft, form]);
+
+  const handleDismissDraft = useCallback(() => {
+    clearDraft();
+    setShowDraftNotification(false);
+    setAvailableDraft(null);
+  }, [clearDraft]);
+
+  // Restore draft on mount (only for new templates) - NON-BLOCKING
   useEffect(() => {
     if (template) return; // Don't restore draft when editing existing template
 
     const draft = loadDraft();
     if (!draft) return;
 
-    // Ask user if they want to restore the draft
-    if (confirm("You have an unsaved draft. Would you like to restore it?")) {
-      form.setValue("name", draft.name);
-      
-      // Set exercises
-      const exerciseValues = draft.exercises.map(name => ({ exerciseName: name }));
-      if (exerciseValues.length > 0) {
-        form.setValue("exercises", exerciseValues);
-      }
-    } else {
-      // Clear the draft if user doesn't want to restore
-      clearDraft();
-    }
-  }, [template, loadDraft, clearDraft, form]);
+    // Show non-blocking draft notification instead of blocking confirm()
+    setAvailableDraft(draft);
+    setShowDraftNotification(true);
+    // User can now interact with form immediately while deciding about draft
+  }, [template, loadDraft]);
 
   // Debounced save to localStorage
   useEffect(() => {
@@ -454,6 +468,41 @@ export function TemplateForm({ template }: TemplateFormProps) {
                 </div>
               }
               onClose={() => setFeedback({ type: null, message: '' })}
+            />
+          </div>
+        )}
+        
+        {showDraftNotification && availableDraft && (
+          <div className="mb-6">
+            <Toast
+              open={true}
+              type="success"
+              message={
+                <div className="flex items-center justify-between w-full">
+                  <span>Found unsaved draft from {new Date(availableDraft.timestamp).toLocaleString()}</span>
+                  <div className="flex gap-2 ml-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRestoreDraft}
+                      className="h-auto p-1 text-xs"
+                    >
+                      Restore
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDismissDraft}
+                      className="h-auto p-1 text-xs"
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              }
+              onClose={handleDismissDraft}
             />
           </div>
         )}

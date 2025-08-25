@@ -12,12 +12,18 @@ import {
  * Basic client-side validation for user data
  * This is a simplified version that doesn't require server-side imports
  */
-function isValidUser(user: any): user is WorkOSUser {
-  return user && 
+function isValidUser(user: unknown): user is WorkOSUser {
+  return Boolean(
+    user && 
     typeof user === 'object' && 
-    typeof user.id === 'string' && 
-    typeof user.email === 'string' && 
-    user.object === 'user';
+    user !== null &&
+    'id' in user &&
+    'email' in user &&
+    'object' in user &&
+    typeof (user as any).id === 'string' && 
+    typeof (user as any).email === 'string' && 
+    (user as any).object === 'user'
+  );
 }
 
 /**
@@ -46,12 +52,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Get initial session from cookie using centralized auth library
-    const getInitialSession = () => {
+    // Async session initialization to prevent blocking
+    const initializeSession = async () => {
       console.log('AuthProvider: Getting initial session...');
       console.log('AuthProvider: All cookies:', document.cookie);
       
       try {
+        // Use setTimeout to yield to the event loop and prevent blocking
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
         const sessionData = readSessionCookieFromDocument();
         
         if (sessionData) {
@@ -94,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    getInitialSession();
+    initializeSession();
 
     // Listen for storage changes (for multi-tab sync)
     const handleStorageChange = (e: StorageEvent) => {
