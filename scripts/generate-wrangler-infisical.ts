@@ -486,6 +486,7 @@ function getWorkerName(env: string): string {
     case "staging":
       return "swole-tracker-staging";
     case "prod":
+    case "production":
       return "swole-tracker-production";
     default:
       return "swole-tracker";
@@ -506,6 +507,7 @@ function getDatabaseName(
     case "staging":
       return "swole-tracker-staging";
     case "prod":
+    case "production":
       return "swole-tracker-prod";
     default:
       return "swole-tracker-dev";
@@ -521,6 +523,7 @@ function getDomain(
       return (
         envVars.STAGING_CLOUDFLARE_DOMAIN || envVars.CLOUDFLARE_DOMAIN || null
       );
+    case "prod":
     case "production":
       return (
         envVars.PRODUCTION_CLOUDFLARE_DOMAIN ||

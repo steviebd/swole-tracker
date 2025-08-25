@@ -28,10 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange authorization code for access token
-    const baseUrl = getBaseRedirectUri({ headers: request.headers });
-    const redirectUri = `${baseUrl}/auth/callback`;
-    
-    const { accessToken, refreshToken, user } = await exchangeCodeForToken(code, redirectUri);
+    const { accessToken, refreshToken, user } = await exchangeCodeForToken(code);
 
     // Create session cookie data using centralized function
     const sessionCookieValue = createSessionCookie(user, accessToken, refreshToken);

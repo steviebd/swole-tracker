@@ -15,10 +15,9 @@ const baseConfig = {
   experimental: {
     workerThreads: false,
     optimizeCss: false,
+    // Use less memory for webpack
+    webpackMemoryOptimizations: true,
   },
-  // Disable static optimization to prevent Html import errors
-  optimizePackageImports: [],
-  optimizeCss: false,
   // Force dynamic rendering to prevent static generation issues
   trailingSlash: false,
   // Generate build ID to avoid caching issues
@@ -35,6 +34,8 @@ const baseConfig = {
 
   // Configure Webpack for Cloudflare compatibility
   webpack: (config, { isServer }) => {
+    // Keep default webpack optimization for stability
+
     if (!isServer) {
       // For client-side builds, disable Node.js modules that aren't available in browsers
       config.resolve.fallback = {
