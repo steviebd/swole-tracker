@@ -351,7 +351,7 @@ async function main() {
       process.env.INFISICAL_ENVIRONMENT || process.env.INFISICAL_ENVIROMENT;
     const targetEnv = INFISICAL_ENVIRONMENT || "dev";
     const workerName = getWorkerName(targetEnv);
-    const databaseName = getDatabaseName(targetEnv);
+    const databaseName = getDatabaseName(env, targetEnv);
 
     let wranglerConfig = `# wrangler.toml - Generated for ${targetEnv} environment
 # Do not commit this file; it is generated each build.
@@ -393,7 +393,7 @@ zone_name = "${zoneName}"
     }
 
     // Add D1 database configuration
-    const databaseId = getDatabaseId(env, targetEnv);
+    const databaseId = getDatabaseId(env);
     if (databaseId) {
       wranglerConfig += `
 # D1 Database
@@ -407,8 +407,8 @@ experimental_remote = true
     }
 
     // Add KV namespaces
-    const rateLimitKvId = getKvId(env, targetEnv, "RATE_LIMIT");
-    const cacheKvId = getKvId(env, targetEnv, "CACHE");
+    const rateLimitKvId = getKvId(env, "RATE_LIMIT");
+    const cacheKvId = getKvId(env, "CACHE");
 
     if (rateLimitKvId) {
       wranglerConfig += `
@@ -492,8 +492,17 @@ function getWorkerName(env: string): string {
   }
 }
 
-function getDatabaseName(env: string): string {
-  switch (env) {
+function getDatabaseName(
+  envVars: Record<string, string | undefined>,
+  targetEnv: string,
+): string {
+  // Use the single environment-specific variable from Infisical
+  if (envVars.CLOUDFLARE_D1_DATABASE_NAME) {
+    return envVars.CLOUDFLARE_D1_DATABASE_NAME;
+  }
+
+  // Fallback to the old hardcoded behavior if the variable is not set
+  switch (targetEnv) {
     case "staging":
       return "swole-tracker-staging";
     case "production":
@@ -525,49 +534,16 @@ function getDomain(
 
 function getDatabaseId(
   envVars: Record<string, string | undefined>,
-  targetEnv: string,
 ): string | null {
-  switch (targetEnv) {
-    case "staging":
-      return (
-        envVars.STAGING_CLOUDFLARE_D1_DATABASE_ID ||
-        envVars.CLOUDFLARE_D1_DATABASE_ID ||
-        null
-      );
-    case "production":
-      return (
-        envVars.PRODUCTION_CLOUDFLARE_D1_DATABASE_ID ||
-        envVars.CLOUDFLARE_D1_DATABASE_ID ||
-        null
-      );
-    default:
-      return envVars.CLOUDFLARE_D1_DATABASE_ID || null;
-  }
+  return envVars.CLOUDFLARE_D1_DATABASE_ID || null;
 }
 
 function getKvId(
   envVars: Record<string, string | undefined>,
-  targetEnv: string,
   kvType: "RATE_LIMIT" | "CACHE",
 ): string | null {
   const suffix = kvType === "RATE_LIMIT" ? "RATE_LIMIT_KV_ID" : "CACHE_KV_ID";
-
-  switch (targetEnv) {
-    case "staging":
-      return (
-        envVars[`STAGING_CLOUDFLARE_${suffix}`] ||
-        envVars[`CLOUDFLARE_${suffix}`] ||
-        null
-      );
-    case "production":
-      return (
-        envVars[`PRODUCTION_CLOUDFLARE_${suffix}`] ||
-        envVars[`CLOUDFLARE_${suffix}`] ||
-        null
-      );
-    default:
-      return envVars[`CLOUDFLARE_${suffix}`] || null;
-  }
+  return envVars[`CLOUDFLARE_${suffix}`] || null;
 }
 
 await main();

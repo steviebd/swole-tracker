@@ -78,6 +78,59 @@ wrangler kv namespace create "CACHE_KV" --env production
 
 **Store all resource IDs in your Infisical environments** (dev/staging/production).
 
+## 🗄️ Database Management
+
+The application uses a migration-first workflow for all database schema changes. This ensures that all changes are tracked and can be applied consistently across all environments.
+
+### Database Workflow
+
+1.  **Make Schema Changes:** Modify the schema in `src/server/db/schema.ts`.
+2.  **Generate Migrations:** Run `bun run db:generate` to create a new migration file in the `drizzle` directory.
+3.  **Apply Migrations:**
+    *   **Local Development:** Apply migrations to your local SQLite database with `bun run db:migrate`.
+    *   **Remote Environments:** Apply migrations to your remote Cloudflare D1 databases using the following commands:
+        *   `bun run db:migrate:remote` (for the development environment)
+        *   `bun run db:migrate:staging` (for the staging environment)
+        *   `bun run db:migrate:production` (for the production environment)
+
+This workflow applies to both the initial schema setup and all subsequent changes.
+
+### Local Development (SQLite)
+
+For local development, you can also use `bun run db:push` to quickly push schema changes without creating a migration file. This is useful for rapid iteration, but it is recommended to use the migration workflow for most changes.
+
+```bash
+# Generate migration files from schema changes
+bun run db:generate
+
+# Apply migrations to local database
+bun run db:migrate
+
+# Push schema changes directly (development only)
+bun run db:push
+
+# Open Drizzle Studio for local database
+bun run db:studio
+```
+
+### Remote Environments (Cloudflare D1)
+
+For all remote environments (development, staging, and production), you should always use the migration workflow.
+
+```bash
+# Generate migration files
+bun run db:generate
+
+# Apply migrations to remote development database
+bun run db:migrate:remote
+
+# Apply migrations to staging database
+bun run db:migrate:staging
+
+# Apply migrations to production database
+bun run db:migrate:production
+```
+
 ## 🔧 Development Commands
 
 The application uses **4 core commands** for all development and deployment workflows:

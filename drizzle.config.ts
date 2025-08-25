@@ -1,13 +1,11 @@
 import { type Config } from "drizzle-kit";
 
-/**
- * Migration configuration for D1 (SQLite) database.
- * This configuration supports both local development and Cloudflare Workers deployment.
- */
-
 export default {
   schema: "./src/server/db/schema.ts",
-  dialect: "sqlite", // Change dialect to sqlite for D1
+  dialect: "sqlite",
   out: "./drizzle",
   tablesFilter: ["swole-tracker_*"],
+  dbCredentials: {
+    url: ".wrangler/state/swole-tracker-dev.db",
+  },
 } satisfies Config;
