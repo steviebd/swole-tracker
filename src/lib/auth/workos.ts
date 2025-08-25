@@ -73,11 +73,10 @@ export function getAuthorizationUrl(
 /**
  * Exchange authorization code for access token and user info
  * @param code - Authorization code from OAuth callback
- * @param redirectUri - The redirect URI used in authorization
  * @returns Object containing accessToken, refreshToken, and user data
  * @throws Error if token exchange fails
  */
-export async function exchangeCodeForToken(code: string, redirectUri: string) {
+export async function exchangeCodeForToken(code: string) {
   const workos = getWorkOSClient();
   const clientId = process.env.WORKOS_CLIENT_ID;
   
@@ -89,7 +88,6 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     // Debug logging for troubleshooting
     console.log('WorkOS token exchange params:', {
       clientId: clientId.substring(0, 20) + '...',
-      redirectUri,
       codePrefix: code.substring(0, 10) + '...',
     });
 
@@ -97,7 +95,6 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     const { accessToken, refreshToken, user } = await workos.userManagement.authenticateWithCode({
       code,
       clientId,
-      redirectUri,
     });
 
     return {

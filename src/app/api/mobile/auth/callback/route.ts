@@ -5,17 +5,17 @@ import { type WorkOSSession } from '~/lib/auth/session';
 
 export async function POST(request: NextRequest) {
   try {
-    const { code, redirectUri } = await request.json() as { code: string; redirectUri: string };
+    const { code } = await request.json() as { code: string };
 
-    if (!code || !redirectUri) {
+    if (!code) {
       return NextResponse.json(
-        { error: 'Missing code or redirectUri' },
+        { error: 'Missing code' },
         { status: 400 }
       );
     }
 
     // Exchange code for tokens
-    const { accessToken, refreshToken, user } = await exchangeCodeForToken(code, redirectUri);
+    const { accessToken, refreshToken, user } = await exchangeCodeForToken(code);
 
     // Create session data for mobile using the standard session structure
     const sessionData: WorkOSSession = {
