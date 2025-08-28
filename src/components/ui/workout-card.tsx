@@ -16,7 +16,7 @@ import { GlassSurface } from "./glass-surface";
  * - Gradient accents and smooth hover animations
  */
 
-export interface WorkoutMetric {
+interface WorkoutMetric {
   /** Label for the metric (e.g., "Duration", "Volume", "Exercises") */
   label: string;
   /** Value to display for the metric */

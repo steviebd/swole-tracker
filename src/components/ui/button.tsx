@@ -47,7 +47,7 @@ const buttonVariants = cva(
 )
 
 interface ButtonProps extends 
-  Omit<React.ComponentProps<"button">, "onTap">, 
+  Omit<React.ComponentProps<"button">, "onTap" | "onAnimationStart" | "onAnimationEnd" | "onAnimationIteration" | "onDragStart" | "onDragEnd" | "onDrag">, 
   VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   haptic?: boolean;

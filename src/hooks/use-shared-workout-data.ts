@@ -13,7 +13,7 @@ export function useSharedWorkoutData() {
       { timeRange: "week" },
       {
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
       }
     );
 
@@ -22,7 +22,7 @@ export function useSharedWorkoutData() {
       { timeRange: "week" },
       {
         staleTime: 5 * 60 * 1000,
-        cacheTime: 10 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
       }
     );
 
@@ -31,7 +31,7 @@ export function useSharedWorkoutData() {
       { timeRange: "week" },
       {
         staleTime: 5 * 60 * 1000,
-        cacheTime: 10 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
       }
     );
 
@@ -40,7 +40,7 @@ export function useSharedWorkoutData() {
       { timeRange: "month" },
       {
         staleTime: 5 * 60 * 1000,
-        cacheTime: 10 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
       }
     );
 
@@ -66,7 +66,7 @@ export function useSharedWorkoutData() {
       },
       {
         staleTime: 15 * 60 * 1000, // 15 minutes for historical data
-        cacheTime: 30 * 60 * 1000, // 30 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
       }
     );
 

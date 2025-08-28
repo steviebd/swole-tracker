@@ -69,7 +69,7 @@ export function useAnimationProps() {
       ? { duration: 0.001 }
       : { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
     // Provide simplified variants for reduced motion
-    getVariant: (normalVariant: any, reducedVariant?: any) => {
+    getVariant: (normalVariant: any, reducedVariant?: any): any => {
       return prefersReducedMotion 
         ? (reducedVariant || { opacity: 1, transition: { duration: 0.001 } })
         : normalVariant;

@@ -324,7 +324,7 @@ export const createReducedMotionVariants = (variants: Variants): Variants => {
             duration: 0.001, // Nearly instant
           },
         };
-      } else {
+      } else if (variant !== undefined) {
         reducedVariants[key] = variant;
       }
     });

@@ -79,7 +79,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
         today.setHours(0, 0, 0, 0);
         
         let streak = 0;
-        let currentDate = new Date(today);
+        const currentDate = new Date(today);
         
         for (const workoutDate of sortedDates) {
           const workout = new Date(workoutDate);
