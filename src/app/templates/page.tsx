@@ -32,7 +32,7 @@ export default async function TemplatesPage() {
           <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/" className="flex-shrink-0">
+                <Link href="/" className="flex-shrink-0 flex items-center">
                   ← Back
                 </Link>
               </Button>
