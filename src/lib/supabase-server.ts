@@ -8,7 +8,7 @@ import { env } from "~/env";
  * Use in Server Components, Route Handlers, and Server Actions.
  * Supports both cookie-based auth (web) and header-based auth (mobile).
  */
-export async function createServerSupabaseClient(headers?: Headers): Promise<SupabaseClient> {
+export async function createServerSupabaseClient(headers?: Headers): Promise<SupabaseClient<any, "public", any>> {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -52,7 +52,7 @@ export async function createServerSupabaseClient(headers?: Headers): Promise<Sup
     cookieNames: supabaseCookies.map(c => c.name),
   });
 
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient<any, "public", any>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
