@@ -8,6 +8,15 @@ export async function GET(request: NextRequest) {
   const origin = requestUrl.origin;
   const redirectTo = requestUrl.searchParams.get("redirect_to") ?? "/";
 
+  console.log('Auth callback received:', {
+    url: requestUrl.toString(),
+    hasCode: !!code,
+    codePreview: code ? code.substring(0, 8) + '...' : null,
+    origin,
+    redirectTo,
+    allParams: Object.fromEntries(requestUrl.searchParams.entries()),
+  });
+
   if (code) {
     const response = NextResponse.redirect(`${origin}${redirectTo}`);
     const cookiesSet: Array<{name: string, value: string, options?: any}> = [];
@@ -36,13 +45,16 @@ export async function GET(request: NextRequest) {
     console.log('Auth callback result:', {
       success: !error,
       error: error?.message,
+      errorDetails: error,
       hasUser: !!data.user,
       userId: data.user?.id,
+      userEmail: data.user?.email,
+      sessionExists: !!data.session,
       cookiesSetCount: cookiesSet.length,
       cookieNames: cookiesSet.map(c => c.name),
     });
 
-    if (!error) {
+    if (!error && data.user) {
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
       if (isLocalEnv) {
@@ -54,6 +66,11 @@ export async function GET(request: NextRequest) {
       }
     }
   }
+
+  console.log('Auth callback failed - redirecting to error page:', {
+    hasCode: !!code,
+    reason: code ? 'exchangeCodeForSession failed or no user returned' : 'no code parameter',
+  });
 
   // Return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/auth/auth-code-error`);
