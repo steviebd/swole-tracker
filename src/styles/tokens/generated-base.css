@@ -3,9 +3,9 @@
 
 /* Base tokens shared by all themes */
 @theme {
-  --font-fontFamily-sans: "Open Sans", var(--font-ui), ui-sans-serif, system-ui, sans-serif;
-  --font-fontFamily-serif: Montserrat, ui-serif, Georgia, serif;
-  --font-fontFamily-display: Montserrat, ui-serif, Georgia, serif;
+  --font-fontFamily-sans: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-fontFamily-display: Montserrat, ui-sans-serif, system-ui, sans-serif;
+  --font-fontFamily-heading: Montserrat, ui-sans-serif, system-ui, sans-serif;
   --font-fontSize-xs: 0.75rem;
   --font-fontSize-sm: 0.875rem;
   --font-fontSize-base: 1rem;
@@ -157,6 +157,9 @@
   --gradient-universal-stats-orange: linear-gradient(135deg, oklch(0.72 0.186 45) 0%, oklch(0.74 0.185 55) 100%);
   --gradient-universal-stats-red: linear-gradient(135deg, oklch(0.66 0.20 25) 0%, oklch(0.60 0.19 25) 100%);
   --gradient-universal-action-primary: linear-gradient(135deg, oklch(0.72 0.186 45) 0%, oklch(0.66 0.175 45) 100%);
+  --gradient-universal-action-secondary: linear-gradient(135deg, oklch(0.74 0.185 55) 0%, oklch(0.72 0.186 45) 100%);
+  --gradient-universal-energetic-primary: linear-gradient(135deg, oklch(0.78 0.195 55) 0%, oklch(0.72 0.186 45) 100%);
+  --gradient-universal-energetic-card: linear-gradient(135deg, oklch(0.98 0.005 55) 0%, oklch(0.975 0.008 50) 50%, oklch(0.97 0.012 45) 100%);
 
   --component-button-padding-x: {spacing.component.padding.md};
   --component-button-padding-y: {spacing.component.padding.sm};

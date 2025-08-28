@@ -7,12 +7,10 @@ import { GlassHeader } from "./ui/GlassHeader";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
 import { HomePageContent } from "./HomePageContent";
-import { StatsCards } from "./StatsCards";
 import { QuickActionCards } from "./QuickActionCards";
-import { WeeklyProgressSection } from "./WeeklyProgressSection";
-import { RecentWorkoutsSection } from "./RecentWorkoutsSection";
 import { HomePageFooter } from "./HomePageFooter";
 import { JokeOfTheDay } from "./joke-of-the-day";
+import { DashboardContainer } from "~/components/dashboard/dashboard-container";
 
 export function DashboardContent() {
   const { user, signOut } = useAuth();
@@ -119,17 +117,11 @@ export function DashboardContent() {
 
       {/* Single-column content area with mobile-first design */}
       <HomePageContent>
-        {/* Quick Stats - 3 cards showing this week's metrics */}
-        <StatsCards />
-
-        {/* Quick Actions - Start Workout, Joke of Day, Manage Templates */}
-        <QuickActionCards />
-
-        {/* Weekly Progress - Progress bars for goals */}
-        <WeeklyProgressSection />
-
-        {/* Recent Workouts - List of recent workout sessions */}
-        <RecentWorkoutsSection />
+        {/* New Phase 4 Dashboard Implementation */}
+        <DashboardContainer>
+          {/* Quick Actions - Start Workout, Joke of Day, Manage Templates */}
+          <QuickActionCards />
+        </DashboardContainer>
 
         {/* Joke of the Day - Moved to bottom */}
         <JokeOfTheDay />

@@ -504,18 +504,18 @@
     "fontFamily": {
       "sans": {
         "$type": "fontFamily",
-        "$value": ["Open Sans", "var(--font-ui)", "ui-sans-serif", "system-ui", "sans-serif"],
-        "$description": "Sans-serif font family for body text and UI elements"
-      },
-      "serif": {
-        "$type": "fontFamily",
-        "$value": ["Montserrat", "ui-serif", "Georgia", "serif"],
-        "$description": "Serif font family for energetic headings and key metrics"
+        "$value": ["Open Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+        "$description": "Open Sans - Regular (400) for body text and UI elements, Medium (500) for UI emphasis"
       },
       "display": {
         "$type": "fontFamily",
-        "$value": ["Montserrat", "ui-serif", "Georgia", "serif"],
-        "$description": "Display font family for impactful headings"
+        "$value": ["Montserrat", "ui-sans-serif", "system-ui", "sans-serif"],
+        "$description": "Montserrat - Bold (700) for headings, Black (900) for hero stats and key metrics"
+      },
+      "heading": {
+        "$type": "fontFamily",
+        "$value": ["Montserrat", "ui-sans-serif", "system-ui", "sans-serif"],
+        "$description": "Montserrat for all heading elements (h1-h6) with energetic feel"
       }
     },
     "fontSize": {
@@ -1029,6 +1029,66 @@
             ]
           },
           "$description": "Primary action gradient for buttons and interactive elements"
+        },
+        "secondary": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "135deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.74 0.185 55)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.72 0.186 45)"
+              }
+            ]
+          },
+          "$description": "Secondary action gradient - amber to orange for secondary buttons"
+        }
+      },
+      "energetic": {
+        "primary": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "135deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.78 0.195 55)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.72 0.186 45)"
+              }
+            ]
+          },
+          "$description": "Energetic gradient - bright amber to orange for hero sections and key CTAs"
+        },
+        "card": {
+          "$type": "gradient",
+          "$value": {
+            "type": "linear",
+            "angle": "135deg",
+            "stops": [
+              {
+                "position": "0%",
+                "color": "oklch(0.98 0.005 55)"
+              },
+              {
+                "position": "50%",
+                "color": "oklch(0.975 0.008 50)"
+              },
+              {
+                "position": "100%",
+                "color": "oklch(0.97 0.012 45)"
+              }
+            ]
+          },
+          "$description": "Subtle energetic card gradient with warm amber/orange tints"
         }
       }
     }

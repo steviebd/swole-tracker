@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "~/trpc/react";
+import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
 import { Card } from "~/components/ui/card";
 import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
 import { calculateStreak, getStreakBadge, formatAchievementBadge, type Achievement } from "~/lib/achievements";
@@ -16,27 +16,17 @@ interface StatsCard {
 }
 
 export function StatsCards() {
-  // Get real data from ProgressDashboard API
-  const { isLoading: consistencyLoading } =
-    api.progress.getConsistencyStats.useQuery({
-      timeRange: "week",
-    });
-
-  const { data: volumeData, isLoading: volumeLoading } =
-    api.progress.getVolumeProgression.useQuery({
-      timeRange: "week",
-    });
-
-  const { data: workoutDates, isLoading: workoutDatesLoading } =
-    api.progress.getWorkoutDates.useQuery({
-      timeRange: "week",
-    });
-
-  const isLoading = consistencyLoading || volumeLoading || workoutDatesLoading;
+  // Use shared workout data to avoid duplicate API calls
+  const {
+    thisWeekWorkouts: workoutDates,
+    thisWeekVolume: volumeData,
+    monthWorkouts,
+    isLoading,
+  } = useSharedWorkoutData();
 
   // Calculate stats from real data
   const calculateStats = () => {
-    const workoutsThisWeek = workoutDates?.length || 0;
+    const workoutsThisWeek = workoutDates.length || 0;
 
     // Calculate average duration from volume data (estimate based on exercises and sets)
     let avgDuration = "0 min";
@@ -50,7 +40,7 @@ export function StatsCards() {
     }
 
     // Calculate streak from workout dates
-    const streakInfo = calculateStreak(workoutDates?.map(date => new Date(date)) || []);
+    const streakInfo = calculateStreak(monthWorkouts.map(date => new Date(date)) || []);
     const streakBadge = getStreakBadge(streakInfo);
 
     // Weekly goal progress (target 3 workouts per week)

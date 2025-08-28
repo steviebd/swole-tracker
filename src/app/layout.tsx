@@ -1,7 +1,7 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Geist, Inter, Space_Grotesk } from "next/font/google";
+import { Open_Sans, Montserrat } from "next/font/google";
 import Link from "next/link";
 
 import { TRPCReactProvider } from "~/trpc/react";
@@ -15,7 +15,8 @@ import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
 import ClientPerfInit from "@/app/_components/ClientPerfInit";
 import LiveRegionProvider from "~/app/_components/LiveRegion";
-import { Header } from "~/app/_components/header";
+import { DashboardHeader } from "~/components/dashboard/dashboard-header";
+import { FloatingActionButtons } from "~/components/navigation/floating-action-buttons";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -31,20 +32,17 @@ export const viewport = {
   viewportFit: "cover", // Better Android/iOS handling for devices with notches
 };
 
-const geist = Geist({
+const openSans = Open_Sans({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-ui",
+  weight: ["400", "500"],
+  variable: "--font-sans",
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const montserrat = Montserrat({
   subsets: ["latin"],
-  variable: "--font-display-internal",
+  weight: ["700", "900"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -74,7 +72,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geist.variable} ${inter.variable} ${spaceGrotesk.variable} overflow-x-hidden`}
+      className={`${openSans.variable} ${montserrat.variable} overflow-x-hidden`}
     >
       <body className="page-shell flex min-h-screen flex-col overflow-x-hidden" style={{ color: "var(--color-text)" }}>
         {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
@@ -99,7 +97,7 @@ export default function RootLayout({
                   <SyncIndicator />
                   <EnhancedSyncIndicator />
                   
-                  <Header />
+                  <DashboardHeader />
 
                   <main
                     id="main-content"
@@ -109,6 +107,9 @@ export default function RootLayout({
                   >
                     <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
                   </main>
+
+                  {/* Floating Action Buttons */}
+                  <FloatingActionButtons />
 
 
                   <footer className="app-footer mt-auto py-6">

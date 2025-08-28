@@ -11,7 +11,7 @@
 /playwright-report/
 src/__e2e__/storage/auth.json
 src/__e2e__/screenshots/
-
+/.playwright-mcp/
 # database
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
@@ -24,7 +24,7 @@ next-env.d.ts
 
 # production
 /build
-
+/apps/template
 # misc
 .DS_Store
 *.pem
