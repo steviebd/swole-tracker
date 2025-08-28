@@ -91,9 +91,20 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
     onPointerDown?.(event);
   }, [haptic, ripple, prefersReducedMotion, asChild, onPointerDown]);
 
-  const Comp = asChild ? Slot : motion.button;
+  if (asChild) {
+    return (
+      <Slot
+        ref={ref}
+        className={cn(buttonVariants({ variant, size, interactive, className }))}
+        onPointerDown={handlePointerDown}
+        {...props}
+      >
+        {children}
+      </Slot>
+    );
+  }
 
-  const motionProps = !asChild && !prefersReducedMotion ? {
+  const motionProps = !prefersReducedMotion ? {
     variants: buttonPressVariants,
     initial: "initial",
     whileHover: "hover",
@@ -102,18 +113,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   } : {};
 
   return (
-    <Comp
+    <motion.button
       ref={ref}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, interactive, className }))}
       onPointerDown={handlePointerDown}
-      {...(!asChild ? motionProps : {})}
+      {...motionProps}
       {...props}
     >
       {children}
       
       {/* Ripple effect overlay */}
-      {ripple && ripplePosition && !asChild && !prefersReducedMotion && (
+      {ripple && ripplePosition && !prefersReducedMotion && (
         <motion.span
           className="absolute pointer-events-none rounded-full bg-white/20"
           style={{
@@ -127,7 +138,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
           transition={{ duration: 0.4, ease: "easeOut" }}
         />
       )}
-    </Comp>
+    </motion.button>
   );
 });
 
