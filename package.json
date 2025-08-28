@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "infisical run --bun run tokens:build && next build",
+    "build": "bun run tokens:build && next build",
     "build:tokens": "node scripts/build-tokens.js",
     "check": "bun run lint && bun run typecheck",
     "db:generate": "drizzle-kit generate",
