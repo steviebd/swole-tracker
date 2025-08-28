@@ -33,6 +33,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
       thisWeekWorkouts,
       thisWeekVolume: volumeData,
       lastWeekWorkouts,
+      monthWorkouts,
       consistencyData,
       isLoading,
     } = useSharedWorkoutData();
@@ -95,7 +96,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
         return streak;
       };
 
-      const currentStreak = calculateStreak(workoutDates?.map(date => new Date(date)));
+      const currentStreak = calculateStreak(monthWorkouts.map(date => new Date(date)));
       let streakChange: string | undefined;
       if (currentStreak >= 7) {
         streakChange = "🔥 Hot!";
@@ -127,7 +128,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
         weeklyGoal,
         goalChange,
       };
-    }, [thisWeekWorkouts, lastWeekWorkouts, volumeData]);
+    }, [thisWeekWorkouts, lastWeekWorkouts, monthWorkouts, volumeData]);
 
     if (isLoading) {
       return (
