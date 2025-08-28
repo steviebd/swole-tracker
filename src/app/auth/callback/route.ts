@@ -18,8 +18,20 @@ export async function GET(request: NextRequest) {
   });
 
   if (code) {
-    const response = NextResponse.redirect(`${origin}${redirectTo}`);
     const cookiesSet: Array<{name: string, value: string, options?: any}> = [];
+    
+    // Determine final redirect URL before creating response
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const isLocalEnv = process.env.NODE_ENV === "development";
+    let finalRedirectUrl: string;
+    
+    if (!isLocalEnv && forwardedHost) {
+      finalRedirectUrl = `https://${forwardedHost}${redirectTo}`;
+    } else {
+      finalRedirectUrl = `${origin}${redirectTo}`;
+    }
+    
+    const response = NextResponse.redirect(finalRedirectUrl);
 
     const supabase = createServerClient(
       env.NEXT_PUBLIC_SUPABASE_URL,
@@ -55,15 +67,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!error && data.user) {
-      const forwardedHost = request.headers.get("x-forwarded-host");
-      const isLocalEnv = process.env.NODE_ENV === "development";
-      if (isLocalEnv) {
-        return response;
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${redirectTo}`);
-      } else {
-        return response;
-      }
+      return response;
     }
   }
 
