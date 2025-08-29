@@ -43,7 +43,7 @@ export default function ClientPreferencesTrigger({
         )}
       </button>
 
-      <PreferencesModal open={open} onClose={() => setOpen(false)} />
+      <PreferencesModal isOpen={open} onClose={() => setOpen(false)} />
     </>
   );
 }

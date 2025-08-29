@@ -67,20 +67,20 @@ async function getLinkedExerciseNames(
   // Check if this template exercise is linked to a master exercise
   const exerciseLink = await ctx.db
     .query("exerciseLinks")
-    .withIndex("by_templateExerciseId", (q) => q.eq("templateExerciseId", templateExerciseId))
-    .filter((q) => q.eq(q.field("userId"), user._id))
+    .withIndex("by_templateExerciseId", (q: any) => q.eq("templateExerciseId", templateExerciseId))
+    .filter((q: any) => q.eq(q.field("userId"), user._id))
     .unique();
 
   if (exerciseLink) {
     // Find all template exercises linked to the same master exercise
     const linkedExercises = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_masterExerciseId", (q) => q.eq("masterExerciseId", exerciseLink.masterExerciseId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", exerciseLink.masterExerciseId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .collect();
 
     const exerciseNames = await Promise.all(
-      linkedExercises.map(async (link) => {
+      linkedExercises.map(async (link: any) => {
         const templateExercise = await ctx.db.get(link.templateExerciseId);
         return templateExercise?.exerciseName;
       })
@@ -138,8 +138,8 @@ export const getStrengthProgression = query({
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
 
@@ -149,8 +149,8 @@ export const getStrengthProgression = query({
     for (const session of sessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
-        .filter((q) => 
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
+        .filter((q: any) => 
           exerciseNamesToSearch.some(name => q.eq(q.field("exerciseName"), name))
         )
         .collect();
@@ -200,8 +200,8 @@ export const getVolumeProgression = query({
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
 
@@ -211,7 +211,7 @@ export const getVolumeProgression = query({
     for (const session of sessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
 
       for (const sessionEx of sessionExercises) {
@@ -253,8 +253,8 @@ export const getConsistencyStats = query({
     
     const workoutSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
 
@@ -286,8 +286,8 @@ export const getWorkoutDates = query({
     
     const workoutSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
     
@@ -331,7 +331,7 @@ export const getPersonalRecords = query({
       // Get PRs for all exercises
       const allSessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .collect();
       
       const uniqueExercises = new Set(allSessionExercises.map(ex => ex.exerciseName));
@@ -409,8 +409,8 @@ export const getVolumeByExercise = query({
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
 
@@ -420,7 +420,7 @@ export const getVolumeByExercise = query({
     for (const session of sessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
 
       for (const sessionEx of sessionExercises) {
@@ -463,8 +463,8 @@ export const getSetRepDistribution = query({
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_user_date", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .collect();
 
     // Get session exercises for all sessions
@@ -473,7 +473,7 @@ export const getSetRepDistribution = query({
     for (const session of sessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
 
       for (const sessionEx of sessionExercises) {
@@ -506,7 +506,7 @@ export const getExerciseList = query({
     
     const sessionExercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     // Group by exercise name and find last used date and total sets
@@ -731,8 +731,8 @@ async function calculatePersonalRecords(
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_user_date", (q) => q.eq("userId", user._id))
-      .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+      .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .collect();
 
     const exerciseData = [];
@@ -740,8 +740,8 @@ async function calculatePersonalRecords(
     for (const session of sessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
-        .filter((q) => q.eq(q.field("exerciseName"), exerciseName))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
+        .filter((q: any) => q.eq(q.field("exerciseName"), exerciseName))
         .collect();
 
       for (const sessionEx of sessionExercises) {
@@ -815,8 +815,8 @@ async function getVolumeAndStrengthData(
   // Get all sessions in the date range
   const sessions = await ctx.db
     .query("workoutSessions")
-    .withIndex("by_user_date", (q) => q.eq("userId", user._id))
-    .filter((q) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
+    .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
+    .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
     .collect();
 
   const data = [];
@@ -825,7 +825,7 @@ async function getVolumeAndStrengthData(
   for (const session of sessions) {
     const sessionExercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
       .collect();
 
     for (const sessionEx of sessionExercises) {

@@ -50,13 +50,13 @@ async function generateNewJoke(ctx: any, user: any) {
     
     const previousJokes = await ctx.db
       .query("dailyJokes")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(memoryCount);
 
     // Build enhanced prompt with previous jokes when available
     if (previousJokes.length > 0) {
-      const jokeList = previousJokes.map((j) => j.joke).join(", ");
+      const jokeList = previousJokes.map((j: any) => j.joke).join(", ");
       enhancedPrompt = `${AI_GATEWAY_PROMPT}. Previous jokes: ${jokeList}`;
     }
 
@@ -90,7 +90,7 @@ async function generateNewJoke(ctx: any, user: any) {
       // In a real implementation, you'd call the AI Gateway here
       // For now, we'll simulate it
       const prompt = previousJokes.length > 0 
-        ? `${AI_GATEWAY_PROMPT}. Previous jokes: ${previousJokes.map((j) => j.joke).join(", ")}`
+        ? `${AI_GATEWAY_PROMPT}. Previous jokes: ${previousJokes.map((j: any) => j.joke).join(", ")}`
         : AI_GATEWAY_PROMPT;
       
       // This would be the actual AI SDK call:
@@ -208,7 +208,7 @@ export const clearCache = mutation({
     // Delete all jokes for the current user
     const jokes = await ctx.db
       .query("dailyJokes")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     for (const joke of jokes) {
@@ -235,7 +235,7 @@ export const getRecent = query({
 
     return await ctx.db
       .query("dailyJokes")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(limit);
   },

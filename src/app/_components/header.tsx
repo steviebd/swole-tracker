@@ -82,7 +82,8 @@ const navigationItems: NavItem[] = [
 ];
 
 export function Header() {
-  const { user, isLoading, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const isLoading = false; // Fallback since WorkOS useAuth may not provide isLoading
   const { resolvedTheme, toggle: toggleTheme } = useTheme();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

@@ -47,7 +47,7 @@ export const getWorkouts = query({
     // Get recent workout sessions
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(limit);
 
@@ -56,11 +56,11 @@ export const getWorkouts = query({
       sessions.map(async (session) => {
         const template = await ctx.db.get(session.templateId);
         
-        let templateExercises = [];
+        let templateExercises: any[] = [];
         if (template) {
           templateExercises = await ctx.db
             .query("templateExercises")
-            .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+            .withIndex("by_templateId", (q: any) => q.eq("templateId", template._id))
             .order("asc")
             .collect();
           templateExercises.sort((a, b) => a.orderIndex - b.orderIndex);
@@ -68,7 +68,7 @@ export const getWorkouts = query({
 
         const sessionExercises = await ctx.db
           .query("sessionExercises")
-          .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+          .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
           .order("asc")
           .collect();
 
@@ -107,11 +107,11 @@ export const getWorkout = query({
 
     // Get template with exercises
     const template = await ctx.db.get(workout.templateId);
-    let templateExercises = [];
+    let templateExercises: any[] = [];
     if (template) {
       templateExercises = await ctx.db
         .query("templateExercises")
-        .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+        .withIndex("by_templateId", (q: any) => q.eq("templateId", template._id))
         .order("asc")
         .collect();
       templateExercises.sort((a, b) => a.orderIndex - b.orderIndex);
@@ -120,7 +120,7 @@ export const getWorkout = query({
     // Get session exercises
     const exercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", workout._id))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", workout._id))
       .order("asc")
       .collect();
 
@@ -160,7 +160,7 @@ export const getLastExerciseData = query({
     if (args.templateExerciseId) {
       const exerciseLink = await ctx.db
         .query("exerciseLinks")
-        .withIndex("by_templateExerciseId", (q) => 
+        .withIndex("by_templateExerciseId", (q: any) => 
           q.eq("templateExerciseId", args.templateExerciseId)
         )
         .unique();
@@ -169,16 +169,16 @@ export const getLastExerciseData = query({
         // Find all template exercises linked to the same master exercise
         const linkedExercises = await ctx.db
           .query("exerciseLinks")
-          .withIndex("by_masterExerciseId", (q) => 
+          .withIndex("by_masterExerciseId", (q: any) => 
             q.eq("masterExerciseId", exerciseLink.masterExerciseId)
           )
           .collect();
 
         // Get all exercise names from linked template exercises
         const linkedNames = await Promise.all(
-          linkedExercises.map(async (link) => {
+          linkedExercises.map(async (link: any) => {
             const templateExercise = await ctx.db.get(link.templateExerciseId);
-            return templateExercise?.exerciseName;
+            return templateExercise && 'exerciseName' in templateExercise ? templateExercise.exerciseName : undefined;
           })
         );
 
@@ -189,7 +189,7 @@ export const getLastExerciseData = query({
     // Find recent sessions with any of these exercises
     const allSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(50); // Check more sessions since we're looking across templates
 
@@ -203,7 +203,7 @@ export const getLastExerciseData = query({
     for (const session of sessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
 
       const hasTargetExercise = sessionExercises.some(exercise => 
@@ -273,10 +273,10 @@ export const getLatestPerformanceForTemplateExercise = query({
     // First, check if this template exercise is linked to a master exercise
     const exerciseLink = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_templateExerciseId", (q) => 
+      .withIndex("by_templateExerciseId", (q: any) => 
         q.eq("templateExerciseId", args.templateExerciseId)
       )
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .unique();
 
     let templateExerciseIds = [args.templateExerciseId];
@@ -285,7 +285,7 @@ export const getLatestPerformanceForTemplateExercise = query({
       // Get all template exercises linked to this master exercise
       const linkedExercises = await ctx.db
         .query("exerciseLinks")
-        .withIndex("by_masterExerciseId", (q) => 
+        .withIndex("by_masterExerciseId", (q: any) => 
           q.eq("masterExerciseId", exerciseLink.masterExerciseId)
         )
         .collect();
@@ -296,7 +296,7 @@ export const getLatestPerformanceForTemplateExercise = query({
     // Find the most recent workout that contains any linked exercise
     const allSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(50);
 
@@ -315,7 +315,7 @@ export const getLatestPerformanceForTemplateExercise = query({
 
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
 
       // Find exercises that match our template exercise IDs
@@ -381,8 +381,8 @@ export const createWorkout = mutation({
     const twoMinutesAgo = Date.now() - 120000;
     const recentSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => 
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => 
         q.and(
           q.eq(q.field("templateId"), args.templateId),
           q.gt(q.field("workoutDate"), twoMinutesAgo)
@@ -394,19 +394,20 @@ export const createWorkout = mutation({
     // If we found a recent session with no exercises, return it
     if (recentSessions.length > 0) {
       const recentSession = recentSessions[0];
-      const exerciseCount = await ctx.db
-        .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", recentSession._id))
-        .collect();
+      if (recentSession) {
+        const exerciseCount = await ctx.db
+          .query("sessionExercises")
+          .withIndex("by_sessionId", (q: any) => q.eq("sessionId", recentSession._id))
+          .collect();
 
       if (exerciseCount.length === 0) {
         // Get template for response
         const template = await ctx.db.get(args.templateId);
-        let templateExercises = [];
+        let templateExercises: any[] = [];
         if (template) {
           templateExercises = await ctx.db
             .query("templateExercises")
-            .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+            .withIndex("by_templateId", (q: any) => q.eq("templateId", template._id))
             .order("asc")
             .collect();
           templateExercises.sort((a, b) => a.orderIndex - b.orderIndex);
@@ -420,6 +421,7 @@ export const createWorkout = mutation({
           } : null,
         };
       }
+      }
     }
 
     // Verify template ownership
@@ -431,7 +433,7 @@ export const createWorkout = mutation({
     // Get template exercises
     const templateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+      .withIndex("by_templateId", (q: any) => q.eq("templateId", template._id))
       .order("asc")
       .collect();
     templateExercises.sort((a, b) => a.orderIndex - b.orderIndex);
@@ -501,7 +503,7 @@ export const updateWorkout = mutation({
     // Delete existing exercises for this session
     const existingExercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", args.sessionId))
       .collect();
 
     for (const exercise of existingExercises) {
@@ -577,7 +579,7 @@ export const updateSessionSets = mutation({
     // Get all exercises for this session
     const sessionExercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", args.sessionId))
       .order("asc")
       .collect();
 
@@ -601,7 +603,7 @@ export const updateSessionSets = mutation({
 
       // Find exercises matching the exercise name
       const exerciseMatches = sessionExercises.filter(
-        (ex) => ex.exerciseName === update.exerciseName
+        (ex: any) => ex.exerciseName === update.exerciseName
       );
 
       // Find the specific set by index within the exercise

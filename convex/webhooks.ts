@@ -63,7 +63,7 @@ export const logWebhookEvent = mutation({
           // Find user by their WHOOP profile
           const whoopProfile = await ctx.db
             .query("whoopProfile")
-            .withIndex("by_whoopUserId", (q) => q.eq("whoopUserId", args.externalUserId))
+            .withIndex("by_whoopUserId", (q: any) => q.eq("whoopUserId", args.externalUserId))
             .unique();
           
           if (whoopProfile) {
@@ -171,7 +171,7 @@ export const processWhoopWorkout = mutation({
       // Find the user by their WHOOP profile
       const whoopProfile = await ctx.db
         .query("whoopProfile")
-        .withIndex("by_whoopUserId", (q) => q.eq("whoopUserId", args.whoopUserId))
+        .withIndex("by_whoopUserId", (q: any) => q.eq("whoopUserId", args.whoopUserId))
         .unique();
 
       if (!whoopProfile) {
@@ -199,7 +199,7 @@ export const processWhoopWorkout = mutation({
       // Check if workout already exists
       const existingWorkout = await ctx.db
         .query("externalWorkoutsWhoop")
-        .withIndex("by_user_workout_id", (q) => 
+        .withIndex("by_user_workout_id", (q: any) => 
           q.eq("userId", whoopProfile.userId).eq("whoopWorkoutId", workout.id)
         )
         .unique();
@@ -295,7 +295,7 @@ export const processWhoopRecovery = mutation({
       // Find the user by their WHOOP profile
       const whoopProfile = await ctx.db
         .query("whoopProfile")
-        .withIndex("by_whoopUserId", (q) => q.eq("whoopUserId", args.whoopUserId))
+        .withIndex("by_whoopUserId", (q: any) => q.eq("whoopUserId", args.whoopUserId))
         .unique();
 
       if (!whoopProfile) {
@@ -329,7 +329,7 @@ export const processWhoopRecovery = mutation({
       // Check if recovery already exists
       const existingRecovery = await ctx.db
         .query("whoopRecovery")
-        .withIndex("by_whoopRecoveryId", (q) => q.eq("whoopRecoveryId", recovery.id))
+        .withIndex("by_whoopRecoveryId", (q: any) => q.eq("whoopRecoveryId", recovery.id))
         .unique();
 
       const now = Date.now();
@@ -427,7 +427,6 @@ export const getRecentEvents = query({
       // Get recent webhook events
       let events = await ctx.db
         .query("webhookEvents")
-        .withIndex("by_creationTime", (q) => q.eq("_creationTime", q.field("_creationTime")))
         .order("desc")
         .take(limit * 2); // Take more initially to allow for filtering
 
@@ -495,8 +494,7 @@ export const getStats = query({
       // Get events within the time range
       const events = await ctx.db
         .query("webhookEvents")
-        .withIndex("by_creationTime", (q) => q.eq("_creationTime", q.field("_creationTime")))
-        .order("desc")
+                .order("desc")
         .collect();
 
       // Filter by time range
@@ -561,7 +559,7 @@ export const getUserWebhookEvents = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -574,7 +572,7 @@ export const getUserWebhookEvents = query({
       // Get webhook events for this user
       let events = await ctx.db
         .query("webhookEvents")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .take(limit * 2); // Take more initially to allow for filtering
 

@@ -29,8 +29,8 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
       if (lastIdentifiedUser.current !== user.id) {
         posthog.identify(user.id, {
           email: user.email,
-          name: user.user_metadata?.full_name || user.email,
-          createdAt: user.created_at,
+          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email,
+          // WorkOS User object has different properties
         });
         posthog.capture("user_signed_in", {
           userId: user.id,

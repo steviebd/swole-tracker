@@ -36,10 +36,10 @@ export const env = createEnv({
     RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: z.coerce.number().default(200),
     RATE_LIMIT_API_CALLS_PER_MINUTE: z.coerce.number().default(60),
     RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
-    // WorkOS Authentication
-    WORKOS_API_KEY: z.string(),
-    WORKOS_CLIENT_ID: z.string(),
-    WORKOS_COOKIE_PASSWORD: z.string().min(32, "WorkOS cookie password must be at least 32 characters long"),
+    // WorkOS Authentication - Made optional for Infisical integration
+    WORKOS_API_KEY: z.string().optional(),
+    WORKOS_CLIENT_ID: z.string().optional(),
+    WORKOS_COOKIE_PASSWORD: z.string().optional(),
   },
 
   /**

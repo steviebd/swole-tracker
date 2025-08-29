@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
-import { getUser } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
 export async function GET(request: NextRequest) {
-  const { user } = await getUser();
+  const { user } = await withAuth();
 
   if (!user) {
     return new Response("Unauthorized", { status: 401 });

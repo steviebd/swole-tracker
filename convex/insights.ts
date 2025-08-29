@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { ensureUser } from "./users";
 
 /**
@@ -99,20 +100,20 @@ async function getLinkedExerciseNames(
 ): Promise<{ exerciseNames: string[]; templateExerciseIds: string[] }> {
   const exerciseLink = await ctx.db
     .query("exerciseLinks")
-    .withIndex("by_templateExerciseId", (q) => q.eq("templateExerciseId", templateExerciseId))
-    .filter((q) => q.eq(q.field("userId"), user._id))
+    .withIndex("by_templateExerciseId", (q: any) => q.eq("templateExerciseId", templateExerciseId))
+    .filter((q: Doc<"exerciseLinks">) => q.userId === user._id)
     .unique();
 
   if (exerciseLink) {
     // Find all template exercises linked to the same master exercise
     const linkedExercises = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_masterExerciseId", (q) => q.eq("masterExerciseId", exerciseLink.masterExerciseId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", exerciseLink.masterExerciseId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .collect();
 
     const exerciseData = await Promise.all(
-      linkedExercises.map(async (link) => {
+      linkedExercises.map(async (link: any) => {
         const templateExercise = await ctx.db.get(link.templateExerciseId);
         return {
           exerciseName: templateExercise?.exerciseName,
@@ -173,7 +174,7 @@ export const getExerciseInsights = query({
     // Fetch recent sessions for the user
     const allSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(limitSessions * 2); // Get more to account for filtering
 
@@ -187,8 +188,8 @@ export const getExerciseInsights = query({
 
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
-        .filter((q) => {
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
+        .filter((q: any) => {
           if (templateExerciseIds && templateExerciseIds.length > 0) {
             return templateExerciseIds.some(id => q.eq(q.field("templateExerciseId"), id));
           } else {
@@ -436,7 +437,7 @@ export const getSessionInsights = query({
 
     const exercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
       .collect();
 
     const byExercise = new Map<
@@ -501,7 +502,7 @@ export const exportWorkoutsCSV = query({
     // Get recent sessions
     let sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(limit);
 
@@ -531,7 +532,7 @@ export const exportWorkoutsCSV = query({
       const template = await ctx.db.get(session.templateId);
       const exercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
 
       for (const ex of exercises) {
@@ -596,7 +597,7 @@ export const getExercisePerformanceTrends = query({
     // Get recent sessions with the target exercises
     const allSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(limitSessions * 2);
 
@@ -605,8 +606,8 @@ export const getExercisePerformanceTrends = query({
     for (const session of allSessions) {
       const sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
-        .filter((q) => 
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
+        .filter((q: any) => 
           exerciseNamesToSearch.some(name => q.eq(q.field("exerciseName"), name))
         )
         .collect();
@@ -702,7 +703,7 @@ export const getWorkoutIntensityMetrics = query({
 
       sessionExercises = await ctx.db
         .query("sessionExercises")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
         .collect();
     } else {
       // Get data for time range
@@ -724,14 +725,14 @@ export const getWorkoutIntensityMetrics = query({
 
       const sessions = await ctx.db
         .query("workoutSessions")
-        .withIndex("by_user_date", (q) => q.eq("userId", user._id))
-        .filter((q) => q.gte(q.field("workoutDate"), startDate))
+        .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
+        .filter((q: any) => q.gte(q.field("workoutDate"), startDate))
         .collect();
 
       for (const session of sessions) {
         const exercises = await ctx.db
           .query("sessionExercises")
-          .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+          .withIndex("by_sessionId", (q: any) => q.eq("sessionId", session._id))
           .collect();
         sessionExercises.push(...exercises);
       }

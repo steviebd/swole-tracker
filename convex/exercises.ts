@@ -88,8 +88,8 @@ export const searchMaster = query({
     // First, get prefix matches (exercises starting with the query)
     const prefixMatches = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => 
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => 
         q.gte(q.field("normalizedName"), normalized) &&
         q.lt(q.field("normalizedName"), normalized + "\uFFFF")
       )
@@ -114,7 +114,7 @@ export const searchMaster = query({
     // Otherwise, get all exercises and filter for contains matches
     const allExercises = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const containsMatches = allExercises.filter(ex => 
@@ -159,7 +159,7 @@ export const findSimilar = query({
 
     const allExercises = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const similarExercises = allExercises
@@ -189,7 +189,7 @@ export const getAllMaster = query({
 
     const exercises = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("asc")
       .collect();
 
@@ -198,7 +198,7 @@ export const getAllMaster = query({
       exercises.map(async (exercise) => {
         const linkedCount = await ctx.db
           .query("exerciseLinks")
-          .withIndex("by_masterExerciseId", (q) => q.eq("masterExerciseId", exercise._id))
+          .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", exercise._id))
           .collect();
         
         return {
@@ -234,8 +234,8 @@ export const createOrGetMaster = mutation({
     // Try to find existing master exercise
     const existing = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.eq(q.field("normalizedName"), normalizedName))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.eq(q.field("normalizedName"), normalizedName))
       .unique();
 
     if (existing) {
@@ -290,7 +290,7 @@ export const linkToMaster = mutation({
     // Check if link already exists
     const existingLink = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_templateExerciseId", (q) => q.eq("templateExerciseId", args.templateExerciseId))
+      .withIndex("by_templateExerciseId", (q: any) => q.eq("templateExerciseId", args.templateExerciseId))
       .unique();
 
     if (existingLink) {
@@ -330,8 +330,8 @@ export const unlink = mutation({
     // Find the link
     const link = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_templateExerciseId", (q) => q.eq("templateExerciseId", args.templateExerciseId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_templateExerciseId", (q: any) => q.eq("templateExerciseId", args.templateExerciseId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .unique();
 
     if (link) {
@@ -360,8 +360,8 @@ export const getLatestPerformance = query({
     // Find all template exercises linked to this master exercise
     const linkedExercises = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_masterExerciseId", (q) => q.eq("masterExerciseId", args.masterExerciseId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", args.masterExerciseId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .collect();
 
     if (linkedExercises.length === 0) {
@@ -373,8 +373,8 @@ export const getLatestPerformance = query({
     // Get the most recent session exercise from any linked template exercise
     const sessionExercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => 
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => 
         templateExerciseIds.some(id => q.eq(q.field("templateExerciseId"), id))
       )
       .collect();
@@ -431,8 +431,8 @@ export const getLinksForTemplate = query({
     // Get all template exercises for this template
     const templateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_templateId", (q) => q.eq("templateId", args.templateId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_templateId", (q: any) => q.eq("templateId", args.templateId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .order("asc") // ordered by orderIndex
       .collect();
 
@@ -441,7 +441,7 @@ export const getLinksForTemplate = query({
       templateExercises.map(async (templateEx) => {
         const link = await ctx.db
           .query("exerciseLinks")
-          .withIndex("by_templateExerciseId", (q) => q.eq("templateExerciseId", templateEx._id))
+          .withIndex("by_templateExerciseId", (q: any) => q.eq("templateExerciseId", templateEx._id))
           .unique();
 
         let masterExerciseName = null;
@@ -549,20 +549,20 @@ export const getLinkingDetails = query({
     // Get all template exercises linked to this master exercise
     const links = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_masterExerciseId", (q) => q.eq("masterExerciseId", args.masterExerciseId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", args.masterExerciseId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .collect();
 
     const linkedExercises = await Promise.all(
-      links.map(async (link) => {
+      links.map(async (link: any) => {
         const templateExercise = await ctx.db.get(link.templateExerciseId);
-        const template = templateExercise ? await ctx.db.get(templateExercise.templateId) : null;
+        const template = templateExercise && 'templateId' in templateExercise ? await ctx.db.get(templateExercise.templateId as any) : null;
         
         return {
           templateExerciseId: link.templateExerciseId,
-          exerciseName: templateExercise?.exerciseName ?? "Unknown",
-          templateId: templateExercise?.templateId,
-          templateName: template?.name ?? "Unknown",
+          exerciseName: templateExercise && 'exerciseName' in templateExercise ? templateExercise.exerciseName : "Unknown",
+          templateId: templateExercise && 'templateId' in templateExercise ? templateExercise.templateId : null,
+          templateName: template && 'name' in template ? template.name : "Unknown",
         };
       })
     );
@@ -570,7 +570,7 @@ export const getLinkingDetails = query({
     // Get all unlinked template exercises for potential linking
     const allTemplateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const linkedTemplateExerciseIds = new Set(links.map(link => link.templateExerciseId));
@@ -587,7 +587,7 @@ export const getLinkingDetails = query({
             templateExerciseId: templateEx._id,
             exerciseName: templateEx.exerciseName,
             templateId: templateEx.templateId,
-            templateName: template?.name ?? "Unknown",
+            templateName: template && 'name' in template ? template.name : "Unknown",
             linkingRejected: templateEx.linkingRejected,
             similarity,
           };
@@ -630,14 +630,14 @@ export const bulkLinkSimilar = mutation({
     // Get unlinked exercises
     const allTemplateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.eq(q.field("linkingRejected"), false))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.eq(q.field("linkingRejected"), false))
       .collect();
 
     // Get already linked template exercise IDs
     const existingLinks = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const linkedTemplateExerciseIds = new Set(existingLinks.map(link => link.templateExerciseId));
@@ -685,8 +685,8 @@ export const bulkUnlinkAll = mutation({
     // Get all links for this master exercise
     const links = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_masterExerciseId", (q) => q.eq("masterExerciseId", args.masterExerciseId))
-      .filter((q) => q.eq(q.field("userId"), user._id))
+      .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", args.masterExerciseId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
       .collect();
 
     // Delete all links
@@ -714,12 +714,12 @@ export const migrateExistingExercises = mutation({
     // Get all template exercises for the user that don't have links
     const allTemplateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const existingLinks = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const linkedTemplateExerciseIds = new Set(existingLinks.map(link => link.templateExerciseId));
@@ -734,8 +734,8 @@ export const migrateExistingExercises = mutation({
       // Try to find existing master exercise
       const existing = await ctx.db
         .query("masterExercises")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
-        .filter((q) => q.eq(q.field("normalizedName"), normalizedName))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+        .filter((q: any) => q.eq(q.field("normalizedName"), normalizedName))
         .unique();
 
       let masterExerciseId;

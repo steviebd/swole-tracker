@@ -46,7 +46,13 @@ export function ConflictResolutionModal({
       const completeResolutions = { ...resolutions };
       conflicts.forEach(conflict => {
         if (!completeResolutions[conflict.id]) {
-          completeResolutions[conflict.id] = 'remote';
+          completeResolutions[conflict.id] = {
+            id: conflict.id,
+            type: 'default',
+            localData: conflict.localData,
+            serverData: conflict.remoteData,
+            resolution: 'server'
+          };
         }
       });
       
@@ -119,8 +125,14 @@ export function ConflictResolutionModal({
                         type="radio"
                         name={`conflict-${conflict.id}`}
                         value="local"
-                        checked={resolutions[conflict.id] === 'local'}
-                        onChange={() => handleResolutionChange(conflict.id, 'local')}
+                        checked={resolutions[conflict.id]?.resolution === 'local'}
+                        onChange={() => handleResolutionChange(conflict.id, {
+                          id: conflict.id,
+                          type: conflict.type,
+                          localData: conflict.localData,
+                          serverData: conflict.remoteData,
+                          resolution: 'local'
+                        })}
                         className="text-blue-600"
                       />
                     </div>
@@ -140,8 +152,14 @@ export function ConflictResolutionModal({
                         type="radio"
                         name={`conflict-${conflict.id}`}
                         value="remote"
-                        checked={resolutions[conflict.id] === 'remote' || !resolutions[conflict.id]}
-                        onChange={() => handleResolutionChange(conflict.id, 'remote')}
+                        checked={resolutions[conflict.id]?.resolution === 'server' || !resolutions[conflict.id]}
+                        onChange={() => handleResolutionChange(conflict.id, {
+                          id: conflict.id,
+                          type: conflict.type,
+                          localData: conflict.localData,
+                          serverData: conflict.remoteData,
+                          resolution: 'server'
+                        })}
                         className="text-green-600"
                       />
                     </div>
@@ -168,8 +186,14 @@ export function ConflictResolutionModal({
                         type="radio"
                         name={`conflict-${conflict.id}`}
                         value="merge"
-                        checked={resolutions[conflict.id] === 'merge'}
-                        onChange={() => handleResolutionChange(conflict.id, 'merge')}
+                        checked={resolutions[conflict.id]?.resolution === 'merge'}
+                        onChange={() => handleResolutionChange(conflict.id, {
+                          id: conflict.id,
+                          type: conflict.type,
+                          localData: conflict.localData,
+                          serverData: conflict.remoteData,
+                          resolution: 'merge'
+                        })}
                         className="text-purple-600"
                       />
                     </div>

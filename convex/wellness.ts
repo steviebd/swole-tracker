@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { ensureUser } from "./users";
 
 /**
@@ -89,7 +90,7 @@ export const save = mutation({
       if (args.sessionId) {
         existingWellness = await ctx.db
           .query("wellnessData")
-          .withIndex("by_user_session", (q) =>
+          .withIndex("by_user_session", (q: any) =>
             q.eq("userId", user._id).eq("sessionId", args.sessionId)
           )
           .unique();
@@ -97,14 +98,14 @@ export const save = mutation({
         // Check for daily wellness entry (no session)
         existingWellness = await ctx.db
           .query("wellnessData")
-          .withIndex("by_user_date", (q) =>
+          .withIndex("by_user_date", (q: any) =>
             q.eq("userId", user._id).eq("date", dateString)
           )
-          .filter((q) => q.eq(q.field("sessionId"), undefined))
+          .filter((q: any) => q.eq(q.field("sessionId"), undefined))
           .first();
       }
 
-      let wellnessId: string;
+      let wellnessId: Id<"wellnessData">;
 
       if (existingWellness) {
         // Update existing wellness data
@@ -114,8 +115,8 @@ export const save = mutation({
           deviceTimezone: args.deviceTimezone,
           submittedAt: submittedAt,
           hasWhoopData: args.hasWhoopData,
-          whoopData: args.whoopData || null,
-          notes: args.notes || null,
+          whoopData: args.whoopData || undefined,
+          notes: args.notes || undefined,
           updatedAt: now,
         });
         wellnessId = existingWellness._id;
@@ -130,8 +131,8 @@ export const save = mutation({
           deviceTimezone: args.deviceTimezone,
           submittedAt: submittedAt,
           hasWhoopData: args.hasWhoopData,
-          whoopData: args.whoopData || null,
-          notes: args.notes || null,
+          whoopData: args.whoopData || undefined,
+          notes: args.notes || undefined,
           updatedAt: now,
         });
       }
@@ -182,7 +183,7 @@ export const getBySession = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -199,7 +200,7 @@ export const getBySession = query({
       // Get wellness data for this session
       const wellnessData = await ctx.db
         .query("wellnessData")
-        .withIndex("by_user_session", (q) =>
+        .withIndex("by_user_session", (q: any) =>
           q.eq("userId", user._id).eq("sessionId", args.sessionId)
         )
         .unique();
@@ -240,7 +241,7 @@ export const getHistory = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -266,12 +267,12 @@ export const getHistory = query({
       // Start with user filter
       let results = await ctx.db
         .query("wellnessData")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .collect();
 
       // Apply date filters
       if (startDateString || endDateString) {
-        results = results.filter((item) => {
+        results = results.filter((item: any) => {
           if (startDateString && item.date < startDateString) return false;
           if (endDateString && item.date > endDateString) return false;
           return true;
@@ -316,7 +317,7 @@ export const getStats = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -338,12 +339,12 @@ export const getStats = query({
       // Get all wellness data in the period
       const allWellnessData = await ctx.db
         .query("wellnessData")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .collect();
 
       // Filter by date range
       const periodData = allWellnessData.filter(
-        (item) => item.date >= startDateString
+        (item: any) => item.date >= startDateString
       );
 
       // Calculate period statistics
@@ -357,7 +358,7 @@ export const getStats = query({
       }
 
       const recentData = allWellnessData.filter(
-        (item) => item.date >= recentStartDateString
+        (item: any) => item.date >= recentStartDateString
       );
 
       const recentStats = calculateStats(recentData);
@@ -404,7 +405,7 @@ export const deleteBySession = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -421,7 +422,7 @@ export const deleteBySession = mutation({
       // Find wellness data for this session
       const wellnessData = await ctx.db
         .query("wellnessData")
-        .withIndex("by_user_session", (q) =>
+        .withIndex("by_user_session", (q: any) =>
           q.eq("userId", user._id).eq("sessionId", args.sessionId)
         )
         .unique();
@@ -471,7 +472,7 @@ export const checkExists = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -481,7 +482,7 @@ export const checkExists = query({
     try {
       const wellnessData = await ctx.db
         .query("wellnessData")
-        .withIndex("by_user_session", (q) =>
+        .withIndex("by_user_session", (q: any) =>
           q.eq("userId", user._id).eq("sessionId", args.sessionId)
         )
         .unique();
@@ -513,8 +514,8 @@ function calculateStats(data: Array<{ energyLevel?: number; sleepQuality?: numbe
     };
   }
 
-  const energyLevels = data.filter((item) => item.energyLevel != null).map((item) => item.energyLevel!);
-  const sleepQualities = data.filter((item) => item.sleepQuality != null).map((item) => item.sleepQuality!);
+  const energyLevels = data.filter((item: any) => item.energyLevel != null).map((item: any) => item.energyLevel!);
+  const sleepQualities = data.filter((item: any) => item.sleepQuality != null).map((item: any) => item.sleepQuality!);
 
   const avgEnergyLevel = energyLevels.length > 0
     ? energyLevels.reduce((sum, val) => sum + val, 0) / energyLevels.length

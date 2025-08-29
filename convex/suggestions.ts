@@ -151,7 +151,7 @@ export const getHistory = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -169,7 +169,7 @@ export const getHistory = query({
       // Get recent suggestion interactions
       let interactions = await ctx.db
         .query("aiSuggestionHistory")
-        .withIndex("by_user_created", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .collect();
 
@@ -258,7 +258,7 @@ export const getSuggestions = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -272,8 +272,8 @@ export const getSuggestions = query({
       // Get suggestions for this specific exercise
       const suggestions = await ctx.db
         .query("aiSuggestionHistory")
-        .withIndex("by_exerciseName", (q) => q.eq("exerciseName", args.exerciseName))
-        .filter((q) => q.eq(q.field("userId"), user._id))
+        .withIndex("by_exerciseName", (q: any) => q.eq("exerciseName", args.exerciseName))
+        .filter((q: any) => q.eq(q.field("userId"), user._id))
         .order("desc")
         .take(limit);
 
@@ -318,7 +318,7 @@ export const getUserPatterns = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -335,7 +335,7 @@ export const getUserPatterns = query({
       // Get all interactions in the time range
       let interactions = await ctx.db
         .query("aiSuggestionHistory")
-        .withIndex("by_user_created", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .collect();
 

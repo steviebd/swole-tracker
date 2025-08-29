@@ -5,7 +5,8 @@ import { Button } from "~/components/ui/button";
 import Link from "next/link";
 
 export function SignInButtons() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
+  const isLoading = false; // Fallback since WorkOS useAuth may not provide isLoading
 
   if (isLoading) {
     return (

@@ -24,7 +24,7 @@ export const getOrCreateUser = internalMutation({
     // Check if user already exists by WorkOS ID
     const existingUser = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (existingUser) {
@@ -58,7 +58,7 @@ export async function ensureUser(
   // Check if user already exists by WorkOS ID
   const existingUser = await ctx.db
     .query("users")
-    .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+    .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
     .unique();
 
   if (existingUser) {
@@ -93,7 +93,7 @@ export const getUserProfile = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -124,7 +124,7 @@ export const getUserById = query({
     // Only allow users to get their own profile
     const currentUser = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!currentUser || currentUser._id !== args.userId) {

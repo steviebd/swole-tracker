@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { ensureUser } from "./users";
 
 /**
@@ -23,7 +24,7 @@ export const getIntegrationStatus = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -34,7 +35,7 @@ export const getIntegrationStatus = query({
       // Get WHOOP integration for this user
       const integration = await ctx.db
         .query("userIntegrations")
-        .withIndex("by_user_provider", (q) => 
+        .withIndex("by_user_provider", (q: any) => 
           q.eq("userId", user._id).eq("provider", "whoop")
         )
         .unique();
@@ -97,18 +98,18 @@ export const storeTokens = mutation({
       // Check if integration already exists
       const existingIntegration = await ctx.db
         .query("userIntegrations")
-        .withIndex("by_user_provider", (q) => 
+        .withIndex("by_user_provider", (q: any) => 
           q.eq("userId", user._id).eq("provider", "whoop")
         )
         .unique();
 
-      let integrationId: string;
+      let integrationId: Id<"userIntegrations">;
 
       if (existingIntegration) {
         // Update existing integration
         await ctx.db.patch(existingIntegration._id, {
           accessToken: args.accessToken,
-          refreshToken: args.refreshToken || null,
+          refreshToken: args.refreshToken || undefined,
           expiresAt: expiresAt,
           scope: args.scope || "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
@@ -121,7 +122,7 @@ export const storeTokens = mutation({
           userId: user._id,
           provider: "whoop",
           accessToken: args.accessToken,
-          refreshToken: args.refreshToken || null,
+          refreshToken: args.refreshToken || undefined,
           expiresAt: expiresAt,
           scope: args.scope || "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
@@ -159,7 +160,7 @@ export const disconnectIntegration = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -170,7 +171,7 @@ export const disconnectIntegration = mutation({
       // Find and deactivate the integration
       const integration = await ctx.db
         .query("userIntegrations")
-        .withIndex("by_user_provider", (q) => 
+        .withIndex("by_user_provider", (q: any) => 
           q.eq("userId", user._id).eq("provider", "whoop")
         )
         .unique();
@@ -217,7 +218,7 @@ export const getWorkouts = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -231,7 +232,7 @@ export const getWorkouts = query({
       // Get workouts ordered by start date (most recent first)
       let workouts = await ctx.db
         .query("externalWorkoutsWhoop")
-        .withIndex("by_user_start", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_start", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .collect();
 
@@ -273,7 +274,7 @@ export const getLatestRecoveryData = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -284,7 +285,7 @@ export const getLatestRecoveryData = query({
       // Check if user has active WHOOP integration
       const integration = await ctx.db
         .query("userIntegrations")
-        .withIndex("by_user_provider", (q) => 
+        .withIndex("by_user_provider", (q: any) => 
           q.eq("userId", user._id).eq("provider", "whoop")
         )
         .unique();
@@ -306,14 +307,14 @@ export const getLatestRecoveryData = query({
       // Get latest recovery data from database (most recent record)
       const latestRecovery = await ctx.db
         .query("whoopRecovery")
-        .withIndex("by_user_date", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .first();
       
       // Get latest sleep data from database (most recent record)
       const latestSleep = await ctx.db
         .query("whoopSleep")
-        .withIndex("by_user_start", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_start", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .first();
       
@@ -323,16 +324,16 @@ export const getLatestRecoveryData = query({
 
       // Map database data to expected format
       return {
-        recovery_score: latestRecovery.recoveryScore || null,
-        sleep_performance: latestSleep?.sleepPerformancePercentage || null,
-        hrv_now_ms: latestRecovery.hrvRmssdMilli || null,
-        hrv_baseline_ms: latestRecovery.hrvRmssdBaseline || null,
-        rhr_now_bpm: latestRecovery.restingHeartRate || null,
-        rhr_baseline_bpm: latestRecovery.restingHeartRateBaseline || null,
+        recovery_score: latestRecovery.recoveryScore || undefined,
+        sleep_performance: latestSleep?.sleepPerformancePercentage || undefined,
+        hrv_now_ms: latestRecovery.hrvRmssdMilli || undefined,
+        hrv_baseline_ms: latestRecovery.hrvRmssdBaseline || undefined,
+        rhr_now_bpm: latestRecovery.restingHeartRate || undefined,
+        rhr_baseline_bpm: latestRecovery.restingHeartRateBaseline || undefined,
         yesterday_strain: null, // Could be calculated from cycles table if needed
         raw_data: {
           recovery: latestRecovery.rawData,
-          sleep: latestSleep?.rawData || null,
+          sleep: latestSleep?.rawData || undefined,
         },
       };
 
@@ -365,7 +366,7 @@ export const getRecovery = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -378,7 +379,7 @@ export const getRecovery = query({
       // Get recovery data
       let recovery = await ctx.db
         .query("whoopRecovery")
-        .withIndex("by_user_date", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .collect();
 
@@ -433,7 +434,7 @@ export const getCycles = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -446,7 +447,7 @@ export const getCycles = query({
       // Get cycles data ordered by start time
       let cycles = await ctx.db
         .query("whoopCycles")
-        .withIndex("by_user_start", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_start", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .collect();
 
@@ -501,7 +502,7 @@ export const getSleep = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -514,7 +515,7 @@ export const getSleep = query({
       // Get sleep data ordered by start time
       let sleep = await ctx.db
         .query("whoopSleep")
-        .withIndex("by_user_start", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_start", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .collect();
 
@@ -571,7 +572,7 @@ export const getProfile = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -581,7 +582,7 @@ export const getProfile = query({
     try {
       const profile = await ctx.db
         .query("whoopProfile")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
         .unique();
 
       if (!profile) {
@@ -622,7 +623,7 @@ export const getBodyMeasurements = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -634,7 +635,7 @@ export const getBodyMeasurements = query({
 
       let measurements = await ctx.db
         .query("whoopBodyMeasurement")
-        .withIndex("by_user_date", (q) => q.eq("userId", user._id))
+        .withIndex("by_user_date", (q: any) => q.eq("userId", user._id))
         .order("desc")
         .take(limit);
 

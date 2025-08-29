@@ -1,11 +1,11 @@
-import { getUser } from "@workos-inc/authkit-nextjs";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 import { Button } from "~/components/ui/button";
 
 export default async function ConnectWhoopPage() {
-  const { user } = await getUser();
+  const { user } = await withAuth();
 
   if (!user) {
     redirect("/auth/login");

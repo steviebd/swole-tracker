@@ -30,9 +30,10 @@ export function HomePageHeader() {
 
   if (!user) return null;
 
-  // Extract display name from user metadata or email
-  const displayName = user.user_metadata?.first_name || 
-                     user.user_metadata?.display_name || 
+  // Extract display name from user email or fallback to 'User'
+  const userWithMetadata = user as any;
+  const displayName = userWithMetadata.user_metadata?.first_name || 
+                     userWithMetadata.user_metadata?.display_name || 
                      user.email?.split('@')[0] ||
                      'User';
 
@@ -157,9 +158,9 @@ export function HomePageHeader() {
       </header>
       
       {/* Modals */}
-      <PreferencesModal open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
-      <ProgressionModal open={progressionOpen} onClose={() => setProgressionOpen(false)} />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <PreferencesModal isOpen={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <ProgressionModal isOpen={progressionOpen} onClose={() => setProgressionOpen(false)} />
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

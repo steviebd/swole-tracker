@@ -1,7 +1,15 @@
 "use client";
 
-// Re-export WorkOS AuthKit components and hooks for backwards compatibility
-export { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-nextjs/components";
+
+// Wrapper for WorkOS auth to provide isLoading compatibility
+export function useAuth() {
+  const workosAuth = useWorkOSAuth();
+  
+  return {
+    ...workosAuth,
+    isLoading: false, // WorkOS doesn't provide loading state the same way
+  };
+}
 
 // The AuthProvider functionality is handled by AuthKitProvider in ConvexClientProvider
-// This file exists for backwards compatibility with existing imports

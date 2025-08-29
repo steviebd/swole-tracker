@@ -37,7 +37,7 @@ export function RecentWorkouts() {
     );
   }
 
-  if (!recentWorkouts.length) {
+  if (!workouts?.length) {
     return (
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-col space-y-1.5 p-6 pb-4">
@@ -64,11 +64,11 @@ export function RecentWorkouts() {
         <h3 className="text-2xl font-semibold leading-none tracking-tight">Recent Workouts</h3>
       </div>
       <div className="p-6 pt-0 space-y-3">
-        {recentWorkouts.map((workout) => (
+        {workouts.map((workout) => (
           <div key={workout._id} className="rounded-lg border bg-muted/50 p-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium">
-                {workout.templateName || "Quick Workout"}
+                {workout.template?.name || "Quick Workout"}
               </h4>
               <div className="text-xs text-muted-foreground">
                 {new Date(workout.workoutDate || workout._creationTime).toLocaleDateString()}

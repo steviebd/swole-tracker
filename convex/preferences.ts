@@ -40,7 +40,7 @@ export const getPreferences = query({
 
     const prefs = await ctx.db
       .query("userPreferences")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .unique();
 
     // Return full preferences row when found, otherwise return default shape
@@ -108,7 +108,7 @@ export const updatePreferences = mutation({
     // Load existing preferences (if any)
     const existing = await ctx.db
       .query("userPreferences")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .unique();
 
     // Build update patch - only include provided fields

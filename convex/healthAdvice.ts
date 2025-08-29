@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { ConvexError } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
 // Health advice request schema
 const healthAdviceRequestSchema = v.object({
@@ -75,7 +76,7 @@ export const saveAdvice = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -98,10 +99,10 @@ export const saveAdvice = mutation({
       // Check if advice already exists for this session
       const existingAdvice = await ctx.db
         .query("healthAdvice")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", sessionId))
         .unique();
 
-      let adviceId: string;
+      let adviceId: Id<"healthAdvice">;
 
       if (existingAdvice) {
         // Update existing advice
@@ -174,7 +175,7 @@ export const saveAdviceWithWellness = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -210,10 +211,10 @@ export const saveAdviceWithWellness = mutation({
       // Check if advice already exists for this session
       const existingAdvice = await ctx.db
         .query("healthAdvice")
-        .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+        .withIndex("by_sessionId", (q: any) => q.eq("sessionId", sessionId))
         .unique();
 
-      let adviceId: string;
+      let adviceId: Id<"healthAdvice">;
 
       if (existingAdvice) {
         // Update existing advice
@@ -281,7 +282,7 @@ export const getAdviceBySessionId = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -296,7 +297,7 @@ export const getAdviceBySessionId = query({
 
     const advice = await ctx.db
       .query("healthAdvice")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", args.sessionId))
       .unique();
 
     return advice ?? null;
@@ -317,7 +318,7 @@ export const getAdviceHistory = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -329,7 +330,7 @@ export const getAdviceHistory = query({
 
     const results = await ctx.db
       .query("healthAdvice")
-      .withIndex("by_user_created", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .take(limit + offset);
 
@@ -352,7 +353,7 @@ export const updateAcceptedSuggestions = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -371,7 +372,7 @@ export const updateAcceptedSuggestions = mutation({
 
     const advice = await ctx.db
       .query("healthAdvice")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", args.sessionId))
       .unique();
 
     if (!advice) {
@@ -400,7 +401,7 @@ export const deleteAdvice = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
       .unique();
 
     if (!user) {
@@ -415,7 +416,7 @@ export const deleteAdvice = mutation({
 
     const advice = await ctx.db
       .query("healthAdvice")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .withIndex("by_sessionId", (q: any) => q.eq("sessionId", args.sessionId))
       .unique();
 
     if (!advice) {

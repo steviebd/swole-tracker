@@ -36,7 +36,7 @@ async function createAndLinkMasterExercise(
   // Try to find existing master exercise
   const existing = await ctx.db
     .query("masterExercises")
-    .withIndex("by_user_normalized", (q) => 
+    .withIndex("by_user_normalized", (q: any) => 
       q.eq("userId", userId).eq("normalizedName", normalizedName)
     )
     .unique();
@@ -64,7 +64,7 @@ async function createAndLinkMasterExercise(
   // Check if link already exists
   const existingLink = await ctx.db
     .query("exerciseLinks")
-    .withIndex("by_templateExerciseId", (q) => 
+    .withIndex("by_templateExerciseId", (q: any) => 
       q.eq("templateExerciseId", templateExerciseId)
     )
     .unique();
@@ -102,7 +102,7 @@ export const getTemplates = query({
     // Get templates with exercises
     const templates = await ctx.db
       .query("workoutTemplates")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
       .order("desc")
       .collect();
 
@@ -111,7 +111,7 @@ export const getTemplates = query({
       templates.map(async (template) => {
         const exercises = await ctx.db
           .query("templateExercises")
-          .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+          .withIndex("by_templateId", (q: any) => q.eq("templateId", template._id))
           .order("asc")
           .collect();
 
@@ -150,7 +150,7 @@ export const getTemplate = query({
     // Get exercises for this template
     const exercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+      .withIndex("by_templateId", (q: any) => q.eq("templateId", template._id))
       .order("asc")
       .collect();
 
@@ -194,8 +194,8 @@ export const createTemplate = mutation({
     // Check for recent duplicate template (prevent double-clicks)
     const recentTemplate = await ctx.db
       .query("workoutTemplates")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .filter((q) => q.eq(q.field("name"), args.name))
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .filter((q: any) => q.eq(q.field("name"), args.name))
       .order("desc")
       .first();
 
@@ -286,7 +286,7 @@ export const updateTemplate = mutation({
     // Delete existing exercises
     const existingExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_templateId", (q) => q.eq("templateId", args.id))
+      .withIndex("by_templateId", (q: any) => q.eq("templateId", args.id))
       .collect();
 
     for (const exercise of existingExercises) {
