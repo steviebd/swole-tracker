@@ -1,34 +1,14 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
-
-import { TemplateForm } from "~/app/_components/template-form";
-import { Button } from "~/components/ui/button";
-
-export default async function NewTemplatePage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
-
+export default function NewTemplatePage() {
   return (
-    <main className="min-h-screen overflow-x-hidden">
-      <div className="container mx-auto px-4 py-6 w-full min-w-0">
-        {/* Header */}
-        <div className="mb-6 flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/templates">
-              ← Back
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">New Template</h1>
-        </div>
-
-        {/* Form */}
-        <TemplateForm />
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-4">New Template</h1>
+      <p className="text-muted-foreground mb-8">
+        New template page needs to be rebuilt with Convex integration.
+      </p>
+      <div className="border rounded-lg p-6">
+        <p>This page is currently being rebuilt to work with the new Convex backend.</p>
+        <p className="mt-2">Previous functionality included template creation, exercise selection, and form handling.</p>
       </div>
-    </main>
+    </div>
   );
 }

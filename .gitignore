@@ -5,6 +5,7 @@
 /.pnp
 .pnp.js
 .infisical.json
+
 # testing
 /coverage
 /test-results/
@@ -12,6 +13,11 @@
 src/__e2e__/storage/auth.json
 src/__e2e__/screenshots/
 /.playwright-mcp/
+.open-next/
+.wrangler/
+.taskmaster/
+.expo/
+
 # database
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
@@ -21,6 +27,7 @@ db.sqlite
 /.next/
 /out/
 next-env.d.ts
+.cursor/
 
 # production
 /build

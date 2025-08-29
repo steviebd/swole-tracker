@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { getUser } from "@workos-inc/authkit-nextjs";
 
 interface LocalWorkoutSessionPageProps {
   params: Promise<{ localId: string }>;
@@ -9,12 +9,11 @@ interface LocalWorkoutSessionPageProps {
 export default async function LocalWorkoutSessionPage({
   params,
 }: LocalWorkoutSessionPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { user } = await getUser();
   const { localId } = await params;
 
   if (!user) {
-    redirect("/sign-in");
+    redirect("/auth/login");
   }
 
   // Local sessions are no longer supported

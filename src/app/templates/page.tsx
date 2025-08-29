@@ -1,63 +1,14 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
-
-import ClientHydrate from "~/trpc/HydrateClient";
-import {
-  getQueryClient,
-  getDehydratedState,
-  prefetchTemplatesIndex,
-} from "~/trpc/prefetch";
-import { TemplatesList } from "~/app/_components/templates-list";
-import { Button } from "~/components/ui/button";
-
-export default async function TemplatesPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
-
-  // SSR prefetch + hydrate using TanStack Query to avoid client refetch
-  const qc = getQueryClient();
-  await prefetchTemplatesIndex(qc);
-  const state = getDehydratedState(qc);
-
+export default function TemplatesPage() {
   return (
-    <ClientHydrate state={state}>
-      <main className="container-default min-h-screen py-4 sm:py-6 overflow-x-hidden w-full min-w-0">
-        {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/" className="flex-shrink-0 flex items-center">
-                  ← Back
-                </Link>
-              </Button>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Workout Templates</h1>
-            </div>
-            <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-3 flex-shrink-0">
-              <Button variant="secondary" size="sm" asChild>
-                <Link href="/exercises">
-                  Manage Exercises
-                </Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/templates/new">
-                  New Template
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Templates List */}
-        <div>
-          <TemplatesList />
-        </div>
-      </main>
-    </ClientHydrate>
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-4">Templates</h1>
+      <p className="text-muted-foreground mb-8">
+        Templates page needs to be rebuilt with Convex integration.
+      </p>
+      <div className="border rounded-lg p-6">
+        <p>This page is currently being rebuilt to work with the new Convex backend.</p>
+        <p className="mt-2">Previous functionality included template management, creation, and editing.</p>
+      </div>
+    </div>
   );
 }

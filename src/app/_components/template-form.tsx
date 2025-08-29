@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { api } from "~/trpc/react";
+import { useMutation } from "convex/react";
+import { api } from "~/convex/_generated/api";
 import { analytics } from "~/lib/analytics";
+import { toast } from "sonner";
+import type { Id } from "~/convex/_generated/dataModel";
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -34,7 +37,7 @@ type TemplateFormData = z.infer<typeof templateFormSchema>;
 
 interface TemplateFormProps {
   template?: {
-    id: number;
+    _id: Id<"workoutTemplates">;
     name: string;
     exercises: { exerciseName: string }[];
   };
@@ -65,114 +68,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
     name: "exercises",
   });
 
-  const utils = api.useUtils();
+  const createTemplate = useMutation(api.templates.createTemplate);
 
-  const createTemplate = api.templates.create.useMutation({
-    onMutate: async (_newTemplate) => {
-      // Cancel any outgoing refetches to prevent race conditions
-      await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value for error rollback
-      const previousTemplates = utils.templates.getAll.getData();
-
-      return { previousTemplates };
-    },
-    onError: (err, newTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
-      }
-      // Reset submission flag on error
-      submitRef.current = false;
-    },
-    onSuccess: async (data) => {
-      console.log("Template created successfully:", {
-        id: data.id,
-        name: data.name,
-        user_id: data.user_id,
-        createdAt: data.createdAt,
-      });
-      analytics.templateCreated(
-        data.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
-      );
-      // Reset submission flag
-      submitRef.current = false;
-
-      // Update cache with the new template optimistically
-      utils.templates.getAll.setData(undefined, (old) => {
-        const newTemplate = data as NonNullable<typeof old>[number];
-        return old ? [newTemplate, ...old] : [newTemplate];
-      });
-
-      // Navigate immediately with updated cache
-      router.push("/templates");
-    },
-    onSettled: () => {
-      // Ensure cache is invalidated
-      void utils.templates.getAll.invalidate();
-    },
-  });
-
-  const updateTemplate = api.templates.update.useMutation({
-    onMutate: async (updatedTemplate) => {
-      // Cancel any outgoing refetches
-      await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value
-      const previousTemplates = utils.templates.getAll.getData();
-
-      // Optimistically update the cache
-      utils.templates.getAll.setData(
-        undefined,
-        (old) =>
-          old?.map((template) =>
-            template.id === updatedTemplate.id
-              ? {
-                  ...template,
-                  name: updatedTemplate.name,
-                  updatedAt: new Date(),
-                  exercises: updatedTemplate.exercises.map(
-                    (exerciseName, index) => ({
-                      id: template.exercises[index]?.id ?? -index - 1,
-                      user_id:
-                        template.exercises[index]?.user_id ?? "temp-user",
-                      templateId: template.id,
-                      exerciseName,
-                      orderIndex: index,
-                      linkingRejected:
-                        template.exercises[index]?.linkingRejected ?? false,
-                      createdAt:
-                        template.exercises[index]?.createdAt ?? new Date(),
-                    }),
-                  ),
-                }
-              : template,
-          ) ?? [],
-      );
-
-      return { previousTemplates };
-    },
-    onError: (err, updatedTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
-      }
-    },
-    onSuccess: () => {
-      analytics.templateEdited(
-        template!.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
-      );
-      // Reset submission flag
-      submitRef.current = false;
-      router.push("/templates");
-    },
-    onSettled: () => {
-      // Always refetch to ensure we have the latest data
-      void utils.templates.getAll.invalidate();
-    },
-  });
+  const updateTemplate = useMutation(api.templates.updateTemplate);
 
   const addExercise = () => {
     append({ exerciseName: "" });
@@ -226,33 +124,47 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
     try {
       if (template) {
-        await updateTemplate.mutateAsync({
-          id: template.id,
+        await updateTemplate({
+          id: template._id,
           name: trimmedName,
           exercises: filteredExercises,
         });
+        analytics.templateEdited(
+          template._id,
+          filteredExercises.length,
+        );
+        toast.success("Template updated successfully");
       } else {
         console.log("Creating template with data:", {
           name: trimmedName,
           exercises: filteredExercises,
         });
-        await createTemplate.mutateAsync({
+        const templateId = await createTemplate({
           name: trimmedName,
           exercises: filteredExercises,
         });
+        analytics.templateCreated(
+          templateId,
+          filteredExercises.length,
+        );
+        toast.success("Template created successfully");
       }
+      
+      // Reset submission flag and navigate
+      submitRef.current = false;
+      router.push("/templates");
     } catch (error) {
       console.error("Error saving template:", error);
       analytics.error(error as Error, {
         context: template ? "template_edit" : "template_create",
-        templateId: template?.id.toString(),
+        templateId: template?._id,
       });
-      alert("Error saving template. Please try again.");
+      toast.error("Error saving template. Please try again.");
       submitRef.current = false;
     }
   };
 
-  const isLoading = createTemplate.isPending || updateTemplate.isPending;
+  const isLoading = false; // Convex mutations don't expose isPending state
 
   return (
     <Card padding="lg">

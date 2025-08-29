@@ -20,11 +20,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun e2e` - Run Playwright e2e tests
 - `bun test:e2e:ui` - Run e2e tests with UI
 
-**Database (Drizzle):**
-- `bun db:push` - Push schema changes (development)
-- `bun db:generate` - Generate migration files
-- `bun db:migrate` - Run migrations
-- `bun db:studio` - Open Drizzle Studio
+**Convex Backend:**
+- `bun convex dev` - Start Convex development backend
+- `bun convex deploy` - Deploy Convex functions to production
+- `bun convex dashboard` - Open Convex dashboard
+- `bun convex logs` - View function logs
+- `bun convex import` - Import data to Convex
+- `bun convex export` - Export data from Convex
 
 **Code formatting:**
 - `bun format:write` - Format code with Prettier
@@ -32,60 +34,69 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Core Architecture
 
-**Stack:** Next.js 15 + React 19 + TypeScript + T3 Stack (tRPC v11 + Drizzle + Supabase Auth)
+**Stack:** Next.js 15 + React 19 + TypeScript + Convex + WorkOS Authentication
 
 **Key directories:**
 - `src/app/` - Next.js App Router pages and components
-- `src/server/api/routers/` - tRPC API routers (templates, workouts, whoop, webhooks, etc.)
-- `src/server/db/schema.ts` - Drizzle ORM schema with prefixed tables (`swole-tracker_*`)
-- `src/lib/` - Utilities (rate limiting, offline queue, webhooks, analytics)
+- `convex/` - Convex backend functions (queries, mutations, actions)
+- `convex/schema.ts` - Convex database schema definition
+- `src/lib/` - Utilities (analytics, offline queue, AI prompts)
 - `src/hooks/` - Custom React hooks
-- `src/providers/` - React context providers (PostHog, Theme)
+- `src/providers/` - React context providers (PostHog, Theme, ConvexAuth)
 - `apps/mobile/` - Mobile (Android) app folder
 
-**Authentication:** Supabase Auth middleware protects `/workout*`, `/templates*`, `/workouts*` routes
+**Authentication:** WorkOS authentication with automatic user session management. Protected routes automatically handle authentication state.
 
-**Database:** PostgreSQL with Drizzle ORM, uses Supabase. All queries filtered by `user_id` for security.
+**Database:** Convex real-time database with automatic user isolation. All queries and mutations automatically filter by authenticated user.
 
 ## Important Implementation Details
 
-**tRPC Structure:**
-- All routers export from `src/server/api/root.ts` 
-- Use `protectedProcedure` for authenticated endpoints
-- Input validation with Zod schemas in `src/server/api/schemas/`
+**Convex Function Structure:**
+- Queries in `convex/` directory export query functions
+- Mutations in `convex/` directory export mutation functions  
+- Actions in `convex/` directory export action functions for external API calls
+- Input validation with Convex's built-in validation using `v.object()`, `v.string()`, etc.
 
-**Database Security:**
-- Always include `where` clauses filtering by `ctx.user.id` (Supabase Auth user ID)
-- Schema uses `user_id` VARCHAR(256) for Supabase Auth integration
-- Tables prefixed with `swole-tracker_` via `createTable` helper
+**Authentication Patterns:**
+- Use `ctx.auth.getUserIdentity()` in Convex functions to get current user
+- Convex automatically handles user sessions with WorkOS
+- Frontend uses `useConvexAuth()` hook for auth state
+- Use `<Authenticated>`, `<Unauthenticated>`, and `<AuthLoading>` components
+
+**Database Queries:**
+- Convex automatically provides real-time updates
+- Use `useQuery()` hook for reactive data fetching
+- Use `useMutation()` hook for data updates
+- All user data automatically isolated by Convex auth system
 
 **Environment Variables:**
 - Schema defined in `src/env.js` with @t3-oss/env-nextjs
 - Create a `.env.local` file from `.env.example` with your environment variables
-- Required: DATABASE_URL, Supabase keys, PostHog keys
-- Optional: WHOOP integration, AI Gateway, rate limiting configs
+- Required: CONVEX_URL, WorkOS keys
+- Optional: PostHog, AI Gateway, rate limiting configs
 
-**Offline-First Features:**
-- Offline queue system in `src/lib/offline-queue.ts`
-- React Query persistence for data caching
-- Connection status indicators and sync states
+**Real-time Features:**
+- Built-in real-time subscriptions via Convex
+- Automatic UI updates when data changes
+- Offline-first with automatic sync when connection restored
+- Connection status indicators built into Convex React hooks
 
 **Rate Limiting:**
-- Database-backed rate limiting via `src/lib/rate-limit.ts`
-- Configurable per-endpoint limits in environment variables
-- WHOOP sync has special per-hour rate limits
+- Rate limiting handled within Convex functions
+- Configurable limits via environment variables
+- Per-user rate limiting automatically enforced
 
-**WHOOP Integration:**
-- OAuth flow with `/api/auth/whoop/` routes
-- Webhook handling with HMAC verification in `src/lib/whoop-webhook.ts`
-- Rate-limited sync endpoint at `/api/whoop/sync-workouts`
+**Error Handling:**
+- Use `ConvexError` for user-facing errors in Convex functions
+- Global error handling with Sonner toast notifications
+- Custom `useApiMutation` hook wraps mutations with error handling
 
 ## Testing Setup
 
 **Unit tests:** Vitest with jsdom environment, setup in `src/__tests__/setup.ts`
 **E2E tests:** Playwright with config in `playwright.config.ts`
-**Coverage:** Focuses on `src/lib/` and `src/server/api/` directories
-**Mocking:** MSW for API mocking, custom mocks for database operations
+**Coverage:** Focuses on `src/lib/` and `convex/` directories
+**Mocking:** MSW for external API mocking, Convex provides test utilities
 
 ## Key Patterns
 
@@ -93,12 +104,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Logging:** Use `src/lib/logger.ts` instead of console methods
 **Analytics:** PostHog integration via `src/lib/posthog.ts` and provider
 **Type safety:** Strict TypeScript with `noUncheckedIndexedAccess: true`
+**API calls:** Use Convex queries/mutations instead of REST APIs
+
+**Convex Function Examples:**
+```typescript
+// Query example
+export const getWorkouts = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    
+    return await ctx.db
+      .query("workouts")
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+      .collect();
+  },
+});
+
+// Mutation example  
+export const createWorkout = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Not authenticated");
+    
+    return await ctx.db.insert("workouts", {
+      name: args.name,
+      userId: identity.subject,
+      createdAt: Date.now(),
+    });
+  },
+});
+```
+
+**React Hook Examples:**
+```typescript
+// Data fetching
+const workouts = useQuery(api.workouts.getWorkouts);
+
+// Data mutations
+const createWorkout = useMutation(api.workouts.createWorkout);
+
+// Authentication
+const { isAuthenticated, isLoading } = useConvexAuth();
+```
 
 ## Development Notes
 
-- Uses bun as package manager (pinned in package.json)
+- Uses bun as package manager (pinned in package.json)  
 - Node.js version pinned to 20.19.4 via Volta
 - Create `.env.local` file with required environment variables
-- Mobile-first design with offline capabilities
+- Mobile-first design with real-time capabilities
 - Progressive Web App with service worker
 - Tailwind CSS v4 for styling
+- Convex provides automatic TypeScript types for all functions

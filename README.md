@@ -1,21 +1,526 @@
-# bun-react-template
+# Swole Tracker
 
-To install dependencies:
+A modern, real-time workout tracking application built with Next.js, Convex, and WorkOS.
+
+## Tech Stack
+
+- **Frontend**: Next.js 15 + React 19 + TypeScript
+- **Backend**: Convex (real-time database & functions)
+- **Authentication**: WorkOS (enterprise-grade auth)
+- **Deployment**: Vercel + Infisical (environment management)
+- **Styling**: Tailwind CSS v4
+- **Package Manager**: Bun
+- **Analytics**: PostHog (optional)
+- **AI Features**: Vercel AI Gateway (optional)
+- **Environment**: Environment-driven configuration (no hardcoded config files)
+
+## Key Features
+
+- **Real-time Updates**: Built-in real-time sync with Convex
+- **Offline-first**: Works offline with automatic sync when reconnected
+- **Mobile Responsive**: Mobile-first design with PWA capabilities
+- **Enterprise Auth**: Production-ready authentication with WorkOS
+- **Type-safe**: End-to-end TypeScript with automatic API type generation
+- **Performance**: Optimized queries and caching built-in
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20.19.4+ (managed by Volta)
+- Bun package manager
+- Convex account
+- WorkOS account
+
+### 1. Clone and Install
 
 ```bash
+git clone <repository-url>
+cd swole-tracker
 bun install
 ```
 
-To start a development server:
+### 2. Environment Setup
+
+Create a `.env.local` file from the example:
 
 ```bash
+cp .env.example .env.local
+```
+
+### 3. Convex Setup
+
+1. Create a new project at [convex.dev](https://convex.dev)
+2. **No hardcoded `convex.json` needed** - We use environment variables for deployment configuration
+3. Run the Convex development server (this will create a dev deployment):
+   ```bash
+   npx convex dev
+   ```
+   This automatically generates a development deployment (e.g., `dev:unique-porcupine-779`) and provides the deployment URL.
+4. Update your `.env.local` with the generated values:
+   ```bash
+   CONVEX_DEPLOYMENT=dev:unique-porcupine-779  # Use the generated deployment name
+   NEXT_PUBLIC_CONVEX_URL=https://unique-porcupine-779.convex.cloud  # Use the provided URL
+   ```
+
+### 4. WorkOS Setup
+
+1. Create an account at [workos.com](https://workos.com)
+2. Create a new application in your WorkOS dashboard
+3. Configure redirect URLs:
+   - Development: `http://localhost:3000/callback`
+   - Production: `https://yourdomain.com/callback`
+4. **Set an `aud` claim in your JWT template**:
+   - Navigate to the JWT template editor under **Authentication** and then **Sessions**.
+   - Set a new `"aud"` claim that will be added to your JWT. This claim is used by Convex to validate that the token is intended for your specific application.
+   ```json
+   {
+     "aud": "<YOUR_CLIENT_ID>"
+   }
+   ```
+   > **Note**: `<YOUR_CLIENT_ID>` is your WorkOS Client ID, which you can find in your WorkOS project's "Configuration" page.
+
+5. Add WorkOS credentials to `.env.local`:
+   ```
+   WORKOS_API_KEY=sk_test_your_api_key
+   NEXT_PUBLIC_WORKOS_CLIENT_ID=client_your_client_id
+   NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
+   WORKOS_COOKIE_PASSWORD=your_32_character_cookie_password
+   ```
+
+### 5. Convex Auth Configuration
+
+Create a `convex/auth.config.ts` file with the following content:
+
+```typescript
+export default {
+  providers: [
+    {
+      domain: `https://api.workos.com`,
+      applicationID: "workos",
+    },
+  ]
+};
+```
+
+### 6. Frontend Setup
+
+1.  **Create a middleware** at the root of your project (`src/middleware.ts`):
+
+    ```typescript
+    import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
+
+    export default authkitMiddleware();
+
+    export const config = {
+      matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+    };
+    ```
+
+2.  **Create a sign-in page** at `src/app/sign-in/page.tsx`:
+
+    ```tsx
+    "use client";
+
+    import { SignIn } from "@workos-inc/authkit-nextjs";
+
+    export default function SignInPage() {
+      return (
+        <div className="flex justify-center items-center h-screen">
+          <SignIn />
+        </div>
+      );
+    }
+    ```
+
+3.  **Create a callback route** at `src/app/callback/route.ts`:
+
+    ```typescript
+    import { handleAuth } from "@workos-inc/authkit-nextjs";
+
+    export const GET = handleAuth();
+    ```
+
+### 7. Start Development
+
+```bash
+# Start both Convex and Next.js servers in one command
 bun dev
 ```
 
-To run for production:
+Visit `http://localhost:3000` to see the application.
 
+**Alternative commands:**
 ```bash
-bun start
+# Development without Infisical (using .env.local only)
+bun run dev:local
+
+# Run servers separately (if needed for debugging)
+bun run dev:convex  # Convex backend only
+bun run dev:next    # Next.js frontend only
 ```
 
-This project was created using `bun init` in bun v1.2.19. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+> **Note**: The `bun dev` command now runs both Convex and Next.js servers simultaneously using `concurrently`. You'll see colored output with `[convex]` and `[next]` prefixes.
+
+## Quick Reference
+
+### Environment Variables Quick Start
+
+**Development (.env.local):**
+```bash
+CONVEX_DEPLOYMENT=dev:unique-porcupine-779           # Auto-generated by npx convex dev
+NEXT_PUBLIC_CONVEX_URL=https://unique-porcupine-779.convex.cloud
+WORKOS_API_KEY=sk_test_your_api_key                 # Test keys from WorkOS
+NEXT_PUBLIC_WORKOS_CLIENT_ID=client_your_client_id
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
+WORKOS_COOKIE_PASSWORD=your_32_character_password
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_ENV=development
+```
+
+**Production (Vercel/Infisical):**
+```bash
+CONVEX_DEPLOYMENT=prod:your-production-deployment   # Created with npx convex deploy --prod
+NEXT_PUBLIC_CONVEX_URL=https://your-production-deployment.convex.cloud
+WORKOS_API_KEY=sk_live_your_production_api_key      # Live keys from WorkOS  
+NEXT_PUBLIC_WORKOS_CLIENT_ID=client_your_production_client_id
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://yourdomain.com/callback
+WORKOS_COOKIE_PASSWORD=your_production_32_character_password
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+NEXT_PUBLIC_ENV=production
+NODE_ENV=production
+```
+
+### Common Commands
+
+```bash
+# Development
+bun dev                          # Start both Convex + Next.js (recommended)
+bun run dev:local               # Same as above without Infisical
+bun run dev:convex              # Start Convex backend only
+bun run dev:next                # Start Next.js frontend only
+bun check                        # Lint + typecheck before commits
+
+# Production Deployment  
+npx convex deploy --prod         # Deploy Convex to production
+git push origin main             # Deploy Next.js to Vercel (auto)
+
+# Debugging
+npx convex logs                  # View development logs
+npx convex logs --prod          # View production logs  
+npx convex dashboard            # Open Convex dashboard
+```
+
+## Development Commands
+
+### Core Development
+```bash
+bun dev          # Start Next.js dev server
+bun build        # Build for production
+bun preview      # Build and preview locally
+bun check        # Run lint + typecheck
+```
+
+### Convex Backend
+```bash
+npx convex dev         # Start Convex development backend
+npx convex deploy      # Deploy to production (requires CONVEX_DEPLOYMENT=prod:name)
+npx convex dashboard   # Open Convex dashboard
+npx convex logs        # View function logs
+npx convex deploy --prod --cmd 'npm run build' # Build and deploy to production
+```
+
+### Testing
+```bash
+bun test           # Run unit tests
+bun test:watch     # Run tests in watch mode
+bun test:ci        # Run tests with coverage
+bun e2e            # Run e2e tests
+```
+
+### Code Quality
+```bash
+bun lint           # Check linting
+bun lint:fix       # Fix linting issues
+bun format:write   # Format code
+bun format:check   # Check formatting
+```
+
+## Project Structure
+
+```
+swole-tracker/
+├── src/
+│   ├── app/              # Next.js App Router pages
+│   ├── components/       # React components
+│   ├── hooks/           # Custom React hooks
+│   ├── lib/             # Utility functions
+│   └── providers/       # React context providers
+├── convex/              # Convex backend functions
+│   ├── schema.ts        # Database schema
+│   ├── *.ts            # Queries, mutations, actions
+│   └── auth.config.ts   # Authentication config
+├── apps/mobile/         # Mobile app (Android)
+└── docs/               # Documentation
+```
+
+## Key Concepts
+
+### Database (Convex)
+- Real-time reactive queries
+- Automatic user isolation
+- Built-in caching and optimization
+- Type-safe schema definitions
+
+### Authentication (WorkOS)
+- Enterprise-grade security
+- Multiple auth methods supported
+- Automatic session management
+- Built-in user management
+
+### Real-time Features
+- Automatic UI updates when data changes
+- Optimistic updates for better UX
+- Offline support with sync on reconnect
+- Connection status indicators
+
+## Development Patterns
+
+### Data Fetching
+```typescript
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+function WorkoutList() {
+  const workouts = useQuery(api.workouts.list);
+  
+  if (workouts === undefined) return <div>Loading...</div>;
+  
+  return (
+    <div>
+      {workouts.map(workout => (
+        <div key={workout._id}>{workout.name}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Data Mutations
+```typescript
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+function CreateWorkout() {
+  const createWorkout = useMutation(api.workouts.create);
+  
+  const handleSubmit = async (name: string) => {
+    await createWorkout({ name });
+  };
+  
+  return <form onSubmit={handleSubmit}>...</form>;
+}
+```
+
+### Authentication
+```typescript
+import { useConvexAuth } from "convex/react";
+import { Authenticated, Unauthenticated } from "convex/react";
+
+function App() {
+  return (
+    <>
+      <Authenticated>
+        <Dashboard />
+      </Authenticated>
+      <Unauthenticated>
+        <LoginPage />
+      </Unauthenticated>
+    </>
+  );
+}
+```
+
+## Deployment
+
+### Deploy to Vercel with Infisical
+
+This project supports deployment to Vercel with environment variable management through Infisical.
+
+#### Prerequisites
+
+1. **Vercel Account** - Sign up at [vercel.com](https://vercel.com)
+2. **Infisical Account** (Recommended) - Sign up at [infisical.com](https://infisical.com) for environment variable management
+3. **Convex Production Deployment** - Created during the deployment process
+4. **WorkOS Production Credentials** - Live keys from your WorkOS dashboard
+
+#### Step 1: Set Up Convex Production Deployment
+
+1. Create a production deployment in your Convex project:
+   ```bash
+   npx convex deploy --prod
+   ```
+   This creates a production deployment (e.g., `prod:your-production-deployment`).
+
+2. Note the deployment name and URL for environment variables.
+
+#### Step 2: Configure WorkOS for Production
+
+1. In your WorkOS dashboard, update redirect URLs:
+   - Add your production domain: `https://yourdomain.com/callback`
+   - Update any environment configuration
+
+2. Generate production API keys (if not already done):
+   - Get your `sk_live_*` API key
+   - Note your production client ID
+
+#### Step 3: Deploy to Vercel
+
+**Option A: With Infisical (Recommended)**
+
+1. **Install Infisical Integration:**
+   - Go to your Vercel project settings
+   - Navigate to "Integrations"
+   - Install the Infisical integration
+   - Connect to your Infisical project
+
+2. **Set Environment Variables in Infisical:**
+   Create these environments in Infisical: `development`, `preview`, `production`
+   
+   **Production Environment:**
+   ```bash
+   CONVEX_DEPLOYMENT=prod:your-production-deployment
+   NEXT_PUBLIC_CONVEX_URL=https://your-production-deployment.convex.cloud
+   WORKOS_API_KEY=sk_live_your_production_api_key
+   NEXT_PUBLIC_WORKOS_CLIENT_ID=client_your_production_client_id
+   NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://yourdomain.com/callback
+   WORKOS_COOKIE_PASSWORD=your_production_32_character_password
+   NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+   NEXT_PUBLIC_ENV=production
+   NODE_ENV=production
+   ```
+
+   **Preview Environment:**
+   ```bash
+   CONVEX_DEPLOYMENT=dev:your-development-deployment  # Can share dev deployment
+   NEXT_PUBLIC_CONVEX_URL=https://your-dev-deployment.convex.cloud
+   WORKOS_API_KEY=sk_test_your_api_key
+   NEXT_PUBLIC_WORKOS_CLIENT_ID=client_your_client_id
+   NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://VERCEL_URL/callback
+   WORKOS_COOKIE_PASSWORD=your_32_character_password
+   NEXT_PUBLIC_SITE_URL=https://VERCEL_URL
+   NEXT_PUBLIC_ENV=preview
+   ```
+
+**Option B: Direct Vercel Environment Variables**
+
+1. Go to your Vercel project settings
+2. Navigate to "Environment Variables"
+3. Add the required variables for each environment (Production, Preview, Development)
+
+#### Step 4: Deploy the Application
+
+1. **Connect Repository:**
+   - Import your GitHub repository to Vercel
+   - Vercel will automatically detect Next.js
+
+2. **Deploy:**
+   ```bash
+   # Option 1: Push to main branch (auto-deploy)
+   git push origin main
+   
+   # Option 2: Use Vercel CLI
+   vercel --prod
+   ```
+
+3. **Verify Deployment:**
+   - Check that environment variables are correctly loaded
+   - Test authentication flow
+   - Verify database connectivity
+
+#### Environment Variable Reference
+
+**Required for Production:**
+- `CONVEX_DEPLOYMENT` - Production deployment name (e.g., `prod:your-deployment`)
+- `NEXT_PUBLIC_CONVEX_URL` - Production Convex URL
+- `WORKOS_API_KEY` - Production WorkOS API key (`sk_live_*`)
+- `NEXT_PUBLIC_WORKOS_CLIENT_ID` - WorkOS client ID
+- `NEXT_PUBLIC_WORKOS_REDIRECT_URI` - Production callback URL
+- `WORKOS_COOKIE_PASSWORD` - 32-character secure string
+- `NEXT_PUBLIC_SITE_URL` - Your production domain
+- `NEXT_PUBLIC_ENV` - Set to `"production"`
+- `NODE_ENV` - Set to `"production"`
+
+**Optional:**
+- `NEXT_PUBLIC_POSTHOG_KEY` - PostHog analytics
+- `NEXT_PUBLIC_POSTHOG_HOST` - PostHog host URL  
+- `VERCEL_AI_GATEWAY_API_KEY` - AI features
+- `AI_GATEWAY_MODEL` - AI model selection
+- Rate limiting variables (see `.env.example`)
+
+#### Environment Management Best Practices
+
+1. **Environment Separation:**
+   - Use different Convex deployments for dev/staging/prod
+   - Separate WorkOS applications for production vs development
+   - Use environment-specific analytics keys
+
+2. **Security:**
+   - Never commit secrets to version control
+   - Use Infisical or Vercel's built-in secret management
+   - Rotate API keys regularly
+   - Use strong, unique cookie passwords
+
+3. **Deployment Strategy:**
+   - Use preview deployments for testing
+   - Test authentication flows in preview environments
+   - Monitor deployment logs and performance
+
+#### Multiple Environment Setup
+
+```bash
+# Development (local .env.local)
+CONVEX_DEPLOYMENT=dev:unique-porcupine-779
+NEXT_PUBLIC_ENV=development
+WORKOS_API_KEY=sk_test_*
+
+# Staging/Preview (Vercel Preview)
+CONVEX_DEPLOYMENT=dev:unique-porcupine-779  # Can share dev
+NEXT_PUBLIC_ENV=preview
+WORKOS_API_KEY=sk_test_*
+
+# Production (Vercel Production)
+CONVEX_DEPLOYMENT=prod:production-deployment
+NEXT_PUBLIC_ENV=production  
+WORKOS_API_KEY=sk_live_*
+```
+
+#### Troubleshooting Deployment
+
+**Common Issues:**
+- **Authentication errors**: Verify WorkOS redirect URLs match your domains
+- **Database connection issues**: Check Convex deployment name and URL
+- **Environment variables not loading**: Ensure Infisical sync is working or variables are set in Vercel
+- **Build failures**: Check that all required environment variables are available during build
+
+**Debugging:**
+```bash
+# Check Convex deployment status
+npx convex logs --prod
+
+# Verify environment variables in Vercel
+vercel env ls
+
+# Test authentication locally with production variables
+```
+
+## Contributing
+
+1. Create a feature branch
+2. Run `bun check` before committing
+3. Write tests for new features
+4. Update documentation as needed
+
+## License
+
+[Your License]

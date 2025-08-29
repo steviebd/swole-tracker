@@ -12,6 +12,13 @@ const baseConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '~/convex': './convex',
+    };
+    return config;
+  },
   async headers() {
     return [
       {
@@ -40,7 +47,7 @@ const baseConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.supabase.co wss: ws:",
+              "connect-src 'self' https://api.workos.com https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.convex.cloud wss: ws:",
               "font-src 'self' data:",
               "object-src 'none'",
               "media-src 'self'",

@@ -105,7 +105,7 @@ export function WorkoutTemplateList() {
         </div>
       ))}
       <div className="pt-2 text-center text-xs text-gray-500">
-        ✨ Powered by Supabase
+        ✨ Powered by Convex
       </div>
     </div>
   );

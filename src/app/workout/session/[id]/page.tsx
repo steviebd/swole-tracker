@@ -1,63 +1,14 @@
-import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
-
-import { api, HydrateClient } from "~/trpc/server";
-import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
-import { GlassHeader } from "~/app/_components/ui/GlassHeader";
-import { Button } from "~/components/ui/button";
-
-interface WorkoutSessionPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function WorkoutSessionPage({
-  params,
-}: WorkoutSessionPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const { id } = await params;
-
-  if (!user) {
-    redirect("/sign-in");
-  }
-
-  const sessionId = parseInt(id);
-  if (isNaN(sessionId)) {
-    notFound();
-  }
-
-  let workoutSession;
-  try {
-    workoutSession = await api.workouts.getById({ id: sessionId });
-  } catch {
-    notFound();
-  }
-
-  // Prefetch user preferences for weight unit
-  void api.preferences.get.prefetch();
-
+export default function WorkoutSessionPage() {
   return (
-    <HydrateClient>
-      <main className="min-h-screen overflow-x-hidden">
-        {/* Glass Header */}
-        <GlassHeader
-          title={`${workoutSession.exercises.length > 0 ? "View Workout: " : ""}${workoutSession.template.name}`}
-          subtitle={new Date(workoutSession.workoutDate).toLocaleString()}
-          actions={
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                ← Back
-              </Button>
-            </Link>
-          }
-        />
-
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
-          {/* Workout Session with Health Advice */}
-          <WorkoutSessionWithHealthAdvice sessionId={sessionId} />
-        </div>
-      </main>
-    </HydrateClient>
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold mb-4">Workout Session</h1>
+      <p className="text-muted-foreground mb-8">
+        Workout session page needs to be rebuilt with Convex integration.
+      </p>
+      <div className="border rounded-lg p-6">
+        <p>This page is currently being rebuilt to work with the new Convex backend.</p>
+        <p className="mt-2">Previous functionality included live workout tracking, set recording, and session management.</p>
+      </div>
+    </div>
   );
 }

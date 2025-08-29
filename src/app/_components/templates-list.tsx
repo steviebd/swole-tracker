@@ -1,20 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { api } from "~/trpc/react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "~/convex/_generated/api";
 import { analytics } from "~/lib/analytics";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
+import { toast } from "sonner";
+import type { Id } from "~/convex/_generated/dataModel";
 
 export function TemplatesList() {
-  const { data: templatesRaw, isLoading } = api.templates.getAll.useQuery();
+  const templatesRaw = useQuery(api.templates.getTemplates);
+  const isLoading = templatesRaw === undefined;
 
   // Deduplicate templates by ID to prevent any rendering duplicates
   const templates = templatesRaw
     ? templatesRaw.filter(
         (template, index, array) =>
-          array.findIndex((t) => t.id === template.id) === index,
+          array.findIndex((t) => t._id === template._id) === index,
       )
     : undefined;
 
@@ -22,50 +26,24 @@ export function TemplatesList() {
   console.log("TemplatesList render:", {
     rawCount: templatesRaw?.length ?? 0,
     deduplicatedCount: templates?.length ?? 0,
-    templates: templates?.map((t) => ({ id: t.id, name: t.name })) ?? [],
+    templates: templates?.map((t) => ({ id: t._id, name: t.name })) ?? [],
     duplicates: (templatesRaw?.length ?? 0) - (templates?.length ?? 0),
     timestamp: new Date().toISOString(),
   });
-  const utils = api.useUtils();
-  const deleteTemplate = api.templates.delete.useMutation({
-    onMutate: async (deletedTemplate) => {
-      // Cancel any outgoing refetches
-      await utils.templates.getAll.cancel();
+  const deleteTemplate = useMutation(api.templates.deleteTemplate);
 
-      // Snapshot the previous value
-      const previousTemplates = utils.templates.getAll.getData();
-
-      // Optimistically remove from cache
-      utils.templates.getAll.setData(
-        undefined,
-        (old) =>
-          old?.filter((template) => template.id !== deletedTemplate.id) ?? [],
-      );
-
-      return { previousTemplates };
-    },
-    onError: (err, deletedTemplate, context) => {
-      // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
-      }
-    },
-    onSettled: () => {
-      // Always refetch to ensure we have the latest data
-      void utils.templates.getAll.invalidate();
-    },
-  });
-
-  const handleDelete = async (id: number, name: string) => {
+  const handleDelete = async (id: Id<"workoutTemplates">, name: string) => {
     if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
       try {
-        await deleteTemplate.mutateAsync({ id });
-        analytics.templateDeleted(id.toString());
+        await deleteTemplate({ id });
+        analytics.templateDeleted(id);
+        toast.success(`Deleted template "${name}"`);
       } catch (error) {
         console.error("Error deleting template:", error);
+        toast.error("Failed to delete template");
         analytics.error(error as Error, {
           context: "template_delete",
-          templateId: id.toString(),
+          templateId: id,
         });
       }
     }
@@ -111,21 +89,21 @@ export function TemplatesList() {
   return (
     <div className="space-y-4">
       {templates.map((template) => (
-        <Card key={template.id} padding="md">
+        <Card key={template._id} padding="md">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{template.name}</CardTitle>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/templates/${template.id}/edit`}>
+                  <Link href={`/templates/${template._id}/edit`}>
                     Edit
                   </Link>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDelete(template.id, template.name)}
-                  disabled={deleteTemplate.isPending}
+                  onClick={() => handleDelete(template._id, template.name)}
+                  disabled={false}
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   Delete
@@ -148,7 +126,7 @@ export function TemplatesList() {
           </CardContent>
           <CardFooter className="pt-0">
             <Button size="sm" asChild>
-              <Link href={`/workout/start?templateId=${template.id}`}>
+              <Link href={`/workout/start?templateId=${template._id}`}>
                 Start Workout
               </Link>
             </Button>
