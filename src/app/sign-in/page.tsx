@@ -1,11 +1,34 @@
 "use client";
 
 import { Button } from "~/components/ui/button";
+import { useEffect, useState } from "react";
 
 export default function SignInPage() {
-  // Simple redirect to WorkOS auth flow
+  const [signInUrl, setSignInUrl] = useState<string>("");
+
+  useEffect(() => {
+    // Fetch the sign-in URL from a server action
+    async function getSignInUrl() {
+      try {
+        const response = await fetch("/api/auth/sign-in-url");
+        if (response.ok) {
+          const data = await response.json();
+          setSignInUrl(data.signInUrl);
+        } else {
+          console.error("Failed to get sign-in URL");
+        }
+      } catch (error) {
+        console.error("Error fetching sign-in URL:", error);
+      }
+    }
+    
+    getSignInUrl();
+  }, []);
+
   const handleSignIn = () => {
-    window.location.href = '/api/auth/login';
+    if (signInUrl) {
+      window.location.href = signInUrl;
+    }
   };
 
   return (
@@ -15,8 +38,9 @@ export default function SignInPage() {
         <Button 
           onClick={handleSignIn}
           className="px-6 py-3 text-center"
+          disabled={!signInUrl}
         >
-          Sign In
+          {signInUrl ? "Sign In" : "Loading..."}
         </Button>
       </div>
     </div>

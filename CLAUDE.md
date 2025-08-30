@@ -71,7 +71,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Environment Variables:**
 - Schema defined in `src/env.js` with @t3-oss/env-nextjs
-- Create a `.env.local` file from `.env.example` with your environment variables
+- Environment variables managed via Infisical (no .env or .env.local files)
 - Required: CONVEX_URL, WorkOS keys
 - Optional: PostHog, AI Gateway, rate limiting configs
 
@@ -154,7 +154,7 @@ const { isAuthenticated, isLoading } = useConvexAuth();
 
 - Uses bun as package manager (pinned in package.json)  
 - Node.js version pinned to 20.19.4 via Volta
-- Create `.env.local` file with required environment variables
+- Environment variables managed via Infisical
 - Mobile-first design with real-time capabilities
 - Progressive Web App with service worker
 - Tailwind CSS v4 for styling

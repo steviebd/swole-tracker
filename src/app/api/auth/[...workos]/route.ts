@@ -1,3 +1,4 @@
 import { handleAuth } from '@workos-inc/authkit-nextjs';
 
-export const { GET, POST } = handleAuth();
+export const GET = handleAuth();
+export const POST = handleAuth();

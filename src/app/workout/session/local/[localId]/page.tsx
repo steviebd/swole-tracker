@@ -9,7 +9,8 @@ interface LocalWorkoutSessionPageProps {
 export default async function LocalWorkoutSessionPage({
   params,
 }: LocalWorkoutSessionPageProps) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const auth = await withAuth();
+  if (!auth.user) redirect('/sign-in');
 
   const { localId } = await params;
 

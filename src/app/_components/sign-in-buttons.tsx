@@ -6,8 +6,8 @@ import React from "react";
 export function SignInButtons() {
   const handleSignIn = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Use full-page navigation to WorkOS auth flow
-    window.location.assign('/api/auth/login');
+    // Redirect to the sign-in page which will handle the WorkOS redirect properly
+    window.location.assign('/sign-in');
   };
 
   return (

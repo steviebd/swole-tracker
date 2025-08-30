@@ -1,10 +1,12 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 import { Button } from "~/components/ui/button";
 
 export default async function ConnectWhoopPage() {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const auth = await withAuth();
+  if (!auth.user) redirect('/sign-in');
 
   return (
     <main className="min-h-screen overflow-x-hidden">
