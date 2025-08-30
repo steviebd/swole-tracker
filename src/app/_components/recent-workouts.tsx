@@ -1,26 +1,13 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { Authenticated, Unauthenticated } from "convex/react";
 import { api } from "~/convex/_generated/api";
-import { useAuth } from "~/providers/AuthProvider";
 import Link from "next/link";
 
-export function RecentWorkouts() {
-  const { user } = useAuth();
-  const workouts = useQuery(api.workouts.getWorkouts, user ? {} : "skip");
+function RecentWorkoutsContent() {
+  const workouts = useQuery(api.workouts.getWorkouts, {});
 
-  if (!user) {
-    return (
-      <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-col space-y-1.5 p-6 pb-4">
-          <h3 className="text-2xl font-semibold leading-none tracking-tight">Recent Workouts</h3>
-        </div>
-        <div className="p-6 pt-0">
-          <p className="text-sm text-muted-foreground">Please sign in to view your workouts.</p>
-        </div>
-      </div>
-    );
-  }
 
   if (workouts === undefined) {
     return (
@@ -107,5 +94,31 @@ export function RecentWorkouts() {
         </div>
       </div>
     </div>
+  );
+}
+
+function UnauthenticatedView() {
+  return (
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+      <div className="flex flex-col space-y-1.5 p-6 pb-4">
+        <h3 className="text-2xl font-semibold leading-none tracking-tight">Recent Workouts</h3>
+      </div>
+      <div className="p-6 pt-0">
+        <p className="text-sm text-muted-foreground">Please sign in to view your workouts.</p>
+      </div>
+    </div>
+  );
+}
+
+export function RecentWorkouts() {
+  return (
+    <>
+      <Unauthenticated>
+        <UnauthenticatedView />
+      </Unauthenticated>
+      <Authenticated>
+        <RecentWorkoutsContent />
+      </Authenticated>
+    </>
   );
 }

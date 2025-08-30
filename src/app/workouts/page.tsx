@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Plus, Calendar, Dumbbell, Trophy, Clock } from "lucide-react";
 import { api } from "~/convex/_generated/api";
-import { useAuth } from "~/providers/AuthProvider";
 import { Button } from "~/components/ui/button";
 import { WorkoutCard, type WorkoutMetric } from "~/components/ui/workout-card";
 import { SkeletonWorkoutCard, SkeletonScreen } from "~/components/ui/skeleton";
@@ -24,45 +24,35 @@ import { useState } from "react";
  * - Mobile-first responsive design
  * - Integration with Convex backend for real-time data
  */
-export default function WorkoutsPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+
+// Sign-in prompt component for unauthenticated users
+function SignInPrompt() {
+  const router = useRouter();
+  
+  return (
+    <div className="text-center py-12">
+      <GlassSurface className="p-8 max-w-lg mx-auto">
+        <Dumbbell className="w-16 h-16 mx-auto text-primary mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
+        <p className="text-muted-foreground mb-6">
+          Please sign in to view your workout history.
+        </p>
+        <Button onClick={() => router.push('/')}>
+          Go to Sign In
+        </Button>
+      </GlassSurface>
+    </div>
+  );
+}
+
+// Main authenticated page content
+function WorkoutsPageContent() {
   const router = useRouter();
   const [isStartingWorkout, setIsStartingWorkout] = useState(false);
 
   // Fetch workouts data from Convex
   const workouts = useQuery(api.workouts.getWorkouts, { limit: 10 });
-  const isLoading = isAuthLoading || workouts === undefined;
-
-  // Handle authentication
-  if (isAuthLoading) {
-    return (
-      <div className="space-y-6">
-        <SkeletonScreen 
-          title="Loading your workouts..."
-          showStats={true}
-          showChart={false}
-          showWorkouts={true}
-        />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="text-center py-12">
-        <GlassSurface className="p-8 max-w-lg mx-auto">
-          <Dumbbell className="w-16 h-16 mx-auto text-primary mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-          <p className="text-muted-foreground mb-6">
-            Please sign in to view your workout history.
-          </p>
-          <Button onClick={() => router.push('/')}>
-            Go to Sign In
-          </Button>
-        </GlassSurface>
-      </div>
-    );
-  }
+  const isLoading = workouts === undefined;
 
   // Handle start workout navigation
   const handleStartWorkout = async () => {
@@ -294,5 +284,29 @@ export default function WorkoutsPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+// Main page component with Convex auth wrapper
+export default function WorkoutsPage() {
+  return (
+    <>
+      <AuthLoading>
+        <div className="space-y-6">
+          <SkeletonScreen 
+            title="Loading your workouts..."
+            showStats={true}
+            showChart={false}
+            showWorkouts={true}
+          />
+        </div>
+      </AuthLoading>
+      <Unauthenticated>
+        <SignInPrompt />
+      </Unauthenticated>
+      <Authenticated>
+        <WorkoutsPageContent />
+      </Authenticated>
+    </>
   );
 }

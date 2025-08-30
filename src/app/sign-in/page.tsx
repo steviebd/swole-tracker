@@ -1,29 +1,23 @@
 "use client";
 
-import { useAuth } from "@workos-inc/authkit-react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Button } from "~/components/ui/button";
 
 export default function SignInPage() {
-  const { user, signIn } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (user) {
-      router.push("/");
-    }
-  }, [user, router]);
+  // Simple redirect to WorkOS auth flow
+  const handleSignIn = () => {
+    window.location.href = '/api/auth/login';
+  };
 
   return (
     <div className="flex flex-col justify-center items-center h-screen space-y-4">
       <h1 className="text-2xl font-bold">Welcome to Swole Tracker</h1>
       <div className="flex flex-col space-y-2">
-        <button 
-          onClick={() => signIn()}
-          className="btn-primary px-6 py-3 text-center rounded-lg"
+        <Button 
+          onClick={handleSignIn}
+          className="px-6 py-3 text-center"
         >
           Sign In
-        </button>
+        </Button>
       </div>
     </div>
   );

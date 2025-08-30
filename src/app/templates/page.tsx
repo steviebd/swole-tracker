@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Plus, FileText, PlayCircle, Edit, Trash2, Clock, Dumbbell, Target } from "lucide-react";
 import { api } from "~/convex/_generated/api";
-import { useAuth } from "~/providers/AuthProvider";
 import { Button } from "~/components/ui/button";
 import { SkeletonWorkoutCard, SkeletonScreen } from "~/components/ui/skeleton";
 import { GlassSurface } from "~/components/ui/glass-surface";
@@ -250,45 +250,34 @@ const TemplateCard = ({ template, onStartWorkout, onEdit, onDelete }: TemplateCa
   );
 };
 
-export default function TemplatesPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+// Sign-in prompt component for unauthenticated users
+function SignInPrompt() {
+  const router = useRouter();
+  
+  return (
+    <div className="text-center py-12">
+      <GlassSurface className="p-8 max-w-lg mx-auto">
+        <FileText className="w-16 h-16 mx-auto text-primary mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
+        <p className="text-muted-foreground mb-6">
+          Please sign in to view your workout templates.
+        </p>
+        <Button onClick={() => router.push('/')}>
+          Go to Sign In
+        </Button>
+      </GlassSurface>
+    </div>
+  );
+}
+
+// Main authenticated page content
+function TemplatesPageContent() {
   const router = useRouter();
   
   // Fetch templates data from Convex
   const templates = useQuery(api.templates.getTemplates);
   const deleteTemplate = useMutation(api.templates.deleteTemplate);
-  const isLoading = isAuthLoading || templates === undefined;
-
-  // Handle authentication
-  if (isAuthLoading) {
-    return (
-      <div className="space-y-6">
-        <SkeletonScreen 
-          title="Loading your templates..."
-          showStats={true}
-          showChart={false}
-          showWorkouts={true}
-        />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="text-center py-12">
-        <GlassSurface className="p-8 max-w-lg mx-auto">
-          <FileText className="w-16 h-16 mx-auto text-primary mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-          <p className="text-muted-foreground mb-6">
-            Please sign in to view your workout templates.
-          </p>
-          <Button onClick={() => router.push('/')}>
-            Go to Sign In
-          </Button>
-        </GlassSurface>
-      </div>
-    );
-  }
+  const isLoading = templates === undefined;
 
   // Handle template actions
   const handleStartWorkout = (templateId: string) => {
@@ -479,5 +468,29 @@ export default function TemplatesPage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+// Main page component with Convex auth wrapper
+export default function TemplatesPage() {
+  return (
+    <>
+      <AuthLoading>
+        <div className="space-y-6">
+          <SkeletonScreen 
+            title="Loading your templates..."
+            showStats={true}
+            showChart={false}
+            showWorkouts={true}
+          />
+        </div>
+      </AuthLoading>
+      <Unauthenticated>
+        <SignInPrompt />
+      </Unauthenticated>
+      <Authenticated>
+        <TemplatesPageContent />
+      </Authenticated>
+    </>
   );
 }

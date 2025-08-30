@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
@@ -15,7 +16,6 @@ import {
   Trophy
 } from "lucide-react";
 import { api } from "~/convex/_generated/api";
-import { useAuth } from "~/providers/AuthProvider";
 import { Button } from "~/components/ui/button";
 import { SkeletonScreen } from "~/components/ui/skeleton";
 import { GlassSurface } from "~/components/ui/glass-surface";
@@ -38,8 +38,28 @@ import { useState } from "react";
 
 type TimeRange = "week" | "month" | "year";
 
-export default function ProgressPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+// Sign-in prompt component for unauthenticated users
+function SignInPrompt() {
+  const router = useRouter();
+  
+  return (
+    <div className="text-center py-12">
+      <GlassSurface className="p-8 max-w-lg mx-auto">
+        <BarChart3 className="w-16 h-16 mx-auto text-primary mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
+        <p className="text-muted-foreground mb-6">
+          Please sign in to view your progress analytics.
+        </p>
+        <Button onClick={() => router.push('/')}>
+          Go to Sign In
+        </Button>
+      </GlassSurface>
+    </div>
+  );
+}
+
+// Main authenticated page content
+function ProgressPageContent() {
   const router = useRouter();
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
 
@@ -50,43 +70,12 @@ export default function ProgressPage() {
   const volumeProgression = useQuery(api.progress.getVolumeProgression, { timeRange });
   const volumeByExercise = useQuery(api.progress.getVolumeByExercise, { timeRange });
 
-  const isLoading = isAuthLoading || 
+  const isLoading = 
     consistencyStats === undefined ||
     comparativeAnalysis === undefined ||
     personalRecords === undefined ||
     volumeProgression === undefined ||
     volumeByExercise === undefined;
-
-  // Handle authentication
-  if (isAuthLoading) {
-    return (
-      <div className="space-y-6">
-        <SkeletonScreen 
-          title="Loading your progress..."
-          showStats={true}
-          showChart={true}
-          showWorkouts={false}
-        />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="text-center py-12">
-        <GlassSurface className="p-8 max-w-lg mx-auto">
-          <BarChart3 className="w-16 h-16 mx-auto text-primary mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-          <p className="text-muted-foreground mb-6">
-            Please sign in to view your progress analytics.
-          </p>
-          <Button onClick={() => router.push('/')}>
-            Go to Sign In
-          </Button>
-        </GlassSurface>
-      </div>
-    );
-  }
 
   // Format time range display
   const getTimeRangeLabel = (range: TimeRange) => {
@@ -450,5 +439,29 @@ export default function ProgressPage() {
         )
       )}
     </div>
+  );
+}
+
+// Main page component with Convex auth wrapper
+export default function ProgressPage() {
+  return (
+    <>
+      <AuthLoading>
+        <div className="space-y-6">
+          <SkeletonScreen 
+            title="Loading your progress..."
+            showStats={true}
+            showChart={true}
+            showWorkouts={false}
+          />
+        </div>
+      </AuthLoading>
+      <Unauthenticated>
+        <SignInPrompt />
+      </Unauthenticated>
+      <Authenticated>
+        <ProgressPageContent />
+      </Authenticated>
+    </>
   );
 }

@@ -51,13 +51,13 @@ To ensure consistency, we will follow these rules for accessing authentication s
 ### **Phase 1: Core Infrastructure Cleanup** ⚡ CRITICAL
 
 #### **1.1 Provider Architecture Overhaul**
-- [ ] **Delete conflicting providers:**
-  - [ ] Delete `/src/app/AuthKitClientProvider.tsx`
-  - [ ] Delete `/src/app/_components/convex-auth-provider.tsx`
-  - [ ] Backup and replace `/src/app/ConvexClientProvider.tsx`
-  - [ ] Delete `/src/providers/AuthProvider.tsx`
+- [x] **Delete conflicting providers:**
+  - [x] Delete `/src/app/AuthKitClientProvider.tsx`
+  - [x] Delete `/src/app/_components/convex-auth-provider.tsx`
+  - [x] Backup and replace `/src/app/ConvexClientProvider.tsx`
+  - [x] Delete `/src/providers/AuthProvider.tsx`
 
-- [ ] **Implement single provider chain in `src/app/layout.tsx`:**
+- [x] **Implement single provider chain in `src/app/layout.tsx`:**
   ```typescript
   // src/app/layout.tsx
   <AuthKitProvider>
@@ -72,7 +72,7 @@ To ensure consistency, we will follow these rules for accessing authentication s
   ```
 
 #### **1.2 Environment & Configuration**
-- [ ] **Add missing environment variables:**
+- [x] **Add missing environment variables:**
   ```env
   WORKOS_COOKIE_PASSWORD=<32+ character password>
   WORKOS_CLIENT_ID=client_01K2H5DEX4CYA6KK88FN1JMJ0R
@@ -83,7 +83,7 @@ To ensure consistency, we will follow these rules for accessing authentication s
     *   **Note:** All secrets should be managed using Infisical. The `dev` script in `package.json` already uses `infisical run`.
     *   **Action:** Find the `WORKOS_API_KEY` and `WORKOS_CLIENT_ID` in the [WorkOS Dashboard](https://dashboard.workos.com/). Generate a secure `WORKOS_COOKIE_PASSWORD` (32+ characters) and add them all to Infisical.
 
-- [ ] **Update Convex auth config:**
+- [x] **Update Convex auth config:**
   ```typescript
   // convex/auth.config.ts
   const clientId = process.env.WORKOS_CLIENT_ID!;
@@ -109,7 +109,7 @@ To ensure consistency, we will follow these rules for accessing authentication s
   ```
 
 #### **1.3 Middleware Implementation**
-- [ ] **Replace disabled middleware:**
+- [x] **Replace disabled middleware:**
   ```typescript
   // middleware.ts
   import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
@@ -135,12 +135,12 @@ To ensure consistency, we will follow these rules for accessing authentication s
 ### **Phase 2: API Routes & Server-Side Auth** 🔥 HIGH PRIORITY
 
 #### **2.1 Authentication API Routes**
-- [ ] **Delete custom API routes:**
+- [x] **Delete custom API routes:**
     - [ ] Delete `src/app/api/auth/login/route.ts`
     - [ ] Delete `src/app/api/auth/callback/route.ts`
     - **Reason:** `authkitMiddleware` provides these routes automatically. Relying on the built-in routes reduces custom code and potential errors.
 
-- [ ] **Create a new logout route:**
+- [x] **Create a new logout route:**
   ```typescript
   // src/app/api/auth/logout/route.ts
   import { workos } from '@workos-inc/authkit-nextjs';
@@ -152,9 +152,9 @@ To ensure consistency, we will follow these rules for accessing authentication s
   ```
 
 #### **2.2 Server-Side Protected Routes**
-- [ ] **Migrate server-side auth pages:**
-  - [ ] `/src/app/workout/session/local/[localId]/page.tsx`
-  - [ ] `/src/app/connect-whoop/page.tsx`
+- [x] **Migrate server-side auth pages:**
+  - [x] `/src/app/workout/session/local/[localId]/page.tsx`
+  - [x] `/src/app/connect-whoop/page.tsx`
   
   ```typescript
   // Replace withAuth() with proper JWT verification
@@ -169,7 +169,7 @@ To ensure consistency, we will follow these rules for accessing authentication s
   ```
 
 #### **2.3 SSE & Real-time Endpoints**
-- [ ] **Update SSE endpoint:**
+- [x] **Update SSE endpoint:**
   ```typescript
   // src/app/api/sse/workout-updates/route.ts
   // Replace WorkOS auth with JWT verification
@@ -177,7 +177,7 @@ To ensure consistency, we will follow these rules for accessing authentication s
   ```
 
 #### **2.4 User Profile Synchronization**
-- [ ] **Create a Convex mutation to sync user data:**
+- [x] **Create a Convex mutation to sync user data:**
   ```typescript
   // convex/users.ts
   export const ensure = internalMutation({
@@ -214,7 +214,7 @@ To ensure consistency, we will follow these rules for accessing authentication s
     },
   });
   ```
-- [ ] **Create a WorkOS webhook handler:**
+- [x] **Create a WorkOS webhook handler:**
     *   **Action:** Create a new API route `src/app/api/webhooks/workos/route.ts` to receive `user.created` and `user.updated` events from WorkOS.
     *   **Security:** The webhook must be secured by verifying the WorkOS signature.
     *   **Logic:** The handler will call the `users.ensure` mutation with the user data from the webhook payload.

@@ -1,14 +1,19 @@
 "use client";
 
-import { useAuth } from "~/providers/AuthProvider";
+import { Authenticated } from "convex/react";
+import { useCurrentUser } from "convex/react";
 import Link from "next/link";
 
 export function DashboardHeader() {
-  const { user } = useAuth();
+  return (
+    <Authenticated>
+      <DashboardHeaderContent />
+    </Authenticated>
+  );
+}
 
-  if (!user) {
-    return null;
-  }
+function DashboardHeaderContent() {
+  const user = useCurrentUser();
 
   return (
     <div className="border-b border-border/50">
@@ -20,7 +25,7 @@ export function DashboardHeader() {
             </Link>
           </div>
           <div className="text-sm text-muted-foreground">
-            Welcome back, {user.firstName || user.email}
+            Welcome back, {user?.name || user?.email || 'User'}
           </div>
         </div>
       </div>
