@@ -19,6 +19,7 @@ import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { FloatingActionButtons } from "~/components/navigation/floating-action-buttons";
 import { Toaster } from "sonner";
 import { env } from "~/env";
+import { AuthErrorBoundary } from "~/components/auth/AuthErrorBoundary";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -88,9 +89,10 @@ export default function RootLayout({
         </a>
         <AuthKitProvider>
           <ConvexClientProvider>
-            <PostHogProvider>
-              <ThemeProvider>
-                <LiveRegionProvider>
+            <AuthErrorBoundary>
+              <PostHogProvider>
+                <ThemeProvider>
+                  <LiveRegionProvider>
                   <ClientPerfInit />
                   <div className="page-backdrop" aria-hidden="true" />
                   <PageTracker />
@@ -138,9 +140,10 @@ export default function RootLayout({
                     </div>
                   </footer>
                   <Toaster richColors closeButton />
-                </LiveRegionProvider>
-              </ThemeProvider>
-            </PostHogProvider>
+                  </LiveRegionProvider>
+                </ThemeProvider>
+              </PostHogProvider>
+            </AuthErrorBoundary>
           </ConvexClientProvider>
         </AuthKitProvider>
       </body>

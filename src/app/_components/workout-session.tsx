@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
@@ -24,18 +24,14 @@ interface WorkoutSessionProps {
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const router = useRouter();
-  const {
-    onWorkoutSave: _onWorkoutSave,
-    invalidateWorkouts: _invalidateWorkouts,
-  } = useCacheInvalidation();
+  // Cache invalidation is handled by the Convex client automatically
+  const {} = useCacheInvalidation();
 
   // Move complex state and effects into a dedicated hook to reduce component size.
   // This MUST be called before any conditional returns to follow Rules of Hooks
   const {
     exercises,
-    setExercises: _setExercises,
     expandedExercises,
-    setExpandedExercises: _setExpandedExercises,
     loading,
     isReadOnly,
     showDeleteConfirm,
@@ -58,17 +54,13 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     moveSet,
     buildSavePayload,
     session,
-    updatePreferences: _updatePreferences,
     preferences,
     // undo integration
-    lastAction,
-    undoLastAction,
     setLastAction,
   } = useWorkoutSessionState({ sessionId });
 
   // Additional hooks that must be called before conditional returns
   const [scrollY, setScrollY] = useState(0);
-  const _listContainerRef = useRef<HTMLDivElement | null>(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   
   // Accessibility live region
@@ -102,11 +94,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const WINDOW_BEFORE = 6;
   const WINDOW_AFTER = 6;
 
-  const _getItemTop = (_index: number) => {
-    // Approximate per-card height; lightweight and avoids layout thrash. Cards are fairly uniform in this view.
-    const approx = 120; // px
-    return _index * approx;
-  };
+  // Conservative virtualization - approximate per-card height
+  const CARD_HEIGHT = 120; // px
 
   const totalCount = displayOrder.length;
   const shouldVirtualize = totalCount >= VIRTUALIZE_THRESHOLD;
@@ -114,12 +103,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const viewportHeight =
     typeof window !== "undefined" ? window.innerHeight : 800;
   const startIndex = shouldVirtualize
-    ? Math.max(0, Math.floor(scrollY / 120) - WINDOW_BEFORE)
+    ? Math.max(0, Math.floor(scrollY / CARD_HEIGHT) - WINDOW_BEFORE)
     : 0;
   const endIndex = shouldVirtualize
     ? Math.min(
         totalCount - 1,
-        Math.ceil((scrollY + viewportHeight) / 120) + WINDOW_AFTER,
+        Math.ceil((scrollY + viewportHeight) / CARD_HEIGHT) + WINDOW_AFTER,
       )
     : totalCount - 1;
 
@@ -417,9 +406,10 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               }
               dragOffset={dragState.dragOffset}
               onPointerDown={dragHandlers.onPointerDown(displayIndex)}
-              setCardElement={(element) =>
-                dragHandlers.setCardElement?.(displayIndex, element)
-              }
+              setCardElement={(element: HTMLElement | null) => {
+                dragHandlers.setCardElement?.(displayIndex, element);
+                return;
+              }}
               preferredUnit={(preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"}
             />
           </div>

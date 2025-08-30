@@ -57,6 +57,5 @@
     "clerk-supabase-demo-backup",
     "scripts",
     "src/__e2e__"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }

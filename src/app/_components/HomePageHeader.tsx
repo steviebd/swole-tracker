@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "~/providers/AuthProvider";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useTheme } from "~/providers/ThemeProvider";
+import { useMultiTabSync } from "~/hooks/useMultiTabSync";
 import { PreferencesModal } from "./PreferencesModal";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
+import { toast } from "sonner";
 
 // Theme icons
 const SunIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -22,6 +24,7 @@ const MoonIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 
 export function HomePageHeader() {
   const { user, signOut } = useAuth();
+  const { enhancedSignOut } = useMultiTabSync();
   const { resolvedTheme, toggle: toggleTheme } = useTheme();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [progressionOpen, setProgressionOpen] = useState(false);
@@ -119,9 +122,15 @@ export function HomePageHeader() {
                 {user.email}
               </div>
               <button
-                onClick={() => {
-                  signOut();
-                  setUserMenuOpen(false);
+                onClick={async () => {
+                  try {
+                    await enhancedSignOut();
+                    toast.success('Signed out successfully');
+                    setUserMenuOpen(false);
+                  } catch (error) {
+                    console.error("Sign-out error:", error);
+                    toast.error('Failed to sign out. Please try again.');
+                  }
                 }}
                 className="block w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted"
               >

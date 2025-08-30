@@ -221,34 +221,36 @@ To ensure consistency, we will follow these rules for accessing authentication s
 
 ---
 
-### **Phase 3: Client-Side Authentication** 🟡 MEDIUM PRIORITY
+### **Phase 3: Client-Side Authentication** ✅ **COMPLETE**
 
 #### **3.1 Authentication Pages**
-- [ ] **Update sign-in page:**
+- [x] **Update sign-in page:** ✅ **COMPLETE**
   ```typescript
   // src/app/sign-in/page.tsx
-  // Remove @workos-inc/authkit-react usage
-  // Use simple redirect to /api/auth/login
+  // ✅ Uses simple redirect to /api/auth/login (no custom WorkOS URL building)
   ```
 
-- [ ] **Clean up auth redirect pages:**
-  - [ ] `/src/app/auth/login/page.tsx` ✅ (already simple)
-  - [ ] `/src/app/auth/register/page.tsx` ✅ (already simple)
-  - [ ] `/src/app/auth/auth-code-error/page.tsx` (update error handling)
+- [x] **Clean up auth redirect pages:** ✅ **COMPLETE**
+  - [x] `/src/app/auth/login/page.tsx` ✅ Simple redirect to /api/auth/login
+  - [x] `/src/app/auth/register/page.tsx` ✅ Simple redirect to /api/auth/login
+  - [x] `/src/app/auth/auth-code-error/page.tsx` ✅ Clean error handling UI
 
-#### **3.2 Protected Client Pages**  
-- [ ] **Update client-side auth gating:**
-  - [ ] `/src/app/workouts/page.tsx`
-  - [ ] `/src/app/templates/page.tsx`
-  - [ ] `/src/app/progress/page.tsx`
+#### **3.2 Protected Client Pages** ✅ **COMPLETE**
+- [x] **Update client-side auth gating:** ✅ **ALL COMPLETE**
+  - [x] `/src/app/workouts/page.tsx` ✅ (already converted in previous phases)
+  - [x] `/src/app/templates/page.tsx` ✅ Uses Convex auth components
+  - [x] `/src/app/progress/page.tsx` ✅ Uses Convex auth components
   
   ```typescript
-  // Replace custom useAuth() with Convex components
-  import { Authenticated, Unauthenticated } from "convex/react";
+  // ✅ All pages now use Convex components correctly:
+  import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
   
   export default function ProtectedPage() {
     return (
       <>
+        <AuthLoading>
+          <LoadingScreen />
+        </AuthLoading>
         <Unauthenticated>
           <SignInPrompt />
         </Unauthenticated>
@@ -260,11 +262,11 @@ To ensure consistency, we will follow these rules for accessing authentication s
   }
   ```
 
-#### **3.3 Home Page Authentication**
-- [ ] **Update main landing page:**
+#### **3.3 Home Page Authentication** ✅ **COMPLETE**
+- [x] **Update main landing page:** ✅ **COMPLETE**
   ```typescript
   // src/app/page.tsx
-  // Use Convex auth components instead of AuthProvider
+  // ✅ Uses Convex auth components with proper loading states
   ```
 
 ---

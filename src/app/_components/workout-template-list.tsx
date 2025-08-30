@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "~/providers/AuthProvider";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import {
   useWorkoutOperations,
   type WorkoutTemplate,

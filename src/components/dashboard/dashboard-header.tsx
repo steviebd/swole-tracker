@@ -1,7 +1,7 @@
 "use client";
 
 import { Authenticated } from "convex/react";
-import { useCurrentUser } from "convex/react";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import Link from "next/link";
 
 export function DashboardHeader() {

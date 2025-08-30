@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "~/providers/AuthProvider";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { cn } from "~/lib/utils";
 
 // Icon components

@@ -32,7 +32,7 @@ export function StatsCards() {
     let avgDuration = "0 min";
     if (volumeData && volumeData.length > 0) {
       const avgSets =
-        volumeData.reduce((sum, session) => sum + session.totalSets, 0) /
+        volumeData.reduce((sum: number, session: any) => sum + (session.totalSets || 0), 0) /
         volumeData.length;
       // Estimate 3-4 minutes per set including rest
       const estimatedMinutes = Math.round(avgSets * 3.5);
@@ -40,7 +40,7 @@ export function StatsCards() {
     }
 
     // Calculate streak from workout dates
-    const streakInfo = calculateStreak(monthWorkouts.map(date => new Date(date)) || []);
+    const streakInfo = calculateStreak(monthWorkouts.map((date: string) => new Date(date)) || []);
     const streakBadge = getStreakBadge(streakInfo);
 
     // Weekly goal progress (target 3 workouts per week)

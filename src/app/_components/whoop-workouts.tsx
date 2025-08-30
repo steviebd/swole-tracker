@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "~/convex/_generated/api";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/app/_components/ui/Card";
@@ -8,12 +8,12 @@ import { useApiMutation } from "~/hooks/useApiMutation";
 
 interface WhoopWorkout {
   _id: string;
-  whoopWorkoutId: number;
+  whoopWorkoutId: string | number;
   start: number;
   end: number;
   timezoneOffset?: string;
-  sportName: string;
-  scoreState: "SCORED" | "PENDING_SCORE" | "UNSCORABLE";
+  sportName?: string;
+  scoreState?: "SCORED" | "PENDING_SCORE" | "UNSCORABLE" | string;
   score?: {
     strain: number;
     averageHeartRate: number;
@@ -45,21 +45,16 @@ interface WhoopWorkout {
 interface WhoopIntegrationStatus {
   isConnected: boolean;
   connectedAt: number | null;
-  expiresAt: number | null;
+  expiresAt: number | null | undefined;
   isExpired: boolean;
-  scope: string | null;
+  scope: string | null | undefined;
 }
 
 export function WhoopWorkouts() {
-  const integrationStatus = useQuery(api.whoop.getIntegrationStatus) as WhoopIntegrationStatus | undefined;
-  const whoopWorkouts = useQuery(api.whoop.getWorkouts, { limit: 20 }) as WhoopWorkout[] | undefined;
-  const disconnectMutation = useMutation(api.whoop.disconnectIntegration);
+  const integrationStatus: WhoopIntegrationStatus | undefined = useQuery(api.whoop.getIntegrationStatus);
+  const whoopWorkouts: WhoopWorkout[] | undefined = useQuery(api.whoop.getWorkouts, { limit: 20 });
   
-  const handleDisconnect = useApiMutation({
-    mutationFn: () => disconnectMutation({}),
-    successMessage: "WHOOP integration disconnected successfully",
-    errorMessage: "Failed to disconnect WHOOP integration",
-  });
+  const handleDisconnect = useApiMutation(api.whoop.disconnectIntegration);
 
   const formatDateTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleString('en-US', {
@@ -147,10 +142,9 @@ export function WhoopWorkouts() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => handleDisconnect.mutate()}
-              disabled={handleDisconnect.isPending}
+              onClick={() => handleDisconnect({})}
             >
-              {handleDisconnect.isPending ? "Disconnecting..." : "Disconnect"}
+              Disconnect
             </Button>
           </div>
         </div>
@@ -176,10 +170,9 @@ export function WhoopWorkouts() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleDisconnect.mutate()}
-            disabled={handleDisconnect.isPending}
+            onClick={() => handleDisconnect({})}
           >
-            {handleDisconnect.isPending ? "Disconnecting..." : "Disconnect"}
+            Disconnect
           </Button>
         </div>
       </Card>
@@ -219,7 +212,7 @@ export function WhoopWorkouts() {
                   {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <h4 className="font-medium">{workout.sportName}</h4>
+                      <h4 className="font-medium">{workout.sportName || "Unknown Activity"}</h4>
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         workout.scoreState === "SCORED" 
                           ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"

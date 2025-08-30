@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { env } from "~/env";
 
 interface SignInProps {
   redirectTo?: string;
@@ -10,30 +8,12 @@ interface SignInProps {
 
 export function SignIn({ redirectTo = "/" }: SignInProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
-  const handleSignIn = async () => {
+  const handleSignIn = () => {
     setIsLoading(true);
     try {
-      // Build the WorkOS auth URL
-      const authUrl = new URL("https://api.workos.com/user_management/authorize");
-      const clientId = env.NEXT_PUBLIC_WORKOS_CLIENT_ID;
-      
-      if (!clientId) {
-        throw new Error("WorkOS Client ID not configured");
-      }
-
-      authUrl.searchParams.set("client_id", clientId);
-      authUrl.searchParams.set("redirect_uri", `${window.location.origin}/api/auth/callback`);
-      authUrl.searchParams.set("response_type", "code");
-      authUrl.searchParams.set("provider", "authkit");
-      
-      if (redirectTo) {
-        authUrl.searchParams.set("state", redirectTo);
-      }
-
-      // Redirect to WorkOS for authentication
-      window.location.href = authUrl.toString();
+      // Simple redirect to WorkOS auth flow - no custom URL building needed
+      window.location.href = '/api/auth/login';
     } catch (error) {
       console.error("Sign-in error:", error);
       setIsLoading(false);

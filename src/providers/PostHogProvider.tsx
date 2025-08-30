@@ -3,7 +3,7 @@
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect, useRef } from "react";
-import { useAuth } from "~/providers/AuthProvider";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 
 interface PostHogProviderProps {
   children: React.ReactNode;

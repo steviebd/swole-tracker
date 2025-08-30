@@ -1,22 +1,21 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAuth } from '@workos-inc/authkit-nextjs/components';
+import { useMultiTabSync } from '~/hooks/useMultiTabSync';
+import { toast } from 'sonner';
 
 export function SignOutButton() {
-  const router = useRouter();
+  const { signOut } = useAuth();
+  const { enhancedSignOut } = useMultiTabSync();
 
   const handleSignOut = async () => {
     try {
-      // Call logout API to clear cookies
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-      
-      // Redirect to home page
-      router.push("/");
-      router.refresh();
+      // Use enhanced sign out that broadcasts to other tabs
+      await enhancedSignOut();
+      toast.success('Signed out successfully');
     } catch (error) {
       console.error("Sign-out error:", error);
+      toast.error('Failed to sign out. Please try again.');
     }
   };
 

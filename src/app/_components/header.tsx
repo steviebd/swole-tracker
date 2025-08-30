@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "~/providers/AuthProvider";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useTheme } from "~/providers/ThemeProvider";
+import { useMultiTabSync } from "~/hooks/useMultiTabSync";
+import { toast } from "sonner";
 
 // Icon components (using simple SVG icons to avoid external dependencies)
 const HomeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -83,6 +85,7 @@ const navigationItems: NavItem[] = [
 
 export function Header() {
   const { user, signOut } = useAuth();
+  const { enhancedSignOut } = useMultiTabSync();
   const isLoading = false; // Fallback since WorkOS useAuth may not provide isLoading
   const { resolvedTheme, toggle: toggleTheme } = useTheme();
   const pathname = usePathname();
@@ -95,10 +98,12 @@ export function Header() {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await enhancedSignOut();
+      toast.success('Signed out successfully');
       setMobileMenuOpen(false);
     } catch (error) {
       console.error("Sign out error:", error);
+      toast.error('Failed to sign out. Please try again.');
     }
   };
 

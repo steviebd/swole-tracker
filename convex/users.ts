@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import type { UserIdentity } from "convex/server";
 
 /**
@@ -48,11 +48,11 @@ export const getOrCreateUser = internalMutation({
 });
 
 /**
- * Internal mutation to sync user data from WorkOS webhooks
+ * Mutation to sync user data from WorkOS webhooks
  * Ensures user exists and updates profile data if changed
  * This is called exclusively from WorkOS webhook handlers
  */
-export const ensure = internalMutation({
+export const ensure = mutation({
   args: {
     workosId: v.string(),
     email: v.string(),
