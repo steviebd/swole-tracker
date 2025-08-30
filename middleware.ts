@@ -11,6 +11,14 @@ export default authkitMiddleware({
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (exclude WorkOS auth routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - files with extensions (images, etc.)
+     */
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
