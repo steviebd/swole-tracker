@@ -1,33 +1,44 @@
 "use client";
 
-import { type ReactNode } from "react";
-import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
-import { AuthKitProvider, useAuth } from "@workos-inc/authkit-nextjs/components";
-import { env } from "~/env";
+import { useAuth, useAccessToken } from "@workos-inc/authkit-nextjs/components";
+import { ConvexReactClient } from "convex/react";
+import { useCallback } from "react";
 
-const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL!);
+// Initialize Convex client
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-export default function ConvexClientProvider({ children }: { children: ReactNode }) {
-  // Wrapper to match expected signature for ConvexProviderWithAuthKit
-  const useAuthWrapper = () => {
-    const auth = useAuth();
-    
-    return {
-      isLoading: false, // WorkOS auth doesn't expose loading state the same way
-      user: auth?.user || null,
-      getAccessToken: async () => {
-        // This would need to be implemented based on WorkOS access token retrieval
-        return null;
-      },
-    };
+// Adapter to match the expected UseAuth signature for Convex
+function useAuthAdapter() {
+  const auth = useAuth();
+  const { getAccessToken } = useAccessToken();
+  
+  const adaptedGetAccessToken = useCallback(async (): Promise<string | null> => {
+    if (!auth.user) return null;
+    try {
+      const token = await getAccessToken();
+      return token || null;
+    } catch (error) {
+      console.error("Failed to get access token:", error);
+      return null;
+    }
+  }, [auth.user, getAccessToken]);
+
+  return {
+    isLoading: auth.loading,
+    user: auth.user,
+    getAccessToken: adaptedGetAccessToken,
   };
+}
 
+export default function ConvexClientProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <AuthKitProvider>
-      <ConvexProviderWithAuthKit client={convex} useAuth={useAuthWrapper}>
-        {children}
-      </ConvexProviderWithAuthKit>
-    </AuthKitProvider>
+    <ConvexProviderWithAuthKit client={convex} useAuth={useAuthAdapter}>
+      {children}
+    </ConvexProviderWithAuthKit>
   );
 }

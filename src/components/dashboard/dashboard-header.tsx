@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "~/providers/AuthProvider";
 import Link from "next/link";
 
 export function DashboardHeader() {

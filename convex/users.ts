@@ -48,6 +48,80 @@ export const getOrCreateUser = internalMutation({
 });
 
 /**
+ * Internal mutation to sync user data from WorkOS webhooks
+ * Ensures user exists and updates profile data if changed
+ * This is called exclusively from WorkOS webhook handlers
+ */
+export const ensure = internalMutation({
+  args: {
+    workosId: v.string(),
+    email: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Validate required fields
+    if (!args.workosId.trim()) {
+      throw new ConvexError("WorkOS ID is required");
+    }
+    if (!args.email.trim()) {
+      throw new ConvexError("Email is required");
+    }
+
+    // Check if user already exists by WorkOS ID
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", args.workosId))
+      .unique();
+
+    if (existingUser) {
+      // Check if any user data has changed and needs updating
+      const needsUpdate = 
+        existingUser.email !== args.email ||
+        existingUser.firstName !== args.firstName ||
+        existingUser.lastName !== args.lastName;
+
+      if (needsUpdate) {
+        // Construct display name from firstName/lastName or fallback to email
+        let displayName = existingUser.name;
+        if (args.firstName || args.lastName) {
+          displayName = [args.firstName, args.lastName].filter(Boolean).join(' ').trim();
+        } else if (!displayName || displayName === 'Unknown User') {
+          displayName = args.email;
+        }
+
+        await ctx.db.patch(existingUser._id, {
+          email: args.email,
+          firstName: args.firstName,
+          lastName: args.lastName,
+          name: displayName,
+        });
+      }
+      return existingUser._id;
+    }
+
+    // Create new user from WorkOS webhook data
+    // Construct display name from firstName/lastName or fallback to email
+    let displayName = 'Unknown User';
+    if (args.firstName || args.lastName) {
+      displayName = [args.firstName, args.lastName].filter(Boolean).join(' ').trim();
+    } else {
+      displayName = args.email;
+    }
+
+    const userId = await ctx.db.insert("users", {
+      workosId: args.workosId,
+      email: args.email,
+      firstName: args.firstName,
+      lastName: args.lastName,
+      name: displayName,
+    });
+
+    return userId;
+  },
+});
+
+/**
  * Helper function to get or create user (for use in other mutations)
  * This is the standard pattern for ensuring a user exists
  */

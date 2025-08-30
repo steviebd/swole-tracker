@@ -1,14 +1,16 @@
 import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 
-export default authkitMiddleware();
+export default authkitMiddleware({
+  middlewareAuth: {
+    enabled: true,
+    // The login page is the only unauthenticated route.
+    // All other pages should require authentication.
+    unauthenticatedPaths: ['/login'],
+  },
+});
 
-// Match against pages that require auth
-export const config = { 
+export const config = {
   matcher: [
-    '/workouts/:path*',
-    '/templates/:path*',
-    '/profile/:path*',
-    '/settings/:path*',
-    '/dashboard/:path*'
-  ] 
+    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*',
+  ],
 };

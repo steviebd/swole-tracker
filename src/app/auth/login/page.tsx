@@ -1,14 +1,6 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-  const { user } = await withAuth();
-
-  // If already authenticated, redirect to home
-  if (user) {
-    redirect('/');
-  }
-
-  // Otherwise, redirect to WorkOS hosted authentication
+  // Always hand off to our login route which builds the WorkOS URL
   redirect('/api/auth/login');
 }

@@ -7,6 +7,8 @@ export default defineSchema({
   users: defineTable({
     name: v.string(),
     email: v.string(),
+    firstName: v.optional(v.string()), // For WorkOS webhook sync
+    lastName: v.optional(v.string()), // For WorkOS webhook sync
     workosId: v.string(), // From WorkOS identity.subject
     // Convex automatically adds _id and _creationTime
   })

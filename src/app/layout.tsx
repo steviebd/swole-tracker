@@ -8,6 +8,7 @@ import { ConnectionStatus } from "~/app/_components/connection-status";
 import { SyncIndicator } from "~/app/_components/sync-indicator";
 import { EnhancedSyncIndicator } from "~/app/_components/enhanced-sync-indicator";
 import { NetworkStatusBanner } from "~/app/_components/network-status-banner";
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import ConvexClientProvider from "./ConvexClientProvider";
 import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
@@ -85,61 +86,63 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <ConvexClientProvider>
-          <PostHogProvider>
-            <ThemeProvider>
-              <LiveRegionProvider>
-                <ClientPerfInit />
-                <div className="page-backdrop" aria-hidden="true" />
-                <PageTracker />
-                <NetworkStatusBanner />
-                <ConnectionStatus />
-                <SyncIndicator />
-                <EnhancedSyncIndicator />
-                
-                <DashboardHeader />
+        <AuthKitProvider>
+          <ConvexClientProvider>
+            <PostHogProvider>
+              <ThemeProvider>
+                <LiveRegionProvider>
+                  <ClientPerfInit />
+                  <div className="page-backdrop" aria-hidden="true" />
+                  <PageTracker />
+                  <NetworkStatusBanner />
+                  <ConnectionStatus />
+                  <SyncIndicator />
+                  <EnhancedSyncIndicator />
+                  
+                  <DashboardHeader />
 
-                <main
-                  id="main-content"
-                  className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
-                  role="main"
-                  tabIndex={-1}
-                >
-                  <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
-                </main>
+                  <main
+                    id="main-content"
+                    className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
+                    role="main"
+                    tabIndex={-1}
+                  >
+                    <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
+                  </main>
 
-                {/* Floating Action Buttons */}
-                <FloatingActionButtons />
+                  {/* Floating Action Buttons */}
+                  <FloatingActionButtons />
 
 
-                <footer className="app-footer mt-auto py-6">
-                  <div className="container mx-auto px-4 text-center">
-                    <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                      <Link
-                        href="/privacy"
-                        className="link-primary"
-                        prefetch
-                      >
-                        Privacy Policy
-                      </Link>
-                      <Link
-                        href="/terms"
-                        className="link-primary"
-                        prefetch
-                      >
-                        Terms of Service
-                      </Link>
+                  <footer className="app-footer mt-auto py-6">
+                    <div className="container mx-auto px-4 text-center">
+                      <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                        <Link
+                          href="/privacy"
+                          className="link-primary"
+                          prefetch
+                        >
+                          Privacy Policy
+                        </Link>
+                        <Link
+                          href="/terms"
+                          className="link-primary"
+                          prefetch
+                        >
+                          Terms of Service
+                        </Link>
+                      </div>
+                      <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                        © 2025 Steven Duong. All rights reserved.
+                      </div>
                     </div>
-                    <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                      © 2025 Steven Duong. All rights reserved.
-                    </div>
-                  </div>
-                </footer>
-                <Toaster richColors closeButton />
-              </LiveRegionProvider>
-            </ThemeProvider>
-          </PostHogProvider>
-        </ConvexClientProvider>
+                  </footer>
+                  <Toaster richColors closeButton />
+                </LiveRegionProvider>
+              </ThemeProvider>
+            </PostHogProvider>
+          </ConvexClientProvider>
+        </AuthKitProvider>
       </body>
     </html>
   );

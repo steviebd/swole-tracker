@@ -1,26 +1,29 @@
-import Link from "next/link";
-import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
+"use client";
 
-export default async function SignInPage() {
-  const signInUrl = await getSignInUrl();
-  const signUpUrl = await getSignUpUrl();
+import { useAuth } from "@workos-inc/authkit-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function SignInPage() {
+  const { user, signIn } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.push("/");
+    }
+  }, [user, router]);
 
   return (
     <div className="flex flex-col justify-center items-center h-screen space-y-4">
       <h1 className="text-2xl font-bold">Welcome to Swole Tracker</h1>
       <div className="flex flex-col space-y-2">
-        <Link 
-          href={signInUrl}
+        <button 
+          onClick={() => signIn()}
           className="btn-primary px-6 py-3 text-center rounded-lg"
         >
           Sign In
-        </Link>
-        <Link 
-          href={signUpUrl}
-          className="btn-secondary px-6 py-3 text-center rounded-lg"
-        >
-          Sign Up
-        </Link>
+        </button>
       </div>
     </div>
   );
