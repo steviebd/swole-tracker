@@ -1,6 +1,27 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { ensureUser } from "./users";
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getSharedUserId(ctx: any) {
+  let sharedUser = await ctx.db
+    .query("users")
+    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
+    .unique();
+
+  if (!sharedUser) {
+    // Create the shared user if it doesn't exist
+    const userId = await ctx.db.insert("users", {
+      name: "Shared User",
+      email: "shared@example.com",
+      workosId: "shared-user-123",
+    });
+    sharedUser = await ctx.db.get(userId);
+  }
+
+  return sharedUser!._id;
+}
 
 /**
  * Exercise Management Functions
@@ -71,12 +92,7 @@ export const searchMaster = query({
     cursor: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
     const normalized = normalizeExerciseName(args.q);
     const limit = args.limit ?? 20;
     const cursor = args.cursor ?? 0;
@@ -88,7 +104,7 @@ export const searchMaster = query({
     // First, get prefix matches (exercises starting with the query)
     const prefixMatches = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .filter((q: any) => 
         q.gte(q.field("normalizedName"), normalized) &&
         q.lt(q.field("normalizedName"), normalized + "\uFFFF")
@@ -114,7 +130,7 @@ export const searchMaster = query({
     // Otherwise, get all exercises and filter for contains matches
     const allExercises = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .collect();
 
     const containsMatches = allExercises.filter(ex => 
@@ -148,18 +164,13 @@ export const findSimilar = query({
     threshold: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
     const threshold = args.threshold ?? 0.6;
     const normalizedInput = normalizeExerciseName(args.exerciseName);
 
     const allExercises = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .collect();
 
     const similarExercises = allExercises
@@ -180,16 +191,11 @@ export const findSimilar = query({
 export const getAllMaster = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     const exercises = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .order("asc")
       .collect();
 
@@ -223,18 +229,13 @@ export const createOrGetMaster = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
     const normalizedName = normalizeExerciseName(args.name);
 
     // Try to find existing master exercise
     const existing = await ctx.db
       .query("masterExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .filter((q: any) => q.eq(q.field("normalizedName"), normalizedName))
       .unique();
 
@@ -244,7 +245,7 @@ export const createOrGetMaster = mutation({
 
     // Create new master exercise
     const masterExerciseId = await ctx.db.insert("masterExercises", {
-      userId: user._id,
+      userId: userId,
       name: args.name,
       normalizedName,
       updatedAt: Date.now(),
@@ -268,22 +269,17 @@ export const linkToMaster = mutation({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Verify the template exercise belongs to the user
     const templateExercise = await ctx.db.get(args.templateExerciseId);
-    if (!templateExercise || templateExercise.userId !== user._id) {
+    if (!templateExercise || templateExercise.userId !== userId) {
       throw new ConvexError("Template exercise not found");
     }
 
     // Verify the master exercise belongs to the user
     const masterExercise = await ctx.db.get(args.masterExerciseId);
-    if (!masterExercise || masterExercise.userId !== user._id) {
+    if (!masterExercise || masterExercise.userId !== userId) {
       throw new ConvexError("Master exercise not found");
     }
 
@@ -305,7 +301,7 @@ export const linkToMaster = mutation({
     const linkId = await ctx.db.insert("exerciseLinks", {
       templateExerciseId: args.templateExerciseId,
       masterExerciseId: args.masterExerciseId,
-      userId: user._id,
+      userId: userId,
     });
 
     return await ctx.db.get(linkId);
@@ -320,18 +316,13 @@ export const unlink = mutation({
     templateExerciseId: v.id("templateExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Find the link
     const link = await ctx.db
       .query("exerciseLinks")
       .withIndex("by_templateExerciseId", (q: any) => q.eq("templateExerciseId", args.templateExerciseId))
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), userId))
       .unique();
 
     if (link) {
@@ -350,18 +341,13 @@ export const getLatestPerformance = query({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Find all template exercises linked to this master exercise
     const linkedExercises = await ctx.db
       .query("exerciseLinks")
       .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", args.masterExerciseId))
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), userId))
       .collect();
 
     if (linkedExercises.length === 0) {
@@ -373,7 +359,7 @@ export const getLatestPerformance = query({
     // Get the most recent session exercise from any linked template exercise
     const sessionExercises = await ctx.db
       .query("sessionExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .filter((q: any) => 
         templateExerciseIds.some(id => q.eq(q.field("templateExerciseId"), id))
       )
@@ -421,18 +407,13 @@ export const getLinksForTemplate = query({
     templateId: v.id("workoutTemplates"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Get all template exercises for this template
     const templateExercises = await ctx.db
       .query("templateExercises")
       .withIndex("by_templateId", (q: any) => q.eq("templateId", args.templateId))
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), userId))
       .order("asc") // ordered by orderIndex
       .collect();
 
@@ -479,15 +460,10 @@ export const isLinkingRejected = query({
     templateExerciseId: v.id("templateExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     const templateExercise = await ctx.db.get(args.templateExerciseId);
-    if (!templateExercise || templateExercise.userId !== user._id) {
+    if (!templateExercise || templateExercise.userId !== userId) {
       throw new ConvexError("Template exercise not found");
     }
 
@@ -503,16 +479,11 @@ export const rejectLinking = mutation({
     templateExerciseId: v.id("templateExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Verify the template exercise belongs to the user
     const templateExercise = await ctx.db.get(args.templateExerciseId);
-    if (!templateExercise || templateExercise.userId !== user._id) {
+    if (!templateExercise || templateExercise.userId !== userId) {
       throw new ConvexError("Template exercise not found");
     }
 
@@ -533,16 +504,11 @@ export const getLinkingDetails = query({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Get master exercise
     const masterExercise = await ctx.db.get(args.masterExerciseId);
-    if (!masterExercise || masterExercise.userId !== user._id) {
+    if (!masterExercise || masterExercise.userId !== userId) {
       throw new ConvexError("Master exercise not found");
     }
 
@@ -550,7 +516,7 @@ export const getLinkingDetails = query({
     const links = await ctx.db
       .query("exerciseLinks")
       .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", args.masterExerciseId))
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), userId))
       .collect();
 
     const linkedExercises = await Promise.all(
@@ -570,7 +536,7 @@ export const getLinkingDetails = query({
     // Get all unlinked template exercises for potential linking
     const allTemplateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .collect();
 
     const linkedTemplateExerciseIds = new Set(links.map(link => link.templateExerciseId));
@@ -614,30 +580,25 @@ export const bulkLinkSimilar = mutation({
     minimumSimilarity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
     const minimumSimilarity = args.minimumSimilarity ?? 0.7;
 
     const masterExercise = await ctx.db.get(args.masterExerciseId);
-    if (!masterExercise || masterExercise.userId !== user._id) {
+    if (!masterExercise || masterExercise.userId !== userId) {
       throw new ConvexError("Master exercise not found");
     }
 
     // Get unlinked exercises
     const allTemplateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .filter((q: any) => q.eq(q.field("linkingRejected"), false))
       .collect();
 
     // Get already linked template exercise IDs
     const existingLinks = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .collect();
 
     const linkedTemplateExerciseIds = new Set(existingLinks.map(link => link.templateExerciseId));
@@ -657,7 +618,7 @@ export const bulkLinkSimilar = mutation({
         await ctx.db.insert("exerciseLinks", {
           templateExerciseId: templateExercise._id,
           masterExerciseId: args.masterExerciseId,
-          userId: user._id,
+          userId: userId,
         });
         linkedCount++;
       }
@@ -675,18 +636,13 @@ export const bulkUnlinkAll = mutation({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Get all links for this master exercise
     const links = await ctx.db
       .query("exerciseLinks")
       .withIndex("by_masterExerciseId", (q: any) => q.eq("masterExerciseId", args.masterExerciseId))
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), userId))
       .collect();
 
     // Delete all links
@@ -704,22 +660,17 @@ export const bulkUnlinkAll = mutation({
 export const migrateExistingExercises = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     // Get all template exercises for the user that don't have links
     const allTemplateExercises = await ctx.db
       .query("templateExercises")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .collect();
 
     const existingLinks = await ctx.db
       .query("exerciseLinks")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .collect();
 
     const linkedTemplateExerciseIds = new Set(existingLinks.map(link => link.templateExerciseId));
@@ -734,7 +685,7 @@ export const migrateExistingExercises = mutation({
       // Try to find existing master exercise
       const existing = await ctx.db
         .query("masterExercises")
-        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
         .filter((q: any) => q.eq(q.field("normalizedName"), normalizedName))
         .unique();
 
@@ -745,7 +696,7 @@ export const migrateExistingExercises = mutation({
       } else {
         // Create new master exercise
         masterExerciseId = await ctx.db.insert("masterExercises", {
-          userId: user._id,
+          userId: userId,
           name: templateExercise.exerciseName,
           normalizedName,
           updatedAt: Date.now(),
@@ -757,7 +708,7 @@ export const migrateExistingExercises = mutation({
       await ctx.db.insert("exerciseLinks", {
         templateExerciseId: templateExercise._id,
         masterExerciseId,
-        userId: user._id,
+        userId: userId,
       });
 
       createdLinks++;

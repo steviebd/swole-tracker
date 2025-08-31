@@ -1,6 +1,27 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { ensureUser } from "./users";
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getSharedUserId(ctx: any) {
+  let sharedUser = await ctx.db
+    .query("users")
+    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
+    .unique();
+
+  if (!sharedUser) {
+    // Create the shared user if it doesn't exist
+    const userId = await ctx.db.insert("users", {
+      name: "Shared User",
+      email: "shared@example.com",
+      workosId: "shared-user-123",
+    });
+    sharedUser = await ctx.db.get(userId);
+  }
+
+  return sharedUser!._id;
+}
 
 /**
  * Workout Session Management Functions
@@ -31,23 +52,18 @@ const exerciseInputSchema = v.object({
 });
 
 /**
- * Get recent workouts for the current user
+ * Get recent workouts for the shared user
  */
 export const getWorkouts = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
     const limit = args.limit ?? 10;
 
-    // Get recent workout sessions
+    // Get recent workout sessions for the shared user
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
 
@@ -93,15 +109,9 @@ export const getWorkouts = query({
 export const getWorkout = query({
   args: { id: v.id("workoutSessions") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
-
+    const userId = await getSharedUserId(ctx);
     const workout = await ctx.db.get(args.id);
-    if (!workout || workout.userId !== user._id) {
+    if (!workout || workout.userId !== userId) {
       throw new ConvexError("Workout not found");
     }
 
@@ -146,12 +156,7 @@ export const getLastExerciseData = query({
     templateExerciseId: v.optional(v.id("templateExercises")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Start with the base exercise name
     let exerciseNamesToSearch = [args.exerciseName];
@@ -189,7 +194,7 @@ export const getLastExerciseData = query({
     // Find recent sessions with any of these exercises
     const allSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .order("desc")
       .take(50); // Check more sessions since we're looking across templates
 
@@ -263,12 +268,7 @@ export const getLatestPerformanceForTemplateExercise = query({
     excludeSessionId: v.optional(v.id("workoutSessions")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // First, check if this template exercise is linked to a master exercise
     const exerciseLink = await ctx.db
@@ -276,7 +276,7 @@ export const getLatestPerformanceForTemplateExercise = query({
       .withIndex("by_templateExerciseId", (q: any) => 
         q.eq("templateExerciseId", args.templateExerciseId)
       )
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), userId))
       .unique();
 
     let templateExerciseIds = [args.templateExerciseId];
@@ -296,7 +296,7 @@ export const getLatestPerformanceForTemplateExercise = query({
     // Find the most recent workout that contains any linked exercise
     const allSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .order("desc")
       .take(50);
 
@@ -369,19 +369,14 @@ export const createWorkout = mutation({
     perfMetrics: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
     const workoutDate = args.workoutDate ?? Date.now();
 
     // Check for recent duplicate session (within last 2 minutes)
     const twoMinutesAgo = Date.now() - 120000;
     const recentSessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .filter((q: any) => 
         q.and(
           q.eq(q.field("templateId"), args.templateId),
@@ -426,7 +421,7 @@ export const createWorkout = mutation({
 
     // Verify template ownership
     const template = await ctx.db.get(args.templateId);
-    if (!template || template.userId !== user._id) {
+    if (!template || template.userId !== userId) {
       throw new ConvexError("Template not found");
     }
 
@@ -440,7 +435,7 @@ export const createWorkout = mutation({
 
     // Create workout session
     const sessionId = await ctx.db.insert("workoutSessions", {
-      userId: user._id,
+      userId: userId,
       templateId: args.templateId,
       workoutDate,
       // Phase 3 persistence
@@ -479,16 +474,11 @@ export const updateWorkout = mutation({
     perfMetrics: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Verify session ownership
     const session = await ctx.db.get(args.sessionId);
-    if (!session || session.userId !== user._id) {
+    if (!session || session.userId !== userId) {
       throw new ConvexError("Workout session not found");
     }
 
@@ -521,7 +511,7 @@ export const updateWorkout = mutation({
           set.rest !== undefined
         )
         .map((set, setIndex) => ({
-          userId: user._id,
+          userId: userId,
           sessionId: args.sessionId,
           templateExerciseId: exercise.templateExerciseId,
           exerciseName: exercise.exerciseName,
@@ -563,16 +553,11 @@ export const updateSessionSets = mutation({
     })),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Verify session ownership
     const session = await ctx.db.get(args.sessionId);
-    if (!session || session.userId !== user._id) {
+    if (!session || session.userId !== userId) {
       throw new ConvexError("Workout session not found");
     }
 
@@ -633,16 +618,11 @@ export const updateSessionSets = mutation({
 export const deleteWorkout = mutation({
   args: { id: v.id("workoutSessions") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Verify ownership before deleting
     const existingSession = await ctx.db.get(args.id);
-    if (!existingSession || existingSession.userId !== user._id) {
+    if (!existingSession || existingSession.userId !== userId) {
       throw new ConvexError("Workout session not found");
     }
 

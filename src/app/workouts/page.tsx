@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Plus, Calendar, Dumbbell, Trophy, Clock } from "lucide-react";
@@ -25,27 +24,7 @@ import { useState } from "react";
  * - Integration with Convex backend for real-time data
  */
 
-// Sign-in prompt component for unauthenticated users
-function SignInPrompt() {
-  const router = useRouter();
-  
-  return (
-    <div className="text-center py-12">
-      <GlassSurface className="p-8 max-w-lg mx-auto">
-        <Dumbbell className="w-16 h-16 mx-auto text-primary mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-        <p className="text-muted-foreground mb-6">
-          Please sign in to view your workout history.
-        </p>
-        <Button onClick={() => router.push('/')}>
-          Go to Sign In
-        </Button>
-      </GlassSurface>
-    </div>
-  );
-}
-
-// Main authenticated page content
+// Main page content
 function WorkoutsPageContent() {
   const router = useRouter();
   const [isStartingWorkout, setIsStartingWorkout] = useState(false);
@@ -287,26 +266,7 @@ function WorkoutsPageContent() {
   );
 }
 
-// Main page component with Convex auth wrapper
+// Main page component - now always accessible
 export default function WorkoutsPage() {
-  return (
-    <>
-      <AuthLoading>
-        <div className="space-y-6">
-          <SkeletonScreen 
-            title="Loading your workouts..."
-            showStats={true}
-            showChart={false}
-            showWorkouts={true}
-          />
-        </div>
-      </AuthLoading>
-      <Unauthenticated>
-        <SignInPrompt />
-      </Unauthenticated>
-      <Authenticated>
-        <WorkoutsPageContent />
-      </Authenticated>
-    </>
-  );
+  return <WorkoutsPageContent />;
 }

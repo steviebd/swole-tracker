@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { ensureUser } from "./users";
+import { SHARED_USER_ID } from "./constants";
 
 /**
  * Wellness Data Management
@@ -43,12 +43,7 @@ export const save = mutation({
     whoopData: whoopDataSchema,
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    // Using hardcoded user ID for public app
 
     try {
       // Input validation
@@ -123,7 +118,7 @@ export const save = mutation({
       } else {
         // Insert new wellness data
         wellnessId = await ctx.db.insert("wellnessData", {
-          userId: user._id,
+          userId: SHARED_USER_ID,
           sessionId: args.sessionId || undefined,
           date: dateString,
           energyLevel: args.energyLevel,
@@ -143,7 +138,7 @@ export const save = mutation({
       }
 
       console.log('Wellness data saved successfully', {
-        userId: user._id,
+        userId: SHARED_USER_ID,
         sessionId: args.sessionId,
         hasWhoopData: args.hasWhoopData,
         energyLevel: args.energyLevel,
@@ -155,7 +150,7 @@ export const save = mutation({
     } catch (error) {
       console.error('Failed to save wellness data', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user._id,
+        userId: SHARED_USER_ID,
         sessionId: args.sessionId,
       });
 
@@ -210,7 +205,7 @@ export const getBySession = query({
     } catch (error) {
       console.error('Failed to get wellness data by session', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user._id,
+        userId: SHARED_USER_ID,
         sessionId: args.sessionId,
       });
 
@@ -267,7 +262,7 @@ export const getHistory = query({
       // Start with user filter
       let results = await ctx.db
         .query("wellnessData")
-        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", SHARED_USER_ID))
         .collect();
 
       // Apply date filters
@@ -288,7 +283,7 @@ export const getHistory = query({
     } catch (error) {
       console.error('Failed to get wellness history', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user._id,
+        userId: SHARED_USER_ID,
         limit: args.limit,
         offset: args.offset,
       });
@@ -339,7 +334,7 @@ export const getStats = query({
       // Get all wellness data in the period
       const allWellnessData = await ctx.db
         .query("wellnessData")
-        .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+        .withIndex("by_userId", (q: any) => q.eq("userId", SHARED_USER_ID))
         .collect();
 
       // Filter by date range
@@ -377,7 +372,7 @@ export const getStats = query({
     } catch (error) {
       console.error('Failed to get wellness stats', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user._id,
+        userId: SHARED_USER_ID,
         days: args.days,
       });
 
@@ -435,7 +430,7 @@ export const deleteBySession = mutation({
       await ctx.db.delete(wellnessData._id);
 
       console.log('Wellness data deleted successfully', {
-        userId: user._id,
+        userId: SHARED_USER_ID,
         sessionId: args.sessionId,
       });
 
@@ -444,7 +439,7 @@ export const deleteBySession = mutation({
     } catch (error) {
       console.error('Failed to delete wellness data', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user._id,
+        userId: SHARED_USER_ID,
         sessionId: args.sessionId,
       });
 
@@ -492,7 +487,7 @@ export const checkExists = query({
     } catch (error) {
       console.error('Failed to check wellness data existence', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: user._id,
+        userId: SHARED_USER_ID,
         sessionId: args.sessionId,
       });
 

@@ -3,14 +3,13 @@
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect, useRef } from "react";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { SHARED_USER_ID } from "~/lib/constants";
 
 interface PostHogProviderProps {
   children: React.ReactNode;
 }
 
 export function PostHogProvider({ children }: PostHogProviderProps) {
-  const { user } = useAuth();
   const lastIdentifiedUser = useRef<string | null>(null);
 
   useEffect(() => {
@@ -22,29 +21,16 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
       debug: process.env.NODE_ENV === "development",
       capture_pageview: false,
     });
-  }, []);
 
-  useEffect(() => {
-    if (user) {
-      if (lastIdentifiedUser.current !== user.id) {
-        posthog.identify(user.id, {
-          email: user.email,
-          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email,
-          // WorkOS User object has different properties
-        });
-        posthog.capture("user_signed_in", {
-          userId: user.id,
-          email: user.email,
-        });
-        lastIdentifiedUser.current = user.id;
-      }
-    } else {
-      if (lastIdentifiedUser.current !== null) {
-        posthog.reset();
-        lastIdentifiedUser.current = null;
-      }
+    // Identify the shared user for analytics
+    if (lastIdentifiedUser.current !== SHARED_USER_ID) {
+      posthog.identify(SHARED_USER_ID, {
+        app_mode: "public_shared",
+        user_type: "shared",
+      });
+      lastIdentifiedUser.current = SHARED_USER_ID;
     }
-  }, [user]);
+  }, []);
 
   return <PHProvider client={posthog}>{children}</PHProvider>;
 }

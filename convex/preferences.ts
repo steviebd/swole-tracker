@@ -1,6 +1,27 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { ensureUser } from "./users";
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getSharedUserId(ctx: any) {
+  let sharedUser = await ctx.db
+    .query("users")
+    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
+    .unique();
+
+  if (!sharedUser) {
+    // Create the shared user if it doesn't exist
+    const userId = await ctx.db.insert("users", {
+      name: "Shared User",
+      email: "shared@example.com",
+      workosId: "shared-user-123",
+    });
+    sharedUser = await ctx.db.get(userId);
+  }
+
+  return sharedUser!._id;
+}
 
 /**
  * User Preferences Management Functions
@@ -31,16 +52,11 @@ const swipeActionSchema = v.union(
 export const getPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     const prefs = await ctx.db
       .query("userPreferences")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .unique();
 
     // Return full preferences row when found, otherwise return default shape
@@ -90,12 +106,7 @@ export const updatePreferences = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Normalize input - convert string to object if needed
     let input;
@@ -108,7 +119,7 @@ export const updatePreferences = mutation({
     // Load existing preferences (if any)
     const existing = await ctx.db
       .query("userPreferences")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .unique();
 
     // Build update patch - only include provided fields
@@ -142,7 +153,7 @@ export const updatePreferences = mutation({
     } else {
       // Create new preferences with safe defaults, then apply provided fields
       await ctx.db.insert("userPreferences", {
-        userId: user._id,
+        userId: userId,
         defaultWeightUnit: input.defaultWeightUnit ?? "kg",
         predictiveDefaultsEnabled: input.predictiveDefaultsEnabled ?? false,
         rightSwipeAction: input.rightSwipeAction ?? "collapse_expand",

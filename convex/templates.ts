@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { ensureUser } from "./users";
+import { api } from "./_generated/api";
 
 /**
  * Template Management Functions
@@ -8,6 +8,28 @@ import { ensureUser } from "./users";
  * Handles workout template CRUD operations with proper user isolation.
  * Migrated from tRPC templates router with exercise linking logic.
  */
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getSharedUserId(ctx: any) {
+  let sharedUser = await ctx.db
+    .query("users")
+    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
+    .unique();
+
+  if (!sharedUser) {
+    // Create the shared user if it doesn't exist
+    const userId = await ctx.db.insert("users", {
+      name: "Shared User",
+      email: "shared@example.com",
+      workosId: "shared-user-123",
+    });
+    sharedUser = await ctx.db.get(userId);
+  }
+
+  return sharedUser!._id;
+}
 
 /**
  * Utility function to normalize exercise names for fuzzy matching
@@ -92,17 +114,12 @@ async function createAndLinkMasterExercise(
 export const getTemplates = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Get templates with exercises
     const templates = await ctx.db
       .query("workoutTemplates")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .order("desc")
       .collect();
 
@@ -135,15 +152,10 @@ export const getTemplates = query({
 export const getTemplate = query({
   args: { id: v.id("workoutTemplates") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     const template = await ctx.db.get(args.id);
-    if (!template || template.userId !== user._id) {
+    if (!template || template.userId !== userId) {
       throw new ConvexError("Template not found");
     }
 
@@ -173,12 +185,7 @@ export const createTemplate = mutation({
     exercises: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Validate input
     if (!args.name || args.name.length === 0 || args.name.length > 256) {
@@ -194,7 +201,7 @@ export const createTemplate = mutation({
     // Check for recent duplicate template (prevent double-clicks)
     const recentTemplate = await ctx.db
       .query("workoutTemplates")
-      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .filter((q: any) => q.eq(q.field("name"), args.name))
       .order("desc")
       .first();
@@ -209,7 +216,7 @@ export const createTemplate = mutation({
     // Create template
     const templateId = await ctx.db.insert("workoutTemplates", {
       name: args.name,
-      userId: user._id,
+      userId: userId,
       updatedAt: Date.now(),
     });
 
@@ -217,7 +224,7 @@ export const createTemplate = mutation({
     if (args.exercises.length > 0) {
       const exercisePromises = args.exercises.map(async (exerciseName, index) => {
         const exerciseId = await ctx.db.insert("templateExercises", {
-          userId: user._id,
+          userId: userId,
           templateId,
           exerciseName,
           orderIndex: index,
@@ -227,7 +234,7 @@ export const createTemplate = mutation({
         // Create master exercise and link
         await createAndLinkMasterExercise(
           ctx,
-          user._id,
+          userId,
           exerciseName,
           exerciseId,
           false
@@ -253,12 +260,7 @@ export const updateTemplate = mutation({
     exercises: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Validate input
     if (!args.name || args.name.length === 0 || args.name.length > 256) {
@@ -273,7 +275,7 @@ export const updateTemplate = mutation({
 
     // Verify ownership
     const existingTemplate = await ctx.db.get(args.id);
-    if (!existingTemplate || existingTemplate.userId !== user._id) {
+    if (!existingTemplate || existingTemplate.userId !== userId) {
       throw new ConvexError("Template not found");
     }
 
@@ -297,7 +299,7 @@ export const updateTemplate = mutation({
     if (args.exercises.length > 0) {
       const exercisePromises = args.exercises.map(async (exerciseName, index) => {
         const exerciseId = await ctx.db.insert("templateExercises", {
-          userId: user._id,
+          userId: userId,
           templateId: args.id,
           exerciseName,
           orderIndex: index,
@@ -307,7 +309,7 @@ export const updateTemplate = mutation({
         // Create master exercise and link
         await createAndLinkMasterExercise(
           ctx,
-          user._id,
+          userId,
           exerciseName,
           exerciseId,
           false
@@ -329,16 +331,11 @@ export const updateTemplate = mutation({
 export const deleteTemplate = mutation({
   args: { id: v.id("workoutTemplates") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ensureUser(ctx, identity);
+    const userId = await getSharedUserId(ctx);
 
     // Verify ownership
     const existingTemplate = await ctx.db.get(args.id);
-    if (!existingTemplate || existingTemplate.userId !== user._id) {
+    if (!existingTemplate || existingTemplate.userId !== userId) {
       throw new ConvexError("Template not found");
     }
 

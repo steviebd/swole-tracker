@@ -1,6 +1,7 @@
 "use client";
 
 import { type SetData } from "./set-input";
+import type { Id } from "~/convex/_generated/dataModel";
 import {
   useSwipeGestures,
   type SwipeSettings,
@@ -13,7 +14,7 @@ import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { useExerciseInsights } from "~/hooks/use-insights";
 
 export interface ExerciseData {
-  templateExerciseId?: number;
+  templateExerciseId?: Id<"templateExercises">;
   exerciseName: string;
   sets: SetData[];
   unit: "kg" | "lbs";
@@ -276,9 +277,10 @@ export function ExerciseCard({
               isExpanded={isExpanded}
               isSwiped={isSwiped}
               readOnly={readOnly ?? false}
-              previousBest={
-                hasCurrentData && currentBest ? currentBest : previousBest
-              }
+              previousBest={previousBest}
+              currentBest={hasCurrentData ? currentBest : undefined}
+              completedSets={exercise.sets.filter(set => set.weight && set.reps).length}
+              totalSets={exercise.sets.length}
               onToggleExpansion={onToggleExpansion}
               onSwipeToBottom={onSwipeToBottom}
               exerciseIndex={exerciseIndex}

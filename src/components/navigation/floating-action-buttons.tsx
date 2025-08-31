@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { cn } from "~/lib/utils";
 
 // Icon components
@@ -74,7 +73,7 @@ export function FloatingActionButtons({
   className,
   hideOnPaths = ["/workout/session", "/workout/start"] 
 }: FloatingActionButtonsProps) {
-  const { user } = useAuth();
+  // No auth needed in public app
   const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -118,8 +117,8 @@ export function FloatingActionButtons({
     setIsExpanded(!isExpanded);
   };
 
-  // Don't render if not authenticated or on hidden paths
-  if (!mounted || !user) {
+  // Don't render on hidden paths
+  if (!mounted) {
     return null;
   }
 
@@ -192,7 +191,7 @@ export function SingleFAB({
   className,
   hideOnPaths = []
 }: SingleFABProps) {
-  const { user } = useAuth();
+  // No auth needed in public app
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
@@ -200,8 +199,8 @@ export function SingleFAB({
     setMounted(true);
   }, []);
 
-  // Don't render if not authenticated or on hidden paths
-  if (!mounted || !user) {
+  // Don't render on hidden paths
+  if (!mounted) {
     return null;
   }
 
@@ -224,14 +223,14 @@ export function SingleFAB({
 
 // Quick Actions Grid for mobile/tablet layout
 export function QuickActionsGrid({ className }: { className?: string }) {
-  const { user } = useAuth();
+  // No auth needed in public app
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted || !user) {
+  if (!mounted) {
     return null;
   }
 

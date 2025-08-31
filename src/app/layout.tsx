@@ -1,15 +1,17 @@
+"use client";
+
 import "~/styles/globals.css";
 
-import { type Metadata } from "next";
 import { Open_Sans, Montserrat } from "next/font/google";
 import Link from "next/link";
+import Head from "next/head";
 
 import { ConnectionStatus } from "~/app/_components/connection-status";
 import { SyncIndicator } from "~/app/_components/sync-indicator";
 import { EnhancedSyncIndicator } from "~/app/_components/enhanced-sync-indicator";
 import { NetworkStatusBanner } from "~/app/_components/network-status-banner";
-import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
-import ConvexClientProvider from "./ConvexClientProvider";
+import { ConvexProvider } from "convex/react";
+import { ConvexReactClient } from "convex/react";
 import { PostHogProvider } from "~/providers/PostHogProvider";
 import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
@@ -19,21 +21,8 @@ import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { FloatingActionButtons } from "~/components/navigation/floating-action-buttons";
 import { Toaster } from "sonner";
 import { env } from "~/env";
-import { AuthErrorBoundary } from "~/components/auth/AuthErrorBoundary";
 
-export const metadata: Metadata = {
-  title: "Swole Tracker",
-  description: "Simple workout tracking application",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
-};
-
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover", // Better Android/iOS handling for devices with notches
-};
+// Note: metadata and viewport moved to client-side head management since layout is now client component
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -48,6 +37,9 @@ const montserrat = Montserrat({
   variable: "--font-display",
   display: "swap",
 });
+
+// Initialize Convex client
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export default function RootLayout({
   children,
@@ -72,81 +64,85 @@ export default function RootLayout({
     })();
   `;
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${openSans.variable} ${montserrat.variable} overflow-x-hidden`}
-    >
-      <body className="page-shell flex min-h-screen flex-col overflow-x-hidden" style={{ color: "var(--color-text)" }}>
-        {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
-        <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
-        {/* Skip to content link */}
-        <a
-          href="#main-content"
-          className="btn-primary sr-only px-3 py-1.5 text-sm focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000]"
-        >
-          Skip to main content
-        </a>
-        <AuthKitProvider>
-          <ConvexClientProvider>
-            <AuthErrorBoundary>
-              <PostHogProvider>
-                <ThemeProvider>
-                  <LiveRegionProvider>
-                  <ClientPerfInit />
-                  <div className="page-backdrop" aria-hidden="true" />
-                  <PageTracker />
-                  <NetworkStatusBanner />
-                  <ConnectionStatus />
-                  <SyncIndicator />
-                  <EnhancedSyncIndicator />
-                  
-                  <DashboardHeader />
+    <>
+      <Head>
+        <title>Swole Tracker</title>
+        <meta name="description" content="Simple workout tracking application" />
+        <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+      </Head>
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className={`${openSans.variable} ${montserrat.variable} overflow-x-hidden`}
+      >
+        <body className="page-shell flex min-h-screen flex-col overflow-x-hidden" style={{ color: "var(--color-text)" }}>
+          {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
+          <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
+          {/* Skip to content link */}
+          <a
+            href="#main-content"
+            className="btn-primary sr-only px-3 py-1.5 text-sm focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000]"
+          >
+            Skip to main content
+          </a>
+        <ConvexProvider client={convex}>
+          <PostHogProvider>
+            <ThemeProvider>
+              <LiveRegionProvider>
+              <ClientPerfInit />
+              <div className="page-backdrop" aria-hidden="true" />
+              <PageTracker />
+              <NetworkStatusBanner />
+              <ConnectionStatus />
+              <SyncIndicator />
+              <EnhancedSyncIndicator />
+              
+              <DashboardHeader />
 
-                  <main
-                    id="main-content"
-                    className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
-                    role="main"
-                    tabIndex={-1}
-                  >
-                    <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
-                  </main>
+              <main
+                id="main-content"
+                className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
+                role="main"
+                tabIndex={-1}
+              >
+                <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
+              </main>
 
-                  {/* Floating Action Buttons */}
-                  <FloatingActionButtons />
+              {/* Floating Action Buttons */}
+              <FloatingActionButtons />
 
 
-                  <footer className="app-footer mt-auto py-6">
-                    <div className="container mx-auto px-4 text-center">
-                      <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                        <Link
-                          href="/privacy"
-                          className="link-primary"
-                          prefetch
-                        >
-                          Privacy Policy
-                        </Link>
-                        <Link
-                          href="/terms"
-                          className="link-primary"
-                          prefetch
-                        >
-                          Terms of Service
-                        </Link>
-                      </div>
-                      <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                        © 2025 Steven Duong. All rights reserved.
-                      </div>
-                    </div>
-                  </footer>
-                  <Toaster richColors closeButton />
-                  </LiveRegionProvider>
-                </ThemeProvider>
-              </PostHogProvider>
-            </AuthErrorBoundary>
-          </ConvexClientProvider>
-        </AuthKitProvider>
-      </body>
-    </html>
+              <footer className="app-footer mt-auto py-6">
+                <div className="container mx-auto px-4 text-center">
+                  <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                    <Link
+                      href="/privacy"
+                      className="link-primary"
+                      prefetch
+                    >
+                      Privacy Policy
+                    </Link>
+                    <Link
+                      href="/terms"
+                      className="link-primary"
+                      prefetch
+                    >
+                      Terms of Service
+                    </Link>
+                  </div>
+                  <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    © 2025 Steven Duong. All rights reserved.
+                  </div>
+                </div>
+              </footer>
+              <Toaster richColors closeButton />
+              </LiveRegionProvider>
+            </ThemeProvider>
+          </PostHogProvider>
+        </ConvexProvider>
+        </body>
+      </html>
+    </>
   );
 }

@@ -208,3 +208,46 @@ export const getUserById = query({
     return currentUser;
   },
 });
+
+/**
+ * Initialize shared user for public app (one-time setup)
+ * This creates a shared user that all data can be associated with
+ */
+export const initializeSharedUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Check if shared user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
+      .unique();
+
+    if (existingUser) {
+      return existingUser._id;
+    }
+
+    // Create the shared user
+    const userId = await ctx.db.insert("users", {
+      name: "Shared User",
+      email: "shared@example.com",
+      workosId: "shared-user-123",
+    });
+
+    return userId;
+  },
+});
+
+/**
+ * Get or create the shared user ID
+ */
+export const getSharedUserId = query({
+  args: {},
+  handler: async (ctx) => {
+    const sharedUser = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
+      .unique();
+
+    return sharedUser?._id || null;
+  },
+});
