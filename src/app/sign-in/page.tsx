@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 
 export default function SignInPage() {
   const [signInUrl, setSignInUrl] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch the sign-in URL from a server action
     async function getSignInUrl() {
       try {
         const response = await fetch("/api/auth/sign-in-url");
@@ -19,6 +19,8 @@ export default function SignInPage() {
         }
       } catch (error) {
         console.error("Error fetching sign-in URL:", error);
+      } finally {
+        setLoading(false);
       }
     }
     
@@ -28,6 +30,9 @@ export default function SignInPage() {
   const handleSignIn = () => {
     if (signInUrl) {
       window.location.href = signInUrl;
+    } else {
+      // Fallback to direct auth login
+      window.location.href = "/api/auth/login";
     }
   };
 
@@ -38,10 +43,15 @@ export default function SignInPage() {
         <Button 
           onClick={handleSignIn}
           className="px-6 py-3 text-center"
-          disabled={!signInUrl}
+          disabled={loading}
         >
-          {signInUrl ? "Sign In" : "Loading..."}
+          {loading ? "Loading..." : "Sign In with WorkOS"}
         </Button>
+        {signInUrl && (
+          <p className="text-xs text-muted-foreground text-center">
+            Redirecting to WorkOS authentication...
+          </p>
+        )}
       </div>
     </div>
   );

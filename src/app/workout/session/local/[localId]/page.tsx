@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getUser } from "@workos-inc/authkit-nextjs";
 
 interface LocalWorkoutSessionPageProps {
   params: Promise<{ localId: string }>;
@@ -9,8 +9,8 @@ interface LocalWorkoutSessionPageProps {
 export default async function LocalWorkoutSessionPage({
   params,
 }: LocalWorkoutSessionPageProps) {
-  const auth = await withAuth();
-  if (!auth.user) redirect('/sign-in');
+  const { user } = await getUser();
+  if (!user) redirect('/sign-in');
 
   const { localId } = await params;
 

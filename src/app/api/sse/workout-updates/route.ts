@@ -1,15 +1,15 @@
 import type { NextRequest } from "next/server";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getUser } from "@workos-inc/authkit-nextjs";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
 export async function GET(request: NextRequest) {
-  const auth = await withAuth();
+  const { user } = await getUser();
 
-  if (!auth.user) {
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const userId = auth.user.id;
+  const userId = user.id;
 
   // Create a readable stream for SSE
   const { readable, writable } = new TransformStream<Uint8Array>();
