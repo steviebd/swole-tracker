@@ -290,16 +290,20 @@ export function useWorkoutSessionState({ sessionId }: WorkoutSessionStateParams)
         break;
       case 'ADD_SET':
         const { exerciseIndex: exIdx } = lastAction.payload;
-        deleteSet(exIdx, exercises[exIdx].sets.length - 1);
+        if (exercises[exIdx]) {
+          deleteSet(exIdx, exercises[exIdx].sets.length - 1);
+        }
         break;
       case 'DELETE_SET':
         const { exerciseIndex: delExIdx, setIndex: delSetIdx, deletedSet } = lastAction.payload;
         // Re-add the deleted set
-        const newSets = [...exercises[delExIdx].sets];
-        newSets.splice(delSetIdx, 0, deletedSet as SetData);
-        setExercises(prev => prev.map((ex, idx) => 
-          idx === delExIdx ? { ...ex, sets: newSets } : ex
-        ));
+        if (exercises[delExIdx]) {
+          const newSets = [...exercises[delExIdx].sets];
+          newSets.splice(delSetIdx, 0, deletedSet as SetData);
+          setExercises(prev => prev.map((ex, idx) => 
+            idx === delExIdx ? { ...ex, sets: newSets } : ex
+          ));
+        }
         break;
     }
     
@@ -442,8 +446,11 @@ export function useWorkoutSessionState({ sessionId }: WorkoutSessionStateParams)
       
       const newSets = [...ex.sets];
       const temp = newSets[setIndex];
-      newSets[setIndex] = newSets[newIndex];
-      newSets[newIndex] = temp;
+      const targetSet = newSets[newIndex];
+      if (temp && targetSet) {
+        newSets[setIndex] = targetSet;
+        newSets[newIndex] = temp;
+      }
       
       return { ...ex, sets: newSets };
     }));
@@ -487,7 +494,7 @@ export function useWorkoutSessionState({ sessionId }: WorkoutSessionStateParams)
   const enqueue = useCallback((payload: WorkoutPayload) => {
     addPendingAction({
       type: 'save_workout',
-      data: payload as Record<string, unknown>
+      data: payload as unknown as Record<string, unknown>
     });
     toast.success('Workout queued for sync when online');
   }, [addPendingAction]);
@@ -569,7 +576,7 @@ export function useWorkoutSessionState({ sessionId }: WorkoutSessionStateParams)
     deleteSet,
     moveSet,
     buildSavePayload,
-    session,
+    session: session ?? null,
     updatePreferences,
     preferences: userPreferences,
     lastAction,

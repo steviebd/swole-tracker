@@ -56,6 +56,7 @@
     "apps",
     "clerk-supabase-demo-backup",
     "scripts",
-    "src/__e2e__"
+    "src/__e2e__",
+    "test-auth-flow.js"
   ]
 }

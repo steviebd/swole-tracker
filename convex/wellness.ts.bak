@@ -1,0 +1,480 @@
+import { ConvexError, v } from "convex/values";
+import { ensureUser } from "./users";
+import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
+  }
+  
+  return await ensureUser(ctx, identity);
+}}
+
+/**
+ * Wellness Data Management
+ * 
+ * Handles manual wellness inputs for enhanced workout intelligence.
+ * Includes anti-backfill safeguards and rate limiting.
+ */
+
+// Manual wellness data schema (simplified 2-input system)
+const manualWellnessDataSchema = v.object({
+  energyLevel: v.number(), // 1-10
+  sleepQuality: v.number(), // 1-10
+  deviceTimezone: v.string(),
+  notes: v.optional(v.string()),
+});
+
+// WHOOP data context schema
+const whoopDataSchema = v.optional(v.object({
+  recovery_score: v.optional(v.number()), // 0-100
+  sleep_performance: v.optional(v.number()), // 0-100
+  hrv_now_ms: v.optional(v.number()),
+  hrv_baseline_ms: v.optional(v.number()),
+  rhr_now_bpm: v.optional(v.number()),
+  rhr_baseline_bpm: v.optional(v.number()),
+  yesterday_strain: v.optional(v.number()), // 0-21
+}));
+
+/**
+ * Save wellness data for a session with security and anti-backfill safeguards
+ */
+export const save = mutation({
+  args: {
+    sessionId: v.optional(v.id("workoutSessions")),
+    energyLevel: v.number(),
+    sleepQuality: v.number(),
+    deviceTimezone: v.string(),
+    notes: v.optional(v.string()),
+    hasWhoopData: v.boolean(),
+    whoopData: whoopDataSchema,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+
+    try {
+      // Input validation
+      if (args.energyLevel < 1 || args.energyLevel > 10) {
+        throw new ConvexError("Energy level must be between 1 and 10");
+      }
+      if (args.sleepQuality < 1 || args.sleepQuality > 10) {
+        throw new ConvexError("Sleep quality must be between 1 and 10");
+      }
+      if (args.deviceTimezone.length < 1) {
+        throw new ConvexError("Device timezone is required");
+      }
+      if (args.notes && args.notes.length > 500) {
+        throw new ConvexError("Notes must be 500 characters or less");
+      }
+
+      // Validation: Check if session belongs to user (if sessionId provided)
+      if (args.sessionId) {
+        const session = await ctx.db.get(args.sessionId);
+        if (!session || session.userId !== userId) {
+          throw new ConvexError("Workout session not found or access denied");
+        }
+      }
+
+      // Anti-backfill validation: Only allow current/recent dates
+      const now = Date.now();
+      const oneDayAgo = now - 24 * 60 * 60 * 1000;
+      const submittedAt = now;
+
+      // Current date only (prevent backfilling)
+      const today = new Date(now);
+      const dateString = today.toISOString().split('T')[0];
+      if (!dateString) {
+        throw new ConvexError("Invalid date");
+      }
+
+      // Check if wellness data already exists for this user+session combination
+      let existingWellness = null;
+      if (args.sessionId) {
+        existingWellness = await ctx.db
+          .query("wellnessData")
+          .withIndex("by_user_session", (q: any) =>
+            q.eq("userId", userId).eq("sessionId", args.sessionId)
+          )
+          .unique();
+      } else {
+        // Check for daily wellness entry (no session)
+        existingWellness = await ctx.db
+          .query("wellnessData")
+          .withIndex("by_user_date", (q: any) =>
+            q.eq("userId", userId).eq("date", dateString)
+          )
+          .filter((q: any) => q.eq(q.field("sessionId"), undefined))
+          .first();
+      }
+
+      let wellnessId: Id<"wellnessData">;
+
+      if (existingWellness) {
+        // Update existing wellness data
+        await ctx.db.patch(existingWellness._id, {
+          energyLevel: args.energyLevel,
+          sleepQuality: args.sleepQuality,
+          deviceTimezone: args.deviceTimezone,
+          submittedAt: submittedAt,
+          hasWhoopData: args.hasWhoopData,
+          whoopData: args.whoopData || undefined,
+          notes: args.notes || undefined,
+          updatedAt: now,
+        });
+        wellnessId = existingWellness._id;
+      } else {
+        // Insert new wellness data
+        wellnessId = await ctx.db.insert("wellnessData", {
+          userId: userId,
+          sessionId: args.sessionId || undefined,
+          date: dateString,
+          energyLevel: args.energyLevel,
+          sleepQuality: args.sleepQuality,
+          deviceTimezone: args.deviceTimezone,
+          submittedAt: submittedAt,
+          hasWhoopData: args.hasWhoopData,
+          whoopData: args.whoopData || undefined,
+          notes: args.notes || undefined,
+          updatedAt: now,
+        });
+      }
+
+      const savedWellness = await ctx.db.get(wellnessId);
+      if (!savedWellness) {
+        throw new ConvexError("Failed to save wellness data");
+      }
+
+      console.log('Wellness data saved successfully', {
+        userId: userId,
+        sessionId: args.sessionId,
+        hasWhoopData: args.hasWhoopData,
+        energyLevel: args.energyLevel,
+        sleepQuality: args.sleepQuality,
+      });
+
+      return savedWellness;
+
+    } catch (error) {
+      console.error('Failed to save wellness data', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: userId,
+        sessionId: args.sessionId,
+      });
+
+      if (error instanceof ConvexError) {
+        throw error;
+      }
+
+      throw new ConvexError("Failed to save wellness data");
+    }
+  },
+});
+
+/**
+ * Get wellness data for a specific session
+ */
+export const getBySession = query({
+  args: {
+    sessionId: v.id("workoutSessions"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+
+    try {
+      // SECURITY: Verify session belongs to user first
+      const session = await ctx.db.get(args.sessionId);
+      if (!session || session.userId !== userId) {
+        throw new ConvexError("Workout session not found or access denied");
+      }
+
+      // Get wellness data for this session
+      const wellnessData = await ctx.db
+        .query("wellnessData")
+        .withIndex("by_user_session", (q: any) =>
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
+        )
+        .unique();
+
+      return wellnessData ?? null;
+
+    } catch (error) {
+      console.error('Failed to get wellness data by session', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: userId,
+        sessionId: args.sessionId,
+      });
+
+      if (error instanceof ConvexError) {
+        throw error;
+      }
+
+      throw new ConvexError("Failed to retrieve wellness data");
+    }
+  },
+});
+
+/**
+ * Get wellness history for trend analysis with pagination
+ */
+export const getHistory = query({
+  args: {
+    limit: v.number(),
+    offset: v.number(),
+    startDate: v.optional(v.number()), // Timestamp
+    endDate: v.optional(v.number()), // Timestamp
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+
+    try {
+      // Validate inputs
+      const limit = Math.min(Math.max(args.limit, 1), 100); // Between 1-100
+      const offset = Math.max(args.offset, 0);
+
+      // Convert timestamps to date strings if provided
+      let startDateString: string | undefined;
+      let endDateString: string | undefined;
+
+      if (args.startDate) {
+        startDateString = new Date(args.startDate).toISOString().split('T')[0];
+      }
+      if (args.endDate) {
+        endDateString = new Date(args.endDate).toISOString().split('T')[0];
+      }
+
+      // Start with user filter
+      let results = await ctx.db
+        .query("wellnessData")
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+        .collect();
+
+      // Apply date filters
+      if (startDateString || endDateString) {
+        results = results.filter((item: any) => {
+          if (startDateString && item.date < startDateString) return false;
+          if (endDateString && item.date > endDateString) return false;
+          return true;
+        });
+      }
+
+      // Sort by date descending (most recent first)
+      results.sort((a, b) => b.date.localeCompare(a.date));
+
+      // Apply pagination
+      return results.slice(offset, offset + limit);
+
+    } catch (error) {
+      console.error('Failed to get wellness history', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: userId,
+        limit: args.limit,
+        offset: args.offset,
+      });
+
+      if (error instanceof ConvexError) {
+        throw error;
+      }
+
+      throw new ConvexError("Failed to retrieve wellness history");
+    }
+  },
+});
+
+/**
+ * Get wellness statistics and trends
+ */
+export const getStats = query({
+  args: {
+    days: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+
+    try {
+      // Validate input
+      const days = Math.min(Math.max(args.days, 1), 365); // Between 1-365 days
+
+      // Calculate date range
+      const now = Date.now();
+      const startDate = new Date(now - days * 24 * 60 * 60 * 1000);
+      const startDateString = startDate.toISOString().split('T')[0];
+      if (!startDateString) {
+        throw new ConvexError("Invalid date range");
+      }
+
+      // Get all wellness data in the period
+      const allWellnessData = await ctx.db
+        .query("wellnessData")
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+        .collect();
+
+      // Filter by date range
+      const periodData = allWellnessData.filter(
+        (item: any) => item.date >= startDateString
+      );
+
+      // Calculate period statistics
+      const periodStats = calculateStats(periodData);
+
+      // Get recent trend (last 7 days for comparison)
+      const recentStartDate = new Date(now - 7 * 24 * 60 * 60 * 1000);
+      const recentStartDateString = recentStartDate.toISOString().split('T')[0];
+      if (!recentStartDateString) {
+        throw new ConvexError("Invalid recent date range");
+      }
+
+      const recentData = allWellnessData.filter(
+        (item: any) => item.date >= recentStartDateString
+      );
+
+      const recentStats = calculateStats(recentData);
+
+      return {
+        period: {
+          days,
+          ...periodStats,
+        },
+        recent: {
+          days: 7,
+          ...recentStats,
+        },
+      };
+
+    } catch (error) {
+      console.error('Failed to get wellness stats', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: userId,
+        days: args.days,
+      });
+
+      if (error instanceof ConvexError) {
+        throw error;
+      }
+
+      throw new ConvexError("Failed to retrieve wellness statistics");
+    }
+  },
+});
+
+/**
+ * Delete wellness data for a session
+ */
+export const deleteBySession = mutation({
+  args: {
+    sessionId: v.id("workoutSessions"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+
+    try {
+      // SECURITY: Verify session belongs to user first
+      const session = await ctx.db.get(args.sessionId);
+      if (!session || session.userId !== userId) {
+        throw new ConvexError("Workout session not found or access denied");
+      }
+
+      // Find wellness data for this session
+      const wellnessData = await ctx.db
+        .query("wellnessData")
+        .withIndex("by_user_session", (q: any) =>
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
+        )
+        .unique();
+
+      if (!wellnessData) {
+        throw new ConvexError("Wellness data not found or access denied");
+      }
+
+      const deletedData = { ...wellnessData }; // Save copy before deletion
+      await ctx.db.delete(wellnessData._id);
+
+      console.log('Wellness data deleted successfully', {
+        userId: userId,
+        sessionId: args.sessionId,
+      });
+
+      return deletedData;
+
+    } catch (error) {
+      console.error('Failed to delete wellness data', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: userId,
+        sessionId: args.sessionId,
+      });
+
+      if (error instanceof ConvexError) {
+        throw error;
+      }
+
+      throw new ConvexError("Failed to delete wellness data");
+    }
+  },
+});
+
+/**
+ * Check if wellness data exists for a session (for race condition prevention)
+ */
+export const checkExists = query({
+  args: {
+    sessionId: v.id("workoutSessions"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+
+    try {
+      const wellnessData = await ctx.db
+        .query("wellnessData")
+        .withIndex("by_user_session", (q: any) =>
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
+        )
+        .unique();
+
+      return !!wellnessData;
+
+    } catch (error) {
+      console.error('Failed to check wellness data existence', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId: userId,
+        sessionId: args.sessionId,
+      });
+
+      // Return false on error to allow submission attempt
+      return false;
+    }
+  },
+});
+
+/**
+ * Helper function to calculate statistics from wellness data
+ */
+function calculateStats(data: Array<{ energyLevel?: number; sleepQuality?: number }>) {
+  if (data.length === 0) {
+    return {
+      avgEnergyLevel: null,
+      avgSleepQuality: null,
+      totalEntries: 0,
+    };
+  }
+
+  const energyLevels = data.filter((item: any) => item.energyLevel != null).map((item: any) => item.energyLevel!);
+  const sleepQualities = data.filter((item: any) => item.sleepQuality != null).map((item: any) => item.sleepQuality!);
+
+  const avgEnergyLevel = energyLevels.length > 0
+    ? energyLevels.reduce((sum, val) => sum + val, 0) / energyLevels.length
+    : null;
+
+  const avgSleepQuality = sleepQualities.length > 0
+    ? sleepQualities.reduce((sum, val) => sum + val, 0) / sleepQualities.length
+    : null;
+
+  return {
+    avgEnergyLevel: avgEnergyLevel ? Number(avgEnergyLevel.toFixed(1)) : null,
+    avgSleepQuality: avgSleepQuality ? Number(avgSleepQuality.toFixed(1)) : null,
+    totalEntries: data.length,
+  };
+}

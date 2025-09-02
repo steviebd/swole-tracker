@@ -1,35 +1,27 @@
-# AGENT.md - Swole Tracker Configuration
+# AGENTS.md - Swole Tracker Configuration
 
 This document defines the project-specific workflow, commands, architecture, and conventions for maintainers and automation.
 
 ## Commands
-- Dev: `bun dev` (Next.js 15 with turbopack, automatically injects secrets from Infisical)
-- Build: `bun build` (automatically injects secrets from Infisical)
-- Preview (prod locally): `bun preview` (alias: `next build && next start`, automatically injects secrets from Infisical)
-- Start: `bun start` (serve built app, automatically injects secrets from Infisical)
-- Lint: `bun lint`
-- Lint:Fix: `bun lint:fix`
-- Type Check: `bun typecheck`
-- Check (lint + typecheck): `bun check`
-- Format (write): `bun format:write`
-- Format (check): `bun format:check`
-- DB: Generate: `bun db:generate` (automatically injects secrets from Infisical)
-- DB: Migrate: `bun db:migrate` (automatically injects secrets from Infisical)
-- DB: Push (dev): `bun db:push` (automatically injects secrets from Infisical)
-- DB: Studio (UI): `bun db:studio` (automatically injects secrets from Infisical)
+
+- Dev: `bun dev` (Next.js 15 with turbopack)
+- Build: `bun build`
+- Lint/Check: `bun check` (lints + typecheck)
 
 Notes:
-- Package manager is pinned: `bun@1.1.42` (required).
-- Node.js 20.19.4 recommended (pinned via Volta).
+
+- Package manager: bun (required)
+- Node.js recommended: Latest LTS
 
 ## Architecture
-- Stack: Next.js 15 App Router + tRPC v11 + Drizzle ORM + Clerk + Tailwind CSS v4
+
+- Stack: Next.js 15 App Router + Convex + WorkOS + Tailwind CSS v4
 - Monorepo: Single app; src root aliased as `~/`
-- API: tRPC routers in `src/server/api/routers/`, root at `src/server/api/root.ts`, server plumbing in `src/server/api/trpc.ts`
-- Database: PostgreSQL via Drizzle ORM
-  - Schema: `src/server/db/schema.ts` (table creator prefix `swole-tracker_*`)
-  - Enforced app-level user isolation via `user_id` on tables (Clerk user id)
-- Auth: Clerk (middleware `src/middleware.ts` protects `/workout|/templates|/workouts`)
+- API: Convex functions in `convex/`, generated types in `convex/_generated/`
+- Database: Convex (serverless database with real-time)
+  - Schema: `convex/schema.ts`
+  - Enforced app-level user isolation via `userId` on tables (WorkOS user id)
+- Auth: WorkOS + Convex auth (`convex/auth.config.ts`, middleware `middleware.ts` protects authenticated routes)
 - Frontend: Next.js App Router in `src/app/`
   - Shared components in `src/app/_components/`
   - Providers in `src/providers/`
@@ -39,6 +31,7 @@ Notes:
 - Integrations: Whoop OAuth + syncing, webhooks, and rate limiting
 
 ## Key Features (High Level)
+
 - Authenticated areas: /workout, /workouts, /templates
 - Workout templates and sessions with exercise sets
 - Progression helpers (previous values), history, read-only views
@@ -48,6 +41,7 @@ Notes:
 - Jokes (demo for AI usage and tRPC route)
 
 ## Code Style & Conventions
+
 - Language: Strict TypeScript
 - Imports:
   - Use `~/` alias for `src/`
@@ -63,80 +57,93 @@ Notes:
 - Linting: ESLint flat config with Next.js core-web-vitals + typescript-eslint
 
 ## Environment
-**Environment management via Infisical:** All scripts automatically inject secrets using `infisical run --`. No manual `.env` file management needed.
 
-**Setup Requirements:**
-1. Install Infisical CLI: `npm install -g @infisical/cli` or `brew install infisical/get-cli/infisical`
-2. Login: `infisical login`
-3. Verify access to project: `infisical user`
-4. All `bun` commands will now automatically inject environment variables from Infisical
+**Environment Variables:**
 
-**Required Environment Variables (managed in Infisical):**
-- DATABASE_URL
-- NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-- CLERK_SECRET_KEY
-- Whoop (optional): WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET, WHOOP_SYNC_RATE_LIMIT_PER_HOUR
+**Required:**
+
+- `NEXT_PUBLIC_CONVEX_URL` - Your Convex deployment URL
+- Convex environment variables are managed through the Convex dashboard
+
+**Optional:**
+
+- WorkOS credentials (when auth is implemented)
+- Whoop integration credentials: `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`
 
 ## Database
-- Use Drizzle Kit:
-  - Local dev: `bun db:push` (automatically injects secrets from Infisical)
-  - SQL changes live in `src/server/db/schema.ts`
-  - Studio: `bun db:studio` (automatically injects secrets from Infisical)
-- Row-level security handled at application level via Clerk user id.
-- Always filter by `user_id = ctx.user.id` in queries.
-- Use indexes defined in schema to keep queries performant.
 
-## tRPC Guidelines
-- Public procedures: `publicProcedure` (includes timing middleware)
-- Protected procedures: `protectedProcedure` (requires Clerk user)
-- Context provides: `{ db, user, headers }`
-- Use Zod for input parsing; errors are formatted by superjson + errorFormatter
-- Logging: request timing logged via `logApiCall` in `~/lib/logger`
+- Use Convex dashboard and CLI:
+  - Local dev: `pnpm db:push` (dev), `pnpm db:studio` (UI)
+  - Schema changes live in `convex/schema.ts`
+  - Deploy: `pnpm db:generate`, `pnpm db:migrate`
+- Row-level security handled at application level via WorkOS user id.
+- Always filter by `userId = ctx.user.id` in queries.
+- Use indexes defined in schema to keep queries performant.
+- Real-time subscriptions available via Convex
+
+## Convex Guidelines
+
+- Functions are defined in `convex/*.ts` files
+- Queries: `query()` for read operations
+- Mutations: `mutation()` for write operations
+- Actions: `action()` for external API calls
+- Authentication: `ctx.auth.getUserIdentity()` for current user
+- Context provides: `{ db, auth, storage }`
+- Use Zod for input validation in functions
+- TypeScript types auto-generated in `convex/_generated/`
 
 ## Middleware & Routing
-- Clerk middleware protects `/workout(.*)`, `/templates(.*)`, `/workouts(.*)`
-- Middleware matches API and tRPC routes by default
+
+- Convex auth protects authenticated functions via `ctx.auth`
+- Next.js middleware in `middleware.ts` protects routes
 - App router pages live under `src/app/.../page.tsx`
 
 ## Local Development Workflow
-1) Install: `bun install`
-2) Setup Infisical: `infisical login` and verify access
-3) Initialize DB: `bun db:push` (automatically injects secrets from Infisical)
-4) Dev server: `bun dev` (automatically injects secrets from Infisical)
-5) Lint/typecheck prior to commit: `bun check`
-6) Format code: `bun format:write`
+
+1. Install: `pnpm install`
+2. Setup Convex: Initialize project and get deployment URL
+3. Initialize DB: `pnpm db:push` (dev mode)
+4. Dev server: `pnpm dev`
+5. Lint/typecheck prior to commit: `pnpm check`
+6. Format code: `pnpm format:write`
 
 ## Commit & PR Checklist
-- [ ] `bun format:write` clean
-- [ ] `bun check` passes (lint + typecheck)
-- [ ] DB changes reviewed; `bun db:push` run locally if schema changed
-- [ ] No direct updates/deletes without `where` clauses
-- [ ] Added/updated tRPC procedures include Zod validation
-- [ ] Protected routes use `protectedProcedure` where required
+
+- [ ] `pnpm format:write` clean
+- [ ] `pnpm check` passes (lint + typecheck)
+- [ ] DB schema changes reviewed; update `convex/schema.ts`
+- [ ] Convex functions reviewed for proper auth and validation
+- [ ] Authentication properly handled in protected functions
+- [ ] All queries/mutations use proper userId filtering
 - [ ] UI follows mobile-first and Tailwind class ordering conventions
 
 ## Production & Preview
-- Preview locally: `bun preview` (automatically injects secrets from Infisical)
-- Vercel deployment:
-  - Build: `bun build` (automatically injects secrets from Infisical)
-  - Output: `.next`
-  - Install: `bun install`
-  - Env vars: Managed via Infisical integration or Vercel dashboard
-- After deploy, push schema to production DB as needed:
-  - Ensure Infisical configured for production environment
-  - `bun db:push` (automatically injects secrets from Infisical)
+
+- Preview locally: `pnpm build && pnpm start`
+- Vercel/Netlify deployment:
+  - Build: `pnpm build`
+  - Install: `pnpm install` (for installing dependencies)
+  - Env vars: Set `NEXT_PUBLIC_CONVEX_URL` in deployment platform
+- Convex deployment:
+  - Schema changes auto-deploy from `convex/schema.ts`
+  - Environment variables managed through Convex dashboard
+  - Functions deploy automatically when pushed to main
 
 ## Troubleshooting
-- **Infisical issues:** Verify login status with `infisical user`, ensure project access, check workspace ID in `.infisical.json`
-- Clerk auth issues: verify publishable and secret keys, redirect URLs, and middleware matcher
-- DB connection: confirm `DATABASE_URL` and SSL params for Supabase pooler
-- tRPC type errors: ensure Zod schemas match input usage
-- Rate limit: ensure `WHOOP_SYNC_RATE_LIMIT_PER_HOUR` is set, see `~/src/lib/rate-limit.ts`
-- Styling anomalies: Tailwind v4 + Prettier plugin alignment
-- **Environment variables not loading:** Ensure Infisical CLI is installed, logged in, and commands are prefixed with `infisical run --`
+
+- **Convex authentication issues:** Verify `NEXT_PUBLIC_CONVEX_URL` is set correctly and deployment is active
+- **WorkOS auth issues:** Ensure auth provider is properly configured if implemented
+- **Database connection:** Check Convex dashboard for deployment status and schema issues
+- **Convex type errors:** Ensure types are regenerated after schema changes with `pnpm db:generate`
+- **Function deployment:** Convex functions auto-deploy; check deployment status in dashboard
+- **Rate limiting:** Check Convex dashboard for rate limit status if applicable
+- **Styling anomalies:** Tailwind v4 + Prettier plugin alignment
+- **Environment variables not loading:** Verify `.env.local` has correct `NEXT_PUBLIC_CONVEX_URL`
 
 ## Test Strategy
+
 - No formal test framework configured yet. Unit/integration tests TBD.
 - Temporary guidance:
   - Prefer extracting pure helpers into `~/lib/*` for easier testing later
-  - Keep IO boundaries (API, DB) thin to facilitate future tests
+  - Keep Convex functions thin and test business logic separately
+  - Use Convex's built-in testing utilities when implementing tests

@@ -13,6 +13,7 @@ import { GlassSurface } from "~/components/ui/glass-surface";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
 import { toast } from "sonner";
 import { cn } from "~/lib/utils";
+import { AuthGuard } from "~/components/auth/AuthGuard";
 
 /**
  * New Template Creation Page
@@ -115,147 +116,149 @@ export default function NewTemplatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto p-4 space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex items-center gap-4"
-        >
-          <Button variant="ghost" size="icon" onClick={handleBack}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <Dumbbell className="w-8 h-8 text-primary" />
-              New Template
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Create a new workout template with custom exercises
-            </p>
-          </div>
-        </motion.div>
+    <AuthGuard>
+      <div className="min-h-screen bg-background">
+        <div className="max-w-2xl mx-auto p-4 space-y-6">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center gap-4"
+          >
+            <Button variant="ghost" size="icon" onClick={handleBack}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <Dumbbell className="w-8 h-8 text-primary" />
+                New Template
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Create a new workout template with custom exercises
+              </p>
+            </div>
+          </motion.div>
 
-        {/* Main Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <GlassSurface className="p-6">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Template Name */}
-                <FormField
-                  control={form.control}
-                  name="name"
-                  rules={{
-                    required: "Template name is required",
-                    minLength: { value: 1, message: "Template name cannot be empty" },
-                    maxLength: { value: 256, message: "Template name is too long" }
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Template Name</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., Push Day, Full Body Workout..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* Main Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <GlassSurface className="p-6">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  {/* Template Name */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    rules={{
+                      required: "Template name is required",
+                      minLength: { value: 1, message: "Template name cannot be empty" },
+                      maxLength: { value: 256, message: "Template name is too long" }
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Template Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="e.g., Push Day, Full Body Workout..."
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                {/* Exercises Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-foreground">Exercises</h3>
-                    <Button type="button" variant="outline" size="sm" onClick={addExercise}>
-                      <Plus className="w-4 h-4" />
-                      Add Exercise
+                  {/* Exercises Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-foreground">Exercises</h3>
+                      <Button type="button" variant="outline" size="sm" onClick={addExercise}>
+                        <Plus className="w-4 h-4" />
+                        Add Exercise
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {exercises.map((exercise, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          transition={{ duration: 0.2, delay: index * 0.05 }}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="flex-1">
+                            <Input
+                              placeholder={`Exercise ${index + 1} (e.g., Bench Press, Squats...)`}
+                              value={exercise}
+                              onChange={(e) => updateExercise(index, e.target.value)}
+                            />
+                          </div>
+                          {exercises.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeExercise(index)}
+                              className="text-muted-foreground hover:text-red-500"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </motion.div>
+                      ))}
+                    </div>
+                    
+                    {exercises.length === 0 && (
+                      <p className="text-sm text-muted-foreground italic">
+                        Add at least one exercise to create your template
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleBack}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="flex-1"
+                      haptic
+                    >
+                      <Save className="w-4 h-4" />
+                      {isSubmitting ? 'Creating...' : 'Create Template'}
                     </Button>
                   </div>
-                  
-                  <div className="space-y-3">
-                    {exercises.map((exercise, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2, delay: index * 0.05 }}
-                        className="flex items-center gap-3"
-                      >
-                        <div className="flex-1">
-                          <Input
-                            placeholder={`Exercise ${index + 1} (e.g., Bench Press, Squats...)`}
-                            value={exercise}
-                            onChange={(e) => updateExercise(index, e.target.value)}
-                          />
-                        </div>
-                        {exercises.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeExercise(index)}
-                            className="text-muted-foreground hover:text-red-500"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-                  
-                  {exercises.length === 0 && (
-                    <p className="text-sm text-muted-foreground italic">
-                      Add at least one exercise to create your template
-                    </p>
-                  )}
-                </div>
+                </form>
+              </Form>
+            </GlassSurface>
+          </motion.div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={handleBack}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="flex-1"
-                    haptic
-                  >
-                    <Save className="w-4 h-4" />
-                    {isSubmitting ? 'Creating...' : 'Create Template'}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </GlassSurface>
-        </motion.div>
-
-        {/* Helper Text */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="text-center"
-        >
-          <p className="text-sm text-muted-foreground">
-            Templates help you quickly start workouts with predefined exercises. You can always edit them later.
-          </p>
-        </motion.div>
+          {/* Helper Text */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="text-center"
+          >
+            <p className="text-sm text-muted-foreground">
+              Templates help you quickly start workouts with predefined exercises. You can always edit them later.
+            </p>
+          </motion.div>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }

@@ -6,6 +6,14 @@ import Link from "next/link";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
+import { AISuggestionsModal } from "./AISuggestionsModal";
+import TemplateRecommendationsModal from "./TemplateRecommendationsModal";
+import ExerciseSubstitutionModal from "./ExerciseSubstitutionModal";
+import VirtualizedWorkoutList from "./VirtualizedWorkoutList";
+import { LoadingSpinner, EmptyState, SuccessCelebration } from "./ProductionUI";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { useWorkoutPerformance, useWebVitals } from "~/lib/performance-utils";
+import type { SetData } from "./set-input";
 
 import { analytics } from "~/lib/analytics";
 import posthog from "posthog-js";
@@ -17,9 +25,10 @@ import {
 } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
+import type { Id } from "~/convex/_generated/dataModel";
 
 interface WorkoutSessionProps {
-  sessionId: number;
+  sessionId: Id<"workoutSessions">;
 }
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
@@ -63,12 +72,40 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   const [scrollY, setScrollY] = useState(0);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   
+  // AI Suggestions state
+  const [showAiSuggestions, setShowAiSuggestions] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<{
+    index: number;
+    name: string;
+    sets: SetData[];
+  } | null>(null);
+  
+  // Template Recommendations state
+  const [showTemplateRecommendations, setShowTemplateRecommendations] = useState(false);
+  
+  // Exercise substitution state
+  const [selectedSubstitutionExercise, setSelectedSubstitutionExercise] = useState<{
+    exerciseIndex: number;
+    exerciseName: string;
+  } | null>(null);
+  
   // Accessibility live region
   const announce = useLiveRegion();
   useAttachLiveRegion(announce);
   
   // Focus restore for inline modals
   const { restoreFocus: restoreFocusInline } = useReturnFocus();
+  
+  // Performance monitoring
+  const workoutPerf = useWorkoutPerformance(exercises.length);
+  const webVitals = useWebVitals();
+  
+  // Log performance recommendations in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && workoutPerf.recommendations.length > 0) {
+      console.log('🏋️ Workout Performance Recommendations:', workoutPerf.recommendations);
+    }
+  }, [workoutPerf.recommendations]);
 
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY || 0);
@@ -89,16 +126,12 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // drag state/handlers provided by hook
   const displayOrder = getDisplayOrder();
 
-  // Conservative virtualization window for very large templates
-  const VIRTUALIZE_THRESHOLD = 20;
-  const WINDOW_BEFORE = 6;
-  const WINDOW_AFTER = 6;
-
-  // Conservative virtualization - approximate per-card height
-  const CARD_HEIGHT = 120; // px
-
+  // Use performance-optimized virtualization settings
   const totalCount = displayOrder.length;
-  const shouldVirtualize = totalCount >= VIRTUALIZE_THRESHOLD;
+  const shouldVirtualize = workoutPerf.shouldVirtualize;
+  const CARD_HEIGHT = typeof workoutPerf.itemHeight === 'number' ? workoutPerf.itemHeight : 120;
+  const WINDOW_BEFORE = 2;
+  const WINDOW_AFTER = 2;
 
   const viewportHeight =
     typeof window !== "undefined" ? window.innerHeight : 800;
@@ -194,6 +227,118 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   // use handler from hook
   // handleSwipeToBottom provided by hook
 
+  // AI Suggestions handlers
+  const handleAiSuggestionsClick = (exerciseIndex: number, exerciseName: string, sets: SetData[]) => {
+    setSelectedExercise({ index: exerciseIndex, name: exerciseName, sets });
+    setShowAiSuggestions(true);
+    
+    try {
+      vibrate(5);
+    } catch {}
+    try {
+      posthog.capture("ai_suggestions_opened", {
+        exerciseName,
+        exerciseIndex,
+        totalSets: sets.length,
+        completedSets: sets.filter(set => set.weight && set.reps).length,
+      });
+    } catch {}
+  };
+
+  const handleAcceptSuggestion = (setIndex: number, suggestion: any) => {
+    if (selectedExercise) {
+      // Apply the suggestion to the set
+      if (suggestion.suggestedWeight) {
+        updateSet(selectedExercise.index, setIndex, "weight", suggestion.suggestedWeight);
+      }
+      if (suggestion.suggestedReps) {
+        updateSet(selectedExercise.index, setIndex, "reps", suggestion.suggestedReps);
+      }
+      
+      try {
+        vibrate([10, 30, 10]); // Success haptic
+      } catch {}
+      try {
+        announce(`Applied AI suggestion for set ${setIndex + 1}`, { assertive: true });
+      } catch {}
+      try {
+        posthog.capture("ai_suggestion_accepted", {
+          exerciseName: selectedExercise.name,
+          exerciseIndex: selectedExercise.index,
+          setIndex,
+          suggestedWeight: suggestion.suggestedWeight,
+          suggestedReps: suggestion.suggestedReps,
+          confidence: suggestion.confidence,
+        });
+      } catch {}
+    }
+  };
+
+  const handleRejectSuggestion = (setIndex: number) => {
+    try {
+      vibrate(10);
+    } catch {}
+    try {
+      posthog.capture("ai_suggestion_rejected", {
+        exerciseName: selectedExercise?.name,
+        exerciseIndex: selectedExercise?.index,
+        setIndex,
+      });
+    } catch {}
+  };
+
+  const closeAiSuggestions = () => {
+    setShowAiSuggestions(false);
+    setSelectedExercise(null);
+  };
+
+  // Template recommendation handlers
+  const handleTemplateRecommendationsClick = () => {
+    setShowTemplateRecommendations(true);
+    try {
+      vibrate(5);
+    } catch {}
+    try {
+      posthog.capture("template_recommendations_opened", {
+        sessionId: session?._id,
+        exerciseCount: exercises.length,
+        completedSets: exercises.flatMap(ex => ex.sets).filter(set => set.weight && set.reps).length,
+      });
+    } catch {}
+  };
+
+  const handleStartTemplate = (templateId: string) => {
+    // Navigate to start workout with the recommended template
+    router.push(`/workout/start?templateId=${templateId}`);
+  };
+
+  const handleCreateFromRecommendation = (recommendation: any) => {
+    // This would create a new template from the recommendation and start it
+    console.log("Creating template from recommendation:", recommendation);
+    // TODO: Implement template creation from recommendation
+  };
+
+  // Exercise substitution handlers
+  const handleSubstituteExercise = (exerciseIndex: number, newExerciseName: string) => {
+    // Update the exercise name in the session
+    // This would require a mutation to update the session exercise
+    console.log(`Substituting exercise ${exerciseIndex} with ${newExerciseName}`);
+    try {
+      vibrate([10, 50, 10]); // Success pattern
+    } catch {}
+    try {
+      announce(`Exercise substituted with ${newExerciseName}`, { assertive: true });
+    } catch {}
+    try {
+      posthog.capture("exercise_substituted", {
+        exerciseIndex,
+        oldExerciseName: exercises[exerciseIndex]?.exerciseName,
+        newExerciseName,
+        sessionId: session?._id,
+      });
+    } catch {}
+    // TODO: Implement actual exercise substitution with Convex mutation
+  };
 
   // buildSavePayload provided by hook
 
@@ -259,7 +404,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       console.error("Error saving workout:", error);
       analytics.error(error as Error, {
         context: "workout_save",
-        sessionId: sessionId?.toString() || "unknown",
+        sessionId: sessionId || "unknown",
       });
 
       // If likely a network error, enqueue for offline
@@ -321,7 +466,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       console.error("Unexpected error during workout deletion:", error);
       analytics.error(error as Error, {
         context: "workout_delete",
-        sessionId: sessionId?.toString() || "unknown",
+        sessionId: sessionId || "unknown",
       });
 
       // Even on error, close dialog and navigate away since the optimistic update already happened
@@ -332,23 +477,20 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
   if (loading || !session) {
     return (
-      <div className="space-y-3 sm:space-y-4">
-        {[...(Array(3) as number[])].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-lg p-3 sm:p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
-            <div className="mb-3 sm:mb-4 h-3 sm:h-4 w-1/2 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-              <div className="h-8 sm:h-10 rounded" style={{ backgroundColor: "var(--color-border)" }}></div>
-            </div>
-          </div>
-        ))}
+      <div className="space-y-6 py-8">
+        <LoadingSpinner 
+          size="lg" 
+          variant="dots" 
+          text="Loading workout session..." 
+          className="flex justify-center"
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <ErrorBoundary>
+      <div className="space-y-3 sm:space-y-4">
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
         <div className="text-muted mb-2 text-center text-xs sm:text-sm px-2">
@@ -356,71 +498,128 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           reorder & move between sections • Works on mobile & desktop
         </div>
       )}
+      
+      {/* Performance Info (Development Only) */}
+      {process.env.NODE_ENV === 'development' && exercises.length >= 20 && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="text-sm">
+            <div className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
+              ⚡ Performance Mode: {workoutPerf.performanceMode}
+            </div>
+            <div className="text-blue-700 dark:text-blue-300 text-xs space-y-1">
+              <div>• {exercises.length} exercises ({shouldVirtualize ? 'virtualized' : 'standard rendering'})</div>
+              {webVitals.LCP && <div>• LCP: {Math.round(webVitals.LCP)}ms</div>}
+              {webVitals.CLS && <div>• CLS: {webVitals.CLS.toFixed(3)}</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exercise Cards */}
-      {(shouldVirtualize
-        ? displayOrder
-            .slice(startIndex, endIndex + 1)
-            .map((entry: { exercise: any; originalIndex: number }, i: number) => ({ ...entry, windowIndex: startIndex + i }))
-        : displayOrder.map((entry: { exercise: any; originalIndex: number }, i: number) => ({ ...entry, windowIndex: i }))
-      ).map(({ exercise, originalIndex, windowIndex }: { exercise: any; originalIndex: number; windowIndex: number }) => {
-        const displayIndex = windowIndex;
-        // Collapsed state is derived from collapsedIndexes mapped to current order
-        const isCollapsed = collapsedIndexes.includes(displayIndex);
-        const isExpandedNow =
-          !isCollapsed && expandedExercises.includes(originalIndex);
+      {shouldVirtualize ? (
+        <VirtualizedWorkoutList
+          exercises={displayOrder}
+          itemHeight={CARD_HEIGHT}
+          containerHeight={Math.min(viewportHeight - 200, 800)} // Leave space for header and actions
+          renderItem={(entry: { exercise: any; originalIndex: number }, windowIndex: number) => {
+            const { exercise, originalIndex } = entry;
+            const displayIndex = windowIndex;
+            const isCollapsed = collapsedIndexes.includes(displayIndex);
+            const isExpandedNow = !isCollapsed && expandedExercises.includes(originalIndex);
 
-        return (
-          <div
-            key={exercise.templateExerciseId ?? originalIndex}
-            style={shouldVirtualize ? { minHeight: 0 } : undefined}
-          >
-            {/* Swiped Exercises Section Header */}
-            <ExerciseCard
-              exercise={exercise}
-              exerciseIndex={originalIndex}
-              onUpdate={updateSet}
-              onToggleUnit={toggleUnit}
-              onAddSet={addSet}
-              onDeleteSet={deleteSet}
-              onMoveSet={moveSet}
-              isExpanded={isExpandedNow}
-              onToggleExpansion={toggleExpansion}
-              previousBest={
-                previousExerciseData.get(exercise.exerciseName)?.best
-              }
-              previousSets={
-                previousExerciseData.get(exercise.exerciseName)?.sets
-              }
-              readOnly={isReadOnly}
-              onSwipeToBottom={handleSwipeToBottom}
-              swipeSettings={swipeSettings}
-              isSwiped={isCollapsed}
-              draggable={!isReadOnly}
-              isDraggedOver={
-                dragState.dragOverIndex === displayIndex ||
-                dragState.dragOverIndex === displayIndex + 1
-              }
-              isDragging={
-                dragState.isDragging && dragState.draggedIndex === displayIndex
-              }
-              dragOffset={dragState.dragOffset}
-              onPointerDown={dragHandlers.onPointerDown(displayIndex)}
-              setCardElement={(element: HTMLElement | null) => {
-                dragHandlers.setCardElement?.(displayIndex, element);
-                return;
-              }}
-              preferredUnit={(preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"}
-            />
-          </div>
-        );
-      })}
+            return (
+              <ExerciseCard
+                exercise={exercise}
+                exerciseIndex={originalIndex}
+                onUpdate={updateSet}
+                onToggleUnit={toggleUnit}
+                onAddSet={addSet}
+                onDeleteSet={deleteSet}
+                onMoveSet={moveSet}
+                isExpanded={isExpandedNow}
+                onToggleExpansion={toggleExpansion}
+                previousBest={previousExerciseData.get(exercise.exerciseName)?.best}
+                previousSets={previousExerciseData.get(exercise.exerciseName)?.sets}
+                readOnly={isReadOnly}
+                onSwipeToBottom={handleSwipeToBottom}
+                swipeSettings={swipeSettings}
+                isSwiped={isCollapsed}
+                draggable={!isReadOnly}
+                isDraggedOver={
+                  dragState.dragOverIndex === displayIndex ||
+                  dragState.dragOverIndex === displayIndex + 1
+                }
+                isDragging={dragState.isDragging && dragState.draggedIndex === displayIndex}
+                dragOffset={dragState.dragOffset}
+                onPointerDown={dragHandlers.onPointerDown(displayIndex)}
+                setCardElement={(element: HTMLElement | null) => {
+                  dragHandlers.setCardElement?.(displayIndex, element);
+                  return;
+                }}
+                preferredUnit={(preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"}
+                onAiSuggestionsClick={handleAiSuggestionsClick}
+                onSubstituteExercise={handleSubstituteExercise}
+              />
+            );
+          }}
+          className="space-y-3 sm:space-y-4"
+        />
+      ) : (
+        displayOrder.map(({ exercise, originalIndex }: { exercise: any; originalIndex: number }, windowIndex: number) => {
+          const displayIndex = windowIndex;
+          const isCollapsed = collapsedIndexes.includes(displayIndex);
+          const isExpandedNow = !isCollapsed && expandedExercises.includes(originalIndex);
+
+          return (
+            <div key={exercise.templateExerciseId ?? originalIndex}>
+              <ExerciseCard
+                exercise={exercise}
+                exerciseIndex={originalIndex}
+                onUpdate={updateSet}
+                onToggleUnit={toggleUnit}
+                onAddSet={addSet}
+                onDeleteSet={deleteSet}
+                onMoveSet={moveSet}
+                isExpanded={isExpandedNow}
+                onToggleExpansion={toggleExpansion}
+                previousBest={previousExerciseData.get(exercise.exerciseName)?.best}
+                previousSets={previousExerciseData.get(exercise.exerciseName)?.sets}
+                readOnly={isReadOnly}
+                onSwipeToBottom={handleSwipeToBottom}
+                swipeSettings={swipeSettings}
+                isSwiped={isCollapsed}
+                draggable={!isReadOnly}
+                isDraggedOver={
+                  dragState.dragOverIndex === displayIndex ||
+                  dragState.dragOverIndex === displayIndex + 1
+                }
+                isDragging={dragState.isDragging && dragState.draggedIndex === displayIndex}
+                dragOffset={dragState.dragOffset}
+                onPointerDown={dragHandlers.onPointerDown(displayIndex)}
+                setCardElement={(element: HTMLElement | null) => {
+                  dragHandlers.setCardElement?.(displayIndex, element);
+                  return;
+                }}
+                preferredUnit={(preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"}
+                onAiSuggestionsClick={handleAiSuggestionsClick}
+                onSubstituteExercise={handleSubstituteExercise}
+              />
+            </div>
+          );
+        })
+      )}
 
       {/* No Exercises State */}
       {exercises.length === 0 && (
-        <div className="py-6 sm:py-8 text-center">
-          <p className="text-secondary text-sm sm:text-base">No exercises in this template</p>
-        </div>
+        <EmptyState
+          variant="exercises"
+          title="No Exercises Added"
+          description="This workout template doesn't have any exercises yet. Add some exercises to get started with your training!"
+          action={{
+            label: "Browse Templates",
+            onClick: () => router.push("/templates"),
+          }}
+        />
       )}
 
       {/* Bottom action bar - editable only */}
@@ -511,19 +710,29 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 {saveWorkout.isPending ? "Saving…" : "Save"}
               </button>
 
-              <button
-                onClick={() => {
-                  openCompleteModal();
-                  // Optional subtle haptic to acknowledge opening modal
-                  vibrateSafe(10);
-                  try {
-                    posthog.capture("haptic_action", { kind: "save" });
-                  } catch {}
-                }}
-                className="btn-primary py-2 sm:py-3 text-sm sm:text-base"
-              >
-                Complete
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={handleTemplateRecommendationsClick}
+                  className="btn-secondary px-2 py-2 sm:py-3 text-xs sm:text-sm flex-1"
+                  title="Get template recommendations"
+                >
+                  💡
+                </button>
+                
+                <button
+                  onClick={() => {
+                    openCompleteModal();
+                    // Optional subtle haptic to acknowledge opening modal
+                    vibrateSafe(10);
+                    try {
+                      posthog.capture("haptic_action", { kind: "save" });
+                    } catch {}
+                  }}
+                  className="btn-primary py-2 sm:py-3 text-sm sm:text-base flex-[3]"
+                >
+                  Complete
+                </button>
+              </div>
             </div>
 
             {/* Delete is secondary; keep outside the primary row */}
@@ -804,6 +1013,29 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           </FocusTrap>
         </div>
       )}
-    </div>
+
+      {/* AI Suggestions Modal */}
+      {selectedExercise && session && (
+        <AISuggestionsModal
+          isOpen={showAiSuggestions}
+          onClose={closeAiSuggestions}
+          exerciseName={selectedExercise.name}
+          exerciseIndex={selectedExercise.index}
+          currentSets={selectedExercise.sets}
+          sessionId={session._id}
+          onAcceptSuggestion={handleAcceptSuggestion}
+          onRejectSuggestion={handleRejectSuggestion}
+        />
+      )}
+      
+      {/* Template Recommendations Modal */}
+      <TemplateRecommendationsModal
+        isOpen={showTemplateRecommendations}
+        onClose={() => setShowTemplateRecommendations(false)}
+        onStartTemplate={handleStartTemplate}
+        onCreateFromRecommendation={handleCreateFromRecommendation}
+      />
+      </div>
+    </ErrorBoundary>
   );
 }

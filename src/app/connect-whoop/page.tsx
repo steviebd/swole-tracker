@@ -1,11 +1,14 @@
-import { getUser } from "@workos-inc/authkit-nextjs";
+// TODO: Fix WorkOS authkit import
+// import { getUser } from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { WhoopWorkouts } from "~/app/_components/whoop-workouts";
 import { Button } from "~/components/ui/button";
 
 export default async function ConnectWhoopPage() {
-  const { user } = await getUser();
+  // TODO: Fix WorkOS authkit usage
+  // const { user } = await getUser();
+  const user = null;
   if (!user) redirect('/sign-in');
 
   return (

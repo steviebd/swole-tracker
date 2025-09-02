@@ -289,28 +289,9 @@ interface AISuggestion {
 - [ ] Configure swipe thresholds and settings
 - [ ] Add gesture help text and tutorials
 
-## Phase 5: Data & Analytics (MEDIUM - 2 days)
+## Phase 5: Offline & State Management (LOWER - 1-2 days)
 
-### 5.1 Analytics Integration
-**Files**: `src/lib/analytics.ts`, `src/lib/client-telemetry.ts`
-
-**Tasks**:
-- [ ] Port PostHog telemetry system
-- [ ] Add workout interaction tracking
-- [ ] Implement performance metrics collection
-- [ ] Add error tracking and reporting
-- [ ] Create usage analytics dashboard
-
-### 5.2 Performance Monitoring
-**Tasks**:
-- [ ] Add Time to Interactive (TTI) tracking
-- [ ] Monitor input latency and responsiveness
-- [ ] Track save/load operation performance
-- [ ] Implement performance bottleneck detection
-
-## Phase 6: Offline & State Management (LOWER - 1-2 days)
-
-### 6.1 Offline Queue System
+### 5.1 Offline Queue System
 **Files**: `src/hooks/use-cache-invalidation.ts`, `src/lib/offline-queue.ts`
 
 **Tasks**:
@@ -320,30 +301,30 @@ interface AISuggestion {
 - [ ] Add offline data persistence
 - [ ] Implement conflict resolution
 
-### 6.2 Auto-Save & Data Persistence
+### 5.2 Auto-Save & Data Persistence
 **Tasks**:
 - [ ] Add periodic auto-save during workout
 - [ ] Implement draft workout recovery
 - [ ] Add data validation and error recovery
 - [ ] Create backup and restore functionality
 
-## Phase 7: Advanced Features & Polish (LOWER - 2-3 days)
+## Phase 6: Advanced Features & Polish (LOWER - 2-3 days)
 
-### 7.1 Template Integration
+### 6.1 Template Integration
 **Tasks**:
 - [ ] Enhance template-based workout creation
 - [ ] Add template modification during workout
 - [ ] Implement exercise substitution system
 - [ ] Add template recommendation engine
 
-### 7.2 Workout Sharing & Export
+### 6.2 Workout Sharing & Export
 **Tasks**:
 - [ ] Add workout sharing functionality
 - [ ] Implement export to various formats
 - [ ] Create workout comparison tools
 - [ ] Add social features and achievements
 
-### 7.3 Performance Optimizations
+### 6.3 Performance Optimizations
 **Tasks**:
 - [ ] Add virtualization for large workouts (20+ exercises)
 - [ ] Optimize re-rendering with React.memo

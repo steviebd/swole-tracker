@@ -1,26 +1,17 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { ensureUser } from "./users";
 
 /**
- * Helper function to get or create shared user ID
+ * Helper function to get current authenticated user
  */
-async function getSharedUserId(ctx: any) {
-  let sharedUser = await ctx.db
-    .query("users")
-    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-    .unique();
-
-  if (!sharedUser) {
-    // Create the shared user if it doesn't exist
-    const userId = await ctx.db.insert("users", {
-      name: "Shared User",
-      email: "shared@example.com",
-      workosId: "shared-user-123",
-    });
-    sharedUser = await ctx.db.get(userId);
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
   }
-
-  return sharedUser!._id;
+  
+  return await ensureUser(ctx, identity);
 }
 
 /**
@@ -57,7 +48,8 @@ const exerciseInputSchema = v.object({
 export const getWorkouts = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const limit = args.limit ?? 10;
 
     // Get recent workout sessions for the shared user
@@ -109,7 +101,8 @@ export const getWorkouts = query({
 export const getWorkout = query({
   args: { id: v.id("workoutSessions") },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const workout = await ctx.db.get(args.id);
     if (!workout || workout.userId !== userId) {
       throw new ConvexError("Workout not found");
@@ -156,7 +149,8 @@ export const getLastExerciseData = query({
     templateExerciseId: v.optional(v.id("templateExercises")),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Start with the base exercise name
     let exerciseNamesToSearch = [args.exerciseName];
@@ -268,7 +262,8 @@ export const getLatestPerformanceForTemplateExercise = query({
     excludeSessionId: v.optional(v.id("workoutSessions")),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // First, check if this template exercise is linked to a master exercise
     const exerciseLink = await ctx.db
@@ -369,7 +364,8 @@ export const createWorkout = mutation({
     perfMetrics: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const workoutDate = args.workoutDate ?? Date.now();
 
     // Check for recent duplicate session (within last 2 minutes)
@@ -474,7 +470,8 @@ export const updateWorkout = mutation({
     perfMetrics: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Verify session ownership
     const session = await ctx.db.get(args.sessionId);
@@ -553,7 +550,8 @@ export const updateSessionSets = mutation({
     })),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Verify session ownership
     const session = await ctx.db.get(args.sessionId);
@@ -618,7 +616,8 @@ export const updateSessionSets = mutation({
 export const deleteWorkout = mutation({
   args: { id: v.id("workoutSessions") },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Verify ownership before deleting
     const existingSession = await ctx.db.get(args.id);

@@ -1,6 +1,18 @@
 import { ConvexError, v } from "convex/values";
+import { ensureUser } from "./users";
 import { query, mutation } from "./_generated/server";
-import { SHARED_USER_ID } from "./constants";
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
+  }
+  
+  return await ensureUser(ctx, identity);
+}
 
 /**
  * AI Suggestion History Management
@@ -39,7 +51,8 @@ export const recordInteraction = mutation({
     interactionTimeMs: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Validate inputs
@@ -69,13 +82,13 @@ export const recordInteraction = mutation({
 
       // SECURITY: Verify session belongs to user
       const session = await ctx.db.get(args.sessionId);
-      if (!session || session.userId !== user._id) {
+      if (!session || session.userId !== userId) {
         throw new ConvexError("Workout session not found or access denied");
       }
 
       // Insert suggestion history record
       const suggestionId = await ctx.db.insert("aiSuggestionHistory", {
-        userId: SHARED_USER_ID,
+        userId,
         sessionId: args.sessionId,
         exerciseName: args.exerciseName,
         setId: args.setId,
@@ -103,7 +116,7 @@ export const recordInteraction = mutation({
       }
 
       console.log('Suggestion interaction tracked successfully', {
-        userId: SHARED_USER_ID,
+        userId,
         sessionId: args.sessionId,
         exerciseName: args.exerciseName,
         action: args.action,
@@ -115,7 +128,7 @@ export const recordInteraction = mutation({
     } catch (error) {
       console.error('Failed to track suggestion interaction', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId,
         sessionId: args.sessionId,
         exerciseName: args.exerciseName,
       });
@@ -139,19 +152,8 @@ export const getHistory = query({
     exerciseName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Validate inputs
@@ -164,7 +166,7 @@ export const getHistory = query({
       // Get recent suggestion interactions
       let interactions = await ctx.db
         .query("aiSuggestionHistory")
-        .withIndex("by_userId", (q: any) => q.eq("userId", SHARED_USER_ID))
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
         .order("desc")
         .collect();
 
@@ -223,7 +225,7 @@ export const getHistory = query({
     } catch (error) {
       console.error('Failed to get suggestion analytics', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId,
         days: args.days,
         limit: args.limit,
       });
@@ -246,19 +248,8 @@ export const getSuggestions = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Validate inputs
@@ -268,7 +259,7 @@ export const getSuggestions = query({
       const suggestions = await ctx.db
         .query("aiSuggestionHistory")
         .withIndex("by_exerciseName", (q: any) => q.eq("exerciseName", args.exerciseName))
-        .filter((q: any) => q.eq(q.field("userId"), user._id))
+        .filter((q: any) => q.eq(q.field("userId"), userId))
         .order("desc")
         .take(limit);
 
@@ -285,7 +276,7 @@ export const getSuggestions = query({
     } catch (error) {
       console.error('Failed to get exercise suggestion patterns', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId,
         exerciseName: args.exerciseName,
       });
 
@@ -306,19 +297,8 @@ export const getUserPatterns = query({
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Validate inputs
@@ -330,7 +310,7 @@ export const getUserPatterns = query({
       // Get all interactions in the time range
       let interactions = await ctx.db
         .query("aiSuggestionHistory")
-        .withIndex("by_userId", (q: any) => q.eq("userId", SHARED_USER_ID))
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
         .order("desc")
         .collect();
 
@@ -343,7 +323,7 @@ export const getUserPatterns = query({
       const userPatterns = analyzeUserPatterns(interactions);
 
       return {
-        userId: SHARED_USER_ID,
+        userId,
         periodDays: days,
         totalInteractions: interactions.length,
         patterns: userPatterns,
@@ -352,7 +332,7 @@ export const getUserPatterns = query({
     } catch (error) {
       console.error('Failed to get user suggestion patterns', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId,
         days: args.days,
       });
 

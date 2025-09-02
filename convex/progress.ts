@@ -1,26 +1,17 @@
 import { ConvexError, v } from "convex/values";
+import { ensureUser } from "./users";
 import { query } from "./_generated/server";
 
 /**
  * Helper function to get or create shared user ID
  */
-async function getSharedUserId(ctx: any) {
-  let sharedUser = await ctx.db
-    .query("users")
-    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-    .unique();
-
-  if (!sharedUser) {
-    // Create the shared user if it doesn't exist
-    const userId = await ctx.db.insert("users", {
-      name: "Shared User",
-      email: "shared@example.com",
-      workosId: "shared-user-123",
-    });
-    sharedUser = await ctx.db.get(userId);
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
   }
-
-  return sharedUser!._id;
+  
+  return await ensureUser(ctx, identity);
 }
 
 /**
@@ -82,7 +73,7 @@ function getPreviousPeriod(startDate: number, endDate: number): { startDate: num
 // Helper function to get linked exercise names for a template exercise
 async function getLinkedExerciseNames(
   ctx: any,
-  user: any,
+  userId: string,
   templateExerciseId: string
 ): Promise<string[]> {
   // Check if this template exercise is linked to a master exercise
@@ -133,7 +124,8 @@ export const getStrengthProgression = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     
@@ -141,7 +133,7 @@ export const getStrengthProgression = query({
     
     // If templateExerciseId is provided, get linked exercises
     if (args.templateExerciseId) {
-      const linkedExercises = await getLinkedExerciseNames(ctx, user, args.templateExerciseId);
+      const linkedExercises = await getLinkedExerciseNames(ctx, userId, args.templateExerciseId);
       exerciseNamesToSearch = linkedExercises;
     } else if (args.exerciseName) {
       exerciseNamesToSearch = [args.exerciseName];
@@ -154,7 +146,7 @@ export const getStrengthProgression = query({
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+      .withIndex("by_user_date", (q: any) => q.eq("userId", userId))
       .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
@@ -204,14 +196,15 @@ export const getVolumeProgression = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+      .withIndex("by_user_date", (q: any) => q.eq("userId", userId))
       .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
@@ -253,7 +246,8 @@ export const getConsistencyStats = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     
@@ -281,7 +275,8 @@ export const getWorkoutDates = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     
@@ -309,7 +304,8 @@ export const getPersonalRecords = query({
     recordType: v.optional(v.union(v.literal("weight"), v.literal("volume"), v.literal("both"))),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const recordType = args.recordType ?? "both";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
@@ -317,7 +313,7 @@ export const getPersonalRecords = query({
     let exerciseNamesToSearch: string[] = [];
     
     if (args.templateExerciseId) {
-      const linkedExercises = await getLinkedExerciseNames(ctx, user, args.templateExerciseId);
+      const linkedExercises = await getLinkedExerciseNames(ctx, userId, args.templateExerciseId);
       exerciseNamesToSearch = linkedExercises;
     } else if (args.exerciseName) {
       exerciseNamesToSearch = [args.exerciseName];
@@ -336,7 +332,7 @@ export const getPersonalRecords = query({
 
     const personalRecords = await calculatePersonalRecords(
       ctx, 
-      user,
+      userId,
       exerciseNamesToSearch, 
       startDate, 
       endDate,
@@ -357,7 +353,8 @@ export const getComparativeAnalysis = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     const { startDate: prevStartDate, endDate: prevEndDate } = getPreviousPeriod(startDate, endDate);
@@ -388,14 +385,15 @@ export const getVolumeByExercise = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     
     // Get all sessions in the date range
     const sessions = await ctx.db
       .query("workoutSessions")
-      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+      .withIndex("by_user_date", (q: any) => q.eq("userId", userId))
       .filter((q: any) => q.gte(q.field("workoutDate"), startDate) && q.lte(q.field("workoutDate"), endDate))
       .order("desc")
       .collect();
@@ -437,7 +435,8 @@ export const getSetRepDistribution = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const timeRange = args.timeRange ?? "month";
     const { startDate, endDate } = getDateRange(timeRange, args.startDate, args.endDate);
     
@@ -478,7 +477,8 @@ export const getSetRepDistribution = query({
 export const getExerciseList = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     
     const sessionExercises = await ctx.db
       .query("sessionExercises")
@@ -685,7 +685,7 @@ function calculateLongestStreak(dates: number[]) {
 
 async function calculatePersonalRecords(
   ctx: any,
-  user: any,
+  userId: string,
   exerciseNames: string[],
   startDate: number,
   endDate: number,
@@ -778,7 +778,7 @@ async function calculatePersonalRecords(
 
 async function getVolumeAndStrengthData(
   ctx: any, 
-  user: any, 
+  userId: string, 
   startDate: number, 
   endDate: number
 ): Promise<{

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, ChevronDown, ChevronUp, TrendingUp, Target } from "lucide-react";
+import { Dumbbell, ChevronDown, ChevronUp, TrendingUp, Target, Brain } from "lucide-react";
 import { cn } from "~/lib/utils";
 
 interface PreviousBest {
@@ -25,6 +25,7 @@ interface ExerciseHeaderProps {
   totalSets?: number;
   onToggleExpansion: (exerciseIndex: number) => void;
   onSwipeToBottom?: (exerciseIndex: number) => void;
+  onAiSuggestionsClick?: () => void;
   exerciseIndex: number;
 }
 
@@ -38,6 +39,7 @@ export function ExerciseHeader({
   completedSets = 0,
   totalSets = 0,
   onToggleExpansion,
+  onAiSuggestionsClick,
   exerciseIndex,
 }: ExerciseHeaderProps) {
   const progressPercent = totalSets > 0 ? (completedSets / totalSets) * 100 : 0;
@@ -152,6 +154,27 @@ export function ExerciseHeader({
           <span className="px-2 py-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs rounded-full font-medium">
             Moved
           </span>
+        )}
+        
+        {/* AI Suggestions Button - Mobile-first design */}
+        {!readOnly && onAiSuggestionsClick && (
+          <button
+            type="button"
+            className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-lg transition-colors",
+              "bg-purple-50 hover:bg-purple-100 active:bg-purple-200",
+              "dark:bg-purple-950 dark:hover:bg-purple-900 dark:active:bg-purple-800",
+              "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAiSuggestionsClick();
+            }}
+            aria-label={`Get AI suggestions for ${name}`}
+            title="Get AI suggestions"
+          >
+            <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          </button>
         )}
         
         {/* Expand/Collapse Button - Larger touch target for mobile */}

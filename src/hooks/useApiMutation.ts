@@ -16,7 +16,7 @@ export function useApiMutation<T extends FunctionReference<"mutation">>(
   
   return async (...args: OptionalRestArgs<T>): Promise<T["_returnType"]> => {
     try {
-      const result: T["_returnType"] = await mutation(...args);
+      const result = await mutation(...args) as T["_returnType"];
       return result;
     } catch (error) {
       console.error("Mutation error:", error);

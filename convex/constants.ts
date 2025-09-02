@@ -1,6 +1,10 @@
 /**
- * Convex constants
+ * Convex constants for authenticated multi-user app
  */
 
-// Configurable user ID for public app - everyone shares the same data  
-export const SHARED_USER_ID = process.env.SHARED_USER_ID || "shared-user-123";
+// Rate limiting constants
+export const RATE_LIMITS = {
+  WORKOUT_OPERATIONS_PER_HOUR: 200,
+  TEMPLATE_OPERATIONS_PER_HOUR: 100,
+  API_CALLS_PER_MINUTE: 60,
+} as const;

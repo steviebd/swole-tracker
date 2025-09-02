@@ -1,34 +1,21 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { api } from "./_generated/api";
+import { ensureUser } from "./users";
 
 /**
- * Template Management Functions
- * 
- * Handles workout template CRUD operations with proper user isolation.
- * Migrated from tRPC templates router with exercise linking logic.
+ * Template Management Functions with proper authentication
  */
 
 /**
- * Helper function to get or create shared user ID
+ * Helper function to get current authenticated user
  */
-async function getSharedUserId(ctx: any) {
-  let sharedUser = await ctx.db
-    .query("users")
-    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-    .unique();
-
-  if (!sharedUser) {
-    // Create the shared user if it doesn't exist
-    const userId = await ctx.db.insert("users", {
-      name: "Shared User",
-      email: "shared@example.com",
-      workosId: "shared-user-123",
-    });
-    sharedUser = await ctx.db.get(userId);
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
   }
-
-  return sharedUser!._id;
+  
+  return await ensureUser(ctx, identity);
 }
 
 /**
@@ -43,9 +30,9 @@ function normalizeExerciseName(name: string): string {
  */
 async function createAndLinkMasterExercise(
   ctx: any,
-  userId: string,
+  userId: any,
   exerciseName: string,
-  templateExerciseId: string,
+  templateExerciseId: any,
   linkingRejected = false,
 ) {
   // Don't create links if user has rejected linking
@@ -114,7 +101,13 @@ async function createAndLinkMasterExercise(
 export const getTemplates = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getSharedUserId(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    const user = await ensureUser(ctx, identity);
+    const userId = user._id;
 
     // Get templates with exercises
     const templates = await ctx.db
@@ -152,7 +145,23 @@ export const getTemplates = query({
 export const getTemplate = query({
   args: { id: v.id("workoutTemplates") },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    // Get authenticated user identity
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    // Find user record
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_workosId", (q) => q.eq("workosId", identity.subject))
+      .unique();
+
+    if (!user) {
+      throw new ConvexError("User not found");
+    }
+
+    const userId = user._id;
 
     const template = await ctx.db.get(args.id);
     if (!template || template.userId !== userId) {
@@ -177,7 +186,7 @@ export const getTemplate = query({
 });
 
 /**
- * Create a new template
+ * Create a new template - authenticated
  */
 export const createTemplate = mutation({
   args: {
@@ -185,65 +194,37 @@ export const createTemplate = mutation({
     exercises: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
-
-    // Validate input
-    if (!args.name || args.name.length === 0 || args.name.length > 256) {
-      throw new ConvexError("Template name must be between 1 and 256 characters");
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
     }
 
-    for (const exercise of args.exercises) {
-      if (!exercise || exercise.length === 0 || exercise.length > 256) {
-        throw new ConvexError("Exercise names must be between 1 and 256 characters");
-      }
-    }
+    const user = await ensureUser(ctx, identity);
 
-    // Check for recent duplicate template (prevent double-clicks)
-    const recentTemplate = await ctx.db
-      .query("workoutTemplates")
-      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
-      .filter((q: any) => q.eq(q.field("name"), args.name))
-      .order("desc")
-      .first();
-
-    if (recentTemplate) {
-      const timeDiff = Date.now() - recentTemplate._creationTime;
-      if (timeDiff < 5000) { // 5 seconds
-        return recentTemplate._id;
-      }
+    // Basic validation
+    if (!args.name || args.name.trim().length === 0) {
+      throw new ConvexError("Template name is required");
     }
 
     // Create template
     const templateId = await ctx.db.insert("workoutTemplates", {
-      name: args.name,
-      userId: userId,
+      name: args.name.trim(),
+      userId: user._id,
       updatedAt: Date.now(),
     });
 
-    // Create exercises if provided
-    if (args.exercises.length > 0) {
-      const exercisePromises = args.exercises.map(async (exerciseName, index) => {
-        const exerciseId = await ctx.db.insert("templateExercises", {
-          userId: userId,
-          templateId,
-          exerciseName,
-          orderIndex: index,
+    // Create exercises
+    for (let i = 0; i < args.exercises.length; i++) {
+      const exerciseName = args.exercises[i];
+      if (exerciseName && exerciseName.trim()) {
+        await ctx.db.insert("templateExercises", {
+          userId: user._id,
+          templateId: templateId,
+          exerciseName: exerciseName.trim(),
+          orderIndex: i,
           linkingRejected: false,
         });
-
-        // Create master exercise and link
-        await createAndLinkMasterExercise(
-          ctx,
-          userId,
-          exerciseName,
-          exerciseId,
-          false
-        );
-
-        return exerciseId;
-      });
-
-      await Promise.all(exercisePromises);
+      }
     }
 
     return templateId;
@@ -260,7 +241,8 @@ export const updateTemplate = mutation({
     exercises: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Validate input
     if (!args.name || args.name.length === 0 || args.name.length > 256) {
@@ -331,7 +313,8 @@ export const updateTemplate = mutation({
 export const deleteTemplate = mutation({
   args: { id: v.id("workoutTemplates") },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Verify ownership
     const existingTemplate = await ctx.db.get(args.id);

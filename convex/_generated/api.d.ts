@@ -16,6 +16,7 @@ import type {
 import type * as constants from "../constants.js";
 import type * as exercises from "../exercises.js";
 import type * as healthAdvice from "../healthAdvice.js";
+import type * as http from "../http.js";
 import type * as insights from "../insights.js";
 import type * as jokes from "../jokes.js";
 import type * as preferences from "../preferences.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   constants: typeof constants;
   exercises: typeof exercises;
   healthAdvice: typeof healthAdvice;
+  http: typeof http;
   insights: typeof insights;
   jokes: typeof jokes;
   preferences: typeof preferences;

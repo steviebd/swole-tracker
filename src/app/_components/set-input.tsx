@@ -34,10 +34,13 @@ interface SetInputProps {
   onMoveDown?: () => void;
   // User's preferred weight unit
   preferredUnit?: "kg" | "lbs";
+  // All current sets for pattern analysis
+  allSets?: SetData[];
 }
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "~/lib/utils";
+import { usePredictiveDefaults } from "~/hooks/use-predictive-defaults";
 
 export function SetInput({
   set,
@@ -53,11 +56,26 @@ export function SetInput({
   onMoveUp,
   onMoveDown,
   preferredUnit = "kg",
+  allSets = [],
 }: SetInputProps) {
   const weightInputRef = useRef<HTMLInputElement>(null);
   const repsInputRef = useRef<HTMLInputElement>(null);
   const restInputRef = useRef<HTMLInputElement>(null);
   const lastUsedWeight = useRef<number | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Get predictive defaults for this set
+  const { bestPrediction, isLoading: predictionsLoading } = usePredictiveDefaults({
+    exerciseName,
+    templateExerciseId,
+    setIndex,
+    currentSets: allSets,
+    unit: preferredUnit,
+  });
+
+  // Check if current set is empty and we should show predictions
+  const isEmpty = !set.weight && !set.reps;
+  const shouldShowPredictions = isEmpty && bestPrediction && bestPrediction.confidence > 0.6;
 
   useEffect(() => {
     // remember last used weight for shortcuts
@@ -94,26 +112,78 @@ export function SetInput({
     onUpdate(exerciseIndex, setIndex, "rest", value);
   };
 
+  // Apply AI prediction
+  const applyPrediction = () => {
+    if (bestPrediction && !readOnly) {
+      if (bestPrediction.weight) {
+        handleWeightChange(bestPrediction.weight);
+      }
+      if (bestPrediction.reps) {
+        handleRepsChange(bestPrediction.reps);
+      }
+      if (bestPrediction.sets) {
+        handleSetsChange(bestPrediction.sets);
+      }
+      setShowSuggestions(false);
+    }
+  };
+
   const isCompleted = !!(set.weight && set.reps);
   const hasPartialData = !!(set.weight || set.reps || (set.sets && set.sets > 1));
 
   return (
-    <div className={cn(
-      "glass-card glass-hairline flex items-center gap-3 rounded-lg p-3 text-foreground select-none card-interactive transition-all duration-200",
-      isCompleted && "ring-2 ring-green-200 dark:ring-green-800 bg-green-50/50 dark:bg-green-950/30",
-      hasPartialData && !isCompleted && "ring-1 ring-blue-200 dark:ring-blue-800 bg-blue-50/30 dark:bg-blue-950/20"
-    )}>
-      {/* Set Number with Status */}
+    <div className="relative">
+      {/* AI Suggestion Overlay */}
+      {shouldShowPredictions && !readOnly && (
+        <div className="absolute inset-0 z-10 flex items-center justify-between rounded-lg bg-purple-50/95 dark:bg-purple-950/95 border border-purple-200 dark:border-purple-800 backdrop-blur-sm">
+          <div className="flex items-center gap-3 p-3 flex-1">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500 text-white text-xs font-semibold">
+              AI
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                Suggested: {bestPrediction.weight && `${bestPrediction.weight}${preferredUnit}`}
+                {bestPrediction.reps && ` × ${bestPrediction.reps}`}
+              </div>
+              <div className="text-xs text-purple-600 dark:text-purple-300">
+                {bestPrediction.rationale} ({Math.round(bestPrediction.confidence * 100)}% confidence)
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 p-3">
+            <button
+              onClick={() => setShowSuggestions(false)}
+              className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors"
+            >
+              Skip
+            </button>
+            <button
+              onClick={applyPrediction}
+              className="px-3 py-1 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded-md transition-colors font-medium"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={cn(
-        "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200",
-        isCompleted 
-          ? "bg-green-500 text-white shadow-sm" 
-          : hasPartialData 
-          ? "bg-blue-500 text-white shadow-sm"
-          : "bg-muted text-muted-foreground"
+        "glass-card glass-hairline flex items-center gap-3 rounded-lg p-3 text-foreground select-none card-interactive transition-all duration-200",
+        isCompleted && "ring-2 ring-green-200 dark:ring-green-800 bg-green-50/50 dark:bg-green-950/30",
+        hasPartialData && !isCompleted && "ring-1 ring-blue-200 dark:ring-blue-800 bg-blue-50/30 dark:bg-blue-950/20",
+        shouldShowPredictions && "opacity-60"
       )}>
-        {setIndex + 1}
-      </div>
+        {/* Set Number with Status */}
+        <div className={cn(
+          "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200",
+          isCompleted 
+            ? "bg-green-500 text-white shadow-sm" 
+            : hasPartialData 
+            ? "bg-blue-500 text-white shadow-sm"
+            : "bg-muted text-muted-foreground"
+        )}>
+          {setIndex + 1}
+        </div>
 
       {/* Input Grid */}
       <div className="flex flex-1 flex-wrap gap-3">
@@ -389,6 +459,7 @@ export function SetInput({
           </svg>
         </button>
       )}
+      </div>
     </div>
   );
 }

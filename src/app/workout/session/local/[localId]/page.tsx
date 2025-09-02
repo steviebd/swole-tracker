@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getUser } from "@workos-inc/authkit-nextjs";
+// TODO: Fix WorkOS authkit import
+// import { getUser } from "@workos-inc/authkit-nextjs";
 
 interface LocalWorkoutSessionPageProps {
   params: Promise<{ localId: string }>;
@@ -9,7 +10,9 @@ interface LocalWorkoutSessionPageProps {
 export default async function LocalWorkoutSessionPage({
   params,
 }: LocalWorkoutSessionPageProps) {
-  const { user } = await getUser();
+  // TODO: Fix WorkOS authkit usage
+  // const { user } = await getUser();
+  const user = null;
   if (!user) redirect('/sign-in');
 
   const { localId } = await params;

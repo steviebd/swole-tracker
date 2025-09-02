@@ -16,7 +16,9 @@ import {
   Check,
   Target,
   TrendingUp,
-  Save
+  Save,
+  RefreshCw,
+  MoreVertical
 } from "lucide-react";
 import { api } from "~/convex/_generated/api";
 import { Button } from "~/components/ui/button";
@@ -26,6 +28,11 @@ import { SkeletonScreen } from "~/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "~/lib/utils";
 import type { Id } from "~/convex/_generated/dataModel";
+import { WorkoutCompletionModal, useWorkoutCompletion } from "~/app/_components/WorkoutCompletionModal";
+import { WorkoutRecoveryModal, useWorkoutRecovery } from "~/app/_components/WorkoutRecoveryModal";
+import ExerciseSubstitutionModal from "~/app/_components/ExerciseSubstitutionModal";
+import { useAutoSave } from "~/hooks/use-cache-invalidation";
+import { useWorkoutRecovery as useOfflineRecovery } from "~/lib/enhanced-offline-storage";
 
 /**
  * Workout Session Interface
@@ -60,6 +67,7 @@ export default function WorkoutSessionPage() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.id as Id<"workoutSessions">;
+  const sessionIdString = sessionId.toString();
   
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exercises, setExercises] = useState<ExerciseSession[]>([]);
@@ -67,11 +75,74 @@ export default function WorkoutSessionPage() {
   const [sessionStartTime] = useState(Date.now());
   const [elapsedTime, setElapsedTime] = useState(0);
   const [unit, setUnit] = useState<"kg" | "lbs">("kg");
+  const [workoutData, setWorkoutData] = useState<any>(null);
 
   // Fetch session data
   const session = useQuery(api.workouts.getWorkout, { id: sessionId });
+
+  // Completion modal state
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [isCompletingWorkout, setIsCompletingWorkout] = useState(false);
+  const { prepareCompletionData } = useWorkoutCompletion();
+
+  // Exercise substitution state
+  const [showSubstitutionModal, setShowSubstitutionModal] = useState(false);
+  const [substitutionExerciseIndex, setSubstitutionExerciseIndex] = useState<number | null>(null);
+
+  // Recovery and auto-save hooks
+  const { showRecoveryModal, recoveryData, showRecovery, hideRecovery } = useWorkoutRecovery();
+  const {
+    hasDraft,
+    draftData,
+    showRecoveryModal: showOfflineRecovery,
+    recoverDraft,
+    discardDraft
+  } = useOfflineRecovery(sessionIdString);
+
+  // Auto-save current workout state
+  const currentWorkoutState = {
+    sessionId: sessionIdString,
+    workoutName: session?.template?.name,
+    exercises,
+    currentExerciseIndex,
+    unit,
+    sessionDuration: elapsedTime,
+    completedSets: exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0),
+    totalSets: exercises.reduce((acc, ex) => acc + ex.sets.length, 0),
+    savedAt: Date.now()
+  };
+
+  const { isDirty, forceSave } = useAutoSave(
+    sessionIdString,
+    currentWorkoutState,
+    {
+      interval: 30000, // Save every 30 seconds
+      enabled: isSessionActive,
+      onSave: () => {
+        console.log('Auto-save completed');
+      },
+      onError: (error) => {
+        console.error('Auto-save failed:', error);
+        toast.error('Auto-save failed');
+      }
+    }
+  );
+
   const updateSessionSets = useMutation(api.workouts.updateSessionSets);
   const updateWorkout = useMutation(api.workouts.updateWorkout);
+
+  // Define completeWorkout function early to avoid hoisting issues
+  const completeWorkout = async () => {
+    try {
+      // Note: saveProgress is defined later, this may need adjustment
+      // await saveProgress();
+      // Show completion modal instead of completing immediately
+      setShowCompletionModal(true);
+    } catch (error) {
+      console.error('Error saving progress before completion:', error);
+      toast.error('Failed to save progress. Please try again.');
+    }
+  };
 
   // Timer effect
   useEffect(() => {
@@ -81,6 +152,53 @@ export default function WorkoutSessionPage() {
 
     return () => clearInterval(interval);
   }, [sessionStartTime]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only handle keyboard shortcuts when not in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          event.preventDefault();
+          if (currentExerciseIndex > 0) {
+            setCurrentExerciseIndex(prev => prev - 1);
+          }
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          if (currentExerciseIndex < exercises.length - 1) {
+            setCurrentExerciseIndex(prev => prev + 1);
+          } else if (currentExerciseIndex === exercises.length - 1) {
+            // Show completion modal when on last exercise and pressing right arrow
+            completeWorkout();
+          }
+          break;
+        case 'Escape':
+          event.preventDefault();
+          if (showCompletionModal) {
+            setShowCompletionModal(false);
+          } else {
+            router.back();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentExerciseIndex, exercises.length, showCompletionModal, router, completeWorkout]);
+
+  // Check for draft recovery on mount
+  useEffect(() => {
+    if (hasDraft && draftData && showOfflineRecovery) {
+      showRecovery(draftData);
+    }
+  }, [hasDraft, draftData, showOfflineRecovery, showRecovery]);
 
   // Initialize exercises from template data (since session exercises may be empty for new workouts)
   useEffect(() => {
@@ -98,6 +216,24 @@ export default function WorkoutSessionPage() {
       setExercises(initialExercises);
     }
   }, [session, exercises.length]);
+
+  // Recovery handlers
+  const handleRecoverDraft = () => {
+    const recovered = recoverDraft();
+    if (recovered && recovered.exercises) {
+      setExercises(recovered.exercises);
+      setCurrentExerciseIndex(recovered.currentExerciseIndex || 0);
+      setUnit(recovered.unit || 'kg');
+      toast.success('Workout recovered successfully!');
+    }
+    hideRecovery();
+  };
+
+  const handleDiscardDraft = () => {
+    discardDraft();
+    hideRecovery();
+    toast.info('Draft discarded');
+  };
 
   const formatTime = (milliseconds: number) => {
     const minutes = Math.floor(milliseconds / 60000);
@@ -146,8 +282,53 @@ export default function WorkoutSessionPage() {
     ));
   };
 
+  const addExercise = () => {
+    const newExercise: ExerciseSession = {
+      templateExerciseId: `custom-${Date.now()}`,
+      exerciseName: "New Exercise",
+      sets: [{ reps: 0, weight: 0, completed: false }],
+    };
+    setExercises(prev => [...prev, newExercise]);
+  };
+
+  const removeExercise = (exerciseIndex: number) => {
+    if (exercises.length <= 1) {
+      toast.error("Cannot remove the last exercise");
+      return;
+    }
+    
+    setExercises(prev => prev.filter((_, i) => i !== exerciseIndex));
+    
+    // Adjust current exercise index if necessary
+    if (currentExerciseIndex >= exercises.length - 1) {
+      setCurrentExerciseIndex(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  const substituteExercise = (exerciseIndex: number, newExerciseName: string) => {
+    setExercises(prev => prev.map((ex, i) => 
+      i === exerciseIndex 
+        ? { ...ex, exerciseName: newExerciseName }
+        : ex
+    ));
+  };
+
+  const openSubstitutionModal = (exerciseIndex: number) => {
+    setSubstitutionExerciseIndex(exerciseIndex);
+    setShowSubstitutionModal(true);
+  };
+
+  const handleExerciseSubstitution = (newExerciseName: string) => {
+    if (substitutionExerciseIndex !== null) {
+      substituteExercise(substitutionExerciseIndex, newExerciseName);
+    }
+    setShowSubstitutionModal(false);
+    setSubstitutionExerciseIndex(null);
+  };
+
   const removeSet = (exerciseIndex: number, setIndex: number) => {
-    if (exercises[exerciseIndex]?.sets.length <= 1) return;
+    const exercise = exercises[exerciseIndex];
+    if (!exercise || exercise.sets.length <= 1) return;
     
     setExercises(prev => prev.map((ex, i) => 
       i === exerciseIndex 
@@ -177,6 +358,9 @@ export default function WorkoutSessionPage() {
         updates
       });
 
+      // Also force save to offline storage
+      await forceSave();
+
       toast.success("Progress saved!");
     } catch (error) {
       console.error('Error saving progress:', error);
@@ -184,15 +368,16 @@ export default function WorkoutSessionPage() {
     }
   };
 
-  const completeWorkout = async () => {
+
+  const handleWorkoutCompletion = async () => {
     try {
-      await saveProgress();
+      setIsCompletingWorkout(true);
       
       await updateWorkout({
         sessionId: sessionId,
         exercises: exercises.flatMap((exercise, exerciseIndex) =>
           exercise.sets.map((set, setIndex) => ({
-            templateExerciseId: `exercise-${exerciseIndex}-${setIndex}`,
+            templateExerciseId: exercise.templateExerciseId as Id<"templateExercises">,
             exerciseName: exercise.exerciseName,
             sets: [{
               id: `${exercise.templateExerciseId}_${setIndex}`,
@@ -211,8 +396,13 @@ export default function WorkoutSessionPage() {
     } catch (error) {
       console.error('Error completing workout:', error);
       toast.error('Failed to complete workout. Please try again.');
+    } finally {
+      setIsCompletingWorkout(false);
     }
   };
+
+  // Prepare completion data for the modal
+  const completionData = prepareCompletionData(exercises, []);
 
   const nextExercise = () => {
     if (currentExerciseIndex < exercises.length - 1) {
@@ -291,8 +481,14 @@ export default function WorkoutSessionPage() {
             >
               {unit}
             </Button>
-            <Button variant="outline" size="sm" onClick={saveProgress}>
-              <Save className="w-4 h-4" />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={saveProgress}
+              className={cn(isDirty && "border-orange-200 bg-orange-50")}
+            >
+              <Save className={cn("w-4 h-4", isDirty && "text-orange-600")} />
+              {isDirty && <span className="ml-1 text-xs">•</span>}
             </Button>
           </div>
         </motion.div>
@@ -346,18 +542,42 @@ export default function WorkoutSessionPage() {
           >
             <GlassSurface className="p-6">
               <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <Dumbbell className="w-5 h-5 text-primary" />
-                    {currentExercise.exerciseName}
-                  </h2>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                    <span>{completedSets} of {totalSets} sets completed</span>
-                    {currentExercise.previousBest && (
-                      <span className="flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        Best: {currentExercise.previousBest.weight}{unit} × {currentExercise.previousBest.reps}
-                      </span>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                      <Dumbbell className="w-5 h-5 text-primary" />
+                      {currentExercise.exerciseName}
+                    </h2>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                      <span>{completedSets} of {totalSets} sets completed</span>
+                      {currentExercise.previousBest && (
+                        <span className="flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          Best: {currentExercise.previousBest.weight}{unit} × {currentExercise.previousBest.reps}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Exercise modification controls */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openSubstitutionModal(currentExerciseIndex)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    {exercises.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeExercise(currentExerciseIndex)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -436,11 +656,28 @@ export default function WorkoutSessionPage() {
           </motion.div>
         )}
 
-        {/* Navigation */}
+        {/* Add Exercise Button */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex justify-center"
+        >
+          <Button
+            variant="outline"
+            onClick={addExercise}
+            className="w-full max-w-xs"
+          >
+            <Plus className="w-4 h-4" />
+            Add Exercise
+          </Button>
+        </motion.div>
+
+        {/* Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
           className="flex gap-3"
         >
           <Button
@@ -484,6 +721,41 @@ export default function WorkoutSessionPage() {
           </p>
         </motion.div>
       </div>
+
+      {/* Workout Completion Modal */}
+      <WorkoutCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        onConfirm={handleWorkoutCompletion}
+        workoutStats={completionData.stats}
+        exerciseComparisons={completionData.comparisons}
+        isLoading={isCompletingWorkout}
+        workoutId={sessionId}
+        templateId={session?.templateId}
+        workoutName={session?.template?.name}
+      />
+
+      {/* Workout Recovery Modal */}
+      <WorkoutRecoveryModal
+        isOpen={showRecoveryModal}
+        onRecover={handleRecoverDraft}
+        onDiscard={handleDiscardDraft}
+        onClose={hideRecovery}
+        draftData={recoveryData}
+      />
+
+      {/* Exercise Substitution Modal */}
+      {substitutionExerciseIndex !== null && (
+        <ExerciseSubstitutionModal
+          isOpen={showSubstitutionModal}
+          onClose={() => {
+            setShowSubstitutionModal(false);
+            setSubstitutionExerciseIndex(null);
+          }}
+          exerciseName={exercises[substitutionExerciseIndex]?.exerciseName || ""}
+          onSubstitute={handleExerciseSubstitution}
+        />
+      )}
     </div>
   );
 }

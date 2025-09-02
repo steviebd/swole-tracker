@@ -1,0 +1,239 @@
+import { query, mutation } from "./_generated/server";
+import { v } from "convex/values";
+import { getSharedUserId } from "./users";
+
+/**
+ * Template Recommendation Engine
+ * 
+ * Provides AI-powered template suggestions based on:
+ * - User workout history and patterns
+ * - Exercise preferences and performance
+ * - Recovery data and readiness scores
+ * - Progressive overload principles
+ */
+
+// Get template recommendations based on user patterns
+export const getTemplateRecommendations = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) return [];
+
+    // Get user's workout history for pattern analysis
+    const recentSessions = await ctx.db
+      .query("workoutSessions")
+      .withIndex("by_user_date", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(20);
+
+    const templates = await ctx.db
+      .query("workoutTemplates")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const recommendations = [];
+
+    // Analyze workout frequency and suggest rest day recovery workouts
+    const lastWorkoutDate = recentSessions[0]?.workoutDate;
+    const daysSinceLastWorkout = lastWorkoutDate 
+      ? Math.floor((Date.now() - lastWorkoutDate) / (1000 * 60 * 60 * 24))
+      : 0;
+
+    if (daysSinceLastWorkout >= 2) {
+      recommendations.push({
+        type: "comeback",
+        title: "Welcome Back Recovery Session",
+        description: "Light workout to ease back into training after a break",
+        templateId: null, // Custom recommendation
+        exercises: [
+          { exerciseName: "Dynamic Warm-up", sets: 1, reps: "5 min", weight: 0 },
+          { exerciseName: "Bodyweight Squats", sets: 2, reps: 15, weight: 0 },
+          { exerciseName: "Push-ups", sets: 2, reps: 10, weight: 0 },
+          { exerciseName: "Plank", sets: 2, reps: "30s", weight: 0 },
+        ],
+        confidence: 0.8,
+      });
+    }
+
+    // Analyze muscle group balance and suggest complementary workouts
+    const recentExercises = await Promise.all(
+      recentSessions.slice(0, 5).map(async (session) => {
+        return ctx.db
+          .query("sessionExercises")
+          .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+          .collect();
+      })
+    );
+
+    const exerciseFrequency = recentExercises
+      .flat()
+      .reduce((acc, exercise) => {
+        const name = exercise.exerciseName.toLowerCase();
+        acc[name] = (acc[name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+    // Identify underworked muscle groups
+    const pushExercises = Object.keys(exerciseFrequency).filter(name => 
+      name.includes('push') || name.includes('press') || name.includes('chest')
+    ).length;
+
+    const pullExercises = Object.keys(exerciseFrequency).filter(name => 
+      name.includes('pull') || name.includes('row') || name.includes('lat')
+    ).length;
+
+    const legExercises = Object.keys(exerciseFrequency).filter(name => 
+      name.includes('squat') || name.includes('deadlift') || name.includes('leg')
+    ).length;
+
+    if (pullExercises < pushExercises * 0.7) {
+      recommendations.push({
+        type: "balance",
+        title: "Pull-Focused Balance Workout",
+        description: "Strengthen your back and improve push/pull balance",
+        templateId: null,
+        exercises: [
+          { exerciseName: "Pull-ups", sets: 3, reps: 8, weight: 0 },
+          { exerciseName: "Bent Over Rows", sets: 3, reps: 10, weight: 60 },
+          { exerciseName: "Lat Pulldowns", sets: 3, reps: 12, weight: 50 },
+          { exerciseName: "Face Pulls", sets: 2, reps: 15, weight: 20 },
+        ],
+        confidence: 0.9,
+      });
+    }
+
+    // Suggest progression variants of existing templates
+    for (const template of templates) {
+      const templateExercises = await ctx.db
+        .query("templateExercises")
+        .withIndex("by_templateId", (q) => q.eq("templateId", template._id))
+        .collect();
+
+      if (templateExercises.length > 0) {
+        recommendations.push({
+          type: "progression",
+          title: `Progressive ${template.name}`,
+          description: "Advanced variation with increased intensity",
+          templateId: template._id,
+          exercises: templateExercises.map(ex => ({
+            exerciseName: ex.exerciseName,
+            sets: 4, // Increase sets
+            reps: 8, // Lower reps for strength
+            weight: 0, // Will be calculated based on history
+          })),
+          confidence: 0.7,
+        });
+      }
+    }
+
+    return recommendations.slice(0, 5); // Limit to top 5 recommendations
+  },
+});
+
+// Track template recommendation interactions
+export const recordRecommendationInteraction = mutation({
+  args: {
+    recommendationType: v.string(),
+    templateId: v.optional(v.id("workoutTemplates")),
+    action: v.union(v.literal("accepted"), v.literal("rejected"), v.literal("viewed")),
+    confidence: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    // Store interaction data for future recommendation improvements
+    await ctx.db.insert("aiSuggestionHistory", {
+      userId,
+      sessionId: null as any, // No active session for template recommendations
+      exerciseName: "template_recommendation",
+      setId: args.recommendationType,
+      setIndex: 0,
+      suggestionRationale: `Template recommendation: ${args.recommendationType}`,
+      action: args.action,
+      progressionType: args.recommendationType,
+      readinessScore: args.confidence,
+      plateauDetected: false,
+      interactionTimeMs: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// Get exercise substitution suggestions
+export const getExerciseSubstitutions = query({
+  args: { exerciseName: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) return [];
+
+    const exerciseName = args.exerciseName.toLowerCase();
+    
+    // Define exercise substitution categories
+    const substitutions = {
+      // Push exercises
+      "push-up": ["Chest Press", "Incline Push-up", "Diamond Push-up", "Dumbbell Press"],
+      "bench press": ["Dumbbell Press", "Push-ups", "Chest Fly", "Incline Press"],
+      "shoulder press": ["Dumbbell Press", "Pike Push-ups", "Handstand Push-ups", "Arnold Press"],
+      
+      // Pull exercises
+      "pull-up": ["Lat Pulldown", "Assisted Pull-ups", "Band Pull-aparts", "TRX Rows"],
+      "bent over row": ["T-Bar Row", "Cable Row", "Dumbbell Row", "Inverted Rows"],
+      
+      // Leg exercises
+      "squat": ["Goblet Squat", "Leg Press", "Bulgarian Split Squat", "Wall Sit"],
+      "deadlift": ["Romanian Deadlift", "Hip Thrust", "Good Morning", "Kettlebell Swing"],
+      "lunge": ["Step-ups", "Bulgarian Split Squat", "Walking Lunges", "Reverse Lunge"],
+      
+      // Core exercises
+      "plank": ["Dead Bug", "Bird Dog", "Hollow Hold", "Side Plank"],
+      "crunch": ["Bicycle Crunches", "Russian Twists", "Mountain Climbers", "Leg Raises"],
+    };
+
+    // Find matching exercise category
+    const matchedKey = Object.keys(substitutions).find(key => 
+      exerciseName.includes(key) || key.includes(exerciseName)
+    );
+
+    if (matchedKey) {
+      return substitutions[matchedKey as keyof typeof substitutions].map((sub, index) => ({
+        exerciseName: sub,
+        reason: index === 0 ? "Similar movement pattern" :
+                index === 1 ? "Beginner-friendly variation" :
+                index === 2 ? "Equipment-free alternative" : 
+                "Advanced variation",
+        muscleGroups: getMuscleGroups(sub),
+        difficulty: index === 1 ? "beginner" : index === 3 ? "advanced" : "intermediate",
+      }));
+    }
+
+    return [];
+  },
+});
+
+// Helper function to categorize muscle groups
+function getMuscleGroups(exerciseName: string): string[] {
+  const exercise = exerciseName.toLowerCase();
+  
+  if (exercise.includes('chest') || exercise.includes('push') || exercise.includes('press')) {
+    return ['chest', 'triceps', 'shoulders'];
+  }
+  if (exercise.includes('pull') || exercise.includes('row') || exercise.includes('lat')) {
+    return ['back', 'biceps', 'rear-delts'];
+  }
+  if (exercise.includes('squat') || exercise.includes('lunge') || exercise.includes('leg')) {
+    return ['quadriceps', 'glutes', 'hamstrings'];
+  }
+  if (exercise.includes('deadlift') || exercise.includes('hip')) {
+    return ['hamstrings', 'glutes', 'lower-back'];
+  }
+  if (exercise.includes('plank') || exercise.includes('crunch') || exercise.includes('core')) {
+    return ['core', 'abs'];
+  }
+  if (exercise.includes('shoulder') || exercise.includes('delt')) {
+    return ['shoulders', 'triceps'];
+  }
+  
+  return ['full-body'];
+}

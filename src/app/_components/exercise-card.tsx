@@ -63,6 +63,8 @@ interface ExerciseCardProps {
   ) => void;
   setCardElement?: (element: HTMLElement | null) => void;
   preferredUnit?: "kg" | "lbs";
+  onAiSuggestionsClick?: (exerciseIndex: number, exerciseName: string, sets: SetData[]) => void;
+  onSubstituteExercise?: (exerciseIndex: number, newExerciseName: string) => void;
 }
 
 export function ExerciseCard({
@@ -88,6 +90,8 @@ export function ExerciseCard({
   onPointerDown,
   setCardElement,
   preferredUnit = "kg",
+  onAiSuggestionsClick,
+  onSubstituteExercise,
 }: ExerciseCardProps) {
   // Accessibility live region
   const announce = useLiveRegion();
@@ -154,27 +158,33 @@ export function ExerciseCard({
   const isDragActive =
     isDragging && Math.abs(dragOffset.y) > Math.abs(dragOffset.x);
 
-  // Style: lock horizontal translation during vertical drag; add subtle scale/shadow
+  // Enhanced visual feedback for drag and swipe
   const cardStyle = {
-    transform: `translate(${isDragActive ? 0 : swipeState.isDismissed ? 0 : swipeState.translateX}px, ${isDragActive ? dragOffset.y : 0}px)`,
+    transform: `translate3d(${isDragActive ? 0 : swipeState.isDismissed ? 0 : swipeState.translateX}px, ${isDragActive ? dragOffset.y : 0}px, ${isDragActive ? '10px' : '0px'})`,
     opacity: isDragActive
-      ? 0.9
+      ? 0.95
       : swipeState.isDismissed
         ? 1
         : Math.max(0.3, 1 - Math.abs(swipeState.translateX) / 300),
     scale: isDragActive
-      ? 1.03
+      ? 1.05
       : swipeState.isDismissed
         ? 1
         : Math.max(0.9, 1 - Math.abs(swipeState.translateX) / 600),
-    zIndex: isDragActive ? 50 : 1,
+    zIndex: isDragActive ? 50 : isDraggedOver ? 25 : 1,
+    boxShadow: isDragActive
+      ? "0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.3)"
+      : isDraggedOver
+        ? "0 10px 25px -5px rgba(59, 130, 246, 0.15), 0 0 0 1px rgba(59, 130, 246, 0.2)"
+        : undefined,
+    rotate: isDragActive ? '1deg' : '0deg',
     transition:
       (swipeState.isDragging && isSwipeActive) || isDragActive
         ? "none"
-        : "transform var(--motion-duration-base) var(--motion-ease), opacity var(--motion-duration-base) var(--motion-ease), scale var(--motion-duration-base) var(--motion-ease)",
+        : "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     // Optimize touch handling: card body prefers vertical panning; drag handle will use touch-action: none
     touchAction: "pan-y pinch-zoom",
-    willChange: isDragActive ? "transform" : undefined,
+    willChange: isDragActive || isSwipeActive ? "transform, opacity, box-shadow" : undefined,
   } as React.CSSProperties;
 
   const containerClasses = `
@@ -243,23 +253,37 @@ export function ExerciseCard({
       onTouchMove={handleCardTouchMove}
       onTouchEnd={handleCardTouchEnd}
     >
-      {/* Swipe affordance hints */}
+      {/* Enhanced swipe feedback indicators */}
       {isLeftSwipeActive && !readOnly && (
         <div
-          className="glass-surface pointer-events-none absolute inset-y-0 right-2 my-auto flex h-6 items-center rounded px-2 text-xs"
+          className={`pointer-events-none absolute inset-y-0 right-3 my-auto flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+            Math.abs(swipeState.translateX) > 120 
+              ? "bg-red-500 text-white shadow-lg" 
+              : "bg-orange-500/80 text-white"
+          }`}
           role="status"
           aria-live="polite"
+          style={{
+            transform: `translateX(${Math.min(0, swipeState.translateX + 100)}px)`,
+            opacity: Math.min(1, Math.abs(swipeState.translateX) / 60)
+          }}
         >
-          Move to end →
+          <span>Move to bottom</span>
+          <span className="text-lg">→</span>
         </div>
       )}
       {isRightSwipeActive && !readOnly && (
         <div
-          className="glass-surface pointer-events-none absolute inset-y-0 left-2 my-auto flex h-6 items-center rounded px-2 text-xs"
+          className="pointer-events-none absolute inset-y-0 left-3 my-auto flex items-center gap-2 rounded-lg bg-blue-500/80 px-3 py-2 text-sm font-medium text-white"
           role="status"
           aria-live="polite"
+          style={{
+            transform: `translateX(${Math.max(0, swipeState.translateX - 100)}px)`,
+            opacity: Math.min(1, Math.abs(swipeState.translateX) / 60)
+          }}
         >
-          {isExpanded ? "Collapse" : "Expand"} ←
+          <span className="text-lg">←</span>
+          <span>{isExpanded ? "Collapse" : "Expand"}</span>
         </div>
       )}
       {/* Exercise Header (presentational) */}
@@ -278,11 +302,12 @@ export function ExerciseCard({
               isSwiped={isSwiped}
               readOnly={readOnly ?? false}
               previousBest={previousBest}
-              currentBest={hasCurrentData ? currentBest : undefined}
+              currentBest={hasCurrentData && currentBest ? currentBest : undefined}
               completedSets={exercise.sets.filter(set => set.weight && set.reps).length}
               totalSets={exercise.sets.length}
               onToggleExpansion={onToggleExpansion}
               onSwipeToBottom={onSwipeToBottom}
+              onAiSuggestionsClick={() => onAiSuggestionsClick?.(exerciseIndex, exercise.exerciseName, exercise.sets)}
               exerciseIndex={exerciseIndex}
             />
           </div>
@@ -291,7 +316,11 @@ export function ExerciseCard({
               type="button"
               aria-label="Drag to reorder"
               data-drag-handle="true"
-              className="group ml-2 cursor-grab touch-none px-1 py-2 text-gray-400 hover:text-gray-200 active:cursor-grabbing"
+              className={`group ml-2 touch-none p-2 rounded-lg transition-all ${
+                isDragActive 
+                  ? "bg-primary/20 text-primary cursor-grabbing scale-110" 
+                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-200/10 cursor-grab active:scale-95"
+              }`}
               onPointerDown={(e) =>
                 onPointerDown?.(
                   e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
@@ -310,16 +339,26 @@ export function ExerciseCard({
                   { force: true },
                 )
               }
-              style={{ touchAction: "none" }}
+              style={{ 
+                touchAction: "none",
+                minWidth: "44px", // Accessibility touch target
+                minHeight: "44px"
+              }}
               title="Drag to reorder"
             >
-              <span className="inline-flex flex-col gap-0.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
-                <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+              <span className="inline-flex flex-col gap-1 items-center justify-center">
+                <span className="flex gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60"></span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80"></span>
+                </span>
+                <span className="flex gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80"></span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current"></span>
+                </span>
+                <span className="flex gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60"></span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80"></span>
+                </span>
               </span>
             </button>
           )}

@@ -1,6 +1,6 @@
 # Todo: Implement WorkOS Authentication
 
-**Objective:** Replace the current hardcoded `shared-user-123` authentication system with a robust, production-ready authentication flow using WorkOS as the identity provider and Convex for the backend.
+**Objective:** Replace the current hardcoded `shared-user-123` authentication system with a robust, production-ready authentication flow using WorkOS as the identity provider and Convex for the backend. This implementation will start fresh with proper user isolation.
 
 ---
 
@@ -8,12 +8,14 @@
 
 Before starting, ensure you have access to the project's secrets, which are managed in Infisical. The development server (run with `bun run dev`) should automatically pull these secrets into the environment.
 
-The following environment variables are required:
+The following environment variables are required and available in Infisical:
 
 - `WORKOS_API_KEY`: Your WorkOS API Key.
 - `WORKOS_CLIENT_ID`: The Client ID for your WorkOS project.
-- `CONVEX_SITE_URL`: The deployment URL of the Convex project (e.g., `https://your-project.convex.cloud`).
+- `NEXT_PUBLIC_CONVEX_URL`: The deployment URL of the Convex project (e.g., `https://your-project.convex.cloud`).
 - `JWT_SECRET_KEY`: A long, random, securely generated string used to sign the application's internal JWTs.
+
+**Note:** We'll use `NEXT_PUBLIC_CONVEX_URL` for both client-side Convex connection and JWT issuer configuration.
 
 ---
 
@@ -35,7 +37,7 @@ export default {
   providers: [
     {
       // This domain should match the `iss` (issuer) field in the JWT.
-      domain: process.env.CONVEX_SITE_URL,
+      domain: process.env.NEXT_PUBLIC_CONVEX_URL?.replace('https://', ''),
       // The applicationID is a unique identifier for our app within the Convex deployment.
       applicationID: "convex",
     },
@@ -75,7 +77,7 @@ const clientId = process.env.WORKOS_CLIENT_ID;
 export async function GET() {
   const authorizationURL = workos.userManagement.getAuthorizationUrl({
     provider: 'authkit',
-    redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
+    redirectUri: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
     clientId,
   });
 
@@ -130,7 +132,7 @@ export async function GET(req: NextRequest) {
     const token = await new SignJWT({ sub: userId })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setIssuer(process.env.CONVEX_SITE_URL) // Must match domain in auth.config.ts
+      .setIssuer(process.env.NEXT_PUBLIC_CONVEX_URL?.replace('https://', '')) // Must match domain in auth.config.ts
       .setAudience('convex') // Must match applicationID in auth.config.ts
       .setExpirationTime('2w') // Session lifetime
       .sign(secret);
@@ -217,15 +219,29 @@ export default function HomePage() {
 
 ---
 
-## Phase 4: Secure Convex Data Access & Remove Hardcoding
+## Phase 4: Add ConvexAuth Provider and Authentication Guards
 
-The final step is to refactor all backend queries and mutations to use the authenticated user from the context instead of a hardcoded ID.
+Before securing the data access, we need to set up the authentication provider and guards.
 
-**4.1. Find All Hardcoded User References**
+**4.1. Add ConvexAuth Provider**
+
+Update `src/app/layout.tsx` to include the `ConvexAuthProvider` which enables `useConvexAuth()` hooks throughout the app.
+
+**4.2. Create Authentication Guards**
+
+Create components and hooks to protect routes and ensure users are authenticated before accessing data.
+
+---
+
+## Phase 5: Secure Convex Data Access & Remove Hardcoding
+
+This is the critical step to ensure proper user isolation and remove all shared user patterns.
+
+**5.1. Find All Hardcoded User References**
 
 Search the entire codebase for the string `"shared-user-123"`. This ID is used in `convex/users.ts` in the `initializeSharedUser` and `getSharedUserId` functions. These functions, and any code that calls them, are the primary targets for refactoring.
 
-**4.2. Refactor Queries and Mutations**
+**5.2. Refactor Queries and Mutations**
 
 Modify all data access functions to use the identity provided by `ctx.auth`.
 
@@ -277,9 +293,27 @@ Apply this pattern to all relevant queries and mutations.
 
 ---
 
-## Phase 5: Cleanup
+---
 
-Once all data access has been migrated to the new authentication system, remove the now-obsolete code.
+## Phase 6: Cleanup & Fresh Start
+
+Since we're starting fresh, we need to clean up all legacy authentication code and ensure a clean implementation.
+
+**6.1. Remove Legacy Code**
 
 - Delete the `initializeSharedUser` and `getSharedUserId` functions from `convex/users.ts`.
 - Remove any frontend code that was responsible for calling these functions.
+- Clean up any hardcoded user references throughout the codebase.
+
+**6.2. Add Error Boundaries and Loading States**
+
+- Implement proper error boundaries for authentication failures.
+- Add loading states for auth initialization.
+- Handle network issues and auth errors gracefully.
+
+**6.3. Testing and Validation**
+
+- Test the complete auth flow (login → callback → logout).
+- Verify user data isolation (users can only see their own data).
+- Test offline/online scenarios with auth state.
+- Validate JWT token expiration and refresh.

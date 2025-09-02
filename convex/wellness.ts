@@ -1,7 +1,19 @@
 import { ConvexError, v } from "convex/values";
+import { ensureUser } from "./users";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { SHARED_USER_ID } from "./constants";
+
+/**
+ * Helper function to get or create shared user ID
+ */
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
+  }
+  
+  return await ensureUser(ctx, identity);
+}
 
 /**
  * Wellness Data Management
@@ -43,7 +55,8 @@ export const save = mutation({
     whoopData: whoopDataSchema,
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Input validation
@@ -63,7 +76,7 @@ export const save = mutation({
       // Validation: Check if session belongs to user (if sessionId provided)
       if (args.sessionId) {
         const session = await ctx.db.get(args.sessionId);
-        if (!session || session.userId !== user._id) {
+        if (!session || session.userId !== userId) {
           throw new ConvexError("Workout session not found or access denied");
         }
       }
@@ -86,7 +99,7 @@ export const save = mutation({
         existingWellness = await ctx.db
           .query("wellnessData")
           .withIndex("by_user_session", (q: any) =>
-            q.eq("userId", user._id).eq("sessionId", args.sessionId)
+            q.eq("userId", userId).eq("sessionId", args.sessionId)
           )
           .unique();
       } else {
@@ -94,7 +107,7 @@ export const save = mutation({
         existingWellness = await ctx.db
           .query("wellnessData")
           .withIndex("by_user_date", (q: any) =>
-            q.eq("userId", user._id).eq("date", dateString)
+            q.eq("userId", userId).eq("date", dateString)
           )
           .filter((q: any) => q.eq(q.field("sessionId"), undefined))
           .first();
@@ -118,7 +131,7 @@ export const save = mutation({
       } else {
         // Insert new wellness data
         wellnessId = await ctx.db.insert("wellnessData", {
-          userId: SHARED_USER_ID,
+          userId: userId,
           sessionId: args.sessionId || undefined,
           date: dateString,
           energyLevel: args.energyLevel,
@@ -138,7 +151,7 @@ export const save = mutation({
       }
 
       console.log('Wellness data saved successfully', {
-        userId: SHARED_USER_ID,
+        userId: userId,
         sessionId: args.sessionId,
         hasWhoopData: args.hasWhoopData,
         energyLevel: args.energyLevel,
@@ -150,7 +163,7 @@ export const save = mutation({
     } catch (error) {
       console.error('Failed to save wellness data', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId: userId,
         sessionId: args.sessionId,
       });
 
@@ -171,24 +184,13 @@ export const getBySession = query({
     sessionId: v.id("workoutSessions"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // SECURITY: Verify session belongs to user first
       const session = await ctx.db.get(args.sessionId);
-      if (!session || session.userId !== user._id) {
+      if (!session || session.userId !== userId) {
         throw new ConvexError("Workout session not found or access denied");
       }
 
@@ -196,7 +198,7 @@ export const getBySession = query({
       const wellnessData = await ctx.db
         .query("wellnessData")
         .withIndex("by_user_session", (q: any) =>
-          q.eq("userId", user._id).eq("sessionId", args.sessionId)
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
         )
         .unique();
 
@@ -205,7 +207,7 @@ export const getBySession = query({
     } catch (error) {
       console.error('Failed to get wellness data by session', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId: userId,
         sessionId: args.sessionId,
       });
 
@@ -229,19 +231,8 @@ export const getHistory = query({
     endDate: v.optional(v.number()), // Timestamp
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Validate inputs
@@ -262,7 +253,7 @@ export const getHistory = query({
       // Start with user filter
       let results = await ctx.db
         .query("wellnessData")
-        .withIndex("by_userId", (q: any) => q.eq("userId", SHARED_USER_ID))
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
         .collect();
 
       // Apply date filters
@@ -283,7 +274,7 @@ export const getHistory = query({
     } catch (error) {
       console.error('Failed to get wellness history', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId: userId,
         limit: args.limit,
         offset: args.offset,
       });
@@ -305,19 +296,8 @@ export const getStats = query({
     days: v.number(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // Validate input
@@ -334,7 +314,7 @@ export const getStats = query({
       // Get all wellness data in the period
       const allWellnessData = await ctx.db
         .query("wellnessData")
-        .withIndex("by_userId", (q: any) => q.eq("userId", SHARED_USER_ID))
+        .withIndex("by_userId", (q: any) => q.eq("userId", userId))
         .collect();
 
       // Filter by date range
@@ -372,7 +352,7 @@ export const getStats = query({
     } catch (error) {
       console.error('Failed to get wellness stats', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId: userId,
         days: args.days,
       });
 
@@ -393,24 +373,13 @@ export const deleteBySession = mutation({
     sessionId: v.id("workoutSessions"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       // SECURITY: Verify session belongs to user first
       const session = await ctx.db.get(args.sessionId);
-      if (!session || session.userId !== user._id) {
+      if (!session || session.userId !== userId) {
         throw new ConvexError("Workout session not found or access denied");
       }
 
@@ -418,7 +387,7 @@ export const deleteBySession = mutation({
       const wellnessData = await ctx.db
         .query("wellnessData")
         .withIndex("by_user_session", (q: any) =>
-          q.eq("userId", user._id).eq("sessionId", args.sessionId)
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
         )
         .unique();
 
@@ -430,7 +399,7 @@ export const deleteBySession = mutation({
       await ctx.db.delete(wellnessData._id);
 
       console.log('Wellness data deleted successfully', {
-        userId: SHARED_USER_ID,
+        userId: userId,
         sessionId: args.sessionId,
       });
 
@@ -439,7 +408,7 @@ export const deleteBySession = mutation({
     } catch (error) {
       console.error('Failed to delete wellness data', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId: userId,
         sessionId: args.sessionId,
       });
 
@@ -460,25 +429,14 @@ export const checkExists = query({
     sessionId: v.id("workoutSessions"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
-
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     try {
       const wellnessData = await ctx.db
         .query("wellnessData")
         .withIndex("by_user_session", (q: any) =>
-          q.eq("userId", user._id).eq("sessionId", args.sessionId)
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
         )
         .unique();
 
@@ -487,7 +445,7 @@ export const checkExists = query({
     } catch (error) {
       console.error('Failed to check wellness data existence', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        userId: SHARED_USER_ID,
+        userId: userId,
         sessionId: args.sessionId,
       });
 

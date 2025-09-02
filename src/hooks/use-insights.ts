@@ -1,17 +1,21 @@
 import { useQuery } from "convex/react";
 import { api } from "~/convex/_generated/api";
+import type { Id } from "~/convex/_generated/dataModel";
 
 interface ExerciseInsightsParams {
   exerciseName: string;
-  templateExerciseId?: number;
+  templateExerciseId?: Id<"templateExercises">;
   unit: "kg" | "lbs";
   limitSessions?: number;
+  excludeSessionId?: Id<"workoutSessions">;
 }
 
 interface BestSet {
-  weight: number;
-  unit: "kg" | "lbs";
+  weight?: number;
+  unit?: "kg" | "lbs";
   reps?: number;
+  sets?: number;
+  rpe?: number;
 }
 
 interface Recommendation {
@@ -22,37 +26,40 @@ interface Recommendation {
   rationale: string;
 }
 
-interface VolumeSpark {
+interface VolumePoint {
   volume: number;
-  date: string;
+  date: number;
 }
 
 interface Suggestion {
+  kind: "rest" | "rpe" | "volume";
   message: string;
 }
 
 interface ExerciseInsights {
+  unit: "kg" | "lbs";
   bestSet?: BestSet;
   best1RM?: number;
   recommendation?: Recommendation;
-  volumeSparkline?: VolumeSpark[];
-  suggestions?: Suggestion[];
+  volumeSparkline: VolumePoint[];
+  suggestions: Suggestion[];
 }
 
 export function useExerciseInsights(params: ExerciseInsightsParams) {
-  // For now, return a mock implementation since the actual insights query
-  // would need to be implemented in Convex. The component expects this structure.
-  const data: ExerciseInsights | undefined = {
-    bestSet: undefined,
-    best1RM: undefined,
-    recommendation: undefined,
-    volumeSparkline: undefined,
-    suggestions: undefined,
-  };
+  const data = useQuery(
+    api.insights.getExerciseInsights,
+    {
+      exerciseName: params.exerciseName,
+      templateExerciseId: params.templateExerciseId,
+      unit: params.unit,
+      limitSessions: params.limitSessions,
+      excludeSessionId: params.excludeSessionId,
+    }
+  );
 
   return {
     data,
-    isLoading: false,
+    isLoading: data === undefined,
     error: null,
   };
 }

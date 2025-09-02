@@ -88,6 +88,7 @@ export function SetList({
                 readOnly={readOnly}
                 showDelete={sets.length > 1}
                 preferredUnit={preferredUnit}
+                allSets={sets}
                 // Arrow button handlers for reordering
                 onMoveUp={
                   setIndex > 0 && !readOnly

@@ -21,29 +21,26 @@ export const getOrCreateUser = internalMutation({
       throw new ConvexError("Not authenticated");
     }
 
-    // Check if user already exists by WorkOS ID
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", identity.subject))
-      .unique();
+    // Use the helper function to get or create user
+    return await ensureUser(ctx, identity);
+  },
+});
 
-    if (existingUser) {
-      return existingUser;
+/**
+ * Public mutation to ensure current authenticated user exists in database
+ * This is called when a user first logs in to create their database record
+ */
+export const ensureCurrentUser = mutation({
+  args: {},
+  handler: async (ctx, _args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
     }
 
-    // Create new user from WorkOS identity
-    const userId = await ctx.db.insert("users", {
-      name: identity.name ?? identity.email ?? "Unknown User",
-      email: identity.email ?? "",
-      workosId: identity.subject,
-    });
-
-    const newUser = await ctx.db.get(userId);
-    if (!newUser) {
-      throw new ConvexError("Failed to create user");
-    }
-
-    return newUser;
+    // Use the helper function to get or create user
+    const user = await ensureUser(ctx, identity);
+    return user._id;
   },
 });
 
@@ -51,13 +48,16 @@ export const getOrCreateUser = internalMutation({
  * Mutation to sync user data from WorkOS webhooks
  * Ensures user exists and updates profile data if changed
  * This is called exclusively from WorkOS webhook handlers
+ * Updated: firstName and lastName are optional fields
  */
-export const ensure = mutation({
+export const ensureUserFixed = mutation({
   args: {
     workosId: v.string(),
     email: v.string(),
-    firstName: v.optional(v.string()),
-    lastName: v.optional(v.string()),
+    firstName: v.optional(v.string()), // MUST be optional - fixed validation
+    lastName: v.optional(v.string()),   // MUST be optional - fixed validation
+    // Force redeployment
+    _debug: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Validate required fields
@@ -83,12 +83,12 @@ export const ensure = mutation({
 
       if (needsUpdate) {
         // Construct display name from firstName/lastName or fallback to email
-        let displayName = existingUser.name;
-        if (args.firstName || args.lastName) {
-          displayName = [args.firstName, args.lastName].filter(Boolean).join(' ').trim();
-        } else if (!displayName || displayName === 'Unknown User') {
-          displayName = args.email;
-        }
+        const displayName = createDisplayName(
+          args.firstName, 
+          args.lastName, 
+          args.email, 
+          existingUser.name
+        );
 
         await ctx.db.patch(existingUser._id, {
           email: args.email,
@@ -101,13 +101,7 @@ export const ensure = mutation({
     }
 
     // Create new user from WorkOS webhook data
-    // Construct display name from firstName/lastName or fallback to email
-    let displayName = 'Unknown User';
-    if (args.firstName || args.lastName) {
-      displayName = [args.firstName, args.lastName].filter(Boolean).join(' ').trim();
-    } else {
-      displayName = args.email;
-    }
+    const displayName = createDisplayName(args.firstName, args.lastName, args.email);
 
     const userId = await ctx.db.insert("users", {
       workosId: args.workosId,
@@ -120,6 +114,21 @@ export const ensure = mutation({
     return userId;
   },
 });
+
+/**
+ * Helper function to create a user with optional first/last names
+ */
+function createDisplayName(
+  firstName?: string | null,
+  lastName?: string | null,
+  email?: string | null,
+  fallback = "Unknown User"
+): string {
+  if (firstName || lastName) {
+    return [firstName, lastName].filter(Boolean).join(' ').trim();
+  }
+  return email || fallback;
+}
 
 /**
  * Helper function to get or create user (for use in other mutations)
@@ -140,9 +149,18 @@ export async function ensureUser(
   }
 
   // Create new user from WorkOS identity
+  const displayName = createDisplayName(
+    identity.givenName, 
+    identity.familyName, 
+    identity.email, 
+    identity.name
+  );
+
   const userId = await ctx.db.insert("users", {
-    name: identity.name ?? identity.email ?? "Unknown User", 
+    name: displayName,
     email: identity.email ?? "",
+    firstName: identity.givenName || undefined,
+    lastName: identity.familyName || undefined,
     workosId: identity.subject,
   });
 
@@ -209,45 +227,3 @@ export const getUserById = query({
   },
 });
 
-/**
- * Initialize shared user for public app (one-time setup)
- * This creates a shared user that all data can be associated with
- */
-export const initializeSharedUser = mutation({
-  args: {},
-  handler: async (ctx) => {
-    // Check if shared user already exists
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-      .unique();
-
-    if (existingUser) {
-      return existingUser._id;
-    }
-
-    // Create the shared user
-    const userId = await ctx.db.insert("users", {
-      name: "Shared User",
-      email: "shared@example.com",
-      workosId: "shared-user-123",
-    });
-
-    return userId;
-  },
-});
-
-/**
- * Get or create the shared user ID
- */
-export const getSharedUserId = query({
-  args: {},
-  handler: async (ctx) => {
-    const sharedUser = await ctx.db
-      .query("users")
-      .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-      .unique();
-
-    return sharedUser?._id || null;
-  },
-});

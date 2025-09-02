@@ -1,9 +1,12 @@
 import type { NextRequest } from "next/server";
-import { getUser } from "@workos-inc/authkit-nextjs";
+// TODO: Fix WorkOS authkit import
+// import { getUser } from "@workos-inc/authkit-nextjs";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
 export async function GET(request: NextRequest) {
-  const { user } = await getUser();
+  // TODO: Fix WorkOS authkit usage
+  // const { user } = await getUser();
+  const user: any = null;
 
   if (!user) {
     return new Response("Unauthorized", { status: 401 });

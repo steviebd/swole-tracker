@@ -40,6 +40,8 @@ export const env = createEnv({
     WORKOS_API_KEY: z.string().optional(),
     WORKOS_CLIENT_ID: z.string().optional(),
     WORKOS_COOKIE_PASSWORD: z.string().optional(),
+    JWT_SECRET_KEY: z.string().optional(),
+    NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
   },
 
   /**

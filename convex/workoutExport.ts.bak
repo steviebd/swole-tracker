@@ -1,0 +1,324 @@
+import { query, action } from "./_generated/server";
+import { v } from "convex/values";
+import { getSharedUserId } from "./users";
+import { ConvexError } from "convex/values";
+
+/**
+ * Workout Export & Sharing System
+ * 
+ * Handles:
+ * - CSV export of workout data
+ * - Workout comparison analytics
+ * - Shareable workout summaries
+ * - Data export for external platforms
+ */
+
+// Get workout data formatted for CSV export
+export const getWorkoutForExport = query({
+  args: { 
+    workoutId: v.id("workoutSessions"),
+    format: v.union(v.literal("csv"), v.literal("json"), v.literal("summary"))
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    // Fetch workout session
+    const workout = await ctx.db.get(args.workoutId);
+    if (!workout || workout.userId !== userId) {
+      throw new ConvexError("Workout not found or access denied");
+    }
+
+    // Fetch template information
+    const template = workout.templateId ? await ctx.db.get(workout.templateId) : null;
+
+    // Fetch session exercises
+    const exercises = await ctx.db
+      .query("sessionExercises")
+      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.workoutId))
+      .collect();
+
+    // Group exercises by name and calculate totals
+    const exerciseGroups = exercises.reduce((acc, exercise) => {
+      const key = exercise.exerciseName;
+      if (!acc[key]) {
+        acc[key] = {
+          exerciseName: exercise.exerciseName,
+          sets: [],
+          totalVolume: 0,
+          maxWeight: 0,
+          totalReps: 0,
+        };
+      }
+      
+      acc[key].sets.push({
+        weight: exercise.weight || 0,
+        reps: exercise.reps || 0,
+        unit: exercise.unit,
+        volume: (exercise.weight || 0) * (exercise.reps || 0),
+      });
+      
+      acc[key].totalVolume += (exercise.weight || 0) * (exercise.reps || 0);
+      acc[key].maxWeight = Math.max(acc[key].maxWeight, exercise.weight || 0);
+      acc[key].totalReps += exercise.reps || 0;
+      
+      return acc;
+    }, {} as Record<string, any>);
+
+    const workoutData = {
+      id: workout._id,
+      date: new Date(workout.workoutDate).toISOString().split('T')[0],
+      templateName: template?.name || 'Custom Workout',
+      duration: null, // Could calculate from timestamps
+      exercises: Object.values(exerciseGroups),
+      totalVolume: Object.values(exerciseGroups).reduce((sum: number, ex: any) => sum + ex.totalVolume, 0),
+      totalSets: exercises.length,
+      totalReps: Object.values(exerciseGroups).reduce((sum: number, ex: any) => sum + ex.totalReps, 0),
+      averageWeight: exercises.length > 0 ? 
+        exercises.reduce((sum, ex) => sum + (ex.weight || 0), 0) / exercises.length : 0,
+    };
+
+    if (args.format === "summary") {
+      return {
+        ...workoutData,
+        exercises: workoutData.exercises.map((ex: any) => ({
+          exerciseName: ex.exerciseName,
+          setsCount: ex.sets.length,
+          totalVolume: ex.totalVolume,
+          maxWeight: ex.maxWeight,
+          totalReps: ex.totalReps,
+        }))
+      };
+    }
+
+    return workoutData;
+  },
+});
+
+// Get workout comparison data
+export const getWorkoutComparison = query({
+  args: { 
+    workout1Id: v.id("workoutSessions"),
+    workout2Id: v.id("workoutSessions")
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    // Get both workouts
+    const [workout1Data, workout2Data] = await Promise.all([
+      ctx.runQuery("workoutExport:getWorkoutForExport", { 
+        workoutId: args.workout1Id, 
+        format: "summary" 
+      }),
+      ctx.runQuery("workoutExport:getWorkoutForExport", { 
+        workoutId: args.workout2Id, 
+        format: "summary" 
+      })
+    ]);
+
+    // Create comparison metrics
+    const comparison = {
+      workout1: workout1Data,
+      workout2: workout2Data,
+      improvements: {
+        totalVolume: {
+          change: workout2Data.totalVolume - workout1Data.totalVolume,
+          percentage: workout1Data.totalVolume > 0 ? 
+            ((workout2Data.totalVolume - workout1Data.totalVolume) / workout1Data.totalVolume) * 100 : 0
+        },
+        totalSets: {
+          change: workout2Data.totalSets - workout1Data.totalSets,
+          percentage: workout1Data.totalSets > 0 ? 
+            ((workout2Data.totalSets - workout1Data.totalSets) / workout1Data.totalSets) * 100 : 0
+        },
+        averageWeight: {
+          change: workout2Data.averageWeight - workout1Data.averageWeight,
+          percentage: workout1Data.averageWeight > 0 ? 
+            ((workout2Data.averageWeight - workout1Data.averageWeight) / workout1Data.averageWeight) * 100 : 0
+        }
+      },
+      exerciseComparisons: {} as Record<string, any>
+    };
+
+    // Compare exercises that appear in both workouts
+    const commonExercises = workout1Data.exercises.filter((ex1: any) =>
+      workout2Data.exercises.find((ex2: any) => ex2.exerciseName === ex1.exerciseName)
+    );
+
+    commonExercises.forEach((ex1: any) => {
+      const ex2 = workout2Data.exercises.find((ex: any) => ex.exerciseName === ex1.exerciseName);
+      if (ex2) {
+        comparison.exerciseComparisons[ex1.exerciseName] = {
+          exercise1: ex1,
+          exercise2: ex2,
+          volumeImprovement: ex2.totalVolume - ex1.totalVolume,
+          weightImprovement: ex2.maxWeight - ex1.maxWeight,
+          repsImprovement: ex2.totalReps - ex1.totalReps,
+        };
+      }
+    });
+
+    return comparison;
+  },
+});
+
+// Get user's workout history for comparison selection
+export const getWorkoutHistoryForComparison = query({
+  args: { 
+    templateId: v.optional(v.id("workoutTemplates")),
+    limit: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) return [];
+
+    let query = ctx.db.query("workoutSessions")
+      .withIndex("by_userId", (q) => q.eq("userId", userId));
+
+    if (args.templateId) {
+      query = query.filter((q) => q.eq(q.field("templateId"), args.templateId));
+    }
+
+    const workouts = await query
+      .order("desc")
+      .take(args.limit || 20);
+
+    // Get template names for each workout
+    const templatesMap = new Map();
+    const templateIds = [...new Set(workouts.map(w => w.templateId).filter(Boolean))];
+    
+    for (const templateId of templateIds) {
+      const template = await ctx.db.get(templateId);
+      if (template) {
+        templatesMap.set(templateId, template.name);
+      }
+    }
+
+    return workouts.map(workout => ({
+      _id: workout._id,
+      date: workout.workoutDate,
+      templateName: workout.templateId ? templatesMap.get(workout.templateId) : 'Custom Workout',
+      templateId: workout.templateId,
+    }));
+  },
+});
+
+// Generate shareable workout link/summary
+export const createShareableWorkout = action({
+  args: { 
+    workoutId: v.id("workoutSessions"),
+    shareType: v.union(v.literal("link"), v.literal("text"), v.literal("image"))
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    // Get workout data
+    const workoutData = await ctx.runQuery("workoutExport:getWorkoutForExport", {
+      workoutId: args.workoutId,
+      format: "summary"
+    });
+
+    if (args.shareType === "text") {
+      // Generate a text summary for social sharing
+      const text = `🏋️‍♂️ Workout Complete!
+      
+Template: ${workoutData.templateName}
+Date: ${new Date(workoutData.date).toLocaleDateString()}
+
+💪 Stats:
+• Total Volume: ${Math.round(workoutData.totalVolume)}kg
+• Sets Completed: ${workoutData.totalSets}
+• Total Reps: ${workoutData.totalReps}
+
+Exercises:
+${workoutData.exercises.map((ex: any) => 
+  `• ${ex.exerciseName}: ${ex.setsCount} sets, ${Math.round(ex.totalVolume)}kg`
+).join('\n')}
+
+#fitness #workout #strength #SwoleTracker`;
+
+      return { shareText: text };
+    }
+
+    if (args.shareType === "link") {
+      // Generate a shareable URL (would need to be implemented with a public workout view)
+      const shareUrl = `${process.env.SITE_URL}/share/workout/${args.workoutId}`;
+      return { shareUrl };
+    }
+
+    // For image sharing, we'd generate an image (this would require additional setup)
+    return { 
+      message: "Image sharing not yet implemented",
+      workoutData 
+    };
+  },
+});
+
+// Export workout data in various formats
+export const exportWorkoutData = action({
+  args: {
+    workoutIds: v.array(v.id("workoutSessions")),
+    format: v.union(v.literal("csv"), v.literal("json")),
+    includePersonalRecords: v.optional(v.boolean())
+  },
+  handler: async (ctx, args) => {
+    const userId = await getSharedUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    // Get all workout data
+    const workoutsData = await Promise.all(
+      args.workoutIds.map(id => 
+        ctx.runQuery("workoutExport:getWorkoutForExport", { workoutId: id, format: "json" })
+      )
+    );
+
+    if (args.format === "json") {
+      return {
+        format: "json",
+        data: workoutsData,
+        exportedAt: new Date().toISOString(),
+        totalWorkouts: workoutsData.length,
+      };
+    }
+
+    if (args.format === "csv") {
+      // Convert to CSV format
+      const csvHeaders = [
+        "Date", "Template", "Exercise", "Set", "Weight", "Reps", "Unit", "Volume"
+      ];
+
+      const csvRows: string[][] = [csvHeaders];
+
+      workoutsData.forEach((workout) => {
+        workout.exercises.forEach((exercise: any) => {
+          exercise.sets.forEach((set: any, setIndex: number) => {
+            csvRows.push([
+              workout.date,
+              workout.templateName,
+              exercise.exerciseName,
+              (setIndex + 1).toString(),
+              set.weight.toString(),
+              set.reps.toString(),
+              set.unit,
+              set.volume.toString()
+            ]);
+          });
+        });
+      });
+
+      const csvContent = csvRows.map(row => row.join(",")).join("\n");
+
+      return {
+        format: "csv",
+        data: csvContent,
+        filename: `swole-tracker-workouts-${new Date().toISOString().split('T')[0]}.csv`,
+        exportedAt: new Date().toISOString(),
+        totalWorkouts: workoutsData.length,
+      };
+    }
+
+    throw new ConvexError("Unsupported export format");
+  },
+});

@@ -1,26 +1,17 @@
 import { ConvexError, v } from "convex/values";
+import { ensureUser } from "./users";
 import { mutation, query } from "./_generated/server";
 
 /**
  * Helper function to get or create shared user ID
  */
-async function getSharedUserId(ctx: any) {
-  let sharedUser = await ctx.db
-    .query("users")
-    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-    .unique();
-
-  if (!sharedUser) {
-    // Create the shared user if it doesn't exist
-    const userId = await ctx.db.insert("users", {
-      name: "Shared User",
-      email: "shared@example.com",
-      workosId: "shared-user-123",
-    });
-    sharedUser = await ctx.db.get(userId);
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
   }
-
-  return sharedUser!._id;
+  
+  return await ensureUser(ctx, identity);
 }
 
 /**
@@ -52,7 +43,8 @@ const swipeActionSchema = v.union(
 export const getPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     const prefs = await ctx.db
       .query("userPreferences")
@@ -106,7 +98,8 @@ export const updatePreferences = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Normalize input - convert string to object if needed
     let input;

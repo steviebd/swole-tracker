@@ -12,6 +12,8 @@ import { StatCard } from "~/components/ui/stat-card";
 import { toast } from "sonner";
 import { useState } from "react";
 import { cn } from "~/lib/utils";
+import TemplateRecommendationsModal from "~/app/_components/TemplateRecommendationsModal";
+import { AuthGuard } from "~/components/auth/AuthGuard";
 
 /**
  * Templates Page Component
@@ -252,6 +254,7 @@ const TemplateCard = ({ template, onStartWorkout, onEdit, onDelete }: TemplateCa
 // Main page content
 function TemplatesPageContent() {
   const router = useRouter();
+  const [showRecommendations, setShowRecommendations] = useState(false);
   
   // Fetch templates data from Convex
   const templates = useQuery(api.templates.getTemplates);
@@ -294,6 +297,12 @@ function TemplatesPageContent() {
       console.error('Error navigating to create template:', error);
       toast.error('Failed to create new template. Please try again.');
     }
+  };
+
+  const handleCreateFromRecommendation = (recommendation: any) => {
+    // Navigate to template creation with pre-filled data
+    const exercisesParam = encodeURIComponent(JSON.stringify(recommendation.exercises));
+    router.push(`/templates/new?name=${encodeURIComponent(recommendation.title)}&exercises=${exercisesParam}`);
   };
 
   // Calculate template statistics
@@ -340,15 +349,27 @@ function TemplatesPageContent() {
           </p>
         </div>
         
-        <Button 
-          onClick={handleCreateNew}
-          size="lg"
-          className="w-full sm:w-auto"
-          haptic
-        >
-          <Plus className="w-5 h-5" />
-          Create Template
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowRecommendations(true)}
+            size="lg"
+            variant="outline"
+            className="w-full sm:w-auto"
+            haptic
+          >
+            <Target className="w-5 h-5" />
+            Get Recommendations
+          </Button>
+          <Button 
+            onClick={handleCreateNew}
+            size="lg"
+            className="w-full sm:w-auto"
+            haptic
+          >
+            <Plus className="w-5 h-5" />
+            Create Template
+          </Button>
+        </div>
       </motion.div>
 
       {/* Statistics Cards */}
@@ -446,11 +467,23 @@ function TemplatesPageContent() {
           </div>
         )}
       </motion.div>
+
+      {/* Template Recommendations Modal */}
+      <TemplateRecommendationsModal
+        isOpen={showRecommendations}
+        onClose={() => setShowRecommendations(false)}
+        onStartTemplate={handleStartWorkout}
+        onCreateFromRecommendation={handleCreateFromRecommendation}
+      />
     </div>
   );
 }
 
 // Main page component - now always accessible
 export default function TemplatesPage() {
-  return <TemplatesPageContent />;
+  return (
+    <AuthGuard>
+      <TemplatesPageContent />
+    </AuthGuard>
+  );
 }

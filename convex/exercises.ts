@@ -1,26 +1,17 @@
 import { ConvexError, v } from "convex/values";
+import { ensureUser } from "./users";
 import { mutation, query } from "./_generated/server";
 
 /**
  * Helper function to get or create shared user ID
  */
-async function getSharedUserId(ctx: any) {
-  let sharedUser = await ctx.db
-    .query("users")
-    .withIndex("by_workosId", (q: any) => q.eq("workosId", "shared-user-123"))
-    .unique();
-
-  if (!sharedUser) {
-    // Create the shared user if it doesn't exist
-    const userId = await ctx.db.insert("users", {
-      name: "Shared User",
-      email: "shared@example.com",
-      workosId: "shared-user-123",
-    });
-    sharedUser = await ctx.db.get(userId);
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
   }
-
-  return sharedUser!._id;
+  
+  return await ensureUser(ctx, identity);
 }
 
 /**
@@ -92,7 +83,8 @@ export const searchMaster = query({
     cursor: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const normalized = normalizeExerciseName(args.q);
     const limit = args.limit ?? 20;
     const cursor = args.cursor ?? 0;
@@ -164,7 +156,8 @@ export const findSimilar = query({
     threshold: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const threshold = args.threshold ?? 0.6;
     const normalizedInput = normalizeExerciseName(args.exerciseName);
 
@@ -191,7 +184,8 @@ export const findSimilar = query({
 export const getAllMaster = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     const exercises = await ctx.db
       .query("masterExercises")
@@ -229,7 +223,8 @@ export const createOrGetMaster = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await getSharedUserId(ctx);
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const normalizedName = normalizeExerciseName(args.name);
 
     // Try to find existing master exercise
@@ -269,7 +264,8 @@ export const linkToMaster = mutation({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Verify the template exercise belongs to the user
     const templateExercise = await ctx.db.get(args.templateExerciseId);
@@ -316,7 +312,8 @@ export const unlink = mutation({
     templateExerciseId: v.id("templateExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Find the link
     const link = await ctx.db
@@ -341,7 +338,8 @@ export const getLatestPerformance = query({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Find all template exercises linked to this master exercise
     const linkedExercises = await ctx.db
@@ -407,7 +405,8 @@ export const getLinksForTemplate = query({
     templateId: v.id("workoutTemplates"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Get all template exercises for this template
     const templateExercises = await ctx.db
@@ -460,7 +459,8 @@ export const isLinkingRejected = query({
     templateExerciseId: v.id("templateExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     const templateExercise = await ctx.db.get(args.templateExerciseId);
     if (!templateExercise || templateExercise.userId !== userId) {
@@ -479,7 +479,8 @@ export const rejectLinking = mutation({
     templateExerciseId: v.id("templateExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Verify the template exercise belongs to the user
     const templateExercise = await ctx.db.get(args.templateExerciseId);
@@ -504,7 +505,8 @@ export const getLinkingDetails = query({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Get master exercise
     const masterExercise = await ctx.db.get(args.masterExerciseId);
@@ -580,7 +582,8 @@ export const bulkLinkSimilar = mutation({
     minimumSimilarity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
     const minimumSimilarity = args.minimumSimilarity ?? 0.7;
 
     const masterExercise = await ctx.db.get(args.masterExerciseId);
@@ -636,7 +639,8 @@ export const bulkUnlinkAll = mutation({
     masterExerciseId: v.id("masterExercises"),
   },
   handler: async (ctx, args) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Get all links for this master exercise
     const links = await ctx.db
@@ -660,7 +664,8 @@ export const bulkUnlinkAll = mutation({
 export const migrateExistingExercises = mutation({
   args: {},
   handler: async (ctx) => {
-    // Using hardcoded user ID for public app
+    const user = await getCurrentUser(ctx);
+    const userId = user._id;
 
     // Get all template exercises for the user that don't have links
     const allTemplateExercises = await ctx.db
