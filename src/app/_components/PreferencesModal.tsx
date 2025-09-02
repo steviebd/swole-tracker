@@ -129,7 +129,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="preferences-title"
-      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-4 bg-white/70 dark:bg-black/70 backdrop-blur-sm"
       onClick={() => {
         restoreFocus();
         onClose();

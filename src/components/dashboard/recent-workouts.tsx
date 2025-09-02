@@ -5,16 +5,19 @@ import { useRouter } from "next/navigation";
 import { WorkoutCard, type WorkoutMetric } from "~/components/ui/workout-card";
 import { api } from "~/trpc/react";
 import { cn } from "~/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, Plus } from "lucide-react";
 
 /**
- * Recent workouts section using Phase 2 WorkoutCard components
+ * Recent workouts section with enhanced template-style design
  * 
  * Features:
- * - Workout cards with gradient backgrounds
- * - Key metrics (duration, volume, exercise count)
- * - Action buttons (view details, repeat workout)
+ * - Enhanced workout cards with gradient backgrounds and glass effects
+ * - Key metrics (duration, volume, exercise count) with smooth animations
+ * - Action buttons (view details, repeat workout) with hover states
  * - "New!" badges for recent sessions (within 24 hours)
- * - Mobile-optimized with touch targets
+ * - Mobile-first responsive design with touch-optimized targets
+ * - Smooth entry/exit animations with staggered loading
  * - Integration with existing tRPC endpoints
  */
 
@@ -119,13 +122,25 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
 
     if (isLoading) {
       return (
-        <div ref={ref} className={cn("space-y-4", className)}>
-          <h2 className="text-xl font-semibold text-foreground mb-4">Recent Workouts</h2>
-          <div className="space-y-3">
+        <div ref={ref} className={cn("space-y-4 sm:space-y-6", className)}>
+          <motion.h2
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4 sm:mb-6"
+          >
+            Recent Workouts
+          </motion.h2>
+          <div className="space-y-3 sm:space-y-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-[200px] bg-muted rounded-lg" />
-              </div>
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: i * 0.05 }}
+                className="animate-pulse"
+              >
+                <div className="h-[180px] sm:h-[200px] bg-muted rounded-xl glass-surface" />
+              </motion.div>
             ))}
           </div>
         </div>
@@ -134,56 +149,122 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
 
     if (!recentWorkouts || recentWorkouts.length === 0) {
       return (
-        <div ref={ref} className={cn("space-y-4", className)}>
-          <h2 className="text-xl font-semibold text-foreground mb-4">Recent Workouts</h2>
-          <div className="p-8 text-center text-muted-foreground border border-dashed border-border rounded-lg">
-            <div className="mb-4 text-4xl">💪</div>
-            <h3 className="text-lg font-medium text-foreground mb-2">No workouts yet</h3>
-            <p className="mb-4">Start your first workout to see it appear here</p>
-            <button
-              onClick={() => router.push("/workout/start")}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Start Your First Workout
-            </button>
-          </div>
+        <div ref={ref} className={cn("space-y-4 sm:space-y-6", className)}>
+          <motion.h2
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4 sm:mb-6"
+          >
+            Recent Workouts
+          </motion.h2>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="glass-surface p-8 sm:p-12 text-center rounded-xl relative overflow-hidden"
+          >
+            {/* Gradient background overlay */}
+            <div 
+              className="absolute inset-0 opacity-5"
+              style={{
+                background: 'var(--gradient-universal-action-primary)'
+              }}
+              aria-hidden="true"
+            />
+            
+            {/* Content */}
+            <div className="relative z-10">
+              <motion.div 
+                className="mb-6 text-5xl sm:text-6xl"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.2 }}
+              >
+                💪
+              </motion.div>
+              <h3 className="text-lg sm:text-xl font-display font-bold text-foreground mb-2">No workouts yet</h3>
+              <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Start your first workout to see it appear here and begin tracking your fitness journey</p>
+              <motion.button
+                onClick={() => router.push("/workout/start")}
+                className={cn(
+                  "inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium",
+                  "transition-all duration-200 hover:scale-105 active:scale-95",
+                  "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "shadow-lg hover:shadow-xl"
+                )}
+                style={{
+                  background: 'var(--gradient-universal-action-primary)'
+                }}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Plus className="w-5 h-5" />
+                Start Your First Workout
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
       );
     }
 
     return (
-      <div ref={ref} className={cn("space-y-4", className)}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Recent Workouts</h2>
+      <div ref={ref} className={cn("space-y-4 sm:space-y-6", className)}>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
+          <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">Recent Workouts</h2>
           {recentWorkouts.length >= limit && (
-            <button
+            <motion.button
               onClick={() => router.push("/workouts")}
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
+              className={cn(
+                "inline-flex items-center gap-2 px-3 py-2 rounded-lg",
+                "text-sm font-medium text-primary hover:text-primary/80",
+                "transition-all duration-200 hover:bg-primary/5",
+                "focus:outline-none focus:ring-2 focus:ring-primary/20"
+              )}
+              whileHover={{ x: 2 }}
+              whileTap={{ scale: 0.95 }}
             >
-              View All →
-            </button>
+              View All
+              <ArrowRight className="w-4 h-4" />
+            </motion.button>
           )}
-        </div>
+        </motion.div>
 
-        <div className="space-y-3">
-          {recentWorkouts.map((workout) => {
-            const workoutName = workout.template?.name || "Unnamed Workout";
-            const metrics = formatWorkoutMetrics(workout);
-            const isRecent = isRecentWorkout(workout.createdAt);
+        <AnimatePresence mode="popLayout">
+          <div className="space-y-3 sm:space-y-4">
+            {recentWorkouts.map((workout, index) => {
+              const workoutName = workout.template?.name || "Unnamed Workout";
+              const metrics = formatWorkoutMetrics(workout);
+              const isRecent = isRecentWorkout(workout.createdAt);
 
-            return (
-              <WorkoutCard
-                key={workout.id}
-                workoutName={workoutName}
-                date={workout.createdAt.toISOString()}
-                metrics={metrics}
-                isRecent={isRecent}
-                onRepeat={() => handleRepeatWorkout(workout.id.toString(), workoutName)}
-                onViewDetails={() => handleViewDetails(workout.id.toString())}
-              />
-            );
-          })}
-        </div>
+              return (
+                <motion.div
+                  key={workout.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ 
+                    duration: 0.2, 
+                    delay: index * 0.05,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  <WorkoutCard
+                    workoutName={workoutName}
+                    date={workout.createdAt.toISOString()}
+                    metrics={metrics}
+                    isRecent={isRecent}
+                    onRepeat={() => handleRepeatWorkout(workout.id.toString(), workoutName)}
+                    onViewDetails={() => handleViewDetails(workout.id.toString())}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+        </AnimatePresence>
       </div>
     );
   }

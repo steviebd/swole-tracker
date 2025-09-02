@@ -171,29 +171,18 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 Repeat
               </motion.button>
               
-              {/* View details button */}
+              {/* View details button - redesigned to be more subtle and match design aesthetic */}
               <motion.button
                 onClick={onViewDetails}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg",
                   "text-sm font-medium transition-all duration-200",
-                  "text-white border-transparent",
+                  "bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/30",
+                  "text-primary hover:text-primary/80",
                   "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                   "min-h-[44px]" // Touch target size
                 )}
-                style={{
-                  background: 'var(--gradient-universal-action-primary)',
-                  // Enhanced hover state
-                  backgroundSize: '200% 200%',
-                  backgroundPosition: '0% 50%'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundPosition = '100% 50%';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundPosition = '0% 50%';
-                }}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.1 }}
                 aria-label={`View details for ${workoutName} workout`}

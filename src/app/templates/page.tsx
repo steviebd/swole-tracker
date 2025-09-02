@@ -36,7 +36,7 @@ export default async function TemplatesPage() {
                   ← Back
                 </Link>
               </Button>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Workout Templates</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Your Workout Arsenal 💪</h1>
             </div>
             <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-3 flex-shrink-0">
               <Button variant="secondary" size="sm" asChild>
@@ -46,7 +46,7 @@ export default async function TemplatesPage() {
               </Button>
               <Button size="sm" asChild>
                 <Link href="/templates/new">
-                  New Template
+                  🔥 Create New Template
                 </Link>
               </Button>
             </div>

@@ -156,7 +156,7 @@ export function PRHistoryModal({ isOpen, onClose, exerciseName }: PRHistoryModal
   const stats = calculateStats();
 
   return (
-    <div className="fixed inset-0 bg-foreground bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-background bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className={`max-w-6xl w-full max-h-[90vh] overflow-y-auto rounded-xl ${cardClass} p-6`}>
         <div className="flex items-center justify-between mb-6">
           <div>

@@ -113,8 +113,8 @@ export function RecentWorkouts() {
 
   if (error) {
     return (
-      <div className="card glass-surface border-red-700/50 p-4">
-        <p className="text-red-300">Error loading workouts: {error}</p>
+      <div className="card glass-surface border-[var(--color-danger)]/50 p-4">
+        <p className="text-[var(--color-danger)]">Error loading workouts: {error}</p>
       </div>
     );
   }

@@ -109,27 +109,35 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
           const isLast = index === breadcrumbItems.length - 1;
           
           return (
-            <li key={`${item.href || item.label}-${index}`} className="flex items-center gap-1">
+            <li key={`${item.href || item.label}-${index}`} className="flex items-center gap-1.5">
               {index > 0 && (
-                <ChevronRightIcon className="breadcrumb-separator" />
+                <ChevronRightIcon className="breadcrumb-separator opacity-50" />
               )}
               
               {item.href && !item.current ? (
                 <Link
                   href={item.href}
-                  className="breadcrumb-item"
+                  className="breadcrumb-item relative transition-all duration-300 hover:scale-105"
                   aria-current={item.current ? "page" : undefined}
                 >
-                  {item.label}
+                  <span className="relative z-10">{item.label}</span>
+                  {/* Gradient hover effect */}
+                  <span className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-md opacity-0 transition-opacity duration-300 hover:opacity-100 -z-10" />
                 </Link>
               ) : (
                 <span
                   className={cn(
-                    isLast || item.current ? "breadcrumb-current" : "breadcrumb-item"
+                    isLast || item.current 
+                      ? "breadcrumb-current relative font-medium bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent"
+                      : "breadcrumb-item"
                   )}
                   aria-current={item.current ? "page" : undefined}
                 >
                   {item.label}
+                  {/* Active page indicator */}
+                  {(isLast || item.current) && (
+                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-purple-600 rounded-full" />
+                  )}
                 </span>
               )}
             </li>

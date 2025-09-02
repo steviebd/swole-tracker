@@ -4,11 +4,13 @@ import * as React from "react";
 import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
 import { StatCard } from "~/components/ui/stat-card";
 import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
+import { motion } from "framer-motion";
+import { cn } from "~/lib/utils";
 
 /**
  * Statistics grid component using Phase 2 StatCard components
  * 
- * Displays four key metrics:
+ * Displays four key metrics with enhanced template-style design:
  * 1. This Week Workouts - Count with comparison to last week
  * 2. Average Duration - Time with improvement indicators
  * 3. Current Streak - Days with celebration for personal bests
@@ -132,49 +134,81 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
 
     if (isLoading) {
       return (
-        <div ref={ref} className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${className || ''}`}>
+        <div ref={ref} className={cn(
+          "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8",
+          className
+        )}>
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-[140px] bg-muted rounded-lg" />
-            </div>
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: i * 0.05 }}
+              className="animate-pulse"
+            >
+              <div className="h-[140px] bg-muted rounded-lg glass-surface" />
+            </motion.div>
           ))}
         </div>
       );
     }
 
+    // Card configurations with animations
+    const cardData = [
+      {
+        id: 'workouts',
+        label: 'This Week',
+        value: stats.workoutsThisWeek.toString(),
+        change: stats.weeklyChange,
+        icon: <TrendingUp className="w-5 h-5" />,
+      },
+      {
+        id: 'duration',
+        label: 'Avg Duration',
+        value: stats.avgDurationValue,
+        change: stats.durationChange,
+        icon: <Clock className="w-5 h-5" />,
+      },
+      {
+        id: 'streak',
+        label: 'Current Streak',
+        value: `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}`,
+        change: stats.streakChange,
+        icon: <Flame className="w-5 h-5" />,
+      },
+      {
+        id: 'goal',
+        label: 'Weekly Goal',
+        value: `${stats.weeklyGoal.current}/${stats.weeklyGoal.target}`,
+        change: stats.goalChange,
+        icon: <Calendar className="w-5 h-5" />,
+      },
+    ];
+
     return (
-      <div ref={ref} className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${className || ''}`}>
-        {/* This Week Workouts */}
-        <StatCard
-          label="This Week"
-          value={stats.workoutsThisWeek.toString()}
-          change={stats.weeklyChange}
-          icon={<TrendingUp />}
-        />
-
-        {/* Average Duration */}
-        <StatCard
-          label="Avg Duration"
-          value={stats.avgDurationValue}
-          change={stats.durationChange}
-          icon={<Clock />}
-        />
-
-        {/* Current Streak */}
-        <StatCard
-          label="Current Streak"
-          value={`${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}`}
-          change={stats.streakChange}
-          icon={<Flame />}
-        />
-
-        {/* Weekly Goal */}
-        <StatCard
-          label="Weekly Goal"
-          value={`${stats.weeklyGoal.current}/${stats.weeklyGoal.target}`}
-          change={stats.goalChange}
-          icon={<Calendar />}
-        />
+      <div ref={ref} className={cn(
+        "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8",
+        className
+      )}>
+        {cardData.map((card, index) => (
+          <motion.div
+            key={card.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ 
+              duration: 0.2, 
+              delay: index * 0.05,
+              ease: [0.4, 0, 0.2, 1]
+            }}
+          >
+            <StatCard
+              label={card.label}
+              value={card.value}
+              change={card.change}
+              icon={card.icon}
+            />
+          </motion.div>
+        ))}
       </div>
     );
   }

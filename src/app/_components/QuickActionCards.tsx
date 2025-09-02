@@ -7,9 +7,9 @@ export function QuickActionCards() {
   // Card definitions matching template design
   const cards = [
     {
-      id: "start-workout",
-      title: "Start Workout",
-      description: "Begin a new workout session",
+      id: "start-workout", 
+      title: "💪 Let's Get Swole!",
+      description: "Time to crush your next workout and dominate your goals",
       href: "/workout/start",
       gradient: "bg-gradient-to-r from-orange-500 to-red-500",
       icon: (
@@ -20,8 +20,8 @@ export function QuickActionCards() {
     },
     {
       id: "view-progress",
-      title: "View Progress",
-      description: "Track your strength gains and consistency",
+      title: "🔥 Track Your Gains",
+      description: "Celebrate every PR and see how strong you're becoming",
       href: "/progress",
       gradient: "bg-gradient-to-r from-pink-500 to-red-500",
       icon: (
@@ -31,9 +31,9 @@ export function QuickActionCards() {
       ),
     },
     {
-      id: "manage-templates",
-      title: "Manage Templates",
-      description: "Create and edit workout templates",
+      id: "manage-templates", 
+      title: "⚡ Build Your Arsenal",
+      description: "Craft the perfect workout templates for maximum gains",
       href: "/templates",
       gradient: "bg-gradient-to-r from-amber-500 to-orange-500",
       icon: (

@@ -31,8 +31,8 @@ export default function Home() {
             💪 <span className="text-primary">Swole</span> Tracker
           </h1>
           <p className="text-secondary mx-auto mt-3 sm:mt-4 max-w-2xl text-sm sm:text-base md:text-lg">
-            Simple, mobile-first workout tracking. Log your workouts, track
-            your progress, and get stronger.
+            🔥 Your journey to strength starts here. Track every rep, celebrate every PR, 
+            and unlock your potential with smart, mobile-first workout tracking.
           </p>
           <div className="mt-4 sm:mt-6 md:mt-8">
             <SignInButtons />

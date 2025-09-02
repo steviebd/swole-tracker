@@ -80,10 +80,10 @@ export function OfflineWorkoutManager() {
     <div className="space-y-4">
       {/* Active sessions */}
       {activeSessions.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-[var(--color-info-muted)] border border-[var(--color-info)]/30 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-blue-900">Active Workout Sessions</h3>
-            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+            <h3 className="font-medium text-[var(--color-info)]">Active Workout Sessions</h3>
+            <span className="text-xs bg-[var(--color-info)]/20 text-[var(--color-info)] px-2 py-1 rounded">
               {activeSessions.length} active
             </span>
           </div>
@@ -103,13 +103,13 @@ export function OfflineWorkoutManager() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleCompleteSession(session.id)}
-                      className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                      className="text-xs bg-[var(--color-success)] text-white px-2 py-1 rounded hover:bg-[var(--color-success)]/80"
                     >
                       Complete
                     </button>
                     <button
                       onClick={() => handleDeleteSession(session.id)}
-                      className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                      className="text-xs bg-[var(--color-danger)] text-white px-2 py-1 rounded hover:bg-[var(--color-danger)]/80"
                     >
                       Delete
                     </button>
@@ -134,7 +134,7 @@ export function OfflineWorkoutManager() {
 
       {/* Completed sessions waiting for sync */}
       {completedSessions.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-[var(--color-warning-muted)] border border-[var(--color-warning)]/30 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-yellow-900">Pending Sync</h3>
             <div className="flex items-center gap-2">

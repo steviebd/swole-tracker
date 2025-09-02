@@ -170,7 +170,7 @@ export function WorkoutDetailOverlay({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/40 p-4 backdrop-blur-sm"
       onClick={handleBackdropClick}
       style={{ animation: isOpen ? "fadeIn 0.3s ease-out" : "" }}
     >

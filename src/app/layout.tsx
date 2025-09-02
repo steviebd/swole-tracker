@@ -17,6 +17,7 @@ import ClientPerfInit from "@/app/_components/ClientPerfInit";
 import LiveRegionProvider from "~/app/_components/LiveRegion";
 import { DashboardHeader } from "~/components/dashboard/dashboard-header";
 import { FloatingActionButtons } from "~/components/navigation/floating-action-buttons";
+import { PageTransitionProvider } from "~/providers/PageTransitionProvider";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -99,14 +100,16 @@ export default function RootLayout({
                   
                   <DashboardHeader />
 
-                  <main
-                    id="main-content"
-                    className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
-                    role="main"
-                    tabIndex={-1}
-                  >
-                    <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
-                  </main>
+                  <PageTransitionProvider>
+                    <main
+                      id="main-content"
+                      className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
+                      role="main"
+                      tabIndex={-1}
+                    >
+                      <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
+                    </main>
+                  </PageTransitionProvider>
 
                   {/* Floating Action Buttons */}
                   <FloatingActionButtons />

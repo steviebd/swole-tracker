@@ -105,7 +105,7 @@ export function DashboardContent() {
     </div>
   );
 
-  // Mobile-inspired layout with GlassHeader
+  // Template-inspired layout with enhanced GlassHeader and gradient backgrounds
   return (
     <>
       {/* Glass Header with template design */}
@@ -115,20 +115,25 @@ export function DashboardContent() {
         actions={headerActions}
       />
 
-      {/* Single-column content area with mobile-first design */}
-      <HomePageContent>
-        {/* New Phase 4 Dashboard Implementation */}
-        <DashboardContainer>
-          {/* Quick Actions - Start Workout, Joke of Day, Manage Templates */}
-          <QuickActionCards />
-        </DashboardContainer>
+      {/* Single-column content area with template-inspired mobile-first design */}
+      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5">
+        <HomePageContent>
+          {/* Phase 4 Enhanced Dashboard Implementation */}
+          <DashboardContainer>
+            {/* Quick Actions - Start Workout, Templates, etc. */}
+            <QuickActionCards />
+          </DashboardContainer>
 
-        {/* Joke of the Day - Moved to bottom */}
-        <JokeOfTheDay />
+          {/* Bottom content with better spacing */}
+          <div className="space-y-6 sm:space-y-8">
+            {/* Joke of the Day */}
+            <JokeOfTheDay />
 
-        {/* Homepage Footer */}
-        <HomePageFooter />
-      </HomePageContent>
+            {/* Homepage Footer */}
+            <HomePageFooter />
+          </div>
+        </HomePageContent>
+      </div>
       
       {/* Modals */}
       <ProgressionModal open={progressionOpen} onClose={() => setProgressionOpen(false)} />

@@ -188,11 +188,11 @@ export function ExerciseLinkPicker({
             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-[color:var(--color-primary)]"
           />
           {isExactMatch && (
-            <div className="mt-2 rounded border border-green-700 bg-green-900/20 p-2 text-xs text-green-300">
+            <div className="mt-2 rounded border border-[var(--color-success)] bg-[var(--color-success-muted)] p-2 text-xs text-[var(--color-success)]">
               Exact match found: “{isExactMatch.name}”
               <button
                 onClick={() => handleLink(isExactMatch.id)}
-                className="ml-2 rounded bg-green-600 px-2 py-1 text-xs text-background hover:bg-green-700"
+                className="ml-2 rounded bg-[var(--color-success)] px-2 py-1 text-xs text-white hover:bg-[var(--color-success)]/80"
               >
                 Link to exact
               </button>

@@ -37,6 +37,8 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   hairline?: boolean;
   /** Element type to render as */
   as?: keyof React.JSX.IntrinsicElements;
+  /** Click handler for interactive cards */
+  onActivate?: () => void;
 }
 
 /**
@@ -70,20 +72,35 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     as = "div",
     children,
     style,
+    onActivate,
+    onClick,
+    onKeyDown,
     ...props 
   }, ref) => {
     const Comp = as as any;
     
+    // Handle keyboard activation for interactive cards
+    const handleKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (interactive && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        onActivate?.();
+        onClick?.(event as any);
+      }
+      onKeyDown?.(event);
+    }, [interactive, onActivate, onClick, onKeyDown]);
+    
     // Handle legacy props by mapping to new variant system
     const resolvedVariant = glass ? 'glass' : hairline ? 'outline' : variant;
     
-    // Base classes with surface hierarchy
+    // Base classes with surface hierarchy and enhanced focus management
     const baseClasses = cn(
       'card',
       // Interactive states with scale animation
       interactive && 'transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer',
-      // Focus states for accessibility
-      interactive && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+      // Enhanced WCAG 2.1 AA focus states for accessibility
+      interactive && 'card-focusable focus-visible:outline-none',
+      // Ensure proper focus ring positioning
+      'relative',
     );
     
     // Surface-based background classes
@@ -162,6 +179,9 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
         }}
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
+        aria-pressed={interactive ? false : undefined}
+        onKeyDown={handleKeyDown}
+        onClick={interactive ? (onClick || onActivate) : onClick}
         {...props}
       >
         {children}

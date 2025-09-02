@@ -91,7 +91,7 @@ export function useWorkoutStats(): WorkoutStats {
       today.setHours(0, 0, 0, 0);
       
       let streak = 0;
-      let currentDate = new Date(today);
+      const currentDate = new Date(today);
       
       for (const workoutDate of workoutDates) {
         if (workoutDate.getTime() === currentDate.getTime()) {

@@ -57,6 +57,9 @@
   /* Border variants */
   --color-border-muted: var(--color-border-muted);
   
+  /* Focus ring colors with enhanced contrast for accessibility */
+  --focus-ring-color: var(--color-primary-default);
+  
   /* Glass effect colors */
   --color-glass-card: var(--color-glass-card);
   --color-glass-border: var(--color-glass-border);
@@ -209,10 +212,96 @@ html.dark {
   /* Theme-specific colors defined in light.css and dark.css */
 }
 
-/* Focus utilities */
+/* ===================== */
+/* WCAG 2.1 AA Focus Management System */
+/* ===================== */
+
+/* CSS focus-visible polyfill for consistent cross-browser support */
+.js-focus-visible :focus:not(.focus-visible) {
+  outline: none;
+}
+
+/* Global focus-visible styles with high contrast */
+*:focus-visible,
+.focus-visible {
+  outline: 2px solid var(--focus-ring-color, var(--color-primary-default));
+  outline-offset: 2px;
+  border-radius: 3px;
+  transition: outline-color 150ms ease-out, outline-offset 150ms ease-out;
+}
+
+/* Enhanced focus ring that respects user preferences */
+@media (prefers-reduced-motion: no-preference) {
+  *:focus-visible,
+  .focus-visible {
+    animation: focus-pulse 2s ease-out infinite;
+  }
+}
+
+@keyframes focus-pulse {
+  0%, 100% {
+    outline-color: var(--focus-ring-color, var(--color-primary-default));
+  }
+  50% {
+    outline-color: color-mix(in oklab, var(--focus-ring-color, var(--color-primary-default)) 70%, transparent);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  *:focus-visible,
+  .focus-visible {
+    outline-width: 3px;
+    outline-color: Highlight;
+  }
+}
+
+/* Skip links with proper styling */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--color-background-card);
+  color: var(--color-text-primary);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--color-primary-default);
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 9999;
+  transition: top 150ms ease-out;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Focus utilities with enhanced visibility */
 .focus-primary {
   @apply transition-all duration-200;
-  /* Theme-specific focus styles defined in light.css and dark.css */
+  /* Enhanced focus ring for primary elements */
+}
+
+.focus-primary:focus-visible {
+  outline: 2px solid var(--color-primary-default);
+  outline-offset: 2px;
+  box-shadow: 
+    0 0 0 4px color-mix(in oklab, var(--color-primary-default) 20%, transparent),
+    var(--shadow-sm);
+}
+
+/* Card focus states - ensures cards are keyboard accessible */
+.card-focusable {
+  cursor: pointer;
+}
+
+.card-focusable:focus-visible {
+  outline: 2px solid var(--color-primary-default);
+  outline-offset: 2px;
+  transform: translateY(-2px);
+  box-shadow: 
+    0 0 0 4px color-mix(in oklab, var(--color-primary-default) 15%, transparent),
+    var(--shadow-md);
 }
 
 /* Loading overlay */
@@ -331,18 +420,44 @@ html.dark {
   background: var(--gradient-header-linear);
 }
 
-/* New gradient utilities for stats and actions */
+/* Template-aligned gradient utilities for stats and actions */
 .gradient-stats-orange {
-  background: var(--gradient-universal-stats-orange);
+  background: var(--gradient-stats-orange, linear-gradient(135deg, oklch(0.711 0.188 54.3) 0%, oklch(0.676 0.172 51.8) 100%));
 }
 .gradient-stats-red {
-  background: var(--gradient-universal-stats-red);
+  background: linear-gradient(135deg, oklch(0.632 0.257 27.3) 0%, oklch(0.577 0.245 27.3) 100%);
 }
 .gradient-stats-amber {
-  background: var(--gradient-universal-warning);
+  background: var(--gradient-stats-amber, linear-gradient(135deg, oklch(0.658 0.158 58.4) 0%, oklch(0.774 0.178 66.5) 100%));
 }
 .gradient-action-primary {
-  background: var(--gradient-universal-action-primary);
+  background: var(--gradient-action-primary, linear-gradient(135deg, oklch(0.658 0.158 58.4) 0%, oklch(0.711 0.188 54.3) 100%));
+}
+
+/* Glass card with energetic gradients */
+.glass-card-energetic {
+  background: 
+    linear-gradient(135deg, oklch(0.99 0 0 / 0.1) 0%, oklch(0.711 0.188 54.3 / 0.05) 100%),
+    var(--color-glass-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in oklab, var(--color-border-default) 70%, oklch(0.711 0.188 54.3 / 0.2));
+}
+
+/* Stat card variants with template colors */
+.stat-card-primary {
+  background: var(--gradient-action-primary);
+  color: white;
+}
+
+.stat-card-secondary {
+  background: var(--gradient-stats-amber);
+  color: white;
+}
+
+.stat-card-accent {
+  background: var(--gradient-stats-orange);
+  color: white;
 }
 
 /* Primary button - tokenized */
@@ -1358,25 +1473,39 @@ html.dark {
   color: var(--color-text-muted);
   font-size: 0.875rem;
   margin-bottom: 1rem;
+  padding: 0.5rem 0;
 }
 
 .breadcrumb-item {
   color: var(--color-text-muted);
-  transition: color var(--duration-fast) ease-out;
+  transition: all var(--duration-base) ease-out;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  position: relative;
 }
 
 .breadcrumb-item:hover {
   color: var(--color-text-primary);
+  background: linear-gradient(135deg, 
+    color-mix(in oklab, var(--color-primary-default) 8%, transparent),
+    color-mix(in oklab, var(--color-primary-hover) 5%, transparent)
+  );
+  transform: translateY(-1px);
 }
 
 .breadcrumb-separator {
   color: var(--color-border-default);
   font-size: 0.75rem;
+  opacity: 0.6;
+  margin: 0 0.125rem;
+  transition: opacity var(--duration-fast) ease-out;
 }
 
 .breadcrumb-current {
   color: var(--color-text-primary);
-  font-weight: 500;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  position: relative;
 }
 
 /* Floating action buttons */
@@ -1570,5 +1699,203 @@ html.dark {
 @media (min-width: 1536px) {
   .container-fluid {
     max-width: 1600px;
+  }
+}
+
+/* Enhanced navigation state animations and micro-interactions */
+.nav-link-enhanced {
+  position: relative;
+  transition: all var(--duration-base) ease-out;
+  overflow: hidden;
+}
+
+.nav-link-enhanced::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-primary-default), var(--color-primary-hover));
+  transition: all var(--duration-base) ease-out;
+  transform: translateX(-50%);
+}
+
+.nav-link-enhanced:hover::before,
+.nav-link-enhanced.active::before {
+  width: 100%;
+}
+
+.nav-link-enhanced:hover {
+  transform: translateY(-1px);
+  color: var(--color-primary-default);
+}
+
+/* Progressive disclosure for collapsible sections */
+.disclosure-trigger {
+  transition: transform var(--duration-base) ease-out;
+}
+
+.disclosure-trigger[aria-expanded="true"] {
+  transform: rotate(180deg);
+}
+
+.disclosure-content {
+  overflow: hidden;
+  transition: all var(--duration-base) ease-out;
+}
+
+.disclosure-content[data-state="closed"] {
+  max-height: 0;
+  opacity: 0;
+}
+
+.disclosure-content[data-state="open"] {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* Swipe gesture support for chart navigation */
+.swipe-container {
+  touch-action: pan-y;
+  position: relative;
+  overflow: hidden;
+}
+
+.swipeable {
+  transition: transform var(--duration-base) cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: pan-y;
+}
+
+.swipeable.swiping {
+  transition: none;
+}
+
+/* Enhanced focus indicators for better accessibility */
+.focus-ring-enhanced {
+  position: relative;
+}
+
+.focus-ring-enhanced:focus-visible {
+  outline: none;
+}
+
+.focus-ring-enhanced:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--color-primary-default);
+  border-radius: calc(var(--radius) + 2px);
+  background: linear-gradient(135deg, 
+    color-mix(in oklab, var(--color-primary-default) 10%, transparent),
+    color-mix(in oklab, var(--color-primary-hover) 5%, transparent)
+  );
+  animation: focus-pulse 2s infinite;
+  z-index: 10;
+}
+
+@keyframes focus-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.02);
+  }
+}
+
+/* Energetic shimmer animation for skeleton screens */
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Theme-aware modal backdrop - fixing theme inconsistency */
+.modal-backdrop {
+  background-color: color-mix(in srgb, var(--color-background) 70%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+/* Ensure proper theme inheritance for modal backdrops */
+[data-theme="light"] .modal-backdrop,
+html:not(.dark) .modal-backdrop {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .modal-backdrop,
+html.dark .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Mobile-optimized navigation enhancements */
+@media (max-width: 768px) {
+  /* Enhanced tap targets for mobile navigation */
+  .mobile-nav-link {
+    min-height: 56px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 500;
+    transition: all var(--duration-base) ease-out;
+    border-radius: var(--radius-lg);
+    margin: 0.25rem 0;
+  }
+  
+  .mobile-nav-link:active {
+    transform: scale(0.98);
+    background: var(--color-background-surface);
+  }
+  
+  .mobile-nav-link.active {
+    background: linear-gradient(135deg, 
+      var(--color-primary-default), 
+      var(--color-primary-hover)
+    );
+    color: white;
+    font-weight: 600;
+  }
+  
+  /* Improved mobile menu animations */
+  .mobile-menu-enter {
+    animation: slideInFromTop var(--duration-base) ease-out;
+  }
+  
+  .mobile-menu-exit {
+    animation: slideOutToTop var(--duration-base) ease-out;
+  }
+  
+  @keyframes slideInFromTop {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideOutToTop {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
   }
 }
