@@ -28,10 +28,11 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline hover:scale-105 active:scale-95 transition-all duration-200 ease-out",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3 touch-target",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 touch-target",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4 touch-target-large",
-        icon: "size-9 touch-target",
+        default: "h-11 px-4 py-2 has-[>svg]:px-3 touch-target",
+        sm: "h-10 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 touch-target",
+        lg: "h-12 rounded-md px-6 has-[>svg]:px-4 touch-target-large",
+        xl: "h-14 rounded-lg px-8 has-[>svg]:px-6 touch-target-xl text-base font-semibold",
+        icon: "size-11 touch-target",
       },
       interactive: {
         true: "cursor-pointer select-none",

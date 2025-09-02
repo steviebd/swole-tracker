@@ -2,22 +2,12 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Open_Sans, Montserrat } from "next/font/google";
-import Link from "next/link";
 
 import { TRPCReactProvider } from "~/trpc/react";
-import { ConnectionStatus } from "~/app/_components/connection-status";
-import { SyncIndicator } from "~/app/_components/sync-indicator";
-import { EnhancedSyncIndicator } from "~/app/_components/enhanced-sync-indicator";
-import { NetworkStatusBanner } from "~/app/_components/network-status-banner";
 import { PostHogProvider } from "~/providers/PostHogProvider";
-import { PageTracker } from "~/app/_components/page-tracker";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
-import ClientPerfInit from "@/app/_components/ClientPerfInit";
-import LiveRegionProvider from "~/app/_components/LiveRegion";
-import { DashboardHeader } from "~/components/dashboard/dashboard-header";
-import { FloatingActionButtons } from "~/components/navigation/floating-action-buttons";
-import { PageTransitionProvider } from "~/providers/PageTransitionProvider";
+import { DashboardHeader } from "~/components/dashboard-header";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -42,8 +32,8 @@ const openSans = Open_Sans({
 
 const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["700", "900"],
-  variable: "--font-display",
+  weight: ["400", "600", "700", "900"],
+  variable: "--font-montserrat",
   display: "swap",
 });
 
@@ -73,73 +63,18 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${openSans.variable} ${montserrat.variable} overflow-x-hidden`}
+      className={`${openSans.variable} ${montserrat.variable} antialiased`}
     >
-      <body className="page-shell flex min-h-screen flex-col overflow-x-hidden" style={{ color: "var(--color-text)" }}>
+      <body>
         {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
         <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
-        {/* Skip to content link */}
-        <a
-          href="#main-content"
-          className="btn-primary sr-only px-3 py-1.5 text-sm focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000]"
-        >
-          Skip to main content
-        </a>
         <AuthProvider>
           <PostHogProvider>
             <ThemeProvider>
-              <LiveRegionProvider>
-                <ClientPerfInit />
-                <div className="page-backdrop" aria-hidden="true" />
-                <PageTracker />
-                <NetworkStatusBanner />
-                <ConnectionStatus />
-                <TRPCReactProvider>
-                  <SyncIndicator />
-                  <EnhancedSyncIndicator />
-                  
-                  <DashboardHeader />
-
-                  <PageTransitionProvider>
-                    <main
-                      id="main-content"
-                      className="container-default flex-1 py-4 sm:py-6 overflow-x-hidden"
-                      role="main"
-                      tabIndex={-1}
-                    >
-                      <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full min-w-0 overflow-x-hidden">{children}</div>
-                    </main>
-                  </PageTransitionProvider>
-
-                  {/* Floating Action Buttons */}
-                  <FloatingActionButtons />
-
-
-                  <footer className="app-footer mt-auto py-6">
-                    <div className="container mx-auto px-4 text-center">
-                      <div className="flex justify-center space-x-6 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                        <Link
-                          href="/privacy"
-                          className="link-primary"
-                          prefetch
-                        >
-                          Privacy Policy
-                        </Link>
-                        <Link
-                          href="/terms"
-                          className="link-primary"
-                          prefetch
-                        >
-                          Terms of Service
-                        </Link>
-                      </div>
-                      <div className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                        © 2025 Steven Duong. All rights reserved.
-                      </div>
-                    </div>
-                  </footer>
-                </TRPCReactProvider>
-              </LiveRegionProvider>
+              <TRPCReactProvider>
+                <DashboardHeader />
+                {children}
+              </TRPCReactProvider>
             </ThemeProvider>
           </PostHogProvider>
         </AuthProvider>

@@ -119,7 +119,7 @@ export function StatsCards() {
             <Card 
               surface="card" 
               variant="default" 
-              padding="md" 
+              padding="lg" 
               className={cn(
                 "glass-surface relative overflow-hidden border-0",
                 "bg-gradient-to-br from-white/80 via-white/60 to-white/40",
@@ -195,7 +195,7 @@ export function StatsCards() {
             <Card
               surface="card"
               variant="default"
-              padding="md"
+              padding="lg"
               interactive={true}
               className={cn(
                 "glass-surface relative overflow-hidden border-0",
@@ -216,9 +216,9 @@ export function StatsCards() {
               {/* Subtle gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10 dark:via-white/2 dark:to-white/5 pointer-events-none" />
               
-              {/* Icon with enhanced gradient background */}
+              {/* Icon with enhanced gradient background and proper spacing */}
               <div className={cn(
-                "relative w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-md",
+                "relative w-12 h-12 rounded-xl flex items-center justify-center mb-6 mt-2 shadow-md",
                 "transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3",
                 getIconGradient(card.gradient)
               )}>

@@ -126,6 +126,30 @@ Notes:
   - Ensure Infisical configured for production environment
   - `bun db:push` (automatically injects secrets from Infisical)
 
+## Recent Changes
+
+### Token System Refactoring (September 2025)
+The complex design token system has been completely removed and simplified:
+
+**Removed Components:**
+- Complex token build scripts (`scripts/build-tokens.js`, `scripts/build-mobile-tokens.js`)
+- Token-specific package.json scripts (`tokens:build`, `tokens:watch`, `tokens:mobile`)
+- Generated CSS files and JSON token schemas (`src/styles/tokens/` directory)
+- TypeScript token utilities (`src/lib/design-tokens.ts`)
+- Mobile token generation (`apps/mobile/lib/design-tokens.ts`, `apps/mobile/tailwind.config.js`)
+- Token-related unit tests (`src/__tests__/unit/design-tokens.test.ts`)
+
+**Impact:**
+- ✅ Faster development builds (no token compilation step)
+- ✅ Simplified deployment process
+- ✅ Reduced build complexity and maintenance overhead
+- ✅ Standard Tailwind CSS v4 theming without custom token overhead
+
+**Migration Notes:**
+- Applications now use standard Tailwind CSS v4 classes and CSS custom properties
+- No breaking changes to component styling - existing Tailwind classes continue to work
+- Build and dev commands no longer include token generation steps
+
 ## Troubleshooting
 - **Infisical issues:** Verify login status with `infisical user`, ensure project access, check workspace ID in `.infisical.json`
 - Clerk auth issues: verify publishable and secret keys, redirect URLs, and middleware matcher

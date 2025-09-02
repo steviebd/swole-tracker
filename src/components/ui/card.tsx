@@ -1,11 +1,10 @@
 import * as React from "react"
 import { cn } from "~/lib/utils"
-import { type SurfaceLevel, type VisualStyle, type SpacingSize } from "~/lib/design-tokens"
 
 /**
  * Card surface levels for dark theme hierarchy
  */
-type CardSurface = SurfaceLevel;
+type CardSurface = 'app' | 'surface' | 'card' | 'elevated';
 
 /**
  * Card variants with glass effects for dark theme
@@ -15,7 +14,12 @@ type CardVariant = 'default' | 'elevated' | 'glass' | 'outline' | 'interactive';
 /**
  * Visual styles for status-aware cards
  */
-type CardVisualStyle = VisualStyle;
+type CardVisualStyle = 'default' | 'success' | 'warning' | 'danger' | 'info';
+
+/**
+ * Spacing sizes for consistent padding
+ */
+type SpacingSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 /**
  * Enhanced Card component props with mobile app patterns
@@ -161,6 +165,15 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     // Apply interactive variant automatically if interactive prop is true
     const finalVariant = interactive && resolvedVariant === 'default' ? 'interactive' : resolvedVariant;
     
+    // Map padding to Tailwind classes
+    const paddingClass = padding !== 'none' ? {
+      xs: 'p-2',    // 8px
+      sm: 'p-4',    // 16px  
+      md: 'p-6',    // 24px
+      lg: 'p-8',    // 32px
+      xl: 'p-10'    // 40px
+    }[padding] || 'p-6' : '';
+
     return (
       <Comp 
         ref={ref}
@@ -169,14 +182,10 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
           surfaceClasses[surface],
           variantClasses[finalVariant],
           glassPositioning,
+          paddingClass,
           className
         )}
-        style={{
-          padding: padding !== 'none' 
-            ? `var(--spacing-component-${padding})`
-            : undefined,
-          ...style
-        }}
+        style={style}
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
         aria-pressed={interactive ? false : undefined}
@@ -200,13 +209,10 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
       <div 
         ref={ref}
         className={cn(
-          'border-b border-muted',
+          'border-b border-muted pb-4',
           className
         )}
-        style={{
-          paddingBottom: 'var(--spacing-component-sm)',
-          ...style
-        }}
+        style={style}
         {...props}
       >
         {children}
@@ -254,12 +260,8 @@ const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
     return (
       <div 
         ref={ref}
-        className={cn(className)}
-        style={{
-          paddingTop: 'var(--spacing-component-md)',
-          paddingBottom: 'var(--spacing-component-md)',
-          ...style
-        }}
+        className={cn('py-6', className)}
+        style={style}
         {...props}
       >
         {children}
@@ -278,13 +280,10 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
       <div 
         ref={ref}
         className={cn(
-          'border-t border-muted',
+          'border-t border-muted pt-4',
           className
         )}
-        style={{
-          paddingTop: 'var(--spacing-component-sm)',
-          ...style
-        }}
+        style={style}
         {...props}
       >
         {children}
