@@ -107,7 +107,7 @@
   "overrides": {
     "esbuild": "^0.25.0"
   },
-  "packageManager": "bun@1.1.42",
+  "packageManager": "bun@1.2.20",
   "volta": {
     "node": "20.19.4"
   },
