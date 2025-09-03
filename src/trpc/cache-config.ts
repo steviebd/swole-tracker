@@ -87,9 +87,10 @@ export function configureQueryCache(queryClient: QueryClient) {
     retryDelay: 5000, // 5 second delay between retries
   });
 
+  // WHOOP Workouts - historical data, cache longer
   queryClient.setQueryDefaults(["whoop", "getWorkouts"], {
-    staleTime: CACHE_TIMES.MEDIUM.staleTime,
-    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    staleTime: CACHE_TIMES.STATIC.staleTime, // 60 minutes for historical workouts
+    gcTime: CACHE_TIMES.STATIC.gcTime, // 2 hours
     refetchOnWindowFocus: false, // Don't refetch on focus to prevent loops
     refetchInterval: false, // Disable automatic polling
     retry: (failureCount, error) => {
@@ -105,20 +106,39 @@ export function configureQueryCache(queryClient: QueryClient) {
     retryDelay: 5000, // 5 second delay between retries
   });
 
-  // Configure all other WHOOP queries with similar conservative settings
-  const whoopQueries = [
-    "getLatestRecoveryData",
+  // WHOOP Current/Live Data - shorter cache for real-time data  
+  const whoopLiveQueries = ["getLatestRecoveryData"];
+  whoopLiveQueries.forEach(queryType => {
+    queryClient.setQueryDefaults(["whoop", queryType], {
+      staleTime: CACHE_TIMES.MEDIUM.staleTime, // 10 minutes for current data
+      gcTime: CACHE_TIMES.MEDIUM.gcTime,
+      refetchOnWindowFocus: false,
+      refetchInterval: false,
+      retry: (failureCount, error) => {
+        if (error && typeof error === "object" && "data" in error) {
+          const errorData = error.data as any;
+          if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+            return false;
+          }
+        }
+        return failureCount < 2;
+      },
+      retryDelay: 5000,
+    });
+  });
+  
+  // WHOOP Historical Data - longer cache for data that doesn't change often
+  const whoopHistoricalQueries = [
     "getRecovery", 
     "getCycles",
     "getSleep",
     "getProfile",
     "getBodyMeasurements"
   ];
-  
-  whoopQueries.forEach(queryType => {
+  whoopHistoricalQueries.forEach(queryType => {
     queryClient.setQueryDefaults(["whoop", queryType], {
-      staleTime: CACHE_TIMES.MEDIUM.staleTime,
-      gcTime: CACHE_TIMES.MEDIUM.gcTime,
+      staleTime: CACHE_TIMES.STATIC.staleTime, // 60 minutes for historical data
+      gcTime: CACHE_TIMES.STATIC.gcTime, // 2 hours
       refetchOnWindowFocus: false,
       refetchInterval: false,
       retry: (failureCount, error) => {

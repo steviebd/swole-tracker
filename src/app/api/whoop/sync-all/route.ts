@@ -12,7 +12,7 @@ import {
   whoopProfile,
   whoopBodyMeasurement
 } from "~/server/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 
@@ -190,13 +190,21 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
   return integration.accessToken;
 }
 
-// Fetch data using WHOOP API v2 collection endpoints
+// Fetch data using WHOOP API v2 collection endpoints with incremental sync
 async function fetchWhoopDataV2<T>(
   endpoint: string,
   accessToken: string,
-  limit = 25
+  limit = 25,
+  since?: Date
 ): Promise<T[]> {
-  const url = `https://api.prod.whoop.com/developer/v2/${endpoint}?limit=${limit}`;
+  let url = `https://api.prod.whoop.com/developer/v2/${endpoint}?limit=${limit}`;
+  
+  // Add since parameter for incremental sync
+  if (since) {
+    const sinceIso = since.toISOString();
+    url += `&since=${encodeURIComponent(sinceIso)}`;
+    console.log(`[WHOOP API v2] Incremental sync for ${endpoint} since ${sinceIso}`);
+  }
   
   const response = await fetch(url, {
     headers: {
@@ -215,13 +223,22 @@ async function fetchWhoopDataV2<T>(
 
   const data = await response.json();
   const records = (data.records || data || []) as T[];
-  console.log(`[WHOOP API v2] Successfully fetched ${records.length} records from ${endpoint}`);
+  console.log(`[WHOOP API v2] Successfully fetched ${records.length} records from ${endpoint}${since ? ` (since ${since.toISOString()})` : ''}`);
   return records;
 }
 
 async function syncWorkouts(userId: string, accessToken: string): Promise<number> {
   try {
-    const workouts = await fetchWhoopDataV2<WhoopWorkout>("activity/workout", accessToken, 25);
+    // Get the latest workout timestamp for incremental sync
+    const [latestWorkout] = await db
+      .select({ start: externalWorkoutsWhoop.start })
+      .from(externalWorkoutsWhoop)
+      .where(eq(externalWorkoutsWhoop.user_id, userId))
+      .orderBy(desc(externalWorkoutsWhoop.start))
+      .limit(1);
+    
+    const since = latestWorkout?.start;
+    const workouts = await fetchWhoopDataV2<WhoopWorkout>("activity/workout", accessToken, 25, since);
     
     // Fetched workouts from WHOOP API
     if (workouts.length === 0) return 0;
@@ -279,8 +296,17 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
   try {
     console.log(`[Recovery Sync] Starting recovery sync for user ${userId}`);
     
+    // Get the latest recovery timestamp for incremental sync
+    const [latestRecovery] = await db
+      .select({ webhook_received_at: whoopRecovery.webhook_received_at })
+      .from(whoopRecovery)
+      .where(eq(whoopRecovery.user_id, userId))
+      .orderBy(desc(whoopRecovery.webhook_received_at))
+      .limit(1);
+    
+    const since = latestRecovery?.webhook_received_at;
     // Use WHOOP API v2 recovery endpoint
-    const recoveries = await fetchWhoopDataV2<WhoopRecovery>("recovery", accessToken, 25);
+    const recoveries = await fetchWhoopDataV2<WhoopRecovery>("recovery", accessToken, 25, since);
     
     console.log(`[Recovery Sync] Fetched ${recoveries.length} recovery records from WHOOP API v2`);
     if (recoveries.length === 0) {
@@ -342,7 +368,16 @@ async function syncRecovery(userId: string, accessToken: string): Promise<number
 
 async function syncCycles(userId: string, accessToken: string): Promise<number> {
   try {
-    const cycles = await fetchWhoopDataV2<WhoopCycle>("cycle", accessToken, 25);
+    // Get the latest cycle timestamp for incremental sync
+    const [latestCycle] = await db
+      .select({ start: whoopCycles.start })
+      .from(whoopCycles)
+      .where(eq(whoopCycles.user_id, userId))
+      .orderBy(desc(whoopCycles.start))
+      .limit(1);
+    
+    const since = latestCycle?.start;
+    const cycles = await fetchWhoopDataV2<WhoopCycle>("cycle", accessToken, 25, since);
     
     // Fetched cycles from WHOOP API
     if (cycles.length === 0) return 0;
@@ -386,7 +421,16 @@ async function syncCycles(userId: string, accessToken: string): Promise<number> 
 
 async function syncSleep(userId: string, accessToken: string): Promise<number> {
   try {
-    const sleeps = await fetchWhoopDataV2<WhoopSleep>("activity/sleep", accessToken, 25);
+    // Get the latest sleep timestamp for incremental sync
+    const [latestSleep] = await db
+      .select({ start: whoopSleep.start })
+      .from(whoopSleep)
+      .where(eq(whoopSleep.user_id, userId))
+      .orderBy(desc(whoopSleep.start))
+      .limit(1);
+    
+    const since = latestSleep?.start;
+    const sleeps = await fetchWhoopDataV2<WhoopSleep>("activity/sleep", accessToken, 25, since);
     
     // Fetched sleep records from WHOOP API
     if (sleeps.length === 0) return 0;
@@ -453,7 +497,9 @@ async function syncProfile(userId: string, accessToken: string): Promise<number>
     
     // Check if profile already exists
     const existingProfile = await db
-      .select()
+      .select({
+        id: whoopProfile.id,
+      })
       .from(whoopProfile)
       .where(eq(whoopProfile.user_id, userId))
       .limit(1);
@@ -522,7 +568,9 @@ async function syncBodyMeasurements(userId: string, accessToken: string): Promis
 
     // Check if we already have a measurement for this user
     const [existingMeasurement] = await db
-      .select()
+      .select({
+        id: whoopBodyMeasurement.id,
+      })
       .from(whoopBodyMeasurement)
       .where(eq(whoopBodyMeasurement.user_id, userId))
       .limit(1);

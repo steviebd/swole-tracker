@@ -120,6 +120,8 @@ export const sessionExercises = createTable(
     index("session_exercise_name_idx").on(t.exerciseName),
     // Phase 3 addition: Index for exercise progression queries
     index("session_exercise_user_exercise_date_idx").on(t.user_id, t.exerciseName, t.sessionId),
+    // Optimization: Index for user + template exercise queries
+    index("session_exercise_user_template_idx").on(t.user_id, t.templateExerciseId),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 

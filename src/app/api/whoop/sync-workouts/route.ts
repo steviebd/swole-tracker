@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 
@@ -162,10 +162,23 @@ export async function POST(_request: NextRequest) {
     // Refresh token if needed
     const accessToken = await refreshTokenIfNeeded(integration);
 
-    // Fetch workouts from Whoop API (v2 endpoint) with pagination
-    // Try to get more historical workouts by adding limit parameter
+    // Get the latest workout timestamp for incremental sync
+    const [latestWorkout] = await db
+      .select({ start: externalWorkoutsWhoop.start })
+      .from(externalWorkoutsWhoop)
+      .where(eq(externalWorkoutsWhoop.user_id, user.id))
+      .orderBy(desc(externalWorkoutsWhoop.start))
+      .limit(1);
+    
+    // Fetch workouts from Whoop API (v2 endpoint) with incremental sync
+    let whoopUrl = "https://api.prod.whoop.com/developer/v2/activity/workout?limit=25";
+    if (latestWorkout?.start) {
+      const sinceIso = latestWorkout.start.toISOString();
+      whoopUrl += `&since=${encodeURIComponent(sinceIso)}`;
+    }
+    
     const whoopResponse = await fetch(
-      "https://api.prod.whoop.com/developer/v2/activity/workout?limit=25",
+      whoopUrl,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,

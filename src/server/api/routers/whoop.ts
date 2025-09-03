@@ -165,7 +165,15 @@ export const whoopRouter = createTRPCRouter({
     try {
       // Get latest recovery data from database (most recent record)
       const [latestRecovery] = await ctx.db
-        .select()
+        .select({
+          recovery_score: whoopRecovery.recovery_score,
+          hrv_rmssd_milli: whoopRecovery.hrv_rmssd_milli,
+          hrv_rmssd_baseline: whoopRecovery.hrv_rmssd_baseline,
+          resting_heart_rate: whoopRecovery.resting_heart_rate,
+          resting_heart_rate_baseline: whoopRecovery.resting_heart_rate_baseline,
+          raw_data: whoopRecovery.raw_data,
+          date: whoopRecovery.date,
+        })
         .from(whoopRecovery)
         .where(eq(whoopRecovery.user_id, ctx.user.id))
         .orderBy(desc(whoopRecovery.date))
@@ -173,7 +181,11 @@ export const whoopRouter = createTRPCRouter({
       
       // Get latest sleep data from database (most recent record)
       const [latestSleep] = await ctx.db
-        .select()
+        .select({
+          sleep_performance_percentage: whoopSleep.sleep_performance_percentage,
+          raw_data: whoopSleep.raw_data,
+          start: whoopSleep.start,
+        })
         .from(whoopSleep)
         .where(eq(whoopSleep.user_id, ctx.user.id))
         .orderBy(desc(whoopSleep.start))
