@@ -89,7 +89,7 @@ export default function Home() {
 
   // Template-inspired dashboard layout
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-app-gradient">
       <main className="container mx-auto px-6 sm:px-8 py-8 space-y-10">
         <StatsCards />
         <QuickActions />

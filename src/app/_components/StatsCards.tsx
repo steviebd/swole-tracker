@@ -122,8 +122,7 @@ export function StatsCards() {
               padding="lg" 
               className={cn(
                 "glass-surface relative overflow-hidden border-0",
-                "bg-gradient-to-br from-white/80 via-white/60 to-white/40",
-                "dark:from-gray-900/80 dark:via-gray-900/60 dark:to-gray-900/40",
+                "bg-card/70",
                 "backdrop-blur-xl backdrop-saturate-150",
                 skeleton.pulse
               )}
@@ -199,22 +198,19 @@ export function StatsCards() {
               interactive={true}
               className={cn(
                 "glass-surface relative overflow-hidden border-0",
-                "bg-gradient-to-br from-white/80 via-white/60 to-white/40",
-                "dark:from-gray-900/80 dark:via-gray-900/60 dark:to-gray-900/40",
+                "bg-card/80 hover:bg-card/90",
                 "backdrop-blur-xl backdrop-saturate-150",
                 "shadow-lg hover:shadow-xl",
                 "transition-all duration-200 ease-out",
                 "hover:scale-[1.02] hover:shadow-2xl",
-                "group cursor-pointer",
-                "[&:hover]:!bg-gradient-to-br [&:hover]:!from-white/95 [&:hover]:!via-white/90 [&:hover]:!to-white/85",
-                "dark:[&:hover]:!from-gray-900/95 dark:[&:hover]:!via-gray-900/90 dark:[&:hover]:!to-gray-900/85"
+                "group cursor-pointer"
               )}
               aria-label={`${card.title}: ${card.value}${card.unit}`}
               role="button"
               tabIndex={0}
             >
               {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10 dark:via-white/2 dark:to-white/5 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-foreground/2 to-foreground/5 pointer-events-none" />
               
               {/* Icon with enhanced gradient background and proper spacing */}
               <div className={cn(

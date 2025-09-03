@@ -41,7 +41,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   // No-FOUC inline script: sets initial theme class before hydration
-  // Reads localStorage('theme'), falls back to 'system', and applies dark based on system if needed.
+  // Reads localStorage('theme'), falls back to 'system', and applies theme attributes
+  // Supports new gentle themes: current, cool, warm, neutral
   // Ensure SSR and client produce the same initial <html> attributes:
   // - Do NOT set 'dark' class or data-theme at SSR time; only the client-side inline script updates them.
   // - This avoids hydration mismatches where CSR chooses a different theme than SSR snapshot.
@@ -51,11 +52,20 @@ export default function RootLayout({
         var key = 'theme';
         var t = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var dark = (t === 'system' && prefersDark) || (t === 'dark');
+        
+        // Determine effective theme
+        var effectiveTheme = t;
+        if (t === 'system') {
+          effectiveTheme = prefersDark ? 'dark' : 'light';
+        }
+        
+        // Only dark theme is actually dark mode
+        var dark = effectiveTheme === 'dark';
         var root = document.documentElement;
+        
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
-        // Only apply data-theme for client. Do not set this attribute in SSR markup to avoid hydration warnings.
-        root.setAttribute('data-theme', t);
+        // For system theme, preserve "system" in data-theme, otherwise use effective theme
+        root.setAttribute('data-theme', t === 'system' ? 'system' : effectiveTheme);
       } catch (_) {}
     })();
   `;

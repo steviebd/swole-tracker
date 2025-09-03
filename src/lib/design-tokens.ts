@@ -422,7 +422,7 @@ export type AnimationToken = keyof typeof animation.duration;
 export type BreakpointToken = keyof typeof breakpoints;
 
 // Helper functions for accessing tokens
-export const getColor = (token: string) => colors;
+export const getColor = (_token: string) => colors;
 export const getSpacing = (token: keyof typeof spacing) => spacing[token];
 export const getTypography = (token: keyof typeof typography.fontSize) => typography.fontSize[token];
 export const getAnimation = (token: keyof typeof animation.duration) => animation.duration[token];

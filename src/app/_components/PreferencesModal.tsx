@@ -9,6 +9,7 @@ import { Button } from "~/components/ui/button";
 import { GlassSurface } from "~/components/ui/glass-surface";
 import { useReducedMotion } from "~/hooks/use-reduced-motion";
 import { cn } from "~/lib/utils";
+import { ThemeSelector } from "~/components/ThemeSelector";
 
 type RightSwipeAction = "collapse_expand" | "none";
 
@@ -23,7 +24,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     enabled: open,
   });
 
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  // Remove unused theme destructuring since ThemeSelector handles it
+  useTheme(); // Keep for context dependency
   const prefersReducedMotion = useReducedMotion();
 
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
@@ -272,47 +274,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   </section>
 
                   {/* Theme selector */}
-                  <section className="space-y-3" role="radiogroup" aria-labelledby="theme-label">
-                    <div className="space-y-1">
-                      <div id="theme-label" className="font-medium text-foreground leading-none">
-                        Appearance
-                      </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed">
-                        Choose your preferred color theme for the app
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { value: "system", label: "System", icon: "🖥️" },
-                        { value: "light", label: "Light", icon: "☀️" },
-                        { value: "dark", label: "Dark", icon: "🌙" },
-                      ].map((themeOption) => (
-                        <Button
-                          key={themeOption.value}
-                          variant={theme === themeOption.value ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setTheme(themeOption.value as any)}
-                          className={cn(
-                            "flex flex-col gap-1 h-auto py-3 text-xs font-medium transition-all",
-                            "hover:shadow-md active:scale-95"
-                          )}
-                          role="radio"
-                          aria-checked={theme === themeOption.value}
-                          haptic
-                        >
-                          <span className="text-lg leading-none">{themeOption.icon}</span>
-                          <span className="leading-none">
-                            {themeOption.label}
-                            {theme === themeOption.value && themeOption.value === "system" && (
-                              <span className="block text-xs opacity-70 mt-0.5 capitalize">
-                                ({resolvedTheme})
-                              </span>
-                            )}
-                          </span>
-                        </Button>
-                      ))}
-                    </div>
-                  </section>
+                  <ThemeSelector variant="grid" showDescription={true} />
 
                   {/* Weight Unit Preference */}
                   <section className="space-y-3" role="radiogroup" aria-labelledby="weight-unit-label">

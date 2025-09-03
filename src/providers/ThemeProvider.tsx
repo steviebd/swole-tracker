@@ -11,11 +11,14 @@ import React, {
 type Theme =
   | "system"
   | "light"
-  | "dark";
+  | "dark"
+  | "cool"
+  | "warm"
+  | "neutral";
 
 interface ThemeContextValue {
   theme: Theme;
-  resolvedTheme: "light" | "dark";
+  resolvedTheme: "light" | "dark" | "cool" | "warm" | "neutral";
   setTheme: (t: Theme) => void;
   toggle: () => void;
 }
@@ -36,8 +39,8 @@ function applyThemeClass(theme: Theme, systemDark: boolean) {
   }
 
   // Determine dark mode for class toggling
-  // All themes are dark-first except light which is always light
-  const shouldDark = effectiveTheme !== "light";
+  // Only dark theme is actually dark mode, all others are light variations
+  const shouldDark = effectiveTheme === "dark";
 
   // data-theme is the source of truth for CSS variables/themes
   // For system theme, we want to preserve "system" in the dataset
@@ -57,13 +60,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     );
   });
 
-  const resolvedTheme: "light" | "dark" = useMemo(() => {
+  const resolvedTheme: "light" | "dark" | "cool" | "warm" | "neutral" = useMemo(() => {
     if (typeof window === "undefined") return "dark";
     const prefersDark = systemDark;
-    // light theme is always light, system theme follows system preference, all others are dark
-    if (theme === "light") return "light";
+    // Handle system theme
     if (theme === "system") return prefersDark ? "dark" : "light";
-    return "dark";
+    // All other themes resolve to themselves
+    return theme;
   }, [theme, systemDark]);
 
   // initial load from localStorage
@@ -103,6 +106,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [systemDark]);
 
   const toggle = useCallback(() => {
+    // Simple toggle between light and dark for legacy compatibility
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 
