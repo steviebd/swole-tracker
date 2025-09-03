@@ -34,7 +34,7 @@ export function DashboardHeader() {
   if (!mounted) {
     return (
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 sm:px-8 py-5">
+        <div className="container mx-auto px-6 sm:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 sm:gap-6">
               <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
@@ -71,7 +71,7 @@ export function DashboardHeader() {
                 <Settings className="h-5 w-5" />
               </Button>
 
-              <Avatar className="h-9 w-9">
+              <Avatar className="h-11 w-11">
                 <AvatarImage src="/fitness-user-avatar.png" />
                 <AvatarFallback className="gradient-primary text-primary-foreground font-semibold">
                   {displayName.charAt(0).toUpperCase()}
@@ -88,7 +88,7 @@ export function DashboardHeader() {
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-6 sm:px-8 py-5">
+      <div className="container mx-auto px-6 sm:px-8 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
@@ -126,7 +126,7 @@ export function DashboardHeader() {
             </Button>
 
             <div className="relative">
-              <Avatar className="h-9 w-9 cursor-pointer" onClick={toggleUserMenu}>
+              <Avatar className="h-11 w-11 cursor-pointer" onClick={toggleUserMenu}>
                 <AvatarImage src="/fitness-user-avatar.png" />
                 <AvatarFallback className="gradient-primary text-primary-foreground font-semibold">
                   {displayName.charAt(0).toUpperCase()}
@@ -135,7 +135,7 @@ export function DashboardHeader() {
 
               {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border z-50">
-                  <div className="py-1">
+                  <div className="py-2">
                     <div className="px-4 py-2 text-sm text-muted-foreground border-b border-border">
                       {user.email}
                     </div>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo } from "react";
 import { Sheet } from "./Sheet";
-import { Button } from "./Button";
+import { Button } from "~/components/ui/button";
 
 export interface NumericPadOverlayProps {
   open: boolean;
@@ -136,7 +136,7 @@ export function NumericPadOverlay({
           <div className="text-muted text-sm">
             {unit ? <span className="opacity-80">{unit}</span> : null}
           </div>
-          <Button variant="primary" onClick={onApply ?? onClose}>
+          <Button variant="default" onClick={onApply ?? onClose}>
             Apply
           </Button>
         </div>

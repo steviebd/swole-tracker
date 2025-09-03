@@ -233,7 +233,7 @@ export function DashboardHeader() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1" role="navigation" aria-label="Primary navigation">
+            <nav className="hidden md:flex items-center gap-2" role="navigation" aria-label="Primary navigation">
               {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -332,7 +332,7 @@ export function DashboardHeader() {
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <div className="md:hidden border-t py-2 border-border/50 bg-gradient-to-b from-transparent to-muted/20">
-              <nav className="flex flex-col gap-1" role="navigation" aria-label="Mobile navigation">
+              <nav className="flex flex-col gap-2" role="navigation" aria-label="Mobile navigation">
                 {visibleNavItems.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);

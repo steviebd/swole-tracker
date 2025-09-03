@@ -94,7 +94,7 @@ const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
               {/* Change indicator */}
               {change && (
                 <div className={cn(
-                  "text-sm font-medium px-2 py-1 rounded-full",
+                  "text-sm font-medium px-2 py-2 rounded-full",
                   isPositiveChange 
                     ? "text-success bg-success-muted" 
                     : "text-danger bg-danger-muted"

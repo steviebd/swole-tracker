@@ -2,6 +2,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Touch target utilities for accessibility */
+@utility touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+@utility touch-target-large {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+@utility touch-target-xl {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* Button micro-interactions */
+@utility animate-button-press {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--primary) 25%, transparent 75%);
+  }
+  
+  &:active {
+    transform: translateY(0px);
+    box-shadow: 0 2px 4px -1px color-mix(in srgb, var(--primary) 15%, transparent 85%);
+  }
+}
+
 :root {
   /* Updated design tokens based on the energetic fitness theme */
   --background: #fefce8; /* Light cream for app background */
@@ -53,6 +84,28 @@
   --color-status-success-default: #10b981; /* Success status color */
   --color-status-danger-default: #dc2626; /* Danger status color */
   --color-text-primary: #4b5563; /* Primary text variant */
+  
+  /* Universal gradient variables for components */
+  --gradient-universal-action-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  --gradient-universal-stats-orange: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  --gradient-universal-success: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
+  
+  /* Glass morphism variables */
+  --color-glass-highlight: color-mix(in srgb, var(--primary) 10%, transparent 90%);
+  --color-glass-accent: color-mix(in srgb, var(--accent) 8%, transparent 92%);
+  
+  /* Component-specific variables */
+  --component-input-borderRadius: 0.375rem;
+  --component-input-padding-y: 0.5rem;
+  --component-input-padding-x: 0.75rem;
+  --component-input-fontSize: 0.875rem;
+  --motion-duration-base: 200ms;
+  
+  /* Brand color variables (fixed values for brand consistency) */
+  --brand-google-blue: #4285F4;
+  --brand-google-green: #34A853;
+  --brand-google-yellow: #FBBC05;
+  --brand-google-red: #EA4335;
 }
 
 .dark {
@@ -106,6 +159,28 @@
   --color-status-success-default: #10b981; /* Success status (works in dark) */
   --color-status-danger-default: #ef4444; /* Brighter danger for dark mode */
   --color-text-primary: #f1f5f9; /* Primary text for dark mode */
+  
+  /* Universal gradient variables for components (dark mode) */
+  --gradient-universal-action-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  --gradient-universal-stats-orange: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  --gradient-universal-success: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
+  
+  /* Glass morphism variables (dark mode) */
+  --color-glass-highlight: color-mix(in srgb, var(--primary) 15%, transparent 85%);
+  --color-glass-accent: color-mix(in srgb, var(--accent) 12%, transparent 88%);
+  
+  /* Component-specific variables (same for both modes) */
+  --component-input-borderRadius: 0.375rem;
+  --component-input-padding-y: 0.5rem;
+  --component-input-padding-x: 0.75rem;
+  --component-input-fontSize: 0.875rem;
+  --motion-duration-base: 200ms;
+  
+  /* Brand color variables (same for both modes - fixed brand colors) */
+  --brand-google-blue: #4285F4;
+  --brand-google-green: #34A853;
+  --brand-google-yellow: #FBBC05;
+  --brand-google-red: #EA4335;
 }
 
 @theme {
@@ -162,6 +237,28 @@
   --color-status-success-default: var(--color-status-success-default);
   --color-status-danger-default: var(--color-status-danger-default);
   --color-text-primary: var(--color-text-primary);
+  
+  /* Universal gradient mappings */
+  --gradient-universal-action-primary: var(--gradient-universal-action-primary);
+  --gradient-universal-stats-orange: var(--gradient-universal-stats-orange);
+  --gradient-universal-success: var(--gradient-universal-success);
+  
+  /* Glass morphism mappings */
+  --color-glass-highlight: var(--color-glass-highlight);
+  --color-glass-accent: var(--color-glass-accent);
+  
+  /* Component-specific mappings */
+  --component-input-borderRadius: var(--component-input-borderRadius);
+  --component-input-padding-y: var(--component-input-padding-y);
+  --component-input-padding-x: var(--component-input-padding-x);
+  --component-input-fontSize: var(--component-input-fontSize);
+  --motion-duration-base: var(--motion-duration-base);
+  
+  /* Brand color mappings */
+  --brand-google-blue: var(--brand-google-blue);
+  --brand-google-green: var(--brand-google-green);
+  --brand-google-yellow: var(--brand-google-yellow);
+  --brand-google-red: var(--brand-google-red);
   
   --font-sans: var(--font-open-sans), "Open Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-montserrat), "Montserrat", ui-serif, Georgia, serif;
@@ -324,12 +421,6 @@
     background: linear-gradient(90deg, var(--secondary) 0%, var(--accent) 100%);
   }
 
-  /* Touch target utilities for accessibility */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
   /* Enhanced focus indicators for dark mode accessibility */
   .dark *:focus {
     outline: 2px solid var(--primary);
@@ -343,16 +434,6 @@
     outline: 2px solid var(--primary);
     outline-offset: 2px;
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent 80%);
-  }
-
-  .touch-target-large {
-    min-height: 48px;
-    min-width: 48px;
-  }
-
-  .touch-target-xl {
-    min-height: 56px;
-    min-width: 56px;
   }
 
   /* 8px spacing grid system utilities */
@@ -434,20 +515,6 @@
     transform: scale(1.02);
   }
 
-  /* Button micro-interactions */
-  .animate-button-press {
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .animate-button-press:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--primary) 25%, transparent 75%);
-  }
-
-  .animate-button-press:active {
-    transform: translateY(0px);
-    box-shadow: 0 2px 4px -1px color-mix(in srgb, var(--primary) 15%, transparent 85%);
-  }
 
   /* Enhanced shimmer animation for loading states */
   @keyframes shimmer {
@@ -537,5 +604,65 @@
 
   .animate-stagger-3 {
     animation-delay: 0.3s;
+  }
+
+  /* Button component CSS classes to fix broken references */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium px-4 py-2;
+    @apply bg-primary text-primary-foreground shadow-sm hover:bg-primary/90;
+    @apply focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-primary focus-visible:outline-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm;
+    @apply animate-button-press touch-target;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium px-4 py-2;
+    @apply bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80;
+    @apply focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-secondary focus-visible:outline-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm;
+    @apply animate-button-press touch-target;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium px-4 py-2;
+    @apply bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground;
+    @apply focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:scale-105 active:scale-95;
+    @apply touch-target;
+  }
+
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium px-4 py-2;
+    @apply text-white shadow-sm;
+    @apply focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm;
+    @apply animate-button-press touch-target;
+    background: var(--color-success);
+  }
+
+  .btn-success:hover {
+    background: color-mix(in srgb, var(--color-success) 90%, black 10%);
+  }
+
+  .btn-success:focus-visible {
+    outline-color: var(--color-success);
+  }
+
+  .btn-destructive {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium px-4 py-2;
+    @apply bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90;
+    @apply focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-destructive focus-visible:outline-offset-2;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm;
+    @apply animate-button-press touch-target;
   }
 }

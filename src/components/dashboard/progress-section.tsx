@@ -209,7 +209,7 @@ const ProgressSection = React.forwardRef<HTMLDivElement, ProgressSectionProps>(
             Progress Tracking
           </h2>
 
-          <div className="bg-muted flex items-center rounded-lg p-1">
+          <div className="bg-muted flex items-center rounded-lg p-2">
             <button
               onClick={() => setTimeRange("week")}
               className={cn(

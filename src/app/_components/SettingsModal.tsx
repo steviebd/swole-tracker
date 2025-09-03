@@ -255,7 +255,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       setPredictiveEnabled((v) => !v);
                     }
                   }}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+                  className="inline-flex h-11 w-16 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
                   style={
                     {
                       backgroundColor: predictiveEnabled
@@ -492,7 +492,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       setNotifications((v) => !v);
                     }
                   }}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+                  className="inline-flex h-11 w-16 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
                   style={
                     {
                       backgroundColor: notifications
@@ -541,7 +541,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       setWorkoutReminders((v) => !v);
                     }
                   }}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+                  className="inline-flex h-11 w-16 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
                   style={
                     {
                       backgroundColor: workoutReminders
@@ -601,7 +601,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     }
                   }}
                   disabled={isUpdatingPreferences}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+                  className="inline-flex h-11 w-16 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
                   style={
                     {
                       backgroundColor: manualWellnessEnabled
