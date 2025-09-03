@@ -72,8 +72,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    try {
+      // Clear offline data and cache before signing out
+      const { clearAllOfflineData } = await import("~/lib/offline-storage");
+      await clearAllOfflineData();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      console.log("User signed out and cache cleared");
+    } catch (error) {
+      console.error("Error during sign out:", error);
+      
+      // Still attempt to sign out even if cache clearing fails
+      await supabase.auth.signOut();
+    } finally {
+      router.push("/");
+    }
   };
 
   return (

@@ -2,22 +2,33 @@ import { type QueryClient } from "@tanstack/react-query";
 
 /**
  * Cache configuration constants for different data types
+ * Updated to align with persistent caching strategy for improved performance
  */
 export const CACHE_TIMES = {
   // Long-lived data (templates, preferences) - rarely change
   STATIC: {
-    staleTime: 60 * 60 * 1000, // 60 minutes
-    gcTime: 2 * 60 * 60 * 1000, // 2 hours
+    staleTime: 14 * 24 * 60 * 60 * 1000, // 14 days for templates as per TODO requirements
+    gcTime: 30 * 24 * 60 * 60 * 1000, // 30 days - keep much longer for offline access
   },
-  // Medium-lived data (workout history) - changes occasionally
+  // WHOOP data - historical data that doesn't change
+  WHOOP_HISTORICAL: {
+    staleTime: 7 * 24 * 60 * 60 * 1000, // 7 days for WHOOP data as per TODO requirements
+    gcTime: 14 * 24 * 60 * 60 * 1000, // 14 days
+  },
+  // WHOOP current/live data - more recent but still cacheable
+  WHOOP_CURRENT: {
+    staleTime: 60 * 60 * 1000, // 1 hour for current WHOOP data
+    gcTime: 6 * 60 * 60 * 1000, // 6 hours
+  },
+  // Medium-lived data (workout history) - show cached while refetching
   MEDIUM: {
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 0, // Show cached data immediately while refetching in background
+    gcTime: 24 * 60 * 60 * 1000, // 24 hours - keep longer for offline access
   },
-  // Short-lived data (current workout, jokes) - changes frequently
+  // Dynamic data (current workout, jokes) - show cached while refetching
   DYNAMIC: {
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 0, // Show cached data immediately while refetching in background
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
   },
 } as const;
 
@@ -25,53 +36,53 @@ export const CACHE_TIMES = {
  * Configure query-specific cache settings
  */
 export function configureQueryCache(queryClient: QueryClient) {
-  // Templates - static data, cache aggressively
+  // Templates - static data, cache aggressively (14 days)
   queryClient.setQueryDefaults(["templates"], {
     staleTime: CACHE_TIMES.STATIC.staleTime,
     gcTime: CACHE_TIMES.STATIC.gcTime,
-    refetchOnWindowFocus: false, // Don't refetch templates on focus
-    refetchInterval: 30 * 60 * 1000, // Background refresh every 30 min
+    refetchOnWindowFocus: false, // Don't refetch templates on focus for performance
+    refetchInterval: false, // Disable automatic polling - rely on manual invalidation
   });
 
-  // Preferences - static data, cache aggressively
+  // Preferences - static data, cache aggressively (14 days)
   queryClient.setQueryDefaults(["preferences"], {
     staleTime: CACHE_TIMES.STATIC.staleTime,
     gcTime: CACHE_TIMES.STATIC.gcTime,
     refetchOnWindowFocus: false,
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: false,
   });
 
-  // Workouts - medium cache for history, shorter for recent
+  // Workouts - show cached data immediately while refetching in background
   queryClient.setQueryDefaults(["workouts", "getRecent"], {
-    staleTime: CACHE_TIMES.MEDIUM.staleTime,
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
     gcTime: CACHE_TIMES.MEDIUM.gcTime,
     refetchOnWindowFocus: true,
-    refetchInterval: 5 * 60 * 1000, // Background refresh every 5 min
+    refetchInterval: false, // Disable polling - refetch on focus/mount is sufficient
   });
 
   queryClient.setQueryDefaults(["workouts", "getById"], {
-    staleTime: CACHE_TIMES.MEDIUM.staleTime,
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
     gcTime: CACHE_TIMES.MEDIUM.gcTime,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false, // Don't refetch on focus for individual workouts
   });
 
   queryClient.setQueryDefaults(["workouts", "getLastExerciseData"], {
-    staleTime: CACHE_TIMES.MEDIUM.staleTime,
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
     gcTime: CACHE_TIMES.MEDIUM.gcTime,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: true, // Useful for exercise tracking
   });
 
-  // Jokes - dynamic data, shorter cache
+  // Jokes - dynamic data, show cached while refetching
   queryClient.setQueryDefaults(["jokes"], {
-    staleTime: CACHE_TIMES.DYNAMIC.staleTime,
+    staleTime: CACHE_TIMES.DYNAMIC.staleTime, // 0 - show cached while refetching
     gcTime: CACHE_TIMES.DYNAMIC.gcTime,
     refetchOnWindowFocus: true,
   });
 
-  // WHOOP Integration - more conservative retry and cache settings
+  // WHOOP Integration Status - current data with moderate caching
   queryClient.setQueryDefaults(["whoop", "getIntegrationStatus"], {
-    staleTime: CACHE_TIMES.MEDIUM.staleTime,
-    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    staleTime: CACHE_TIMES.WHOOP_CURRENT.staleTime, // 1 hour for status
+    gcTime: CACHE_TIMES.WHOOP_CURRENT.gcTime,
     refetchOnWindowFocus: false, // Don't refetch on focus to prevent loops
     refetchInterval: false, // Disable automatic polling
     retry: (failureCount, error) => {
@@ -87,10 +98,10 @@ export function configureQueryCache(queryClient: QueryClient) {
     retryDelay: 5000, // 5 second delay between retries
   });
 
-  // WHOOP Workouts - historical data, cache longer
+  // WHOOP Workouts - historical data, cache for 7 days
   queryClient.setQueryDefaults(["whoop", "getWorkouts"], {
-    staleTime: CACHE_TIMES.STATIC.staleTime, // 60 minutes for historical workouts
-    gcTime: CACHE_TIMES.STATIC.gcTime, // 2 hours
+    staleTime: CACHE_TIMES.WHOOP_HISTORICAL.staleTime, // 7 days for historical workouts
+    gcTime: CACHE_TIMES.WHOOP_HISTORICAL.gcTime, // 14 days
     refetchOnWindowFocus: false, // Don't refetch on focus to prevent loops
     refetchInterval: false, // Disable automatic polling
     retry: (failureCount, error) => {
@@ -106,12 +117,12 @@ export function configureQueryCache(queryClient: QueryClient) {
     retryDelay: 5000, // 5 second delay between retries
   });
 
-  // WHOOP Current/Live Data - shorter cache for real-time data  
+  // WHOOP Current/Live Data - moderate cache for real-time data  
   const whoopLiveQueries = ["getLatestRecoveryData"];
   whoopLiveQueries.forEach(queryType => {
     queryClient.setQueryDefaults(["whoop", queryType], {
-      staleTime: CACHE_TIMES.MEDIUM.staleTime, // 10 minutes for current data
-      gcTime: CACHE_TIMES.MEDIUM.gcTime,
+      staleTime: CACHE_TIMES.WHOOP_CURRENT.staleTime, // 1 hour for current data
+      gcTime: CACHE_TIMES.WHOOP_CURRENT.gcTime,
       refetchOnWindowFocus: false,
       refetchInterval: false,
       retry: (failureCount, error) => {
@@ -127,7 +138,7 @@ export function configureQueryCache(queryClient: QueryClient) {
     });
   });
   
-  // WHOOP Historical Data - longer cache for data that doesn't change often
+  // WHOOP Historical Data - cache for 7 days for data that doesn't change often
   const whoopHistoricalQueries = [
     "getRecovery", 
     "getCycles",
@@ -137,8 +148,8 @@ export function configureQueryCache(queryClient: QueryClient) {
   ];
   whoopHistoricalQueries.forEach(queryType => {
     queryClient.setQueryDefaults(["whoop", queryType], {
-      staleTime: CACHE_TIMES.STATIC.staleTime, // 60 minutes for historical data
-      gcTime: CACHE_TIMES.STATIC.gcTime, // 2 hours
+      staleTime: CACHE_TIMES.WHOOP_HISTORICAL.staleTime, // 7 days for historical data
+      gcTime: CACHE_TIMES.WHOOP_HISTORICAL.gcTime, // 14 days
       refetchOnWindowFocus: false,
       refetchInterval: false,
       retry: (failureCount, error) => {

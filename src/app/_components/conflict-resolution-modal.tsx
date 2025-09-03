@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { type ConflictResolution } from "~/lib/enhanced-offline-storage";
+import { type ConflictResolution } from "~/lib/offline-storage";
 
 type ConflictData = {
   id: string;

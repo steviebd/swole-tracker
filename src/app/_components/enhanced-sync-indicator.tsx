@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
-import { onSyncStatusChange, triggerManualSync } from "~/lib/enhanced-offline-storage";
+import { onSyncStatusChange, triggerManualSync } from "~/lib/offline-storage";
 import { useOnlineStatus } from "~/hooks/use-online-status";
 
 type SyncIndicatorState = {

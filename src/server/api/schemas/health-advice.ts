@@ -16,7 +16,7 @@ export const healthAdviceRequestSchema = z.object({
     rhr_now_bpm: z.number().positive().optional(),
     rhr_baseline_bpm: z.number().positive().optional(),
     yesterday_strain: z.number().min(0).max(21).optional(),    // 0-21
-  }),
+  }).optional(),
   workout_plan: z.object({
     exercises: z.array(z.object({
       exercise_id: z.string(),

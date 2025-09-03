@@ -40,8 +40,17 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
       }
     } else {
       if (lastIdentifiedUser.current !== null) {
+        // Clear analytics session
         posthog.reset();
         lastIdentifiedUser.current = null;
+        
+        // Clear cache analytics when user logs out
+        void import("~/lib/cache-analytics").then(({ getCacheAnalytics }) => {
+          const analytics = getCacheAnalytics();
+          if (analytics) {
+            analytics.recordCacheCleared("logout");
+          }
+        });
       }
     }
   }, [user]);

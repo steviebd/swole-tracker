@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useOnlineStatus } from "~/hooks/use-online-status";
 import { syncStatus, type SyncStatus } from "~/lib/mobile-offline-queue";
-import { triggerManualSync } from "~/lib/enhanced-offline-storage";
+import { triggerManualSync } from "~/lib/offline-storage";
 
 export function NetworkStatusBanner() {
   const isOnline = useOnlineStatus();
