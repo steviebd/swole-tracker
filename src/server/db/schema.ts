@@ -105,6 +105,9 @@ export const sessionExercises = createTable(
     rest_seconds: d.integer(), // rest time in seconds
     is_estimate: d.boolean().notNull().default(false),
     is_default_applied: d.boolean().notNull().default(false),
+    // Phase 3 additions: Exercise progression computed columns
+    one_rm_estimate: d.numeric("one_rm_estimate", { precision: 6, scale: 2 }), // Computed 1RM using Brzycki formula
+    volume_load: d.numeric("volume_load", { precision: 8, scale: 2 }), // Computed volume load: sets × reps × weight
     createdAt: d
       .timestamp({ withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
@@ -115,6 +118,8 @@ export const sessionExercises = createTable(
     index("session_exercise_session_id_idx").on(t.sessionId),
     index("session_exercise_template_exercise_id_idx").on(t.templateExerciseId),
     index("session_exercise_name_idx").on(t.exerciseName),
+    // Phase 3 addition: Index for exercise progression queries
+    index("session_exercise_user_exercise_date_idx").on(t.user_id, t.exerciseName, t.sessionId),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 

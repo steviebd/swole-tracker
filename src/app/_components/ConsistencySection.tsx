@@ -190,7 +190,7 @@ export function ConsistencySection() {
                       {date ? (
                         <div className={`w-full h-full flex items-center justify-center text-sm rounded-md transition-all ${
                           isToday(date)
-                            ? "ring-2 ring-[var(--color-primary)] bg-[var(--color-primary)] bg-opacity-20 text-[var(--color-primary)]"
+                            ? "ring-2 ring-[var(--color-primary)] bg-[var(--color-primary)] text-white font-semibold"
                             : isWorkoutDay(date)
                             ? "bg-[var(--color-success)] text-background font-semibold"
                             : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)] hover:bg-opacity-80"

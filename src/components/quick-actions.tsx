@@ -9,7 +9,7 @@ const actions = [
     description: "Begin a new workout session",
     icon: Play,
     gradient: "from-primary to-accent",
-    href: "/workout/session/local/new",
+    href: "/workout/start",
   },
   {
     title: "View Progress",

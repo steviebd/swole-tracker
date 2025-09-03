@@ -8,6 +8,31 @@ import {
 } from "~/server/db/schema";
 import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { type db } from "~/server/db";
+import { 
+  exerciseProgressInputSchema, 
+  topExercisesInputSchema,
+  timeRangeSchema 
+} from "~/server/api/schemas/common";
+import {
+  calculateOneRM as calculateOneRMFromUtils,
+  calculateVolumeLoad,
+  calculateProgressionTrend,
+  calculateConsistencyScore,
+  calculatePercentageChange,
+  getDateRange as getDateRangeFromUtils,
+  calculateFrequency,
+  isPR
+} from "~/server/api/utils/exercise-calculations";
+import type {
+  ExerciseStrengthProgression,
+  ExerciseVolumeProgression,
+  ExerciseRecentPRs,
+  ExerciseTopSets,
+  TopExercise,
+  SessionExerciseData,
+  PersonalRecord,
+  TopSet
+} from "~/server/api/types/exercise-progression";
 
 /* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
 const debugEnabled =
@@ -18,31 +43,662 @@ function debugLog(...args: unknown[]) {
   if (debugEnabled) console.log("[progressRouter]", ...args);
 }
 
-// Time range enum for filtering
-const timeRangeSchema = z.enum(["week", "month", "year"]);
-
-// Input schemas for progress queries
+// Legacy input schema for backward compatibility
 const timeRangeInputSchema = z.object({
-  timeRange: timeRangeSchema.default("month"),
+  timeRange: z.enum(["week", "month", "quarter", "year"]).default("quarter"),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
 });
 
-const exerciseProgressInputSchema = z.object({
+// Legacy exercise progress input schema
+const legacyExerciseProgressInputSchema = z.object({
   exerciseName: z.string().optional(),
   templateExerciseId: z.number().optional(),
-  timeRange: timeRangeSchema.default("month"),
+  timeRange: z.enum(["week", "month", "quarter", "year"]).default("quarter"),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
+});
+
+// Personal records input schema
+const personalRecordsInputSchema = legacyExerciseProgressInputSchema.extend({
+  recordType: z.enum(["weight", "volume", "both"]).default("both"),
 });
 
 export const progressRouter = createTRPCRouter({
+  // ===== NEW PHASE 3 PROCEDURES: Exercise-specific strength progression tracking =====
+  
+  // Get exercise strength progression with 1RM estimates over time
+  getExerciseStrengthProgression: protectedProcedure
+    .input(exerciseProgressInputSchema)
+    .query(async ({ input, ctx }): Promise<ExerciseStrengthProgression> => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
+        
+        // Get all session exercises for this exercise in the time range
+        const sessionData = await ctx.db
+          .select({
+            workoutDate: workoutSessions.workoutDate,
+            exerciseName: sessionExercises.exerciseName,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            unit: sessionExercises.unit,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.exerciseName, input.exerciseName),
+              gte(workoutSessions.workoutDate, startDate),
+              lte(workoutSessions.workoutDate, endDate)
+            )
+          )
+          .orderBy(desc(workoutSessions.workoutDate));
+
+        if (sessionData.length === 0) {
+          return {
+            currentOneRM: 0,
+            oneRMChange: 0,
+            volumeTrend: 0,
+            sessionCount: 0,
+            frequency: 0,
+            recentPRs: [],
+            topSets: [],
+            progressionTrend: 0,
+            consistencyScore: 0,
+          };
+        }
+
+        // Calculate metrics
+        const oneRMValues = sessionData.map(session => 
+          calculateLocalOneRM(parseFloat(String(session.weight || "0")), session.reps || 1)
+        );
+        
+        const currentOneRM = Math.max(...oneRMValues);
+        const sessionCount = new Set(sessionData.map(s => s.workoutDate.toDateString())).size;
+        const frequency = calculateFrequency(sessionData.map(s => s.workoutDate), startDate, endDate);
+        
+        // Get previous period data for comparison
+        const periodLength = endDate.getTime() - startDate.getTime();
+        const prevEndDate = new Date(startDate.getTime() - 1);
+        const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
+        
+        const prevSessionData = await ctx.db
+          .select({
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.exerciseName, input.exerciseName),
+              gte(workoutSessions.workoutDate, prevStartDate),
+              lte(workoutSessions.workoutDate, prevEndDate)
+            )
+          );
+        
+        const prevOneRMValues = prevSessionData.map(session => 
+          calculateLocalOneRM(parseFloat(String(session.weight || "0")), session.reps || 1)
+        );
+        const prevOneRM = prevOneRMValues.length > 0 ? Math.max(...prevOneRMValues) : 0;
+        const oneRMChange = currentOneRM - prevOneRM;
+
+        // Calculate volume trend
+        const currentVolume = sessionData.reduce((sum, s) => 
+          sum + calculateVolumeLoad(s.sets || 1, s.reps || 1, parseFloat(String(s.weight || "0"))), 0);
+        const prevVolume = prevSessionData.reduce((sum, s) => 
+          sum + calculateVolumeLoad(1, s.reps || 1, parseFloat(String(s.weight || "0"))), 0);
+        const volumeTrend = calculatePercentageChange(currentVolume, prevVolume);
+
+        // Calculate progression trend (linear regression on 1RM over time)
+        const dataPoints: Array<[number, number]> = sessionData.map((session, index) => [
+          index,
+          calculateLocalOneRM(parseFloat(String(session.weight || "0")), session.reps || 1)
+        ]);
+        const progressionTrend = calculateProgressionTrend(dataPoints);
+        
+        // Calculate consistency score
+        const consistencyScore = calculateConsistencyScore(oneRMValues);
+
+        // Find recent PRs (last 30 days)
+        const thirtyDaysAgo = new Date(endDate);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const recentPRs: PersonalRecord[] = [];
+        let maxOneRM = 0;
+        let maxWeight = 0;
+        let maxVolume = 0;
+        
+        for (const session of sessionData.reverse()) { // Process chronologically
+          const weight = parseFloat(String(session.weight || "0"));
+          const oneRM = calculateLocalOneRM(weight, session.reps || 1);
+          const volume = calculateVolumeLoad(session.sets || 1, session.reps || 1, weight);
+          
+          if (session.workoutDate >= thirtyDaysAgo) {
+            if (oneRM > maxOneRM) {
+              maxOneRM = oneRM;
+              recentPRs.push({
+                date: session.workoutDate.toISOString().split('T')[0]!,
+                weight,
+                reps: session.reps || 1,
+                type: "1RM",
+                oneRMPercentage: 100,
+              });
+            }
+            if (weight > maxWeight) {
+              maxWeight = weight;
+              recentPRs.push({
+                date: session.workoutDate.toISOString().split('T')[0]!,
+                weight,
+                reps: session.reps || 1,
+                type: "Weight",
+                oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
+              });
+            }
+            if (volume > maxVolume) {
+              maxVolume = volume;
+              recentPRs.push({
+                date: session.workoutDate.toISOString().split('T')[0]!,
+                weight,
+                reps: session.reps || 1,
+                type: "Volume",
+                oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
+              });
+            }
+          } else {
+            // Update historical bests for comparison
+            if (oneRM > maxOneRM) maxOneRM = oneRM;
+            if (weight > maxWeight) maxWeight = weight;
+            if (volume > maxVolume) maxVolume = volume;
+          }
+        }
+
+        // Get top sets (best performances in the period)
+        const topSets: TopSet[] = sessionData
+          .slice(0, 10) // Top 10 performances
+          .map(session => {
+            const weight = parseFloat(String(session.weight || "0"));
+            const oneRM = calculateLocalOneRM(weight, session.reps || 1);
+            return {
+              date: session.workoutDate.toISOString().split('T')[0]!,
+              weight,
+              reps: session.reps || 1,
+              oneRMPercentage: currentOneRM > 0 ? (oneRM / currentOneRM) * 100 : 100,
+            };
+          })
+          .sort((a, b) => b.oneRMPercentage - a.oneRMPercentage)
+          .slice(0, 5); // Top 5 sets
+
+        return {
+          currentOneRM,
+          oneRMChange,
+          volumeTrend,
+          sessionCount,
+          frequency,
+          recentPRs: recentPRs.slice(-5), // Last 5 PRs
+          topSets,
+          progressionTrend,
+          consistencyScore,
+        };
+      } catch (error) {
+        console.error("Error in getExerciseStrengthProgression:", error);
+        return {
+          currentOneRM: 0,
+          oneRMChange: 0,
+          volumeTrend: 0,
+          sessionCount: 0,
+          frequency: 0,
+          recentPRs: [],
+          topSets: [],
+          progressionTrend: 0,
+          consistencyScore: 0,
+        };
+      }
+    }),
+
+  // Get exercise volume progression trends
+  getExerciseVolumeProgression: protectedProcedure
+    .input(exerciseProgressInputSchema)
+    .query(async ({ input, ctx }): Promise<ExerciseVolumeProgression> => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
+        
+        const sessionData = await ctx.db
+          .select({
+            workoutDate: workoutSessions.workoutDate,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            unit: sessionExercises.unit,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.exerciseName, input.exerciseName),
+              gte(workoutSessions.workoutDate, startDate),
+              lte(workoutSessions.workoutDate, endDate)
+            )
+          )
+          .orderBy(desc(workoutSessions.workoutDate));
+
+        if (sessionData.length === 0) {
+          return {
+            currentVolume: 0,
+            volumeChange: 0,
+            volumeChangePercent: 0,
+            averageVolumePerSession: 0,
+            sessionCount: 0,
+            frequency: 0,
+            volumeByWeek: [],
+          };
+        }
+
+        const currentVolume = sessionData.reduce((sum, session) => 
+          sum + calculateVolumeLoad(session.sets || 1, session.reps || 1, parseFloat(String(session.weight || "0"))), 0);
+        
+        const sessionCount = new Set(sessionData.map(s => s.workoutDate.toDateString())).size;
+        const averageVolumePerSession = sessionCount > 0 ? currentVolume / sessionCount : 0;
+        const frequency = calculateFrequency(sessionData.map(s => s.workoutDate), startDate, endDate);
+
+        // Get previous period for comparison
+        const periodLength = endDate.getTime() - startDate.getTime();
+        const prevEndDate = new Date(startDate.getTime() - 1);
+        const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
+        
+        const prevSessionData = await ctx.db
+          .select({
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.exerciseName, input.exerciseName),
+              gte(workoutSessions.workoutDate, prevStartDate),
+              lte(workoutSessions.workoutDate, prevEndDate)
+            )
+          );
+
+        const prevVolume = prevSessionData.reduce((sum, session) => 
+          sum + calculateVolumeLoad(session.sets || 1, session.reps || 1, parseFloat(String(session.weight || "0"))), 0);
+        
+        const volumeChange = currentVolume - prevVolume;
+        const volumeChangePercent = calculatePercentageChange(currentVolume, prevVolume);
+
+        // Calculate volume by week
+        const volumeByWeek = [];
+        const weeklyData = new Map<string, { volume: number; sessions: number }>();
+        
+        for (const session of sessionData) {
+          const weekStart = new Date(session.workoutDate);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+          const weekKey = weekStart.toISOString().split('T')[0]!;
+          
+          if (!weeklyData.has(weekKey)) {
+            weeklyData.set(weekKey, { volume: 0, sessions: 0 });
+          }
+          
+          const data = weeklyData.get(weekKey)!;
+          data.volume += calculateVolumeLoad(session.sets || 1, session.reps || 1, parseFloat(String(session.weight || "0")));
+          data.sessions++;
+        }
+
+        for (const [weekStart, data] of weeklyData) {
+          volumeByWeek.push({
+            weekStart,
+            totalVolume: data.volume,
+            sessionCount: data.sessions,
+          });
+        }
+
+        volumeByWeek.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+
+        return {
+          currentVolume,
+          volumeChange,
+          volumeChangePercent,
+          averageVolumePerSession,
+          sessionCount,
+          frequency,
+          volumeByWeek,
+        };
+      } catch (error) {
+        console.error("Error in getExerciseVolumeProgression:", error);
+        return {
+          currentVolume: 0,
+          volumeChange: 0,
+          volumeChangePercent: 0,
+          averageVolumePerSession: 0,
+          sessionCount: 0,
+          frequency: 0,
+          volumeByWeek: [],
+        };
+      }
+    }),
+
+  // Get recent personal records for an exercise
+  getExerciseRecentPRs: protectedProcedure
+    .input(exerciseProgressInputSchema)
+    .query(async ({ input, ctx }): Promise<ExerciseRecentPRs> => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
+        
+        const sessionData = await ctx.db
+          .select({
+            workoutDate: workoutSessions.workoutDate,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.exerciseName, input.exerciseName),
+              gte(workoutSessions.workoutDate, startDate),
+              lte(workoutSessions.workoutDate, endDate)
+            )
+          )
+          .orderBy(workoutSessions.workoutDate); // Chronological order for PR detection
+
+        if (sessionData.length === 0) {
+          return {
+            exerciseName: input.exerciseName,
+            recentPRs: [],
+            currentBest: { oneRM: 0, maxWeight: 0, maxVolume: 0 },
+            prFrequency: 0,
+          };
+        }
+
+        const recentPRs: PersonalRecord[] = [];
+        let maxOneRM = 0;
+        let maxWeight = 0;
+        let maxVolume = 0;
+
+        for (const session of sessionData) {
+          const weight = parseFloat(String(session.weight || "0"));
+          const oneRM = calculateLocalOneRM(weight, session.reps || 1);
+          const volume = calculateVolumeLoad(session.sets || 1, session.reps || 1, weight);
+          
+          if (oneRM > maxOneRM) {
+            maxOneRM = oneRM;
+            recentPRs.push({
+              date: session.workoutDate.toISOString().split('T')[0]!,
+              weight,
+              reps: session.reps || 1,
+              type: "1RM",
+              oneRMPercentage: 100,
+            });
+          }
+          
+          if (weight > maxWeight) {
+            maxWeight = weight;
+            recentPRs.push({
+              date: session.workoutDate.toISOString().split('T')[0]!,
+              weight,
+              reps: session.reps || 1,
+              type: "Weight",
+              oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
+            });
+          }
+          
+          if (volume > maxVolume) {
+            maxVolume = volume;
+            recentPRs.push({
+              date: session.workoutDate.toISOString().split('T')[0]!,
+              weight,
+              reps: session.reps || 1,
+              type: "Volume",
+              oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
+            });
+          }
+        }
+
+        // Calculate PR frequency (PRs per month)
+        const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const months = Math.max(1, totalDays / 30);
+        const prFrequency = recentPRs.length / months;
+
+        return {
+          exerciseName: input.exerciseName,
+          recentPRs: recentPRs.slice(-10), // Last 10 PRs
+          currentBest: {
+            oneRM: maxOneRM,
+            maxWeight,
+            maxVolume,
+          },
+          prFrequency: Math.round(prFrequency * 10) / 10,
+        };
+      } catch (error) {
+        console.error("Error in getExerciseRecentPRs:", error);
+        return {
+          exerciseName: input.exerciseName,
+          recentPRs: [],
+          currentBest: { oneRM: 0, maxWeight: 0, maxVolume: 0 },
+          prFrequency: 0,
+        };
+      }
+    }),
+
+  // Get top sets for an exercise (best recent performances)
+  getExerciseTopSets: protectedProcedure
+    .input(exerciseProgressInputSchema)
+    .query(async ({ input, ctx }): Promise<ExerciseTopSets> => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
+        
+        const sessionData = await ctx.db
+          .select({
+            workoutDate: workoutSessions.workoutDate,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.exerciseName, input.exerciseName),
+              gte(workoutSessions.workoutDate, startDate),
+              lte(workoutSessions.workoutDate, endDate)
+            )
+          )
+          .orderBy(desc(workoutSessions.workoutDate));
+
+        if (sessionData.length === 0) {
+          const emptySet: TopSet = { date: "", weight: 0, reps: 0, oneRMPercentage: 0 };
+          return {
+            exerciseName: input.exerciseName,
+            topSets: [],
+            averageIntensity: 0,
+            heaviestSet: emptySet,
+            mostRecentHeavy: emptySet,
+          };
+        }
+
+        // Calculate estimated 1RM for this exercise
+        const allOneRMs = sessionData.map(session => 
+          calculateLocalOneRM(parseFloat(String(session.weight || "0")), session.reps || 1));
+        const maxOneRM = Math.max(...allOneRMs);
+
+        // Create top sets with 1RM percentages
+        const topSets: TopSet[] = sessionData
+          .map(session => {
+            const weight = parseFloat(String(session.weight || "0"));
+            const oneRM = calculateLocalOneRM(weight, session.reps || 1);
+            return {
+              date: session.workoutDate.toISOString().split('T')[0]!,
+              weight,
+              reps: session.reps || 1,
+              oneRMPercentage: maxOneRM > 0 ? Math.round((oneRM / maxOneRM) * 100) : 0,
+            };
+          })
+          .sort((a, b) => b.oneRMPercentage - a.oneRMPercentage)
+          .slice(0, 10); // Top 10 sets
+
+        // Calculate average intensity
+        const averageIntensity = topSets.length > 0 
+          ? topSets.reduce((sum, set) => sum + set.oneRMPercentage, 0) / topSets.length 
+          : 0;
+
+        // Find heaviest set
+        const heaviestSet = topSets.length > 0 ? topSets[0]! : { date: "", weight: 0, reps: 0, oneRMPercentage: 0 };
+
+        // Find most recent heavy set (above 85% 1RM)
+        const heavySets = topSets.filter(set => set.oneRMPercentage >= 85);
+        const mostRecentHeavy = heavySets.length > 0 
+          ? heavySets.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]!
+          : { date: "", weight: 0, reps: 0, oneRMPercentage: 0 };
+
+        return {
+          exerciseName: input.exerciseName,
+          topSets: topSets.slice(0, 5), // Top 5 sets for display
+          averageIntensity: Math.round(averageIntensity),
+          heaviestSet,
+          mostRecentHeavy,
+        };
+      } catch (error) {
+        console.error("Error in getExerciseTopSets:", error);
+        const emptySet: TopSet = { date: "", weight: 0, reps: 0, oneRMPercentage: 0 };
+        return {
+          exerciseName: input.exerciseName,
+          topSets: [],
+          averageIntensity: 0,
+          heaviestSet: emptySet,
+          mostRecentHeavy: emptySet,
+        };
+      }
+    }),
+
+  // Get most trained exercises by frequency
+  getTopExercises: protectedProcedure
+    .input(topExercisesInputSchema)
+    .query(async ({ input, ctx }): Promise<TopExercise[]> => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
+        
+        const exerciseData = await ctx.db
+          .select({
+            exerciseName: sessionExercises.exerciseName,
+            workoutDate: workoutSessions.workoutDate,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+          })
+          .from(sessionExercises)
+          .innerJoin(workoutSessions, eq(workoutSessions.id, sessionExercises.sessionId))
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              gte(workoutSessions.workoutDate, startDate),
+              lte(workoutSessions.workoutDate, endDate)
+            )
+          )
+          .orderBy(desc(workoutSessions.workoutDate));
+
+        if (exerciseData.length === 0) {
+          return [];
+        }
+
+        // Group by exercise name and calculate metrics
+        const exerciseMap = new Map<string, {
+          sessions: Set<string>;
+          totalVolume: number;
+          oneRMValues: number[];
+          lastWorkoutDate: Date;
+        }>();
+
+        for (const session of exerciseData) {
+          if (!exerciseMap.has(session.exerciseName)) {
+            exerciseMap.set(session.exerciseName, {
+              sessions: new Set(),
+              totalVolume: 0,
+              oneRMValues: [],
+              lastWorkoutDate: session.workoutDate,
+            });
+          }
+
+          const data = exerciseMap.get(session.exerciseName)!;
+          data.sessions.add(session.workoutDate.toDateString());
+          
+          const weight = parseFloat(String(session.weight || "0"));
+          const volume = calculateVolumeLoad(session.sets || 1, session.reps || 1, weight);
+          data.totalVolume += volume;
+          
+          const oneRM = calculateLocalOneRM(weight, session.reps || 1);
+          data.oneRMValues.push(oneRM);
+          
+          if (session.workoutDate > data.lastWorkoutDate) {
+            data.lastWorkoutDate = session.workoutDate;
+          }
+        }
+
+        // Calculate trend for each exercise (last quarter vs previous quarter)
+        const quarterInMs = 90 * 24 * 60 * 60 * 1000; // 90 days
+        const midPoint = new Date(startDate.getTime() + (endDate.getTime() - startDate.getTime()) / 2);
+        
+        const topExercises: TopExercise[] = [];
+
+        for (const [exerciseName, data] of exerciseMap) {
+          const sessionCount = data.sessions.size;
+          const frequency = calculateFrequency([...data.sessions].map(dateStr => new Date(dateStr)), startDate, endDate);
+          const averageOneRM = data.oneRMValues.length > 0 
+            ? data.oneRMValues.reduce((sum, val) => sum + val, 0) / data.oneRMValues.length 
+            : 0;
+
+          // Determine trend by comparing recent vs older 1RM values
+          const recentOneRMs = data.oneRMValues.slice(0, Math.ceil(data.oneRMValues.length / 2));
+          const olderOneRMs = data.oneRMValues.slice(Math.ceil(data.oneRMValues.length / 2));
+          
+          let trend: "improving" | "stable" | "declining" = "stable";
+          if (recentOneRMs.length > 0 && olderOneRMs.length > 0) {
+            const recentAvg = recentOneRMs.reduce((sum, val) => sum + val, 0) / recentOneRMs.length;
+            const olderAvg = olderOneRMs.reduce((sum, val) => sum + val, 0) / olderOneRMs.length;
+            const change = ((recentAvg - olderAvg) / olderAvg) * 100;
+            
+            if (change > 5) trend = "improving";
+            else if (change < -5) trend = "declining";
+          }
+
+          topExercises.push({
+            exerciseName,
+            sessionCount,
+            frequency,
+            totalVolume: data.totalVolume,
+            averageOneRM,
+            lastTrained: data.lastWorkoutDate.toISOString().split('T')[0]!,
+            trend,
+          });
+        }
+
+        // Sort by frequency (most trained first) and limit results
+        return topExercises
+          .sort((a, b) => b.frequency - a.frequency)
+          .slice(0, input.limit);
+      } catch (error) {
+        console.error("Error in getTopExercises:", error);
+        return [];
+      }
+    }),
+
+  // ===== LEGACY PROCEDURES: Maintain backward compatibility =====
+  
   // Get strength progression data for top sets by exercise over time
   getStrengthProgression: protectedProcedure
-    .input(exerciseProgressInputSchema)
+    .input(legacyExerciseProgressInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         
         let exerciseNamesToSearch: string[] = [];
         
@@ -89,7 +745,7 @@ export const progressRouter = createTRPCRouter({
         // Add oneRMEstimate to progress data
         const enhancedProgressData = progressData.map(item => ({
           ...item,
-          oneRMEstimate: calculateOneRM(parseFloat(String(item.weight || "0")), item.reps || 1)
+          oneRMEstimate: calculateLocalOneRM(parseFloat(String(item.weight || "0")), item.reps || 1)
         }));
 
         // Process data to get top set per workout per exercise
@@ -108,7 +764,7 @@ export const progressRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       try {
         debugLog("getVolumeProgression: input", input, "user_id", ctx.user.id);
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         debugLog("getVolumeProgression: date range", { startDate, endDate });
         
         const volumeData = await ctx.db
@@ -157,7 +813,7 @@ export const progressRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       try {
         debugLog("getConsistencyStats: input", input, "user_id", ctx.user.id);
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         
         const workoutDates = await ctx.db
           .select({
@@ -198,7 +854,7 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         
         const workoutDates = await ctx.db
           .select({
@@ -223,12 +879,10 @@ export const progressRouter = createTRPCRouter({
 
   // Get personal records (weight and volume PRs)
   getPersonalRecords: protectedProcedure
-    .input(exerciseProgressInputSchema.extend({
-      recordType: z.enum(["weight", "volume", "both"]).default("both"),
-    }))
+    .input(personalRecordsInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         
         let exerciseNamesToSearch: string[] = [];
         
@@ -272,7 +926,7 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         const { startDate: prevStartDate, endDate: prevEndDate } = getPreviousPeriod(startDate, endDate);
         
         // Get current period data
@@ -319,7 +973,7 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         
         const volumeData = await ctx.db
           .select({
@@ -365,7 +1019,7 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const { startDate, endDate } = getDateRange(input.timeRange, input.startDate, input.endDate);
+        const { startDate, endDate } = getDateRangeFromUtils(input.timeRange, input.startDate, input.endDate);
         
         const rawData = await ctx.db
           .select({
@@ -431,8 +1085,8 @@ export const progressRouter = createTRPCRouter({
     }),
 });
 
-// Helper functions
-export function getDateRange(timeRange: "week" | "month" | "year", startDate?: Date, endDate?: Date) {
+// Helper functions (legacy support)
+export function getDateRange(timeRange: "week" | "month" | "quarter" | "year", startDate?: Date, endDate?: Date) {
   if (startDate && endDate) {
     return { startDate, endDate };
   }
@@ -447,6 +1101,9 @@ export function getDateRange(timeRange: "week" | "month" | "year", startDate?: D
       break;
     case "month":
       start.setMonth(end.getMonth() - 1);
+      break;
+    case "quarter":
+      start.setMonth(end.getMonth() - 3);
       break;
     case "year":
       start.setFullYear(end.getFullYear() - 1);
@@ -571,7 +1228,7 @@ export function processTopSets(progressData: ProgressDataRow[]): Array<{
     reps: set.reps || 0,
     sets: set.sets || 1,
     unit: set.unit,
-    oneRMEstimate: calculateOneRM(parseFloat(String(set.weight || "0")), set.reps || 1),
+    oneRMEstimate: calculateLocalOneRM(parseFloat(String(set.weight || "0")), set.reps || 1),
   }));
 }
 
@@ -785,7 +1442,7 @@ export async function calculatePersonalRecords(
         sets: weightPR.sets || 0,
         unit: weightPR.unit,
         workoutDate: weightPR.workoutDate,
-        oneRMEstimate: calculateOneRM(parseFloat(String(weightPR.weight || "0")), weightPR.reps || 1),
+        oneRMEstimate: calculateLocalOneRM(parseFloat(String(weightPR.weight || "0")), weightPR.reps || 1),
       });
     }
 
@@ -1055,8 +1712,19 @@ export function calculateSetRepDistribution(rawData: {
   };
 }
 
-export function calculateOneRM(weight: number, reps: number): number {
+export function calculateLocalOneRM(weight: number, reps: number): number {
   if (reps === 1) return weight;
-  // Epley formula: 1RM = weight * (1 + reps/30)
-  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+  if (weight <= 0 || reps <= 0) return 0;
+
+  // Use Brzycki formula: weight × (36 / (37 - reps))
+  if (reps <= 36) {
+    const brzycki = weight * (36 / (37 - reps));
+    if (brzycki > 0 && isFinite(brzycki)) {
+      return Math.round(brzycki * 100) / 100; // Round to 2 decimal places
+    }
+  }
+
+  // Fallback to Epley formula: weight × (1 + reps/30)
+  const epley = weight * (1 + reps / 30);
+  return Math.round(epley * 100) / 100;
 }

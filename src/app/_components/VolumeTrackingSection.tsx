@@ -47,8 +47,14 @@ export function VolumeTrackingSection() {
   };
 
   const metricValues = getMetricValue(volumeData, selectedMetric);
-  const maxValue = metricValues.length > 0 ? Math.max(...metricValues, 1) : 1;
-  const minValue = metricValues.length > 0 ? Math.min(...metricValues, 0) : 0;
+  const rawMaxValue = metricValues.length > 0 ? Math.max(...metricValues) : 1;
+  const rawMinValue = metricValues.length > 0 ? Math.min(...metricValues) : 0;
+  const rawRange = rawMaxValue - rawMinValue || 1;
+  
+  // Improve chart readability with better range calculation
+  const padding = rawRange * 0.1; // 10% padding for better visualization
+  const maxValue = rawMaxValue + padding;
+  const minValue = Math.max(0, rawMinValue - padding); // Don't go below 0 for volume metrics
   const range = maxValue - minValue || 1;
 
   // Calculate total and average for the period
@@ -131,16 +137,16 @@ export function VolumeTrackingSection() {
       ) : chartData.length > 0 ? (
         <>
           {/* Volume Progression Chart */}
-          <div className="mb-6">
+          <div className="mb-8">
             <h3 className={subtitleClass}>
               {metricConfig[selectedMetric].label} Over Time
             </h3>
-            <div className="relative h-64 p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
-              <svg className="w-full h-full" viewBox="0 0 400 200">
+            <div className="relative h-80 p-8 rounded-lg border border-[var(--color-border)]" style={{ background: 'color-mix(in srgb, var(--card) 98%, var(--primary) 2%)' }}>
+              <svg className="w-full h-full max-w-full" viewBox="0 0 420 260" preserveAspectRatio="xMidYMid meet">
                 {/* Grid lines */}
                 <defs>
-                  <pattern id="volume-grid" width="40" height="20" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke="var(--color-border)" strokeWidth="0.5"/>
+                  <pattern id="volume-grid" width="40" height="24" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 24" fill="none" stroke="var(--color-border)" strokeWidth="0.5"/>
                   </pattern>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#volume-grid)" />
@@ -156,19 +162,19 @@ export function VolumeTrackingSection() {
                 {/* Area fill */}
                 {chartData.length > 1 && (
                   <polygon
-                    points={`20,180 ${chartData.map((point, index) => {
-                      const x = (index / Math.max(1, chartData.length - 1)) * 360 + 20;
-                      const y = 180 - ((point[selectedMetric] - minValue) / range) * 160;
+                    points={`30,220 ${chartData.map((point, index) => {
+                      const x = (index / Math.max(1, chartData.length - 1)) * 350 + 30;
+                      const y = 220 - ((point[selectedMetric] - minValue) / range) * 170;
                       return `${x},${y}`;
-                    }).join(' ')} ${20 + (chartData.length - 1) / Math.max(1, chartData.length - 1) * 360},180`}
+                    }).join(' ')} ${30 + (chartData.length - 1) / Math.max(1, chartData.length - 1) * 350},220`}
                     fill="url(#volume-gradient)"
                   />
                 )}
                 
                 {/* Data line and points */}
                 {chartData.map((point, _index) => {
-                  const x = (_index / Math.max(1, chartData.length - 1)) * 360 + 20;
-                  const y = 180 - ((point[selectedMetric] - minValue) / range) * 160;
+                  const x = (_index / Math.max(1, chartData.length - 1)) * 350 + 30;
+                  const y = 220 - ((point[selectedMetric] - minValue) / range) * 170;
                   
                   return (
                     <g key={_index}>
@@ -177,8 +183,8 @@ export function VolumeTrackingSection() {
                         <line
                           x1={x}
                           y1={y}
-                          x2={(_index + 1) / Math.max(1, chartData.length - 1) * 360 + 20}
-                          y2={180 - ((chartData[_index + 1]![selectedMetric] - minValue) / range) * 160}
+                          x2={(_index + 1) / Math.max(1, chartData.length - 1) * 350 + 30}
+                          y2={220 - ((chartData[_index + 1]![selectedMetric] - minValue) / range) * 170}
                           stroke={metricConfig[selectedMetric].color}
                           strokeWidth="3"
                         />
@@ -196,10 +202,10 @@ export function VolumeTrackingSection() {
                       {/* Value label */}
                       <text
                         x={x}
-                        y={y - 10}
+                        y={Math.max(y - 15, 25)}
                         textAnchor="middle"
                         className="text-xs font-medium"
-                        fill="var(--color-text-secondary)"
+                        fill="var(--color-text)"
                       >
                         {point[selectedMetric]}{metricConfig[selectedMetric].unit}
                       </text>
@@ -208,10 +214,10 @@ export function VolumeTrackingSection() {
                 })}
                 
                 {/* Y-axis labels */}
-                <text x="10" y="20" className="text-xs" fill="var(--color-text-muted)">
+                <text x="15" y="60" className="text-xs font-medium" fill="var(--color-text-secondary)">
                   {maxValue}{metricConfig[selectedMetric].unit}
                 </text>
-                <text x="10" y="190" className="text-xs" fill="var(--color-text-muted)">
+                <text x="15" y="235" className="text-xs font-medium" fill="var(--color-text-secondary)">
                   {minValue}{metricConfig[selectedMetric].unit}
                 </text>
               </svg>
@@ -263,9 +269,9 @@ export function VolumeTrackingSection() {
             ) : volumeByExercise && volumeByExercise.length > 0 ? (
               <div className="space-y-4">
                 {/* Donut Chart */}
-                <div className="relative h-80 p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
-                  <svg className="w-full h-full" viewBox="0 0 400 300">
-                    <g transform="translate(200, 150)">
+                <div className="relative h-80 p-6 rounded-lg border border-[var(--color-border)]" style={{ background: 'color-mix(in srgb, var(--card) 98%, var(--primary) 2%)' }}>
+                  <svg className="w-full h-full max-w-full" viewBox="0 0 450 320" preserveAspectRatio="xMidYMid meet">
+                    <g transform="translate(160, 160)">
                       {/* Donut chart segments */}
                       {volumeByExercise.slice(0, 8).map((exercise, index) => {
                         const radius = 80;
@@ -331,7 +337,7 @@ export function VolumeTrackingSection() {
                     </g>
                     
                     {/* Legend */}
-                    <g transform="translate(20, 20)">
+                    <g transform="translate(320, 40)">
                       {volumeByExercise.slice(0, 8).map((exercise, index) => {
                         const colors = [
                           "var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-info)", 
@@ -352,7 +358,7 @@ export function VolumeTrackingSection() {
                               x="20"
                               y="9"
                               className="text-xs font-medium"
-                              fill="var(--color-text-secondary)"
+                              fill="var(--color-text)"
                             >
                               {exercise.exerciseName} ({exercise.percentOfTotal.toFixed(1)}%)
                             </text>
@@ -424,7 +430,7 @@ export function VolumeTrackingSection() {
             ) : setRepData ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Rep Range Distribution */}
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg border border-[var(--color-border)]" style={{ background: 'color-mix(in srgb, var(--card) 98%, var(--primary) 2%)' }}>
                   <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Training Style Distribution
                   </h4>
@@ -453,7 +459,7 @@ export function VolumeTrackingSection() {
                 </div>
 
                 {/* Most Common Set/Rep Combinations */}
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg border border-[var(--color-border)]" style={{ background: 'color-mix(in srgb, var(--card) 98%, var(--primary) 2%)' }}>
                   <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Most Common Set × Rep Combinations
                   </h4>
@@ -476,19 +482,19 @@ export function VolumeTrackingSection() {
                 </div>
 
                 {/* Sets Distribution Chart */}
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
-                  <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
+                <div className="p-6 rounded-lg border border-[var(--color-border)] flex flex-col" style={{ background: 'color-mix(in srgb, var(--card) 98%, var(--primary) 2%)' }}>
+                  <h4 className="text-sm font-semibold mb-6 text-[var(--color-text)]">
                     Sets per Exercise Distribution
                   </h4>
-                  <div className="relative h-32">
-                    <svg className="w-full h-full" viewBox="0 0 300 100">
+                  <div className="relative h-40 overflow-x-auto px-2">
+                    <svg className="w-full h-full max-w-full" viewBox="0 0 300 130" preserveAspectRatio="xMidYMid meet">
                       {setRepData.setDistribution.map((item, index) => {
                         const barWidth = 25;
                         const maxHeight = 70;
                         const maxPercentage = Math.max(...setRepData.setDistribution.map(d => d.percentage));
                         const barHeight = (item.percentage / maxPercentage) * maxHeight;
                         const x = index * 35 + 20;
-                        const y = 80 - barHeight;
+                        const y = 100 - barHeight;
                         
                         return (
                           <g key={item.sets}>
@@ -502,19 +508,19 @@ export function VolumeTrackingSection() {
                             />
                             <text
                               x={x + barWidth/2}
-                              y={95}
+                              y={120}
                               textAnchor="middle"
                               className="text-xs"
-                              fill="var(--color-text-muted)"
+                              fill="var(--color-text-secondary)"
                             >
                               {item.sets}
                             </text>
                             <text
                               x={x + barWidth/2}
-                              y={y - 5}
+                              y={y - 8}
                               textAnchor="middle"
-                              className="text-xs"
-                              fill="var(--color-text-secondary)"
+                              className="text-xs font-medium"
+                              fill="var(--color-text)"
                             >
                               {item.percentage.toFixed(0)}%
                             </text>
@@ -526,7 +532,7 @@ export function VolumeTrackingSection() {
                 </div>
 
                 {/* Top Rep Counts */}
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg border border-[var(--color-border)]" style={{ background: 'color-mix(in srgb, var(--card) 98%, var(--primary) 2%)' }}>
                   <h4 className="text-sm font-semibold mb-3 text-[var(--color-text)]">
                     Most Common Rep Counts
                   </h4>

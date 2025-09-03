@@ -210,7 +210,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                   axisLine={false}
                   tickLine={false}
                   tick={{
-                    fill: 'var(--color-text-muted)',
+                    fill: '#f1f5f9',
                     fontSize: 12,
                   }}
                   dy={10}
@@ -221,7 +221,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                   axisLine={false}
                   tickLine={false}
                   tick={{
-                    fill: 'var(--color-text-muted)',
+                    fill: '#f1f5f9',
                     fontSize: 12,
                   }}
                   dx={-10}

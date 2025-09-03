@@ -207,6 +207,8 @@ export function useWorkoutSessionState({
               rest_seconds: null as unknown as number | null,
               is_estimate: false,
               is_default_applied: false,
+              one_rm_estimate: null,
+              volume_load: null,
               createdAt: new Date(),
             })),
           ),

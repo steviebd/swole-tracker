@@ -148,7 +148,7 @@ export function StrengthProgressSection() {
                             y={y - 10}
                             textAnchor="middle"
                             className="text-xs font-medium"
-                            fill="var(--color-text-secondary)"
+                            fill="var(--color-text)"
                           >
                             {point.weight}kg
                           </text>
@@ -157,10 +157,10 @@ export function StrengthProgressSection() {
                     })}
                     
                     {/* Y-axis labels */}
-                    <text x="10" y="20" className="text-xs" fill="var(--color-text-muted)">
+                    <text x="10" y="20" className="text-xs font-medium" fill="var(--color-text-secondary)">
                       {maxWeight}kg
                     </text>
-                    <text x="10" y="190" className="text-xs" fill="var(--color-text-muted)">
+                    <text x="10" y="190" className="text-xs font-medium" fill="var(--color-text-secondary)">
                       {minWeight}kg
                     </text>
                   </svg>

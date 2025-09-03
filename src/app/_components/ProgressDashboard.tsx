@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { StrengthProgressSection } from "./StrengthProgressSection";
-import { VolumeTrackingSection } from "./VolumeTrackingSection";
+import { ExerciseProgressionCard } from "./ExerciseProgressionCard";
 import { ConsistencySection } from "./ConsistencySection";
 import { PersonalRecordsSection } from "./PersonalRecordsSection";
 import { RecentAchievements } from "./RecentAchievements";
@@ -74,12 +74,12 @@ export function ProgressDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-4 py-6 sm:py-8">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           {/* Total Volume */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Total Volume</h3>
+            <h3 className="text-sm font-medium mb-2 text-[var(--color-card-heading)]">Total Volume</h3>
             {volumeLoading ? (
               <div className="animate-pulse h-8 w-20 rounded bg-border"></div>
             ) : (
@@ -91,7 +91,7 @@ export function ProgressDashboard() {
 
           {/* Total Workouts */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Workouts</h3>
+            <h3 className="text-sm font-medium mb-2 text-[var(--color-card-heading)]">Workouts</h3>
             {consistencyLoading ? (
               <div className="animate-pulse h-8 w-12 rounded bg-border"></div>
             ) : (
@@ -101,7 +101,7 @@ export function ProgressDashboard() {
 
           {/* Workout Frequency */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Weekly Frequency</h3>
+            <h3 className="text-sm font-medium mb-2 text-[var(--color-card-heading)]">Weekly Frequency</h3>
             {consistencyLoading ? (
               <div className="animate-pulse h-8 w-16 rounded bg-border"></div>
             ) : (
@@ -111,7 +111,7 @@ export function ProgressDashboard() {
 
           {/* Current Streak */}
           <div className={cardClass + " p-6"}>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">Current Streak</h3>
+            <h3 className="text-sm font-medium mb-2 text-[var(--color-card-heading)]">Current Streak</h3>
             {consistencyLoading ? (
               <div className="animate-pulse h-8 w-12 rounded bg-border"></div>
             ) : (
@@ -169,9 +169,9 @@ export function ProgressDashboard() {
           <StrengthProgressSection />
         </div>
 
-        {/* Volume Tracking Section */}
+        {/* Exercise Progression Section */}
         <div id="volume" className="mt-8">
-          <VolumeTrackingSection />
+          <ExerciseProgressionCard />
         </div>
 
         {/* Consistency Section */}

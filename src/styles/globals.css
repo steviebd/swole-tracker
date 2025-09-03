@@ -37,6 +37,22 @@
   --sidebar-accent-foreground: #ffffff; /* White text on sidebar accents */
   --sidebar-border: #e5e7eb; /* Light gray for sidebar borders */
   --sidebar-ring: #d97706; /* Amber for sidebar focus rings */
+  
+  /* Additional variables for calendar and component compatibility */
+  --color-text: #4b5563; /* Primary text color */
+  --color-text-secondary: #6b7280; /* Secondary text color */
+  --color-text-muted: #9ca3af; /* Muted text color */
+  --color-bg-surface: #ffffff; /* Surface background */
+  --color-success: #10b981; /* Success/positive color */
+  --color-warning: #f59e0b; /* Warning color */
+  --color-danger: #dc2626; /* Danger/error color */
+  
+  /* Additional variables for micro-interactions and form states */
+  --color-border-default: #e5e7eb; /* Default border color */
+  --color-primary-default: #d97706; /* Default primary color */
+  --color-status-success-default: #10b981; /* Success status color */
+  --color-status-danger-default: #dc2626; /* Danger status color */
+  --color-text-primary: #4b5563; /* Primary text variant */
 }
 
 .dark {
@@ -52,7 +68,7 @@
   --secondary: #fbbf24; /* Brighter yellow for dark mode secondary */
   --secondary-foreground: #000000; /* Black text on secondary buttons */
   --muted: #334155; /* Medium slate for muted backgrounds */
-  --muted-foreground: #94a3b8; /* Light slate for muted text */
+  --muted-foreground: #cbd5e1; /* Improved contrast for muted text (4.8:1) */
   --accent: #fb923c; /* Bright orange accent */
   --accent-foreground: #ffffff; /* White text on accent elements */
   --destructive: #ef4444; /* Brighter red for dark mode */
@@ -65,6 +81,7 @@
   --chart-3: #f97316; /* Orange for tertiary charts */
   --chart-4: #fbbf24; /* Bright yellow for fourth charts */
   --chart-5: #94a3b8; /* Light slate for fifth charts */
+  --card-heading: #e2e8f0; /* Improved contrast for card headings */
   --sidebar: #1e293b; /* Dark slate for sidebar backgrounds */
   --sidebar-foreground: #f1f5f9; /* Light gray for sidebar text */
   --sidebar-primary: #f97316; /* Orange for sidebar highlights */
@@ -73,6 +90,22 @@
   --sidebar-accent-foreground: #000000; /* Black text on sidebar accents */
   --sidebar-border: #334155; /* Medium slate for sidebar borders */
   --sidebar-ring: #f97316; /* Orange for sidebar focus rings */
+  
+  /* Dark mode variables for calendar and component compatibility */
+  --color-text: #f1f5f9; /* Light text for dark mode */
+  --color-text-secondary: #cbd5e1; /* Secondary text with good contrast */
+  --color-text-muted: #94a3b8; /* Muted text with adequate contrast */
+  --color-bg-surface: #1e293b; /* Dark surface background */
+  --color-success: #10b981; /* Success/positive color (works in dark) */
+  --color-warning: #fbbf24; /* Brighter warning for dark mode */
+  --color-danger: #ef4444; /* Brighter danger for dark mode */
+  
+  /* Dark mode variables for micro-interactions and form states */
+  --color-border-default: #334155; /* Dark mode border color */
+  --color-primary-default: #f97316; /* Brighter primary for dark mode */
+  --color-status-success-default: #10b981; /* Success status (works in dark) */
+  --color-status-danger-default: #ef4444; /* Brighter danger for dark mode */
+  --color-text-primary: #f1f5f9; /* Primary text for dark mode */
 }
 
 @theme {
@@ -112,6 +145,24 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-card-heading: var(--card-heading);
+  
+  /* Additional color mappings for calendar and component compatibility */
+  --color-text: var(--color-text);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  
+  /* Additional mappings for micro-interactions and form states */
+  --color-border-default: var(--color-border-default);
+  --color-primary-default: var(--color-primary-default);
+  --color-status-success-default: var(--color-status-success-default);
+  --color-status-danger-default: var(--color-status-danger-default);
+  --color-text-primary: var(--color-text-primary);
+  
   --font-sans: var(--font-open-sans), "Open Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-montserrat), "Montserrat", ui-serif, Georgia, serif;
 }
@@ -277,6 +328,21 @@
   .touch-target {
     min-height: 44px;
     min-width: 44px;
+  }
+  
+  /* Enhanced focus indicators for dark mode accessibility */
+  .dark *:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  
+  .dark button:focus,
+  .dark select:focus,
+  .dark input:focus,
+  .dark textarea:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent 80%);
   }
 
   .touch-target-large {

@@ -25,6 +25,7 @@
         "@trpc/client": "^11.4.4",
         "@trpc/react-query": "^11.4.4",
         "@trpc/server": "^11.4.4",
+        "@types/recharts": "^2.0.1",
         "ai": "5.0.0-beta.29",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -1071,6 +1072,8 @@
     "@types/react-dom": ["@types/react-dom@19.1.9", "", { "peerDependencies": { "@types/react": "^19.0.0" } }, "sha512-qXRuZaOsAdXKFyOhRBg6Lqqc0yay13vN7KrIg4L7N4aaHN68ma9OK3NE1BoDFgFOTfM7zg+3/8+2n8rLUH3OKQ=="],
 
     "@types/react-native": ["@types/react-native@0.73.0", "", { "dependencies": { "react-native": "*" } }, "sha512-6ZRPQrYM72qYKGWidEttRe6M5DZBEV5F+MHMHqd4TTYx0tfkcdrUFGdef6CCxY0jXU7wldvd/zA/b0A/kTeJmA=="],
+
+    "@types/recharts": ["@types/recharts@2.0.1", "", { "dependencies": { "recharts": "*" } }, "sha512-/cFs7oiafzByUwBSWA1IzE6FW+ppPwQAWsDTadSgVOwzveY9MESpyLHyyHY0SfPPKLW4+4qVNYHPXd0rFiC8vg=="],
 
     "@types/stack-utils": ["@types/stack-utils@2.0.3", "", {}, "sha512-9aEbYZ3TbYMznPdcdr3SmIrLXwC/AKZXQeCf9Pgao5CKb8CyHuEX5jzWPTkvregvhRJHcpRO6BFoGW9ycaOkYw=="],
 
