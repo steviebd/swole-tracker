@@ -6,12 +6,14 @@ import { useTheme } from "~/providers/ThemeProvider"
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar"
 import { useAuth } from "~/providers/AuthProvider"
 import { useEffect, useState } from "react"
+import { PreferencesModal } from "~/app/_components/PreferencesModal"
 
 export function DashboardHeader() {
   const { toggle: toggleTheme, resolvedTheme } = useTheme()
   const { user, signOut } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -55,7 +57,17 @@ export function DashboardHeader() {
                 <Bell className="h-5 w-5" />
               </Button>
 
-              <Button variant="ghost" size="icon" className="hover:bg-muted">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hover:bg-muted"
+                onClick={() => {
+                  console.log("Preferences button clicked");
+                  setPreferencesOpen(true);
+                }}
+                aria-label="Open Preferences"
+                title="Preferences"
+              >
                 <Settings className="h-5 w-5" />
               </Button>
 
@@ -99,7 +111,17 @@ export function DashboardHeader() {
               <Bell className="h-5 w-5" />
             </Button>
 
-            <Button variant="ghost" size="icon" className="hover:bg-muted">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hover:bg-muted" 
+              onClick={() => {
+                console.log("Preferences button clicked");
+                setPreferencesOpen(true);
+              }}
+              aria-label="Open Preferences"
+              title="Preferences"
+            >
               <Settings className="h-5 w-5" />
             </Button>
 
@@ -133,6 +155,15 @@ export function DashboardHeader() {
           </div>
         </div>
       </div>
+      
+      {/* Preferences Modal */}
+      <PreferencesModal 
+        open={preferencesOpen} 
+        onClose={() => {
+          console.log("Closing preferences modal");
+          setPreferencesOpen(false);
+        }} 
+      />
     </header>
   )
 }

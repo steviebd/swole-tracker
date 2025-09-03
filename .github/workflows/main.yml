@@ -45,12 +45,50 @@ jobs:
           bun check || bun run check || true
           bun run typecheck || true
 
-      - name: Run tests with coverage
-        run: bun run test:ci
+       - name: Run unit tests with coverage
+         run: bun run test:unit
 
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-lcov
-          path: coverage
+       - name: Run integration tests
+         run: bun run test:integration
+
+       - name: Run E2E tests
+         run: bun run test:e2e
+         continue-on-error: true
+
+       - name: Generate full coverage report
+         run: bun run test:coverage
+
+       - name: Upload coverage to Codecov
+         if: always()
+         uses: codecov/codecov-action@v4
+         with:
+           file: ./coverage/lcov.info
+           flags: unittests
+           name: codecov-umbrella
+           fail_ci_if_error: false
+
+       - name: Upload coverage artifact
+         if: always()
+         uses: actions/upload-artifact@v4
+         with:
+           name: coverage-lcov
+           path: coverage
+
+       - name: Upload test results
+         if: always()
+         uses: actions/upload-artifact@v4
+         with:
+           name: test-results
+           path: |
+             playwright-report/
+             test-results/
+             coverage/
+
+       - name: Comment coverage on PR
+         if: github.event_name == 'pull_request' && always()
+         uses: dorny/test-reporter@v1
+         with:
+           name: Test Results
+           path: 'coverage/junit.xml'
+           reporter: java-junit
+           fail-on-error: false

@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
-import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
-import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { externalWorkoutsWhoop } from "~/server/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
+import { getValidAccessToken } from "~/lib/token-rotation";
 
 interface WhoopWorkout {
   id: string;
@@ -20,87 +20,6 @@ interface WhoopWorkout {
   zone_duration?: unknown;
 }
 
-type IntegrationRecord = {
-  id: number;
-  accessToken: string;
-  refreshToken: string | null;
-  expiresAt: string | Date | null;
-};
-
-async function refreshTokenIfNeeded(integration: IntegrationRecord) {
-  // Check if token is expired or will expire in next 5 minutes
-  const expiryBuffer = 5 * 60 * 1000; // 5 minutes in milliseconds
-  const now = new Date();
-
-  if (
-    integration.expiresAt &&
-    new Date(integration.expiresAt).getTime() - now.getTime() < expiryBuffer
-  ) {
-    if (!integration.refreshToken) {
-      throw new Error("Access token expired and no refresh token available");
-    }
-
-    const authorizationServer: oauth.AuthorizationServer = {
-      issuer: "https://api.prod.whoop.com",
-      authorization_endpoint: "https://api.prod.whoop.com/oauth/oauth2/auth",
-      token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
-    };
-
-    // Make refresh token request directly
-    const refreshRequest = {
-      grant_type: "refresh_token",
-      refresh_token: integration.refreshToken,
-      client_id: env.WHOOP_CLIENT_ID!,
-      client_secret: env.WHOOP_CLIENT_SECRET!,
-    };
-
-    const tokenResponse = await fetch(authorizationServer.token_endpoint!, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: new URLSearchParams(refreshRequest).toString(),
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      throw new Error(
-        `Token refresh failed: ${tokenResponse.status} - ${errorText}`,
-      );
-    }
-
-    const tokens: unknown = await tokenResponse.json();
-
-    if (typeof tokens !== "object" || tokens === null) {
-      throw new Error("Unexpected token response shape");
-    }
-    const t = tokens as {
-      access_token?: string;
-      refresh_token?: string | null;
-      expires_in?: number;
-    };
-
-    const expiresAt = t.expires_in
-      ? new Date(Date.now() + t.expires_in * 1000)
-      : null;
-
-    // Update tokens in database
-    await db
-      .update(userIntegrations)
-      .set({
-        accessToken: t.access_token!,
-        refreshToken: t.refresh_token ?? integration.refreshToken,
-        expiresAt,
-        updatedAt: new Date(),
-      })
-      .where(eq(userIntegrations.id, Number(integration.id)));
-
-    return t.access_token!;
-  }
-
-  return integration.accessToken;
-}
 
 export async function POST(_request: NextRequest) {
   try {
@@ -142,27 +61,17 @@ export async function POST(_request: NextRequest) {
       );
     }
 
-    // Get user's Whoop integration
-    const [integration] = await db
-      .select()
-      .from(userIntegrations)
-      .where(
-        and(
-          eq(userIntegrations.user_id, user.id),
-          eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
-        ),
-      );
-
-    if (!integration) {
+    // Get valid access token (automatically handles rotation if needed)
+    const tokenResult = await getValidAccessToken(user.id, "whoop");
+    
+    if (!tokenResult.token) {
       return NextResponse.json(
-        { error: "Whoop integration not found" },
+        { error: tokenResult.error || "Whoop integration not found or token invalid" },
         { status: 404 },
       );
     }
 
-    // Refresh token if needed
-    const accessToken = await refreshTokenIfNeeded(integration);
+    const accessToken = tokenResult.token;
 
     // Get the latest workout timestamp for incremental sync
     const [latestWorkout] = await db

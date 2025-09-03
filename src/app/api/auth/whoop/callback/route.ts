@@ -6,6 +6,8 @@ import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
+import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
+import { encryptToken } from "~/lib/encryption";
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,10 +31,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify state parameter
+    // Verify state parameter with enhanced security checks
     const state = searchParams.get("state");
-    const storedState = request.cookies.get("whoop_oauth_state")?.value;
-    if (!state || !storedState || state !== storedState) {
+    if (!state) {
+      return NextResponse.redirect(
+        `${request.nextUrl.origin}/connect-whoop?error=missing_state`,
+      );
+    }
+
+    const clientIp = getClientIp(request.headers);
+    const userAgent = request.headers.get("user-agent") ?? "unknown";
+    
+    const stateValidation = await validateOAuthState(
+      state,
+      user.id,
+      "whoop",
+      clientIp,
+      userAgent,
+    );
+
+    if (!stateValidation.isValid) {
       return NextResponse.redirect(
         `${request.nextUrl.origin}/connect-whoop?error=invalid_state`,
       );
@@ -55,11 +73,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log("Token exchange attempt:", {
-      redirectUri,
-      clientId: env.WHOOP_CLIENT_ID!.substring(0, 8) + "...",
-    });
-
     // Make token exchange request directly to avoid oauth4webapi validation issues
     const tokenRequest = {
       grant_type: "authorization_code",
@@ -78,12 +91,14 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams(tokenRequest).toString(),
     });
 
-    console.log("Token response status:", tokenResponse.status);
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error("Token exchange error response:", errorText);
+      // Log error without exposing sensitive request details
+      console.error("Token exchange failed:", {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+      });
       throw new Error(
-        `Token exchange failed: ${tokenResponse.status} - ${errorText}`,
+        `Token exchange failed: ${tokenResponse.status} - ${tokenResponse.statusText}`,
       );
     }
 
@@ -100,19 +115,26 @@ export async function GET(request: NextRequest) {
       scope?: string;
     };
 
-    console.log("Tokens received:", {
-      hasAccessToken: !!tok.access_token,
-      hasRefreshToken: !!tok.refresh_token,
-      expiresIn: tok.expires_in,
-      scope: tok.scope,
-    });
+    // Log token receipt without exposing actual tokens
+    if (process.env.NODE_ENV === "development") {
+      console.log("OAuth tokens received:", {
+        hasAccessToken: !!tok.access_token,
+        hasRefreshToken: !!tok.refresh_token,
+        expiresIn: tok.expires_in,
+        scope: tok.scope,
+      });
+    }
 
     // Calculate expires_at
     const expiresAt = tok.expires_in
       ? new Date(Date.now() + tok.expires_in * 1000)
       : null;
 
-    // Store tokens in database (upsert pattern)
+    // Encrypt tokens before storing in database
+    const encryptedAccessToken = encryptToken(tok.access_token!);
+    const encryptedRefreshToken = tok.refresh_token ? encryptToken(tok.refresh_token) : null;
+
+    // Store encrypted tokens in database (upsert pattern)
     const existingIntegration = await db
       .select()
       .from(userIntegrations)
@@ -127,8 +149,8 @@ export async function GET(request: NextRequest) {
       await db
         .update(userIntegrations)
         .set({
-          accessToken: tok.access_token!,
-          refreshToken: tok.refresh_token ?? null,
+          accessToken: encryptedAccessToken,
+          refreshToken: encryptedRefreshToken,
           expiresAt,
           scope:
             tok.scope ??
@@ -146,8 +168,8 @@ export async function GET(request: NextRequest) {
       await db.insert(userIntegrations).values({
         user_id: user.id,
         provider: "whoop",
-        accessToken: tok.access_token!,
-        refreshToken: tok.refresh_token ?? null,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
         expiresAt,
         scope:
           tok.scope ??
@@ -159,13 +181,10 @@ export async function GET(request: NextRequest) {
     // Note: Automatic sync removed - sync endpoint requires browser session
     // User will need to manually trigger sync after OAuth completion
 
-    // Clear state cookie and redirect to success page
-    const response = NextResponse.redirect(
+    // State is already cleaned up by validateOAuthState, redirect to success page
+    return NextResponse.redirect(
       `${request.nextUrl.origin}/connect-whoop?success=true`,
     );
-    response.cookies.delete("whoop_oauth_state");
-
-    return response;
   } catch (error) {
     console.error("Whoop OAuth callback error:", error);
     return NextResponse.redirect(

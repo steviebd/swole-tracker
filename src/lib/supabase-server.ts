@@ -23,7 +23,10 @@ export async function createServerSupabaseClient(
   // Check for Authorization header (mobile apps)
   const authHeader = headers?.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
-    console.log("Server-side auth: Using Bearer token from header");
+    // Log auth method without exposing token
+    if (process.env.NODE_ENV === "development") {
+      console.log("Server-side auth: Using Bearer token from header");
+    }
 
     const { createClient } = await import("@supabase/supabase-js");
     const client = createClient(supabaseUrl, supabaseAnonKey, {
@@ -38,20 +41,25 @@ export async function createServerSupabaseClient(
   }
 
   // Fallback to cookie-based auth (web browsers)
-  console.log("Server-side auth: Using cookie-based auth");
+  if (process.env.NODE_ENV === "development") {
+    console.log("Server-side auth: Using cookie-based auth");
+  }
   const cookieStore = await cookies();
 
-  // Debug: Check what cookies are available
-  const allCookies = cookieStore.getAll();
-  const supabaseCookies = allCookies.filter(
-    (cookie) => cookie.name.includes("sb-") || cookie.name.includes("supabase"),
-  );
+  // Only debug cookies in development mode and without sensitive data
+  if (process.env.NODE_ENV === "development") {
+    const allCookies = cookieStore.getAll();
+    const supabaseCookies = allCookies.filter(
+      (cookie) => cookie.name.includes("sb-") || cookie.name.includes("supabase"),
+    );
 
-  console.log("Server-side cookies debug:", {
-    totalCookies: allCookies.length,
-    supabaseCookies: supabaseCookies.length,
-    cookieNames: supabaseCookies.map((c) => c.name),
-  });
+    console.log("Server-side cookies debug:", {
+      totalCookies: allCookies.length,
+      supabaseCookies: supabaseCookies.length,
+      cookieNames: supabaseCookies.map((c) => c.name),
+      // Removed cookie values and other sensitive information
+    });
+  }
 
   return createServerClient<any, "public", any>(supabaseUrl, supabaseAnonKey, {
     cookies: {

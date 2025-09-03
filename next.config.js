@@ -13,6 +13,10 @@ const baseConfig = {
     ignoreDuringBuilds: true,
   },
   async headers() {
+    // Generate CSP with dynamic Supabase URLs
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://*.supabase.co";
+    const supabaseWssUrl = supabaseUrl.replace("https://", "wss://").replace("http://", "ws://");
+    
     return [
       {
         source: "/(.*)",
@@ -40,7 +44,7 @@ const baseConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.supabase.co wss: ws:",
+              `connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com ${supabaseUrl} ${supabaseWssUrl}`,
               "font-src 'self' data:",
               "object-src 'none'",
               "media-src 'self'",

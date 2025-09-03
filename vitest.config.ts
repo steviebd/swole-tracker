@@ -13,9 +13,7 @@ export default defineConfig({
         pretendToBeVisual: true,
       },
     },
-    include: [
-      "src/__tests__/**/*.test.{ts,tsx}"
-    ],
+    include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: [
       "**/*.spec.{ts,tsx}",
       "src/__e2e__/**/*",
@@ -25,39 +23,38 @@ export default defineConfig({
       "**/*.e2e.{ts,tsx}",
       "**/e2e/**/*",
       "**/playwright/**/*",
-      "playwright.config.ts"
+      "playwright.config.ts",
     ],
     coverage: {
       provider: "v8",
-      reporter: ["text", "lcov"],
+      reporter: ["text", "lcov", "json", "html"],
       all: true,
       include: [
-        // Focus coverage on lib and API routers where we have tests
-        "src/lib/**/*.{ts,tsx}",
-        "src/server/api/**/*.{ts,tsx}",
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.d.ts",
+        "!src/**/__tests__/**",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/**/*.spec.{ts,tsx}",
+        "!src/**/types/**",
+        "!src/**/schemas/**",
       ],
       exclude: [
         "src/**/__tests__/**",
-        // Exclude Next.js app and components
-        "src/app/**",
-        "src/styles/**",
-        "src/providers/**",
-        // Exclude server-only infra and DB adapters that require env/db
-        "src/server/db/**",
-        "src/server/api/trpc.ts",
-        // Exclude heavy client hooks not safe in jsdom without complex mocks
-        "src/hooks/useWorkoutSessionState.ts",
-        "src/hooks/use-workout-updates.ts",
-        // Misc
-        "src/middleware.ts",
-        "src/env.js",
         "**/*.d.ts",
+        "**/*.test.{ts,tsx}",
+        "**/*.spec.{ts,tsx}",
+        "src/**/types/**",
+        "src/**/schemas/**",
+        "src/**/*.config.{ts,js}",
+        "src/**/*.setup.{ts,js}",
+        "src/**/mocks/**",
+        "src/**/test-data/**",
       ],
       thresholds: {
-        lines: 70,
-        functions: 70,
-        branches: 70,
-        statements: 70,
+        lines: 80,
+        functions: 80,
+        branches: 75,
+        statements: 80,
       },
     },
   },

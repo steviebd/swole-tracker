@@ -99,11 +99,23 @@ export const t = initTRPC.context<TRPCContext>().create({
         /connection terminated/i,
         /authentication failed/i,
         /role ".*" does not exist/i,
+        /access token/i,
+        /refresh token/i,
+        /client secret/i,
+        /api key/i,
+        /password/i,
+        /secret/i,
+        /encryption/i,
+        /decrypt/i,
+        /private key/i,
+        /jwt/i,
+        /bearer/i,
+        /oauth/i,
       ];
       
       for (const pattern of sensitivePatterns) {
         if (pattern.test(message)) {
-          return "Database operation failed. Please contact support.";
+          return "Operation failed. Please contact support.";
         }
       }
       

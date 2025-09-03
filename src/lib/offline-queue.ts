@@ -50,7 +50,12 @@ function readQueue(): QueueItem[] {
 
 function writeQueue(items: QueueItem[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch (error) {
+    // Silently handle localStorage errors (quota exceeded, etc.)
+    console.warn("Failed to write to localStorage:", error);
+  }
 }
 
 function uuid() {

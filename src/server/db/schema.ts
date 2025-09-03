@@ -702,6 +702,28 @@ export const whoopBodyMeasurement = createTable(
   ],
 );
 
+// OAuth States - Secure state management for OAuth flows
+export const oauthStates = createTable(
+  "oauth_state",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    state: d.varchar({ length: 256 }).notNull().unique(), // Unique state parameter
+    user_id: d.varchar({ length: 256 }).notNull(),
+    provider: d.varchar({ length: 50 }).notNull(), // 'whoop', 'strava', etc.
+    redirect_uri: d.text().notNull(), // Callback URI
+    client_ip: d.varchar({ length: 45 }), // IPv4/IPv6 address
+    user_agent_hash: d.varchar({ length: 64 }), // SHA-256 hash of User-Agent
+    expiresAt: d.timestamp({ withTimezone: true }).notNull().default(sql`CURRENT_TIMESTAMP + INTERVAL '10 minutes'`), // 10 minute expiry
+    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  }),
+  (t) => [
+    index("oauth_state_user_id_idx").on(t.user_id),
+    index("oauth_state_provider_idx").on(t.provider),
+    index("oauth_state_expires_at_idx").on(t.expiresAt),
+    index("oauth_state_user_provider_idx").on(t.user_id, t.provider),
+  ],
+); // RLS disabled - using Supabase auth with application-level security
+
 // Health Advice Relations
 export const healthAdviceRelations = relations(healthAdvice, ({ one }) => ({
   session: one(workoutSessions, {

@@ -38,6 +38,8 @@ export const env = createEnv({
     RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
     // Supabase service role (server-side only for admin operations)
     SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+    // Encryption key for sensitive data at rest (OAuth tokens, etc.)
+    ENCRYPTION_MASTER_KEY: z.string().min(32).optional(),
   },
 
   /**
@@ -88,16 +90,13 @@ export const env = createEnv({
     RATE_LIMIT_API_CALLS_PER_MINUTE:
       process.env.RATE_LIMIT_API_CALLS_PER_MINUTE,
     RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
+    ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY,
   },
   /**
-   * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
-   * useful for Docker builds.
+   * Environment validation is always enforced for security.
+   * Only skip validation in Vercel preview environments to allow deployments.
    */
-  // Relax validation during CI/preview environments to avoid blocking builds
-  skipValidation:
-    !!process.env.SKIP_ENV_VALIDATION ||
-    process.env.NEXT_PUBLIC_ENV === "ci" ||
-    process.env.VERCEL_ENV === "preview",
+  skipValidation: process.env.VERCEL_ENV === "preview",
   /**
    * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
    * `SOME_VAR=''` will throw an error.
