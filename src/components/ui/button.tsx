@@ -1,14 +1,16 @@
 "use client";
 
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
-import { motion } from "framer-motion"
-import type { HTMLMotionProps } from "framer-motion"
-import { useReducedMotion } from "~/hooks/use-reduced-motion"
-import { buttonPressVariants, triggerHapticFeedback } from "~/lib/micro-interactions"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { motion } from "framer-motion";
+import { useReducedMotion } from "~/hooks/use-reduced-motion";
+import {
+  buttonPressVariants,
+  triggerHapticFeedback,
+} from "~/lib/micro-interactions";
 
-import { cn } from "~/lib/utils"
+import { cn } from "~/lib/utils";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-current focus-visible:outline-offset-2 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden transition-all duration-150",
@@ -44,104 +46,130 @@ const buttonVariants = cva(
       size: "default",
       interactive: true,
     },
-  }
-)
+  },
+);
 
-interface ButtonProps extends 
-  Omit<React.ComponentProps<"button">, "onTap" | "onAnimationStart" | "onAnimationEnd" | "onAnimationIteration" | "onDragStart" | "onDragEnd" | "onDrag">, 
-  VariantProps<typeof buttonVariants> {
+interface ButtonProps
+  extends Omit<
+      React.ComponentProps<"button">,
+      | "onTap"
+      | "onAnimationStart"
+      | "onAnimationEnd"
+      | "onAnimationIteration"
+      | "onDragStart"
+      | "onDragEnd"
+      | "onDrag"
+    >,
+    VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   haptic?: boolean;
   ripple?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
-  className,
-  variant,
-  size,
-  interactive,
-  asChild = false,
-  haptic = false,
-  ripple = false,
-  onPointerDown,
-  children,
-  ...props
-}, ref) => {
-  const prefersReducedMotion = useReducedMotion();
-  const [ripplePosition, setRipplePosition] = React.useState<{ x: number; y: number } | null>(null);
-  
-  const handlePointerDown = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    // Trigger haptic feedback if enabled and supported
-    if (haptic && !prefersReducedMotion) {
-      triggerHapticFeedback('light');
-    }
-    
-    // Create ripple effect if enabled
-    if (ripple && !prefersReducedMotion && !asChild) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setRipplePosition({
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-      });
-      
-      // Clear ripple after animation
-      setTimeout(() => setRipplePosition(null), 400);
-    }
-    
-    // Call original handler
-    onPointerDown?.(event);
-  }, [haptic, ripple, prefersReducedMotion, asChild, onPointerDown]);
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variant,
+      size,
+      interactive,
+      asChild = false,
+      haptic = false,
+      ripple = false,
+      onPointerDown,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    const prefersReducedMotion = useReducedMotion();
+    const [ripplePosition, setRipplePosition] = React.useState<{
+      x: number;
+      y: number;
+    } | null>(null);
 
-  if (asChild) {
+    const handlePointerDown = React.useCallback(
+      (event: React.PointerEvent<HTMLButtonElement>) => {
+        // Trigger haptic feedback if enabled and supported
+        if (haptic && !prefersReducedMotion) {
+          triggerHapticFeedback("light");
+        }
+
+        // Create ripple effect if enabled
+        if (ripple && !prefersReducedMotion && !asChild) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setRipplePosition({
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+          });
+
+          // Clear ripple after animation
+          setTimeout(() => setRipplePosition(null), 400);
+        }
+
+        // Call original handler
+        onPointerDown?.(event);
+      },
+      [haptic, ripple, prefersReducedMotion, asChild, onPointerDown],
+    );
+
+    if (asChild) {
+      return (
+        <Slot
+          ref={ref}
+          className={cn(
+            buttonVariants({ variant, size, interactive, className }),
+          )}
+          onPointerDown={handlePointerDown}
+          {...props}
+        >
+          {children}
+        </Slot>
+      );
+    }
+
+    const motionProps = !prefersReducedMotion
+      ? {
+          variants: buttonPressVariants,
+          initial: "initial",
+          whileHover: "hover",
+          whileTap: "tap",
+          layout: true,
+        }
+      : {};
+
     return (
-      <Slot
+      <motion.button
         ref={ref}
-        className={cn(buttonVariants({ variant, size, interactive, className }))}
+        data-slot="button"
+        className={cn(
+          buttonVariants({ variant, size, interactive, className }),
+        )}
         onPointerDown={handlePointerDown}
+        {...motionProps}
         {...props}
       >
         {children}
-      </Slot>
+
+        {/* Ripple effect overlay */}
+        {ripple && ripplePosition && !prefersReducedMotion && (
+          <motion.span
+            className="pointer-events-none absolute rounded-full bg-white/20"
+            style={{
+              left: ripplePosition.x - 10,
+              top: ripplePosition.y - 10,
+              width: 20,
+              height: 20,
+            }}
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: 4, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          />
+        )}
+      </motion.button>
     );
-  }
-
-  const motionProps = !prefersReducedMotion ? {
-    variants: buttonPressVariants,
-    initial: "initial",
-    whileHover: "hover",
-    whileTap: "tap",
-    layout: true,
-  } : {};
-
-  return (
-    <motion.button
-      ref={ref}
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, interactive, className }))}
-      onPointerDown={handlePointerDown}
-      {...motionProps}
-      {...props}
-    >
-      {children}
-      
-      {/* Ripple effect overlay */}
-      {ripple && ripplePosition && !prefersReducedMotion && (
-        <motion.span
-          className="absolute pointer-events-none rounded-full bg-white/20"
-          style={{
-            left: ripplePosition.x - 10,
-            top: ripplePosition.y - 10,
-            width: 20,
-            height: 20,
-          }}
-          initial={{ scale: 0, opacity: 1 }}
-          animate={{ scale: 4, opacity: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        />
-      )}
-    </motion.button>
-  );
-});
+  },
+);
 
 Button.displayName = "Button";
 

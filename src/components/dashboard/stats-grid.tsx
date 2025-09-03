@@ -9,13 +9,13 @@ import { cn } from "~/lib/utils";
 
 /**
  * Statistics grid component using Phase 2 StatCard components
- * 
+ *
  * Displays four key metrics with enhanced template-style design:
  * 1. This Week Workouts - Count with comparison to last week
  * 2. Average Duration - Time with improvement indicators
  * 3. Current Streak - Days with celebration for personal bests
  * 4. Weekly Goal - Progress with completion percentage
- * 
+ *
  * Features:
  * - Real data from tRPC endpoints
  * - Loading states with skeletons
@@ -36,7 +36,6 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
       thisWeekVolume: volumeData,
       lastWeekWorkouts,
       monthWorkouts,
-      consistencyData,
       isLoading,
     } = useSharedWorkoutData();
 
@@ -44,12 +43,13 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
     const stats = React.useMemo(() => {
       const workoutsThisWeek = thisWeekWorkouts.length || 0;
       const workoutsLastWeek = lastWeekWorkouts.length || 0;
-      
+
       // Calculate change percentage
       let weeklyChange: string | undefined;
       if (workoutsLastWeek > 0) {
-        const changePercent = ((workoutsThisWeek - workoutsLastWeek) / workoutsLastWeek) * 100;
-        weeklyChange = `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%`;
+        const changePercent =
+          ((workoutsThisWeek - workoutsLastWeek) / workoutsLastWeek) * 100;
+        weeklyChange = `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(1)}%`;
       } else if (workoutsThisWeek > 0) {
         weeklyChange = "New!";
       }
@@ -58,12 +58,15 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
       let avgDurationValue = "0min";
       let durationChange: string | undefined;
       if (volumeData && volumeData.length > 0) {
-        const totalSets = volumeData.reduce((sum, session) => sum + session.totalSets, 0);
+        const totalSets = volumeData.reduce(
+          (sum, session) => sum + session.totalSets,
+          0,
+        );
         const avgSets = totalSets / volumeData.length;
         // Estimate 3-4 minutes per set including rest
         const estimatedMinutes = Math.round(avgSets * 3.5);
         avgDurationValue = `${estimatedMinutes}min`;
-        
+
         // Simple improvement indicator based on set count
         if (avgSets > 15) {
           durationChange = "+5%";
@@ -75,18 +78,20 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
       // Calculate current streak
       const calculateStreak = (dates: Date[] = []) => {
         if (dates.length === 0) return 0;
-        
-        const sortedDates = [...dates].sort((a, b) => b.getTime() - a.getTime());
+
+        const sortedDates = [...dates].sort(
+          (a, b) => b.getTime() - a.getTime(),
+        );
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         let streak = 0;
         const currentDate = new Date(today);
-        
+
         for (const workoutDate of sortedDates) {
           const workout = new Date(workoutDate);
           workout.setHours(0, 0, 0, 0);
-          
+
           if (workout.getTime() === currentDate.getTime()) {
             streak++;
             currentDate.setDate(currentDate.getDate() - 1);
@@ -94,11 +99,13 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
             break;
           }
         }
-        
+
         return streak;
       };
 
-      const currentStreak = calculateStreak(monthWorkouts.map(date => new Date(date)));
+      const currentStreak = calculateStreak(
+        monthWorkouts.map((date) => new Date(date)),
+      );
       let streakChange: string | undefined;
       if (currentStreak >= 7) {
         streakChange = "🔥 Hot!";
@@ -110,7 +117,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
       const weeklyGoal = {
         current: workoutsThisWeek,
         target: 3,
-        percentage: Math.min((workoutsThisWeek / 3) * 100, 100)
+        percentage: Math.min((workoutsThisWeek / 3) * 100, 100),
       };
 
       let goalChange: string | undefined;
@@ -134,10 +141,13 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
 
     if (isLoading) {
       return (
-        <div ref={ref} className={cn(
-          "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8",
-          className
-        )}>
+        <div
+          ref={ref}
+          className={cn(
+            "mb-6 grid grid-cols-1 gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4",
+            className,
+          )}
+        >
           {[...Array(4)].map((_, i) => (
             <motion.div
               key={i}
@@ -146,7 +156,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
               transition={{ duration: 0.2, delay: i * 0.05 }}
               className="animate-pulse"
             >
-              <div className="h-[140px] bg-muted rounded-lg glass-surface" />
+              <div className="bg-muted glass-surface h-[140px] rounded-lg" />
             </motion.div>
           ))}
         </div>
@@ -156,49 +166,52 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
     // Card configurations with animations
     const cardData = [
       {
-        id: 'workouts',
-        label: 'This Week',
+        id: "workouts",
+        label: "This Week",
         value: stats.workoutsThisWeek.toString(),
         change: stats.weeklyChange,
-        icon: <TrendingUp className="w-5 h-5" />,
+        icon: <TrendingUp className="h-5 w-5" />,
       },
       {
-        id: 'duration',
-        label: 'Avg Duration',
+        id: "duration",
+        label: "Avg Duration",
         value: stats.avgDurationValue,
         change: stats.durationChange,
-        icon: <Clock className="w-5 h-5" />,
+        icon: <Clock className="h-5 w-5" />,
       },
       {
-        id: 'streak',
-        label: 'Current Streak',
-        value: `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}`,
+        id: "streak",
+        label: "Current Streak",
+        value: `${stats.currentStreak} day${stats.currentStreak === 1 ? "" : "s"}`,
         change: stats.streakChange,
-        icon: <Flame className="w-5 h-5" />,
+        icon: <Flame className="h-5 w-5" />,
       },
       {
-        id: 'goal',
-        label: 'Weekly Goal',
+        id: "goal",
+        label: "Weekly Goal",
         value: `${stats.weeklyGoal.current}/${stats.weeklyGoal.target}`,
         change: stats.goalChange,
-        icon: <Calendar className="w-5 h-5" />,
+        icon: <Calendar className="h-5 w-5" />,
       },
     ];
 
     return (
-      <div ref={ref} className={cn(
-        "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8",
-        className
-      )}>
+      <div
+        ref={ref}
+        className={cn(
+          "mb-6 grid grid-cols-1 gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4",
+          className,
+        )}
+      >
         {cardData.map((card, index) => (
           <motion.div
             key={card.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ 
-              duration: 0.2, 
+            transition={{
+              duration: 0.2,
               delay: index * 0.05,
-              ease: [0.4, 0, 0.2, 1]
+              ease: [0.4, 0, 0.2, 1],
             }}
           >
             <StatCard
@@ -211,7 +224,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
         ))}
       </div>
     );
-  }
+  },
 );
 
 StatsGrid.displayName = "StatsGrid";

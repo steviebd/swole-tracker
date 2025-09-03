@@ -2,17 +2,17 @@ import { z } from "zod";
 import { eq, and, desc, gte, lte, avg, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { wellnessData, workoutSessions } from "~/server/db/schema";
-import { 
+import {
   saveWellnessSchema,
   getWellnessHistorySchema,
   getWellnessStatsSchema,
 } from "~/server/api/schemas/wellness";
-import { asTrpcMiddleware, rateLimitMiddleware } from "~/lib/rate-limit-middleware";
+import {
+  asTrpcMiddleware,
+  rateLimitMiddleware,
+} from "~/lib/rate-limit-middleware";
 import { env } from "~/env";
 import { logger } from "~/lib/logger";
 
@@ -26,14 +26,26 @@ export const wellnessRouter = createTRPCRouter({
   // Save wellness data for a session with security and anti-backfill safeguards
   save: protectedProcedure
     .input(saveWellnessSchema)
-    .use(asTrpcMiddleware(rateLimitMiddleware({
-      endpoint: 'wellness_submission',
-      limit: WELLNESS_RATE_LIMIT.limit,
-      windowMs: WELLNESS_RATE_LIMIT.windowMs,
-      skipIfDisabled: true,
-    })))
+    .use(
+      asTrpcMiddleware(
+        rateLimitMiddleware({
+          endpoint: "wellness_submission",
+          limit: WELLNESS_RATE_LIMIT.limit,
+          windowMs: WELLNESS_RATE_LIMIT.windowMs,
+          skipIfDisabled: true,
+        }),
+      ),
+    )
     .mutation(async ({ ctx, input }) => {
-      const { sessionId, energyLevel, sleepQuality, deviceTimezone, notes, hasWhoopData, whoopData } = input;
+      const {
+        sessionId,
+        energyLevel,
+        sleepQuality,
+        deviceTimezone,
+        notes,
+        hasWhoopData,
+        whoopData,
+      } = input;
 
       try {
         // SECURITY: Always filter by user_id
@@ -47,8 +59,8 @@ export const wellnessRouter = createTRPCRouter({
             .where(
               and(
                 eq(workoutSessions.id, sessionId),
-                eq(workoutSessions.user_id, userId)
-              )
+                eq(workoutSessions.user_id, userId),
+              ),
             )
             .limit(1);
 
@@ -62,12 +74,11 @@ export const wellnessRouter = createTRPCRouter({
 
         // Anti-backfill validation: Only allow current/recent dates
         const now = new Date();
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         const submittedAt = new Date();
 
         // Validate timezone
-        if (!Intl.supportedValuesOf('timeZone').includes(deviceTimezone)) {
-          logger.warn('Invalid timezone provided', { deviceTimezone, userId });
+        if (!Intl.supportedValuesOf("timeZone").includes(deviceTimezone)) {
+          logger.warn("Invalid timezone provided", { deviceTimezone, userId });
           // Don't fail, but log for monitoring
         }
 
@@ -77,7 +88,7 @@ export const wellnessRouter = createTRPCRouter({
           .values({
             user_id: userId,
             sessionId: sessionId || null,
-            date: now.toISOString().split('T')[0]!, // Current date only
+            date: now.toISOString().split("T")[0]!, // Current date only
             energy_level: energyLevel,
             sleep_quality: sleepQuality,
             device_timezone: deviceTimezone,
@@ -101,7 +112,7 @@ export const wellnessRouter = createTRPCRouter({
           })
           .returning();
 
-        logger.info('Wellness data saved successfully', {
+        logger.info("Wellness data saved successfully", {
           userId,
           sessionId,
           hasWhoopData,
@@ -110,10 +121,9 @@ export const wellnessRouter = createTRPCRouter({
         });
 
         return result[0];
-
       } catch (error) {
-        logger.error('Failed to save wellness data', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("Failed to save wellness data", {
+          error: error instanceof Error ? error.message : "Unknown error",
           userId: ctx.user.id,
           sessionId,
         });
@@ -142,22 +152,21 @@ export const wellnessRouter = createTRPCRouter({
             workoutSessions,
             and(
               eq(wellnessData.sessionId, workoutSessions.id),
-              eq(workoutSessions.user_id, ctx.user.id) // Verify session ownership
-            )
+              eq(workoutSessions.user_id, ctx.user.id), // Verify session ownership
+            ),
           )
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              eq(wellnessData.sessionId, input.sessionId)
-            )
+              eq(wellnessData.sessionId, input.sessionId),
+            ),
           )
           .limit(1);
 
         return result[0]?.wellness_data ?? null;
-
       } catch (error) {
-        logger.error('Failed to get wellness data by session', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("Failed to get wellness data by session", {
+          error: error instanceof Error ? error.message : "Unknown error",
           userId: ctx.user.id,
           sessionId: input.sessionId,
         });
@@ -178,16 +187,20 @@ export const wellnessRouter = createTRPCRouter({
 
         // SECURITY: Always filter by user_id
         // PERFORMANCE: Use indexed query on (user_id, date)
-        
+
         // Build where conditions
         const whereConditions = [eq(wellnessData.user_id, ctx.user.id)];
 
         // Add date filters if provided
         if (startDate) {
-          whereConditions.push(gte(wellnessData.date, startDate.toISOString().split('T')[0]!));
+          whereConditions.push(
+            gte(wellnessData.date, startDate.toISOString().split("T")[0]!),
+          );
         }
         if (endDate) {
-          whereConditions.push(lte(wellnessData.date, endDate.toISOString().split('T')[0]!));
+          whereConditions.push(
+            lte(wellnessData.date, endDate.toISOString().split("T")[0]!),
+          );
         }
 
         const results = await ctx.db
@@ -199,10 +212,9 @@ export const wellnessRouter = createTRPCRouter({
           .offset(offset);
 
         return results;
-
       } catch (error) {
-        logger.error('Failed to get wellness history', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("Failed to get wellness history", {
+          error: error instanceof Error ? error.message : "Unknown error",
           userId: ctx.user.id,
           limit: input.limit,
           offset: input.offset,
@@ -235,8 +247,8 @@ export const wellnessRouter = createTRPCRouter({
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              gte(wellnessData.date, startDate.toISOString().split('T')[0]!)
-            )
+              gte(wellnessData.date, startDate.toISOString().split("T")[0]!),
+            ),
           );
 
         // Get recent trend (last 7 days for comparison)
@@ -253,28 +265,38 @@ export const wellnessRouter = createTRPCRouter({
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              gte(wellnessData.date, recentStartDate.toISOString().split('T')[0]!)
-            )
+              gte(
+                wellnessData.date,
+                recentStartDate.toISOString().split("T")[0]!,
+              ),
+            ),
           );
 
         return {
           period: {
             days,
-            avgEnergyLevel: stats[0]?.avgEnergyLevel ? Number(stats[0].avgEnergyLevel) : null,
-            avgSleepQuality: stats[0]?.avgSleepQuality ? Number(stats[0].avgSleepQuality) : null,
+            avgEnergyLevel: stats[0]?.avgEnergyLevel
+              ? Number(stats[0].avgEnergyLevel)
+              : null,
+            avgSleepQuality: stats[0]?.avgSleepQuality
+              ? Number(stats[0].avgSleepQuality)
+              : null,
             totalEntries: stats[0]?.totalEntries || 0,
           },
           recent: {
             days: 7,
-            avgEnergyLevel: recentStats[0]?.avgEnergyLevel ? Number(recentStats[0].avgEnergyLevel) : null,
-            avgSleepQuality: recentStats[0]?.avgSleepQuality ? Number(recentStats[0].avgSleepQuality) : null,
+            avgEnergyLevel: recentStats[0]?.avgEnergyLevel
+              ? Number(recentStats[0].avgEnergyLevel)
+              : null,
+            avgSleepQuality: recentStats[0]?.avgSleepQuality
+              ? Number(recentStats[0].avgSleepQuality)
+              : null,
             totalEntries: recentStats[0]?.totalEntries || 0,
           },
         };
-
       } catch (error) {
-        logger.error('Failed to get wellness stats', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("Failed to get wellness stats", {
+          error: error instanceof Error ? error.message : "Unknown error",
           userId: ctx.user.id,
           days: input.days,
         });
@@ -297,8 +319,8 @@ export const wellnessRouter = createTRPCRouter({
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              eq(wellnessData.sessionId, input.sessionId)
-            )
+              eq(wellnessData.sessionId, input.sessionId),
+            ),
           )
           .returning();
 
@@ -309,16 +331,15 @@ export const wellnessRouter = createTRPCRouter({
           });
         }
 
-        logger.info('Wellness data deleted successfully', {
+        logger.info("Wellness data deleted successfully", {
           userId: ctx.user.id,
           sessionId: input.sessionId,
         });
 
         return result[0];
-
       } catch (error) {
-        logger.error('Failed to delete wellness data', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("Failed to delete wellness data", {
+          error: error instanceof Error ? error.message : "Unknown error",
           userId: ctx.user.id,
           sessionId: input.sessionId,
         });
@@ -345,16 +366,15 @@ export const wellnessRouter = createTRPCRouter({
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              eq(wellnessData.sessionId, input.sessionId)
-            )
+              eq(wellnessData.sessionId, input.sessionId),
+            ),
           )
           .limit(1);
 
         return result.length > 0;
-
       } catch (error) {
-        logger.error('Failed to check wellness data existence', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error("Failed to check wellness data existence", {
+          error: error instanceof Error ? error.message : "Unknown error",
           userId: ctx.user.id,
           sessionId: input.sessionId,
         });

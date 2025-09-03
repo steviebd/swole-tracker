@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations, externalWorkoutsWhoop } from "~/server/db/schema";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 
@@ -105,7 +105,9 @@ async function refreshTokenIfNeeded(integration: IntegrationRecord) {
 export async function POST(_request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -169,23 +171,21 @@ export async function POST(_request: NextRequest) {
       .where(eq(externalWorkoutsWhoop.user_id, user.id))
       .orderBy(desc(externalWorkoutsWhoop.start))
       .limit(1);
-    
+
     // Fetch workouts from Whoop API (v2 endpoint) with incremental sync
-    let whoopUrl = "https://api.prod.whoop.com/developer/v2/activity/workout?limit=25";
+    let whoopUrl =
+      "https://api.prod.whoop.com/developer/v2/activity/workout?limit=25";
     if (latestWorkout?.start) {
       const sinceIso = latestWorkout.start.toISOString();
       whoopUrl += `&since=${encodeURIComponent(sinceIso)}`;
     }
-    
-    const whoopResponse = await fetch(
-      whoopUrl,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+
+    const whoopResponse = await fetch(whoopUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+    });
 
     if (!whoopResponse.ok) {
       const errorText = await whoopResponse.text();
@@ -238,37 +238,36 @@ export async function POST(_request: NextRequest) {
       };
     });
 
-    // Optimize: Use batch query to check for existing workouts instead of N+1 queries
-    const workoutIds = workouts.map(w => w.id);
-    
     // Check for existing workouts by both WHOOP ID and temporal overlap
     const existingWorkouts = await db
-      .select({ 
+      .select({
         whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
         start: externalWorkoutsWhoop.start,
-        end: externalWorkoutsWhoop.end
+        end: externalWorkoutsWhoop.end,
       })
       .from(externalWorkoutsWhoop)
       .where(eq(externalWorkoutsWhoop.user_id, user.id));
 
-    const existingIds = new Set(existingWorkouts.map(w => w.whoopWorkoutId));
+    const existingIds = new Set(existingWorkouts.map((w) => w.whoopWorkoutId));
     const existingTimes = new Set(
-      existingWorkouts.map(w => `${w.start.toISOString()}_${w.end.toISOString()}`)
+      existingWorkouts.map(
+        (w) => `${w.start.toISOString()}_${w.end.toISOString()}`,
+      ),
     );
 
     // Filter out workouts that already exist by ID or temporal match
-    const newWorkoutData = workouts.filter(w => {
+    const newWorkoutData = workouts.filter((w) => {
       const timeKey = `${new Date(w.start).toISOString()}_${new Date(w.end).toISOString()}`;
       return !existingIds.has(w.id) && !existingTimes.has(timeKey);
     });
-    
+
     let newWorkouts = 0;
     const duplicates = workouts.length - newWorkoutData.length;
 
     // Batch insert new workouts
     if (newWorkoutData.length > 0) {
       try {
-        const workoutValues = newWorkoutData.map(workout => ({
+        const workoutValues = newWorkoutData.map((workout) => ({
           user_id: user.id,
           whoopWorkoutId: workout.id,
           start: new Date(workout.start),
@@ -284,8 +283,11 @@ export async function POST(_request: NextRequest) {
         await db.insert(externalWorkoutsWhoop).values(workoutValues);
         newWorkouts = newWorkoutData.length;
       } catch (error) {
-        console.error("Error during batch insert, falling back to individual inserts:", error);
-        
+        console.error(
+          "Error during batch insert, falling back to individual inserts:",
+          error,
+        );
+
         // Fallback to individual inserts if batch fails
         for (const workout of newWorkoutData) {
           try {
@@ -303,7 +305,10 @@ export async function POST(_request: NextRequest) {
             });
             newWorkouts++;
           } catch (individualError) {
-            console.error(`Error processing workout ${workout.id}:`, individualError);
+            console.error(
+              `Error processing workout ${workout.id}:`,
+              individualError,
+            );
           }
         }
       }

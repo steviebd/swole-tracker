@@ -1,107 +1,102 @@
 /**
  * Enhanced skeleton loading components with shimmer effects
- * 
+ *
  * Features:
  * - Smooth shimmer animations
- * - Respect reduced motion preferences  
+ * - Respect reduced motion preferences
  * - Multiple skeleton variants for different content types
  * - Theme-aware colors
  * - GPU-accelerated animations
  */
 
-import * as React from "react"
-import { motion } from "framer-motion"
-import { cva, type VariantProps } from "class-variance-authority"
-import { useReducedMotion } from "~/hooks/use-reduced-motion"
-import { skeletonShimmerVariants } from "~/lib/micro-interactions"
-import { cn } from "~/lib/utils"
+import * as React from "react";
+import { motion } from "framer-motion";
+import { cva, type VariantProps } from "class-variance-authority";
+import { useReducedMotion } from "~/hooks/use-reduced-motion";
+import { skeletonShimmerVariants } from "~/lib/micro-interactions";
+import { cn } from "~/lib/utils";
 
-const skeletonVariants = cva(
-  "relative rounded-md overflow-hidden",
-  {
-    variants: {
-      variant: {
-        default: "bg-muted/60 dark:bg-muted/40",
-        card: "bg-card/80 border border-border/50",
-        text: "bg-muted/50 dark:bg-muted/30",
-        avatar: "bg-muted/60 dark:bg-muted/40 rounded-full",
-        button: "bg-primary/20 border border-primary/30",
-      },
-      size: {
-        sm: "h-3",
-        default: "h-4", 
-        lg: "h-6",
-        xl: "h-8",
-        "2xl": "h-12",
-        auto: "h-auto",
-      },
-      shimmer: {
-        true: "overflow-hidden",
-        false: "",
-      },
+const skeletonVariants = cva("relative rounded-md overflow-hidden", {
+  variants: {
+    variant: {
+      default: "bg-muted/60 dark:bg-muted/40",
+      card: "bg-card/80 border border-border/50",
+      text: "bg-muted/50 dark:bg-muted/30",
+      avatar: "bg-muted/60 dark:bg-muted/40 rounded-full",
+      button: "bg-primary/20 border border-primary/30",
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default", 
-      shimmer: true,
+    size: {
+      sm: "h-3",
+      default: "h-4",
+      lg: "h-6",
+      xl: "h-8",
+      "2xl": "h-12",
+      auto: "h-auto",
     },
-  }
-)
+    shimmer: {
+      true: "overflow-hidden",
+      false: "",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+    size: "default",
+    shimmer: true,
+  },
+});
 
-interface SkeletonProps 
+interface SkeletonProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof skeletonVariants> {
   width?: string | number;
   height?: string | number;
 }
 
-const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(({
-  className,
-  variant,
-  size,
-  shimmer,
-  width,
-  height,
-  style,
-  ...props
-}, ref) => {
-  const prefersReducedMotion = useReducedMotion();
-  
-  const skeletonStyle = {
-    ...style,
-    ...(width && { width: typeof width === 'number' ? `${width}px` : width }),
-    ...(height && { height: typeof height === 'number' ? `${height}px` : height }),
-  };
+const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
+  (
+    { className, variant, size, shimmer, width, height, style, ...props },
+    ref,
+  ) => {
+    const prefersReducedMotion = useReducedMotion();
 
-  return (
-    <div
-      ref={ref}
-      data-slot="skeleton"
-      className={cn(skeletonVariants({ variant, size, shimmer }), className)}
-      style={skeletonStyle}
-      role="status"
-      aria-label="Loading..."
-      {...props}
-    >
-      {/* Shimmer effect overlay */}
-      {shimmer && !prefersReducedMotion && (
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10"
-          style={{
-            backgroundSize: "200% 100%",
-          }}
-          variants={skeletonShimmerVariants}
-          animate="animate"
-        />
-      )}
-      
-      {/* Pulse fallback for reduced motion */}
-      {shimmer && prefersReducedMotion && (
-        <div className="absolute inset-0 animate-pulse bg-white/10 dark:bg-white/5" />
-      )}
-    </div>
-  );
-});
+    const skeletonStyle = {
+      ...style,
+      ...(width && { width: typeof width === "number" ? `${width}px` : width }),
+      ...(height && {
+        height: typeof height === "number" ? `${height}px` : height,
+      }),
+    };
+
+    return (
+      <div
+        ref={ref}
+        data-slot="skeleton"
+        className={cn(skeletonVariants({ variant, size, shimmer }), className)}
+        style={skeletonStyle}
+        role="status"
+        aria-label="Loading..."
+        {...props}
+      >
+        {/* Shimmer effect overlay */}
+        {shimmer && !prefersReducedMotion && (
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10"
+            style={{
+              backgroundSize: "200% 100%",
+            }}
+            variants={skeletonShimmerVariants}
+            animate="animate"
+          />
+        )}
+
+        {/* Pulse fallback for reduced motion */}
+        {shimmer && prefersReducedMotion && (
+          <div className="absolute inset-0 animate-pulse bg-white/10 dark:bg-white/5" />
+        )}
+      </div>
+    );
+  },
+);
 
 Skeleton.displayName = "Skeleton";
 
@@ -140,24 +135,20 @@ const SkeletonCard: React.FC<{
   showDescription = true,
   className,
 }) => (
-  <Skeleton variant="card" className={cn("p-4 space-y-3", className)}>
+  <Skeleton variant="card" className={cn("space-y-3 p-4", className)}>
     {showAvatar && (
       <div className="flex items-center space-x-3">
         <Skeleton variant="avatar" className="h-10 w-10" />
-        <div className="space-y-2 flex-1">
+        <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-1/4" />
           <Skeleton variant="text" className="h-3 w-1/3" />
         </div>
       </div>
     )}
-    
-    {showTitle && (
-      <Skeleton className="h-6 w-3/4" />
-    )}
-    
-    {showDescription && (
-      <SkeletonText lines={2} lastLineWidth="60%" />
-    )}
+
+    {showTitle && <Skeleton className="h-6 w-3/4" />}
+
+    {showDescription && <SkeletonText lines={2} lastLineWidth="60%" />}
   </Skeleton>
 );
 
@@ -165,9 +156,12 @@ const SkeletonStats: React.FC<{
   columns?: number;
   className?: string;
 }> = ({ columns = 4, className }) => (
-  <div className={cn("grid gap-4", className)} style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+  <div
+    className={cn("grid gap-4", className)}
+    style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+  >
     {Array.from({ length: columns }).map((_, index) => (
-      <Skeleton key={index} variant="card" className="p-4 space-y-2">
+      <Skeleton key={index} variant="card" className="space-y-2 p-4">
         <Skeleton className="h-8 w-full" />
         <Skeleton variant="text" className="h-4 w-2/3" />
       </Skeleton>
@@ -175,13 +169,15 @@ const SkeletonStats: React.FC<{
   </div>
 );
 
-const SkeletonWorkoutCard: React.FC<{ className?: string }> = ({ className }) => (
-  <Skeleton variant="card" className={cn("p-6 space-y-4", className)}>
+const SkeletonWorkoutCard: React.FC<{ className?: string }> = ({
+  className,
+}) => (
+  <Skeleton variant="card" className={cn("space-y-4 p-6", className)}>
     <div className="flex items-center justify-between">
       <Skeleton className="h-6 w-1/3" />
       <Skeleton variant="text" className="h-4 w-20" />
     </div>
-    
+
     <div className="space-y-3">
       {Array.from({ length: 3 }).map((_, index) => (
         <div key={index} className="flex items-center justify-between">
@@ -190,7 +186,7 @@ const SkeletonWorkoutCard: React.FC<{ className?: string }> = ({ className }) =>
         </div>
       ))}
     </div>
-    
+
     <div className="flex items-center space-x-2 pt-2">
       <Skeleton variant="button" className="h-8 w-20" />
       <Skeleton variant="button" className="h-8 w-16" />
@@ -198,32 +194,32 @@ const SkeletonWorkoutCard: React.FC<{ className?: string }> = ({ className }) =>
   </Skeleton>
 );
 
-const SkeletonChart: React.FC<{ 
+const SkeletonChart: React.FC<{
   height?: number;
   showLegend?: boolean;
   className?: string;
 }> = ({ height = 200, showLegend = true, className }) => (
-  <Skeleton variant="card" className={cn("p-4 space-y-4", className)}>
+  <Skeleton variant="card" className={cn("space-y-4 p-4", className)}>
     <div className="flex items-center justify-between">
       <Skeleton className="h-6 w-1/4" />
       <Skeleton variant="text" className="h-4 w-16" />
     </div>
-    
+
     <div className="relative" style={{ height }}>
-      <Skeleton className="w-full h-full" />
-      
+      <Skeleton className="h-full w-full" />
+
       {/* Simulated chart bars */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between px-4 pb-4">
+      <div className="absolute right-0 bottom-0 left-0 flex items-end justify-between px-4 pb-4">
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton
             key={index}
-            className={`w-6 bg-primary/20`}
+            className={`bg-primary/20 w-6`}
             height={Math.random() * height * 0.6 + height * 0.2}
           />
         ))}
       </div>
     </div>
-    
+
     {showLegend && (
       <div className="flex items-center space-x-4">
         {Array.from({ length: 3 }).map((_, index) => (
@@ -244,7 +240,10 @@ const SkeletonList: React.FC<{
 }> = ({ items = 5, showAvatar = true, className }) => (
   <div className={cn("space-y-3", className)}>
     {Array.from({ length: items }).map((_, index) => (
-      <div key={index} className="flex items-center space-x-3 p-3 rounded-lg border border-border/50">
+      <div
+        key={index}
+        className="border-border/50 flex items-center space-x-3 rounded-lg border p-3"
+      >
         {showAvatar && <Skeleton variant="avatar" className="h-8 w-8" />}
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-3/4" />
@@ -265,7 +264,7 @@ const SkeletonScreen: React.FC<{
   showChart?: boolean;
   showWorkouts?: boolean;
 }> = ({
-  title = "Loading your fitness data...",
+  title: _title = "Loading your fitness data...",
   showStats = true,
   showChart = true,
   showWorkouts = true,
@@ -276,10 +275,10 @@ const SkeletonScreen: React.FC<{
       <Skeleton className="h-8 w-1/3" />
       <Skeleton variant="text" className="h-4 w-1/2" />
     </div>
-    
+
     {/* Stats grid */}
     {showStats && <SkeletonStats />}
-    
+
     {/* Chart section */}
     {showChart && (
       <div className="space-y-4">
@@ -287,7 +286,7 @@ const SkeletonScreen: React.FC<{
         <SkeletonChart />
       </div>
     )}
-    
+
     {/* Workouts section */}
     {showWorkouts && (
       <div className="space-y-4">

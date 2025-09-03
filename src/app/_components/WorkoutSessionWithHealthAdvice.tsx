@@ -1,19 +1,22 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Button } from '~/components/ui/button';
-import { WorkoutSession } from '~/app/_components/workout-session';
-import { ReadinessIndicator } from '~/app/_components/health-advice/ReadinessIndicator';
-import { SetSuggestions } from '~/app/_components/health-advice/SetSuggestions';
-import { ProbabilityGauge } from '~/app/_components/health-advice/ProbabilityGauge';
-import { AISummary } from '~/app/_components/health-advice/AISummary';
-import { SubjectiveWellnessModal } from '~/app/_components/health-advice/SubjectiveWellnessModal';
-import { ManualWellnessModal } from '~/app/_components/health-advice/ManualWellnessModal';
-import { useHealthAdvice } from '~/hooks/useHealthAdvice';
-import { api } from '~/trpc/react';
-import { logger } from '~/lib/logger';
-import type { HealthAdviceRequest } from '~/server/api/schemas/health-advice';
-import type { SubjectiveWellnessData, ManualWellnessData } from '~/lib/subjective-wellness-mapper';
+import React, { useState } from "react";
+import { Button } from "~/components/ui/button";
+import { WorkoutSession } from "~/app/_components/workout-session";
+import { ReadinessIndicator } from "~/app/_components/health-advice/ReadinessIndicator";
+import { SetSuggestions } from "~/app/_components/health-advice/SetSuggestions";
+import { ProbabilityGauge } from "~/app/_components/health-advice/ProbabilityGauge";
+import { AISummary } from "~/app/_components/health-advice/AISummary";
+import { SubjectiveWellnessModal } from "~/app/_components/health-advice/SubjectiveWellnessModal";
+import { ManualWellnessModal } from "~/app/_components/health-advice/ManualWellnessModal";
+import { useHealthAdvice } from "~/hooks/useHealthAdvice";
+import { api } from "~/trpc/react";
+import { logger } from "~/lib/logger";
+import type { HealthAdviceRequest } from "~/server/api/schemas/health-advice";
+import type {
+  SubjectiveWellnessData,
+  ManualWellnessData,
+} from "~/lib/subjective-wellness-mapper";
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -28,100 +31,106 @@ interface WorkoutSessionWithHealthAdviceProps {
     yesterday_strain?: number;
   };
   userProfile?: {
-    experience_level: 'beginner' | 'intermediate' | 'advanced';
+    experience_level: "beginner" | "intermediate" | "advanced";
     min_increment_kg?: number;
     preferred_rpe?: number;
   };
-  workoutPlan?: HealthAdviceRequest['workout_plan'];
-  priorBests?: HealthAdviceRequest['prior_bests'];
+  workoutPlan?: HealthAdviceRequest["workout_plan"];
+  priorBests?: HealthAdviceRequest["prior_bests"];
 }
 
-export function WorkoutSessionWithHealthAdvice({ 
-  sessionId, 
-  whoopData, 
+export function WorkoutSessionWithHealthAdvice({
+  sessionId,
+  whoopData,
   userProfile,
   workoutPlan,
-  priorBests
+  priorBests,
 }: WorkoutSessionWithHealthAdviceProps) {
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
   const [showManualWellnessModal, setShowManualWellnessModal] = useState(false);
-  const [, setAcceptedSuggestions] = useState<Map<string, { weight?: number; reps?: number }>>(new Map());
-  const [wellnessSubmitError, setWellnessSubmitError] = useState<string | null>(null);
+  const [, setAcceptedSuggestions] = useState<
+    Map<string, { weight?: number; reps?: number }>
+  >(new Map());
+  const [wellnessSubmitError, setWellnessSubmitError] = useState<string | null>(
+    null,
+  );
   const [isSubmittingWellness, setIsSubmittingWellness] = useState(false);
-  
-  const { 
-    advice, 
-    loading, 
-    error, 
-    fetchAdvice, 
+
+  const {
+    advice,
+    loading,
+    error,
+    fetchAdvice,
     fetchAdviceWithSubjectiveData,
     fetchAdviceWithManualWellness,
     hasExistingAdvice,
-    whoopStatus
+    whoopStatus,
   } = useHealthAdvice(sessionId);
 
   // Fetch the actual workout session to get template exercises
-  const { data: workoutSession, refetch: refetchWorkoutSession } = api.workouts.getById.useQuery(
-    { id: sessionId },
-    { enabled: !!sessionId }
-  );
+  const { data: workoutSession, refetch: refetchWorkoutSession } =
+    api.workouts.getById.useQuery({ id: sessionId }, { enabled: !!sessionId });
 
   // Fetch user preferences to determine which wellness modal to show
   const { data: userPreferences } = api.preferences.get.useQuery();
 
   // Wellness mutations
   const saveWellness = api.wellness.save.useMutation();
-  const _checkExistingWellness = api.wellness.checkExists.useQuery(
-    { sessionId },
-    { enabled: !!sessionId }
-  );
 
   // Use actual data from props or provide reasonable defaults
   const actualWhoopData = whoopData;
 
   const actualUserProfile = userProfile || {
-    experience_level: 'intermediate' as const,
+    experience_level: "intermediate" as const,
     min_increment_kg: 2.5,
-    preferred_rpe: 8
+    preferred_rpe: 8,
   };
 
   // Build dynamic workout plan from actual session template data
   const dynamicWorkoutPlan = React.useMemo(() => {
     if (!workoutSession?.template?.exercises) {
-      return workoutPlan || {
-        exercises: []
-      };
+      return (
+        workoutPlan || {
+          exercises: [],
+        }
+      );
     }
 
     // Create workout plan from template exercises
-    const exercises = workoutSession.template.exercises.map((templateExercise) => {
-      // Get existing session exercises for this template exercise to determine set count
-      const existingSessionSets = workoutSession.exercises?.filter(
-        ex => ex.exerciseName === templateExercise.exerciseName
-      ) || [];
+    const exercises = workoutSession.template.exercises.map(
+      (templateExercise) => {
+        // Get existing session exercises for this template exercise to determine set count
+        const existingSessionSets =
+          workoutSession.exercises?.filter(
+            (ex) => ex.exerciseName === templateExercise.exerciseName,
+          ) || [];
 
-      // Determine how many sets to generate (use existing data or default to 3)
-      const setCount = existingSessionSets.length > 0 ? existingSessionSets.length : 3;
+        // Determine how many sets to generate (use existing data or default to 3)
+        const setCount =
+          existingSessionSets.length > 0 ? existingSessionSets.length : 3;
 
-      // Generate sets with data from existing session exercises or defaults
-      const sets = Array.from({ length: setCount }, (_, setIndex) => {
-        const existingSet = existingSessionSets[setIndex];
+        // Generate sets with data from existing session exercises or defaults
+        const sets = Array.from({ length: setCount }, (_, setIndex) => {
+          const existingSet = existingSessionSets[setIndex];
+          return {
+            set_id: `${templateExercise.id}_${setIndex + 1}`, // Use template exercise ID for consistency
+            target_reps: existingSet?.reps || null,
+            target_weight_kg: existingSet?.weight
+              ? parseFloat(existingSet.weight)
+              : null,
+            target_rpe: existingSet?.rpe || null,
+          };
+        });
+
         return {
-          set_id: `${templateExercise.id}_${setIndex + 1}`, // Use template exercise ID for consistency
-          target_reps: existingSet?.reps || null,
-          target_weight_kg: existingSet?.weight ? parseFloat(existingSet.weight) : null,
-          target_rpe: existingSet?.rpe || null,
+          exercise_id: templateExercise.id.toString(), // Use template exercise ID for consistency
+          name: templateExercise.exerciseName, // Include original name for later reference
+          tags: ["strength"] as ("strength" | "hypertrophy" | "endurance")[], // Default tag, could be enhanced with template metadata
+          sets,
         };
-      });
-
-      return {
-        exercise_id: templateExercise.id.toString(), // Use template exercise ID for consistency  
-        name: templateExercise.exerciseName, // Include original name for later reference
-        tags: ['strength'] as ('strength' | 'hypertrophy' | 'endurance')[], // Default tag, could be enhanced with template metadata
-        sets,
-      };
-    });
+      },
+    );
 
     return { exercises };
   }, [workoutSession, workoutPlan]);
@@ -137,8 +146,9 @@ export function WorkoutSessionWithHealthAdvice({
 
   const handleGetHealthAdvice = async () => {
     // Determine which wellness system to use based on user preferences
-    const isManualWellnessEnabled = userPreferences?.enable_manual_wellness ?? false;
-    
+    const isManualWellnessEnabled =
+      userPreferences?.enable_manual_wellness ?? false;
+
     // Check if user has WHOOP connected
     if (whoopStatus.isConnected) {
       // User has WHOOP - use actual WHOOP data
@@ -147,7 +157,7 @@ export function WorkoutSessionWithHealthAdvice({
         user_profile: actualUserProfile,
         whoop: actualWhoopData!,
         workout_plan: dynamicWorkoutPlan,
-        prior_bests: actualPriorBests
+        prior_bests: actualPriorBests,
       };
 
       await fetchAdvice(request);
@@ -161,14 +171,16 @@ export function WorkoutSessionWithHealthAdvice({
     }
   };
 
-  const handleSubjectiveWellnessSubmit = async (subjectiveData: SubjectiveWellnessData) => {
+  const handleSubjectiveWellnessSubmit = async (
+    subjectiveData: SubjectiveWellnessData,
+  ) => {
     setShowWellnessModal(false);
-    
+
     const request = {
       session_id: sessionId.toString(),
       user_profile: actualUserProfile,
       workout_plan: dynamicWorkoutPlan,
-      prior_bests: actualPriorBests
+      prior_bests: actualPriorBests,
     };
 
     await fetchAdviceWithSubjectiveData(request, subjectiveData);
@@ -195,24 +207,31 @@ export function WorkoutSessionWithHealthAdvice({
         session_id: sessionId.toString(),
         user_profile: actualUserProfile,
         workout_plan: dynamicWorkoutPlan,
-        prior_bests: actualPriorBests
+        prior_bests: actualPriorBests,
       };
 
       if (wellnessResult?.id) {
-        await fetchAdviceWithManualWellness(request, manualData, wellnessResult.id);
+        await fetchAdviceWithManualWellness(
+          request,
+          manualData,
+          wellnessResult.id,
+        );
       } else {
         // Fallback to health advice without wellness data if save failed
-        console.warn('Wellness data save returned no ID, proceeding without wellness tracking');
+        console.warn(
+          "Wellness data save returned no ID, proceeding without wellness tracking",
+        );
         await fetchAdviceWithManualWellness(request, manualData);
       }
-      
+
       setShowManualWellnessModal(false);
       setShowHealthAdvice(true);
-      
     } catch (error) {
-      console.error('Failed to submit manual wellness:', error);
+      console.error("Failed to submit manual wellness:", error);
       setWellnessSubmitError(
-        error instanceof Error ? error.message : 'Failed to submit wellness data. Please try again.'
+        error instanceof Error
+          ? error.message
+          : "Failed to submit wellness data. Please try again.",
       );
     } finally {
       setIsSubmittingWellness(false);
@@ -221,84 +240,88 @@ export function WorkoutSessionWithHealthAdvice({
 
   const handleConnectWhoop = () => {
     // Redirect to WHOOP connection page
-    window.open('/connect-whoop', '_blank');
+    window.open("/connect-whoop", "_blank");
   };
 
   const updateSessionSets = api.workouts.updateSessionSets.useMutation({
     onSuccess: async () => {
-      console.log('Successfully updated session sets');
+      console.log("Successfully updated session sets");
       // Refresh the workout session data to show updated values
       await refetchWorkoutSession();
     },
     onError: (error) => {
-      console.error('Failed to update session sets:', error);
+      console.error("Failed to update session sets:", error);
     },
   });
 
-  // Create a mapping from normalized exercise names to original names
-  const _exerciseNameMapping = React.useMemo(() => {
-    const mapping: Record<string, string> = {};
-    if (workoutSession?.template?.exercises) {
-      for (const exercise of workoutSession.template.exercises) {
-        const normalizedName = exercise.exerciseName.toLowerCase().replace(/\s+/g, '_');
-        mapping[normalizedName] = exercise.exerciseName;
-      }
-    }
-    return mapping;
-  }, [workoutSession?.template?.exercises]);
+  const trackSuggestionInteraction =
+    api.suggestions.trackInteraction.useMutation();
 
-  const trackSuggestionInteraction = api.suggestions.trackInteraction.useMutation();
+  const handleAcceptSuggestion = async (
+    setId: string,
+    suggestion: { weight?: number; reps?: number },
+  ) => {
+    setAcceptedSuggestions((prev) => new Map(prev).set(setId, suggestion));
 
-  const handleAcceptSuggestion = async (setId: string, suggestion: { weight?: number; reps?: number }) => {
-    setAcceptedSuggestions(prev => new Map(prev).set(setId, suggestion));
-    
     // Extract template exercise ID and set index from setId format: "{templateExerciseId}_{setIndex}"
     const match = /^(\d+)_(\d+)$/.exec(setId);
     if (!match) {
-      console.error('Invalid setId format:', setId, 'Expected format: templateExerciseId_setIndex');
+      console.error(
+        "Invalid setId format:",
+        setId,
+        "Expected format: templateExerciseId_setIndex",
+      );
       return;
     }
-    
+
     const templateExerciseId = parseInt(match[1]!);
     const setIndex = parseInt(match[2]!) - 1; // Convert to 0-based index
-    
+
     if (!templateExerciseId) {
-      console.error('No template exercise ID captured from setId:', setId);
+      console.error("No template exercise ID captured from setId:", setId);
       return;
     }
-    
+
     // Find the template exercise to get the actual exercise name
-    const templateExercise = workoutSession?.template?.exercises.find(ex => ex.id === templateExerciseId);
-    
+    const templateExercise = workoutSession?.template?.exercises.find(
+      (ex) => ex.id === templateExerciseId,
+    );
+
     if (!templateExercise) {
-      console.error('Could not find template exercise for ID:', templateExerciseId);
+      console.error(
+        "Could not find template exercise for ID:",
+        templateExerciseId,
+      );
       return;
     }
-    
+
     const actualExerciseName = templateExercise.exerciseName;
 
     try {
       await updateSessionSets.mutateAsync({
         sessionId,
-        updates: [{
-          setId,
-          exerciseName: actualExerciseName,
-          setIndex, // Include set index for proper targeting
-          weight: suggestion.weight,
-          reps: suggestion.reps,
-          unit: 'kg', // Default to kg, could be made configurable
-        }],
+        updates: [
+          {
+            setId,
+            exerciseName: actualExerciseName,
+            setIndex, // Include set index for proper targeting
+            weight: suggestion.weight,
+            reps: suggestion.reps,
+            unit: "kg", // Default to kg, could be made configurable
+          },
+        ],
       });
 
       // Track the suggestion interaction for analytics
       const currentAdvice = advice;
       if (currentAdvice) {
-        const exercise = currentAdvice.per_exercise.find(ex => 
-          ex.exercise_id === templateExerciseId.toString() || 
-          ex.name === actualExerciseName
+        const exercise = currentAdvice.per_exercise.find(
+          (ex) =>
+            ex.exercise_id === templateExerciseId.toString() ||
+            ex.name === actualExerciseName,
         );
-        const set = exercise?.sets.find(s => s.set_id === setId);
-        
+        const set = exercise?.sets.find((s) => s.set_id === setId);
+
         if (set) {
           try {
             await trackSuggestionInteraction.mutateAsync({
@@ -310,31 +333,36 @@ export function WorkoutSessionWithHealthAdvice({
               suggestedReps: set.suggested_reps,
               suggestedRestSeconds: set.suggested_rest_seconds,
               suggestionRationale: set.rationale,
-              action: 'accepted',
+              action: "accepted",
               acceptedWeightKg: suggestion.weight,
               acceptedReps: suggestion.reps,
-              progressionType: userPreferences?.progression_type ?? 'adaptive',
+              progressionType: userPreferences?.progression_type ?? "adaptive",
               readinessScore: currentAdvice.readiness.rho,
-              plateauDetected: set.rationale.includes('Plateau Alert') || set.rationale.includes('plateau detected'),
+              plateauDetected:
+                set.rationale.includes("Plateau Alert") ||
+                set.rationale.includes("plateau detected"),
             });
           } catch (trackingError) {
-            console.warn('Failed to track suggestion interaction:', trackingError);
+            console.warn(
+              "Failed to track suggestion interaction:",
+              trackingError,
+            );
             // Don't fail the main operation if tracking fails
           }
         }
       }
-      
-      logger.info('suggestion_applied', { 
-        setId, 
-        suggestion, 
-        exerciseName: actualExerciseName, 
+
+      logger.info("suggestion_applied", {
+        setId,
+        suggestion,
+        exerciseName: actualExerciseName,
         setIndex,
-        sessionId 
+        sessionId,
       });
     } catch (error) {
-      logger.error('Failed to apply suggestion', error, { setId, sessionId });
+      logger.error("Failed to apply suggestion", error, { setId, sessionId });
       // Revert the UI state if the backend update failed
-      setAcceptedSuggestions(prev => {
+      setAcceptedSuggestions((prev) => {
         const newMap = new Map(prev);
         newMap.delete(setId);
         return newMap;
@@ -343,12 +371,12 @@ export function WorkoutSessionWithHealthAdvice({
   };
 
   const handleOverrideSuggestion = (setId: string) => {
-    setAcceptedSuggestions(prev => {
+    setAcceptedSuggestions((prev) => {
       const newMap = new Map(prev);
       newMap.delete(setId);
       return newMap;
     });
-    console.log('Overridden suggestion for set', setId);
+    console.log("Overridden suggestion for set", setId);
   };
 
   return (
@@ -362,25 +390,37 @@ export function WorkoutSessionWithHealthAdvice({
           size="lg"
         >
           {loading || isSubmittingWellness
-            ? 'Getting AI Advice...' 
-            : hasExistingAdvice 
-              ? '🔄 Refresh Workout Intelligence' 
-              : userPreferences?.enable_manual_wellness && !whoopStatus.isConnected
-                ? '🎯 Quick Wellness Check'
-                : '🤖 Get Workout Intelligence'
-          }
+            ? "Getting AI Advice..."
+            : hasExistingAdvice
+              ? "🔄 Refresh Workout Intelligence"
+              : userPreferences?.enable_manual_wellness &&
+                  !whoopStatus.isConnected
+                ? "🎯 Quick Wellness Check"
+                : "🤖 Get Workout Intelligence"}
         </Button>
       </div>
 
       {/* Health Advice Panel */}
       {showHealthAdvice && advice && (
-        <div className="space-y-3 sm:space-y-4 glass-surface p-3 sm:p-4" style={{backgroundColor: 'var(--color-bg-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border)'}}>
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center" style={{ color: 'var(--color-text)' }}>🏋️ Today's Workout Intelligence</h2>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div
+          className="glass-surface space-y-3 p-3 sm:space-y-4 sm:p-4"
+          style={{
+            backgroundColor: "var(--color-bg-surface)",
+            color: "var(--color-text)",
+            borderColor: "var(--color-border)",
+          }}
+        >
+          <h2
+            className="text-center text-lg font-bold sm:text-xl md:text-2xl"
+            style={{ color: "var(--color-text)" }}
+          >
+            🏋️ Today's Workout Intelligence
+          </h2>
+
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
             {/* Readiness and Overall Chance */}
             <div className="space-y-4">
-              <ReadinessIndicator 
+              <ReadinessIndicator
                 rho={advice.readiness.rho}
                 flags={advice.readiness.flags}
                 overloadMultiplier={advice.readiness.overload_multiplier}
@@ -393,15 +433,17 @@ export function WorkoutSessionWithHealthAdvice({
             </div>
 
             {/* AI Summary */}
-            <AISummary 
-              summary={advice.summary}
-              warnings={advice.warnings}
-            />
+            <AISummary summary={advice.summary} warnings={advice.warnings} />
           </div>
 
           {/* Exercise-specific suggestions */}
           <div className="space-y-3 sm:space-y-4">
-            <h3 className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Exercise Recommendations</h3>
+            <h3
+              className="text-lg font-semibold sm:text-xl"
+              style={{ color: "var(--color-text)" }}
+            >
+              Exercise Recommendations
+            </h3>
             {advice.per_exercise.map((exercise) => (
               <SetSuggestions
                 key={exercise.exercise_id}
@@ -417,7 +459,13 @@ export function WorkoutSessionWithHealthAdvice({
 
       {/* Error display */}
       {error && (
-        <div className="p-4 rounded-lg glass-surface" style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}>
+        <div
+          className="glass-surface rounded-lg p-4"
+          style={{
+            borderColor: "var(--color-danger)",
+            color: "var(--color-danger)",
+          }}
+        >
           <h3 className="font-semibold">Health Advice Error</h3>
           <p>{error}</p>
         </div>

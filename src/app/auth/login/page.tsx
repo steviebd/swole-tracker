@@ -10,10 +10,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "~/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,7 +48,11 @@ function LoginForm() {
     },
   });
 
-  const { handleSubmit, formState: { isSubmitting, errors }, setError } = form;
+  const {
+    handleSubmit,
+    formState: { isSubmitting, errors },
+    setError,
+  } = form;
 
   const onSubmit = async (data: LoginForm) => {
     try {
@@ -55,7 +71,7 @@ function LoginForm() {
 
       router.push(redirectTo);
       router.refresh();
-    } catch (_err) {
+    } catch {
       setError("root", {
         type: "manual",
         message: "An unexpected error occurred",
@@ -65,8 +81,10 @@ function LoginForm() {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="text-center space-y-2">
-        <CardTitle className="text-2xl sm:text-3xl font-bold">Sign In</CardTitle>
+      <CardHeader className="space-y-2 text-center">
+        <CardTitle className="text-2xl font-bold sm:text-3xl">
+          Sign In
+        </CardTitle>
         <CardDescription className="text-sm sm:text-base">
           Sign in to your Swole Tracker account
         </CardDescription>
@@ -74,13 +92,13 @@ function LoginForm() {
       <CardContent className="space-y-6">
         <div className="space-y-4">
           <GoogleAuthButton mode="signin" redirectTo={redirectTo} />
-          
+
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-card px-2 text-muted-foreground">
+              <span className="bg-card text-muted-foreground px-2">
                 Or continue with email
               </span>
             </div>
@@ -91,9 +109,7 @@ function LoginForm() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {errors.root && (
               <Alert variant="destructive">
-                <AlertDescription>
-                  {errors.root.message}
-                </AlertDescription>
+                <AlertDescription>{errors.root.message}</AlertDescription>
               </Alert>
             )}
 
@@ -104,11 +120,11 @@ function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="email" 
+                    <Input
+                      type="email"
                       placeholder="Enter your email"
                       autoComplete="email"
-                      {...field} 
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -123,11 +139,11 @@ function LoginForm() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="password" 
+                    <Input
+                      type="password"
                       placeholder="Enter your password"
                       autoComplete="current-password"
-                      {...field} 
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -147,11 +163,11 @@ function LoginForm() {
         </Form>
 
         <div className="text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Don't have an account?{" "}
             <Link
               href="/auth/register"
-              className="font-medium text-primary hover:text-primary/90 transition-colors"
+              className="text-primary hover:text-primary/90 font-medium transition-colors"
             >
               Sign up
             </Link>
@@ -164,20 +180,22 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 sm:px-6 lg:px-8 overflow-x-hidden w-full">
-      <Suspense fallback={
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-4">
-            <div className="h-6 sm:h-8 skeleton"></div>
-            <div className="h-4 skeleton"></div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-10 skeleton"></div>
-            <div className="h-10 skeleton"></div>
-            <div className="h-10 skeleton"></div>
-          </CardContent>
-        </Card>
-      }>
+    <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden px-4 sm:px-6 lg:px-8">
+      <Suspense
+        fallback={
+          <Card className="w-full max-w-md">
+            <CardHeader className="space-y-4">
+              <div className="skeleton h-6 sm:h-8"></div>
+              <div className="skeleton h-4"></div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="skeleton h-10"></div>
+              <div className="skeleton h-10"></div>
+              <div className="skeleton h-10"></div>
+            </CardContent>
+          </Card>
+        }
+      >
         <LoginForm />
       </Suspense>
     </div>

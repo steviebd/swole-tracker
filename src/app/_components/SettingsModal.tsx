@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
 import { api } from "~/trpc/react";
-import { trackWellnessSettingsChange } from '~/lib/analytics/health-advice';
+import { trackWellnessSettingsChange } from "~/lib/analytics/health-advice";
 import { useTheme } from "~/providers/ThemeProvider";
 
 type RightSwipeAction = "collapse_expand" | "none";
@@ -17,26 +17,32 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { restoreFocus } = useReturnFocus();
   const firstFocusRef = useRef<HTMLButtonElement>(null);
   const { theme, resolvedTheme, setTheme } = useTheme();
-  
+
   // All the original settings states
   const [notifications, setNotifications] = useState(true);
   const [workoutReminders, setWorkoutReminders] = useState(false);
   const [dataExport, setDataExport] = useState(false);
   const [manualWellnessEnabled, setManualWellnessEnabled] = useState(false);
   const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
-  
+
   // New states from Preferences modal
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
-  const [rightSwipeAction, setRightSwipeAction] = useState<RightSwipeAction>("collapse_expand");
-  const [defaultWeightUnit, setDefaultWeightUnit] = useState<"kg" | "lbs">("kg");
+  const [rightSwipeAction, setRightSwipeAction] =
+    useState<RightSwipeAction>("collapse_expand");
+  const [defaultWeightUnit, setDefaultWeightUnit] = useState<"kg" | "lbs">(
+    "kg",
+  );
   const [saving, setSaving] = useState(false);
 
   // Load user preferences
   const utils = api.useUtils();
-  const { data: preferences, isLoading } = api.preferences.get.useQuery(undefined, {
-    enabled: open,
-  });
-  
+  const { data: preferences, isLoading } = api.preferences.get.useQuery(
+    undefined,
+    {
+      enabled: open,
+    },
+  );
+
   const updateMutation = api.preferences.update.useMutation({
     onSuccess: async () => {
       await utils.preferences.get.invalidate();
@@ -57,21 +63,24 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   useEffect(() => {
     if (!isLoading && preferences) {
       setManualWellnessEnabled(preferences.enable_manual_wellness ?? false);
-      
+
       // Sync the preferences from the old modal
-      const predictive = "predictive_defaults_enabled" in preferences
-        ? Boolean(preferences.predictive_defaults_enabled ?? false)
-        : false;
+      const predictive =
+        "predictive_defaults_enabled" in preferences
+          ? Boolean(preferences.predictive_defaults_enabled ?? false)
+          : false;
       setPredictiveEnabled(predictive);
 
-      const rightSwipe = "right_swipe_action" in preferences
-        ? (preferences.right_swipe_action ?? "collapse_expand")
-        : "collapse_expand";
+      const rightSwipe =
+        "right_swipe_action" in preferences
+          ? (preferences.right_swipe_action ?? "collapse_expand")
+          : "collapse_expand";
       setRightSwipeAction(rightSwipe as RightSwipeAction);
 
-      const weightUnit = "defaultWeightUnit" in preferences
-        ? (preferences.defaultWeightUnit ?? "kg")
-        : "kg";
+      const weightUnit =
+        "defaultWeightUnit" in preferences
+          ? (preferences.defaultWeightUnit ?? "kg")
+          : "kg";
       setDefaultWeightUnit(weightUnit as "kg" | "lbs");
     }
   }, [isLoading, preferences]);
@@ -79,25 +88,37 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const saveDisabled = useMemo(() => {
     if (saving || isUpdatingPreferences) return true;
     if (!preferences) return false;
-    
-    const pe = "predictive_defaults_enabled" in preferences
-      ? Boolean(preferences.predictive_defaults_enabled ?? false)
-      : false;
-    const rs = "right_swipe_action" in preferences
-      ? ((preferences.right_swipe_action ?? "collapse_expand") as RightSwipeAction)
-      : ("collapse_expand" as RightSwipeAction);
-    const wu = "defaultWeightUnit" in preferences
-      ? (preferences.defaultWeightUnit ?? "kg")
-      : "kg";
+
+    const pe =
+      "predictive_defaults_enabled" in preferences
+        ? Boolean(preferences.predictive_defaults_enabled ?? false)
+        : false;
+    const rs =
+      "right_swipe_action" in preferences
+        ? ((preferences.right_swipe_action ??
+            "collapse_expand") as RightSwipeAction)
+        : ("collapse_expand" as RightSwipeAction);
+    const wu =
+      "defaultWeightUnit" in preferences
+        ? (preferences.defaultWeightUnit ?? "kg")
+        : "kg";
     const mw = preferences.enable_manual_wellness ?? false;
-    
+
     return (
       pe === predictiveEnabled &&
       rs === rightSwipeAction &&
       wu === defaultWeightUnit &&
       mw === manualWellnessEnabled
     );
-  }, [preferences, predictiveEnabled, rightSwipeAction, defaultWeightUnit, manualWellnessEnabled, saving, isUpdatingPreferences]);
+  }, [
+    preferences,
+    predictiveEnabled,
+    rightSwipeAction,
+    defaultWeightUnit,
+    manualWellnessEnabled,
+    saving,
+    isUpdatingPreferences,
+  ]);
 
   if (!open) return null;
 
@@ -112,26 +133,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const handleManualWellnessToggle = async () => {
     if (isUpdatingPreferences) return;
-    
+
     const previousValue = manualWellnessEnabled;
     const newValue = !manualWellnessEnabled;
     setManualWellnessEnabled(newValue);
     setIsUpdatingPreferences(true);
-    
+
     try {
       await updateMutation.mutateAsync({
         enable_manual_wellness: newValue,
       });
-      
+
       // Track analytics for wellness settings change
       trackWellnessSettingsChange({
-        userId: 'current_user', // In real implementation, get from auth context
+        userId: "current_user", // In real implementation, get from auth context
         enabled: newValue,
         previouslyEnabled: previousValue,
-        source: 'settings_modal'
+        source: "settings_modal",
       });
-      
-    } catch (_error) {
+    } catch {
       // Revert on error
       setManualWellnessEnabled(previousValue);
     }
@@ -169,7 +189,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="settings-title"
-      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[50000] flex min-h-screen items-center justify-center bg-black/70 p-2 backdrop-blur-sm sm:p-4"
       onClick={() => {
         restoreFocus();
         onClose();
@@ -184,29 +204,45 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         preventScroll
       >
         <div
-          className="w-full max-w-sm sm:max-w-md md:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl border rounded-lg mx-2 sm:mx-0"
+          className="mx-2 max-h-[95vh] w-full max-w-sm overflow-y-auto rounded-lg border shadow-2xl sm:mx-0 sm:max-h-[90vh] sm:max-w-md md:max-w-lg"
           style={{
-            background: 'var(--gradient-card, var(--color-bg-surface))',
-            borderColor: 'var(--color-border)',
+            background: "var(--gradient-card, var(--color-bg-surface))",
+            borderColor: "var(--color-border)",
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="border-b px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--color-border)' }}>
-            <h2 id="settings-title" className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
+          <div
+            className="border-b px-4 py-3 sm:px-6 sm:py-4"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <h2
+              id="settings-title"
+              className="text-lg font-bold"
+              style={{ color: "var(--color-text)" }}
+            >
               App Settings
             </h2>
           </div>
 
           {/* Content */}
-          <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-6">
+          <div className="space-y-4 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-5">
             {/* Predictive defaults toggle */}
             <section>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium" style={{ color: 'var(--color-text)' }}>Predictive defaults</div>
-                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    Prefill new sets with your most recent values for the exercise.
+                  <div
+                    className="font-medium"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    Predictive defaults
+                  </div>
+                  <div
+                    className="text-sm"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    Prefill new sets with your most recent values for the
+                    exercise.
                   </div>
                 </div>
                 <button
@@ -214,22 +250,24 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   aria-pressed={predictiveEnabled ? "true" : "false"}
                   onClick={() => setPredictiveEnabled((v) => !v)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       setPredictiveEnabled((v) => !v);
                     }
                   }}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{
-                    backgroundColor: predictiveEnabled 
-                      ? "var(--color-primary)"
-                      : "var(--color-border)",
-                    '--tw-ring-color': 'var(--color-primary)',
-                    '--tw-ring-offset-color': 'var(--color-bg-surface)'
-                  } as React.CSSProperties}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+                  style={
+                    {
+                      backgroundColor: predictiveEnabled
+                        ? "var(--color-primary)"
+                        : "var(--color-border)",
+                      "--tw-ring-color": "var(--color-primary)",
+                      "--tw-ring-offset-color": "var(--color-bg-surface)",
+                    } as React.CSSProperties
+                  }
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
+                    className={`bg-background inline-block h-6 w-6 transform rounded-full transition-transform ${
                       predictiveEnabled ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -240,12 +278,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Theme selector */}
             <section role="radiogroup" aria-labelledby="theme-label">
-              <div id="theme-label" className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Theme</div>
-              <div className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <div
+                id="theme-label"
+                className="mb-1 font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                Theme
+              </div>
+              <div
+                className="mb-2 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Choose your preferred color theme for the app.
               </div>
-              <div id="theme-description" className="sr-only">Select your preferred theme: System follows your device settings, Light uses a bright appearance, Dark uses a dark appearance</div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div id="theme-description" className="sr-only">
+                Select your preferred theme: System follows your device
+                settings, Light uses a bright appearance, Dark uses a dark
+                appearance
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {[
                   { value: "system", label: "System" },
                   { value: "light", label: "Light" },
@@ -254,7 +305,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <button
                     key={themeOption.value}
                     onClick={() => setTheme(themeOption.value as any)}
-                    className="relative z-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
+                    className="relative z-10 cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors"
                     style={
                       theme === themeOption.value
                         ? {
@@ -269,7 +320,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           }
                     }
                     role="radio"
-                    aria-checked={theme === themeOption.value ? "true" : "false"}
+                    aria-checked={
+                      theme === themeOption.value ? "true" : "false"
+                    }
                     aria-describedby="theme-description"
                   >
                     {themeOption.label}
@@ -286,11 +339,21 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Weight Unit Preference */}
             <section role="radiogroup" aria-labelledby="weight-unit-label">
-              <div id="weight-unit-label" className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Default Weight Unit</div>
-              <div id="weight-unit-description" className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <div
+                id="weight-unit-label"
+                className="mb-1 font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                Default Weight Unit
+              </div>
+              <div
+                id="weight-unit-description"
+                className="mb-2 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Choose your preferred weight unit for displaying exercises.
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {[
                   { value: "kg" as const, label: "Kilograms (kg)" },
                   { value: "lbs" as const, label: "Pounds (lbs)" },
@@ -299,7 +362,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     key={value}
                     type="button"
                     onClick={() => setDefaultWeightUnit(value)}
-                    className="relative z-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
+                    className="relative z-10 cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors"
                     style={
                       defaultWeightUnit === value
                         ? {
@@ -314,7 +377,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           }
                     }
                     role="radio"
-                    aria-checked={defaultWeightUnit === value ? "true" : "false"}
+                    aria-checked={
+                      defaultWeightUnit === value ? "true" : "false"
+                    }
                     aria-describedby="weight-unit-description"
                   >
                     {label}
@@ -325,17 +390,27 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Right swipe action selector */}
             <section role="radiogroup" aria-labelledby="swipe-action-label">
-              <div id="swipe-action-label" className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Right-swipe action</div>
-              <div id="swipe-action-description" className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <div
+                id="swipe-action-label"
+                className="mb-1 font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                Right-swipe action
+              </div>
+              <div
+                id="swipe-action-description"
+                className="mb-2 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Choose what happens when you right-swipe an exercise card.
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(["collapse_expand", "none"] as RightSwipeAction[]).map(
                   (opt) => (
                     <button
                       key={opt}
                       onClick={() => setRightSwipeAction(opt)}
-                      className="relative z-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer"
+                      className="relative z-10 cursor-pointer rounded-md border px-3 py-2 text-sm font-medium transition-colors"
                       style={
                         rightSwipeAction === opt
                           ? {
@@ -362,18 +437,27 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Connect Whoop */}
             <section>
-              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Connect Whoop</div>
-              <div id="whoop-description" className="mb-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <div
+                className="mb-1 font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                Connect Whoop
+              </div>
+              <div
+                id="whoop-description"
+                className="mb-2 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Connect your Whoop device to sync recovery and strain data.
               </div>
               <a
                 href="/connect-whoop"
-                className="inline-block px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+                className="inline-block rounded-lg border px-4 py-2 font-medium transition-colors duration-300"
                 aria-describedby="whoop-description"
                 style={{
-                  backgroundColor: 'var(--color-bg-surface)',
-                  borderColor: 'var(--color-border)',
-                  color: 'var(--color-text)',
+                  backgroundColor: "var(--color-bg-surface)",
+                  borderColor: "var(--color-border)",
+                  color: "var(--color-text)",
                 }}
               >
                 Connect Whoop
@@ -384,32 +468,43 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <section aria-labelledby="notifications-label">
               <div className="flex items-center justify-between">
                 <div>
-                  <div id="notifications-label" className="font-medium" style={{ color: 'var(--color-text)' }}>Push Notifications</div>
-                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  <div
+                    id="notifications-label"
+                    className="font-medium"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    Push Notifications
+                  </div>
+                  <div
+                    className="text-sm"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
                     Receive notifications about your workouts
                   </div>
                 </div>
                 <button
                   type="button"
                   aria-pressed={notifications ? "true" : "false"}
-                  onClick={() => setNotifications(v => !v)}
+                  onClick={() => setNotifications((v) => !v)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setNotifications(v => !v);
+                      setNotifications((v) => !v);
                     }
                   }}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{
-                    backgroundColor: notifications 
-                      ? "var(--color-primary)" 
-                      : "var(--color-text-muted)",
-                    '--tw-ring-color': 'var(--color-primary)',
-                    '--tw-ring-offset-color': 'var(--color-bg-surface)'
-                  } as React.CSSProperties}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+                  style={
+                    {
+                      backgroundColor: notifications
+                        ? "var(--color-primary)"
+                        : "var(--color-text-muted)",
+                      "--tw-ring-color": "var(--color-primary)",
+                      "--tw-ring-offset-color": "var(--color-bg-surface)",
+                    } as React.CSSProperties
+                  }
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
+                    className={`bg-background inline-block h-6 w-6 transform rounded-full transition-transform ${
                       notifications ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -422,32 +517,43 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <section aria-labelledby="reminders-label">
               <div className="flex items-center justify-between">
                 <div>
-                  <div id="reminders-label" className="font-medium" style={{ color: 'var(--color-text)' }}>Workout Reminders</div>
-                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  <div
+                    id="reminders-label"
+                    className="font-medium"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    Workout Reminders
+                  </div>
+                  <div
+                    className="text-sm"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
                     Get reminded when it's time to work out
                   </div>
                 </div>
                 <button
                   type="button"
                   aria-pressed={workoutReminders ? "true" : "false"}
-                  onClick={() => setWorkoutReminders(v => !v)}
+                  onClick={() => setWorkoutReminders((v) => !v)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setWorkoutReminders(v => !v);
+                      setWorkoutReminders((v) => !v);
                     }
                   }}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{
-                    backgroundColor: workoutReminders 
-                      ? "var(--color-primary)" 
-                      : "var(--color-text-muted)",
-                    '--tw-ring-color': 'var(--color-primary)',
-                    '--tw-ring-offset-color': 'var(--color-bg-surface)'
-                  } as React.CSSProperties}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
+                  style={
+                    {
+                      backgroundColor: workoutReminders
+                        ? "var(--color-primary)"
+                        : "var(--color-text-muted)",
+                      "--tw-ring-color": "var(--color-primary)",
+                      "--tw-ring-offset-color": "var(--color-bg-surface)",
+                    } as React.CSSProperties
+                  }
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
+                    className={`bg-background inline-block h-6 w-6 transform rounded-full transition-transform ${
                       workoutReminders ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -460,13 +566,27 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <section aria-labelledby="wellness-label">
               <div className="flex items-center justify-between">
                 <div>
-                  <div id="wellness-label" className="font-medium" style={{ color: 'var(--color-text)' }}>Manual Wellness Input</div>
-                  <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    Enable quick wellness checks for personalized workout recommendations
+                  <div
+                    id="wellness-label"
+                    className="font-medium"
+                    style={{ color: "var(--color-text)" }}
+                  >
+                    Manual Wellness Input
+                  </div>
+                  <div
+                    className="text-sm"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    Enable quick wellness checks for personalized workout
+                    recommendations
                   </div>
                   {manualWellnessEnabled && (
-                    <div className="text-xs mt-1" style={{ color: 'var(--color-success)' }}>
-                      ✓ Enhanced workout intelligence with 2-input wellness system
+                    <div
+                      className="mt-1 text-xs"
+                      style={{ color: "var(--color-success)" }}
+                    >
+                      ✓ Enhanced workout intelligence with 2-input wellness
+                      system
                     </div>
                   )}
                 </div>
@@ -475,23 +595,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   aria-pressed={manualWellnessEnabled ? "true" : "false"}
                   onClick={handleManualWellnessToggle}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       handleManualWellnessToggle();
                     }
                   }}
                   disabled={isUpdatingPreferences}
-                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{
-                    backgroundColor: manualWellnessEnabled 
-                      ? "var(--color-primary)" 
-                      : "var(--color-text-muted)",
-                    '--tw-ring-color': 'var(--color-primary)',
-                    '--tw-ring-offset-color': 'var(--color-bg-surface)'
-                  } as React.CSSProperties}
+                  className="inline-flex h-8 w-14 items-center rounded-full transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+                  style={
+                    {
+                      backgroundColor: manualWellnessEnabled
+                        ? "var(--color-primary)"
+                        : "var(--color-text-muted)",
+                      "--tw-ring-color": "var(--color-primary)",
+                      "--tw-ring-offset-color": "var(--color-bg-surface)",
+                    } as React.CSSProperties
+                  }
                 >
                   <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-background transition-transform ${
+                    className={`bg-background inline-block h-6 w-6 transform rounded-full transition-transform ${
                       manualWellnessEnabled ? "translate-x-7" : "translate-x-1"
                     }`}
                   />
@@ -499,17 +621,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </button>
               </div>
               {manualWellnessEnabled && (
-                <div className="mt-3 p-3 rounded-lg text-sm" style={{ 
-                  backgroundColor: 'color-mix(in oklab, var(--color-primary) 5%, var(--color-bg-surface))',
-                  borderColor: 'var(--color-primary)'
-                }}>
-                  <div className="font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+                <div
+                  className="mt-3 rounded-lg p-3 text-sm"
+                  style={{
+                    backgroundColor:
+                      "color-mix(in oklab, var(--color-primary) 5%, var(--color-bg-surface))",
+                    borderColor: "var(--color-primary)",
+                  }}
+                >
+                  <div
+                    className="mb-1 font-medium"
+                    style={{ color: "var(--color-text)" }}
+                  >
                     🎯 Enhanced Workout Intelligence
                   </div>
-                  <div style={{ color: 'var(--color-text-muted)' }}>
-                    • 30-second wellness check before workouts<br/>
-                    • Personalized recommendations based on energy & sleep<br/>
-                    • Works alongside WHOOP integration for best results
+                  <div style={{ color: "var(--color-text-muted)" }}>
+                    • 30-second wellness check before workouts
+                    <br />
+                    • Personalized recommendations based on energy & sleep
+                    <br />• Works alongside WHOOP integration for best results
                   </div>
                 </div>
               )}
@@ -517,18 +647,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Data Export */}
             <section>
-              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Data Export</div>
-              <div className="mb-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <div
+                className="mb-1 font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                Data Export
+              </div>
+              <div
+                className="mb-3 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Export your workout data as CSV or JSON
               </div>
               <button
                 onClick={handleExportData}
                 disabled={dataExport}
-                className="px-4 py-3 sm:py-2 rounded-lg border font-medium transition-colors duration-300 disabled:opacity-50 min-h-[44px] flex items-center justify-center w-full sm:w-auto"
+                className="flex min-h-[44px] w-full items-center justify-center rounded-lg border px-4 py-3 font-medium transition-colors duration-300 disabled:opacity-50 sm:w-auto sm:py-2"
                 style={{
-                  backgroundColor: 'var(--color-bg-surface)',
-                  borderColor: 'var(--color-border)',
-                  color: 'var(--color-text)',
+                  backgroundColor: "var(--color-bg-surface)",
+                  borderColor: "var(--color-border)",
+                  color: "var(--color-text)",
                 }}
               >
                 {dataExport ? "Exporting..." : "Export Data"}
@@ -537,27 +675,35 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             {/* Account */}
             <section>
-              <div className="mb-1 font-medium" style={{ color: 'var(--color-text)' }}>Account</div>
-              <div className="mb-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <div
+                className="mb-1 font-medium"
+                style={{ color: "var(--color-text)" }}
+              >
+                Account
+              </div>
+              <div
+                className="mb-3 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Manage your account settings and data
               </div>
               <div className="space-y-2">
                 <button
-                  className="block w-full text-left px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+                  className="block w-full rounded-lg border px-4 py-2 text-left font-medium transition-colors duration-300"
                   style={{
-                    backgroundColor: 'var(--color-bg-surface)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text)',
+                    backgroundColor: "var(--color-bg-surface)",
+                    borderColor: "var(--color-border)",
+                    color: "var(--color-text)",
                   }}
                 >
                   Change Password
                 </button>
                 <button
-                  className="block w-full text-left px-4 py-2 rounded-lg border font-medium transition-colors duration-300"
+                  className="block w-full rounded-lg border px-4 py-2 text-left font-medium transition-colors duration-300"
                   style={{
-                    borderColor: 'var(--color-danger)',
-                    color: 'var(--color-danger)',
-                    backgroundColor: 'transparent',
+                    borderColor: "var(--color-danger)",
+                    color: "var(--color-danger)",
+                    backgroundColor: "transparent",
                   }}
                 >
                   Delete Account
@@ -566,27 +712,37 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </section>
 
             {/* App Info */}
-            <section className="pt-4 border-t transition-colors duration-300" style={{ borderColor: 'var(--color-border)' }}>
-              <div className="text-center text-sm transition-colors duration-300" style={{ color: 'var(--color-text-muted)' }}>
-                Swole Tracker v1.0.0<br />
+            <section
+              className="border-t pt-4 transition-colors duration-300"
+              style={{ borderColor: "var(--color-border)" }}
+            >
+              <div
+                className="text-center text-sm transition-colors duration-300"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Swole Tracker v1.0.0
+                <br />
                 Built with Next.js & tRPC
               </div>
             </section>
           </div>
 
           {/* Footer */}
-          <div className="flex flex-col sm:flex-row justify-end gap-2 border-t px-4 sm:px-6 py-3 sm:py-4 transition-colors duration-300" style={{ borderColor: 'var(--color-border)' }}>
+          <div
+            className="flex flex-col justify-end gap-2 border-t px-4 py-3 transition-colors duration-300 sm:flex-row sm:px-6 sm:py-4"
+            style={{ borderColor: "var(--color-border)" }}
+          >
             <button
               ref={firstFocusRef}
               onClick={() => {
                 restoreFocus();
                 onClose();
               }}
-              className="px-4 py-3 sm:py-2 rounded-lg border font-medium transition-colors duration-300 min-h-[44px] flex items-center justify-center flex-1 sm:flex-none"
+              className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg border px-4 py-3 font-medium transition-colors duration-300 sm:flex-none sm:py-2"
               style={{
-                backgroundColor: 'var(--color-bg-surface)',
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-text)',
+                backgroundColor: "var(--color-bg-surface)",
+                borderColor: "var(--color-border)",
+                color: "var(--color-text)",
               }}
               disabled={saving || isUpdatingPreferences}
             >
@@ -594,7 +750,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </button>
             <button
               onClick={() => void handleSave()}
-              className="px-4 py-3 sm:py-2 rounded-lg font-medium transition-colors duration-300 disabled:opacity-50 min-h-[44px] flex items-center justify-center flex-1 sm:flex-none"
+              className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg px-4 py-3 font-medium transition-colors duration-300 disabled:opacity-50 sm:flex-none sm:py-2"
               style={{
                 backgroundColor: "var(--color-primary)",
                 borderColor: "var(--color-primary)",

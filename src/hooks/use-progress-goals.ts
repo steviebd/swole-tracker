@@ -5,7 +5,7 @@ import { api } from "~/trpc/react";
 
 /**
  * Hook for goal tracking and progress management
- * 
+ *
  * Features:
  * - Weekly and monthly goal calculations
  * - Progress tracking with achievement states
@@ -56,17 +56,20 @@ export function useProgressGoals({
   customTargets,
 }: UseProgressGoalsOptions): ProgressGoals {
   // Fetch data based on time range
-  const { data: workoutDates, isLoading: workoutDatesLoading, error: workoutDatesError } =
-    api.progress.getWorkoutDates.useQuery({
-      timeRange,
-    });
+  const {
+    data: workoutDates,
+    isLoading: workoutDatesLoading,
+    error: workoutDatesError,
+  } = api.progress.getWorkoutDates.useQuery({
+    timeRange,
+  });
 
   const { data: volumeData, isLoading: volumeLoading } =
     api.progress.getVolumeProgression.useQuery({
       timeRange,
     });
 
-  const { data: consistencyData, isLoading: consistencyLoading } =
+  const { isLoading: consistencyLoading } =
     api.progress.getConsistencyStats.useQuery({
       timeRange,
     });
@@ -96,17 +99,21 @@ export function useProgressGoals({
 
     // Calculate current values
     const currentWorkouts = workoutDates?.length || 0;
-    const currentVolume = volumeData?.reduce((sum, session) => sum + (session.totalVolume || 0), 0) || 0;
-    
+    const currentVolume =
+      volumeData?.reduce(
+        (sum, session) => sum + (session.totalVolume || 0),
+        0,
+      ) || 0;
+
     // Calculate consistency (unique days with workouts)
     const uniqueWorkoutDays = new Set(
-      workoutDates?.map(date => new Date(date).toDateString()) || []
+      workoutDates?.map((date) => new Date(date).toDateString()) || [],
     ).size;
 
     // Helper function to determine goal status
     const getGoalStatus = (current: number, target: number) => {
       const percentage = (current / target) * 100;
-      
+
       if (percentage >= 120) {
         return {
           status: "exceeded" as const,
@@ -142,7 +149,10 @@ export function useProgressGoals({
 
     // Create goals array
     const workoutGoalStatus = getGoalStatus(currentWorkouts, targets.workouts);
-    const consistencyGoalStatus = getGoalStatus(uniqueWorkoutDays, targets.consistency);
+    const consistencyGoalStatus = getGoalStatus(
+      uniqueWorkoutDays,
+      targets.consistency,
+    );
     const volumeGoalStatus = getGoalStatus(currentVolume, targets.volume);
 
     const goals: Goal[] = [
@@ -185,9 +195,12 @@ export function useProgressGoals({
     ];
 
     // Calculate summary statistics
-    const achievedGoals = goals.filter(goal => goal.percentage >= 100).length;
-    const exceededGoals = goals.filter(goal => goal.status === "exceeded").length;
-    const totalProgress = goals.reduce((sum, goal) => sum + goal.percentage, 0) / goals.length;
+    const achievedGoals = goals.filter((goal) => goal.percentage >= 100).length;
+    const exceededGoals = goals.filter(
+      (goal) => goal.status === "exceeded",
+    ).length;
+    const totalProgress =
+      goals.reduce((sum, goal) => sum + goal.percentage, 0) / goals.length;
 
     const summary = {
       totalGoals: goals.length,
@@ -248,9 +261,11 @@ export function getGoalColorScheme(status: Goal["status"]) {
 /**
  * Utility to get appropriate celebration message based on multiple goals
  */
-export function getCelebrationMessage(summary: ProgressGoals["summary"]): string | null {
+export function getCelebrationMessage(
+  summary: ProgressGoals["summary"],
+): string | null {
   const { achievedGoals, exceededGoals, totalGoals, overallProgress } = summary;
-  
+
   if (exceededGoals === totalGoals) {
     return "🏆 All goals exceeded! You're crushing it!";
   } else if (achievedGoals === totalGoals) {
@@ -262,6 +277,6 @@ export function getCelebrationMessage(summary: ProgressGoals["summary"]): string
   } else if (overallProgress >= 50) {
     return "👍 Good momentum! You're halfway there!";
   }
-  
+
   return null;
 }

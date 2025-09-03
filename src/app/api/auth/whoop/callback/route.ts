@@ -10,7 +10,9 @@ import { env } from "~/env";
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.redirect(
         `${request.nextUrl.origin}/connect-whoop?error=unauthorized`,
@@ -121,8 +123,6 @@ export async function GET(request: NextRequest) {
         ),
       );
 
-    const isFirstConnection = existingIntegration.length === 0;
-
     if (existingIntegration.length > 0) {
       await db
         .update(userIntegrations)
@@ -130,7 +130,9 @@ export async function GET(request: NextRequest) {
           accessToken: tok.access_token!,
           refreshToken: tok.refresh_token ?? null,
           expiresAt,
-          scope: tok.scope ?? "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
+          scope:
+            tok.scope ??
+            "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
           updatedAt: new Date(),
         })
@@ -147,7 +149,9 @@ export async function GET(request: NextRequest) {
         accessToken: tok.access_token!,
         refreshToken: tok.refresh_token ?? null,
         expiresAt,
-        scope: tok.scope ?? "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
+        scope:
+          tok.scope ??
+          "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
         isActive: true,
       });
     }

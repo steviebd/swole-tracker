@@ -8,7 +8,9 @@ import { env } from "~/env";
  * Use in Server Components, Route Handlers, and Server Actions.
  * Supports both cookie-based auth (web) and header-based auth (mobile).
  */
-export async function createServerSupabaseClient(headers?: Headers): Promise<SupabaseClient<any, "public", any>> {
+export async function createServerSupabaseClient(
+  headers?: Headers,
+): Promise<SupabaseClient<any, "public", any>> {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -19,11 +21,10 @@ export async function createServerSupabaseClient(headers?: Headers): Promise<Sup
   }
 
   // Check for Authorization header (mobile apps)
-  const authHeader = headers?.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    const accessToken = authHeader.slice(7); // Remove 'Bearer ' prefix
-    console.log('Server-side auth: Using Bearer token from header');
-    
+  const authHeader = headers?.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    console.log("Server-side auth: Using Bearer token from header");
+
     const { createClient } = await import("@supabase/supabase-js");
     const client = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
@@ -32,24 +33,24 @@ export async function createServerSupabaseClient(headers?: Headers): Promise<Sup
         },
       },
     });
-    
+
     return client;
   }
 
   // Fallback to cookie-based auth (web browsers)
-  console.log('Server-side auth: Using cookie-based auth');
+  console.log("Server-side auth: Using cookie-based auth");
   const cookieStore = await cookies();
 
   // Debug: Check what cookies are available
   const allCookies = cookieStore.getAll();
-  const supabaseCookies = allCookies.filter(cookie => 
-    cookie.name.includes('sb-') || cookie.name.includes('supabase')
+  const supabaseCookies = allCookies.filter(
+    (cookie) => cookie.name.includes("sb-") || cookie.name.includes("supabase"),
   );
-  
-  console.log('Server-side cookies debug:', {
+
+  console.log("Server-side cookies debug:", {
     totalCookies: allCookies.length,
     supabaseCookies: supabaseCookies.length,
-    cookieNames: supabaseCookies.map(c => c.name),
+    cookieNames: supabaseCookies.map((c) => c.name),
   });
 
   return createServerClient<any, "public", any>(supabaseUrl, supabaseAnonKey, {

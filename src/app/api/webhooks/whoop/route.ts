@@ -4,7 +4,6 @@ import {
   verifyWhoopWebhook,
   extractWebhookHeaders,
   type WhoopWebhookPayload,
-  type WhoopWebhookEventType,
 } from "~/lib/whoop-webhook";
 import { db } from "~/server/db";
 import {
@@ -130,7 +129,9 @@ async function fetchWhoopData<T>(
   try {
     // Check if this is a test webhook (user_id: 12345)
     if (userId === 12345) {
-      console.log(`🧪 Test mode detected for ${endpoint}/${entityId} - skipping API call`);
+      console.log(
+        `🧪 Test mode detected for ${endpoint}/${entityId} - skipping API call`,
+      );
       return null;
     }
 
@@ -174,7 +175,10 @@ async function fetchWhoopData<T>(
     const data = await response.json();
     return data as T;
   } catch (error) {
-    console.error(`Error fetching ${endpoint}/${entityId} from WHOOP API:`, error);
+    console.error(
+      `Error fetching ${endpoint}/${entityId} from WHOOP API:`,
+      error,
+    );
     return null;
   }
 }
@@ -209,7 +213,11 @@ async function fetchWorkoutFromWhoop(
     };
   }
 
-  return await fetchWhoopData<WhoopWorkoutData>("activity/workout", workoutId, userId);
+  return await fetchWhoopData<WhoopWorkoutData>(
+    "activity/workout",
+    workoutId,
+    userId,
+  );
 }
 
 async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
@@ -329,7 +337,11 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
     const isTestMode = payload.user_id === 12345;
     const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
-    const recoveryData = await fetchWhoopData<WhoopRecoveryData>("recovery", recoveryId, payload.user_id);
+    const recoveryData = await fetchWhoopData<WhoopRecoveryData>(
+      "recovery",
+      recoveryId,
+      payload.user_id,
+    );
     if (!recoveryData) {
       console.error(`Could not fetch recovery data for ${recoveryId}`);
       return;
@@ -341,20 +353,27 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
       .from(whoopRecovery)
       .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
 
-    const datePart = recoveryData.created_at.split('T')[0] || new Date().toISOString().split('T')[0]!;
+    const datePart =
+      recoveryData.created_at.split("T")[0] ||
+      new Date().toISOString().split("T")[0]!;
 
     if (existingRecovery) {
       // Update existing recovery
-      console.log(`Updating existing recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Updating existing recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db
         .update(whoopRecovery)
         .set({
           cycle_id: recoveryData.cycle_id || null,
           date: datePart,
           recovery_score: recoveryData.score?.recovery_score || null,
-          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-          hrv_rmssd_baseline: recoveryData.score?.hrv_baseline?.toString() || null,
-          resting_heart_rate: recoveryData.score?.resting_heart_rate_milli || null,
+          hrv_rmssd_milli:
+            recoveryData.score?.hrv_rmssd_milli?.toString() || null,
+          hrv_rmssd_baseline:
+            recoveryData.score?.hrv_baseline?.toString() || null,
+          resting_heart_rate:
+            recoveryData.score?.resting_heart_rate_milli || null,
           resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
           raw_data: recoveryData,
           updatedAt: new Date(),
@@ -362,16 +381,21 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
         .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
     } else {
       // Insert new recovery
-      console.log(`Inserting new recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Inserting new recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db.insert(whoopRecovery).values({
         user_id: dbUserId,
         whoop_recovery_id: recoveryId,
         cycle_id: recoveryData.cycle_id || null,
         date: datePart,
         recovery_score: recoveryData.score?.recovery_score || null,
-        hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-        hrv_rmssd_baseline: recoveryData.score?.hrv_baseline?.toString() || null,
-        resting_heart_rate: recoveryData.score?.resting_heart_rate_milli || null,
+        hrv_rmssd_milli:
+          recoveryData.score?.hrv_rmssd_milli?.toString() || null,
+        hrv_rmssd_baseline:
+          recoveryData.score?.hrv_baseline?.toString() || null,
+        resting_heart_rate:
+          recoveryData.score?.resting_heart_rate_milli || null,
         resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
         raw_data: recoveryData,
         timezone_offset: null,
@@ -394,7 +418,11 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
     const isTestMode = payload.user_id === 12345;
     const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
-    const sleepData = await fetchWhoopData<WhoopSleepData>("activity/sleep", sleepId, payload.user_id);
+    const sleepData = await fetchWhoopData<WhoopSleepData>(
+      "activity/sleep",
+      sleepId,
+      payload.user_id,
+    );
     if (!sleepData) {
       console.error(`Could not fetch sleep data for ${sleepId}`);
       return;
@@ -408,44 +436,69 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
 
     if (existingSleep) {
       // Update existing sleep
-      console.log(`Updating existing sleep ${sleepId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Updating existing sleep ${sleepId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db
         .update(whoopSleep)
         .set({
           start: new Date(sleepData.start),
           end: new Date(sleepData.end),
           timezone_offset: sleepData.timezone_offset || null,
-          sleep_performance_percentage: sleepData.score?.sleep_performance_percentage || null,
-          total_sleep_time_milli: sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
-          sleep_efficiency_percentage: sleepData.score?.sleep_efficiency_percentage?.toString() || null,
-          slow_wave_sleep_time_milli: sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli || null,
-          rem_sleep_time_milli: sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
-          light_sleep_time_milli: sleepData.score?.stage_summary?.total_light_sleep_time_milli || null,
-          wake_time_milli: sleepData.score?.stage_summary?.total_awake_time_milli || null,
-          arousal_time_milli: sleepData.score?.stage_summary?.total_awake_time_milli || null,
-          disturbance_count: sleepData.score?.stage_summary?.disturbance_count || null,
+          sleep_performance_percentage:
+            sleepData.score?.sleep_performance_percentage || null,
+          total_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
+          sleep_efficiency_percentage:
+            sleepData.score?.sleep_efficiency_percentage?.toString() || null,
+          slow_wave_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
+            null,
+          rem_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
+          light_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_light_sleep_time_milli ||
+            null,
+          wake_time_milli:
+            sleepData.score?.stage_summary?.total_awake_time_milli || null,
+          arousal_time_milli:
+            sleepData.score?.stage_summary?.total_awake_time_milli || null,
+          disturbance_count:
+            sleepData.score?.stage_summary?.disturbance_count || null,
           raw_data: sleepData,
           updatedAt: new Date(),
         })
         .where(eq(whoopSleep.whoop_sleep_id, sleepId));
     } else {
       // Insert new sleep
-      console.log(`Inserting new sleep ${sleepId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Inserting new sleep ${sleepId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db.insert(whoopSleep).values({
         user_id: dbUserId,
         whoop_sleep_id: sleepId,
         start: new Date(sleepData.start),
         end: new Date(sleepData.end),
         timezone_offset: sleepData.timezone_offset || null,
-        sleep_performance_percentage: sleepData.score?.sleep_performance_percentage || null,
-        total_sleep_time_milli: sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
-        sleep_efficiency_percentage: sleepData.score?.sleep_efficiency_percentage?.toString() || null,
-        slow_wave_sleep_time_milli: sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli || null,
-        rem_sleep_time_milli: sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
-        light_sleep_time_milli: sleepData.score?.stage_summary?.total_light_sleep_time_milli || null,
-        wake_time_milli: sleepData.score?.stage_summary?.total_awake_time_milli || null,
-        arousal_time_milli: sleepData.score?.stage_summary?.total_awake_time_milli || null,
-        disturbance_count: sleepData.score?.stage_summary?.disturbance_count || null,
+        sleep_performance_percentage:
+          sleepData.score?.sleep_performance_percentage || null,
+        total_sleep_time_milli:
+          sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
+        sleep_efficiency_percentage:
+          sleepData.score?.sleep_efficiency_percentage?.toString() || null,
+        slow_wave_sleep_time_milli:
+          sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
+          null,
+        rem_sleep_time_milli:
+          sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
+        light_sleep_time_milli:
+          sleepData.score?.stage_summary?.total_light_sleep_time_milli || null,
+        wake_time_milli:
+          sleepData.score?.stage_summary?.total_awake_time_milli || null,
+        arousal_time_milli:
+          sleepData.score?.stage_summary?.total_awake_time_milli || null,
+        disturbance_count:
+          sleepData.score?.stage_summary?.disturbance_count || null,
         sleep_latency_milli: null,
         raw_data: sleepData,
       });
@@ -467,7 +520,11 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
     const isTestMode = payload.user_id === 12345;
     const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
-    const cycleData = await fetchWhoopData<WhoopCycleData>("cycle", cycleId, payload.user_id);
+    const cycleData = await fetchWhoopData<WhoopCycleData>(
+      "cycle",
+      cycleId,
+      payload.user_id,
+    );
     if (!cycleData) {
       console.error(`Could not fetch cycle data for ${cycleId}`);
       return;
@@ -481,7 +538,9 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
 
     if (existingCycle) {
       // Update existing cycle
-      console.log(`Updating existing cycle ${cycleId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Updating existing cycle ${cycleId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db
         .update(whoopCycles)
         .set({
@@ -498,7 +557,9 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
         .where(eq(whoopCycles.whoop_cycle_id, cycleId));
     } else {
       // Insert new cycle
-      console.log(`Inserting new cycle ${cycleId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Inserting new cycle ${cycleId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db.insert(whoopCycles).values({
         user_id: dbUserId,
         whoop_cycle_id: cycleId,
@@ -529,9 +590,15 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
     const isTestMode = payload.user_id === 12345;
     const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
-    const measurementData = await fetchWhoopData<WhoopBodyMeasurementData>("user/measurement/body", measurementId, payload.user_id);
+    const measurementData = await fetchWhoopData<WhoopBodyMeasurementData>(
+      "user/measurement/body",
+      measurementId,
+      payload.user_id,
+    );
     if (!measurementData) {
-      console.error(`Could not fetch body measurement data for ${measurementId}`);
+      console.error(
+        `Could not fetch body measurement data for ${measurementId}`,
+      );
       return;
     }
 
@@ -541,11 +608,15 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       .from(whoopBodyMeasurement)
       .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
 
-    const measurementDate = measurementData.created_at.split('T')[0] || new Date().toISOString().split('T')[0]!;
+    const measurementDate =
+      measurementData.created_at.split("T")[0] ||
+      new Date().toISOString().split("T")[0]!;
 
     if (existingMeasurement) {
       // Update existing measurement
-      console.log(`Updating existing measurement ${measurementId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Updating existing measurement ${measurementId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db
         .update(whoopBodyMeasurement)
         .set({
@@ -559,7 +630,9 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
         .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
     } else {
       // Insert new measurement
-      console.log(`Inserting new measurement ${measurementId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`);
+      console.log(
+        `Inserting new measurement ${measurementId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+      );
       await db.insert(whoopBodyMeasurement).values({
         user_id: dbUserId,
         whoop_measurement_id: measurementId,
@@ -571,7 +644,9 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       });
     }
 
-    console.log(`Successfully processed body measurement update for ${measurementId}`);
+    console.log(
+      `Successfully processed body measurement update for ${measurementId}`,
+    );
   } catch (error) {
     console.error(`Error processing body measurement update:`, error);
     throw error;
@@ -660,29 +735,31 @@ export async function POST(request: NextRequest) {
       case "workout.updated":
         await processWorkoutUpdate(payload);
         break;
-        
+
       case "recovery.updated":
         await processRecoveryUpdate(payload);
         break;
-        
+
       case "sleep.updated":
         await processSleepUpdate(payload);
         break;
-        
+
       case "cycle.updated":
         await processCycleUpdate(payload);
         break;
-        
+
       case "body_measurement.updated":
         await processBodyMeasurementUpdate(payload);
         break;
-        
+
       case "user_profile.updated":
         // Profile updates are handled by the dedicated profile webhook endpoint
         // but we can also handle them here for completeness
-        console.log(`📋 User profile update received for user ${payload.user_id}, entity ${payload.id}`);
+        console.log(
+          `📋 User profile update received for user ${payload.user_id}, entity ${payload.id}`,
+        );
         break;
-        
+
       default:
         // Update webhook event status for ignored events
         if (webhookEventId) {

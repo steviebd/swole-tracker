@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
 import Link from "next/link";
 import { GoogleAuthButton } from "~/app/_components/google-auth-button";
@@ -10,22 +9,36 @@ import { z } from "zod";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "~/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 
-const registerSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const registerSchema = z
+  .object({
+    email: z.string().email("Please enter a valid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const _router = useRouter();
   const supabase = createBrowserSupabaseClient();
 
   const form = useForm<RegisterForm>({
@@ -37,7 +50,12 @@ export default function RegisterPage() {
     },
   });
 
-  const { handleSubmit, formState: { isSubmitting, errors }, setError, setValue } = form;
+  const {
+    handleSubmit,
+    formState: { isSubmitting, errors },
+    setError,
+    setValue,
+  } = form;
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -63,9 +81,10 @@ export default function RegisterPage() {
       setValue("confirmPassword", "");
       setError("root", {
         type: "success",
-        message: "Check your email for a verification link to complete your registration.",
+        message:
+          "Check your email for a verification link to complete your registration.",
       });
-    } catch (_err) {
+    } catch {
       setError("root", {
         type: "manual",
         message: "An unexpected error occurred",
@@ -74,24 +93,22 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center overflow-x-hidden w-full px-4">
+    <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
+        <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-bold">Sign Up</CardTitle>
-          <CardDescription>
-            Create your Swole Tracker account
-          </CardDescription>
+          <CardDescription>Create your Swole Tracker account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
             <GoogleAuthButton mode="signup" />
-            
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-card px-2 text-muted-foreground">
+                <span className="bg-card text-muted-foreground px-2">
                   Or continue with email
                 </span>
               </div>
@@ -101,10 +118,12 @@ export default function RegisterPage() {
           <Form {...form}>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {errors.root && (
-                <Alert variant={errors.root.type === "success" ? "default" : "destructive"}>
-                  <AlertDescription>
-                    {errors.root.message}
-                  </AlertDescription>
+                <Alert
+                  variant={
+                    errors.root.type === "success" ? "default" : "destructive"
+                  }
+                >
+                  <AlertDescription>{errors.root.message}</AlertDescription>
                 </Alert>
               )}
 
@@ -115,11 +134,11 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
+                      <Input
+                        type="email"
                         placeholder="Enter your email"
                         autoComplete="email"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -134,11 +153,11 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
+                      <Input
+                        type="password"
                         placeholder="Enter your password"
                         autoComplete="new-password"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -153,11 +172,11 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="password" 
+                      <Input
+                        type="password"
                         placeholder="Confirm your password"
                         autoComplete="new-password"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -177,11 +196,11 @@ export default function RegisterPage() {
           </Form>
 
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Already have an account?{" "}
               <Link
                 href="/auth/login"
-                className="font-medium text-primary hover:text-primary/90 transition-colors"
+                className="text-primary hover:text-primary/90 font-medium transition-colors"
               >
                 Sign in
               </Link>
