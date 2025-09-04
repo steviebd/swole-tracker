@@ -74,7 +74,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={describedBy}
             className={cn(
               "text-xs",
-              invalid ? "text-destructive" : "text-muted-foreground",
+              invalid ? "text-destructive text-danger" : "text-muted-foreground text-secondary",
             )}
           >
             {hint}

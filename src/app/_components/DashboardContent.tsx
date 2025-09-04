@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "~/providers/AuthProvider";
 import { useTheme } from "~/providers/ThemeProvider";
-import { GlassHeader } from "./ui/GlassHeader";
+import { GlassHeader } from "~/components/ui/glass-header";
 import { ProgressionModal } from "./ProgressionModal";
 import { SettingsModal } from "./SettingsModal";
 import { HomePageContent } from "./HomePageContent";

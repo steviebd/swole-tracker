@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "~/lib/supabase-server";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
-import { GlassHeader } from "~/app/_components/ui/GlassHeader";
+import { GlassHeader } from "~/components/ui/glass-header";
 import { Button } from "~/components/ui/button";
 
 interface WorkoutSessionPageProps {

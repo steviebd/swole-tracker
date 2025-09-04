@@ -222,21 +222,23 @@ describe("templatesRouter", () => {
       mockDb.query.workoutTemplates.findFirst = vi.fn().mockResolvedValue(null); // No duplicate
 
       // Mock template creation
-      const mockInsertBuilder = {
+      const mockTemplateInsertBuilder = {
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([mockTemplate]),
         }),
       };
-      mockDb.insert = vi.fn().mockReturnValue(mockInsertBuilder);
 
-      // Mock exercise creation with separate insert call
+      // Mock exercise creation
       const mockExerciseInsertBuilder = {
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue(mockExercises),
         }),
       };
-      mockDb.insert.mockReturnValueOnce(mockInsertBuilder); // First call for template
-      mockDb.insert.mockReturnValueOnce(mockExerciseInsertBuilder); // Second call for exercises
+
+      // Mock insert calls - first for template, second for exercises
+      mockDb.insert
+        .mockReturnValueOnce(mockTemplateInsertBuilder as any)
+        .mockReturnValueOnce(mockExerciseInsertBuilder as any);
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.create({

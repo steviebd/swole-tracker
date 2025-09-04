@@ -46,16 +46,13 @@ describe("healthAdviceRouter", () => {
   };
 
   const mockHealthAdviceRequest = {
-    exercises: [
-      {
-        exercise_name: "Bench Press",
-        sets: [
-          { weight: 80, reps: 8, unit: "kg" },
-          { weight: 80, reps: 6, unit: "kg" },
-        ],
-      },
-    ],
-    readiness: {
+    session_id: "session-123",
+    user_profile: {
+      experience_level: "intermediate" as const,
+      min_increment_kg: 2.5,
+      preferred_rpe: 7,
+    },
+    whoop: {
       recovery_score: 85,
       sleep_performance: 90,
       hrv_now_ms: 45,
@@ -64,9 +61,41 @@ describe("healthAdviceRouter", () => {
       rhr_baseline_bpm: 65,
       yesterday_strain: 15,
     },
+    workout_plan: {
+      exercises: [
+        {
+          exercise_id: "bench-press-1",
+          name: "Bench Press",
+          tags: ["strength" as const],
+          sets: [
+            {
+              set_id: "set-1",
+              target_reps: 8,
+              target_weight_kg: 80,
+              target_rpe: 7,
+            },
+            {
+              set_id: "set-2",
+              target_reps: 6,
+              target_weight_kg: 80,
+              target_rpe: 8,
+            },
+          ],
+        },
+      ],
+    },
+    prior_bests: {
+      by_exercise_id: {
+        "bench-press-1": {
+          best_total_volume_kg: 640,
+          best_e1rm_kg: 95,
+        },
+      },
+    },
   };
 
   const mockHealthAdviceResponse = {
+    session_id: "session-123",
     readiness: {
       rho: 0.85,
       overload_multiplier: 1.1,
@@ -75,17 +104,30 @@ describe("healthAdviceRouter", () => {
     session_predicted_chance: 0.75,
     per_exercise: [
       {
-        exercise_name: "Bench Press",
+        exercise_id: "bench-press-1",
+        name: "Bench Press",
+        predicted_chance_to_beat_best: 0.7,
+        planned_volume_kg: 640,
+        best_volume_kg: 640,
         sets: [
           {
-            weight: 82.5,
-            reps: 8,
-            unit: "kg",
+            set_id: "set-1",
+            suggested_weight_kg: 82.5,
+            suggested_reps: 8,
+            suggested_rest_seconds: 180,
             rationale: "Linear progression",
           },
         ],
       },
     ],
+    summary: "Good recovery state, moderate progression recommended",
+    warnings: [],
+    recovery_recommendations: {
+      recommended_rest_between_sets: "2-3 minutes",
+      recommended_rest_between_sessions: "48 hours",
+      session_duration_estimate: "45 minutes",
+      additional_recovery_notes: ["Maintain current sleep schedule"],
+    },
   };
 
   beforeEach(() => {
@@ -165,15 +207,43 @@ describe("healthAdviceRouter", () => {
         ...mockHealthAdviceResponse,
         per_exercise: [
           {
-            exercise_name: "Bench Press",
+            exercise_id: "bench-press-1",
+            name: "Bench Press",
+            predicted_chance_to_beat_best: 0.7,
+            planned_volume_kg: 640,
+            best_volume_kg: 640,
             sets: [
-              { weight: 82.5, reps: 8, unit: "kg", rationale: "Progression" },
-              { weight: 85, reps: 6, unit: "kg", rationale: "Overload" },
+              {
+                set_id: "set-1",
+                suggested_weight_kg: 82.5,
+                suggested_reps: 8,
+                suggested_rest_seconds: 180,
+                rationale: "Progression",
+              },
+              {
+                set_id: "set-2",
+                suggested_weight_kg: 85,
+                suggested_reps: 6,
+                suggested_rest_seconds: 240,
+                rationale: "Overload",
+              },
             ],
           },
           {
-            exercise_name: "Squat",
-            sets: [{ weight: 100, reps: 5, unit: "kg", rationale: "Strength" }],
+            exercise_id: "squat-1",
+            name: "Squat",
+            predicted_chance_to_beat_best: 0.6,
+            planned_volume_kg: 500,
+            best_volume_kg: 500,
+            sets: [
+              {
+                set_id: "set-3",
+                suggested_weight_kg: 100,
+                suggested_reps: 5,
+                suggested_rest_seconds: 300,
+                rationale: "Strength",
+              },
+            ],
           },
         ],
       };
@@ -383,7 +453,22 @@ describe("healthAdviceRouter", () => {
 
   describe("getHistory", () => {
     it("should return user's health advice history", async () => {
-      const mockHistory = [
+      const mockHistory: Array<{
+        id: number;
+        user_id: string;
+        sessionId: number;
+        request: typeof mockHealthAdviceRequest;
+        response: typeof mockHealthAdviceResponse;
+        readiness_rho: string;
+        overload_multiplier: string;
+        session_predicted_chance: string;
+        user_accepted_suggestions: number;
+        total_suggestions: number;
+        response_time_ms: number | null;
+        model_used: string | null;
+        createdAt: Date;
+        updatedAt: Date | null;
+      }> = [
         {
           id: 1,
           user_id: "user-123",
@@ -438,7 +523,22 @@ describe("healthAdviceRouter", () => {
     });
 
     it("should use default values for pagination", async () => {
-      const mockHistory = [];
+      const mockHistory: Array<{
+        id: number;
+        user_id: string;
+        sessionId: number;
+        request: typeof mockHealthAdviceRequest;
+        response: typeof mockHealthAdviceResponse;
+        readiness_rho: string;
+        overload_multiplier: string;
+        session_predicted_chance: string;
+        user_accepted_suggestions: number;
+        total_suggestions: number;
+        response_time_ms: number | null;
+        model_used: string | null;
+        createdAt: Date;
+        updatedAt: Date | null;
+      }> = [];
 
       db.select = vi.fn().mockReturnValue({
         from: vi.fn().mockReturnValue({

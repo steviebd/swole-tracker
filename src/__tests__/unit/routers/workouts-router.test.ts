@@ -58,7 +58,31 @@ describe("workoutsRouter", () => {
 
   describe("getRecent", () => {
     it("should return recent workouts for user", async () => {
-      const mockWorkouts: any[] = [
+      const mockWorkouts: Array<{
+        id: number;
+        user_id: string;
+        templateId: number;
+        workoutDate: string;
+        createdAt: Date;
+        updatedAt: Date | null;
+        template: {
+          id: number;
+          name: string;
+          exercises: Array<{
+            id: number;
+            exerciseName: string;
+            orderIndex: number;
+          }>;
+        };
+        exercises: Array<{
+          id: number;
+          exerciseName: string;
+          weight: number;
+          reps: number;
+          sets: number;
+          unit: string;
+        }>;
+      }> = [
         {
           id: 1,
           user_id: "user-123",
@@ -99,7 +123,31 @@ describe("workoutsRouter", () => {
     });
 
     it("should use default limit of 10", async () => {
-      const mockWorkouts = [];
+      const mockWorkouts: Array<{
+        id: number;
+        user_id: string;
+        templateId: number;
+        workoutDate: string;
+        createdAt: Date;
+        updatedAt: Date | null;
+        template: {
+          id: number;
+          name: string;
+          exercises: Array<{
+            id: number;
+            exerciseName: string;
+            orderIndex: number;
+          }>;
+        };
+        exercises: Array<{
+          id: number;
+          exerciseName: string;
+          weight: number;
+          reps: number;
+          sets: number;
+          unit: string;
+        }>;
+      }> = [];
       db.query.workoutSessions.findMany = vi
         .fn()
         .mockResolvedValue(mockWorkouts);
