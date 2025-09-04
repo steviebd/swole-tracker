@@ -5,13 +5,13 @@ import {
   extractWebhookHeaders,
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
+import { getValidAccessToken } from "~/lib/token-rotation";
 import { db } from "~/server/db";
 import {
-  userIntegrations,
   webhookEvents,
   whoopCycles,
 } from "~/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 interface WhoopCycleData {
   id: string;
@@ -51,20 +51,11 @@ async function fetchCycleFromWhoop(
       };
     }
 
-    // Get user's integration to fetch their access token
-    const [integration] = await db
-      .select()
-      .from(userIntegrations)
-      .where(
-        and(
-          eq(userIntegrations.user_id, userId.toString()),
-          eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
-        ),
-      );
+    // Get valid access token (handles decryption and rotation automatically)
+    const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
 
-    if (!integration) {
-      console.error(`No active Whoop integration found for user ${userId}`);
+    if (!tokenResult.token) {
+      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
       return null;
     }
 
@@ -73,7 +64,7 @@ async function fetchCycleFromWhoop(
       `https://api.prod.whoop.com/developer/v1/cycle/${cycleId}`,
       {
         headers: {
-          Authorization: `Bearer ${integration.accessToken}`,
+          Authorization: `Bearer ${tokenResult.token}`,
           "Content-Type": "application/json",
         },
       },

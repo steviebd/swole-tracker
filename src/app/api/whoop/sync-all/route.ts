@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
-import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import {
   userIntegrations,
@@ -13,8 +12,8 @@ import {
   whoopBodyMeasurement,
 } from "~/server/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
-import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
+import { getValidAccessToken } from "~/lib/token-rotation";
 
 interface WhoopWorkout {
   id: string;
@@ -115,73 +114,6 @@ interface WhoopProfile {
   last_name: string;
 }
 
-type IntegrationRecord = {
-  id: number;
-  accessToken: string;
-  refreshToken: string | null;
-  expiresAt: string | Date | null;
-};
-
-async function refreshTokenIfNeeded(integration: IntegrationRecord) {
-  const expiryBuffer = 5 * 60 * 1000; // 5 minutes
-  const now = new Date();
-
-  // Check if token needs refresh (5 minute buffer)
-
-  if (
-    integration.expiresAt &&
-    new Date(integration.expiresAt).getTime() - now.getTime() < expiryBuffer
-  ) {
-    if (!integration.refreshToken) {
-      throw new Error("Access token expired and no refresh token available");
-    }
-
-    const authorizationServer: oauth.AuthorizationServer = {
-      issuer: "https://api.prod.whoop.com",
-      authorization_endpoint: "https://api.prod.whoop.com/oauth/oauth2/auth",
-      token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
-    };
-
-    const refreshRequest = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: integration.refreshToken,
-        client_id: env.WHOOP_CLIENT_ID!,
-        client_secret: env.WHOOP_CLIENT_SECRET!,
-      }),
-    };
-
-    const response = await fetch(
-      authorizationServer.token_endpoint!,
-      refreshRequest,
-    );
-
-    if (!response.ok) {
-      throw new Error(`Token refresh failed: ${response.status}`);
-    }
-
-    const tokens = await response.json();
-
-    // Update integration with new tokens
-    await db
-      .update(userIntegrations)
-      .set({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || integration.refreshToken,
-        expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-        updatedAt: new Date(),
-      })
-      .where(eq(userIntegrations.id, integration.id));
-
-    return tokens.access_token as string;
-  }
-
-  return integration.accessToken;
-}
 
 // Fetch data using WHOOP API v2 collection endpoints with incremental sync
 async function fetchWhoopDataV2<T>(
@@ -758,20 +690,21 @@ export async function POST(_req: NextRequest) {
       );
     }
 
-    // Refresh token if needed
-    let accessToken: string;
-    try {
-      accessToken = await refreshTokenIfNeeded(integration);
-    } catch (error) {
+    // Get valid access token (handles decryption and rotation automatically)
+    const tokenResult = await getValidAccessToken(user.id, "whoop");
+    
+    if (!tokenResult.token) {
       return NextResponse.json(
         {
-          error: "Token refresh failed",
-          details: String(error),
+          error: "Token validation failed",
+          details: tokenResult.error || "No valid token available",
           needsReauthorization: true,
         },
         { status: 401 },
       );
     }
+    
+    const accessToken = tokenResult.token;
 
     // Sync all data types
     const results = {

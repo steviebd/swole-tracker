@@ -7,11 +7,11 @@ import {
 } from "~/lib/whoop-webhook";
 import { db } from "~/server/db";
 import {
-  userIntegrations,
   webhookEvents,
   whoopBodyMeasurement,
 } from "~/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { getValidAccessToken } from "~/lib/token-rotation";
 
 interface WhoopBodyMeasurementData {
   id: string;
@@ -41,20 +41,11 @@ async function fetchBodyMeasurementFromWhoop(
       };
     }
 
-    // Get user's integration to fetch their access token
-    const [integration] = await db
-      .select()
-      .from(userIntegrations)
-      .where(
-        and(
-          eq(userIntegrations.user_id, userId.toString()),
-          eq(userIntegrations.provider, "whoop"),
-          eq(userIntegrations.isActive, true),
-        ),
-      );
-
-    if (!integration) {
-      console.error(`No active Whoop integration found for user ${userId}`);
+    // Get valid access token (handles decryption and rotation automatically)
+    const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
+    
+    if (!tokenResult.token) {
+      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
       return null;
     }
 
@@ -63,7 +54,7 @@ async function fetchBodyMeasurementFromWhoop(
       `https://api.prod.whoop.com/developer/v1/user/measurement/body/${measurementId}`,
       {
         headers: {
-          Authorization: `Bearer ${integration.accessToken}`,
+          Authorization: `Bearer ${tokenResult.token}`,
           "Content-Type": "application/json",
         },
       },

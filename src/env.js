@@ -28,6 +28,7 @@ export const env = createEnv({
     // Whoop Integration
     WHOOP_CLIENT_ID: z.string().optional(),
     WHOOP_CLIENT_SECRET: z.string().optional(),
+    WHOOP_REDIRECT_URI: z.string().url().optional(),
     WHOOP_SYNC_RATE_LIMIT_PER_HOUR: z.coerce.number().default(10),
     // Whoop Webhooks (using the same client secret for webhook verification)
     WHOOP_WEBHOOK_SECRET: z.string().optional(),
@@ -81,6 +82,7 @@ export const env = createEnv({
     // AI_GATEWAY_PROMPT_HEALTH: process.env.AI_GATEWAY_PROMPT_HEALTH, // Removed: Now using TypeScript module
     WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID,
     WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
+    WHOOP_REDIRECT_URI: process.env.WHOOP_REDIRECT_URI,
     WHOOP_SYNC_RATE_LIMIT_PER_HOUR: process.env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
     WHOOP_WEBHOOK_SECRET: process.env.WHOOP_WEBHOOK_SECRET,
     RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR:

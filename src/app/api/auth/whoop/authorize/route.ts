@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     await cleanupUserStates(user.id, "whoop");
 
     // Generate secure state parameter with additional validation data
-    const redirectUri = `${request.nextUrl.origin}/api/auth/whoop/callback`;
+    const redirectUri = env.WHOOP_REDIRECT_URI || `${request.nextUrl.origin}/api/auth/whoop/callback`;
     const clientIp = getClientIp(request.headers);
     const userAgent = request.headers.get("user-agent") ?? "unknown";
     
