@@ -1,37 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies
-vi.mock("~/server/db", () => ({
-  db: {
-    insert: vi.fn(),
-    select: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    from: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    offset: vi.fn(),
-    values: vi.fn(),
-    onConflictDoUpdate: vi.fn(),
-    returning: vi.fn(),
-  },
-}));
-
-vi.mock("~/lib/logger", () => ({
-  logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
-
-vi.mock("drizzle-orm", () => ({
-  eq: vi.fn(),
-  and: vi.fn(),
-  desc: vi.fn(),
-}));
-
 // Import after mocking
 import { healthAdviceRouter } from "~/server/api/routers/health-advice";
 import { db } from "~/server/db";

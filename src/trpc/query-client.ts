@@ -9,14 +9,14 @@ export const createQueryClient = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // Enhanced caching and performance settings
-        staleTime: 5 * 60 * 1000, // 5 minutes default
-        gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache much longer for offline
-        refetchOnWindowFocus: true, // Refetch when user returns to tab
-        refetchOnReconnect: true, // Refetch when internet reconnects
-        refetchInterval: false, // Disable automatic polling by default
+        // Optimized caching for performance and reduced server load
+        staleTime: 10 * 60 * 1000, // 10 minutes - longer default to reduce requests
+        gcTime: 60 * 60 * 1000, // 1 hour - longer cache retention for better offline experience
+        refetchOnWindowFocus: false, // Disable to reduce unnecessary requests
+        refetchOnReconnect: true, // Keep for offline recovery
+        refetchInterval: false, // No polling by default
         retry: (failureCount, error) => {
-          // More conservative retry logic to prevent infinite loops
+          // Very conservative retry logic
           if (error && typeof error === "object" && "data" in error) {
             const errorData = error.data as any;
             // Don't retry on authentication or authorization errors
@@ -24,19 +24,16 @@ export const createQueryClient = () => {
               return false;
             }
           }
-          // Reduce retry count to prevent excessive requests
-          if (failureCount < 2) {
-            return true;
-          }
-          return false;
+          // Only retry once to reduce server load
+          return failureCount < 1;
         },
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-        // Show cached data while refetching in background
-        refetchOnMount: "always",
-        networkMode: "offlineFirst", // Use cached data when offline
+        retryDelay: (attemptIndex) => Math.min(2000 * 2 ** attemptIndex, 10000), // Slower, less aggressive retries
+        // Use cached data aggressively
+        refetchOnMount: false, // Don't refetch if data exists and is not stale
+        networkMode: "offlineFirst", // Prioritize cached data
       },
       mutations: {
-        // Enhanced mutation settings for better UX
+        // Conservative mutation retry to prevent duplicate operations
         retry: (failureCount, error) => {
           // Don't retry on 4xx errors (client errors)
           if (error && "status" in error && typeof error.status === "number") {
@@ -44,9 +41,9 @@ export const createQueryClient = () => {
               return false;
             }
           }
-          return failureCount < 2; // Retry once for network issues
+          return failureCount < 1; // Only retry once to prevent duplicate mutations
         },
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+        retryDelay: (attemptIndex) => Math.min(3000 * 2 ** attemptIndex, 10000), // Slower retries
         networkMode: "offlineFirst",
       },
       dehydrate: {

@@ -1,44 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies
-vi.mock("~/server/db", () => ({
-  db: {
-    query: {
-      workoutSessions: {
-        findMany: vi.fn(),
-        findFirst: vi.fn(),
-      },
-      exerciseLinks: {
-        findFirst: vi.fn(),
-        findMany: vi.fn(),
-      },
-    },
-    insert: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    select: vi.fn(),
-    from: vi.fn(),
-    where: vi.fn(),
-    values: vi.fn(),
-    returning: vi.fn(),
-  },
-}));
-
-vi.mock("~/lib/rate-limit-middleware", () => ({
-  workoutRateLimit: vi.fn(),
-}));
-
-vi.mock("drizzle-orm", () => ({
-  eq: vi.fn(),
-  desc: vi.fn(),
-  and: vi.fn(),
-  ne: vi.fn(),
-  inArray: vi.fn(),
-  gte: vi.fn(),
-  sql: vi.fn(),
-  relations: vi.fn(),
-}));
-
 // Import after mocking
 import { workoutsRouter } from "~/server/api/routers/workouts";
 import { db } from "~/server/db";

@@ -4,8 +4,9 @@ import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
 import { Card } from "~/components/ui/card";
 import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
 import { calculateStreak, getStreakBadge, formatAchievementBadge, type Achievement } from "~/lib/achievements";
-import { motion } from "framer-motion";
+import { m as motion } from "framer-motion";
 import { cn } from "~/lib/utils";
+import { memo, useMemo, useEffect, useState } from "react";
 
 interface StatsCard {
   id: string;
@@ -17,7 +18,10 @@ interface StatsCard {
   badge?: Achievement | null;
 }
 
-export function StatsCards() {
+export const StatsCards = memo(function StatsCards() {
+  // Animation fallback state to ensure cards are visible
+  const [animationReady, setAnimationReady] = useState(false);
+
   // Use shared workout data to avoid duplicate API calls
   const {
     thisWeekWorkouts: workoutDates,
@@ -26,8 +30,16 @@ export function StatsCards() {
     isLoading,
   } = useSharedWorkoutData();
 
-  // Calculate stats from real data
-  const calculateStats = () => {
+  // Ensure cards become visible after a short delay if animation fails
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimationReady(true);
+    }, 100); // 100ms fallback timer - more aggressive
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Memoize expensive calculations
+  const stats = useMemo(() => {
     const workoutsThisWeek = workoutDates.length || 0;
 
     // Calculate average duration from volume data (estimate based on exercises and sets)
@@ -58,12 +70,10 @@ export function StatsCards() {
       streakInfo,
       streakBadge,
     };
-  };
+  }, [workoutDates, volumeData, monthWorkouts]); // Only recalculate when data changes
 
-  const stats = calculateStats();
-
-  // Card definitions with icons and styling
-  const cards: StatsCard[] = [
+  // Memoize card definitions to prevent re-renders
+  const cards: StatsCard[] = useMemo(() => [
     {
       id: "workouts",
       title: "This Week",
@@ -97,7 +107,9 @@ export function StatsCards() {
       icon: Calendar,
       gradient: "gradient-stats-amber",
     },
-  ];
+  ], [stats]); // Only recreate cards when stats change
+
+  console.log('StatsCards render - isLoading:', isLoading, 'workoutDates:', workoutDates, 'volumeData:', volumeData);
 
   if (isLoading) {
     const skeletonCards = [
@@ -108,7 +120,7 @@ export function StatsCards() {
     ];
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {skeletonCards.map((skeleton, i) => (
           <motion.div
             key={i}
@@ -160,7 +172,14 @@ export function StatsCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6">
+    <div 
+      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4"
+      style={{
+        // Ensure container is visible regardless of animation state
+        opacity: 1,
+        transform: 'translateY(0px)',
+      }}
+    >
       {cards.map((card) => {
         const IconComponent = card.icon;
         
@@ -190,6 +209,12 @@ export function StatsCards() {
               transition: { duration: 0.2, ease: "easeOut" }
             }}
             whileTap={{ scale: 0.98 }}
+            style={{
+              // Fallback to ensure visibility if animation fails
+              opacity: animationReady ? '1 !important' : undefined,
+              transform: animationReady ? 'translateY(0px) !important' : undefined,
+            }}
+            className={animationReady ? '!opacity-100 !translate-y-0' : ''}
           >
             <Card
               surface="card"
@@ -256,4 +281,4 @@ export function StatsCards() {
       })}
     </div>
   );
-}
+});

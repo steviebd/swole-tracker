@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { requireEnv } from "~/lib/env-utils";
 
 describe("requireEnv", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    vi.resetModules();
+    // Reset process.env to original state
     process.env = { ...originalEnv };
   });
 

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { type User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
 import { useRouter } from "next/navigation";
+import { logger } from "~/lib/logger";
 
 interface AuthContextType {
   user: User | null;
@@ -22,24 +23,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      console.log('AuthProvider: Getting initial session...');
+      logger.debug('Getting initial session');
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('AuthProvider: Initial session result:', {
+        logger.debug('Initial session result', {
           hasSession: !!session,
           hasUser: !!session?.user,
-          userId: session?.user?.id,
-          error: error?.message
+          userId: session?.user?.id
         });
         
         if (error) {
-          console.warn("Session error:", error.message);
+          logger.warn("Session error", { error: error.message });
           // Clear any stale session data
           await supabase.auth.signOut();
         }
         setUser(session?.user ?? null);
       } catch (error) {
-        console.error("Failed to get session:", error);
+        logger.error("Failed to get session", error);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -52,14 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id ? 'User logged in' : 'No user');
+      logger.debug('Auth state change', { event, hasUser: !!session?.user?.id });
       
       if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
+        logger.debug('Token refreshed successfully');
       } else if (event === 'SIGNED_OUT') {
-        console.log('User signed out');
+        logger.debug('User signed out');
       } else if (event === 'SIGNED_IN') {
-        console.log('User signed in');
+        logger.debug('User signed in');
       }
       
       setUser(session?.user ?? null);
@@ -80,9 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sign out from Supabase
       await supabase.auth.signOut();
       
-      console.log("User signed out and cache cleared");
+      logger.info("User signed out and cache cleared");
     } catch (error) {
-      console.error("Error during sign out:", error);
+      logger.error("Error during sign out", error);
       
       // Still attempt to sign out even if cache clearing fails
       await supabase.auth.signOut();
@@ -91,8 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const value = useMemo(() => ({
+    user,
+    isLoading,
+    signOut
+  }), [user, isLoading]);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

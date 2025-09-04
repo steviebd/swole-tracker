@@ -2,20 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 
-// Mock localStorage
-const mockLocalStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  key: vi.fn(),
-  length: 0,
-};
-
-Object.defineProperty(window, "localStorage", {
-  value: mockLocalStorage,
-  writable: true,
-});
+// localStorage is mocked in setup.ts
+const mockLocalStorage = (globalThis as any).window.localStorage;
 
 describe("useLocalStorage", () => {
   beforeEach(() => {
@@ -206,7 +194,7 @@ describe("useLocalStorage", () => {
   });
 
   it("should update when key changes", () => {
-    mockLocalStorage.getItem.mockImplementation((key) => {
+    mockLocalStorage.getItem.mockImplementation((key: string) => {
       if (key === "key1") return JSON.stringify("value1");
       if (key === "key2") return JSON.stringify("value2");
       return null;

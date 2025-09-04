@@ -2,13 +2,27 @@
 
 import { useAuth } from "~/providers/AuthProvider";
 import { SignInButtons } from "~/app/_components/sign-in-buttons";
-import { StatsCards } from "~/app/_components/StatsCards";
-import { QuickActions } from "~/components/quick-actions";
-import { WeeklyProgress } from "~/components/weekly-progress";
-import { RecentWorkouts } from "~/components/recent-workouts";
-import { motion } from "framer-motion";
+import { Suspense, lazy } from "react";
+import { m as motion } from "framer-motion";
 import { useReducedMotion } from "~/hooks/use-reduced-motion";
 import { StrengthIcon, FireIcon } from "~/components/icons/fitness-icons";
+
+// Dynamic imports for heavy components
+import { StatsCards } from "~/app/_components/StatsCards";
+const QuickActions = lazy(() => import("~/components/quick-actions").then(module => ({ default: module.QuickActions })));
+const WeeklyProgress = lazy(() => import("~/components/weekly-progress").then(module => ({ default: module.WeeklyProgress })));
+const RecentWorkouts = lazy(() => import("~/components/recent-workouts").then(module => ({ default: module.RecentWorkouts })));
+
+// Loading component for dashboard sections
+const DashboardLoading = () => (
+  <div className="animate-pulse space-y-4">
+    <div className="h-32 bg-muted/50 rounded-lg"></div>
+    <div className="grid grid-cols-2 gap-4">
+      <div className="h-16 bg-muted/50 rounded"></div>
+      <div className="h-16 bg-muted/50 rounded"></div>
+    </div>
+  </div>
+);
 
 export default function Home() {
   const { user, isLoading } = useAuth();
@@ -87,15 +101,21 @@ export default function Home() {
     );
   }
 
-  // Template-inspired dashboard layout
+  // Template-inspired dashboard layout with progressive loading
   return (
     <div className="min-h-screen bg-app-gradient">
       <main className="container mx-auto px-6 sm:px-8 py-8 space-y-10">
+        <Suspense fallback={<div className="h-16 bg-muted/50 rounded-lg animate-pulse"></div>}>
+          <QuickActions />
+        </Suspense>
         <StatsCards />
-        <QuickActions />
         <div className="grid lg:grid-cols-2 gap-8">
-          <WeeklyProgress />
-          <RecentWorkouts />
+          <Suspense fallback={<div className="h-64 bg-muted/50 rounded-lg animate-pulse"></div>}>
+            <WeeklyProgress />
+          </Suspense>
+          <Suspense fallback={<div className="h-64 bg-muted/50 rounded-lg animate-pulse"></div>}>
+            <RecentWorkouts />
+          </Suspense>
         </div>
       </main>
     </div>

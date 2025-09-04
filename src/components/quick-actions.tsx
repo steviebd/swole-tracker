@@ -2,6 +2,7 @@ import { Play, BarChart3, Dumbbell } from "lucide-react"
 import { Card, CardContent } from "~/components/ui/card"
 import { Button } from "~/components/ui/button"
 import Link from "next/link"
+import { memo } from "react"
 
 const actions = [
   {
@@ -27,7 +28,7 @@ const actions = [
   },
 ]
 
-export function QuickActions() {
+export const QuickActions = memo(function QuickActions() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {actions.map((action, index) => {
@@ -60,4 +61,4 @@ export function QuickActions() {
       })}
     </div>
   )
-}
+});

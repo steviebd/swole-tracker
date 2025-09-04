@@ -1,25 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the browser Supabase client
-const mockSupabaseClient = vi.fn();
-
-vi.mock("~/lib/supabase-browser", () => ({
-  createBrowserSupabaseClient: mockSupabaseClient,
-}));
-
-// Mock the workout operations module
-vi.mock("~/lib/workout-operations", () => ({
-  WorkoutOperationsClient: vi.fn().mockImplementation(() => ({
-    getWorkoutTemplates: vi.fn(),
-    createWorkoutTemplate: vi.fn(),
-    getRecentWorkouts: vi.fn(),
-    getWorkoutSession: vi.fn(),
-    createWorkoutSession: vi.fn(),
-    getSessionExercises: vi.fn(),
-    addSessionExercise: vi.fn(),
-  })),
-}));
-
 // Import after mocking
 import { WorkoutOperationsClient } from "~/lib/workout-operations";
 

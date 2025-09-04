@@ -78,6 +78,9 @@ export const workoutSessions = createTable(
     index("session_user_id_idx").on(t.user_id),
     index("session_template_id_idx").on(t.templateId),
     index("session_workout_date_idx").on(t.workoutDate),
+    // Critical composite indexes for progress queries
+    index("session_user_date_idx").on(t.user_id, t.workoutDate),
+    index("session_user_date_desc_idx").on(t.user_id, t.workoutDate.desc()),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 
@@ -118,10 +121,18 @@ export const sessionExercises = createTable(
     index("session_exercise_session_id_idx").on(t.sessionId),
     index("session_exercise_template_exercise_id_idx").on(t.templateExerciseId),
     index("session_exercise_name_idx").on(t.exerciseName),
-    // Phase 3 addition: Index for exercise progression queries
+    // Critical composite indexes for performance
+    index("session_exercise_user_exercise_idx").on(t.user_id, t.exerciseName),
     index("session_exercise_user_exercise_date_idx").on(t.user_id, t.exerciseName, t.sessionId),
-    // Optimization: Index for user + template exercise queries
     index("session_exercise_user_template_idx").on(t.user_id, t.templateExerciseId),
+    // Indexes for volume and progression queries (most critical)
+    index("session_exercise_user_weight_idx").on(t.user_id, t.weight.desc()),
+    index("session_exercise_user_exercise_weight_idx").on(t.user_id, t.exerciseName, t.weight.desc()),
+    // Performance indexes for computed columns
+    index("session_exercise_user_one_rm_desc_idx").on(t.user_id, t.one_rm_estimate.desc()),
+    index("session_exercise_user_volume_desc_idx").on(t.user_id, t.volume_load.desc()),
+    index("session_exercise_user_exercise_one_rm_idx").on(t.user_id, t.exerciseName, t.one_rm_estimate.desc()),
+    index("session_exercise_user_exercise_volume_idx").on(t.user_id, t.exerciseName, t.volume_load.desc()),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 

@@ -2,6 +2,24 @@ import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll, vi } from "vitest";
 import { setupServer } from "msw/node";
 
+// Setup global window object for jsdom environment
+(globalThis as any).window = {
+  navigator: {
+    onLine: true,
+  },
+  localStorage: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    key: vi.fn(),
+    length: 0,
+  },
+  location: {
+    href: "http://localhost:3000",
+  },
+};
+
 // Mock Next.js router
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -71,6 +89,103 @@ vi.mock("~/lib/analytics", () => ({
   trackEvent: vi.fn(),
   trackPageView: vi.fn(),
 }));
+
+// Mock posthog-js
+vi.mock("posthog-js", () => ({
+  default: {
+    capture: vi.fn(),
+  },
+}));
+
+// Mock rate-limit
+vi.mock("~/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn(),
+  cleanupExpiredRateLimits: vi.fn(),
+}));
+
+// Mock supabase-browser
+vi.mock("~/lib/supabase-browser", () => ({
+  createBrowserSupabaseClient: vi.fn(),
+}));
+
+// Mock workout-operations
+vi.mock("~/lib/workout-operations", () => ({
+  WorkoutOperationsClient: vi.fn().mockImplementation(() => ({
+    getWorkoutTemplates: vi.fn(),
+    createWorkoutTemplate: vi.fn(),
+    getRecentWorkouts: vi.fn(),
+    getWorkoutSession: vi.fn(),
+    createWorkoutSession: vi.fn(),
+    getSessionExercises: vi.fn(),
+    addSessionExercise: vi.fn(),
+  })),
+}));
+
+// Mock logger
+vi.mock("~/lib/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+  logApiCall: vi.fn(),
+  logWebhook: vi.fn(),
+  logSecurityEvent: vi.fn(),
+}));
+
+// Mock database
+vi.mock("~/server/db", () => ({
+  db: {
+    query: {
+      workoutTemplates: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      templateExercises: {
+        findMany: vi.fn(),
+      },
+      masterExercises: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+      },
+      exerciseLinks: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+      },
+      workoutSessions: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      whoopData: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      jokes: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      healthAdvice: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+    },
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    select: vi.fn(),
+    from: vi.fn(),
+    where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    offset: vi.fn(),
+    values: vi.fn(),
+    onConflictDoUpdate: vi.fn(),
+    returning: vi.fn(),
+  },
+}));
+
+// Window mocks are set up at the top of the file
 
 // Setup MSW server for API mocking
 export const server = setupServer();

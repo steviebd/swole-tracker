@@ -8,6 +8,7 @@ import { PostHogProvider } from "~/providers/PostHogProvider";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
 import { DashboardHeader } from "~/components/dashboard-header";
+import { ErrorBoundary } from "~/components/error-boundary";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -82,8 +83,10 @@ export default function RootLayout({
           <PostHogProvider>
             <ThemeProvider>
               <TRPCReactProvider>
-                <DashboardHeader />
-                {children}
+                <ErrorBoundary>
+                  <DashboardHeader />
+                  {children}
+                </ErrorBoundary>
               </TRPCReactProvider>
             </ThemeProvider>
           </PostHogProvider>

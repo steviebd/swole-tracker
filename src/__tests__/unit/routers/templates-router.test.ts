@@ -1,52 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies
-vi.mock("~/server/db", () => ({
-  db: {
-    query: {
-      workoutTemplates: {
-        findMany: vi.fn(),
-        findFirst: vi.fn(),
-      },
-      templateExercises: {
-        findMany: vi.fn(),
-      },
-      masterExercises: {
-        findFirst: vi.fn(),
-        findMany: vi.fn(),
-      },
-      exerciseLinks: {
-        findFirst: vi.fn(),
-        findMany: vi.fn(),
-      },
-    },
-    insert: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    select: vi.fn(),
-    from: vi.fn(),
-    where: vi.fn(),
-    values: vi.fn(),
-    returning: vi.fn(),
-  },
-}));
-
-vi.mock("~/lib/rate-limit-middleware", () => ({
-  templateRateLimit: vi.fn(),
-}));
-
-vi.mock("drizzle-orm", () => ({
-  eq: vi.fn(),
-  desc: vi.fn(),
-  and: vi.fn(),
-  asc: vi.fn(),
-}));
-
 // Import after mocking
 import { templatesRouter } from "~/server/api/routers/templates";
 import { db } from "~/server/db";
-
-const mockDb = vi.mocked(db);
 
 describe("templatesRouter", () => {
   const mockUser = { id: "user-123" };

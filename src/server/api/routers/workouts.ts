@@ -30,21 +30,14 @@ const exerciseInputSchema = z.object({
   unit: z.enum(["kg", "lbs"]).default("kg"),
 });
 
-/* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
-const debugEnabled =
-  process.env.VITEST ||
-  process.env.NODE_ENV === "test" ||
-  (process.env.NODE_ENV === "development" && process.env.DEBUG_WORKOUTS);
-function debugLog(...args: unknown[]) {
-  if (debugEnabled) console.log("[workoutsRouter]", ...args);
-}
+import { logger } from "~/lib/logger";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
-      debugLog("getRecent: input", input);
+      logger.debug("Getting recent workouts", { limit: input.limit });
       return ctx.db.query.workoutSessions.findMany({
         where: eq(workoutSessions.user_id, ctx.user.id),
         orderBy: [desc(workoutSessions.workoutDate)],
@@ -397,7 +390,7 @@ export const workoutsRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        debugLog("start: input", input);
+        logger.debug("Starting workout session", { templateId: input.templateId });
         
         // Check for recent duplicate session (within last 2 minutes)
         const recentSession = await ctx.db.query.workoutSessions.findFirst({
@@ -414,7 +407,7 @@ export const workoutsRouter = createTRPCRouter({
 
         // If we found a recent session with the same template and no exercises (just started), return it
         if (recentSession && recentSession.exercises.length === 0) {
-          debugLog("start: returning existing recent session", recentSession.id);
+          logger.debug("Returning existing recent session", { sessionId: recentSession.id });
           
           // Get the template info for the response
           const template = await ctx.db.query.workoutTemplates.findFirst({
@@ -442,13 +435,13 @@ export const workoutsRouter = createTRPCRouter({
           },
         });
 
-        debugLog("start: found template", template);
+        logger.debug("Found template", { templateId: template?.id });
         if (!template || template.user_id !== ctx.user.id) {
           throw new Error("Template not found");
         }
 
         // Create workout session
-        debugLog("start: inserting workout session");
+        logger.debug("Inserting workout session");
         const [session] = await ctx.db
           .insert(workoutSessions)
           .values({
@@ -462,7 +455,7 @@ export const workoutsRouter = createTRPCRouter({
           })
           .returning();
 
-        debugLog("start: inserted session", session);
+        logger.debug("Inserted session", { sessionId: session?.id });
         if (!session) {
           throw new Error("Failed to create workout session");
         }
@@ -471,7 +464,7 @@ export const workoutsRouter = createTRPCRouter({
           sessionId: session.id,
           template,
         };
-        debugLog("start: returning", result);
+        logger.debug("Start workout complete", { sessionId: result.sessionId });
         return result;
       } catch (err: any) {
         const { TRPCError } = await import("@trpc/server");
@@ -482,7 +475,7 @@ export const workoutsRouter = createTRPCRouter({
           stack: err?.stack,
           err,
         };
-        debugLog("start: caught error", message, meta);
+        logger.error("Start workout error", new Error(message), meta);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message,

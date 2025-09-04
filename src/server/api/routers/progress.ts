@@ -30,14 +30,7 @@ import type {
   TopSet,
 } from "~/server/api/types/exercise-progression";
 
-/* DEBUG LOGGING - CONDITIONAL FOR DEVELOPMENT */
-const debugEnabled =
-  process.env.VITEST ||
-  process.env.NODE_ENV === "test" ||
-  (process.env.NODE_ENV === "development" && process.env.DEBUG_PROGRESS);
-function debugLog(...args: unknown[]) {
-  if (debugEnabled) console.log("[progressRouter]", ...args);
-}
+import { logger } from "~/lib/logger";
 
 // Legacy input schema for backward compatibility
 const timeRangeInputSchema = z.object({
@@ -75,6 +68,7 @@ export const progressRouter = createTRPCRouter({
         );
 
         // Get all session exercises for this exercise in the time range
+        // Using computed columns for better performance
         const sessionData = await ctx.db
           .select({
             workoutDate: workoutSessions.workoutDate,
@@ -83,6 +77,9 @@ export const progressRouter = createTRPCRouter({
             reps: sessionExercises.reps,
             sets: sessionExercises.sets,
             unit: sessionExercises.unit,
+            // Use computed columns for performance
+            oneRMEstimate: sessionExercises.one_rm_estimate,
+            volumeLoad: sessionExercises.volume_load,
           })
           .from(sessionExercises)
           .innerJoin(
@@ -113,12 +110,15 @@ export const progressRouter = createTRPCRouter({
           };
         }
 
-        // Calculate metrics
+        // Calculate metrics using computed columns for performance
         const oneRMValues = sessionData.map((session) =>
-          calculateLocalOneRM(
-            parseFloat(String(session.weight || "0")),
-            session.reps || 1,
-          ),
+          // Use computed column if available, fallback to calculation
+          session.oneRMEstimate 
+            ? parseFloat(String(session.oneRMEstimate))
+            : calculateLocalOneRM(
+                parseFloat(String(session.weight || "0")),
+                session.reps || 1,
+              ),
         );
 
         const currentOneRM = Math.max(...oneRMValues);
@@ -140,6 +140,10 @@ export const progressRouter = createTRPCRouter({
           .select({
             weight: sessionExercises.weight,
             reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            // Use computed columns for performance
+            oneRMEstimate: sessionExercises.one_rm_estimate,
+            volumeLoad: sessionExercises.volume_load,
           })
           .from(sessionExercises)
           .innerJoin(
@@ -156,33 +160,42 @@ export const progressRouter = createTRPCRouter({
           );
 
         const prevOneRMValues = prevSessionData.map((session) =>
-          calculateLocalOneRM(
-            parseFloat(String(session.weight || "0")),
-            session.reps || 1,
-          ),
+          // Use computed column if available, fallback to calculation
+          session.oneRMEstimate 
+            ? parseFloat(String(session.oneRMEstimate))
+            : calculateLocalOneRM(
+                parseFloat(String(session.weight || "0")),
+                session.reps || 1,
+              ),
         );
         const prevOneRM =
           prevOneRMValues.length > 0 ? Math.max(...prevOneRMValues) : 0;
         const oneRMChange = currentOneRM - prevOneRM;
 
-        // Calculate volume trend
+        // Calculate volume trend using computed columns for performance
         const currentVolume = sessionData.reduce(
           (sum, s) =>
             sum +
-            calculateVolumeLoad(
-              s.sets || 1,
-              s.reps || 1,
-              parseFloat(String(s.weight || "0")),
+            (s.volumeLoad 
+              ? parseFloat(String(s.volumeLoad))
+              : calculateVolumeLoad(
+                  s.sets || 1,
+                  s.reps || 1,
+                  parseFloat(String(s.weight || "0")),
+                )
             ),
           0,
         );
         const prevVolume = prevSessionData.reduce(
           (sum, s) =>
             sum +
-            calculateVolumeLoad(
-              1,
-              s.reps || 1,
-              parseFloat(String(s.weight || "0")),
+            (s.volumeLoad 
+              ? parseFloat(String(s.volumeLoad))
+              : calculateVolumeLoad(
+                  s.sets || 1,
+                  s.reps || 1,
+                  parseFloat(String(s.weight || "0")),
+                )
             ),
           0,
         );
@@ -942,13 +955,13 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        debugLog("getVolumeProgression: input", input, "user_id", ctx.user.id);
+        logger.debug("Getting volume progression", { timeRange: input.timeRange, userId: ctx.user.id });
         const { startDate, endDate } = getDateRangeFromUtils(
           input.timeRange,
           input.startDate,
           input.endDate,
         );
-        debugLog("getVolumeProgression: date range", { startDate, endDate });
+        logger.debug("Volume progression date range", { startDate, endDate });
 
         const volumeData = await ctx.db
           .select({
@@ -984,7 +997,7 @@ export const progressRouter = createTRPCRouter({
 
         // Calculate volume metrics by workout date
         const volumeByDate = calculateVolumeMetrics(transformedData);
-        debugLog("getVolumeProgression: result count", volumeByDate.length);
+        logger.debug("Volume progression result", { count: volumeByDate.length });
 
         return volumeByDate;
       } catch (error) {
@@ -998,7 +1011,7 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        debugLog("getConsistencyStats: input", input, "user_id", ctx.user.id);
+        logger.debug("Getting consistency stats", { timeRange: input.timeRange, userId: ctx.user.id });
         const { startDate, endDate } = getDateRangeFromUtils(
           input.timeRange,
           input.startDate,
@@ -1024,7 +1037,7 @@ export const progressRouter = createTRPCRouter({
           startDate,
           endDate,
         );
-        debugLog("getConsistencyStats: result", consistency);
+        logger.debug("Consistency stats result", consistency);
 
         return consistency;
       } catch (error) {
@@ -1292,7 +1305,7 @@ export const progressRouter = createTRPCRouter({
   // Get exercise list for dropdown/selection
   getExerciseList: protectedProcedure.query(async ({ ctx }) => {
     try {
-      debugLog("getExerciseList: user_id", ctx.user.id);
+      logger.debug("Getting exercise list", { userId: ctx.user.id });
       const exercises = await ctx.db
         .select({
           exerciseName: sessionExercises.exerciseName,
@@ -1308,10 +1321,10 @@ export const progressRouter = createTRPCRouter({
         .groupBy(sessionExercises.exerciseName)
         .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
 
-      debugLog("getExerciseList: result count", exercises.length);
+      logger.debug("Exercise list result", { count: exercises.length });
       return exercises;
     } catch (error) {
-      console.error("Error in getExerciseList:", error);
+      logger.error("Error in getExerciseList", error);
       return [];
     }
   }),

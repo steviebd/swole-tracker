@@ -4,43 +4,54 @@ import { useMemo } from "react";
 import { api } from "~/trpc/react";
 
 /**
- * Shared hook for fetching workout data efficiently
- * Centralizes all workout date queries to reduce API calls
+ * Progressive data loading hook - loads critical data first, then secondary data
+ * Reduces initial page load time by prioritizing essential information
  */
 export function useSharedWorkoutData() {
+  // Priority 1: Critical data for immediate display
   const { data: thisWeekWorkouts, isLoading: thisWeekLoading, error: thisWeekError } =
     api.progress.getWorkoutDates.useQuery(
       { timeRange: "week" },
       {
         staleTime: 5 * 60 * 1000, // 5 minutes
         gcTime: 10 * 60 * 1000, // 10 minutes
+        refetchOnMount: false, // Don't refetch if data exists
       }
     );
 
+  // Priority 2: Load volume data only after we have basic workout data
   const { data: thisWeekVolume, isLoading: thisWeekVolumeLoading } =
     api.progress.getVolumeProgression.useQuery(
       { timeRange: "week" },
       {
-        staleTime: 5 * 60 * 1000,
-        gcTime: 10 * 60 * 1000,
+        enabled: !!thisWeekWorkouts, // Only load after first query completes
+        staleTime: 10 * 60 * 1000, // Longer stale time for secondary data
+        gcTime: 20 * 60 * 1000,
+        refetchOnMount: false,
       }
     );
 
+  // Priority 3: Load consistency data after volume data
   const { data: consistencyData, isLoading: consistencyLoading } =
     api.progress.getConsistencyStats.useQuery(
       { timeRange: "week" },
       {
-        staleTime: 5 * 60 * 1000,
-        gcTime: 10 * 60 * 1000,
+        enabled: !!thisWeekWorkouts, // Only load after basic data
+        staleTime: 10 * 60 * 1000,
+        gcTime: 20 * 60 * 1000,
+        refetchOnMount: false,
       }
     );
 
+  // Priority 4: Monthly data for streaks - lowest priority
   const { data: monthWorkouts, isLoading: monthLoading } =
     api.progress.getWorkoutDates.useQuery(
       { timeRange: "month" },
       {
-        staleTime: 5 * 60 * 1000,
-        gcTime: 10 * 60 * 1000,
+        enabled: !!thisWeekWorkouts, // Only load after critical data
+        staleTime: 15 * 60 * 1000, // Longer cache for historical data
+        gcTime: 30 * 60 * 1000,
+        refetchOnMount: false,
       }
     );
 
@@ -57,6 +68,7 @@ export function useSharedWorkoutData() {
     return date;
   }, []);
 
+  // Priority 5: Comparison data - load last for trends
   const { data: lastWeekWorkouts, isLoading: lastWeekLoading } =
     api.progress.getWorkoutDates.useQuery(
       {
@@ -65,28 +77,43 @@ export function useSharedWorkoutData() {
         endDate: lastWeekEnd,
       },
       {
-        staleTime: 15 * 60 * 1000, // 15 minutes for historical data
-        gcTime: 30 * 60 * 1000, // 30 minutes
+        enabled: !!thisWeekWorkouts && !!thisWeekVolume, // Load after primary data
+        staleTime: 30 * 60 * 1000, // Very long cache for comparison data
+        gcTime: 60 * 60 * 1000, // 1 hour
+        refetchOnMount: false,
       }
     );
 
-  const isLoading = thisWeekLoading || thisWeekVolumeLoading || consistencyLoading || monthLoading || lastWeekLoading;
+  // Progressive loading states
+  const isCriticalLoading = thisWeekLoading;
+  const isSecondaryLoading = thisWeekVolumeLoading || consistencyLoading;
+  const isExtendedLoading = monthLoading || lastWeekLoading;
+  const isLoading = isCriticalLoading; // Only critical data blocks rendering
   const error = thisWeekError?.message || null;
 
   return {
-    // Current week data
+    // Current week data (always available first)
     thisWeekWorkouts: thisWeekWorkouts || [],
     thisWeekVolume: thisWeekVolume || [],
     consistencyData: consistencyData,
     
-    // Comparison data
+    // Comparison data (loads progressively)
     lastWeekWorkouts: lastWeekWorkouts || [],
     
-    // Extended period for streaks
+    // Extended period for streaks (loads last)
     monthWorkouts: monthWorkouts || [],
     
-    // Loading and error states
-    isLoading,
+    // Progressive loading states
+    isLoading, // Only critical data blocks rendering
+    isCriticalLoading,
+    isSecondaryLoading,
+    isExtendedLoading,
+    
+    // Data availability flags
+    hasCriticalData: !!thisWeekWorkouts,
+    hasSecondaryData: !!thisWeekVolume || !!consistencyData,
+    hasExtendedData: !!monthWorkouts || !!lastWeekWorkouts,
+    
     error,
   };
 }

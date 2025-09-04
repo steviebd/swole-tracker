@@ -181,7 +181,7 @@ function InlineSearchFallback({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center p-4" style={{
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{
       backgroundColor: "hsl(var(--foreground) / 0.5)"
     }}>
       <div className="w-full max-w-lg rounded-lg shadow-xl" style={{

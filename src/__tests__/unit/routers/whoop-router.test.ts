@@ -1,24 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies
-vi.mock("~/server/db", () => ({
-  db: {
-    select: vi.fn(),
-    update: vi.fn(),
-    from: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-  },
-}));
-
-vi.mock("drizzle-orm", () => ({
-  eq: vi.fn(),
-  and: vi.fn(),
-  desc: vi.fn(),
-  sql: vi.fn(),
-}));
-
 // Import after mocking
 import { whoopRouter } from "~/server/api/routers/whoop";
 import { db } from "~/server/db";

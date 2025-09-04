@@ -72,6 +72,28 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnWindowFocus: true, // Useful for exercise tracking
   });
 
+  // Progress data - cache strategically for dashboard performance
+  queryClient.setQueryDefaults(["progress", "getWorkoutDates"], {
+    staleTime: 5 * 60 * 1000, // 5 minutes for workout dates
+    gcTime: 60 * 60 * 1000, // 1 hour
+    refetchOnWindowFocus: false, // Don't refetch on focus for better UX
+    refetchOnMount: false, // Use cached data if available
+  });
+
+  queryClient.setQueryDefaults(["progress", "getVolumeProgression"], {
+    staleTime: 10 * 60 * 1000, // 10 minutes for volume data
+    gcTime: 120 * 60 * 1000, // 2 hours
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  queryClient.setQueryDefaults(["progress", "getConsistencyStats"], {
+    staleTime: 15 * 60 * 1000, // 15 minutes for consistency stats
+    gcTime: 180 * 60 * 1000, // 3 hours
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
   // Jokes - dynamic data, show cached while refetching
   queryClient.setQueryDefaults(["jokes"], {
     staleTime: CACHE_TIMES.DYNAMIC.staleTime, // 0 - show cached while refetching
