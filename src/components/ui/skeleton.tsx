@@ -80,7 +80,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
         {/* Shimmer effect overlay */}
         {shimmer && !prefersReducedMotion && (
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10"
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/10"
             style={{
               backgroundSize: "200% 100%",
             }}
@@ -91,7 +91,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
 
         {/* Pulse fallback for reduced motion */}
         {shimmer && prefersReducedMotion && (
-          <div className="absolute inset-0 animate-pulse bg-white/10 dark:bg-white/5" />
+          <div className="absolute inset-0 animate-pulse bg-foreground/10 dark:bg-foreground/5" />
         )}
       </div>
     );

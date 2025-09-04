@@ -26,10 +26,10 @@ export function StrengthProgressSection() {
   );
 
   const cardClass = "transition-all duration-300 rounded-xl border shadow-sm glass-surface";
-  const titleClass = "text-xl font-bold mb-4 text-[var(--color-text)]";
-  const subtitleClass = "text-sm font-medium mb-2 text-[var(--color-text-secondary)]";
+  const titleClass = "text-xl font-bold mb-4 text-content-primary";
+  const subtitleClass = "text-sm font-medium mb-2 text-content-secondary";
   const buttonClass = "btn-secondary";
-  const selectClass = "px-3 py-2 text-sm rounded-lg border transition-colors bg-[var(--color-bg-surface)] border-[var(--color-border)] text-[var(--color-text)] focus:border-[var(--color-primary)]";
+  const selectClass = "px-3 py-2 text-sm rounded-lg border transition-colors bg-surface-secondary border-default text-content-primary focus:border-interactive-primary";
 
   // Calculate max weight for chart scaling
   const maxWeight = strengthData ? Math.max(...strengthData.map(d => d.weight)) : 0;
@@ -45,7 +45,7 @@ export function StrengthProgressSection() {
         <h2 className={titleClass}>Strength Progression</h2>
         
         {/* Time Range Selector */}
-        <div className="flex space-x-1 bg-[var(--color-bg-surface)] rounded-lg p-1 border border-[var(--color-border)]">
+        <div className="flex space-x-1 bg-surface-secondary rounded-lg p-1 border border-default">
           {(["week", "month", "year"] as TimeRange[]).map((range) => (
             <button
               key={range}
@@ -53,7 +53,7 @@ export function StrengthProgressSection() {
               className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
                 timeRange === range
                   ? "bg-[var(--color-primary)] text-background shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  : "text-content-muted hover:text-content-primary"
               }`}
             >
               {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -68,7 +68,7 @@ export function StrengthProgressSection() {
           Select Exercise
         </label>
         {exerciseListLoading ? (
-          <div className="animate-pulse bg-[var(--color-bg-surface)] h-10 rounded-lg"></div>
+          <div className="animate-pulse bg-surface-secondary h-10 rounded-lg"></div>
         ) : (
           <select
             id="exercise-select"
@@ -90,15 +90,15 @@ export function StrengthProgressSection() {
         <>
           {strengthLoading ? (
             <div className="space-y-4">
-              <div className="animate-pulse bg-[var(--color-bg-surface)] h-64 rounded-lg"></div>
-              <div className="animate-pulse bg-[var(--color-bg-surface)] h-32 rounded-lg"></div>
+              <div className="animate-pulse bg-surface-secondary h-64 rounded-lg"></div>
+              <div className="animate-pulse bg-surface-secondary h-32 rounded-lg"></div>
             </div>
           ) : strengthData && strengthData.length > 0 ? (
             <>
               {/* Simple Line Chart Visualization */}
               <div className="mb-6">
                 <h3 className={subtitleClass}>Top Set Weight Progress</h3>
-                <div className="relative h-64 p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="relative h-64 p-4 rounded-lg bg-surface-secondary border border-default">
                   <svg className="w-full h-full" viewBox="0 0 400 200">
                     {/* Grid lines */}
                     <defs>
@@ -169,35 +169,35 @@ export function StrengthProgressSection() {
 
               {/* Progress Summary Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
                   <p className={subtitleClass}>Current Max</p>
                   <p className="text-xl font-bold text-[var(--color-primary)]">
                     {Math.max(...strengthData.map(d => d.weight))}kg
                   </p>
                 </div>
                 
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
                   <p className={subtitleClass}>Best 1RM Est.</p>
                   <p className="text-xl font-bold text-[var(--color-success)]">
                     {Math.max(...strengthData.map(d => d.oneRMEstimate))}kg
                   </p>
                 </div>
                 
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
                   <p className={subtitleClass}>Sessions</p>
                   <p className="text-xl font-bold text-[var(--color-info)]">
                     {strengthData.length}
                   </p>
                 </div>
                 
-                <div className="p-4 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
                   <p className={subtitleClass}>Progress</p>
                   <p className={`text-xl font-bold ${
                     strengthData.length >= 2 && strengthData[0]!.weight > strengthData[strengthData.length - 1]!.weight
                       ? "text-[var(--color-success)]"
                       : strengthData.length >= 2 && strengthData[0]!.weight < strengthData[strengthData.length - 1]!.weight
                       ? "text-[var(--color-danger)]"
-                      : "text-[var(--color-text-muted)]"
+                      : "text-content-muted"
                   }`}>
                     {strengthData.length >= 2 
                       ? `${strengthData[0]!.weight > strengthData[strengthData.length - 1]!.weight ? '+' : ''}${(strengthData[0]!.weight - strengthData[strengthData.length - 1]!.weight).toFixed(1)}kg`
@@ -219,9 +219,9 @@ export function StrengthProgressSection() {
                   </button>
                 </div>
                 
-                <div className="rounded-lg border border-[var(--color-border)] overflow-hidden mobile-table-container">
+                <div className="rounded-lg border border-default overflow-hidden mobile-table-container">
                   <div className="mobile-table">
-                    <div className="grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]">
+                    <div className="grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b border-default bg-surface-secondary text-content-muted">
                     <div>Date</div>
                     <div>Weight</div>
                     <div>Reps</div>
@@ -234,26 +234,26 @@ export function StrengthProgressSection() {
                       key={index} 
                       className={`grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm ${
                         index !== Math.min(4, strengthData.length - 1)
-                          ? "border-b border-[var(--color-border)]"
+                          ? "border-b border-default"
                           : ""
                       }`}
                     >
-                      <div className="text-[var(--color-text-secondary)]">
+                      <div className="text-content-secondary">
                         {new Date(session.workoutDate).toLocaleDateString('en-US', { 
                           month: 'short', 
                           day: 'numeric' 
                         })}
                       </div>
-                      <div className="font-medium text-[var(--color-text)]">
+                      <div className="font-medium text-content-primary">
                         {session.weight}kg
                       </div>
-                      <div className="text-[var(--color-text-secondary)]">
+                      <div className="text-content-secondary">
                         {session.reps}
                       </div>
-                      <div className="text-[var(--color-text-secondary)]">
+                      <div className="text-content-secondary">
                         {session.sets}
                       </div>
-                      <div className="font-medium text-[var(--color-text)]">
+                      <div className="font-medium text-content-primary">
                         {session.oneRMEstimate}kg
                       </div>
                     </div>
@@ -267,10 +267,10 @@ export function StrengthProgressSection() {
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              <p className="text-lg font-medium mb-2 text-[var(--color-text-secondary)]">
+              <p className="text-lg font-medium mb-2 text-content-secondary">
                 No data found
               </p>
-              <p className="text-sm text-[var(--color-text-muted)]">
+              <p className="text-sm text-content-muted">
                 Complete some workouts with this exercise to see your strength progression.
               </p>
             </div>
@@ -281,10 +281,10 @@ export function StrengthProgressSection() {
           <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
-          <p className="text-lg font-medium mb-2 text-[var(--color-text-secondary)]">
+          <p className="text-lg font-medium mb-2 text-content-secondary">
             Select an Exercise
           </p>
-          <p className="text-sm text-[var(--color-text-muted)]">
+          <p className="text-sm text-content-muted">
             Choose an exercise from the dropdown to view your strength progression.
           </p>
         </div>

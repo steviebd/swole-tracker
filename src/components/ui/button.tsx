@@ -154,7 +154,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {/* Ripple effect overlay */}
         {ripple && ripplePosition && !prefersReducedMotion && (
           <motion.span
-            className="pointer-events-none absolute rounded-full bg-white/20"
+            className="pointer-events-none absolute rounded-full bg-foreground/20"
             style={{
               left: ripplePosition.x - 10,
               top: ripplePosition.y - 10,

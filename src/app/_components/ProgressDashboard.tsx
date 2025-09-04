@@ -31,7 +31,7 @@ export function ProgressDashboard() {
   const cardClass = `bg-card border border-border rounded-lg shadow-sm transition-all duration-300 card-interactive hover:-translate-y-1 hover:shadow-xl`;
 
   return (
-    <div className="min-h-screen bg-horizon">
+    <div className="min-h-screen bg-surface-app">
       {/* Header with Navigation */}
       <div className="sticky top-0 z-40 glass-header">
         <div className="max-w-7xl mx-auto px-4 py-4">

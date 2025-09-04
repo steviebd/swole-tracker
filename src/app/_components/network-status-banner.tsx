@@ -81,7 +81,7 @@ export function NetworkStatusBanner() {
 
     if (syncState?.pendingOperations && syncState.pendingOperations > 0) {
       return {
-        color: 'bg-blue-500',
+        color: 'bg-interactive-primary',
         icon: '🔄',
         title: 'Syncing',
         message: `${syncState.pendingOperations} changes syncing...`,
@@ -128,7 +128,7 @@ export function NetworkStatusBanner() {
           {content.action}
           <button
             onClick={() => setShowBanner(false)}
-            className="ml-3 text-white hover:text-gray-200 text-xl"
+            className="ml-3 text-white hover:text-white/80 text-xl"
             aria-label="Dismiss"
           >
             ×

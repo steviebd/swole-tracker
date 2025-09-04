@@ -32,8 +32,8 @@ const themes = [
   {
     value: "cool" as const,
     label: "Cool",
-    description: "Apple-inspired blues",
-    preview: "❄️",
+    description: "Warm coffee-inspired dark",
+    preview: "☕",
     colors: { bg: "var(--background)", accent: "var(--primary)" }
   },
   {

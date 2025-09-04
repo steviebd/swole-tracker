@@ -65,7 +65,7 @@ export function OfflineWorkoutManager() {
     return (
       <div className="p-4 text-center">
         <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-        <p className="mt-2 text-sm text-gray-600">Loading offline sessions...</p>
+        <p className="mt-2 text-sm text-content-secondary">Loading offline sessions...</p>
       </div>
     );
   }
@@ -90,13 +90,13 @@ export function OfflineWorkoutManager() {
           
           <div className="space-y-2">
             {activeSessions.map((session) => (
-              <div key={session.id} className="bg-white rounded p-3 border border-blue-200">
+              <div key={session.id} className="bg-surface-primary rounded p-3 border border-interactive-primary">
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <p className="font-medium text-sm">
                       Workout Session
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-content-secondary">
                       Started: {formatTime(session.startTime)} • Duration: {formatDuration(session.startTime)}
                     </p>
                   </div>
@@ -117,7 +117,7 @@ export function OfflineWorkoutManager() {
                 </div>
                 
                 {session.exercises.length > 0 && (
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-content-secondary">
                     <p>{session.exercises.length} exercises</p>
                     <p>
                       {session.exercises.reduce((total, ex) => 
@@ -151,16 +151,16 @@ export function OfflineWorkoutManager() {
           
           <div className="space-y-2">
             {completedSessions.map((session) => (
-              <div key={session.id} className="bg-white rounded p-3 border border-yellow-200">
+              <div key={session.id} className="bg-surface-primary rounded p-3 border border-status-warning">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-medium text-sm">
                       Completed Workout
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-content-secondary">
                       Completed: {formatTime(session.lastSaved)}
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-content-secondary">
                       {session.exercises.length} exercises, {
                         session.exercises.reduce((total, ex) => 
                           total + ex.sets.filter(set => set.completed).length, 0

@@ -57,7 +57,7 @@ export function QuickActionCards() {
           >
           {/* Icon and arrow row */}
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 bg-black/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
               {card.icon}
             </div>
             <svg 

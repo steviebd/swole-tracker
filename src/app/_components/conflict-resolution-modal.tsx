@@ -86,12 +86,12 @@ export function ConflictResolutionModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+      <div className="bg-surface-primary rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="px-6 py-4 border-b border-default">
+          <h2 className="text-xl font-semibold text-content-primary">
             Data Sync Conflicts
           </h2>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-content-secondary">
             We found conflicts between your local data and server data. 
             Please choose which version to keep for each item.
           </p>
@@ -100,55 +100,55 @@ export function ConflictResolutionModal({
         <div className="px-6 py-4 max-h-96 overflow-y-auto">
           <div className="space-y-6">
             {conflicts.map((conflict) => (
-              <div key={conflict.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={conflict.id} className="border border-default rounded-lg p-4">
                 <div className="mb-4">
-                  <h3 className="font-medium text-gray-900 capitalize">
+                  <h3 className="font-medium text-content-primary capitalize">
                     {conflict.type} Conflict
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-content-secondary">
                     Both versions were modified recently. Choose which one to keep.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   {/* Local version */}
-                  <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
+                  <div className="border border-interactive-primary rounded-lg p-3 bg-surface-secondary">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-blue-900">Your Version (Local)</h4>
+                      <h4 className="font-medium text-interactive-primary">Your Version (Local)</h4>
                       <input
                         type="radio"
                         name={`conflict-${conflict.id}`}
                         value="local"
                         checked={resolutions[conflict.id] === 'local'}
                         onChange={() => handleResolutionChange(conflict.id, 'local')}
-                        className="text-blue-600"
+                        className="text-interactive-primary"
                       />
                     </div>
-                    <p className="text-sm text-blue-800 mb-2">
+                    <p className="text-sm text-content-primary mb-2">
                       {getDataPreview(conflict.localData, conflict.type)}
                     </p>
-                    <p className="text-xs text-blue-600">
+                    <p className="text-xs text-interactive-primary">
                       Modified: {formatTimestamp(conflict.localTimestamp)}
                     </p>
                   </div>
 
                   {/* Remote version */}
-                  <div className="border border-green-200 rounded-lg p-3 bg-green-50">
+                  <div className="border border-status-success rounded-lg p-3 bg-surface-secondary">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-green-900">Server Version (Remote)</h4>
+                      <h4 className="font-medium text-status-success">Server Version (Remote)</h4>
                       <input
                         type="radio"
                         name={`conflict-${conflict.id}`}
                         value="remote"
                         checked={resolutions[conflict.id] === 'remote' || !resolutions[conflict.id]}
                         onChange={() => handleResolutionChange(conflict.id, 'remote')}
-                        className="text-green-600"
+                        className="text-status-success"
                       />
                     </div>
-                    <p className="text-sm text-green-800 mb-2">
+                    <p className="text-sm text-content-primary mb-2">
                       {getDataPreview(conflict.remoteData, conflict.type)}
                     </p>
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs text-status-success">
                       Modified: {formatTimestamp(conflict.remoteTimestamp)}
                     </p>
                   </div>
@@ -156,11 +156,11 @@ export function ConflictResolutionModal({
 
                 {/* Merge option for compatible data types */}
                 {(conflict.type === 'template' || conflict.type === 'workout') && (
-                  <div className="border border-purple-200 rounded-lg p-3 bg-purple-50">
+                  <div className="border border-interactive-accent rounded-lg p-3 bg-surface-secondary">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium text-purple-900">Merge Both Versions</h4>
-                        <p className="text-xs text-purple-600">
+                        <h4 className="font-medium text-interactive-accent">Merge Both Versions</h4>
+                        <p className="text-xs text-interactive-accent">
                           Combine data from both versions (experimental)
                         </p>
                       </div>
@@ -170,7 +170,7 @@ export function ConflictResolutionModal({
                         value="merge"
                         checked={resolutions[conflict.id] === 'merge'}
                         onChange={() => handleResolutionChange(conflict.id, 'merge')}
-                        className="text-purple-600"
+                        className="text-interactive-accent"
                       />
                     </div>
                   </div>
@@ -180,23 +180,23 @@ export function ConflictResolutionModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="px-6 py-4 border-t border-default bg-surface-secondary">
           <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-content-secondary">
               {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''} to resolve
             </div>
             <div className="space-x-3">
               <button
                 onClick={onClose}
                 disabled={isResolving}
-                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 text-sm text-content-primary bg-surface-primary border border-default rounded-md hover:bg-surface-secondary disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleResolveAll}
                 disabled={isResolving}
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm text-white bg-interactive-primary rounded-md hover:bg-interactive-primary/90 disabled:opacity-50"
               >
                 {isResolving ? 'Resolving...' : 'Resolve All Conflicts'}
               </button>

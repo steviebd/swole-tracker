@@ -126,22 +126,22 @@ export function EnhancedSyncIndicator() {
         <div className="flex items-center gap-2">
           {(syncState.status === 'syncing' || syncState.status === 'saving') && (
             <div className="flex space-x-1">
-              <div className="h-1 w-1 animate-bounce rounded-full bg-white [animation-delay:-0.3s]"></div>
-              <div className="h-1 w-1 animate-bounce rounded-full bg-white [animation-delay:-0.15s]"></div>
-              <div className="h-1 w-1 animate-bounce rounded-full bg-white"></div>
+              <div className="h-1 w-1 animate-bounce rounded-full bg-current [animation-delay:-0.3s]"></div>
+              <div className="h-1 w-1 animate-bounce rounded-full bg-current [animation-delay:-0.15s]"></div>
+              <div className="h-1 w-1 animate-bounce rounded-full bg-current"></div>
             </div>
           )}
           
           {syncState.status === 'offline' && (
-            <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+            <div className="h-2 w-2 animate-pulse rounded-full bg-current"></div>
           )}
           
           {syncState.status === 'error' && (
-            <div className="h-2 w-2 rounded-full bg-white">!</div>
+            <div className="h-2 w-2 rounded-full bg-current flex items-center justify-center text-xs">!</div>
           )}
           
           {syncState.status === 'idle' && (
-            <div className="h-2 w-2 rounded-full bg-white"></div>
+            <div className="h-2 w-2 rounded-full bg-current"></div>
           )}
         </div>
 
@@ -163,13 +163,13 @@ export function EnhancedSyncIndicator() {
 
       {/* Detailed status panel */}
       {showDetails && (
-        <div className="absolute top-12 right-0 w-64 rounded-lg bg-white shadow-xl border border-gray-200 p-4 text-sm">
+        <div className="absolute top-12 right-0 w-64 rounded-lg bg-card shadow-xl border border-border p-4 text-sm">
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="font-medium">Sync Status</span>
               <button
                 onClick={() => setShowDetails(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-content-muted hover:text-content-secondary"
               >
                 ×
               </button>
