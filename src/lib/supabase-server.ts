@@ -10,7 +10,7 @@ import { env } from "~/env";
  */
 export async function createServerSupabaseClient(
   headers?: Headers,
-): Promise<SupabaseClient<any, "public", any>> {
+): Promise<SupabaseClient> {
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -61,7 +61,7 @@ export async function createServerSupabaseClient(
     });
   }
 
-  return createServerClient<any, "public", any>(supabaseUrl, supabaseAnonKey, {
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

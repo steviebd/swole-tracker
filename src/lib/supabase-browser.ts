@@ -2,16 +2,16 @@ import { createBrowserClient } from "@supabase/ssr";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "~/env";
 
-let client: SupabaseClient<any, "public", any> | null = null;
+let client: SupabaseClient | null = null;
 
 /**
  * Browser/client Supabase with auth from cookies
  * Use in Client Components. Handles auth state automatically via cookies.
  * Uses singleton pattern to prevent multiple client instances.
  */
-export function createBrowserSupabaseClient(): SupabaseClient<any, "public", any> {
+export function createBrowserSupabaseClient(): SupabaseClient {
   if (!client) {
-    client = createBrowserClient<any, "public", any>(
+    client = createBrowserClient(
       env.NEXT_PUBLIC_SUPABASE_URL,
       env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
