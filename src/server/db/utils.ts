@@ -3,7 +3,6 @@ import { db } from ".";
 import {
   workoutSessions,
   sessionExercises,
-  templateExercises,
   masterExercises,
   exerciseLinks,
 } from "./schema";
@@ -267,7 +266,7 @@ export const batchCreateMasterExerciseLinks = async (
         // Batch insert links (ignore duplicates)
         try {
           await tx.insert(exerciseLinks).values(linksToCreate);
-        } catch (error) {
+        } catch {
           // Handle duplicate key constraint - update existing links
           for (const link of linksToCreate) {
             await tx

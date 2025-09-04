@@ -20,6 +20,8 @@ export function usePageTracking() {
       return "unknown";
     };
 
-    analytics.pageView(getPageName(pathname));
+    if (pathname) {
+      analytics.pageView(getPageName(pathname));
+    }
   }, [pathname]);
 }

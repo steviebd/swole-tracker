@@ -37,7 +37,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/";
+  const redirectTo = searchParams?.get("redirectTo") || "/";
   const supabase = createBrowserSupabaseClient();
 
   const form = useForm<LoginForm>({

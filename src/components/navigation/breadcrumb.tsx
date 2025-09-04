@@ -92,7 +92,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
   const pathname = usePathname();
   
   // Use provided items or generate from current path
-  const breadcrumbItems = items || generateBreadcrumbsFromPath(pathname);
+  const breadcrumbItems = items || generateBreadcrumbsFromPath(pathname || "");
   
   // Don't render breadcrumbs for home page or if only home exists
   if (breadcrumbItems.length <= 1) {

@@ -63,8 +63,8 @@ export function WhoopWorkouts() {
 
   // Handle OAuth flow results
   useEffect(() => {
-    const success = searchParams.get("success");
-    const error = searchParams.get("error");
+    const success = searchParams?.get("success");
+    const error = searchParams?.get("error");
 
     if (success === "true") {
       setMessage({

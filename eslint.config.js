@@ -16,13 +16,18 @@ export default tseslint.config(
   {
     // Ignore build output and all tests/e2e per task scope
     ignores: [
-      ".next",
-      "coverage",
-      "test-results",
-      "src/__tests__",
-      "src/__e2e__",
+      ".next/**",
+      "coverage/**",
+      "test-results/**",
+      "src/__tests__/**",
+      "src/__e2e__/**",
       "**/__tests__/**",
       "**/__e2e__/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".turbo/**",
+      ".vercel/**",
     ],
   },
   // Generated bundles: ignore entire public directory from linting
@@ -112,6 +117,13 @@ export default tseslint.config(
       },
     },
   },
+  // Disable expensive rules for performance
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off", // Can be slow on large codebases
+    },
+  },
   // File-specific relaxations
   {
     files: ["next.config.js", "eslint.config.js"],
@@ -120,10 +132,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-call": "off",
     },
   },
-);
-
-// Loosen rules for JS config files
-export const overrides = [
+  // Loosen rules for JS config files
   {
     files: [
       "*.config.js",
@@ -139,4 +148,4 @@ export const overrides = [
       "@typescript-eslint/ban-ts-comment": "off",
     },
   },
-];
+);

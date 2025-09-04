@@ -129,14 +129,14 @@ class DatabaseMonitor {
   /**
    * Get recent query history
    */
-  public getQueryHistory(limit: number = 50): QueryMetrics[] {
+  public getQueryHistory(limit = 50): QueryMetrics[] {
     return this.queryHistory.slice(-limit);
   }
 
   /**
    * Get slow queries from recent history
    */
-  public getSlowQueries(limit: number = 20): QueryMetrics[] {
+  public getSlowQueries(limit = 20): QueryMetrics[] {
     return this.queryHistory
       .filter(q => q.duration > this.slowQueryThreshold)
       .slice(-limit);
@@ -145,7 +145,7 @@ class DatabaseMonitor {
   /**
    * Get error queries from recent history
    */
-  public getErrorQueries(limit: number = 20): QueryMetrics[] {
+  public getErrorQueries(limit = 20): QueryMetrics[] {
     return this.queryHistory
       .filter(q => !q.success)
       .slice(-limit);

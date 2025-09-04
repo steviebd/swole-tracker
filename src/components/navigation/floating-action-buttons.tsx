@@ -124,7 +124,7 @@ export function FloatingActionButtons({
   }
 
   // Hide on specific paths
-  if (hideOnPaths.some(path => pathname.startsWith(path))) {
+  if (pathname && hideOnPaths.some(path => pathname.startsWith(path))) {
     return null;
   }
 
@@ -206,7 +206,7 @@ export function SingleFAB({
   }
 
   // Hide on specific paths
-  if (hideOnPaths.some(path => pathname.startsWith(path))) {
+  if (pathname && hideOnPaths.some(path => pathname.startsWith(path))) {
     return null;
   }
 
