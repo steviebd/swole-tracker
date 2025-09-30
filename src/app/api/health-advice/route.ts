@@ -12,8 +12,17 @@ import {
 } from '~/lib/health-calculations';
 import { ENHANCED_HEALTH_ADVICE_PROMPT } from '~/lib/ai-prompts/enhanced-health-advice';
 import { db } from '~/server/db';
-import { workoutSessions, sessionExercises, userIntegrations, exerciseLinks, whoopRecovery, whoopSleep, userPreferences } from '~/server/db/schema';
-import { eq, and, desc, gte } from 'drizzle-orm';
+import {
+  workoutSessions,
+  sessionExercises,
+  userIntegrations,
+  exerciseLinks,
+  whoopRecovery,
+  whoopSleep,
+  userPreferences,
+  templateExercises as templateExercisesTable,
+} from '~/server/db/schema';
+import { eq, and, desc, gte, asc } from 'drizzle-orm';
 import { createServerSupabaseClient } from '~/lib/supabase-server';
 import { logger } from '~/lib/logger';
 
@@ -73,7 +82,13 @@ export async function POST(req: NextRequest) {
     
     // Enhanced: Fetch dynamic template exercises from session ID
     const sessionId = parseInt(validatedInput.session_id);
-    let templateExercises: Array<{ exerciseName: string }> = [];
+    type TemplateExerciseRecord = {
+      id: number;
+      exerciseName: string;
+      template?: unknown;
+    };
+
+    let templateExercises: TemplateExerciseRecord[] = [];
     let currentSession: any = null;
     
     // PHASE 0: Fetch WHOOP data from database (stored via webhooks) instead of real-time API calls
@@ -162,7 +177,7 @@ export async function POST(req: NextRequest) {
           template: {
             with: {
               exercises: {
-                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+                orderBy: (exercises) => [asc(exercises.orderIndex)],
               },
             },
           },
@@ -170,8 +185,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (currentSession?.template?.exercises) {
-        templateExercises = currentSession.template.exercises;
+      const sessionTemplate =
+        currentSession &&
+        typeof currentSession === 'object' &&
+        currentSession !== null &&
+        (currentSession as { template?: unknown }).template;
+
+      if (
+        sessionTemplate &&
+        typeof sessionTemplate === 'object' &&
+        !Array.isArray(sessionTemplate) &&
+        Array.isArray((sessionTemplate as { exercises?: unknown }).exercises)
+      ) {
+        templateExercises = (sessionTemplate as {
+          exercises: TemplateExerciseRecord[];
+        }).exercises;
       }
     } catch (error) {
       console.error('Error fetching session template:', error);
@@ -545,7 +573,7 @@ export async function POST(req: NextRequest) {
           });
           
           // Process each template exercise using the lookup maps
-          return templateExercises.map((ex: any) => {
+          return templateExercises.map((ex) => {
             const exerciseLink = linksByTemplateId.get(ex.id);
             
             if (exerciseLink) {
@@ -556,11 +584,45 @@ export async function POST(req: NextRequest) {
                 exercise_name: ex.exerciseName,
                 master_exercise_id: exerciseLink.masterExerciseId,
                 linked_across_templates: linkedExercises.length > 1,
-                linked_templates: linkedExercises.map(link => ({
-                  template_id: link.templateExercise?.template?.id,
-                  template_name: link.templateExercise?.template?.name,
-                  exercise_id: link.templateExerciseId
-                })),
+                linked_templates: linkedExercises.map(link => {
+                  let templateId: number | null = null;
+                  let templateName: string | null = null;
+
+                  const templateRelation = link.templateExercise;
+                  if (
+                    templateRelation &&
+                    typeof templateRelation === 'object' &&
+                    !Array.isArray(templateRelation)
+                  ) {
+                    const template = (templateRelation as {
+                      template?: unknown;
+                    }).template;
+                    if (
+                      template &&
+                      typeof template === 'object' &&
+                      !Array.isArray(template)
+                    ) {
+                      const typedTemplate = template as {
+                        id?: number | null;
+                        name?: string | null;
+                      };
+                      templateId =
+                        typeof typedTemplate.id === 'number'
+                          ? typedTemplate.id
+                          : null;
+                      templateName =
+                        typeof typedTemplate.name === 'string'
+                          ? typedTemplate.name
+                          : null;
+                    }
+                  }
+
+                  return {
+                    template_id: templateId,
+                    template_name: templateName,
+                    exercise_id: link.templateExerciseId,
+                  };
+                }),
                 total_linked_count: linkedExercises.length
               };
             }
@@ -577,7 +639,7 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           logger.error('Error fetching exercise linking data', error, { userId: user?.id });
           // Return fallback data for all exercises
-          return templateExercises.map((ex: any) => ({
+          return templateExercises.map((ex) => ({
             template_exercise_id: ex.id,
             exercise_name: ex.exerciseName,
             master_exercise_id: null,

@@ -120,7 +120,7 @@ export function SessionDebriefPanel({
         utils.sessionDebriefs.listBySession.setData(queryKey, (current) =>
           current?.map((record) =>
             record.id === (variables.debriefId ?? record.id)
-              ? { ...record, viewedAt: new Date().toISOString() }
+              ? { ...record, viewedAt: new Date() }
               : record,
           ),
         );
@@ -149,7 +149,7 @@ export function SessionDebriefPanel({
             record.id === (variables.debriefId ?? record.id)
               ? {
                   ...record,
-                  pinnedAt: record.pinnedAt ? null : new Date().toISOString(),
+                  pinnedAt: record.pinnedAt ? null : new Date(),
                 }
               : record,
           ),
@@ -210,7 +210,9 @@ export function SessionDebriefPanel({
       setErrorMessage(null);
     },
     onSuccess: ({ debrief }) => {
-      analytics.aiDebriefRegenerated(sessionId.toString(), debrief.version);
+      if (debrief) {
+        analytics.aiDebriefRegenerated(sessionId.toString(), debrief.version);
+      }
     },
     onError: (error) => {
       setErrorMessage(error.message ?? "Failed to regenerate debrief.");
@@ -226,7 +228,13 @@ export function SessionDebriefPanel({
       setErrorMessage(null);
     },
     onSuccess: ({ debrief }) => {
-      analytics.aiDebriefRegenerated(sessionId.toString(), debrief.version, "initial");
+      if (debrief) {
+        analytics.aiDebriefRegenerated(
+          sessionId.toString(),
+          debrief.version,
+          "initial",
+        );
+      }
       setErrorMessage(null);
     },
     onError: (error) => {

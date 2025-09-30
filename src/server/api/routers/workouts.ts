@@ -113,9 +113,24 @@ export const workoutsRouter = createTRPCRouter({
           });
 
           // Get all exercise names from linked template exercises
-          exerciseNamesToSearch = linkedExercises.map(
-            (link) => link.templateExercise.exerciseName,
-          );
+          const extractedNames = linkedExercises
+            .map((link) => {
+              const template = link.templateExercise;
+              if (
+                template &&
+                typeof template === "object" &&
+                !Array.isArray(template) &&
+                typeof (template as { exerciseName?: unknown }).exerciseName === "string"
+              ) {
+                return (template as { exerciseName: string }).exerciseName;
+              }
+              return null;
+            })
+            .filter((name): name is string => typeof name === "string");
+
+          if (extractedNames.length > 0) {
+            exerciseNamesToSearch = extractedNames;
+          }
         }
       }
 

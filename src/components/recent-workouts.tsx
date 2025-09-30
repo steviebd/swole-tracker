@@ -69,6 +69,26 @@ const toIsoString = (value: Date | string | null | undefined): string => {
   return parsed.toISOString();
 };
 
+const resolveTemplateName = (
+  workout: RecentWorkout,
+  fallback: string,
+): string => {
+  const template = (workout as { template?: unknown }).template;
+  if (
+    template &&
+    typeof template === "object" &&
+    !Array.isArray(template) &&
+    typeof (template as { name?: unknown }).name === "string"
+  ) {
+    const name = (template as { name: string }).name.trim();
+    if (name.length > 0) {
+      return name;
+    }
+  }
+
+  return fallback;
+};
+
 const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
   ({ className, limit, variant = "card" }, ref) => {
     const router = useRouter();
@@ -108,7 +128,7 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
 
           analytics.workoutStarted(
             workout.templateId.toString(),
-            workout.template?.name ?? "Repeated Workout",
+            resolveTemplateName(workout, "Repeated Workout"),
           );
 
           analytics.featureUsed("repeat_workout", {
@@ -358,7 +378,7 @@ const DashboardRecentWorkoutsView = ({
                 }}
               >
                 <WorkoutCard
-                  workoutName={workout.template?.name ?? "Unnamed Workout"}
+                  workoutName={resolveTemplateName(workout, "Unnamed Workout")}
                   date={isoDate}
                   metrics={summary.metrics}
                   isRecent={isRecent}
@@ -491,7 +511,7 @@ const CardRecentWorkoutsView = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <h4 className="font-semibold text-foreground">
-                      {workout.template?.name ?? "Workout"}
+                      {resolveTemplateName(workout, "Workout")}
                     </h4>
                     <Badge
                       variant="secondary"

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
@@ -136,7 +136,7 @@ export const sessionDebriefRouter = createTRPCRouter({
         eq(sessionDebriefs.sessionId, input.sessionId),
       ];
       if (!input.includeInactive) {
-        predicates.push(eq(sessionDebriefs.dismissedAt, null));
+        predicates.push(isNull(sessionDebriefs.dismissedAt));
       }
 
       const results = await ctx.db.query.sessionDebriefs.findMany({
@@ -171,7 +171,7 @@ export const sessionDebriefRouter = createTRPCRouter({
       const results = await ctx.db.query.sessionDebriefs.findMany({
         where: and(
           eq(sessionDebriefs.user_id, ctx.user.id),
-          eq(sessionDebriefs.dismissedAt, null),
+          isNull(sessionDebriefs.dismissedAt),
         ),
         orderBy: (table, { desc: orderDesc }) => [
           orderDesc(table.isActive),
@@ -285,7 +285,7 @@ export const sessionDebriefRouter = createTRPCRouter({
   updateMetadata: protectedProcedure
     .input(
       sessionDebriefInteractionSchema.extend({
-        metadata: z.record(z.any()),
+        metadata: z.record(z.string(), z.any()),
       }),
     )
     .mutation(async ({ ctx, input }) => {

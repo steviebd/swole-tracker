@@ -1,5 +1,11 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTableCreator, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  index,
+  pgTableCreator,
+  unique,
+  uniqueIndex,
+  foreignKey,
+} from "drizzle-orm/pg-core";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -470,9 +476,7 @@ export const sessionDebriefs = createTable(
       .notNull()
       .references(() => workoutSessions.id, { onDelete: "cascade" }),
     version: d.integer().notNull().default(1),
-    parentDebriefId: d
-      .integer()
-      .references(() => sessionDebriefs.id, { onDelete: "set null" }),
+    parentDebriefId: d.integer(),
     summary: d.text().notNull(),
     prHighlights: d.json(),
     adherenceScore: d.numeric({ precision: 5, scale: 2 }),
@@ -506,6 +510,11 @@ export const sessionDebriefs = createTable(
     uniqueIndex("session_debrief_active_unique")
       .on(t.user_id, t.sessionId)
       .where(sql`${t.isActive} IS TRUE`),
+    foreignKey({
+      columns: [t.parentDebriefId],
+      foreignColumns: [t.id],
+      name: "session_debrief_parent_fk",
+    }).onDelete("set null"),
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 

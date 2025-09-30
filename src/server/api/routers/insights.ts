@@ -114,9 +114,24 @@ export const insightsRouter = createTRPCRouter({
             ),
             with: { templateExercise: true },
           });
-          exerciseNamesToSearch = linked.map(
-            (l) => l.templateExercise.exerciseName,
-          );
+          const extractedNames = linked
+            .map((l) => {
+              const template = l.templateExercise;
+              if (
+                template &&
+                typeof template === "object" &&
+                !Array.isArray(template) &&
+                typeof (template as { exerciseName?: unknown }).exerciseName === "string"
+              ) {
+                return (template as { exerciseName: string }).exerciseName;
+              }
+              return null;
+            })
+            .filter((name): name is string => typeof name === "string");
+
+          exerciseNamesToSearch = extractedNames.length
+            ? extractedNames
+            : [input.exerciseName];
           templateExerciseIds = linked.map((l) => l.templateExerciseId);
         } else {
           // Fallback to name of provided template exercise

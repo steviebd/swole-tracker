@@ -42,10 +42,32 @@ export default async function WorkoutDebriefPage({
     limit: 10,
   });
 
-  const templateName = session.template?.name ?? "Workout";
-  const sessionDate = session.workoutDate instanceof Date
-    ? session.workoutDate.toISOString()
-    : new Date(session.workoutDate).toISOString();
+  const templateName = (() => {
+    const template = (session as { template?: unknown }).template;
+    if (
+      template &&
+      typeof template === "object" &&
+      !Array.isArray(template) &&
+      typeof (template as { name?: unknown }).name === "string"
+    ) {
+      return (template as { name: string }).name;
+    }
+
+    return "Workout";
+  })();
+
+  const sessionDate = (() => {
+    const raw = (session as { workoutDate?: unknown }).workoutDate;
+    if (raw instanceof Date) {
+      return raw.toISOString();
+    }
+
+    if (typeof raw === "string" || typeof raw === "number") {
+      return new Date(raw).toISOString();
+    }
+
+    return new Date().toISOString();
+  })();
 
   return (
     <HydrateClient>

@@ -33,6 +33,37 @@ export default async function EditTemplatePage({
     notFound();
   }
 
+  const sanitizedTemplate = template
+    ? {
+        id: template.id,
+        name: typeof template.name === "string" ? template.name : "",
+        exercises: Array.isArray(template.exercises)
+          ? template.exercises
+              .map((exercise) => {
+                if (
+                  exercise &&
+                  typeof exercise === "object" &&
+                  !Array.isArray(exercise) &&
+                  typeof (exercise as { exerciseName?: unknown }).exerciseName === "string"
+                ) {
+                  return {
+                    exerciseName: (exercise as { exerciseName: string }).exerciseName,
+                  };
+                }
+
+                return null;
+              })
+              .filter(
+                (
+                  exercise,
+                ): exercise is {
+                  exerciseName: string;
+                } => exercise !== null,
+              )
+          : [],
+      }
+    : undefined;
+
   return (
     <main className="min-h-screen overflow-x-hidden">
       <div className="container mx-auto px-4 py-6 w-full min-w-0">
@@ -47,7 +78,7 @@ export default async function EditTemplatePage({
         </div>
 
         {/* Form */}
-        <TemplateForm template={template} />
+        <TemplateForm template={sanitizedTemplate} />
       </div>
     </main>
   );

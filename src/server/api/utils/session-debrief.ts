@@ -384,10 +384,27 @@ export async function gatherSessionDebriefContext({
     }
   }
 
+  const templateName = (() => {
+    const template = (session as { template?: unknown }).template;
+    if (
+      template &&
+      typeof template === "object" &&
+      !Array.isArray(template) &&
+      typeof (template as { name?: unknown }).name === "string"
+    ) {
+      const name = (template as { name: string }).name.trim();
+      if (name.length > 0) {
+        return name;
+      }
+    }
+
+    return "Workout";
+  })();
+
   const context: SessionDebriefContext = {
     sessionId,
     sessionDate: sessionDate.toISOString(),
-    templateName: session.template?.name ?? "Workout",
+    templateName,
     totalExercises: exerciseSnapshots.length,
     totalVolume,
     exercises: exerciseSnapshots,

@@ -150,34 +150,40 @@ export async function generateAndPersistDebrief({
       trigger,
     } satisfies Record<string, unknown>;
 
+    const insertPayload: typeof sessionDebriefs.$inferInsert = {
+      user_id: userId,
+      sessionId,
+      version: nextVersion,
+      parentDebriefId: existingActive?.id ?? null,
+      summary: content.summary,
+      prHighlights: content.prHighlights ?? null,
+      adherenceScore:
+        typeof content.adherenceScore === "number"
+          ? content.adherenceScore.toFixed(2)
+          : null,
+      focusAreas: content.focusAreas ?? null,
+      streakContext: content.streakContext ?? null,
+      overloadDigest: content.overloadDigest ?? null,
+      metadata,
+      isActive: true,
+      regenerationCount: existingActive
+        ? existingActive.regenerationCount + (trigger === "regenerate" ? 1 : 0)
+        : trigger === "regenerate"
+          ? 1
+          : 0,
+    };
+
     const [inserted] = await tx
       .insert(sessionDebriefs)
-      .values({
-        user_id: userId,
-        sessionId,
-        version: nextVersion,
-        parentDebriefId: existingActive?.id ?? null,
-        summary: content.summary,
-        prHighlights: content.prHighlights,
-        adherenceScore:
-          typeof content.adherenceScore === "number"
-            ? Number(content.adherenceScore.toFixed(2))
-            : null,
-        focusAreas: content.focusAreas,
-        streakContext: content.streakContext,
-        overloadDigest: content.overloadDigest,
-        metadata,
-        isActive: true,
-        regenerationCount: existingActive
-          ? existingActive.regenerationCount + (trigger === "regenerate" ? 1 : 0)
-          : trigger === "regenerate"
-            ? 1
-            : 0,
-      })
+      .values(insertPayload)
       .returning();
 
     return inserted;
   });
+
+  if (!nextDebrief) {
+    throw new Error("Failed to persist session debrief");
+  }
 
   logger.info("session_debrief.generated", {
     userId,

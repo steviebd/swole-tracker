@@ -69,10 +69,16 @@ type NormalizedWorkout = {
 };
 
 function normalizeWorkout(workout: TRPCRecentWorkout | MockWorkoutSession): NormalizedWorkout {
-  const templateName =
-    typeof workout.template?.name === "string" && workout.template.name.trim().length > 0
-      ? workout.template.name
-      : "Workout";
+  const template = (workout as { template?: unknown }).template;
+  const resolvedTemplateName =
+    template &&
+    typeof template === "object" &&
+    !Array.isArray(template) &&
+    typeof (template as { name?: unknown }).name === "string"
+      ? ((template as { name: string }).name ?? "").trim()
+      : "";
+
+  const templateName = resolvedTemplateName.length > 0 ? resolvedTemplateName : "Workout";
 
   const workoutDateRaw = (workout as { workoutDate: Date | string | number | undefined }).workoutDate;
   const workoutDate =
