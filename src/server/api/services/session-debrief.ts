@@ -154,16 +154,7 @@ export async function generateAndPersistDebrief({
       user_id: userId,
       sessionId,
       version: nextVersion,
-      parentDebriefId: existingActive?.id ?? null,
       summary: content.summary,
-      prHighlights: content.prHighlights ?? null,
-      adherenceScore:
-        typeof content.adherenceScore === "number"
-          ? content.adherenceScore.toFixed(2)
-          : null,
-      focusAreas: content.focusAreas ?? null,
-      streakContext: content.streakContext ?? null,
-      overloadDigest: content.overloadDigest ?? null,
       metadata,
       isActive: true,
       regenerationCount: existingActive
@@ -172,6 +163,30 @@ export async function generateAndPersistDebrief({
           ? 1
           : 0,
     };
+
+    if (existingActive?.id) {
+      insertPayload.parentDebriefId = existingActive.id;
+    }
+
+    if (Array.isArray(content.prHighlights) && content.prHighlights.length > 0) {
+      insertPayload.prHighlights = content.prHighlights;
+    }
+
+    if (typeof content.adherenceScore === "number") {
+      insertPayload.adherenceScore = content.adherenceScore.toFixed(2);
+    }
+
+    if (Array.isArray(content.focusAreas) && content.focusAreas.length > 0) {
+      insertPayload.focusAreas = content.focusAreas;
+    }
+
+    if (content.streakContext && typeof content.streakContext === "object") {
+      insertPayload.streakContext = content.streakContext;
+    }
+
+    if (content.overloadDigest && typeof content.overloadDigest === "object") {
+      insertPayload.overloadDigest = content.overloadDigest;
+    }
 
     const [inserted] = await tx
       .insert(sessionDebriefs)
