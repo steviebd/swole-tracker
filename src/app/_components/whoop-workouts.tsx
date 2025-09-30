@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { api } from "~/trpc/react";
 import { WorkoutDetailOverlay } from "./workout-detail-overlay";
 import { useLocalStorage } from "~/hooks/use-local-storage";
@@ -17,6 +16,7 @@ import { Button } from "~/components/ui/button";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useWhoopConnect } from "~/hooks/use-whoop-connect";
 
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
@@ -60,6 +60,12 @@ export function WhoopWorkouts() {
     refetch: refetchWorkouts,
     isLoading: workoutsLoading,
   } = api.whoop.getWorkouts.useQuery();
+  const {
+    startConnect: startWhoopConnect,
+    isConnecting: connectLoading,
+    error: connectError,
+    resetError: resetConnectError,
+  } = useWhoopConnect();
 
   // Handle OAuth flow results
   useEffect(() => {
@@ -113,9 +119,16 @@ export function WhoopWorkouts() {
       // Auto-hide message after 10 seconds
       setTimeout(() => {
         setMessage(null);
+        resetConnectError();
       }, 10000);
     }
-  }, [searchParams]);
+  }, [searchParams, resetConnectError]);
+
+  useEffect(() => {
+    if (connectError) {
+      setMessage({ type: "error", text: connectError });
+    }
+  }, [connectError]);
 
   // Listen for real-time workout updates via SSE
   useWorkoutUpdates(() => {
@@ -126,6 +139,7 @@ export function WhoopWorkouts() {
   const handleCleanup = async () => {
     setCleanupLoading(true);
     setMessage(null);
+    resetConnectError();
 
     try {
       const response = await fetch("/api/whoop/cleanup-duplicates", {
@@ -153,6 +167,7 @@ export function WhoopWorkouts() {
   const handleSync = async () => {
     setSyncLoading(true);
     setMessage(null);
+    resetConnectError();
 
     try {
       // Use the comprehensive sync endpoint instead of just workouts
@@ -330,10 +345,17 @@ export function WhoopWorkouts() {
                     ❌ Not connected to Whoop
                   </AlertDescription>
                 </Alert>
-                <Button asChild className="w-full" size="lg">
-                  <Link href="/api/auth/whoop/authorize" prefetch={false}>
-                    Connect Whoop Now
-                  </Link>
+                <Button
+                  onClick={() => {
+                    setMessage(null);
+                    resetConnectError();
+                    void startWhoopConnect();
+                  }}
+                  disabled={connectLoading || syncLoading || cleanupLoading}
+                  className="w-full"
+                  size="lg"
+                >
+                  {connectLoading ? "Redirecting to WHOOP…" : "Connect Whoop Now"}
                 </Button>
               </div>
             )}
@@ -353,7 +375,10 @@ export function WhoopWorkouts() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setMessage(null)}
+                onClick={() => {
+                  setMessage(null);
+                  resetConnectError();
+                }}
                 className="ml-4 h-auto p-0 text-lg leading-none hover:bg-transparent"
                 aria-label="Dismiss message"
               >

@@ -1,0 +1,7 @@
+# Refactor & Improvement Backlog
+
+- [x] **Implement real WHOOP connect flow** — Replace the console placeholder in `src/app/_components/ConnectWhoopButton.tsx:5` with the OAuth kickoff (state token creation, `/api/whoop/auth` redirect) and share logic with the `/connect-whoop` page so the entry point is consistent.
+- [x] **Swap WHOOP dashboard mocks for live data** — `src/app/_components/WhoopIntegrationSection.tsx:16` still renders hard-coded recovery metrics; hydrate it from `api.whoop.getLatestRecoveryData` / `getWorkouts`, add loading + empty states, and surface re-auth warnings when tokens expire.
+- [ ] **Unify recent workout surfaces** — Consolidate `src/components/dashboard/recent-workouts.tsx:29` and `src/components/recent-workouts.tsx` into one shared component, implement the "repeat workout" action instead of logging to the console, and centralize volume/duration calculations to avoid drift.
+- [ ] **Externalize progress target math** — Move the hard-coded weekly/monthly targets in `src/components/weekly-progress.tsx:25` and similar dashboards into a server-driven goal model so lifters can set personalized volume/frequency goals that sync across widgets.
+- [ ] **Harden offline queue & storage** — Add deterministic unit tests around `src/lib/offline-storage.ts` and `src/lib/mobile-offline-queue.ts` (quota handling, retry backoff, conflict resolution), expose instrumentation hooks, and audit the `clearAllOfflineData` path used during sign-out (`src/providers/AuthProvider.tsx:52`).
