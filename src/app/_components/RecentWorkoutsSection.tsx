@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { api } from "~/trpc/react";
-import { useMockFeed } from "~/hooks/useMockData";
+import { api, type RouterOutputs } from "~/trpc/react";
+import { useMockFeed, type MockWorkoutSession } from "~/hooks/useMockData";
 import { Card } from "~/components/ui/card";
 
 interface WorkoutCardProps {
@@ -59,6 +59,39 @@ function WorkoutCard({ id, templateName, date, exerciseCount }: WorkoutCardProps
   );
 }
 
+type TRPCRecentWorkout = RouterOutputs["workouts"]["getRecent"][number];
+
+type NormalizedWorkout = {
+  id: number;
+  templateName: string;
+  workoutDate: Date;
+  exerciseCount: number;
+};
+
+function normalizeWorkout(workout: TRPCRecentWorkout | MockWorkoutSession): NormalizedWorkout {
+  const templateName =
+    typeof workout.template?.name === "string" && workout.template.name.trim().length > 0
+      ? workout.template.name
+      : "Workout";
+
+  const workoutDateRaw = (workout as { workoutDate: Date | string | number | undefined }).workoutDate;
+  const workoutDate =
+    workoutDateRaw instanceof Date
+      ? workoutDateRaw
+      : new Date(workoutDateRaw ?? Date.now());
+
+  const exerciseCount = Array.isArray(workout.exercises)
+    ? workout.exercises.length
+    : 0;
+
+  return {
+    id: workout.id,
+    templateName,
+    workoutDate,
+    exerciseCount,
+  };
+}
+
 export function RecentWorkoutsSection() {
   // Try to use real tRPC data first, fallback to mock data
   const {
@@ -71,8 +104,11 @@ export function RecentWorkoutsSection() {
 
 
   // Use tRPC data if available and not loading/error, otherwise use mock data
-  const workouts = (!trpcLoading && !trpcError && trpcWorkouts?.length) ? trpcWorkouts : mockWorkouts;
+  const workoutsSource: Array<TRPCRecentWorkout | MockWorkoutSession> | undefined =
+    !trpcLoading && !trpcError && trpcWorkouts?.length ? trpcWorkouts : mockWorkouts;
   const isLoading = trpcLoading && !mockWorkouts?.length;
+
+  const normalizedWorkouts: NormalizedWorkout[] = (workoutsSource ?? []).map(normalizeWorkout);
 
   if (isLoading) {
     return (
@@ -111,17 +147,17 @@ export function RecentWorkoutsSection() {
       </div>
       
       <div className="space-y-3">
-        {workouts?.map((workout) => (
+        {normalizedWorkouts.map((workout) => (
           <WorkoutCard
             key={workout.id}
             id={workout.id}
-            templateName={workout.template?.name ?? "Push Day"}
-            date={new Date(workout.workoutDate).toLocaleDateString('en-US', { 
+            templateName={workout.templateName}
+            date={workout.workoutDate.toLocaleDateString('en-US', { 
               month: 'short', 
               day: 'numeric', 
               year: 'numeric' 
             })}
-            exerciseCount={workout.exercises?.length ?? 4}
+            exerciseCount={workout.exerciseCount}
           />
         ))}
       </div>
