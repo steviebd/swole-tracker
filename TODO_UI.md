@@ -19,15 +19,15 @@
 
 ## Phase 1 – Material 3 Token Architecture (Design Systems)
 - [x] Generate Material 3 tonal palettes (0–100) for brand, neutral, neutral-variant, and error families across all five themes.
-- [ ] Introduce semantic tokens for states (e.g., `surface-container-high`, `on-primary`, `outline-variant`) and map them to CSS custom properties.
-- [ ] Define typography, shape, and motion tokens that complement the new color system (updated type scales, state-layer opacity constants).
-- [ ] Document naming conventions and token layering rules in `DESIGN_MANIFESTO.md` + internal design tools.
+- [x] Introduce semantic tokens for states (e.g., `surface-container-high`, `on-primary`, `outline-variant`) and map them to CSS custom properties.
+- [x] Define typography, shape, and motion tokens that complement the new color system (updated type scales, state-layer opacity constants).
+- [x] Document naming conventions and token layering rules in `DESIGN_MANIFESTO.md` + internal design tools.
 
 ## Phase 2 – Theme Implementation (Frontend)
-- [ ] Refactor `src/styles/globals.css` to derive theme variables from the new semantic tokens for Light, Dark, Cool, Warm, and Neutral modes.
-- [ ] Rework `src/components/ThemeSelector.tsx` to surface richer previews (e.g., chips/cards showing primary/secondary/tertiary swatches) and ensure the five entry points remain intact.
+- [x] Refactor `src/styles/globals.css` to derive theme variables from the new semantic tokens for Light, Dark, Cool, Warm, and Neutral modes.
+- [x] Rework `src/components/ThemeSelector.tsx` to surface richer previews (e.g., chips/cards showing primary/secondary/tertiary swatches) and ensure the five entry points remain intact.
 - [x] Build a token-to-CSS synchronization script (optionally `scripts/generate-theme-tokens.ts`) to prevent drift between JSON tokens and stylesheets.
-- [ ] Add unit tests or snapshot checks that verify each theme exports required Material 3 roles.
+- [x] Add unit tests or snapshot checks that verify each theme exports required Material 3 roles.
 
 ## Phase 3 – Component & Layout Integration (Frontend + Design)
 - [ ] Update shared components (buttons, cards, forms, charts) to use semantic tokens rather than direct `--primary` references; ensure state layers comply with Material 3 interaction styles.

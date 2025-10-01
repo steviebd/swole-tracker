@@ -55,6 +55,7 @@ Create an energetic, motivational fitness tracking experience that celebrates pr
 - **Semantic roles over raw hex** – Components should consume Material 3 roles (e.g., `primaryContainer`, `surfaceVariant`, `outline`) instead of ad-hoc CSS variables for consistent accessibility
 - **Mobile-first validation** – Tonal ramps are tuned against OLED contrast requirements and gym lighting scenarios before promotion into design tokens
 - **State layers & elevation overlays** – Apply Material 3 opacity standards (4%, 8%, 12%) for hover/focus/pressed states and blend `surfaceTint` for elevation levels 1–5 to preserve depth cues in dark mode
+- **One-command rebuild** – Use `bun run tokens:build` to regenerate both JSON palettes and `src/styles/material3-tokens.css`; do this whenever palette bases or scheme rules change to keep CSS in sync
 
 ### Typography Hierarchy
 ```

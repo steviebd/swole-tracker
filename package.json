@@ -18,6 +18,7 @@
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "tokens:build": "bun scripts/generate-theme-tokens.ts && bun scripts/build-material3-css.ts",
     "test": "npx vitest",
     "test:ci": "npx vitest run --coverage",
     "test:coverage": "npx vitest run --coverage --reporter=verbose",
