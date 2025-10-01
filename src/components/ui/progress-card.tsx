@@ -107,7 +107,7 @@ const ProgressCard = React.forwardRef<HTMLDivElement, ProgressCardProps>(
                   }}
                   className={cn(
                     "flex items-center justify-center w-8 h-8 rounded-full",
-                    isOverAchieved ? "text-success" : "text-primary"
+                    isOverAchieved ? "text-success" : "text-interactive-primary"
                   )}
                 >
                   {isOverAchieved ? (
@@ -147,7 +147,7 @@ const ProgressCard = React.forwardRef<HTMLDivElement, ProgressCardProps>(
               <div className="text-right">
                 <div className={cn(
                   "text-sm font-semibold",
-                  isOverAchieved ? "text-success" : "text-primary"
+                  isOverAchieved ? "text-success" : "text-interactive-primary"
                 )}>
                   {displayPercentage.toFixed(0)}%
                 </div>

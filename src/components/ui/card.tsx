@@ -109,10 +109,10 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     
     // Surface-based background classes
     const surfaceClasses = {
-      app: 'bg-app',
-      surface: 'bg-surface',
-      card: 'bg-card',
-      elevated: 'bg-card',
+      app: 'bg-surface-app',
+      surface: 'bg-surface-base',
+      card: 'bg-surface-primary',
+      elevated: 'bg-surface-elevated',
     };
     
     // Variant classes with glass effects and shadows

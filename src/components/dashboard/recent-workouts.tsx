@@ -7,8 +7,7 @@ import {
   type RecentWorkoutsProps as SharedRecentWorkoutsProps,
 } from "~/components/recent-workouts";
 
-export interface RecentWorkoutsProps
-  extends Omit<SharedRecentWorkoutsProps, "variant"> {}
+export type RecentWorkoutsProps = Omit<SharedRecentWorkoutsProps, "variant">;
 
 const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
   ({ limit, ...props }, ref) => (

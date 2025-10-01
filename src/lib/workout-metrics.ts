@@ -98,19 +98,22 @@ const safeDate = (value: Date | string | null | undefined): Date | null => {
 };
 
 const extractDuration = (workout: RecentWorkout): number | null => {
-  if (typeof (workout as any).duration === "number") {
-    const value = (workout as any).duration;
+  const workoutObj = workout as Record<string, unknown>;
+
+  if (typeof workoutObj.duration === "number") {
+    const value = workoutObj.duration;
     return Number.isFinite(value) ? value : null;
   }
 
-  if (typeof (workout as any).durationMinutes === "number") {
-    const value = (workout as any).durationMinutes;
+  if (typeof workoutObj.durationMinutes === "number") {
+    const value = workoutObj.durationMinutes;
     return Number.isFinite(value) ? value : null;
   }
 
   const perfMetrics = (workout as any).perf_metrics;
   if (perfMetrics && typeof perfMetrics === "object") {
-    const durationValue = (perfMetrics as Record<string, unknown>).durationMinutes;
+    const durationValue = (perfMetrics as Record<string, unknown>)
+      .durationMinutes;
     if (typeof durationValue === "number" && Number.isFinite(durationValue)) {
       return durationValue;
     }
@@ -154,10 +157,19 @@ export const buildWorkoutSummary = (workout: RecentWorkout): WorkoutSummary => {
     );
 
     const volumeLoad = exercise?.volume_load
-      ? convertWeight(parseNumeric(exercise.volume_load), exercise?.unit, volumeUnit)
+      ? convertWeight(
+          parseNumeric(exercise.volume_load),
+          exercise?.unit,
+          volumeUnit,
+        )
       : null;
 
-    if (Number.isFinite(sets) && Number.isFinite(reps) && sets > 0 && reps > 0) {
+    if (
+      Number.isFinite(sets) &&
+      Number.isFinite(reps) &&
+      sets > 0 &&
+      reps > 0
+    ) {
       if (Number.isFinite(weight) && weight > 0) {
         totalVolume += volumeLoad ?? weight * reps * sets;
       }
@@ -168,7 +180,8 @@ export const buildWorkoutSummary = (workout: RecentWorkout): WorkoutSummary => {
   }
 
   const durationMinutes = extractDuration(workout);
-  const estimatedDurationMinutes = durationMinutes ?? (totalSets > 0 ? totalSets * 3.5 : null);
+  const estimatedDurationMinutes =
+    durationMinutes ?? (totalSets > 0 ? totalSets * 3.5 : null);
   const exerciseCount = uniqueExerciseCount(workout);
 
   const metrics: WorkoutMetric[] = [];

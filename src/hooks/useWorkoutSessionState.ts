@@ -78,7 +78,7 @@ export function useWorkoutSessionState({
   const utils = api.useUtils();
   const { data: session } = api.workouts.getById.useQuery(
     { id: sessionId },
-    { enabled: sessionId > 0 } // Only run query if we have a valid session ID
+    { enabled: sessionId > 0 }, // Only run query if we have a valid session ID
   );
   const { data: preferences } = api.preferences.get.useQuery();
   const updatePreferencesMutation = api.preferences.update.useMutation();
@@ -130,13 +130,15 @@ export function useWorkoutSessionState({
     }
 
     return exercises.filter((exercise): exercise is TemplateExerciseRecord => {
-      return (
-        exercise &&
-        typeof exercise === "object" &&
-        !Array.isArray(exercise) &&
-        typeof (exercise as { id?: unknown }).id === "number" &&
-        typeof (exercise as { exerciseName?: unknown }).exerciseName === "string"
-      );
+      if (
+        !exercise ||
+        typeof exercise !== "object" ||
+        Array.isArray(exercise)
+      ) {
+        return false;
+      }
+      const obj = exercise as Record<string, unknown>;
+      return typeof obj.id === "number" && typeof obj.exerciseName === "string";
     });
   }, [sessionTemplate]);
 
@@ -157,8 +159,11 @@ export function useWorkoutSessionState({
   };
 
   // display order
-  const getDisplayOrder = useCallback(() =>
-    exercises.map((exercise, index) => ({ exercise, originalIndex: index })), [exercises]);
+  const getDisplayOrder = useCallback(
+    () =>
+      exercises.map((exercise, index) => ({ exercise, originalIndex: index })),
+    [exercises],
+  );
 
   // drag + reorder
   const displayOrder = useMemo(() => getDisplayOrder(), [getDisplayOrder]);
@@ -170,7 +175,10 @@ export function useWorkoutSessionState({
         name: ex.exerciseName,
         templateExerciseId: ex.templateExerciseId,
       }));
-      const newExercises = newDisplayOrder.map((item: { exercise: ExerciseData; originalIndex: number }) => item.exercise);
+      const newExercises = newDisplayOrder.map(
+        (item: { exercise: ExerciseData; originalIndex: number }) =>
+          item.exercise,
+      );
       setExercises(newExercises);
 
       // record undo action
@@ -446,7 +454,6 @@ export function useWorkoutSessionState({
     session,
   ]);
 
-
   // helpers exposed to component
 
   // Undo handlers to be used by the component (define before return so it exists)
@@ -574,7 +581,6 @@ export function useWorkoutSessionState({
   const debugLog = (...args: unknown[]) => {
     console.log("[WorkoutSessionState]", ...args);
   };
-
 
   // Action dedupe flags (same-tick guard)
   const addSetInFlightRef = useRef(false);

@@ -11,8 +11,11 @@ const WHOOP_SCOPE =
 export class WhoopAuthorizationError extends Error {
   constructor(
     message: string,
-    readonly status: number = 500,
-    readonly code: "WHOOP_NOT_CONFIGURED" | "WHOOP_STATE_FAILURE" | "WHOOP_OAUTH_FAILURE" = "WHOOP_OAUTH_FAILURE",
+    readonly status = 500,
+    readonly code:
+      | "WHOOP_NOT_CONFIGURED"
+      | "WHOOP_STATE_FAILURE"
+      | "WHOOP_OAUTH_FAILURE" = "WHOOP_OAUTH_FAILURE",
   ) {
     super(message);
     this.name = "WhoopAuthorizationError";
@@ -41,7 +44,8 @@ export async function buildWhoopAuthorizationUrl({
   try {
     await cleanupUserStates(userId, "whoop");
 
-    const redirectUri = env.WHOOP_REDIRECT_URI || `${origin}/api/auth/whoop/callback`;
+    const redirectUri =
+      env.WHOOP_REDIRECT_URI || `${origin}/api/auth/whoop/callback`;
     const clientIp = getClientIp(headers);
     const userAgent = headers.get("user-agent") ?? "unknown";
 

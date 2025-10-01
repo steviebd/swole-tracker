@@ -30,10 +30,10 @@
 - [x] Add unit tests or snapshot checks that verify each theme exports required Material 3 roles.
 
 ## Phase 3 – Component & Layout Integration (Frontend + Design)
-- [ ] Update shared components (buttons, cards, forms, charts) to use semantic tokens rather than direct `--primary` references; ensure state layers comply with Material 3 interaction styles.
-- [ ] Refresh gradient utilities and glassmorphism overlays to leverage new tonal mappings while preserving performance.
-- [ ] Ensure chart libraries and data viz respect tertiary/neutral roles, including accessibility-friendly color fallbacks for colorblind users.
-- [ ] Validate offline/low-power states (e.g., skeleton screens, loading shimmers) against new color specs.
+- [x] Update shared components (buttons, cards, forms, charts) to use semantic tokens rather than direct `--primary` references; ensure state layers comply with Material 3 interaction styles.
+- [x] Refresh gradient utilities and glassmorphism overlays to leverage new tonal mappings while preserving performance.
+- [x] Ensure chart libraries and data viz respect tertiary/neutral roles, including accessibility-friendly color fallbacks for colorblind users.
+- [x] Validate offline/low-power states (e.g., skeleton screens, loading shimmers) against new color specs.
 
 ## Phase 4 – Mobile QA & Accessibility (QA + Frontend)
 - [ ] Run mobile contrast audits (WCAG 2.2 AA) in bright/dim settings; update tokens where contrast fails.

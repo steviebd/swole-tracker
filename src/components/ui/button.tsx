@@ -13,21 +13,22 @@ import {
 import { cn } from "~/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-current focus-visible:outline-offset-2 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden transition-all duration-150",
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-200 ease-out disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-xs transition-all duration-200 ease-out",
+          "bg-interactive-primary text-primary-foreground shadow-xs hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-xs",
         destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-xs focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 transition-all duration-200 ease-out",
+          "bg-destructive text-destructive-foreground shadow-xs hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-xs dark:bg-destructive/80",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-xs dark:bg-input/30 dark:border-input dark:hover:bg-input/50 transition-all duration-200 ease-out",
+          "border border-interactive-primary bg-surface-base text-interactive-primary shadow-none hover:-translate-y-0.5 active:translate-y-0",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:shadow-xs transition-all duration-200 ease-out",
+          "bg-interactive-secondary text-secondary-foreground shadow-xs hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-xs",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground hover:scale-105 active:scale-95 dark:hover:bg-accent/50 transition-all duration-200 ease-out",
-        link: "text-primary underline-offset-4 hover:underline hover:scale-105 active:scale-95 transition-all duration-200 ease-out",
+          "bg-transparent text-interactive-primary hover:scale-105 active:scale-95",
+        link:
+          "bg-transparent text-interactive-primary underline-offset-4 hover:underline hover:scale-105 active:scale-95 px-0 py-0 h-auto",
       },
       size: {
         default: "h-11 px-4 py-2 has-[>svg]:px-3 touch-target",
@@ -48,6 +49,18 @@ const buttonVariants = cva(
     },
   },
 );
+
+const STATE_LAYER_BY_VARIANT: Record<
+  NonNullable<VariantProps<typeof buttonVariants>["variant"]>,
+  "primary" | "secondary" | "surface" | "error"
+> = {
+  default: "primary",
+  destructive: "error",
+  outline: "surface",
+  secondary: "secondary",
+  ghost: "surface",
+  link: "primary",
+};
 
 interface ButtonProps
   extends Omit<
@@ -78,11 +91,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ripple = false,
       onPointerDown,
       children,
+      style,
+      disabled,
       ...props
     },
     ref,
   ) => {
     const prefersReducedMotion = useReducedMotion();
+    const stateLayerVariant =
+      STATE_LAYER_BY_VARIANT[variant ?? "default"] ?? "surface";
+    const resolvedInteractive = interactive ?? !disabled;
     const [ripplePosition, setRipplePosition] = React.useState<{
       x: number;
       y: number;
@@ -113,14 +131,23 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       [haptic, ripple, prefersReducedMotion, asChild, onPointerDown],
     );
 
+    const resolvedClassName = buttonVariants({
+      variant,
+      size,
+      interactive: resolvedInteractive,
+    });
+
     if (asChild) {
       return (
         <Slot
           ref={ref}
-          className={cn(
-            buttonVariants({ variant, size, interactive, className }),
-          )}
-          onPointerDown={handlePointerDown}
+          data-slot="button"
+          data-state-layer={stateLayerVariant}
+          data-disabled={disabled ? "true" : undefined}
+          aria-disabled={disabled}
+          className={cn(resolvedClassName, className)}
+          onPointerDown={!disabled ? handlePointerDown : undefined}
+          style={style}
           {...props}
         >
           {children}
@@ -142,10 +169,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <motion.button
         ref={ref}
         data-slot="button"
-        className={cn(
-          buttonVariants({ variant, size, interactive, className }),
-        )}
-        onPointerDown={handlePointerDown}
+        data-state-layer={stateLayerVariant}
+        data-disabled={disabled ? "true" : undefined}
+        disabled={disabled}
+        className={cn(resolvedClassName, className)}
+        onPointerDown={!disabled ? handlePointerDown : undefined}
+        style={style}
         {...motionProps}
         {...props}
       >
@@ -154,12 +183,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {/* Ripple effect overlay */}
         {ripple && ripplePosition && !prefersReducedMotion && (
           <motion.span
-            className="pointer-events-none absolute rounded-full bg-foreground/20"
+            className="pointer-events-none absolute rounded-full"
             style={{
               left: ripplePosition.x - 10,
               top: ripplePosition.y - 10,
               width: 20,
               height: 20,
+              backgroundColor:
+                "color-mix(in srgb, var(--state-layer-color, currentColor) 24%, transparent 76%)",
             }}
             initial={{ scale: 0, opacity: 1 }}
             animate={{ scale: 4, opacity: 0 }}

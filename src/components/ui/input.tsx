@@ -29,7 +29,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className={cn(block ? "w-full" : "", "space-y-1")}>
         {label ? (
-          <label htmlFor={id} className="text-secondary block text-xs">
+          <label htmlFor={id} className="text-content-secondary block text-xs">
             {label}
           </label>
         ) : null}
@@ -74,7 +74,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={describedBy}
             className={cn(
               "text-xs",
-              invalid ? "text-destructive text-danger" : "text-muted-foreground text-secondary",
+              invalid ? "text-status-danger" : "text-muted-foreground text-content-secondary",
             )}
           >
             {hint}

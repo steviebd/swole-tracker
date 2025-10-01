@@ -156,12 +156,11 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg",
                   "text-sm font-medium transition-all duration-200",
-                  "bg-muted hover:bg-muted-foreground/10",
-                  "text-foreground hover:text-primary",
-                  "border border-transparent hover:border-primary/20",
-                  "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "border border-default bg-surface-secondary text-content-primary",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "min-h-[44px]" // Touch target size
                 )}
+                data-state-layer="surface"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.1 }}
@@ -177,11 +176,12 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg",
                   "text-sm font-medium transition-all duration-200",
-                  "bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/30",
-                  "text-primary hover:text-primary/80",
-                  "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "border border-[color:color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent 72%)]",
+                  "bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 16%, transparent 84%)] text-interactive-primary",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "min-h-[44px]" // Touch target size
                 )}
+                data-state-layer="primary"
                 whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.1 }}

@@ -93,8 +93,8 @@ function buildSurfaceSet(theme: MaterialTheme, schemeKind: SchemeKind) {
     return {
       surface: surface99,
       surfaceDim: mixColors(surface90, surface99, 0.2),
-      surfaceBright: mixColors(surface99, "#ffffff", 0.25),
-      surfaceContainerLowest: tone(100) ?? "#ffffff",
+      surfaceBright: mixColors(surface99, neutral["100"]!, 0.25),
+      surfaceContainerLowest: tone(100) ?? neutral["100"]!,
       surfaceContainerLow: mixColors(surface95, tone(100), 0.35),
       surfaceContainer: mixColors(surface95, surface90, 0.5),
       surfaceContainerHigh: mixColors(surface90, surface95, 0.25),
@@ -111,12 +111,12 @@ function buildSurfaceSet(theme: MaterialTheme, schemeKind: SchemeKind) {
 
   const surface10 = tone(10) ?? scheme.surface;
   const surface20 = tone(20) ?? mixColors(surface10, tone(30), 0.35);
-  const surface4 = mixColors(surface10, "#000000", 0.65);
+  const surface4 = mixColors(surface10, neutral["0"]!, 0.65);
 
   return {
     surface: surface10,
     surfaceDim: mixColors(surface10, surface20, 0.3),
-    surfaceBright: mixColors(surface10, "#ffffff", 0.12),
+    surfaceBright: mixColors(surface10, neutral["100"]!, 0.12),
     surfaceContainerLowest: surface4,
     surfaceContainerLow: mixColors(surface10, surface20, 0.55),
     surfaceContainer: mixColors(surface10, surface20, 0.7),
