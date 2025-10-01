@@ -5,15 +5,20 @@ import {
   WhoopAuthorizationError,
 } from "~/server/api/utils/whoop-authorization";
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   try {
     // Check if this is a prefetch request and return early to avoid CORS issues
-    const purpose = request.headers.get("Purpose") || request.headers.get("X-Purpose");
+    const purpose =
+      request.headers.get("Purpose") || request.headers.get("X-Purpose");
     if (purpose === "prefetch" || request.nextUrl.searchParams.has("_rsc")) {
       return new NextResponse(null, { status: 204 });
     }
     const supabase = await createServerSupabaseClient(request.headers);
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

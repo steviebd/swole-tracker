@@ -4,16 +4,23 @@ import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ 
-        error: "Unauthorized",
-        authenticated: false 
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          authenticated: false,
+        },
+        { status: 401 },
+      );
     }
 
     // Get user's WHOOP integration
@@ -30,7 +37,7 @@ export async function GET() {
         and(
           eq(userIntegrations.user_id, user.id),
           eq(userIntegrations.provider, "whoop"),
-        )
+        ),
       );
 
     if (!integration) {
@@ -42,9 +49,13 @@ export async function GET() {
     }
 
     const now = new Date();
-    const expiresAt = integration.expiresAt ? new Date(integration.expiresAt) : null;
+    const expiresAt = integration.expiresAt
+      ? new Date(integration.expiresAt)
+      : null;
     const isExpired = expiresAt ? expiresAt.getTime() < now.getTime() : false;
-    const expiresIn = expiresAt ? Math.max(0, expiresAt.getTime() - now.getTime()) : null;
+    const expiresIn = expiresAt
+      ? Math.max(0, expiresAt.getTime() - now.getTime())
+      : null;
 
     return NextResponse.json({
       authenticated: true,
@@ -57,14 +68,13 @@ export async function GET() {
         isExpired,
         expiresInMs: expiresIn,
         scope: integration.scope,
-      }
+      },
     });
-
   } catch (error) {
     console.error("Error checking WHOOP status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

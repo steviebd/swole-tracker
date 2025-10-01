@@ -4,11 +4,14 @@ import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = "nodejs";
 
 export async function POST() {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,7 +37,7 @@ export async function POST() {
 
     // Group workouts by temporal key (start + end time)
     const temporalGroups = new Map<string, typeof allWorkouts>();
-    
+
     for (const workout of allWorkouts) {
       const temporalKey = `${workout.start.toISOString()}_${workout.end.toISOString()}`;
       if (!temporalGroups.has(temporalKey)) {
@@ -51,7 +54,7 @@ export async function POST() {
         workouts,
         count: workouts.length,
       }));
-    
+
     if (duplicates.length === 0) {
       return NextResponse.json({
         success: true,
@@ -65,7 +68,7 @@ export async function POST() {
 
     for (const group of duplicates) {
       const workouts = group.workouts;
-      
+
       if (workouts.length <= 1) continue;
 
       // Find the "best" workout to keep (prefer one with sport_name, most complete data)
@@ -73,11 +76,11 @@ export async function POST() {
         // Prefer workout with sport_name (not null/empty)
         if (a.sport_name && !b.sport_name) return -1;
         if (!a.sport_name && b.sport_name) return 1;
-        
+
         // Prefer workout with score data
         if (a.score && !b.score) return -1;
         if (!a.score && b.score) return 1;
-        
+
         // Prefer earliest created (first sync usually has better data)
         return a.createdAt.getTime() - b.createdAt.getTime();
       });
@@ -90,13 +93,13 @@ export async function POST() {
         await db
           .delete(externalWorkoutsWhoop)
           .where(eq(externalWorkoutsWhoop.id, workout.id));
-        
+
         duplicatesRemoved++;
       }
 
       mergedWorkouts.push({
         kept: keepWorkout.whoopWorkoutId,
-        removed: removeWorkouts.map(w => w.whoopWorkoutId),
+        removed: removeWorkouts.map((w) => w.whoopWorkoutId),
         sport_name: keepWorkout.sport_name,
         start: keepWorkout.start.toISOString(),
         end: keepWorkout.end.toISOString(),
@@ -110,12 +113,11 @@ export async function POST() {
       duplicateGroups: duplicates.length,
       mergedWorkouts,
     });
-
   } catch (error) {
     console.error("Error cleaning up duplicate workouts:", error);
     return NextResponse.json(
       { error: "Failed to clean up duplicates" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

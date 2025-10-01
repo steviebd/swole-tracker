@@ -6,7 +6,9 @@ import {
   materialThemes,
   surfaceTokens,
   type ThemeId,
+  type SchemeKind,
 } from "~/lib/design-tokens";
+import { contrastRatio } from "~/lib/a11y/contrast";
 
 const REQUIRED_SCHEME_KEYS = [
   "primary",
@@ -55,6 +57,14 @@ const REQUIRED_SURFACE_KEYS = [
   "surfaceTint",
 ] as const;
 
+const DEFAULT_SCHEME: Record<ThemeId, SchemeKind> = {
+  light: "light",
+  dark: "dark",
+  cool: "dark",
+  warm: "light",
+  neutral: "light",
+};
+
 describe("material design tokens", () => {
   const themeIds: ThemeId[] = ["light", "dark", "cool", "warm", "neutral"];
 
@@ -90,6 +100,38 @@ describe("material design tokens", () => {
     themeIds.forEach((themeId) => {
       expect(surfaceTokens[themeId].light, `${themeId} surface light missing`).toBeDefined();
       expect(surfaceTokens[themeId].dark, `${themeId} surface dark missing`).toBeDefined();
+    });
+  });
+
+  it("meets WCAG 2.2 AA contrast for mobile defaults", () => {
+    const contrastPairs: Array<[string, string]> = [
+      ["primary", "onPrimary"],
+      ["primaryContainer", "onPrimaryContainer"],
+      ["secondary", "onSecondary"],
+      ["secondaryContainer", "onSecondaryContainer"],
+      ["tertiary", "onTertiary"],
+      ["tertiaryContainer", "onTertiaryContainer"],
+      ["surface", "onSurface"],
+      ["surfaceVariant", "onSurfaceVariant"],
+      ["inverseSurface", "inverseOnSurface"],
+      ["error", "onError"],
+      ["errorContainer", "onErrorContainer"],
+    ];
+
+    themeIds.forEach((themeId) => {
+      const schemeKind = DEFAULT_SCHEME[themeId];
+      const scheme = materialSchemes[themeId][schemeKind];
+      contrastPairs.forEach(([baseKey, onKey]) => {
+        const base = scheme[baseKey];
+        const on = scheme[onKey];
+        expect(base, `${themeId} missing ${baseKey}`).toBeDefined();
+        expect(on, `${themeId} missing ${onKey}`).toBeDefined();
+        const ratio = contrastRatio(base!, on!);
+        expect(
+          ratio,
+          `${themeId} ${baseKey} vs ${onKey} contrast ratio ${ratio.toFixed(2)}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
     });
   });
 });

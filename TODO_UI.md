@@ -1,54 +1,100 @@
-# TODO_UI – Theme Refactor & Color System Overhaul
+# UI & UX Audit – Swole Tracker
 
-## Current State Review
-- Existing CSS variables in `src/styles/globals.css` define Light, Dark, Cool, Warm, and Neutral themes with custom amber-focused palettes but lack Material 3 tonal structure.
-- Design tokens in `src/design-tokens/tokens.json` reference generic `--primary`/`--foreground` variables without separate semantic categories for surfaces, outlines, or container states.
-- Theme selector logic (`src/components/ThemeSelector.tsx`) and component styles assume a single accent color path, limiting future palette variance.
-- Mobile web currently inherits desktop theming without platform-specific contrast validation or dynamic color adjustments for ambient light.
+## Stakeholder Priorities
+- **Persona focus:** Design first for in-gym mobile athletes; prioritize thumb-friendly interactions, quick scanning, and robust offline behavior.
+- **Visual language:** Maintain the existing gradient + glassmorphism brand system; improvements should enhance readability/contrast without changing the aesthetic.
+- **Global status:** Surface offline sync queues and health-advice readiness globally (header/status tray) so athletes can check state mid-session.
+- **Integrations roadmap:** No additional device partners planned; IA can stay tuned to Supabase data and Whoop insights.
+- **Dashboard approach:** Keep a curated homepage layout rather than user-configurable widgets.
 
-## Strategic Goals
-- Adopt Material 3 color system (primary, secondary, tertiary, neutral, neutral-variant, error) across all five themes while preserving Swole Tracker’s energetic brand voice.
-- Deliver first-class mobile experience: ensure contrast on OLED screens, reduce glare in gyms, and validate gestures/touch states across themes.
-- Centralize design tokens so semantic color names map cleanly to CSS variables, React components, and charting layers.
-- Enable scalable theme authoring with documentation, previews, and automated regression tests.
+## Global Shell & Navigation
+- Header (`src/components/dashboard-header.tsx`) only exposes theme toggle, bell, preferences, and avatar; surface primary nav (Dashboard, Workouts, Progress, Templates, Whoop) plus a mobile drawer so athletes can jump flows without relying on browser back.
+- Audit gradient/glass treatments for mobile contrast issues. Keep the branded styling but tweak elevation, blur, and overlay opacity so metrics stay legible in all lighting conditions.
+- Establish a reusable page shell primitive (breadcrumb, title, actions) instead of hand-rolling one per page (`/workouts`, `/templates`, `/progress`); this keeps heading hierarchy and spacing consistent on small screens.
+- Normalize loading and empty states across dashboards. Several views lean on custom `skeleton-*` utilities while others use `<Skeleton>`; align visuals and announce loading state to screen readers.
+- Audit focus handling for card grids and large buttons. Quick actions, template cards, and workout cards wrap everything in `<Link>` without explicit focus styles, making keyboard navigation hard to track.
+- Elevate offline/persistence cues into the global shell (header badge, sync tray). Components such as `enhanced-sync-indicator` and `offline-workout-manager` should appear consistently across pages.
 
-## Phase 0 – Research & Baseline (Design + Frontend)
-- [x] Audit color usage via tooling (`rg`, Stylelint reports, component scanning) to catalog hard-coded colors and legacy gradients. _(see `docs/theme-phase0-research.md`)_
-- [x] Benchmark Material 3 implementation requirements (tonal steps, state layers, elevation overlays) and capture constraints in `DESIGN_MANIFESTO.md`.
-- [x] Collect mobile-specific feedback (QA notes, analytics) on readability in gyms/night mode to guide palette testing. _(mobile findings logged in `docs/theme-phase0-research.md`)_
+## / (Home Dashboard)
+- Logged-out hero sits inside `motion.div` with dense copy; add a secondary CTA (“Try a demo”) or supporting imagery to communicate value quickly to first-time visitors.
+- Logged-in dashboard shows Stats, Quick Actions, Weekly Progress, and Recent Workouts with disparate shadows/gradients. Align card heights, typography, and spacing so the grid feels cohesive while preserving brand gradients.
+- Quick actions render as large gradient CTAs; on mobile the three stacked cards feel heavy. Collapse into a horizontal scroll row or compact list for one-handed reach.
+- `RecentWorkoutsSection` header renders a button labelled “View all workouts” without navigation; replace it with an actual `<Link>` so athletes can jump to `/workouts` immediately.
+- Surface readiness insights (AI coaching highlights, Whoop readiness) on the dashboard so mobile athletes don’t have to open `/progress` during a session.
 
-## Phase 1 – Material 3 Token Architecture (Design Systems)
-- [x] Generate Material 3 tonal palettes (0–100) for brand, neutral, neutral-variant, and error families across all five themes.
-- [x] Introduce semantic tokens for states (e.g., `surface-container-high`, `on-primary`, `outline-variant`) and map them to CSS custom properties.
-- [x] Define typography, shape, and motion tokens that complement the new color system (updated type scales, state-layer opacity constants).
-- [x] Document naming conventions and token layering rules in `DESIGN_MANIFESTO.md` + internal design tools.
+## /progress
+- Sticky glass header consumes vertical space on mobile; shrink padding and move filter controls into a compact toolbar that remains reachable with one thumb.
+- Summary cards reuse generic numbers; pair each metric with delta vs. previous period and microcopy describing why the change matters.
+- Volume and exercise lists rely on single long scrolls. Introduce tabs or anchored sections (PRs, Consistency, Wellness, Whoop) so athletes can jump without losing context.
+- Exercise list lacks filters/search; add quick search, tag filters, and “pin favorites” to help athletes locate key lifts quickly.
+- Wellness & Whoop sections show raw metrics; add short “What to do today” blurbs and iconography that connect data to actionable decisions.
 
-## Phase 2 – Theme Implementation (Frontend)
-- [x] Refactor `src/styles/globals.css` to derive theme variables from the new semantic tokens for Light, Dark, Cool, Warm, and Neutral modes.
-- [x] Rework `src/components/ThemeSelector.tsx` to surface richer previews (e.g., chips/cards showing primary/secondary/tertiary swatches) and ensure the five entry points remain intact.
-- [x] Build a token-to-CSS synchronization script (optionally `scripts/generate-theme-tokens.ts`) to prevent drift between JSON tokens and stylesheets.
-- [x] Add unit tests or snapshot checks that verify each theme exports required Material 3 roles.
+## /workouts (History)
+- Page header only offers a back button; add filtering (template, date range), quick search, and a sticky mobile action bar for export/repeat.
+- Cards vs. table toggle defaults to cards; remember the user’s choice and expose the toggle as a segmented control with accessible labels.
+- Card view shows “Best” metric but not duration/volume trends; add badges for PBs, offline sessions, and total sets so mobile users can scan quickly.
+- Table view lacks pagination/lazy loading; for heavy data add monthly grouping, virtualized lists, or infinite scroll with year breakpoints.
+- Export CSV button fires `refetch` without a strong feedback loop. Add spinner, disable state, and toast/snackbar confirmation once the download starts.
 
-## Phase 3 – Component & Layout Integration (Frontend + Design)
-- [x] Update shared components (buttons, cards, forms, charts) to use semantic tokens rather than direct `--primary` references; ensure state layers comply with Material 3 interaction styles.
-- [x] Refresh gradient utilities and glassmorphism overlays to leverage new tonal mappings while preserving performance.
-- [x] Ensure chart libraries and data viz respect tertiary/neutral roles, including accessibility-friendly color fallbacks for colorblind users.
-- [x] Validate offline/low-power states (e.g., skeleton screens, loading shimmers) against new color specs.
+## /workouts/[id] (Session Debrief)
+- Header only shows template name/date; add quick stats (total volume, exercises, duration) and highlight achievements/debrief notes inline.
+- `SessionDebriefPanel` occupies a single tall column; on larger screens split into summary vs. set breakdown columns while keeping mobile stacked.
+- Add contextual actions (“Repeat workout”, “Share summary”) and a banner indicating sync status or AI insights relevant to that session.
 
-## Phase 4 – Mobile QA & Accessibility (QA + Frontend)
-- [ ] Run mobile contrast audits (WCAG 2.2 AA) in bright/dim settings; update tokens where contrast fails.
-- [ ] Test touch states, focus rings, and reduced-motion preferences across iOS Safari, Android Chrome, and PWA installs.
-- [ ] Implement Material 3 elevation overlays (alpha blends) for dark mode surfaces and verify on OLED devices.
-- [ ] Coordinate with accessibility reviewers to validate screen reader announcements and theme switching interactions.
+## /workout/start
+- Template grid lacks search, muscle group filters, or sorting; add filters and quick chips so athletes can find a plan fast between sets.
+- Selected template panel can get long; collapse long exercise lists behind “Show full list” accordions to keep the primary actions in view.
+- Date/time picker defaults to current moment via native input; offer quick shortcuts (Today AM/PM, Yesterday) and respect locale preferences.
+- Provide an explicit “Start freestyle workout” path instead of alerting when no template is selected.
+- Surface sync/offline state before navigation so athletes know the session will store locally if the gym has poor reception.
 
-## Phase 5 – Documentation, Tooling, and Rollout (Design Ops)
-- [ ] Update `DESIGN_MANIFESTO.md` and developer docs with Material 3 guidelines, palette rationale, and mobile-first considerations.
-- [ ] Produce before/after visuals and QA checklist for release notes; ensure marketing assets reflect the new palette.
-- [ ] Add automated regression checks (visual diff or Percy) focusing on theming-critical screens (dashboard, workout detail, AI coaching).
-- [ ] Plan gradual rollout with feature flagging or staged deployment; gather telemetry on theme usage and performance post-launch.
+## /workout/session/[id]
+- Session page lacks a mobile-friendly information hierarchy; add a sticky subheader with template name, elapsed time, sync status, and “Complete workout” CTA.
+- Exercises are virtualized for large templates but lack navigation. Provide a collapsible index or jump menu so athletes can move between muscle groups without endless scrolling.
+- Set cards rely on drag & swipe gestures; add visible handles, swipe hints, and keyboard-accessible alternatives to support a range of users.
+- Measurement units/RPE toggles live in each set; surface current unit at exercise level and allow bulk overrides.
+- Health advice drawer is hidden behind “Get advice.” Preload readiness summary as a chip in the header and show a callout when new guidance is available.
+- Add undo/redo or change history affordances so athletes know when edits synced or remain queued offline.
 
-## Risks & Dependencies
-- Tight coupling between components and legacy `--primary` tokens could extend migration; schedule code freeze windows as needed.
-- Material 3 compliance may require refactoring chart/third-party components that lack multi-role color support.
-- Mobile contrast requirements might necessitate bespoke overrides per theme (e.g., Warm vs Cool) to meet accessibility targets.
-- Documentation and test coverage must be updated in lockstep to avoid regressions during future palette tweaks.
+## /workout/session/local/[localId]
+- Page displays a message but doesn’t redirect. Add timed redirect to `/workouts`, include guidance on checking the offline queue, and link to support if migration failed.
+
+## /templates
+- Template list renders cards vertically; add search, sort (recent, most used), and grouping by tags/muscle groups to help athletes prep mid-session.
+- Display quick stats on each card (last used, sessions completed, avg duration) and provide inline duplication actions.
+- Replace `window.confirm` deletes with a modal dialog that matches brand styling and offers undo.
+- Plan for bulk actions (multi-select archive/delete) once filtering is in place.
+
+## /templates/new & /templates/[id]/edit
+- Form is a long scroll; break into sections (Basics, Exercises, Preview) with a sticky mobile stepper that shows progress.
+- Exercise rows should expose linked master exercises, drag handles, and quick actions (duplicate, swap) without leaving the page.
+- Provide validation summaries and helper text (e.g., recommended rep ranges, rest times) to support less experienced athletes.
+- Add a live preview panel estimating session duration/volume so users see the result of their plan.
+
+## /exercises
+- Table includes a “Migrate” button without context; show migration status (last run, pending count) and disable when no work is required.
+- Equip each exercise row with inline quick actions (rename, merge, tag as favorite) instead of a secondary detail row.
+- Introduce tags or muscle group metadata to support search and filtering; extend search to cover those attributes.
+- Provide create/edit master exercise flows so admins can add exercises without templating first.
+
+## /connect-whoop
+- Page drops users directly into `WhoopWorkouts`; add an overview card summarizing connection state, last sync, and quick re-auth.
+- Provide filters (date range, sync status) and inline error badges so athletes instantly spot failed pulls.
+- Show a “Connect Whoop” CTA when the athlete arrives without a linked account instead of redirecting to `/`.
+
+## Legal Pages (/privacy, /terms)
+- `LegalLayout` injects raw HTML; ensure markdown conversion preserves ordered lists and add a table of contents for long documents.
+- Include a breadcrumb/back link to preferences or dashboard, and align “Last updated” placement with compliance expectations.
+
+## Auth Pages (/auth/login, /auth/register)
+- Provide password visibility toggles and caps-lock warnings so mobile athletes avoid typos.
+- Google sign-in is the primary action; add fallback messaging for regions where OAuth is blocked and surface Supabase errors via toasts.
+- Add inline success/error states that auto-focus on the first invalid field, plus CTA buttons sized for mobile reach.
+- Ensure layout accommodates mobile keyboards, preventing jumps when alerts appear.
+
+## Error & Edge Pages
+- `not-found.tsx` should offer branded navigation chips (“Go home”, “Start workout”, “View templates”) and maintain the app shell so it feels consistent.
+- Add a dedicated `/sign-in` route that simply re-exports the login page to avoid broken links.
+
+## Outstanding Questions
+- None at this time; priorities and guardrails captured in “Stakeholder Priorities.”

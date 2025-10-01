@@ -5,6 +5,8 @@ import {
   WhoopAuthorizationError,
 } from "~/server/api/utils/whoop-authorization";
 
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient(request.headers);
@@ -45,4 +47,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

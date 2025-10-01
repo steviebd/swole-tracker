@@ -8,6 +8,8 @@ import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
+export const runtime = "nodejs";
+
 interface WhoopWorkout {
   id: string;
   start: string;
@@ -19,7 +21,6 @@ interface WhoopWorkout {
   during?: unknown;
   zone_duration?: unknown;
 }
-
 
 export async function POST(_request: NextRequest) {
   try {
@@ -63,10 +64,13 @@ export async function POST(_request: NextRequest) {
 
     // Get valid access token (automatically handles rotation if needed)
     const tokenResult = await getValidAccessToken(user.id, "whoop");
-    
+
     if (!tokenResult.token) {
       return NextResponse.json(
-        { error: tokenResult.error || "Whoop integration not found or token invalid" },
+        {
+          error:
+            tokenResult.error || "Whoop integration not found or token invalid",
+        },
         { status: 404 },
       );
     }

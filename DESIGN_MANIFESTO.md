@@ -57,6 +57,20 @@ Create an energetic, motivational fitness tracking experience that celebrates pr
 - **State layers & elevation overlays** – Apply Material 3 opacity standards (4%, 8%, 12%) for hover/focus/pressed states and blend `surfaceTint` for elevation levels 1–5 to preserve depth cues in dark mode
 - **One-command rebuild** – Use `bun run tokens:build` to regenerate both JSON palettes and `src/styles/material3-tokens.css`; do this whenever palette bases or scheme rules change to keep CSS in sync
 
+#### Palette Rationale by Theme
+- **Light** – Energised amber primaries balanced by saturated evergreen tertiary accents for cardio and streak call-outs. Neutral-variant tones lean warm to preserve depth against glass surfaces.
+- **Dark** – Copper-tinted primaries paired with aqua secondaries ensure OLED-safe contrast while keeping the brand’s heat. Tertiary purples carry success states without clashing against error red.
+- **Cool** – Indigo and teal cores for members who prefer calmer dashboards. Tonal compression is tighter to prevent glare under late-night sessions.
+- **Warm** – Earthy oranges and sand neutrals evoke sunrise training while still meeting 4.5:1 contrast at tone 40 on text pairings.
+- **Neutral** – Graphite and jade set a restrained baseline for analytics-heavy workflows; tertiary greens provide health indicators without over-saturating.
+
+#### Mobile-First Theming Playbook
+- **Contrast** – All default role pairs (`primary`/`onPrimary`, surface tiers, containers) must pass WCAG 2.2 AA. Run `bun run test -- src/__tests__/design-tokens/material3-theme.test.ts` after editing palettes.
+- **Ambient light checks** – Validate light and warm themes on high-brightness devices; dark/cool themes on minimum brightness to avoid pure-black clipping.
+- **Touch feedback** – Interactive surfaces should reference state-layer tokens (`data-state-layer="primary"` etc.) to guarantee visible feedback on glass overlays.
+- **Reduced motion** – Components respect `useReducedMotion()`; avoid introducing motion paths that lack a reduced-motion equivalent.
+- **Elevation** – On dark/cool themes, use the generated `--md-sys-elevation-level*` properties rather than manual alpha overlays to maintain Material 3 depth cues.
+
 ### Typography Hierarchy
 ```
 Display (Montserrat Black): Hero numbers, key achievements

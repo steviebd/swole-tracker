@@ -2,9 +2,13 @@ import type { NextRequest } from "next/server";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return new Response("Unauthorized", { status: 401 });

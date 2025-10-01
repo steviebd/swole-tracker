@@ -108,6 +108,9 @@ export function ThemeSelector({
 }: ThemeSelectorProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const prefersReducedMotion = useReducedMotion();
+  const [liveAnnouncement, setLiveAnnouncement] = React.useState<
+    { id: number; message: string } | null
+  >(null);
 
   const gridColumns =
     variant === "grid" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1";
@@ -123,12 +126,50 @@ export function ThemeSelector({
     [resolvedTheme],
   );
 
+  const handleThemeSelect = React.useCallback(
+    (option: (typeof themes)[number]) => {
+      setTheme(option.value);
+      const timestamp = Date.now();
+      const resolvedLabel = (() => {
+        const current = resolvedTheme ?? "light";
+        return current.charAt(0).toUpperCase() + current.slice(1);
+      })();
+      const message =
+        option.value === "system"
+          ? `System theme selected; currently following ${resolvedLabel} mode`
+          : `${option.label} theme selected`;
+      setLiveAnnouncement({
+        id: timestamp,
+        message,
+      });
+    },
+    [resolvedTheme, setTheme],
+  );
+
+  React.useEffect(() => {
+    if (!liveAnnouncement) return;
+    const timeout = window.setTimeout(() => {
+      setLiveAnnouncement(null);
+    }, 750);
+    return () => window.clearTimeout(timeout);
+  }, [liveAnnouncement]);
+
   return (
     <div
       className={cn("space-y-3", className)}
       role="radiogroup"
       aria-labelledby="theme-selector-label"
     >
+      {liveAnnouncement ? (
+        <div
+          key={liveAnnouncement.id}
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {liveAnnouncement.message}
+        </div>
+      ) : null}
       <div className="space-y-1">
         <div
           id="theme-selector-label"
@@ -160,7 +201,7 @@ export function ThemeSelector({
               <Button
                 variant={isSelected ? "default" : "outline"}
                 size="sm"
-                onClick={() => setTheme(themeOption.value)}
+                onClick={() => handleThemeSelect(themeOption)}
                 className={cn(
                   "flex h-auto w-full flex-col gap-3 py-3 text-xs font-medium transition-all",
                   "relative overflow-hidden hover:shadow-md active:scale-95",
