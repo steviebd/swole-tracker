@@ -13,12 +13,12 @@
 - Enable scalable theme authoring with documentation, previews, and automated regression tests.
 
 ## Phase 0 – Research & Baseline (Design + Frontend)
-- [ ] Audit color usage via tooling (`rg`, Stylelint reports, component scanning) to catalog hard-coded colors and legacy gradients.
-- [ ] Benchmark Material 3 implementation requirements (tonal steps, state layers, elevation overlays) and capture constraints in `DESIGN_MANIFESTO.md`.
-- [ ] Collect mobile-specific feedback (QA notes, analytics) on readability in gyms/night mode to guide palette testing.
+- [x] Audit color usage via tooling (`rg`, Stylelint reports, component scanning) to catalog hard-coded colors and legacy gradients. _(see `docs/theme-phase0-research.md`)_
+- [x] Benchmark Material 3 implementation requirements (tonal steps, state layers, elevation overlays) and capture constraints in `DESIGN_MANIFESTO.md`.
+- [x] Collect mobile-specific feedback (QA notes, analytics) on readability in gyms/night mode to guide palette testing. _(mobile findings logged in `docs/theme-phase0-research.md`)_
 
 ## Phase 1 – Material 3 Token Architecture (Design Systems)
-- [ ] Expand `src/design-tokens/tokens.json` to include Material 3 tonal palettes (0–100) for brand, neutral, neutral-variant, and error families.
+- [x] Generate Material 3 tonal palettes (0–100) for brand, neutral, neutral-variant, and error families across all five themes.
 - [ ] Introduce semantic tokens for states (e.g., `surface-container-high`, `on-primary`, `outline-variant`) and map them to CSS custom properties.
 - [ ] Define typography, shape, and motion tokens that complement the new color system (updated type scales, state-layer opacity constants).
 - [ ] Document naming conventions and token layering rules in `DESIGN_MANIFESTO.md` + internal design tools.
@@ -26,7 +26,7 @@
 ## Phase 2 – Theme Implementation (Frontend)
 - [ ] Refactor `src/styles/globals.css` to derive theme variables from the new semantic tokens for Light, Dark, Cool, Warm, and Neutral modes.
 - [ ] Rework `src/components/ThemeSelector.tsx` to surface richer previews (e.g., chips/cards showing primary/secondary/tertiary swatches) and ensure the five entry points remain intact.
-- [ ] Build a token-to-CSS synchronization script (optionally `scripts/generate-theme-tokens.ts`) to prevent drift between JSON tokens and stylesheets.
+- [x] Build a token-to-CSS synchronization script (optionally `scripts/generate-theme-tokens.ts`) to prevent drift between JSON tokens and stylesheets.
 - [ ] Add unit tests or snapshot checks that verify each theme exports required Material 3 roles.
 
 ## Phase 3 – Component & Layout Integration (Frontend + Design)

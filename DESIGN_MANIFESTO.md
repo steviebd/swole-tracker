@@ -49,6 +49,13 @@ Create an energetic, motivational fitness tracking experience that celebrates pr
 - **Cream Backgrounds**: Approachable, non-intimidating
 - **Deep Darks**: Sophisticated, focused, premium
 
+### Material 3 Alignment
+- **Tonal palettes for every theme** – Light, Dark, Cool, Warm, and Neutral now derive from generated Material 3 tonal palettes stored in `src/design-tokens/material3-palettes.generated.json`
+- **Scriptable source of truth** – Run `bun scripts/generate-theme-tokens.ts` to regenerate palettes when base colors shift; the generator enforces tones `0–100` and produces paired light/dark schemes
+- **Semantic roles over raw hex** – Components should consume Material 3 roles (e.g., `primaryContainer`, `surfaceVariant`, `outline`) instead of ad-hoc CSS variables for consistent accessibility
+- **Mobile-first validation** – Tonal ramps are tuned against OLED contrast requirements and gym lighting scenarios before promotion into design tokens
+- **State layers & elevation overlays** – Apply Material 3 opacity standards (4%, 8%, 12%) for hover/focus/pressed states and blend `surfaceTint` for elevation levels 1–5 to preserve depth cues in dark mode
+
 ### Typography Hierarchy
 ```
 Display (Montserrat Black): Hero numbers, key achievements
