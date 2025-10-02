@@ -1,105 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
-import { onSyncStatusChange, triggerManualSync } from "~/lib/offline-storage";
-import { useOnlineStatus } from "~/hooks/use-online-status";
+import { useState } from "react";
 
-type SyncIndicatorState = {
-  isActive: boolean;
-  status: 'syncing' | 'saving' | 'offline' | 'idle' | 'error';
-  pendingOperations: number;
-  failedOperations: number;
-  lastSync?: number;
-  nextRetry?: number;
-};
+import { useSyncIndicator } from "~/hooks/use-sync-indicator";
 
 export function EnhancedSyncIndicator() {
-  const isFetching = useIsFetching();
-  const isMutating = useIsMutating();
-  const isOnline = useOnlineStatus();
-  
-  const [syncState, setSyncState] = useState<SyncIndicatorState>({
-    isActive: false,
-    status: 'idle',
-    pendingOperations: 0,
-    failedOperations: 0,
-  });
-
   const [showDetails, setShowDetails] = useState(false);
-
-  // Subscribe to sync status changes
-  useEffect(() => {
-    const unsubscribe = onSyncStatusChange((status) => {
-      setSyncState(prev => ({
-        ...prev,
-        pendingOperations: status.pendingOperations || 0,
-        failedOperations: status.failedOperations || 0,
-        lastSync: status.lastSync,
-        nextRetry: status.nextRetry,
-      }));
-    });
-
-    return unsubscribe;
-  }, []);
-
-  // Update sync state based on React Query activity and network status
-  useEffect(() => {
-    let status: SyncIndicatorState['status'] = 'idle';
-    let isActive = false;
-
-    if (!isOnline) {
-      status = 'offline';
-      isActive = true;
-    } else if (isMutating > 0) {
-      status = 'saving';
-      isActive = true;
-    } else if (isFetching > 0 || syncState.pendingOperations > 0) {
-      status = 'syncing';
-      isActive = true;
-    } else if (syncState.failedOperations > 0) {
-      status = 'error';
-      isActive = true;
-    }
-
-    setSyncState(prev => ({
-      ...prev,
-      isActive,
-      status,
-    }));
-  }, [isFetching, isMutating, isOnline, syncState.pendingOperations, syncState.failedOperations]);
-
-  const handleManualSync = async () => {
-    if (!isOnline || syncState.status === 'syncing') return;
-    await triggerManualSync();
-  };
+  const {
+    status,
+    badgeText,
+    tone,
+    isActive,
+    isOnline,
+    isBusy,
+    pendingOperations,
+    failedOperations,
+    lastSync,
+    nextRetry,
+    manualSync,
+    canManualSync,
+  } = useSyncIndicator();
 
   const getStatusColor = () => {
-    switch (syncState.status) {
-      case 'offline':
+    switch (tone) {
+      case 'warning':
         return 'bg-orange-500';
-      case 'error':
+      case 'danger':
         return 'bg-red-500';
-      case 'saving':
-      case 'syncing':
+      case 'info':
         return 'bg-blue-500';
       default:
         return 'bg-green-500';
-    }
-  };
-
-  const getStatusText = () => {
-    switch (syncState.status) {
-      case 'offline':
-        return `Offline${syncState.pendingOperations > 0 ? ` (${syncState.pendingOperations} pending)` : ''}`;
-      case 'error':
-        return `${syncState.failedOperations} failed`;
-      case 'saving':
-        return 'Saving...';
-      case 'syncing':
-        return 'Syncing...';
-      default:
-        return 'All synced';
     }
   };
 
@@ -112,7 +43,7 @@ export function EnhancedSyncIndicator() {
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  if (!syncState.isActive && syncState.status === 'idle') {
+  if (!isActive && status === 'idle') {
     return null;
   }
 
@@ -124,7 +55,7 @@ export function EnhancedSyncIndicator() {
       >
         {/* Animated status indicator */}
         <div className="flex items-center gap-2">
-          {(syncState.status === 'syncing' || syncState.status === 'saving') && (
+          {(status === 'syncing' || status === 'saving') && (
             <div className="flex space-x-1">
               <div className="h-1 w-1 animate-bounce rounded-full bg-current [animation-delay:-0.3s]"></div>
               <div className="h-1 w-1 animate-bounce rounded-full bg-current [animation-delay:-0.15s]"></div>
@@ -132,27 +63,27 @@ export function EnhancedSyncIndicator() {
             </div>
           )}
           
-          {syncState.status === 'offline' && (
+          {status === 'offline' && (
             <div className="h-2 w-2 animate-pulse rounded-full bg-current"></div>
           )}
           
-          {syncState.status === 'error' && (
+          {status === 'error' && (
             <div className="h-2 w-2 rounded-full bg-current flex items-center justify-center text-xs">!</div>
           )}
           
-          {syncState.status === 'idle' && (
+          {status === 'idle' && (
             <div className="h-2 w-2 rounded-full bg-current"></div>
           )}
         </div>
 
-        <span className="text-xs">{getStatusText()}</span>
+        <span className="text-xs">{badgeText}</span>
 
         {/* Manual sync button for failed operations */}
-        {syncState.failedOperations > 0 && isOnline && (
+        {failedOperations > 0 && isOnline && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleManualSync();
+              void manualSync();
             }}
             className="ml-1 text-xs underline hover:no-underline"
           >
@@ -185,25 +116,25 @@ export function EnhancedSyncIndicator() {
 
               <div className="flex justify-between">
                 <span>Pending operations:</span>
-                <span>{syncState.pendingOperations}</span>
+                <span>{pendingOperations}</span>
               </div>
 
               <div className="flex justify-between">
                 <span>Failed operations:</span>
-                <span className={syncState.failedOperations > 0 ? 'text-red-600' : ''}>
-                  {syncState.failedOperations}
+                <span className={failedOperations > 0 ? 'text-red-600' : ''}>
+                  {failedOperations}
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span>Last sync:</span>
-                <span>{formatTimeAgo(syncState.lastSync)}</span>
+                <span>{formatTimeAgo(lastSync)}</span>
               </div>
 
-              {syncState.nextRetry && (
+              {nextRetry && (
                 <div className="flex justify-between">
                   <span>Next retry:</span>
-                  <span>{formatTimeAgo(syncState.nextRetry)}</span>
+                  <span>{formatTimeAgo(nextRetry)}</span>
                 </div>
               )}
             </div>
@@ -211,11 +142,11 @@ export function EnhancedSyncIndicator() {
             {/* Manual sync button */}
             {isOnline && (
               <button
-                onClick={handleManualSync}
-                disabled={syncState.status === 'syncing'}
+                onClick={() => void manualSync()}
+                disabled={!canManualSync}
                 className="w-full px-3 py-2 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 disabled:opacity-50"
               >
-                {syncState.status === 'syncing' ? 'Syncing...' : 'Sync Now'}
+                {isBusy ? 'Syncing...' : 'Sync Now'}
               </button>
             )}
           </div>

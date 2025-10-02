@@ -47,7 +47,6 @@ interface BaseViewProps {
 }
 
 interface DashboardViewProps extends BaseViewProps {
-  onNavigateAll: () => void;
   onStartNewWorkout: () => void;
   onViewDetails: (workoutId: number | string) => void;
 }
@@ -155,10 +154,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
       [router],
     );
 
-    const handleNavigateAll = React.useCallback(() => {
-      router.push("/workouts");
-    }, [router]);
-
     const handleStartNewWorkout = React.useCallback(() => {
       router.push("/workout/start");
     }, [router]);
@@ -172,7 +167,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
           isLoading={isLoading}
           limit={resolvedLimit}
           onRepeat={handleRepeatWorkout}
-          onNavigateAll={handleNavigateAll}
           onStartNewWorkout={handleStartNewWorkout}
           onViewDetails={handleViewDetails}
           repeatPending={repeatWorkoutMutation.isPending}
@@ -208,7 +202,6 @@ const DashboardRecentWorkoutsView = ({
   forwardedRef,
   isLoading,
   limit,
-  onNavigateAll,
   onStartNewWorkout,
   onRepeat,
   onViewDetails,
@@ -331,20 +324,20 @@ const DashboardRecentWorkoutsView = ({
           Recent Workouts
         </h2>
         {workouts.length >= limit && (
-          <motion.button
-            onClick={onNavigateAll}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3 py-2",
-              "text-sm font-medium text-primary transition-all duration-200",
-              "hover:bg-primary/5 hover:text-primary/80",
-              "focus:outline-none focus:ring-2 focus:ring-primary/20",
-            )}
-            whileHover={{ x: 2 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            View All
-            <ArrowRight className="h-4 w-4" />
-          </motion.button>
+          <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.95 }}>
+            <Link
+              href="/workouts"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg px-3 py-2",
+                "text-sm font-medium text-primary transition-all duration-200",
+                "hover:bg-primary/5 hover:text-primary/80",
+                "focus:outline-none focus:ring-2 focus:ring-primary/20",
+              )}
+            >
+              View All
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </motion.div>
         )}
       </motion.div>
 

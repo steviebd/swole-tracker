@@ -8,24 +8,24 @@
 - **Dashboard approach:** Keep a curated homepage layout rather than user-configurable widgets.
 
 ## Global Shell & Navigation
-- Header (`src/components/dashboard-header.tsx`) only exposes theme toggle, bell, preferences, and avatar; surface primary nav (Dashboard, Workouts, Progress, Templates, Whoop) plus a mobile drawer so athletes can jump flows without relying on browser back.
+- [x] Header (`src/components/dashboard-header.tsx`) only exposes theme toggle, bell, preferences, and avatar; surface primary nav (Dashboard, Workouts, Progress, Templates, Whoop) plus a mobile drawer so athletes can jump flows without relying on browser back.
 - Audit gradient/glass treatments for mobile contrast issues. Keep the branded styling but tweak elevation, blur, and overlay opacity so metrics stay legible in all lighting conditions.
-- Establish a reusable page shell primitive (breadcrumb, title, actions) instead of hand-rolling one per page (`/workouts`, `/templates`, `/progress`); this keeps heading hierarchy and spacing consistent on small screens.
+- [x] Establish a reusable page shell primitive (breadcrumb, title, actions) instead of hand-rolling one per page (`/workouts`, `/templates`, `/progress`); this keeps heading hierarchy and spacing consistent on small screens.
 - Normalize loading and empty states across dashboards. Several views lean on custom `skeleton-*` utilities while others use `<Skeleton>`; align visuals and announce loading state to screen readers.
 - Audit focus handling for card grids and large buttons. Quick actions, template cards, and workout cards wrap everything in `<Link>` without explicit focus styles, making keyboard navigation hard to track.
-- Elevate offline/persistence cues into the global shell (header badge, sync tray). Components such as `enhanced-sync-indicator` and `offline-workout-manager` should appear consistently across pages.
+- [x] Elevate offline/persistence cues into the global shell (header badge, sync tray). Components such as `enhanced-sync-indicator` and `offline-workout-manager` should appear consistently across pages.
 
 ## / (Home Dashboard)
 - Logged-out hero sits inside `motion.div` with dense copy; add a secondary CTA (“Try a demo”) or supporting imagery to communicate value quickly to first-time visitors.
 - Logged-in dashboard shows Stats, Quick Actions, Weekly Progress, and Recent Workouts with disparate shadows/gradients. Align card heights, typography, and spacing so the grid feels cohesive while preserving brand gradients.
-- Quick actions render as large gradient CTAs; on mobile the three stacked cards feel heavy. Collapse into a horizontal scroll row or compact list for one-handed reach.
-- `RecentWorkoutsSection` header renders a button labelled “View all workouts” without navigation; replace it with an actual `<Link>` so athletes can jump to `/workouts` immediately.
-- Surface readiness insights (AI coaching highlights, Whoop readiness) on the dashboard so mobile athletes don’t have to open `/progress` during a session.
+- [x] Quick actions render as large gradient CTAs; on mobile the three stacked cards feel heavy. Collapse into a horizontal scroll row or compact list for one-handed reach.
+- [x] `RecentWorkoutsSection` header renders a button labelled “View all workouts” without navigation; replace it with an actual `<Link>` so athletes can jump to `/workouts` immediately.
+- [x] Surface readiness insights (AI coaching highlights, Whoop readiness) on the dashboard so mobile athletes don’t have to open `/progress` during a session.
 
 ## /progress
-- Sticky glass header consumes vertical space on mobile; shrink padding and move filter controls into a compact toolbar that remains reachable with one thumb.
-- Summary cards reuse generic numbers; pair each metric with delta vs. previous period and microcopy describing why the change matters.
-- Volume and exercise lists rely on single long scrolls. Introduce tabs or anchored sections (PRs, Consistency, Wellness, Whoop) so athletes can jump without losing context.
+- [x] Sticky glass header consumes vertical space on mobile; shrink padding and move filter controls into a compact toolbar that remains reachable with one thumb.
+- [x] Summary cards reuse generic numbers; pair each metric with delta vs. previous period and microcopy describing why the change matters.
+- [x] Volume and exercise lists rely on single long scrolls. Introduce tabs or anchored sections (PRs, Consistency, Wellness, Whoop) so athletes can jump without losing context.
 - Exercise list lacks filters/search; add quick search, tag filters, and “pin favorites” to help athletes locate key lifts quickly.
 - Wellness & Whoop sections show raw metrics; add short “What to do today” blurbs and iconography that connect data to actionable decisions.
 
@@ -57,13 +57,12 @@
 - Add undo/redo or change history affordances so athletes know when edits synced or remain queued offline.
 
 ## /workout/session/local/[localId]
-- Page displays a message but doesn’t redirect. Add timed redirect to `/workouts`, include guidance on checking the offline queue, and link to support if migration failed.
+- [x] Page displays a message but doesn’t redirect. Add timed redirect to `/workouts`, include guidance on checking the offline queue, and link to support if migration failed.
 
 ## /templates
-- Template list renders cards vertically; add search, sort (recent, most used), and grouping by tags/muscle groups to help athletes prep mid-session.
-- Display quick stats on each card (last used, sessions completed, avg duration) and provide inline duplication actions.
+- [x] Template list renders cards vertically; add search, sort (recent, most used), and grouping by tags/muscle groups to help athletes prep mid-session.
+- [x] Display quick stats on each card (last used, sessions completed, avg duration) and provide inline duplication actions.
 - Replace `window.confirm` deletes with a modal dialog that matches brand styling and offers undo.
-- Plan for bulk actions (multi-select archive/delete) once filtering is in place.
 
 ## /templates/new & /templates/[id]/edit
 - Form is a long scroll; break into sections (Basics, Exercises, Preview) with a sticky mobile stepper that shows progress.

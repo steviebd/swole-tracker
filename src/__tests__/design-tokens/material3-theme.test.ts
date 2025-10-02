@@ -83,7 +83,10 @@ describe("material design tokens", () => {
         expect(tokens.scheme[key], `${themeId} missing ${key}`).toBeTruthy();
       });
       REQUIRED_SURFACE_KEYS.forEach((key) => {
-        expect(tokens.surfaces[key], `${themeId} missing surface token ${key}`).toBeTruthy();
+        expect(
+          tokens.surfaces[key],
+          `${themeId} missing surface token ${key}`,
+        ).toBeTruthy();
       });
     });
   });
@@ -91,15 +94,24 @@ describe("material design tokens", () => {
   it("keeps tonal palettes aligned with generated payload", () => {
     themeIds.forEach((themeId) => {
       const theme = materialThemes[themeId];
-      expect(theme.palettes.primary, `${themeId} primary palette missing`).toBeDefined();
-      expect(Object.keys(theme.palettes.primary).length).toBeGreaterThan(0);
+      expect(
+        theme.palettes.primary,
+        `${themeId} primary palette missing`,
+      ).toBeDefined();
+      expect(Object.keys(theme.palettes.primary!).length).toBeGreaterThan(0);
     });
   });
 
   it("precomputes surface sets for snapshot previews", () => {
     themeIds.forEach((themeId) => {
-      expect(surfaceTokens[themeId].light, `${themeId} surface light missing`).toBeDefined();
-      expect(surfaceTokens[themeId].dark, `${themeId} surface dark missing`).toBeDefined();
+      expect(
+        surfaceTokens[themeId].light,
+        `${themeId} surface light missing`,
+      ).toBeDefined();
+      expect(
+        surfaceTokens[themeId].dark,
+        `${themeId} surface dark missing`,
+      ).toBeDefined();
     });
   });
 

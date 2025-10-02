@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 
-import { buildSessionDebriefPrompt, SESSION_DEBRIEF_SYSTEM_PROMPT } from "~/lib/ai-prompts/session-debrief";
+import {
+  buildSessionDebriefPrompt,
+  SESSION_DEBRIEF_SYSTEM_PROMPT,
+} from "~/lib/ai-prompts/session-debrief";
 
 const payload = {
   locale: "en-US",
@@ -28,7 +31,7 @@ const payload = {
             volume: 1000,
           },
         ],
-        prFlags: ["weight"],
+        prFlags: ["weight"] as Array<"weight" | "volume" | "oneRM">,
         previousBest: {
           volume: 7000,
           bestWeight: 195,

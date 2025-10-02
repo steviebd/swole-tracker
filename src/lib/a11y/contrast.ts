@@ -1,7 +1,7 @@
 const HEX_PATTERN = /^#?([a-fA-F0-9]{3}|[a-fA-F0-9]{6})$/;
 
 function normalizeHex(input: string) {
-  const match = input.trim().match(HEX_PATTERN);
+  const match = HEX_PATTERN.exec(input.trim());
   if (!match) {
     throw new Error(
       `Unsupported color format for contrast calculation: ${input}`,

@@ -77,13 +77,14 @@ describe("sessionDebriefRouter", () => {
     const caller = sessionDebriefRouter.createCaller(mockCtx);
 
     mockedGenerate.mockResolvedValue({
-      debrief: { id: 10, sessionId: 5, version: 1 },
+      debrief: { id: 10, sessionId: 5, version: 1 } as any,
       content: {
         summary: "Great job",
         prHighlights: [],
         focusAreas: [],
         metadata: {},
       },
+      context: {} as any,
     });
 
     const result = await caller.generateAndSave({ sessionId: 5 });
@@ -126,7 +127,9 @@ describe("sessionDebriefRouter", () => {
       return;
     }
 
-    expect(updateChains.set).toHaveBeenCalledWith({ viewedAt: expect.any(Date) });
+    expect(updateChains.set).toHaveBeenCalledWith({
+      viewedAt: expect.any(Date),
+    });
     expect(result.id).toBe(1);
   });
 

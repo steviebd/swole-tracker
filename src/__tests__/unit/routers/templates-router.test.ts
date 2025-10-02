@@ -55,27 +55,44 @@ describe("templatesRouter", () => {
         },
       ];
 
-      db.query.workoutTemplates.findMany = vi
-        .fn()
-        .mockResolvedValue(mockTemplates);
+      // Mock the database query result
+      const mockQueryResult = mockTemplates.map((template) => ({
+        template,
+        lastUsed: null,
+        totalSessions: 0,
+      }));
+
+      // Mock the db methods used in the getAll query
+      (db as any).select = vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue(mockQueryResult),
+              }),
+            }),
+          }),
+        }),
+      });
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.getAll();
 
-      expect(db.query.workoutTemplates.findMany).toHaveBeenCalledWith({
-        where: expect.any(Function), // eq(workoutTemplates.user_id, ctx.user.id)
-        orderBy: [expect.any(Function)], // desc(workoutTemplates.createdAt)
-        with: {
-          exercises: {
-            orderBy: expect.any(Function), // asc(exercises.orderIndex)
-          },
-        },
-      });
       expect(result).toEqual(mockTemplates);
     });
 
     it("should return empty array when no templates exist", async () => {
-      db.query.workoutTemplates.findMany = vi.fn().mockResolvedValue([]);
+      (db as any).select = vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              groupBy: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        }),
+      });
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.getAll();
@@ -109,7 +126,7 @@ describe("templatesRouter", () => {
       const result = await caller.getById({ id: 1 });
 
       expect(db.query.workoutTemplates.findFirst).toHaveBeenCalledWith({
-        where: expect.any(Function), // eq(workoutTemplates.id, input.id)
+        where: expect.any(Object), // SQL object for eq(workoutTemplates.id, input.id)
         with: {
           exercises: {
             orderBy: expect.any(Function), // asc(exercises.orderIndex)
@@ -175,7 +192,9 @@ describe("templatesRouter", () => {
       ];
 
       // Mock the database operations
-      mockDb.query.workoutTemplates.findFirst = vi.fn().mockResolvedValue(null); // No duplicate
+      (db.query.workoutTemplates.findFirst as any) = vi
+        .fn()
+        .mockResolvedValue(null); // No duplicate
 
       // Mock template creation
       const mockTemplateInsertBuilder = {
@@ -192,7 +211,7 @@ describe("templatesRouter", () => {
       };
 
       // Mock insert calls - first for template, second for exercises
-      mockDb.insert
+      (db.insert as any)
         .mockReturnValueOnce(mockTemplateInsertBuilder as any)
         .mockReturnValueOnce(mockExerciseInsertBuilder as any);
 
