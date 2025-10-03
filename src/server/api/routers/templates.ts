@@ -6,8 +6,9 @@ import {
   templateExercises,
   masterExercises,
   exerciseLinks,
+  workoutSessions,
 } from "~/server/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray, sql, asc, max, count } from "drizzle-orm";
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
@@ -148,17 +149,110 @@ async function createAndLinkMasterExercise(
 
 export const templatesRouter = createTRPCRouter({
   // Get all templates for the current user
-  getAll: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.workoutTemplates.findMany({
-      where: eq(workoutTemplates.user_id, ctx.user.id),
-      orderBy: [desc(workoutTemplates.createdAt)],
-      with: {
-        exercises: {
-          orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+  getAll: protectedProcedure
+    .input(
+      z
+        .object({
+          search: z.string().max(120).optional(),
+          sort: z
+            .enum(["recent", "lastUsed", "mostUsed", "name"])
+            .default("recent"),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const searchTerm = input?.search?.trim();
+      const sort = input?.sort ?? "recent";
+
+      const whereCondition = searchTerm
+        ? and(
+            eq(workoutTemplates.user_id, ctx.user.id),
+            sql`${workoutTemplates.name} ILIKE ${`%${searchTerm}%`}`,
+          )
+        : eq(workoutTemplates.user_id, ctx.user.id);
+
+      const queryBuilder = ctx.db
+        .select({
+          template: workoutTemplates,
+          lastUsed: max(workoutSessions.workoutDate).as("lastUsed"),
+          totalSessions: count(workoutSessions.id).as("totalSessions"),
+        })
+        .from(workoutTemplates)
+        .leftJoin(
+          workoutSessions,
+          eq(workoutTemplates.id, workoutSessions.templateId),
+        )
+        .where(whereCondition);
+
+      queryBuilder.groupBy(workoutTemplates.id);
+
+      switch (sort) {
+        case "lastUsed":
+          queryBuilder.orderBy(desc(max(workoutSessions.workoutDate)));
+          break;
+        case "mostUsed":
+          queryBuilder.orderBy(desc(count(workoutSessions.id)));
+          break;
+        case "name":
+          queryBuilder.orderBy(asc(workoutTemplates.name));
+          break;
+        default:
+          queryBuilder.orderBy(desc(workoutTemplates.createdAt));
+      }
+
+      const results = await queryBuilder;
+
+      const templateIds = results.map((row) => row.template.id);
+
+      if (templateIds.length === 0) {
+        return [] as Array<
+          typeof workoutTemplates.$inferSelect & {
+            exercises: (typeof templateExercises.$inferSelect)[];
+            lastUsed: Date | null;
+            totalSessions: number;
+          }
+        >;
+      }
+
+      const templates = await ctx.db.query.workoutTemplates.findMany({
+        where: inArray(workoutTemplates.id, templateIds),
+        with: {
+          exercises: {
+            orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+          },
         },
-      },
-    });
-  }),
+      });
+
+      const statsByTemplate = new Map<
+        number,
+        { lastUsed: Date | null; totalSessions: number }
+      >();
+      for (const row of results) {
+        statsByTemplate.set(row.template.id, {
+          lastUsed: row.lastUsed ?? null,
+          totalSessions: Number(row.totalSessions ?? 0),
+        });
+      }
+
+      const orderMap = new Map<number, number>();
+      templateIds.forEach((id, index) => {
+        if (!orderMap.has(id)) {
+          orderMap.set(id, index);
+        }
+      });
+
+      const sortedTemplates = [...templates].sort((a, b) => {
+        const aIndex = orderMap.get(a.id) ?? 0;
+        const bIndex = orderMap.get(b.id) ?? 0;
+        return aIndex - bIndex;
+      });
+
+      return sortedTemplates.map((template) => ({
+        ...template,
+        lastUsed: statsByTemplate.get(template.id)?.lastUsed ?? null,
+        totalSessions: statsByTemplate.get(template.id)?.totalSessions ?? 0,
+      }));
+    }),
 
   // Get a single template by ID
   getById: protectedProcedure
@@ -331,6 +425,95 @@ export const templatesRouter = createTRPCRouter({
       }
 
       return { success: true };
+    }),
+
+  // Duplicate an existing template with exercises
+  duplicate: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().min(1).max(256).optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const original = await ctx.db.query.workoutTemplates.findFirst({
+        where: eq(workoutTemplates.id, input.id),
+        with: {
+          exercises: {
+            orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+          },
+        },
+      });
+
+      if (!original || original.user_id !== ctx.user.id) {
+        throw new Error("Template not found");
+      }
+
+      const baseName = input.name?.trim() || `${original.name} Copy`;
+      let candidateName = baseName;
+      if (!input.name) {
+        let suffix = 1;
+        while (true) {
+          const existing = await ctx.db.query.workoutTemplates.findFirst({
+            where: and(
+              eq(workoutTemplates.user_id, ctx.user.id),
+              eq(workoutTemplates.name, candidateName),
+            ),
+          });
+
+          if (!existing) {
+            break;
+          }
+
+          suffix += 1;
+          candidateName = `${baseName} (${suffix})`;
+          if (suffix > 10) {
+            candidateName = `${baseName} (${Date.now()})`;
+            break;
+          }
+        }
+      }
+
+      const [created] = await ctx.db
+        .insert(workoutTemplates)
+        .values({
+          name: candidateName,
+          user_id: ctx.user.id,
+        })
+        .returning();
+
+      if (!created) {
+        throw new Error("Failed to duplicate template");
+      }
+
+      const originalExercises = original.exercises ?? [];
+
+      if (originalExercises.length > 0) {
+        const inserted = await ctx.db
+          .insert(templateExercises)
+          .values(
+            originalExercises.map((exercise) => ({
+              user_id: ctx.user.id,
+              templateId: created.id,
+              exerciseName: exercise.exerciseName,
+              orderIndex: exercise.orderIndex,
+              linkingRejected: exercise.linkingRejected ?? false,
+            })),
+          )
+          .returning();
+
+        for (const exercise of inserted) {
+          await createAndLinkMasterExercise(
+            ctx.db,
+            ctx.user.id,
+            exercise.exerciseName,
+            exercise.id,
+            exercise.linkingRejected ?? false,
+          );
+        }
+      }
+
+      return created;
     }),
 
   // Delete a template

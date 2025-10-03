@@ -9,6 +9,7 @@ import { StrengthIcon, FireIcon } from "~/components/icons/fitness-icons";
 
 // Dynamic imports for heavy components
 import { StatsCards } from "~/app/_components/StatsCards";
+import { ReadinessHighlight } from "~/app/_components/readiness-highlight";
 const QuickActions = lazy(() => import("~/components/quick-actions").then(module => ({ default: module.QuickActions })));
 const WeeklyProgress = lazy(() => import("~/components/weekly-progress").then(module => ({ default: module.WeeklyProgress })));
 const RecentWorkouts = lazy(() => import("~/components/recent-workouts").then(module => ({ default: module.RecentWorkouts })));
@@ -108,6 +109,7 @@ export default function Home() {
         <Suspense fallback={<div className="h-16 bg-muted/50 rounded-lg animate-pulse"></div>}>
           <QuickActions />
         </Suspense>
+        <ReadinessHighlight />
         <StatsCards />
         <div className="grid lg:grid-cols-2 gap-8">
           <Suspense fallback={<div className="h-64 bg-muted/50 rounded-lg animate-pulse"></div>}>

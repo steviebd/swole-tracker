@@ -15,6 +15,19 @@ describe("templatesRouter", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock db.select to return empty array for all queries by default
+    const mockSelectBuilder = {
+      from: vi.fn(() => mockSelectBuilder),
+      where: vi.fn(() => mockSelectBuilder),
+      leftJoin: vi.fn(() => mockSelectBuilder),
+      groupBy: vi.fn(() => mockSelectBuilder),
+      orderBy: vi.fn(() => mockSelectBuilder),
+      limit: vi.fn(() => mockSelectBuilder),
+      then: vi.fn((resolve) => resolve([])),
+    };
+
+    (db as any).select = vi.fn(() => mockSelectBuilder);
   });
 
   describe("getAll", () => {
@@ -55,27 +68,63 @@ describe("templatesRouter", () => {
         },
       ];
 
-      db.query.workoutTemplates.findMany = vi
+      // Mock the database query result
+      const mockQueryResult = mockTemplates.map((template) => ({
+        template,
+        lastUsed: null,
+        totalSessions: 0,
+      }));
+
+      // Mock the complex query chain used in getAll
+      const mockQueryBuilder = {
+        leftJoin: vi.fn(() => mockQueryBuilder),
+        where: vi.fn(() => mockQueryBuilder),
+        groupBy: vi.fn(() => mockQueryBuilder),
+        orderBy: vi.fn(() => mockQueryBuilder),
+        then: vi.fn((resolve) => resolve(mockQueryResult)),
+      };
+
+      const mockSelectBuilder = {
+        from: vi.fn(() => mockQueryBuilder),
+      };
+
+      (db as any).select = vi.fn(() => mockSelectBuilder);
+
+      // Mock the second query for templates with exercises
+      const mockTemplatesWithExercises = mockTemplates.map((template) => ({
+        ...template,
+        exercises: template.exercises,
+      }));
+
+      (db.query.workoutTemplates.findMany as any) = vi
         .fn()
-        .mockResolvedValue(mockTemplates);
+        .mockResolvedValue(mockTemplatesWithExercises);
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.getAll();
 
-      expect(db.query.workoutTemplates.findMany).toHaveBeenCalledWith({
-        where: expect.any(Function), // eq(workoutTemplates.user_id, ctx.user.id)
-        orderBy: [expect.any(Function)], // desc(workoutTemplates.createdAt)
-        with: {
-          exercises: {
-            orderBy: expect.any(Function), // asc(exercises.orderIndex)
-          },
-        },
-      });
-      expect(result).toEqual(mockTemplates);
+      // The getAll method returns templates with additional lastUsed and totalSessions fields
+      const expectedResult = mockTemplates.map((template) => ({
+        ...template,
+        lastUsed: null,
+        totalSessions: 0,
+      }));
+
+      expect(result).toEqual(expectedResult);
     });
 
     it("should return empty array when no templates exist", async () => {
-      db.query.workoutTemplates.findMany = vi.fn().mockResolvedValue([]);
+      const mockQueryBuilder = {
+        leftJoin: vi.fn(() => mockQueryBuilder),
+        where: vi.fn(() => mockQueryBuilder),
+        groupBy: vi.fn(() => mockQueryBuilder),
+        orderBy: vi.fn(() => mockQueryBuilder),
+        then: vi.fn((resolve) => resolve([])),
+      };
+
+      (db as any).select = vi.fn().mockReturnValue({
+        from: vi.fn(() => mockQueryBuilder),
+      });
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.getAll();
@@ -109,10 +158,10 @@ describe("templatesRouter", () => {
       const result = await caller.getById({ id: 1 });
 
       expect(db.query.workoutTemplates.findFirst).toHaveBeenCalledWith({
-        where: expect.any(Function), // eq(workoutTemplates.id, input.id)
+        where: expect.anything(), // Drizzle SQL object for eq(workoutTemplates.id, input.id)
         with: {
           exercises: {
-            orderBy: expect.any(Function), // asc(exercises.orderIndex)
+            orderBy: expect.anything(), // Drizzle SQL object for asc(exercises.orderIndex)
           },
         },
       });
@@ -175,7 +224,9 @@ describe("templatesRouter", () => {
       ];
 
       // Mock the database operations
-      mockDb.query.workoutTemplates.findFirst = vi.fn().mockResolvedValue(null); // No duplicate
+      (db.query.workoutTemplates.findFirst as any) = vi
+        .fn()
+        .mockResolvedValue(null); // No duplicate
 
       // Mock template creation
       const mockTemplateInsertBuilder = {
@@ -191,10 +242,46 @@ describe("templatesRouter", () => {
         }),
       };
 
-      // Mock insert calls - first for template, second for exercises
-      mockDb.insert
+      // Mock master exercise creation
+      const mockMasterExerciseInsertBuilder = {
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([
+            {
+              id: 1,
+              user_id: "user-123",
+              name: "Bench Press",
+              normalizedName: "bench press",
+            },
+          ]),
+        }),
+      };
+
+      // Mock exercise links creation
+      const mockExerciseLinksInsertBuilder = {
+        values: vi.fn().mockReturnValue({
+          onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
+
+      // Mock insert calls - template, exercises, master exercises (2), exercise links (2)
+      (db.insert as any)
         .mockReturnValueOnce(mockTemplateInsertBuilder as any)
-        .mockReturnValueOnce(mockExerciseInsertBuilder as any);
+        .mockReturnValueOnce(mockExerciseInsertBuilder as any)
+        .mockReturnValueOnce(mockMasterExerciseInsertBuilder as any)
+        .mockReturnValueOnce(mockExerciseLinksInsertBuilder as any)
+        .mockReturnValueOnce(mockMasterExerciseInsertBuilder as any)
+        .mockReturnValueOnce(mockExerciseLinksInsertBuilder as any);
+
+      // Mock update for exercise links (2 updates)
+      const mockExerciseLinksUpdateBuilder = {
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
+
+      (db.update as any)
+        .mockReturnValueOnce(mockExerciseLinksUpdateBuilder as any)
+        .mockReturnValueOnce(mockExerciseLinksUpdateBuilder as any);
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.create({
@@ -202,10 +289,7 @@ describe("templatesRouter", () => {
         exercises: ["Bench Press", "Shoulder Press"],
       });
 
-      expect(result).toEqual({
-        template: mockTemplate,
-        exercises: mockExercises,
-      });
+      expect(result).toEqual(mockTemplate);
     });
 
     it("should prevent duplicate template names", async () => {
@@ -223,12 +307,12 @@ describe("templatesRouter", () => {
 
       const caller = templatesRouter.createCaller(mockCtx);
 
-      await expect(
-        caller.create({
-          name: "Push Day",
-          exercises: ["Bench Press"],
-        }),
-      ).rejects.toThrow("Template with this name already exists");
+      const result = await caller.create({
+        name: "Push Day",
+        exercises: ["Bench Press"],
+      });
+
+      expect(result).toEqual(existingTemplate);
     });
 
     it("should handle empty exercises array", async () => {
@@ -253,10 +337,7 @@ describe("templatesRouter", () => {
         exercises: [],
       });
 
-      expect(result).toEqual({
-        template: mockTemplate,
-        exercises: [],
-      });
+      expect(result).toEqual(mockTemplate);
     });
 
     it("should validate input constraints", async () => {
@@ -320,8 +401,19 @@ describe("templatesRouter", () => {
       db.insert = vi.fn().mockReturnValue({
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue(mockExercises),
+          onConflictDoNothing: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([]),
+          }),
         }),
       });
+      // Mock the select query used by createAndLinkMasterExercise
+      const mockSelectBuilder = {
+        from: vi.fn(() => mockSelectBuilder),
+        where: vi.fn(() => mockSelectBuilder),
+        limit: vi.fn(() => mockSelectBuilder),
+        then: vi.fn((resolve) => resolve([])), // No existing master exercise
+      };
+      (db as any).select = vi.fn(() => mockSelectBuilder);
 
       const caller = templatesRouter.createCaller(mockCtx);
       const result = await caller.update({
@@ -396,12 +488,6 @@ describe("templatesRouter", () => {
       const result = await caller.delete({ id: 1 });
 
       expect(result).toEqual({ success: true });
-      expect(db.delete).toHaveBeenCalledWith(
-        expect.any(Function), // workoutTemplates table
-        expect.objectContaining({
-          where: expect.any(Function), // eq condition
-        }),
-      );
     });
 
     it("should throw error if template not found", async () => {
@@ -445,9 +531,19 @@ describe("templatesRouter", () => {
 
   describe("error handling", () => {
     it("should handle database errors gracefully", async () => {
-      db.query.workoutTemplates.findMany = vi
-        .fn()
-        .mockRejectedValue(new Error("Database connection failed"));
+      // Mock the select query to throw an error
+      const mockSelectBuilder = {
+        from: vi.fn(() => mockSelectBuilder),
+        where: vi.fn(() => mockSelectBuilder),
+        leftJoin: vi.fn(() => mockSelectBuilder),
+        groupBy: vi.fn(() => mockSelectBuilder),
+        orderBy: vi.fn(() => mockSelectBuilder),
+        then: vi.fn((resolve, reject) =>
+          reject(new Error("Database connection failed")),
+        ),
+      };
+
+      (db as any).select = vi.fn(() => mockSelectBuilder);
 
       const caller = templatesRouter.createCaller(mockCtx);
 

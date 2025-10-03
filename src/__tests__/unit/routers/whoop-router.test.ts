@@ -2,16 +2,51 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Import after mocking
 import { whoopRouter } from "~/server/api/routers/whoop";
-import { db } from "~/server/db";
 
 describe("whoopRouter", () => {
   const mockUser = { id: "user-123" };
+
+  // Create a proper mock db that supports Drizzle fluent API
+  const mockDb = {
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+        returning: vi.fn().mockResolvedValue([]),
+      }),
+    }),
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        leftJoin: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            groupBy: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+        }),
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+    }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
+  };
+
   const mockCtx = {
-    db,
+    db: mockDb,
     user: mockUser,
     requestId: "test-request",
     headers: new Headers(),
-  };
+  } as any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -22,12 +57,12 @@ describe("whoopRouter", () => {
       const mockIntegration = {
         isActive: true,
         createdAt: new Date("2024-01-01"),
-        expiresAt: new Date("2024-12-31"),
+        expiresAt: new Date("2025-12-31"),
         scope:
           "read:profile read:recovery read:workout read:sleep read:cycle read:body_measurement",
       };
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([mockIntegration]),
         }),
@@ -46,7 +81,7 @@ describe("whoopRouter", () => {
     });
 
     it("should return disconnected status when no integration exists", async () => {
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
@@ -72,7 +107,7 @@ describe("whoopRouter", () => {
         scope: "read:profile",
       };
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([mockIntegration]),
         }),
@@ -91,7 +126,7 @@ describe("whoopRouter", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      db.select = vi.fn().mockImplementation(() => {
+      mockDb.select.mockImplementation(() => {
         throw new Error("Database connection failed");
       });
 
@@ -120,7 +155,7 @@ describe("whoopRouter", () => {
         },
       ];
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockResolvedValue(mockWorkouts),
@@ -135,7 +170,7 @@ describe("whoopRouter", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      db.select = vi.fn().mockImplementation(() => {
+      mockDb.select.mockImplementation(() => {
         throw new Error("Database connection failed");
       });
 
@@ -149,7 +184,7 @@ describe("whoopRouter", () => {
 
   describe("disconnectIntegration", () => {
     it("should deactivate WHOOP integration", async () => {
-      db.update = vi.fn().mockReturnValue({
+      mockDb.update.mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue(undefined),
         }),
@@ -159,7 +194,7 @@ describe("whoopRouter", () => {
       const result = await caller.disconnectIntegration();
 
       expect(result).toEqual({ success: true });
-      expect(db.update).toHaveBeenCalled();
+      expect(mockDb.update).toHaveBeenCalled();
     });
   });
 
@@ -239,31 +274,32 @@ describe("whoopRouter", () => {
         start: new Date(),
       };
 
-      db.select = vi
-        .fn()
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([mockIntegration]),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([mockRecovery]),
+      mockDb.select.mockImplementation(() => ({
+        from: vi.fn().mockImplementation((table: any) => {
+          if (table === "userIntegrations") {
+            return {
+              where: vi.fn().mockResolvedValue([mockIntegration]),
+            };
+          } else if (table === "whoopRecovery") {
+            return {
+              where: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue([mockRecovery]),
+                }),
               }),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([mockSleep]),
+            };
+          } else if (table === "whoopSleep") {
+            return {
+              where: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue([mockSleep]),
+                }),
               }),
-            }),
-          }),
-        });
+            };
+          }
+          return {};
+        }),
+      }));
 
       const caller = whoopRouter.createCaller(mockCtx);
       const result = await caller.getLatestRecoveryData();
@@ -284,7 +320,7 @@ describe("whoopRouter", () => {
     });
 
     it("should throw error when integration is not active", async () => {
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
@@ -303,7 +339,7 @@ describe("whoopRouter", () => {
         expiresAt: new Date("2024-01-01"), // Expired
       };
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([mockIntegration]),
         }),
@@ -322,7 +358,7 @@ describe("whoopRouter", () => {
         expiresAt: new Date("2024-12-31"),
       };
 
-      db.select = vi
+      mockDb.select = vi
         .fn()
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
@@ -365,7 +401,7 @@ describe("whoopRouter", () => {
         },
       ];
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockResolvedValue(mockRecovery),
@@ -398,7 +434,7 @@ describe("whoopRouter", () => {
         },
       ];
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockResolvedValue(mockCycles),
@@ -437,7 +473,7 @@ describe("whoopRouter", () => {
         },
       ];
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockResolvedValue(mockSleep),
@@ -465,7 +501,7 @@ describe("whoopRouter", () => {
         createdAt: new Date(),
       };
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             limit: vi.fn().mockResolvedValue([mockProfile]),
@@ -480,7 +516,7 @@ describe("whoopRouter", () => {
     });
 
     it("should return null when no profile exists", async () => {
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             limit: vi.fn().mockResolvedValue([]),
@@ -510,7 +546,7 @@ describe("whoopRouter", () => {
         },
       ];
 
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockResolvedValue(mockMeasurements),
@@ -525,7 +561,7 @@ describe("whoopRouter", () => {
     });
 
     it("should return empty array when no measurements exist", async () => {
-      db.select = vi.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockResolvedValue([]),

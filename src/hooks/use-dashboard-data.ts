@@ -4,6 +4,10 @@ import { useMemo } from "react";
 import { useWorkoutStats } from "./use-workout-stats";
 import { useProgressGoals } from "./use-progress-goals";
 import { api } from "~/trpc/react";
+import {
+  buildWorkoutSummary,
+  type RecentWorkout,
+} from "~/lib/workout-metrics";
 
 /**
  * Combined dashboard data hook for unified loading states and data coordination
@@ -126,56 +130,8 @@ export function useDashboardData({
       return "success";
     },
 
-    getRecentWorkoutMetrics: (workout: any) => {
-      const metrics = [];
-
-      // Duration (estimate or actual)
-      if (workout.duration) {
-        metrics.push({
-          label: "Duration",
-          value: `${Math.round(workout.duration)}min`
-        });
-      } else if (workout.totalSets) {
-        const estimatedDuration = Math.round(workout.totalSets * 3.5);
-        metrics.push({
-          label: "Duration",
-          value: `~${estimatedDuration}min`
-        });
-      }
-
-      // Volume or Sets
-      if (workout.totalVolume && workout.totalVolume > 0) {
-        metrics.push({
-          label: "Volume",
-          value: `${Math.round(workout.totalVolume).toLocaleString()}lbs`
-        });
-      } else if (workout.totalSets) {
-        metrics.push({
-          label: "Sets",
-          value: workout.totalSets.toString()
-        });
-      }
-
-      // Exercise count
-      if (workout.exerciseCount) {
-        metrics.push({
-          label: "Exercises",
-          value: workout.exerciseCount.toString()
-        });
-      } else if (workout.exercises?.length) {
-        metrics.push({
-          label: "Exercises",
-          value: workout.exercises.length.toString()
-        });
-      }
-
-      // Ensure consistent 3 metrics
-      while (metrics.length < 3) {
-        metrics.push({ label: "—", value: "—" });
-      }
-
-      return metrics.slice(0, 3);
-    },
+    getRecentWorkoutMetrics: (workout: RecentWorkout | any) =>
+      buildWorkoutSummary(workout as RecentWorkout).metrics,
 
     shouldShowCelebration: () => {
       // Show celebration if any weekly goals exceeded or perfect

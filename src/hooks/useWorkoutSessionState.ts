@@ -78,7 +78,7 @@ export function useWorkoutSessionState({
   const utils = api.useUtils();
   const { data: session } = api.workouts.getById.useQuery(
     { id: sessionId },
-    { enabled: sessionId > 0 } // Only run query if we have a valid session ID
+    { enabled: sessionId > 0 }, // Only run query if we have a valid session ID
   );
   const { data: preferences } = api.preferences.get.useQuery();
   const updatePreferencesMutation = api.preferences.update.useMutation();
@@ -93,6 +93,54 @@ export function useWorkoutSessionState({
   };
 
   const { enqueue } = useOfflineSaveQueue();
+
+  type SessionRecord = NonNullable<typeof session>;
+  type SessionTemplate = SessionRecord["template"];
+
+  const sessionTemplate = useMemo<SessionTemplate | undefined>(() => {
+    if (!session) {
+      return undefined;
+    }
+
+    const templateCandidate = (session as { template?: unknown }).template;
+    if (
+      templateCandidate &&
+      typeof templateCandidate === "object" &&
+      !Array.isArray(templateCandidate)
+    ) {
+      return templateCandidate as SessionTemplate;
+    }
+
+    return undefined;
+  }, [session]);
+
+  type TemplateExerciseRecord = {
+    id: number;
+    exerciseName: string;
+  } & Record<string, unknown>;
+
+  const templateExercises = useMemo(() => {
+    if (!sessionTemplate) {
+      return undefined;
+    }
+
+    const exercises = (sessionTemplate as { exercises?: unknown }).exercises;
+    if (!Array.isArray(exercises)) {
+      return undefined;
+    }
+
+    return exercises.filter((exercise): exercise is TemplateExerciseRecord => {
+      if (
+        !exercise ||
+        typeof exercise !== "object" ||
+        Array.isArray(exercise)
+      ) {
+        return false;
+      }
+      const obj = exercise as Record<string, unknown>;
+      return typeof obj.id === "number" && typeof obj.exerciseName === "string";
+    });
+  }, [sessionTemplate]);
 
   // id generation with counter to ensure uniqueness
   const setIdCounterRef = useRef(0);
@@ -111,8 +159,11 @@ export function useWorkoutSessionState({
   };
 
   // display order
-  const getDisplayOrder = useCallback(() =>
-    exercises.map((exercise, index) => ({ exercise, originalIndex: index })), [exercises]);
+  const getDisplayOrder = useCallback(
+    () =>
+      exercises.map((exercise, index) => ({ exercise, originalIndex: index })),
+    [exercises],
+  );
 
   // drag + reorder
   const displayOrder = useMemo(() => getDisplayOrder(), [getDisplayOrder]);
@@ -124,7 +175,10 @@ export function useWorkoutSessionState({
         name: ex.exerciseName,
         templateExerciseId: ex.templateExerciseId,
       }));
-      const newExercises = newDisplayOrder.map((item: { exercise: ExerciseData; originalIndex: number }) => item.exercise);
+      const newExercises = newDisplayOrder.map(
+        (item: { exercise: ExerciseData; originalIndex: number }) =>
+          item.exercise,
+      );
       setExercises(newExercises);
 
       // record undo action
@@ -177,7 +231,7 @@ export function useWorkoutSessionState({
       await utils.workouts.getRecent.cancel();
       const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
 
-      if (session?.template) {
+      if (session && sessionTemplate) {
         const optimisticWorkout = {
           id: sessionId,
           user_id: session.user_id,
@@ -189,7 +243,7 @@ export function useWorkoutSessionState({
           perf_metrics: (session as any).perf_metrics ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
-          template: session.template,
+          template: sessionTemplate,
           exercises: newWorkout.exercises.flatMap((exercise, exerciseIndex) =>
             exercise.sets.map((set, setIndex) => ({
               id: -(exerciseIndex * 100 + setIndex),
@@ -278,14 +332,14 @@ export function useWorkoutSessionState({
 
   // previous data loading
   useEffect(() => {
-    if (!session?.template || isReadOnly) {
+    if (!templateExercises || isReadOnly) {
       setPreviousDataLoaded(true);
       return;
     }
 
     const loadPreviousData = async () => {
       const previousDataMap = new Map();
-      for (const templateExercise of session.template.exercises) {
+      for (const templateExercise of templateExercises) {
         try {
           const data = await utils.workouts.getLastExerciseData.fetch({
             exerciseName: templateExercise.exerciseName,
@@ -305,7 +359,7 @@ export function useWorkoutSessionState({
 
     void loadPreviousData();
   }, [
-    session?.template,
+    templateExercises,
     isReadOnly,
     utils.workouts.getLastExerciseData,
     sessionId,
@@ -313,9 +367,9 @@ export function useWorkoutSessionState({
 
   // session init
   useEffect(() => {
-    if (!session?.template || !previousDataLoaded) return;
+    if (!templateExercises || !previousDataLoaded) return;
 
-    if (session.exercises && session.exercises.length > 0) {
+    if (Array.isArray(session?.exercises) && session.exercises.length > 0) {
       const exerciseGroups = new Map<string, typeof session.exercises>();
       session.exercises.forEach((sessionExercise) => {
         const key = sessionExercise.exerciseName;
@@ -347,8 +401,8 @@ export function useWorkoutSessionState({
       setIsReadOnly(true);
       setExpandedExercises(existingExercises.map((_, index) => index));
     } else {
-      const initialExercises: ExerciseData[] = session.template.exercises.map(
-        (templateExercise: { id: number; exerciseName: string }) => {
+      const initialExercises: ExerciseData[] = templateExercises.map(
+        (templateExercise) => {
           const previousData = previousExerciseData.get(
             templateExercise.exerciseName,
           );
@@ -392,14 +446,13 @@ export function useWorkoutSessionState({
 
     setLoading(false);
   }, [
-    session?.template,
+    templateExercises,
     session?.exercises,
     preferences?.defaultWeightUnit,
     previousExerciseData,
     previousDataLoaded,
     session,
   ]);
-
 
   // helpers exposed to component
 
@@ -528,7 +581,6 @@ export function useWorkoutSessionState({
   const debugLog = (...args: unknown[]) => {
     console.log("[WorkoutSessionState]", ...args);
   };
-
 
   // Action dedupe flags (same-tick guard)
   const addSetInFlightRef = useRef(false);

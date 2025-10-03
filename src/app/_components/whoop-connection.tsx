@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
+import { useWhoopConnect } from "~/hooks/use-whoop-connect";
 
 export function WhoopConnection() {
-  const [isLoading, setIsLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -20,6 +20,12 @@ export function WhoopConnection() {
   const { data: integrationStatus, refetch: refetchStatus } =
     api.whoop.getIntegrationStatus.useQuery();
   const { refetch: refetchWorkouts } = api.whoop.getWorkouts.useQuery();
+  const {
+    startConnect,
+    isConnecting,
+    error: connectError,
+    resetError: resetConnectError,
+  } = useWhoopConnect();
 
   useEffect(() => {
     const success = searchParams?.get("success");
@@ -57,15 +63,22 @@ export function WhoopConnection() {
     }
   }, [searchParams, refetchStatus]);
 
+  useEffect(() => {
+    if (connectError) {
+      setMessage({ type: "error", text: connectError });
+    }
+  }, [connectError]);
+
   const handleConnect = async () => {
-    setIsLoading(true);
     setMessage(null);
-    window.location.href = "/api/auth/whoop/authorize";
+    resetConnectError();
+    await startConnect();
   };
 
   const handleSync = async () => {
     setSyncLoading(true);
     setMessage(null);
+    resetConnectError();
 
     try {
       const response = await fetch("/api/whoop/sync-workouts", {
@@ -148,10 +161,10 @@ export function WhoopConnection() {
                 )}
                 <button
                   onClick={handleConnect}
-                  disabled={isLoading}
+                  disabled={isConnecting}
                   className="btn-primary w-full px-6 py-3 font-semibold disabled:opacity-50"
                 >
-                  {isLoading ? "Connecting..." : "Reconnect to Whoop"}
+                  {isConnecting ? "Connecting..." : "Reconnect to Whoop"}
                 </button>
               </div>
             </div>
@@ -163,10 +176,10 @@ export function WhoopConnection() {
               </p>
               <button
                 onClick={handleConnect}
-                disabled={isLoading}
+                disabled={isConnecting}
                 className="btn-primary w-full px-6 py-3 font-semibold disabled:opacity-50"
               >
-                {isLoading ? "Connecting..." : "Connect to Whoop"}
+                {isConnecting ? "Connecting..." : "Connect to Whoop"}
               </button>
             </div>
           )}

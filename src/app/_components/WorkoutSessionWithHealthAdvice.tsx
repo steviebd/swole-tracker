@@ -87,9 +87,27 @@ export function WorkoutSessionWithHealthAdvice({
     preferred_rpe: 8,
   };
 
+  const templateExercises = React.useMemo(
+    () =>
+      workoutSession?.template &&
+      typeof workoutSession.template === "object" &&
+      !Array.isArray(workoutSession.template) &&
+      Array.isArray(
+        (workoutSession.template as { exercises?: unknown }).exercises,
+      )
+        ? ((workoutSession.template as {
+            exercises: Array<{
+              id: number;
+              exerciseName: string;
+            }>;
+          }).exercises)
+        : undefined,
+    [workoutSession],
+  );
+
   // Build dynamic workout plan from actual session template data
   const dynamicWorkoutPlan = React.useMemo(() => {
-    if (!workoutSession?.template?.exercises) {
+    if (!templateExercises) {
       return (
         workoutPlan || {
           exercises: [],
@@ -98,13 +116,23 @@ export function WorkoutSessionWithHealthAdvice({
     }
 
     // Create workout plan from template exercises
-    const exercises = workoutSession.template.exercises.map(
+    const exercises = templateExercises.map(
       (templateExercise) => {
         // Get existing session exercises for this template exercise to determine set count
-        const existingSessionSets =
-          workoutSession.exercises?.filter(
-            (ex) => ex.exerciseName === templateExercise.exerciseName,
-          ) || [];
+        const existingSessionSets = Array.isArray(
+          (workoutSession as { exercises?: unknown })?.exercises,
+        )
+          ? ((workoutSession as {
+              exercises: Array<{
+                exerciseName?: string;
+                reps?: number | null;
+                weight?: string | null;
+                rpe?: number | null;
+              }>;
+            }).exercises.filter(
+              (ex) => ex.exerciseName === templateExercise.exerciseName,
+            ))
+          : [];
 
         // Determine how many sets to generate (use existing data or default to 3)
         const setCount =
@@ -133,7 +161,7 @@ export function WorkoutSessionWithHealthAdvice({
     );
 
     return { exercises };
-  }, [workoutSession, workoutPlan]);
+  }, [templateExercises, workoutSession, workoutPlan]);
 
   const actualPriorBests = priorBests || { by_exercise_id: {} };
 
@@ -282,8 +310,16 @@ export function WorkoutSessionWithHealthAdvice({
       return;
     }
 
+    if (!templateExercises) {
+      console.error(
+        "Template exercises are unavailable when processing set:",
+        setId,
+      );
+      return;
+    }
+
     // Find the template exercise to get the actual exercise name
-    const templateExercise = workoutSession?.template?.exercises.find(
+    const templateExercise = templateExercises.find(
       (ex) => ex.id === templateExerciseId,
     );
 

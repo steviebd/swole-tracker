@@ -84,8 +84,21 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
     const totalVolume = data.reduce((sum, d) => sum + d.volume, 0);
     const avgVolume = data.length > 0 ? totalVolume / data.length : 0;
     const maxVolume = Math.max(...data.map(d => d.volume));
+
+    const chartFill = 'var(--chart-1, #1f78b4)';
+    const chartGradientAccent = `color-mix(in srgb, ${chartFill} 65%, var(--md-sys-color-surface-tint) 35%)`;
+    const axisColor = 'var(--md-sys-color-on-surface-variant)';
+    const gridColor = 'var(--md-sys-color-outline-variant)';
+    const cursorFill = `color-mix(in srgb, ${chartFill} 25%, transparent 75%)`;
+    const gradientId = React.useId();
     
     // Custom tooltip component
+    const trendPalette = {
+      up: 'var(--chart-3, #33a02c)',
+      down: 'var(--md-sys-color-error, #d90429)',
+      stable: 'var(--md-sys-color-on-surface-variant)',
+    } as const;
+
     const CustomTooltip = ({ active, payload, label }: any) => {
       if (active && payload?.length) {
         const data = payload[0].payload;
@@ -101,7 +114,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Volume:</span>
-                  <span className="font-semibold text-primary">
+                  <span className="font-semibold" style={{ color: chartFill }}>
                     {payload[0].value?.toLocaleString()} {volumeUnit}
                   </span>
                 </div>
@@ -129,9 +142,9 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
     const TrendIcon = ({ direction }: { direction: string }) => {
       switch (direction) {
         case 'up':
-          return <TrendingUp className="w-4 h-4 text-success" />;
+          return <TrendingUp className="w-4 h-4" style={{ color: trendPalette.up }} />;
         case 'down':
-          return <TrendingDown className="w-4 h-4 text-destructive" />;
+          return <TrendingDown className="w-4 h-4" style={{ color: trendPalette.down }} />;
         default:
           return <Minus className="w-4 h-4 text-muted-foreground" />;
       }
@@ -165,17 +178,22 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5 }}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-muted"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-surface-secondary"
                 >
                   <TrendIcon direction={trend.direction} />
                   <div className="text-sm">
                     {trend.direction === 'stable' ? (
                       <span className="text-muted-foreground">Stable</span>
                     ) : (
-                      <span className={cn(
-                        "font-medium",
-                        trend.direction === 'up' ? "text-success" : "text-destructive"
-                      )}>
+                      <span
+                        className="font-medium"
+                        style={{
+                          color:
+                            trend.direction === 'up'
+                              ? trendPalette.up
+                              : trendPalette.down,
+                        }}
+                      >
                         {trend.change.toFixed(1)}% {trend.direction === 'up' ? 'increase' : 'decrease'}
                       </span>
                     )}
@@ -198,9 +216,9 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                 margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
               >
                 {/* Grid */}
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  stroke="var(--color-border-muted)"
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={gridColor}
                   opacity={0.3}
                 />
                 
@@ -209,10 +227,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{
-                    fill: 'var(--color-text-secondary)',
-                    fontSize: 12,
-                  }}
+                  tick={{ fill: axisColor, fontSize: 12 }}
                   dy={10}
                 />
                 
@@ -220,10 +235,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{
-                    fill: 'var(--color-text-secondary)',
-                    fontSize: 12,
-                  }}
+                  tick={{ fill: axisColor, fontSize: 12 }}
                   dx={-10}
                   tickFormatter={(value) => `${value.toLocaleString()}`}
                 />
@@ -232,8 +244,8 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                 <Tooltip 
                   content={<CustomTooltip />}
                   cursor={{
-                    fill: 'var(--color-primary-default)',
-                    opacity: 0.1,
+                    fill: cursorFill,
+                    opacity: 0.35,
                   }}
                 />
                 
@@ -245,22 +257,13 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
                 >
                   <Bar
                     dataKey="volume"
-                    fill="url(#volumeGradient)"
+                    fill={`url(#${gradientId})`}
                     radius={[4, 4, 0, 0]}
                   >
-                    {/* Define gradient */}
                     <defs>
-                      <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop 
-                          offset="0%" 
-                          stopColor="var(--color-primary-default)" 
-                          stopOpacity={0.8} 
-                        />
-                        <stop 
-                          offset="100%" 
-                          stopColor="var(--color-primary-default)" 
-                          stopOpacity={0.3} 
-                        />
+                      <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartFill} stopOpacity={0.85} />
+                        <stop offset="100%" stopColor={chartGradientAccent} stopOpacity={0.4} />
                       </linearGradient>
                     </defs>
                   </Bar>
@@ -270,7 +273,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
           </div>
           
           {/* Chart statistics */}
-          <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-muted">
+          <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-default">
             <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Total Volume</div>
               <div className="text-sm font-semibold text-foreground">
@@ -285,7 +288,7 @@ const WorkoutVolumeChart = React.forwardRef<HTMLDivElement, WorkoutVolumeChartPr
             </div>
             <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Best Session</div>
-              <div className="text-sm font-semibold text-primary">
+              <div className="text-sm font-semibold" style={{ color: chartFill }}>
                 {maxVolume.toLocaleString()} {volumeUnit}
               </div>
             </div>

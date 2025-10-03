@@ -90,6 +90,13 @@ export const analytics = {
     });
   },
 
+  templateDuplicated: (templateId: string) => {
+    safeCapture("template_duplicated", {
+      templateId,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
   // Settings events
   weightUnitChanged: (unit: "kg" | "lbs") => {
     safeCapture("weight_unit_changed", {
@@ -113,6 +120,41 @@ export const analytics = {
     safeCapture("feature_used", {
       feature,
       ...properties,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  aiDebriefViewed: (
+    sessionId: string,
+    version: number,
+    streakLength?: number,
+  ) => {
+    safeCapture("ai_debrief.viewed", {
+      sessionId,
+      version,
+      streakLength,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  aiDebriefRegenerated: (
+    sessionId: string,
+    version: number,
+    reason?: string,
+  ) => {
+    safeCapture("ai_debrief.regenerated", {
+      sessionId,
+      version,
+      reason,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  aiDebriefDismissed: (sessionId: string, version: number, pinned: boolean) => {
+    safeCapture("ai_debrief.dismissed", {
+      sessionId,
+      version,
+      pinned,
       timestamp: new Date().toISOString(),
     });
   },

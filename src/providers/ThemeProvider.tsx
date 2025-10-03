@@ -32,21 +32,15 @@ const THEME_STORAGE_KEY = "theme";
 function applyThemeClass(theme: Theme, systemDark: boolean) {
   const root = document.documentElement;
 
-  // For system theme, use the actual light/dark theme based on system preference
-  let effectiveTheme = theme;
-  if (theme === "system") {
-    effectiveTheme = systemDark ? "dark" : "light";
-  }
-
-  // Determine dark mode for class toggling
-  // Only dark theme is actually dark mode, all others are light variations
-  const shouldDark = effectiveTheme === "dark";
-
-  // data-theme is the source of truth for CSS variables/themes
-  // For system theme, we want to preserve "system" in the dataset
-  root.dataset.theme = theme === "system" ? "system" : effectiveTheme;
+  // Resolve which palette should be active for CSS variables
+  const effectiveTheme =
+    theme === "system" ? (systemDark ? "dark" : "light") : theme;
 
   // Toggle Tailwind's dark class for components that rely on it
+  const shouldDark = effectiveTheme === "dark";
+
+  root.dataset.theme = effectiveTheme;
+  root.dataset.themeMode = theme;
   root.classList.toggle("dark", shouldDark);
 }
 

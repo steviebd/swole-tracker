@@ -1405,9 +1405,22 @@ export async function getLinkedExerciseNames(
           },
         });
 
-        return linkedExercises.map(
-          (link) => link.templateExercise.exerciseName,
-        );
+        const exerciseNames = linkedExercises
+          .map((link) => {
+            const template = link.templateExercise;
+            if (
+              template &&
+              typeof template === "object" &&
+              !Array.isArray(template) &&
+              typeof (template as { exerciseName?: unknown }).exerciseName === "string"
+            ) {
+              return (template as { exerciseName: string }).exerciseName;
+            }
+            return null;
+          })
+          .filter((name): name is string => typeof name === "string");
+
+        return exerciseNames;
       } else {
         // Fallback to getting exercise name from templateExerciseId using queryOne if available (for mocks)
         if (typeof (database as any).queryOne === "function") {

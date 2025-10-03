@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "~/lib/supabase-server";
 import { db } from "~/server/db";
+
+export const runtime = "nodejs";
 import {
   userIntegrations,
   externalWorkoutsWhoop,
@@ -113,7 +115,6 @@ interface WhoopProfile {
   first_name: string;
   last_name: string;
 }
-
 
 // Fetch data using WHOOP API v2 collection endpoints with incremental sync
 async function fetchWhoopDataV2<T>(
@@ -692,7 +693,7 @@ export async function POST(_req: NextRequest) {
 
     // Get valid access token (handles decryption and rotation automatically)
     const tokenResult = await getValidAccessToken(user.id, "whoop");
-    
+
     if (!tokenResult.token) {
       return NextResponse.json(
         {
@@ -703,7 +704,7 @@ export async function POST(_req: NextRequest) {
         { status: 401 },
       );
     }
-    
+
     const accessToken = tokenResult.token;
 
     // Sync all data types

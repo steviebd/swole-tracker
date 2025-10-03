@@ -68,8 +68,8 @@ describe("workoutsRouter", () => {
       const result = await caller.getRecent({ limit: 5 });
 
       expect(db.query.workoutSessions.findMany).toHaveBeenCalledWith({
-        where: expect.any(Function), // eq(workoutSessions.user_id, ctx.user.id)
-        orderBy: [expect.any(Function)], // desc(workoutSessions.workoutDate)
+        where: expect.any(Object), // eq(workoutSessions.user_id, ctx.user.id) - Drizzle SQL object
+        orderBy: [expect.any(Object)], // desc(workoutSessions.workoutDate) - Drizzle SQL object
         limit: 5,
         with: {
           template: {
@@ -147,7 +147,7 @@ describe("workoutsRouter", () => {
       const result = await caller.getById({ id: 1 });
 
       expect(db.query.workoutSessions.findFirst).toHaveBeenCalledWith({
-        where: expect.any(Function), // eq(workoutSessions.id, input.id)
+        where: expect.any(Object), // eq(workoutSessions.id, input.id) - Drizzle SQL object
         with: {
           template: {
             with: {
@@ -221,11 +221,21 @@ describe("workoutsRouter", () => {
       });
 
       expect(result).toEqual({
-        exerciseName: "Bench Press",
-        lastWeight: 80,
-        lastReps: 8,
-        lastSets: 3,
-        unit: "kg",
+        sets: [
+          {
+            id: "prev-0",
+            weight: 80,
+            reps: 8,
+            sets: 3,
+            unit: "kg",
+          },
+        ],
+        best: {
+          weight: 80,
+          reps: 8,
+          sets: 3,
+          unit: "kg",
+        },
       });
     });
 
@@ -281,11 +291,21 @@ describe("workoutsRouter", () => {
       });
 
       expect(result).toEqual({
-        exerciseName: "Bench Press (Barbell)",
-        lastWeight: 75,
-        lastReps: 10,
-        lastSets: 4,
-        unit: "kg",
+        sets: [
+          {
+            id: "prev-0",
+            weight: 75,
+            reps: 10,
+            sets: 4,
+            unit: "kg",
+          },
+        ],
+        best: {
+          weight: 75,
+          reps: 10,
+          sets: 4,
+          unit: "kg",
+        },
       });
     });
 
@@ -318,8 +338,9 @@ describe("workoutsRouter", () => {
       });
 
       expect(db.query.workoutSessions.findMany).toHaveBeenCalledWith({
-        where: expect.any(Function), // Should include ne condition
-        orderBy: [expect.any(Function)],
+        where: expect.any(Object), // Should include ne condition - Drizzle SQL object
+        orderBy: [expect.any(Object)], // desc(workoutSessions.workoutDate) - Drizzle SQL object
+        limit: 50,
         with: expect.any(Object),
       });
     });

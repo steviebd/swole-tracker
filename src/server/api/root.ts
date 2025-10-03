@@ -11,6 +11,7 @@ import { progressRouter } from "~/server/api/routers/progress";
 import { healthAdviceRouter } from "~/server/api/routers/health-advice";
 import { wellnessRouter } from "~/server/api/routers/wellness";
 import { suggestionsRouter } from "~/server/api/routers/suggestions";
+import { sessionDebriefRouter } from "~/server/api/routers/session-debrief";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -32,6 +33,7 @@ export const appRouter = createTRPCRouter({
   healthAdvice: healthAdviceRouter,
   wellness: wellnessRouter,
   suggestions: suggestionsRouter,
+  sessionDebriefs: sessionDebriefRouter,
 });
 
 // export type definition of API

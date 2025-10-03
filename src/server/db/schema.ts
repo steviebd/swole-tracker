@@ -1,5 +1,11 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTableCreator, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  index,
+  pgTableCreator,
+  unique,
+  uniqueIndex,
+  foreignKey,
+} from "drizzle-orm/pg-core";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -459,6 +465,59 @@ export const healthAdvice = createTable(
   ],
 ); // RLS disabled - using Supabase auth with application-level security
 
+// Session Debriefs - Post-workout AI summaries with version history
+export const sessionDebriefs = createTable(
+  "session_debrief",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    user_id: d.varchar({ length: 256 }).notNull(),
+    sessionId: d
+      .integer()
+      .notNull()
+      .references(() => workoutSessions.id, { onDelete: "cascade" }),
+    version: d.integer().notNull().default(1),
+    parentDebriefId: d.integer(),
+    summary: d.text().notNull(),
+    prHighlights: d.json(),
+    adherenceScore: d.numeric({ precision: 5, scale: 2 }),
+    focusAreas: d.json(),
+    streakContext: d.json(),
+    overloadDigest: d.json(),
+    metadata: d.json(),
+    isActive: d.boolean().notNull().default(true),
+    viewedAt: d.timestamp({ withTimezone: true }),
+    dismissedAt: d.timestamp({ withTimezone: true }),
+    pinnedAt: d.timestamp({ withTimezone: true }),
+    regenerationCount: d.integer().notNull().default(0),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d
+      .timestamp({ withTimezone: true })
+      .$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("session_debrief_user_idx").on(t.user_id),
+    index("session_debrief_session_idx").on(t.sessionId),
+    index("session_debrief_created_idx").on(t.createdAt),
+    index("session_debrief_user_created_idx").on(t.user_id, t.createdAt),
+    uniqueIndex("session_debrief_version_unique").on(
+      t.user_id,
+      t.sessionId,
+      t.version,
+    ),
+    uniqueIndex("session_debrief_active_unique")
+      .on(t.user_id, t.sessionId)
+      .where(sql`${t.isActive} IS TRUE`),
+    foreignKey({
+      columns: [t.parentDebriefId],
+      foreignColumns: [t.id],
+      name: "session_debrief_parent_fk",
+    }).onDelete("set null"),
+  ],
+); // RLS disabled - using Supabase auth with application-level security
+
 // Webhook Events Log (for debugging and audit trail)
 export const webhookEvents = createTable(
   "webhook_event",
@@ -743,6 +802,24 @@ export const healthAdviceRelations = relations(healthAdvice, ({ one }) => ({
   }),
 }));
 
+export const sessionDebriefsRelations = relations(
+  sessionDebriefs,
+  ({ one, many }) => ({
+    session: one(workoutSessions, {
+      fields: [sessionDebriefs.sessionId],
+      references: [workoutSessions.id],
+    }),
+    parent: one(sessionDebriefs, {
+      fields: [sessionDebriefs.parentDebriefId],
+      references: [sessionDebriefs.id],
+      relationName: "session_debrief_parent",
+    }),
+    versions: many(sessionDebriefs, {
+      relationName: "session_debrief_parent",
+    }),
+  }),
+);
+
 // Wellness Data Relations
 export const wellnessDataRelations = relations(wellnessData, ({ one }) => ({
   session: one(workoutSessions, {
@@ -829,4 +906,3 @@ export const whoopProfileRelations = relations(whoopProfile, ({ }) => ({
 export const whoopBodyMeasurementRelations = relations(whoopBodyMeasurement, ({ }) => ({
   // Measurements are standalone
 }));
-

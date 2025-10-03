@@ -56,15 +56,14 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
     const maxValue = Math.max(...values);
     const padding = (maxValue - minValue) * 0.1 || 10;
     
-    // Theme color mapping to CSS variables
-    const themeColors = {
-      primary: 'var(--color-primary-default)',
-      success: 'var(--color-status-success-default)',
-      warning: 'var(--color-status-warning-default)',
-      info: 'var(--color-status-info-default)',
-    };
-    
-    const strokeColor = themeColors[theme];
+    const palette = {
+      primary: 'var(--chart-1, #1f78b4)',
+      success: 'var(--chart-3, #33a02c)',
+      warning: 'var(--chart-2, #ff7f0e)',
+      info: 'var(--chart-4, #6a3d9a)',
+    } as const;
+
+    const strokeColor = palette[theme] ?? palette.primary;
     
     // Custom tooltip component
     const CustomTooltip = ({ active, payload, label }: any) => {
@@ -76,7 +75,7 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
               <div className="font-medium text-foreground">
                 {data.fullDate || label}
               </div>
-              <div className="text-primary font-semibold">
+              <div className="font-semibold" style={{ color: strokeColor }}>
                 {payload[0].value} {unit}
               </div>
             </div>
@@ -121,7 +120,7 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
                 {/* Grid */}
                 <CartesianGrid 
                   strokeDasharray="3 3" 
-                  stroke="var(--color-border-muted)"
+                  stroke="var(--md-sys-color-outline-variant)"
                   opacity={0.3}
                 />
                 
@@ -130,10 +129,7 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{
-                    fill: 'var(--color-text-muted)',
-                    fontSize: 12,
-                  }}
+                  tick={{ fill: 'var(--md-sys-color-on-surface-variant)', fontSize: 12 }}
                   dy={10}
                 />
                 
@@ -145,15 +141,12 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
                   ]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{
-                    fill: 'var(--color-text-muted)',
-                    fontSize: 12,
-                  }}
+                  tick={{ fill: 'var(--md-sys-color-on-surface-variant)', fontSize: 12 }}
                   dx={-10}
                 />
                 
                 {/* Tooltip */}
-                <Tooltip 
+                <Tooltip
                   content={<CustomTooltip />}
                   cursor={{
                     stroke: strokeColor,
@@ -176,13 +169,13 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
                     dot={{
                       fill: strokeColor,
                       strokeWidth: 2,
-                      stroke: 'var(--color-background-card)',
+                      stroke: 'var(--md-sys-color-surface-container-high)',
                       r: 4,
                     }}
                     activeDot={{
                       r: 6,
                       fill: strokeColor,
-                      stroke: 'var(--color-background-card)',
+                      stroke: 'var(--md-sys-color-surface-container-high)',
                       strokeWidth: 2,
                     }}
                     connectNulls={false}

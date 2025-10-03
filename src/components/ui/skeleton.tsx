@@ -19,11 +19,16 @@ import { cn } from "~/lib/utils";
 const skeletonVariants = cva("relative rounded-md overflow-hidden", {
   variants: {
     variant: {
-      default: "bg-muted/60 dark:bg-muted/40",
-      card: "bg-card/80 border border-border/50",
-      text: "bg-muted/50 dark:bg-muted/30",
-      avatar: "bg-muted/60 dark:bg-muted/40 rounded-full",
-      button: "bg-primary/20 border border-primary/30",
+      default:
+        "bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container-high) 92%, transparent 8%)]",
+      card:
+        "bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container) 88%, transparent 12%)] border border-[color:color-mix(in srgb, var(--md-sys-color-outline-variant) 60%, transparent 40%)]",
+      text:
+        "bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container-high) 85%, transparent 15%)]",
+      avatar:
+        "rounded-full bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container-high) 90%, transparent 10%)]",
+      button:
+        "border border-[color:color-mix(in srgb, var(--md-sys-color-primary) 35%, transparent 65%)] bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent 82%)]",
     },
     size: {
       sm: "h-3",
@@ -80,9 +85,11 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
         {/* Shimmer effect overlay */}
         {shimmer && !prefersReducedMotion && (
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/10"
+            className="absolute inset-0 pointer-events-none"
             style={{
               backgroundSize: "200% 100%",
+              backgroundImage:
+                "linear-gradient(90deg, transparent, color-mix(in srgb, var(--md-sys-color-surface-tint) 24%, transparent 76%), transparent)",
             }}
             variants={skeletonShimmerVariants}
             animate="animate"
@@ -91,7 +98,13 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
 
         {/* Pulse fallback for reduced motion */}
         {shimmer && prefersReducedMotion && (
-          <div className="absolute inset-0 animate-pulse bg-foreground/10 dark:bg-foreground/5" />
+          <div
+            className="absolute inset-0 animate-pulse"
+            style={{
+              backgroundColor:
+                "color-mix(in srgb, var(--md-sys-color-surface-tint) 18%, transparent 82%)",
+            }}
+          />
         )}
       </div>
     );
@@ -213,7 +226,7 @@ const SkeletonChart: React.FC<{
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton
             key={index}
-            className={`bg-primary/20 w-6`}
+            className="w-6 bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent 82%)]"
             height={Math.random() * height * 0.6 + height * 0.2}
           />
         ))}

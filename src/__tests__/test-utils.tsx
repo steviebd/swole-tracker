@@ -52,14 +52,14 @@ export const mockWorkout = {
 
 export const mockTRPCContext = {
   db: {
-    select: vi.fn(),
-    insert: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    from: vi.fn(),
-    where: vi.fn(),
-    values: vi.fn(),
-    returning: vi.fn(),
+    select: vi.fn(() => {}),
+    insert: vi.fn(() => {}),
+    update: vi.fn(() => {}),
+    delete: vi.fn(() => {}),
+    from: vi.fn(() => {}),
+    where: vi.fn(() => {}),
+    values: vi.fn(() => {}),
+    returning: vi.fn(() => {}),
   },
   user: mockUser,
   headers: new Headers(),
@@ -68,14 +68,14 @@ export const mockTRPCContext = {
 
 // Database mocking utilities
 export const createMockDb = () => ({
-  select: vi.fn().mockReturnThis(),
-  insert: vi.fn().mockReturnThis(),
-  update: vi.fn().mockReturnThis(),
-  delete: vi.fn().mockReturnThis(),
-  from: vi.fn().mockReturnThis(),
-  where: vi.fn().mockReturnThis(),
-  values: vi.fn().mockReturnThis(),
-  returning: vi.fn().mockResolvedValue([]),
+  select: vi.fn(() => ({})),
+  insert: vi.fn(() => ({})),
+  update: vi.fn(() => ({})),
+  delete: vi.fn(() => ({})),
+  from: vi.fn(() => ({})),
+  where: vi.fn(() => ({})),
+  values: vi.fn(() => ({})),
+  returning: vi.fn(async () => []),
 });
 
 // Local storage mocking utilities

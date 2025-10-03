@@ -9,6 +9,8 @@ import { env } from "~/env";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
 import { encryptToken } from "~/lib/encryption";
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     const clientIp = getClientIp(request.headers);
     const userAgent = request.headers.get("user-agent") ?? "unknown";
-    
+
     const stateValidation = await validateOAuthState(
       state,
       user.id,
@@ -63,7 +65,9 @@ export async function GET(request: NextRequest) {
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
 
-    const redirectUri = env.WHOOP_REDIRECT_URI || `${request.nextUrl.origin}/api/auth/whoop/callback`;
+    const redirectUri =
+      env.WHOOP_REDIRECT_URI ||
+      `${request.nextUrl.origin}/api/auth/whoop/callback`;
 
     // Get the authorization code (we already validated state)
     const code = searchParams.get("code");
@@ -132,7 +136,9 @@ export async function GET(request: NextRequest) {
 
     // Encrypt tokens before storing in database
     const encryptedAccessToken = encryptToken(tok.access_token!);
-    const encryptedRefreshToken = tok.refresh_token ? encryptToken(tok.refresh_token) : null;
+    const encryptedRefreshToken = tok.refresh_token
+      ? encryptToken(tok.refresh_token)
+      : null;
 
     // Store encrypted tokens in database (upsert pattern)
     const existingIntegration = await db

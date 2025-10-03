@@ -31,6 +31,7 @@ const exerciseInputSchema = z.object({
 });
 
 import { logger } from "~/lib/logger";
+import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -112,9 +113,24 @@ export const workoutsRouter = createTRPCRouter({
           });
 
           // Get all exercise names from linked template exercises
-          exerciseNamesToSearch = linkedExercises.map(
-            (link) => link.templateExercise.exerciseName,
-          );
+          const extractedNames = linkedExercises
+            .map((link) => {
+              const template = link.templateExercise;
+              if (
+                template &&
+                typeof template === "object" &&
+                !Array.isArray(template) &&
+                typeof (template as { exerciseName?: unknown }).exerciseName === "string"
+              ) {
+                return (template as { exerciseName: string }).exerciseName;
+              }
+              return null;
+            })
+            .filter((name): name is string => typeof name === "string");
+
+          if (extractedNames.length > 0) {
+            exerciseNamesToSearch = extractedNames;
+          }
         }
       }
 
@@ -570,6 +586,30 @@ export const workoutsRouter = createTRPCRouter({
 
       if (setsToInsert.length > 0) {
         await ctx.db.insert(sessionExercises).values(setsToInsert);
+      }
+
+      if (setsToInsert.length > 0) {
+        const acceptLanguage = ctx.headers.get("accept-language") ?? undefined;
+        const locale = acceptLanguage?.split(",")[0];
+
+        void (async () => {
+          try {
+            await generateAndPersistDebrief({
+              dbClient: ctx.db,
+              userId: ctx.user.id,
+              sessionId: input.sessionId,
+              locale,
+              trigger: "auto",
+              requestId: ctx.requestId,
+            });
+          } catch (error) {
+            logger.warn("session_debrief.auto_generation_failed", {
+              userId: ctx.user.id,
+              sessionId: input.sessionId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          }
+        })();
       }
 
       return { success: true };

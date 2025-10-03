@@ -47,12 +47,14 @@ export const buttonDepthVariants: Variants = {
   initial: {
     scale: 1,
     y: 0,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    boxShadow:
+      "0 2px 8px color-mix(in srgb, var(--md-sys-color-shadow, #000000) 12%, transparent 88%)",
   },
   hover: {
     scale: 1.02,
     y: -2,
-    boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+    boxShadow:
+      "0 8px 24px color-mix(in srgb, var(--md-sys-color-shadow, #000000) 18%, transparent 82%)",
     transition: {
       duration: AnimationDurations.fast / 1000,
       ease: AnimationEasing.ease,
@@ -61,7 +63,8 @@ export const buttonDepthVariants: Variants = {
   tap: {
     scale: 0.98,
     y: 0,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+    boxShadow:
+      "0 1px 4px color-mix(in srgb, var(--md-sys-color-shadow, #000000) 14%, transparent 86%)",
     transition: {
       duration: 0.1,
     },
@@ -84,7 +87,8 @@ export const inputFocusVariants: Variants = {
   },
   focus: {
     borderColor: "var(--color-primary-default)",
-    boxShadow: "0 0 0 3px var(--color-primary-default, #f97316)",
+    boxShadow:
+      "0 0 0 3px color-mix(in srgb, var(--color-primary-default) 30%, transparent 70%)",
     scale: 1.01,
     transition: {
       duration: AnimationDurations.fast / 1000,
@@ -93,7 +97,8 @@ export const inputFocusVariants: Variants = {
   },
   error: {
     borderColor: "var(--color-status-danger-default)",
-    boxShadow: "0 0 0 3px var(--color-status-danger-default, #ef4444)",
+    boxShadow:
+      "0 0 0 3px color-mix(in srgb, var(--color-status-danger-default) 28%, transparent 72%)",
     scale: 1.01,
     x: [-2, 2, -2, 2, 0],
     transition: {
@@ -103,7 +108,8 @@ export const inputFocusVariants: Variants = {
   },
   success: {
     borderColor: "var(--color-status-success-default)",
-    boxShadow: "0 0 0 3px var(--color-status-success-default, #10b981)",
+    boxShadow:
+      "0 0 0 3px color-mix(in srgb, var(--color-status-success-default) 24%, transparent 76%)",
     scale: 1.01,
     transition: {
       duration: AnimationDurations.base / 1000,

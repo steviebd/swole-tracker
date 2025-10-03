@@ -316,6 +316,11 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
                     View
                   </Button>
                 </Link>
+                <Link href={`/workouts/${workout.id}`}>
+                  <Button variant="secondary" size="sm">
+                    Debrief
+                  </Button>
+                </Link>
                 <Link href={`/workout/start?templateId=${workout.templateId}`}>
                   <Button size="sm">Repeat</Button>
                 </Link>
@@ -372,6 +377,11 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
                     <Link href={`/workout/session/${workout.id}`}>
                       <Button variant="outline" size="sm">
                         View
+                      </Button>
+                    </Link>
+                    <Link href={`/workouts/${workout.id}`}>
+                      <Button variant="secondary" size="sm">
+                        Debrief
                       </Button>
                     </Link>
                     <Link

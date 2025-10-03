@@ -37,13 +37,48 @@ export default async function WorkoutSessionPage({
   // Prefetch user preferences for weight unit
   void api.preferences.get.prefetch();
 
+  const sessionExercises = Array.isArray(workoutSession.exercises)
+    ? workoutSession.exercises
+    : [];
+
+  const templateDetails = (() => {
+    const template = (workoutSession as { template?: unknown }).template;
+    if (
+      template &&
+      typeof template === "object" &&
+      !Array.isArray(template) &&
+      typeof (template as { name?: unknown }).name === "string"
+    ) {
+      return template as { name: string };
+    }
+
+    return { name: "Workout" };
+  })();
+
+  const headerTitle = `${
+    sessionExercises.length > 0 ? "View Workout: " : ""
+  }${templateDetails.name}`;
+
+  const headerSubtitle = (() => {
+    const rawDate = (workoutSession as { workoutDate?: unknown }).workoutDate;
+    if (rawDate instanceof Date) {
+      return rawDate.toLocaleString();
+    }
+
+    if (typeof rawDate === "string" || typeof rawDate === "number") {
+      return new Date(rawDate).toLocaleString();
+    }
+
+    return new Date().toLocaleString();
+  })();
+
   return (
     <HydrateClient>
       <main className="min-h-screen overflow-x-hidden">
         {/* Glass Header */}
         <GlassHeader
-          title={`${workoutSession.exercises.length > 0 ? "View Workout: " : ""}${workoutSession.template.name}`}
-          subtitle={new Date(workoutSession.workoutDate).toLocaleString()}
+          title={headerTitle}
+          subtitle={headerSubtitle}
           actions={
             <Link href="/">
               <Button variant="ghost" size="sm">

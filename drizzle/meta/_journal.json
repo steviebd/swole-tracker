@@ -50,6 +50,13 @@
       "when": 1755048183444,
       "tag": "0006_previous_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1755600000000,
+      "tag": "0007_ai_debrief_feed",
+      "breakpoints": true
     }
   ]
 }

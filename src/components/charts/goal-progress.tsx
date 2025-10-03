@@ -62,18 +62,14 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
       lg: { size: 160, strokeWidth: 10, textSize: 'text-lg' },
     };
     
-    // Theme colors
-    const themeColors = {
-      primary: 'var(--gradient-universal-action-primary)',
-      success: 'var(--gradient-universal-success)',
-      warning: 'var(--gradient-universal-warning)',
-    };
-    
-    const strokeColor = theme === 'primary' 
-      ? 'var(--color-primary-default)'
-      : theme === 'success' 
-        ? 'var(--color-status-success-default)'
-        : 'var(--color-status-warning-default)';
+    const palette = {
+      primary: 'var(--chart-1, #1f78b4)',
+      success: 'var(--chart-3, #33a02c)',
+      warning: 'var(--chart-2, #ff7f0e)',
+    } as const;
+
+    const strokeColor = palette[theme] ?? palette.primary;
+    const gradientFill = `linear-gradient(90deg, ${strokeColor} 0%, color-mix(in srgb, ${strokeColor} 65%, var(--md-sys-color-surface-tint) 35%) 100%)`;
     
     if (variant === 'circular') {
       const { size: circleSize, strokeWidth, textSize } = sizeConfig[size];
@@ -110,7 +106,7 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
                   cx={circleSize / 2}
                   cy={circleSize / 2}
                   r={radius}
-                  stroke="var(--color-muted)"
+                  stroke="var(--md-sys-color-outline-variant)"
                   strokeWidth={strokeWidth}
                   fill="transparent"
                 />
@@ -138,10 +134,8 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ delay: 1.7, type: "spring", stiffness: 300 }}
-                    className={cn(
-                      "mb-2",
-                      isOverAchieved ? "text-success" : "text-primary"
-                    )}
+                    className="mb-2"
+                    style={{ color: isOverAchieved ? palette.success : palette.primary }}
                   >
                     <CheckCircle className="w-6 h-6" />
                   </motion.div>
@@ -205,12 +199,13 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
                   stiffness: 300,
                   damping: 20
                 }}
-                className={cn(
-                  "flex items-center justify-center w-10 h-10 rounded-full",
-                  isOverAchieved 
-                    ? "bg-success-muted text-success" 
-                    : "bg-primary-muted text-primary"
-                )}
+                className="flex items-center justify-center w-10 h-10 rounded-full"
+                style={{
+                  backgroundColor: `color-mix(in srgb, ${
+                    isOverAchieved ? palette.success : palette.primary
+                  } 18%, transparent 82%)`,
+                  color: isOverAchieved ? palette.success : palette.primary,
+                }}
               >
                 <CheckCircle className="w-5 h-5" />
               </motion.div>
@@ -221,16 +216,16 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
-              <span className={cn(
-                "font-semibold",
-                isOverAchieved ? "text-success" : "text-primary"
-              )}>
+              <span
+                className="font-semibold"
+                style={{ color: isOverAchieved ? palette.success : palette.primary }}
+              >
                 {Math.round(progressPercentage)}%
               </span>
             </div>
             
             <div 
-              className="w-full bg-muted rounded-full h-4 overflow-hidden"
+              className="w-full rounded-full h-4 overflow-hidden bg-[color:var(--md-sys-color-surface-container-high)]"
               role="progressbar"
               aria-valuenow={current}
               aria-valuemin={0}
@@ -239,7 +234,7 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
             >
               <motion.div
                 className="h-full rounded-full relative"
-                style={{ background: themeColors[theme] }}
+                style={{ backgroundImage: gradientFill }}
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{
@@ -273,7 +268,8 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5 }}
-                className="text-center text-sm text-success font-medium"
+                className="text-center text-sm font-medium"
+                style={{ color: palette.success }}
               >
                 🎉 Goal exceeded by {(((current / target) - 1) * 100).toFixed(1)}%!
               </motion.div>

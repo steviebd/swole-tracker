@@ -71,19 +71,18 @@ bun dev
 - `src/hooks/` - Custom React hooks
 - `apps/mobile/` - Mobile app (Android)
 
-## Recent Updates
+## Theming & Design Tokens
 
-### Token System Refactoring (Latest)
-
-The complex design token system has been simplified and removed:
-
-- **Removed**: Complex token build scripts (`build-tokens.js`, `build-mobile-tokens.js`)
-- **Removed**: Generated CSS token files and JSON schemas
-- **Removed**: TypeScript token utilities and mobile token generation
-- **Simplified**: Package.json scripts no longer include token building steps
-- **Result**: Faster development builds, simpler deployment process
-
-The application now uses standard Tailwind CSS v4 theming without the overhead of a complex token generation system.
+- **Material 3 palettes** power Light, Dark, Cool, Warm, and Neutral themes. Source data lives in `src/design-tokens/material3-palettes.generated.json` and compiles to CSS variables in `src/styles/material3-tokens.css`.
+- Run `bun run tokens:build` after editing palette seeds to regenerate both JSON + CSS artifacts.
+- Automated tests guard accessibility:
+  ```bash
+  bun run test -- src/__tests__/design-tokens/material3-theme.test.ts \\
+    src/__tests__/components/theme-selector.test.tsx \\
+    src/__tests__/hooks/use-reduced-motion.test.ts
+  ```
+- Consult `docs/material3-theme-guide.md` for rollout checklists, mobile QA guidance, and tooling notes.
+- Design context, palette rationale, and state-layer guidance live in `DESIGN_MANIFESTO.md`.
 
 ## Contributing
 

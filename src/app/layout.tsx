@@ -51,22 +51,19 @@ export default function RootLayout({
     (function() {
       try {
         var key = 'theme';
-        var t = localStorage.getItem(key) || 'system';
+        var stored = localStorage.getItem(key) || 'system';
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         
         // Determine effective theme
-        var effectiveTheme = t;
-        if (t === 'system') {
-          effectiveTheme = prefersDark ? 'dark' : 'light';
-        }
+        var effectiveTheme = stored === 'system' ? (prefersDark ? 'dark' : 'light') : stored;
         
-        // Only dark theme is actually dark mode
-        var dark = effectiveTheme === 'dark';
         var root = document.documentElement;
-        
+        var dark = effectiveTheme === 'dark';
         if (dark) root.classList.add('dark'); else root.classList.remove('dark');
-        // For system theme, preserve "system" in data-theme, otherwise use effective theme
-        root.setAttribute('data-theme', t === 'system' ? 'system' : effectiveTheme);
+
+        // Align data attributes so CSS variables match the active palette
+        root.setAttribute('data-theme', effectiveTheme);
+        root.setAttribute('data-theme-mode', stored);
       } catch (_) {}
     })();
   `;
