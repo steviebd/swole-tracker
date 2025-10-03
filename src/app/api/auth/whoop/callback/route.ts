@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
@@ -13,11 +13,8 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await SessionCookie.get(request);
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.redirect(
         `${request.nextUrl.origin}/connect-whoop?error=unauthorized`,
       );
@@ -46,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     const stateValidation = await validateOAuthState(
       state,
-      user.id,
+      session.userId,
       "whoop",
       clientIp,
       userAgent,
@@ -146,7 +143,7 @@ export async function GET(request: NextRequest) {
       .from(userIntegrations)
       .where(
         and(
-          eq(userIntegrations.user_id, user.id),
+          eq(userIntegrations.user_id, session.userId),
           eq(userIntegrations.provider, "whoop"),
         ),
       );
@@ -157,26 +154,26 @@ export async function GET(request: NextRequest) {
         .set({
           accessToken: encryptedAccessToken,
           refreshToken: encryptedRefreshToken,
-          expiresAt,
+          expiresAt: expiresAt?.toISOString(),
           scope:
             tok.scope ??
             "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(
           and(
-            eq(userIntegrations.user_id, user.id),
+            eq(userIntegrations.user_id, session.userId),
             eq(userIntegrations.provider, "whoop"),
           ),
         );
     } else {
       await db.insert(userIntegrations).values({
-        user_id: user.id,
+        user_id: session.userId,
         provider: "whoop",
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
-        expiresAt,
+        expiresAt: expiresAt?.toISOString(),
         scope:
           tok.scope ??
           "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",

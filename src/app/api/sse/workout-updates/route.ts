@@ -1,20 +1,17 @@
 import type { NextRequest } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { addConnection, removeConnection } from "~/lib/sse-broadcast";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await SessionCookie.get(request);
 
-  if (!user) {
+  if (!session || SessionCookie.isExpired(session)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const userId = user.id;
+  const userId = session.userId;
 
   // Create a readable stream for SSE
   const { readable, writable } = new TransformStream<Uint8Array>();

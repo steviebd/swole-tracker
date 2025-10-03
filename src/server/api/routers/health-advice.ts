@@ -36,33 +36,31 @@ export const healthAdviceRouter = createTRPCRouter({
         // Upsert health advice (update if exists, insert if not)
         const result = await ctx.db
           .insert(healthAdvice)
-          .values({
-            user_id: ctx.user.id,
-            sessionId: sessionId,
-            request: request,
-            response: response,
-            readiness_rho: response.readiness.rho.toString(),
-            overload_multiplier:
-              response.readiness.overload_multiplier.toString(),
-            session_predicted_chance:
-              response.session_predicted_chance.toString(),
-            user_accepted_suggestions: 0, // Will be updated when user accepts
-            total_suggestions: totalSuggestions,
-            response_time_ms: responseTimeMs
-              ? Math.round(responseTimeMs)
-              : null,
-            model_used: modelUsed,
-          })
+          .values([
+            {
+              user_id: ctx.user.id,
+              sessionId: sessionId,
+              request: JSON.stringify(request),
+              response: JSON.stringify(response),
+              readiness_rho: response.readiness.rho,
+              overload_multiplier: response.readiness.overload_multiplier,
+              session_predicted_chance: response.session_predicted_chance,
+              user_accepted_suggestions: 0, // Will be updated when user accepts
+              total_suggestions: totalSuggestions,
+              response_time_ms: responseTimeMs
+                ? Math.round(responseTimeMs)
+                : null,
+              model_used: modelUsed,
+            },
+          ])
           .onConflictDoUpdate({
             target: [healthAdvice.user_id, healthAdvice.sessionId],
             set: {
-              request: request,
-              response: response,
-              readiness_rho: response.readiness.rho.toString(),
-              overload_multiplier:
-                response.readiness.overload_multiplier.toString(),
-              session_predicted_chance:
-                response.session_predicted_chance.toString(),
+              request: JSON.stringify(request),
+              response: JSON.stringify(response),
+              readiness_rho: response.readiness.rho,
+              overload_multiplier: response.readiness.overload_multiplier,
+              session_predicted_chance: response.session_predicted_chance,
               total_suggestions: totalSuggestions,
               response_time_ms: responseTimeMs
                 ? Math.round(responseTimeMs)
@@ -152,33 +150,31 @@ export const healthAdviceRouter = createTRPCRouter({
         // Upsert health advice with wellness context
         const result = await ctx.db
           .insert(healthAdvice)
-          .values({
-            user_id: ctx.user.id,
-            sessionId: sessionId,
-            request: request,
-            response: response,
-            readiness_rho: response.readiness.rho.toString(),
-            overload_multiplier:
-              response.readiness.overload_multiplier.toString(),
-            session_predicted_chance:
-              response.session_predicted_chance.toString(),
-            user_accepted_suggestions: 0,
-            total_suggestions: totalSuggestions,
-            response_time_ms: responseTimeMs
-              ? Math.round(responseTimeMs)
-              : null,
-            model_used: modelUsed,
-          })
+          .values([
+            {
+              user_id: ctx.user.id,
+              sessionId: sessionId,
+              request: JSON.stringify(request),
+              response: JSON.stringify(response),
+              readiness_rho: response.readiness.rho,
+              overload_multiplier: response.readiness.overload_multiplier,
+              session_predicted_chance: response.session_predicted_chance,
+              user_accepted_suggestions: 0,
+              total_suggestions: totalSuggestions,
+              response_time_ms: responseTimeMs
+                ? Math.round(responseTimeMs)
+                : null,
+              model_used: modelUsed,
+            },
+          ])
           .onConflictDoUpdate({
             target: [healthAdvice.user_id, healthAdvice.sessionId],
             set: {
-              request: request,
-              response: response,
-              readiness_rho: response.readiness.rho.toString(),
-              overload_multiplier:
-                response.readiness.overload_multiplier.toString(),
-              session_predicted_chance:
-                response.session_predicted_chance.toString(),
+              request: JSON.stringify(request),
+              response: JSON.stringify(response),
+              readiness_rho: response.readiness.rho,
+              overload_multiplier: response.readiness.overload_multiplier,
+              session_predicted_chance: response.session_predicted_chance,
               total_suggestions: totalSuggestions,
               response_time_ms: responseTimeMs
                 ? Math.round(responseTimeMs)

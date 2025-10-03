@@ -115,7 +115,7 @@ export const exercisesRouter = createTRPCRouter({
         id: number;
         name: string;
         normalizedName: string;
-        createdAt: Date;
+        createdAt: string;
       }> = [];
       try {
         const prefixBuilder = ctx.db
@@ -154,7 +154,7 @@ export const exercisesRouter = createTRPCRouter({
           id: number;
           name: string;
           normalizedName: string;
-          createdAt: Date;
+          createdAt: string;
         }> = [];
         try {
           const containsBuilder = ctx.db

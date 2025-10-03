@@ -22,12 +22,20 @@ import {
 
 // Zod schema for form validation
 const templateFormSchema = z.object({
-  name: z.string().min(1, "Template name is required").max(256, "Template name is too long"),
-  exercises: z.array(
-    z.object({
-      exerciseName: z.string().min(1, "Exercise name is required").max(256, "Exercise name is too long"),
-    })
-  ).min(1, "At least one exercise is required"),
+  name: z
+    .string()
+    .min(1, "Template name is required")
+    .max(256, "Template name is too long"),
+  exercises: z
+    .array(
+      z.object({
+        exerciseName: z
+          .string()
+          .min(1, "Exercise name is required")
+          .max(256, "Exercise name is too long"),
+      }),
+    )
+    .min(1, "At least one exercise is required"),
 });
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
@@ -54,8 +62,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
       name: template?.name ?? "",
-      exercises: template?.exercises.length 
-        ? template.exercises.map(ex => ({ exerciseName: ex.exerciseName }))
+      exercises: template?.exercises.length
+        ? template.exercises.map((ex) => ({ exerciseName: ex.exerciseName }))
         : [{ exerciseName: "" }],
     },
   });
@@ -94,7 +102,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
       });
       analytics.templateCreated(
         data.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
+        form.getValues("exercises").filter((ex) => ex.exerciseName.trim())
+          .length,
       );
       // Reset submission flag
       submitRef.current = false;
@@ -131,7 +140,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
               ? {
                   ...template,
                   name: updatedTemplate.name,
-                  updatedAt: new Date(),
+                  updatedAt: new Date().toISOString(),
                   exercises: updatedTemplate.exercises.map(
                     (exerciseName, index) => ({
                       id: template.exercises?.[index]?.id ?? -index - 1,
@@ -143,7 +152,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
                       linkingRejected:
                         template.exercises?.[index]?.linkingRejected ?? false,
                       createdAt:
-                        template.exercises?.[index]?.createdAt ?? new Date(),
+                        template.exercises?.[index]?.createdAt ??
+                        new Date().toISOString(),
                     }),
                   ),
                 }
@@ -162,7 +172,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
     onSuccess: () => {
       analytics.templateEdited(
         template!.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim()).length,
+        form.getValues("exercises").filter((ex) => ex.exerciseName.trim())
+          .length,
       );
       // Reset submission flag
       submitRef.current = false;
@@ -192,8 +203,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
 
     const filteredExercises = data.exercises
-      .map(ex => ex.exerciseName.trim())
-      .filter(ex => ex !== "");
+      .map((ex) => ex.exerciseName.trim())
+      .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
     // Check if this is a duplicate submission (same data within 5 seconds)
@@ -257,13 +268,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
   return (
     <Card padding="lg">
       <CardHeader>
-        <CardTitle>
-          {template ? "Edit Template" : "Create Template"}
-        </CardTitle>
+        <CardTitle>{template ? "Edit Template" : "Create Template"}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             {/* Template Name */}
             <FormField
               control={form.control}
@@ -339,7 +351,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   type="button"
                   variant="outline"
                   onClick={addExercise}
-                  className="w-full h-20 border-dashed"
+                  className="h-20 w-full border-dashed"
                 >
                   + Add your first exercise
                 </Button>
@@ -348,10 +360,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-4">
-              <Button
-                type="submit"
-                disabled={isLoading || submitRef.current}
-              >
+              <Button type="submit" disabled={isLoading || submitRef.current}>
                 {isLoading || submitRef.current
                   ? "Saving..."
                   : template

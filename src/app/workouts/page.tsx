@@ -1,16 +1,23 @@
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
+import { headers } from "next/headers";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutHistory } from "~/app/_components/workout-history";
 import { PageShell } from "~/components/layout/page-shell";
 
 export default async function WorkoutsPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
 
-  if (!user) {
-    redirect("/sign-in");
+  const session = await SessionCookie.get(mockRequest);
+
+  if (!session || SessionCookie.isExpired(session)) {
+    redirect("/auth/login");
   }
 
   // Prefetch workouts with a higher limit for full history

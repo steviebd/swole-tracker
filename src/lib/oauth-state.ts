@@ -27,7 +27,7 @@ export async function createOAuthState(
   userAgent: string,
 ): Promise<string> {
   const state = crypto.randomUUID();
-  const userAgentHash = createHash('sha256').update(userAgent).digest('hex');
+  const userAgentHash = createHash("sha256").update(userAgent).digest("hex");
 
   await db.insert(oauthStates).values({
     state,
@@ -59,7 +59,7 @@ export async function validateOAuthState(
     // Clean up expired states first
     await cleanupExpiredStates();
 
-    const userAgentHash = createHash('sha256').update(userAgent).digest('hex');
+    const userAgentHash = createHash("sha256").update(userAgent).digest("hex");
 
     const storedState = await db
       .select()
@@ -80,14 +80,14 @@ export async function validateOAuthState(
     const stateRecord = storedState[0]!;
 
     // Validate expiry
-    if (new Date() > stateRecord.expiresAt) {
+    if (new Date() > new Date(stateRecord.expiresAt)) {
       await deleteOAuthState(state);
       return { isValid: false };
     }
 
     // Validate IP address (optional - can be disabled for mobile apps)
     const ipMatches = stateRecord.client_ip === clientIp;
-    
+
     // Validate User-Agent hash
     const userAgentMatches = stateRecord.user_agent_hash === userAgentHash;
 
@@ -96,14 +96,14 @@ export async function validateOAuthState(
     if (!ipMatches || !userAgentMatches) {
       // Log suspicious activity but don't immediately fail
       // This allows for legitimate cases like mobile network IP changes
-      console.warn('OAuth state validation warning:', {
+      console.warn("OAuth state validation warning:", {
         stateMatches: true,
         ipMatches,
         userAgentMatches,
         provider,
-        userId: userId.substring(0, 8) + '...',
+        userId: userId.substring(0, 8) + "...",
       });
-      
+
       // For now, we'll be lenient and allow the validation to pass
       // In a high-security environment, you might want to fail here
     }
@@ -116,7 +116,7 @@ export async function validateOAuthState(
       redirectUri: stateRecord.redirect_uri,
     };
   } catch (error) {
-    console.error('OAuth state validation error:', error);
+    console.error("OAuth state validation error:", error);
     return { isValid: false };
   }
 }
@@ -147,10 +147,7 @@ export async function cleanupUserStates(
   await db
     .delete(oauthStates)
     .where(
-      and(
-        eq(oauthStates.user_id, userId),
-        eq(oauthStates.provider, provider),
-      ),
+      and(eq(oauthStates.user_id, userId), eq(oauthStates.provider, provider)),
     );
 }
 
@@ -159,22 +156,22 @@ export async function cleanupUserStates(
  */
 export function getClientIp(headers: Headers): string {
   // Check common proxy headers in order of preference
-  const forwardedFor = headers.get('x-forwarded-for');
+  const forwardedFor = headers.get("x-forwarded-for");
   if (forwardedFor) {
     // x-forwarded-for can be a comma-separated list, take the first IP
-    return forwardedFor.split(',')[0]?.trim() ?? 'unknown';
+    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
   }
 
-  const realIp = headers.get('x-real-ip');
+  const realIp = headers.get("x-real-ip");
   if (realIp) {
     return realIp;
   }
 
-  const cfConnectingIp = headers.get('cf-connecting-ip');
+  const cfConnectingIp = headers.get("cf-connecting-ip");
   if (cfConnectingIp) {
     return cfConnectingIp;
   }
 
   // Fallback for development or direct connections
-  return 'unknown';
+  return "unknown";
 }

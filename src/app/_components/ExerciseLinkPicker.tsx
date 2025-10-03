@@ -7,7 +7,7 @@ type Item = {
   id: number;
   name: string;
   normalizedName: string;
-  createdAt: Date;
+  createdAt: string;
 };
 
 interface ExerciseLinkPickerProps {
@@ -168,12 +168,14 @@ export function ExerciseLinkPicker({
       className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
       onKeyDown={onKeyDown}
     >
-      <div className="w-full max-w-lg rounded-lg border border-border bg-background shadow-xl">
-        <div className="flex items-center justify-between border-b border-border p-3">
-          <div className="text-sm font-medium text-foreground">Link exercise</div>
+      <div className="border-border bg-background w-full max-w-lg rounded-lg border shadow-xl">
+        <div className="border-border flex items-center justify-between border-b p-3">
+          <div className="text-foreground text-sm font-medium">
+            Link exercise
+          </div>
           <button
             onClick={onClose}
-            className="rounded px-2 py-1 text-sm text-secondary hover:bg-muted"
+            className="text-secondary hover:bg-muted rounded px-2 py-1 text-sm"
           >
             Close
           </button>
@@ -185,7 +187,7 @@ export function ExerciseLinkPicker({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search master exercises"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-[color:var(--color-primary)]"
+            className="border-border bg-background placeholder:text-muted-foreground w-full rounded-md border px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
           />
           {isExactMatch && (
             <div className="mt-2 rounded border border-[var(--color-success)] bg-[var(--color-success-muted)] p-2 text-xs text-[var(--color-success)]">
@@ -199,7 +201,7 @@ export function ExerciseLinkPicker({
             </div>
           )}
 
-          <div className="mt-3 max-h-72 overflow-y-auto rounded border border-border">
+          <div className="border-border mt-3 max-h-72 overflow-y-auto rounded border">
             {pending && items.length === 0 ? (
               <div className="p-3 text-sm text-gray-400">Searching…</div>
             ) : items.length === 0 ? (
@@ -209,12 +211,12 @@ export function ExerciseLinkPicker({
                 {items.map((it) => (
                   <li
                     key={it.id}
-                    className="flex items-center justify-between border-b border-border p-3 last:border-b-0"
+                    className="border-border flex items-center justify-between border-b p-3 last:border-b-0"
                   >
-                    <span className="text-sm text-foreground">{it.name}</span>
+                    <span className="text-foreground text-sm">{it.name}</span>
                     <button
                       onClick={() => handleLink(it.id)}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-background hover:bg-blue-700 disabled:opacity-50"
+                      className="text-background rounded bg-blue-600 px-2 py-1 text-xs hover:bg-blue-700 disabled:opacity-50"
                       disabled={linkToMaster.isPending}
                     >
                       {linkToMaster.isPending ? "Linking…" : "Link"}
@@ -229,7 +231,7 @@ export function ExerciseLinkPicker({
             <div className="mt-2">
               <button
                 onClick={loadMore}
-                className="w-full rounded border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
+                className="border-border text-foreground hover:bg-muted w-full rounded border px-3 py-2 text-sm"
               >
                 Load more
               </button>
@@ -237,7 +239,7 @@ export function ExerciseLinkPicker({
           )}
 
           <div className="mt-3 flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">
+            <div className="text-muted-foreground text-xs">
               Can't find it? Create a new master exercise and link.
             </div>
             <button

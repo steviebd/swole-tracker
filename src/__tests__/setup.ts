@@ -15,13 +15,13 @@ const mockLocalStorage = {
 };
 
 // Enhance global objects for React and testing environment
-Object.defineProperty(window, 'localStorage', {
+Object.defineProperty(window, "localStorage", {
   value: mockLocalStorage,
   writable: true,
   configurable: true,
 });
 
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   value: vi.fn(() => ({
     matches: false,
     addListener: vi.fn(),
@@ -36,13 +36,13 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Ensure document.body exists and is a proper DOM element
 if (!document.body) {
-  document.body = document.createElement('body');
+  document.body = document.createElement("body");
 }
 
 // For components that need aria-live functionality
-const ariaLiveRegion = document.createElement('div');
-ariaLiveRegion.setAttribute('aria-live', 'polite');
-ariaLiveRegion.setAttribute('aria-atomic', 'true');
+const ariaLiveRegion = document.createElement("div");
+ariaLiveRegion.setAttribute("aria-live", "polite");
+ariaLiveRegion.setAttribute("aria-atomic", "true");
 document.body.appendChild(ariaLiveRegion);
 
 // Mock Next.js router
@@ -99,8 +99,9 @@ const mockEnv = {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy",
     CLERK_SECRET_KEY: "sk_test_dummy",
     DATABASE_URL: "postgresql://test:test@localhost:5432/test",
-    NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
-    NEXT_PUBLIC_SUPABASE_KEY: "test-key",
+    WORKOS_API_KEY: "wk_test_dummy",
+    WORKOS_CLIENT_ID: "client_test_dummy",
+    WORKER_SESSION_SECRET: "test_session_secret_32_chars_minimum_123456789",
   },
 };
 
@@ -139,13 +140,6 @@ const mockRateLimit = {
 };
 
 vi.mock("~/lib/rate-limit", () => mockRateLimit);
-
-// Mock supabase-browser
-const mockSupabaseBrowser = {
-  createBrowserSupabaseClient: vi.fn(() => ({})),
-};
-
-vi.mock("~/lib/supabase-browser", () => mockSupabaseBrowser);
 
 // Mock workout-operations
 const MockWorkoutOperationsClient = vi.fn(() => ({

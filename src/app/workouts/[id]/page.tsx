@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { SessionCookie } from "~/lib/session-cookie";
+import { headers } from "next/headers";
 
-import { createServerSupabaseClient } from "~/lib/supabase-server";
 import { api, HydrateClient } from "~/trpc/server";
 import { GlassHeader } from "~/components/ui/glass-header";
 import { Button } from "~/components/ui/button";
@@ -14,14 +15,18 @@ interface WorkoutDebriefPageProps {
 export default async function WorkoutDebriefPage({
   params,
 }: WorkoutDebriefPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
+
+  const authSession = await SessionCookie.get(mockRequest);
   const { id } = await params;
 
-  if (!user) {
-    redirect("/sign-in");
+  if (!authSession || SessionCookie.isExpired(authSession)) {
+    redirect("/auth/login");
   }
 
   const sessionId = Number(id);

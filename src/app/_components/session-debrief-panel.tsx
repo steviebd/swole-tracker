@@ -104,10 +104,7 @@ export function SessionDebriefPanel({
   const { data, isLoading, refetch } =
     api.sessionDebriefs.listBySession.useQuery(queryKey);
 
-  const parsed = useMemo(
-    () => (data ? mapRecords(data) : []),
-    [data],
-  );
+  const parsed = useMemo(() => (data ? mapRecords(data) : []), [data]);
 
   const latest = parsed[0];
 
@@ -292,11 +289,11 @@ export function SessionDebriefPanel({
         </CardHeader>
         <CardContent className="space-y-3">
           {errorMessage ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
               {errorMessage}
             </div>
           ) : null}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Generate a post-workout recap that highlights personal records,
             adherence trends, and focus areas for your next training block.
           </p>
@@ -328,20 +325,20 @@ export function SessionDebriefPanel({
         </CardHeader>
         <CardContent className="space-y-4">
           {errorMessage ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
               {errorMessage}
             </div>
           ) : null}
           <div>
             <h3 className="text-lg font-semibold">Summary</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-muted-foreground text-sm leading-relaxed">
               {latest.content.summary}
             </p>
           </div>
 
           {latest.content.prHighlights?.length ? (
             <div>
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
                 Highlights
               </h4>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -360,14 +357,14 @@ export function SessionDebriefPanel({
 
           {latest.content.focusAreas?.length ? (
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
                 Focus Areas
               </h4>
               <div className="grid gap-3 md:grid-cols-2">
                 {latest.content.focusAreas.map((focus, index) => (
                   <div
                     key={`${focus.title}-${index}`}
-                    className="rounded-lg border border-border/60 bg-muted/20 p-3"
+                    className="border-border/60 bg-muted/20 rounded-lg border p-3"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{focus.title}</span>
@@ -375,11 +372,11 @@ export function SessionDebriefPanel({
                         <Badge variant="outline">{focus.priority}</Badge>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 text-sm">
                       {focus.description}
                     </p>
                     {focus.actions?.length ? (
-                      <ul className="mt-2 list-disc pl-4 text-xs text-muted-foreground">
+                      <ul className="text-muted-foreground mt-2 list-disc pl-4 text-xs">
                         {focus.actions.map((action, idx) => (
                           <li key={idx}>{action}</li>
                         ))}
@@ -392,22 +389,24 @@ export function SessionDebriefPanel({
           ) : null}
 
           {latest.content.overloadDigest ? (
-            <div className="rounded-lg border border-border/60 bg-background/40 p-3">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="border-border/60 bg-background/40 rounded-lg border p-3">
+              <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
                 Overload & Readiness
               </h4>
               {latest.content.overloadDigest.recommendation ? (
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="text-muted-foreground mt-2 text-sm">
                   {latest.content.overloadDigest.recommendation}
                 </p>
               ) : null}
               {latest.content.overloadDigest.cautionFlags?.length ? (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {latest.content.overloadDigest.cautionFlags.map((flag, index) => (
-                    <Badge key={`${flag}-${index}`} variant="destructive">
-                      {flag}
-                    </Badge>
-                  ))}
+                  {latest.content.overloadDigest.cautionFlags.map(
+                    (flag, index) => (
+                      <Badge key={`${flag}-${index}`} variant="destructive">
+                        {flag}
+                      </Badge>
+                    ),
+                  )}
                 </div>
               ) : null}
             </div>
@@ -444,7 +443,7 @@ export function SessionDebriefPanel({
             {dismiss.isPending ? "Dismissing…" : "Dismiss"}
           </Button>
           {!isOnline ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               Offline mode – actions disabled
             </span>
           ) : null}
@@ -454,7 +453,7 @@ export function SessionDebriefPanel({
       {otherHistory.length ? (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
               Previous Snapshots
             </h3>
             <Button variant="ghost" size="sm" onClick={() => void refetch()}>
@@ -474,16 +473,21 @@ export function SessionDebriefPanel({
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2 pb-2">
-                  <p className="text-sm text-muted-foreground line-clamp-4">
+                  <p className="text-muted-foreground line-clamp-4 text-sm">
                     {content.summary}
                   </p>
                   {content.prHighlights?.length ? (
                     <div className="flex flex-wrap gap-1">
-                      {content.prHighlights.slice(0, 3).map((highlight, index) => (
-                        <Badge key={`${highlight.exerciseName}-${index}`} variant="outline">
-                          {highlight.exerciseName}
-                        </Badge>
-                      ))}
+                      {content.prHighlights
+                        .slice(0, 3)
+                        .map((highlight, index) => (
+                          <Badge
+                            key={`${highlight.exerciseName}-${index}`}
+                            variant="outline"
+                          >
+                            {highlight.exerciseName}
+                          </Badge>
+                        ))}
                     </div>
                   ) : null}
                 </CardContent>
@@ -509,8 +513,9 @@ export function SessionDebriefPanel({
       ) : null}
 
       {!isOnline ? (
-        <div className="rounded-lg border border-dashed border-border/60 px-4 py-3 text-sm text-muted-foreground">
-          You appear to be offline. Debrief actions will sync once your connection returns.
+        <div className="border-border/60 text-muted-foreground rounded-lg border border-dashed px-4 py-3 text-sm">
+          You appear to be offline. Debrief actions will sync once your
+          connection returns.
         </div>
       ) : null}
     </div>

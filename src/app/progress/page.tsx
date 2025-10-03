@@ -1,16 +1,21 @@
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { redirect } from "next/navigation";
 import { Suspense, lazy } from "react";
+import { headers } from "next/headers";
 
-const ProgressDashboard = lazy(() => import("../_components/ProgressDashboard").then(module => ({ default: module.ProgressDashboard })));
+const ProgressDashboard = lazy(() =>
+  import("../_components/ProgressDashboard").then((module) => ({
+    default: module.ProgressDashboard,
+  })),
+);
 
 const ProgressLoading = () => (
-  <div className="container mx-auto px-6 sm:px-8 py-8">
+  <div className="container mx-auto px-6 py-8 sm:px-8">
     <div className="animate-pulse space-y-8">
-      <div className="h-8 bg-muted/50 rounded w-48"></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="bg-muted/50 h-8 w-48 rounded"></div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-32 bg-muted/50 rounded-lg"></div>
+          <div key={i} className="bg-muted/50 h-32 rounded-lg"></div>
         ))}
       </div>
     </div>
@@ -18,10 +23,16 @@ const ProgressLoading = () => (
 );
 
 export default async function ProgressPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
 
-  if (!user) {
+  const session = await SessionCookie.get(mockRequest);
+
+  if (!session || SessionCookie.isExpired(session)) {
     redirect("/");
   }
 

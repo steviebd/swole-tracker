@@ -23,16 +23,14 @@ export function WhoopCycles() {
     return `${startTime} - ${endTime}`;
   };
 
-  const formatEnergy = (kilojoules: string | null) => {
+  const formatEnergy = (kilojoules: number | null) => {
     if (!kilojoules) return "--";
-    const kj = parseFloat(kilojoules);
-    return isNaN(kj) ? "--" : `${kj.toFixed(0)} kJ`;
+    return `${kilojoules.toFixed(0)} kJ`;
   };
 
-  const formatStrain = (strain: string | null) => {
+  const formatStrain = (strain: number | null) => {
     if (!strain) return "--";
-    const strainNum = parseFloat(strain);
-    return isNaN(strainNum) ? "--" : strainNum.toFixed(1);
+    return strain.toFixed(1);
   };
 
   if (isLoading) {
@@ -46,7 +44,9 @@ export function WhoopCycles() {
   if (!cycles || cycles.length === 0) {
     return (
       <div className="py-8 text-center">
-        <p className="text-secondary">No cycles data available. Try syncing your WHOOP data.</p>
+        <p className="text-secondary">
+          No cycles data available. Try syncing your WHOOP data.
+        </p>
       </div>
     );
   }
@@ -57,7 +57,9 @@ export function WhoopCycles() {
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-xl font-semibold">Daily Strain Cycles</h3>
-        <p className="text-secondary text-sm">Daily strain and physiological load</p>
+        <p className="text-secondary text-sm">
+          Daily strain and physiological load
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -69,32 +71,40 @@ export function WhoopCycles() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Day Strain</span>
-                  <span 
+                  <span
                     className="text-lg font-bold"
                     style={{
-                      color: item.day_strain 
-                        ? parseFloat(item.day_strain) >= 15 
-                          ? 'var(--color-danger)'
-                          : parseFloat(item.day_strain) >= 10
-                          ? 'var(--color-warning)'
-                          : 'var(--color-success)'
-                        : 'var(--color-text)'
+                      color: item.day_strain
+                        ? item.day_strain >= 15
+                          ? "var(--color-danger)"
+                          : item.day_strain >= 10
+                            ? "var(--color-warning)"
+                            : "var(--color-success)"
+                        : "var(--color-text)",
                     }}
                   >
                     {formatStrain(item.day_strain)}
                   </span>
                 </div>
 
-                <div className="space-y-1 text-xs text-secondary">
+                <div className="text-secondary space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span>Avg HR:</span>
-                    <span>{item.average_heart_rate ? `${item.average_heart_rate} bpm` : "--"}</span>
+                    <span>
+                      {item.average_heart_rate
+                        ? `${item.average_heart_rate} bpm`
+                        : "--"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Max HR:</span>
-                    <span>{item.max_heart_rate ? `${item.max_heart_rate} bpm` : "--"}</span>
+                    <span>
+                      {item.max_heart_rate
+                        ? `${item.max_heart_rate} bpm`
+                        : "--"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Energy:</span>

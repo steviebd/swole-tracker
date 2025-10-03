@@ -32,10 +32,9 @@ export function WhoopSleep() {
     return `${hours}h ${minutes}m`;
   };
 
-  const formatPercentage = (value: string | null) => {
+  const formatPercentage = (value: number | null) => {
     if (!value) return "--";
-    const num = parseFloat(value);
-    return isNaN(num) ? "--" : `${num.toFixed(0)}%`;
+    return `${value.toFixed(0)}%`;
   };
 
   if (isLoading) {
@@ -43,7 +42,9 @@ export function WhoopSleep() {
       <div className="space-y-4">
         <div className="mb-4">
           <h3 className="text-xl font-semibold">Sleep Data</h3>
-          <p className="text-muted-foreground text-sm">Sleep performance and recovery metrics</p>
+          <p className="text-muted-foreground text-sm">
+            Sleep performance and recovery metrics
+          </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -69,11 +70,15 @@ export function WhoopSleep() {
       <div className="space-y-4">
         <div className="mb-4">
           <h3 className="text-xl font-semibold">Sleep Data</h3>
-          <p className="text-muted-foreground text-sm">Sleep performance and recovery metrics</p>
+          <p className="text-muted-foreground text-sm">
+            Sleep performance and recovery metrics
+          </p>
         </div>
         <Card className="py-8">
           <CardContent className="text-center">
-            <p className="text-muted-foreground">No sleep data available. Try syncing your WHOOP data.</p>
+            <p className="text-muted-foreground">
+              No sleep data available. Try syncing your WHOOP data.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -86,7 +91,9 @@ export function WhoopSleep() {
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-xl font-semibold">Sleep Data</h3>
-        <p className="text-muted-foreground text-sm">Sleep performance and recovery metrics</p>
+        <p className="text-muted-foreground text-sm">
+          Sleep performance and recovery metrics
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -99,35 +106,43 @@ export function WhoopSleep() {
                 </div>
 
                 <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Sleep Performance</span>
-                  <span className="text-lg font-bold">
-                    {item.sleep_performance_percentage ? `${item.sleep_performance_percentage}%` : "--"}
-                  </span>
-                </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      Sleep Performance
+                    </span>
+                    <span className="text-lg font-bold">
+                      {item.sleep_performance_percentage
+                        ? `${item.sleep_performance_percentage}%`
+                        : "--"}
+                    </span>
+                  </div>
 
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Duration:</span>
-                    <span>{formatDuration(item.total_sleep_time_milli)}</span>
+                  <div className="text-muted-foreground space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Duration:</span>
+                      <span>{formatDuration(item.total_sleep_time_milli)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Efficiency:</span>
+                      <span>
+                        {formatPercentage(item.sleep_efficiency_percentage)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>REM Sleep:</span>
+                      <span>{formatDuration(item.rem_sleep_time_milli)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Deep Sleep:</span>
+                      <span>
+                        {formatDuration(item.slow_wave_sleep_time_milli)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Disturbances:</span>
+                      <span>{item.disturbance_count || "--"}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Efficiency:</span>
-                    <span>{formatPercentage(item.sleep_efficiency_percentage)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>REM Sleep:</span>
-                    <span>{formatDuration(item.rem_sleep_time_milli)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Deep Sleep:</span>
-                    <span>{formatDuration(item.slow_wave_sleep_time_milli)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Disturbances:</span>
-                    <span>{item.disturbance_count || "--"}</span>
-                  </div>
-                </div>
                 </div>
               </div>
             </CardContent>

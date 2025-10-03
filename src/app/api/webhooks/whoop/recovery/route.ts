@@ -7,10 +7,7 @@ import {
 } from "~/lib/whoop-webhook";
 import { getValidAccessToken } from "~/lib/token-rotation";
 import { db } from "~/server/db";
-import {
-  webhookEvents,
-  whoopRecovery,
-} from "~/server/db/schema";
+import { webhookEvents, whoopRecovery } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
 interface WhoopRecoveryData {
@@ -48,7 +45,7 @@ async function fetchRecoveryFromWhoop(
           resting_heart_rate: 52,
           resting_heart_rate_baseline: 54,
         },
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split("T")[0],
         timezone_offset: "-08:00",
       };
     }
@@ -57,7 +54,9 @@ async function fetchRecoveryFromWhoop(
     const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
 
     if (!tokenResult.token) {
-      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
+      console.error(
+        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+      );
       return null;
     }
 
@@ -92,14 +91,17 @@ async function fetchRecoveryFromWhoop(
     if (typeof obj.id === "string") {
       return obj as unknown as WhoopRecoveryData;
     }
-    
+
     console.error(
       "Recovery data failed runtime validation in fetch",
       recoveryData,
     );
     return null;
   } catch (error) {
-    console.error(`Error fetching recovery ${recoveryId} from Whoop API:`, error);
+    console.error(
+      `Error fetching recovery ${recoveryId} from Whoop API:`,
+      error,
+    );
     return null;
   }
 }
@@ -117,14 +119,19 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
     const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     // Fetch the updated recovery data from Whoop API
-    const recoveryData = await fetchRecoveryFromWhoop(recoveryId, payload.user_id);
+    const recoveryData = await fetchRecoveryFromWhoop(
+      recoveryId,
+      payload.user_id,
+    );
     if (!recoveryData) {
       console.error(`Could not fetch recovery data for ${recoveryId}`);
       return;
     }
 
     // Parse the date from the recovery data (ensure it's in YYYY-MM-DD format)
-    const recoveryDateStr = recoveryData.date ? recoveryData.date : new Date().toISOString().split('T')[0]!;
+    const recoveryDateStr = recoveryData.date
+      ? recoveryData.date
+      : new Date().toISOString().split("T")[0]!;
 
     // Check if recovery already exists in our database
     const [existingRecovery] = await db
@@ -143,13 +150,14 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
           cycle_id: recoveryData.cycle_id || null,
           date: recoveryDateStr,
           recovery_score: recoveryData.score?.recovery_score || null,
-          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-          hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline?.toString() || null,
+          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
+          hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline || null,
           resting_heart_rate: recoveryData.score?.resting_heart_rate || null,
-          resting_heart_rate_baseline: recoveryData.score?.resting_heart_rate_baseline || null,
-          raw_data: recoveryData as unknown,
+          resting_heart_rate_baseline:
+            recoveryData.score?.resting_heart_rate_baseline || null,
+          raw_data: JSON.stringify(recoveryData),
           timezone_offset: recoveryData.timezone_offset || null,
-          updatedAt: new Date(),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
     } else {
@@ -163,11 +171,12 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
         cycle_id: recoveryData.cycle_id || null,
         date: recoveryDateStr,
         recovery_score: recoveryData.score?.recovery_score || null,
-        hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-        hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline?.toString() || null,
+        hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
+        hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline || null,
         resting_heart_rate: recoveryData.score?.resting_heart_rate || null,
-        resting_heart_rate_baseline: recoveryData.score?.resting_heart_rate_baseline || null,
-        raw_data: recoveryData as unknown,
+        resting_heart_rate_baseline:
+          recoveryData.score?.resting_heart_rate_baseline || null,
+        raw_data: JSON.stringify(recoveryData),
         timezone_offset: recoveryData.timezone_offset || null,
       });
     }
@@ -238,13 +247,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
@@ -267,7 +276,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -287,7 +296,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -310,7 +319,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

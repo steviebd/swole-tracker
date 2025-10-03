@@ -16,10 +16,9 @@ export function WhoopRecovery() {
     }).format(new Date(dateString));
   };
 
-  const formatHRV = (hrv: string | null) => {
+  const formatHRV = (hrv: number | null) => {
     if (!hrv) return "--";
-    const hrvNum = parseFloat(hrv);
-    return isNaN(hrvNum) ? "--" : `${hrvNum.toFixed(1)}ms`;
+    return `${hrv.toFixed(1)}ms`;
   };
 
   if (isLoading) {
@@ -27,7 +26,9 @@ export function WhoopRecovery() {
       <div className="space-y-4">
         <div className="mb-4">
           <h3 className="text-xl font-semibold">Recovery Data</h3>
-          <p className="text-muted-foreground text-sm">Latest recovery scores from WHOOP</p>
+          <p className="text-muted-foreground text-sm">
+            Latest recovery scores from WHOOP
+          </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -53,11 +54,15 @@ export function WhoopRecovery() {
       <div className="space-y-4">
         <div className="mb-4">
           <h3 className="text-xl font-semibold">Recovery Data</h3>
-          <p className="text-muted-foreground text-sm">Latest recovery scores from WHOOP</p>
+          <p className="text-muted-foreground text-sm">
+            Latest recovery scores from WHOOP
+          </p>
         </div>
         <Card className="py-8">
           <CardContent className="text-center">
-            <p className="text-muted-foreground">No recovery data available. Try syncing your WHOOP data.</p>
+            <p className="text-muted-foreground">
+              No recovery data available. Try syncing your WHOOP data.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -70,7 +75,9 @@ export function WhoopRecovery() {
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-xl font-semibold">Recovery Data</h3>
-        <p className="text-muted-foreground text-sm">Latest recovery scores from WHOOP</p>
+        <p className="text-muted-foreground text-sm">
+          Latest recovery scores from WHOOP
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -83,16 +90,16 @@ export function WhoopRecovery() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Recovery Score</span>
-                    <Badge 
+                    <Badge
                       variant={
-                        item.recovery_score 
-                          ? item.recovery_score >= 67 
+                        item.recovery_score
+                          ? item.recovery_score >= 67
                             ? "default"
                             : item.recovery_score >= 34
-                            ? "secondary"
-                            : "destructive"
+                              ? "secondary"
+                              : "destructive"
                           : "outline"
                       }
                       className="text-base font-bold"
@@ -101,7 +108,7 @@ export function WhoopRecovery() {
                     </Badge>
                   </div>
 
-                  <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span>HRV:</span>
                       <span>{formatHRV(item.hrv_rmssd_milli)}</span>
@@ -112,11 +119,19 @@ export function WhoopRecovery() {
                     </div>
                     <div className="flex justify-between">
                       <span>RHR:</span>
-                      <span>{item.resting_heart_rate ? `${item.resting_heart_rate} bpm` : "--"}</span>
+                      <span>
+                        {item.resting_heart_rate
+                          ? `${item.resting_heart_rate} bpm`
+                          : "--"}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>RHR Baseline:</span>
-                      <span>{item.resting_heart_rate_baseline ? `${item.resting_heart_rate_baseline} bpm` : "--"}</span>
+                      <span>
+                        {item.resting_heart_rate_baseline
+                          ? `${item.resting_heart_rate_baseline} bpm`
+                          : "--"}
+                      </span>
                     </div>
                   </div>
                 </div>

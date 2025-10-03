@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import {
   buildWhoopAuthorizationUrl,
   WhoopAuthorizationError,
@@ -9,19 +9,15 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient(request.headers);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const session = await SessionCookie.get(request);
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const authorizeUrl = await buildWhoopAuthorizationUrl({
       origin: request.nextUrl.origin,
       headers: request.headers,
-      userId: user.id,
+      userId: session.userId,
     });
 
     return NextResponse.json({ authorizeUrl });

@@ -84,3 +84,4 @@ apps/template/.next/cache/webpack/client-development/index.pack.gz.old
 apps/template/.next/cache/webpack/server-development/0.pack.gz
 apps/template/.next/cache/webpack/server-development/index.pack.gz
 .infisical.json
+wrangler.toml

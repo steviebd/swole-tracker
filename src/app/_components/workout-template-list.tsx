@@ -1,42 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useAuth } from "~/providers/AuthProvider";
-import {
-  useWorkoutOperations,
-  type WorkoutTemplate,
-} from "~/lib/workout-operations";
+import { api } from "~/trpc/react";
 import Link from "next/link";
 
+interface WorkoutTemplate {
+  id: number;
+  name: string;
+  user_id: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export function WorkoutTemplateList() {
-  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
-  const workoutOps = useWorkoutOperations();
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    async function loadTemplates() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const templatesData = await workoutOps.getWorkoutTemplates(user!.id);
-        setTemplates(templatesData);
-      } catch (err: unknown) {
-        console.error("Error loading templates:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load templates",
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    void loadTemplates();
-  }, [user, workoutOps]);
+  const {
+    data: templates,
+    isLoading,
+    error,
+  } = api.templates.getAll.useQuery(undefined, { enabled: !!user?.id });
 
   if (isLoading) {
     return (
@@ -54,7 +36,7 @@ export function WorkoutTemplateList() {
   if (error) {
     return (
       <div className="rounded-lg border border-red-500 bg-red-900/20 p-4">
-        <p className="text-red-400">Error loading templates: {error}</p>
+        <p className="text-red-400">Error loading templates</p>
       </div>
     );
   }

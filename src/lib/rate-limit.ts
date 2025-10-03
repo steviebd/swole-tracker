@@ -27,7 +27,7 @@ export async function checkRateLimit(
       and(
         eq(rateLimits.user_id, userId),
         eq(rateLimits.endpoint, endpoint),
-        eq(rateLimits.windowStart, windowStart),
+        eq(rateLimits.windowStart, windowStart.toISOString()),
       ),
     );
 
@@ -37,7 +37,7 @@ export async function checkRateLimit(
       user_id: userId,
       endpoint,
       requests: 1,
-      windowStart,
+      windowStart: windowStart.toISOString(),
     });
 
     return {
@@ -63,7 +63,7 @@ export async function checkRateLimit(
     .update(rateLimits)
     .set({
       requests: existingLimit.requests + 1,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     })
     .where(eq(rateLimits.id, existingLimit.id));
 
@@ -77,5 +77,7 @@ export async function checkRateLimit(
 export async function cleanupExpiredRateLimits(): Promise<void> {
   const cutoffTime = new Date(Date.now() - 60 * 60 * 1000);
 
-  await db.delete(rateLimits).where(lt(rateLimits.windowStart, cutoffTime));
+  await db
+    .delete(rateLimits)
+    .where(lt(rateLimits.windowStart, cutoffTime.toISOString()));
 }

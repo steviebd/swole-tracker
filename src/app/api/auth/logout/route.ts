@@ -1,0 +1,15 @@
+import { NextRequest, NextResponse } from "next/server";
+import { SessionCookie } from "~/lib/session-cookie";
+
+export async function POST(request: NextRequest) {
+  try {
+    // Clear the session cookie
+    const response = NextResponse.json({ success: true });
+    response.headers.set("Set-Cookie", SessionCookie.destroy());
+
+    return response;
+  } catch (error) {
+    console.error("Logout error:", error);
+    return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
+  }
+}

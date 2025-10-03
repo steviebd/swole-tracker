@@ -137,9 +137,11 @@ async function fetchWhoopData<T>(
 
     // Get valid access token (handles decryption and rotation automatically)
     const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
-    
+
     if (!tokenResult.token) {
-      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
+      console.error(
+        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+      );
       return null;
     }
 
@@ -266,15 +268,19 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(externalWorkoutsWhoop)
         .set({
-          start: new Date(typedWorkout.start),
-          end: new Date(typedWorkout.end),
+          start: new Date(typedWorkout.start).toISOString(),
+          end: new Date(typedWorkout.end).toISOString(),
           timezone_offset: typedWorkout.timezone_offset,
           sport_name: typedWorkout.sport_name,
           score_state: typedWorkout.score_state,
-          score: typedWorkout.score ?? null,
-          during: typedWorkout.during ?? null,
-          zone_duration: typedWorkout.zone_duration ?? null,
-          updatedAt: new Date(),
+          score: typedWorkout.score ? JSON.stringify(typedWorkout.score) : null,
+          during: typedWorkout.during
+            ? JSON.stringify(typedWorkout.during)
+            : null,
+          zone_duration: typedWorkout.zone_duration
+            ? JSON.stringify(typedWorkout.zone_duration)
+            : null,
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(externalWorkoutsWhoop.whoopWorkoutId, workoutId));
     } else {
@@ -285,14 +291,18 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       await db.insert(externalWorkoutsWhoop).values({
         user_id: dbUserId,
         whoopWorkoutId: workoutId,
-        start: new Date(typedWorkout.start),
-        end: new Date(typedWorkout.end),
+        start: new Date(typedWorkout.start).toISOString(),
+        end: new Date(typedWorkout.end).toISOString(),
         timezone_offset: typedWorkout.timezone_offset,
         sport_name: typedWorkout.sport_name,
         score_state: typedWorkout.score_state,
-        score: typedWorkout.score ?? null,
-        during: typedWorkout.during ?? null,
-        zone_duration: typedWorkout.zone_duration ?? null,
+        score: typedWorkout.score ? JSON.stringify(typedWorkout.score) : null,
+        during: typedWorkout.during
+          ? JSON.stringify(typedWorkout.during)
+          : null,
+        zone_duration: typedWorkout.zone_duration
+          ? JSON.stringify(typedWorkout.zone_duration)
+          : null,
       });
     }
 
@@ -359,15 +369,13 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
           cycle_id: recoveryData.cycle_id || null,
           date: datePart,
           recovery_score: recoveryData.score?.recovery_score || null,
-          hrv_rmssd_milli:
-            recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-          hrv_rmssd_baseline:
-            recoveryData.score?.hrv_baseline?.toString() || null,
+          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
+          hrv_rmssd_baseline: recoveryData.score?.hrv_baseline || null,
           resting_heart_rate:
             recoveryData.score?.resting_heart_rate_milli || null,
           resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
-          raw_data: recoveryData,
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(recoveryData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
     } else {
@@ -375,22 +383,22 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
       console.log(
         `Inserting new recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
-      await db.insert(whoopRecovery).values({
-        user_id: dbUserId,
-        whoop_recovery_id: recoveryId,
-        cycle_id: recoveryData.cycle_id || null,
-        date: datePart,
-        recovery_score: recoveryData.score?.recovery_score || null,
-        hrv_rmssd_milli:
-          recoveryData.score?.hrv_rmssd_milli?.toString() || null,
-        hrv_rmssd_baseline:
-          recoveryData.score?.hrv_baseline?.toString() || null,
-        resting_heart_rate:
-          recoveryData.score?.resting_heart_rate_milli || null,
-        resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
-        raw_data: recoveryData,
-        timezone_offset: null,
-      });
+      await db.insert(whoopRecovery).values([
+        {
+          user_id: dbUserId,
+          whoop_recovery_id: recoveryId,
+          cycle_id: recoveryData.cycle_id || null,
+          date: datePart,
+          recovery_score: recoveryData.score?.recovery_score || null,
+          hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
+          hrv_rmssd_baseline: recoveryData.score?.hrv_baseline || null,
+          resting_heart_rate:
+            recoveryData.score?.resting_heart_rate_milli || null,
+          resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
+          raw_data: JSON.stringify(recoveryData),
+          timezone_offset: null,
+        },
+      ]);
     }
 
     console.log(`Successfully processed recovery update for ${recoveryId}`);
@@ -433,15 +441,15 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopSleep)
         .set({
-          start: new Date(sleepData.start),
-          end: new Date(sleepData.end),
+          start: new Date(sleepData.start).toISOString(),
+          end: new Date(sleepData.end).toISOString(),
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
           total_sleep_time_milli:
             sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
           sleep_efficiency_percentage:
-            sleepData.score?.sleep_efficiency_percentage?.toString() || null,
+            sleepData.score?.sleep_efficiency_percentage || null,
           slow_wave_sleep_time_milli:
             sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
             null,
@@ -456,8 +464,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
             sleepData.score?.stage_summary?.total_awake_time_milli || null,
           disturbance_count:
             sleepData.score?.stage_summary?.disturbance_count || null,
-          raw_data: sleepData,
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(sleepData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopSleep.whoop_sleep_id, sleepId));
     } else {
@@ -465,34 +473,37 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       console.log(
         `Inserting new sleep ${sleepId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
-      await db.insert(whoopSleep).values({
-        user_id: dbUserId,
-        whoop_sleep_id: sleepId,
-        start: new Date(sleepData.start),
-        end: new Date(sleepData.end),
-        timezone_offset: sleepData.timezone_offset || null,
-        sleep_performance_percentage:
-          sleepData.score?.sleep_performance_percentage || null,
-        total_sleep_time_milli:
-          sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
-        sleep_efficiency_percentage:
-          sleepData.score?.sleep_efficiency_percentage?.toString() || null,
-        slow_wave_sleep_time_milli:
-          sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
-          null,
-        rem_sleep_time_milli:
-          sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
-        light_sleep_time_milli:
-          sleepData.score?.stage_summary?.total_light_sleep_time_milli || null,
-        wake_time_milli:
-          sleepData.score?.stage_summary?.total_awake_time_milli || null,
-        arousal_time_milli:
-          sleepData.score?.stage_summary?.total_awake_time_milli || null,
-        disturbance_count:
-          sleepData.score?.stage_summary?.disturbance_count || null,
-        sleep_latency_milli: null,
-        raw_data: sleepData,
-      });
+      await db.insert(whoopSleep).values([
+        {
+          user_id: dbUserId,
+          whoop_sleep_id: sleepId,
+          start: new Date(sleepData.start).toISOString(),
+          end: new Date(sleepData.end).toISOString(),
+          timezone_offset: sleepData.timezone_offset || null,
+          sleep_performance_percentage:
+            sleepData.score?.sleep_performance_percentage || null,
+          total_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
+          sleep_efficiency_percentage:
+            sleepData.score?.sleep_efficiency_percentage || null,
+          slow_wave_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
+            null,
+          rem_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
+          light_sleep_time_milli:
+            sleepData.score?.stage_summary?.total_light_sleep_time_milli ||
+            null,
+          wake_time_milli:
+            sleepData.score?.stage_summary?.total_awake_time_milli || null,
+          arousal_time_milli:
+            sleepData.score?.stage_summary?.total_awake_time_milli || null,
+          disturbance_count:
+            sleepData.score?.stage_summary?.disturbance_count || null,
+          sleep_latency_milli: null,
+          raw_data: JSON.stringify(sleepData),
+        },
+      ]);
     }
 
     console.log(`Successfully processed sleep update for ${sleepId}`);
@@ -535,15 +546,15 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopCycles)
         .set({
-          start: new Date(cycleData.start),
-          end: new Date(cycleData.end),
+          start: new Date(cycleData.start).toISOString(),
+          end: new Date(cycleData.end).toISOString(),
           timezone_offset: cycleData.timezone_offset || null,
-          day_strain: cycleData.score?.strain?.toString() || null,
+          day_strain: cycleData.score?.strain || null,
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
-          kilojoule: cycleData.score?.kilojoule?.toString() || null,
-          raw_data: cycleData,
-          updatedAt: new Date(),
+          kilojoule: cycleData.score?.kilojoule || null,
+          raw_data: JSON.stringify(cycleData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopCycles.whoop_cycle_id, cycleId));
     } else {
@@ -551,18 +562,20 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       console.log(
         `Inserting new cycle ${cycleId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
-      await db.insert(whoopCycles).values({
-        user_id: dbUserId,
-        whoop_cycle_id: cycleId,
-        start: new Date(cycleData.start),
-        end: new Date(cycleData.end),
-        timezone_offset: cycleData.timezone_offset || null,
-        day_strain: cycleData.score?.strain?.toString() || null,
-        average_heart_rate: cycleData.score?.average_heart_rate || null,
-        max_heart_rate: cycleData.score?.max_heart_rate || null,
-        kilojoule: cycleData.score?.kilojoule?.toString() || null,
-        raw_data: cycleData,
-      });
+      await db.insert(whoopCycles).values([
+        {
+          user_id: dbUserId,
+          whoop_cycle_id: cycleId,
+          start: new Date(cycleData.start).toISOString(),
+          end: new Date(cycleData.end).toISOString(),
+          timezone_offset: cycleData.timezone_offset || null,
+          day_strain: cycleData.score?.strain || null,
+          average_heart_rate: cycleData.score?.average_heart_rate || null,
+          max_heart_rate: cycleData.score?.max_heart_rate || null,
+          kilojoule: cycleData.score?.kilojoule || null,
+          raw_data: JSON.stringify(cycleData),
+        },
+      ]);
     }
 
     console.log(`Successfully processed cycle update for ${cycleId}`);
@@ -611,12 +624,12 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopBodyMeasurement)
         .set({
-          height_meter: measurementData.height_meter?.toString() || null,
-          weight_kilogram: measurementData.weight_kilogram?.toString() || null,
+          height_meter: measurementData.height_meter || null,
+          weight_kilogram: measurementData.weight_kilogram || null,
           max_heart_rate: measurementData.max_heart_rate || null,
           measurement_date: measurementDate,
-          raw_data: measurementData,
-          updatedAt: new Date(),
+          raw_data: JSON.stringify(measurementData),
+          updatedAt: new Date().toISOString(),
         })
         .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
     } else {
@@ -624,15 +637,17 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       console.log(
         `Inserting new measurement ${measurementId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
-      await db.insert(whoopBodyMeasurement).values({
-        user_id: dbUserId,
-        whoop_measurement_id: measurementId,
-        height_meter: measurementData.height_meter?.toString() || null,
-        weight_kilogram: measurementData.weight_kilogram?.toString() || null,
-        max_heart_rate: measurementData.max_heart_rate || null,
-        measurement_date: measurementDate,
-        raw_data: measurementData,
-      });
+      await db.insert(whoopBodyMeasurement).values([
+        {
+          user_id: dbUserId,
+          whoop_measurement_id: measurementId,
+          height_meter: measurementData.height_meter || null,
+          weight_kilogram: measurementData.weight_kilogram || null,
+          max_heart_rate: measurementData.max_heart_rate || null,
+          measurement_date: measurementDate,
+          raw_data: JSON.stringify(measurementData),
+        },
+      ]);
     }
 
     console.log(
@@ -698,20 +713,22 @@ export async function POST(request: NextRequest) {
     try {
       const [webhookEvent] = await db
         .insert(webhookEvents)
-        .values({
-          provider: "whoop",
-          eventType: payload.type,
-          externalUserId: payload.user_id.toString(),
-          externalEntityId: payload.id.toString(),
-          payload: payload as unknown, // stored as JSONB; cast to unknown for lint safety
-          headers: {
-            signature: webhookHeaders.signature,
-            timestamp: webhookHeaders.timestamp,
-            userAgent: request.headers.get("user-agent") ?? undefined,
-            contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown, // JSONB payload; assert unknown to avoid any
-          status: "received",
-        })
+        .values([
+          {
+            provider: "whoop",
+            eventType: payload.type,
+            externalUserId: payload.user_id.toString(),
+            externalEntityId: payload.id.toString(),
+            payload: JSON.stringify(payload),
+            headers: JSON.stringify({
+              signature: webhookHeaders.signature,
+              timestamp: webhookHeaders.timestamp,
+              userAgent: request.headers.get("user-agent") ?? undefined,
+              contentType: request.headers.get("content-type") ?? undefined,
+            }),
+            status: "received",
+          },
+        ])
         .returning({ id: webhookEvents.id });
 
       webhookEventId = webhookEvent?.id ?? null;
@@ -759,7 +776,7 @@ export async function POST(request: NextRequest) {
             .set({
               status: "ignored",
               processingTime: Date.now() - startTime,
-              processedAt: new Date(),
+              processedAt: new Date().toISOString(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
         }
@@ -778,7 +795,7 @@ export async function POST(request: NextRequest) {
         .set({
           status: "processed",
           processingTime: Date.now() - startTime,
-          processedAt: new Date(),
+          processedAt: new Date().toISOString(),
         })
         .where(eq(webhookEvents.id, webhookEventId));
     }
@@ -802,7 +819,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date(),
+            processedAt: new Date().toISOString(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

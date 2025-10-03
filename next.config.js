@@ -11,6 +11,7 @@ const baseConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
+
   // Bundle optimization
   webpack: (config, { dev, isServer }) => {
     // Optimize bundle size in production

@@ -10,11 +10,10 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 
 import { db } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
-import { randomUUID } from "crypto";
 
 /**
  * 1. CONTEXT
@@ -43,25 +42,32 @@ export const createTRPCContext = async (opts: {
   headers: Headers;
 }): Promise<TRPCContext> => {
   // Generate a requestId for correlating logs across middlewares/routers
-  const requestId = randomUUID();
+  const requestId = crypto.randomUUID();
 
   try {
-    const supabase = await createServerSupabaseClient(opts.headers);
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // Create a mock Request object to pass to SessionCookie.get
+    const mockRequest = {
+      headers: {
+        get: (name: string) => opts.headers.get(name),
+      },
+    } as Request;
 
-    if (error) {
-      console.log('tRPC context: Server-side auth failed:', error.message);
+    const session = await SessionCookie.get(mockRequest);
+
+    let user: TrpcUser = null;
+    if (session && !SessionCookie.isExpired(session)) {
+      user = { id: session.userId };
     }
 
     return {
       db,
-      user: (!error && user) ? { id: user.id } : null,
+      user,
       requestId,
       headers: opts.headers,
     };
   } catch (error) {
-    console.error('tRPC context: Failed to get user:', error);
-    // In case of any auth errors, return context with no user
+    console.error('tRPC context: Failed to get session:', error);
+    // In case of any session errors, return context with no user
     return {
       db,
       user: null,

@@ -23,21 +23,21 @@ export function shouldRotateToken(
   forceRotation = false,
 ): boolean {
   if (forceRotation) return true;
-  
+
   const now = new Date();
   const rotationBuffer = 24 * 60 * 60 * 1000; // 24 hours before expiry
   const maxTokenAge = 7 * 24 * 60 * 60 * 1000; // 7 days max age
-  
+
   // Rotate if token expires within 24 hours
-  if (expiresAt && (expiresAt.getTime() - now.getTime()) < rotationBuffer) {
+  if (expiresAt && expiresAt.getTime() - now.getTime() < rotationBuffer) {
     return true;
   }
-  
+
   // Rotate if token is older than 7 days
-  if (lastRotated && (now.getTime() - lastRotated.getTime()) > maxTokenAge) {
+  if (lastRotated && now.getTime() - lastRotated.getTime() > maxTokenAge) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -70,24 +70,35 @@ export async function rotateOAuthTokens(
     }
 
     // Check if rotation is needed
-    if (!shouldRotateToken(integration.expiresAt, integration.updatedAt)) {
-      return { success: true, newAccessToken: getDecryptedToken(integration.accessToken) };
+    if (
+      !shouldRotateToken(
+        integration.expiresAt ? new Date(integration.expiresAt) : null,
+        integration.updatedAt ? new Date(integration.updatedAt) : null,
+      )
+    ) {
+      return {
+        success: true,
+        newAccessToken: getDecryptedToken(integration.accessToken),
+      };
     }
 
     // Decrypt refresh token
     const decryptedRefreshToken = getDecryptedToken(integration.refreshToken);
 
     // Perform token refresh based on provider
-    const tokenResult = await refreshProviderToken(provider, decryptedRefreshToken);
-    
+    const tokenResult = await refreshProviderToken(
+      provider,
+      decryptedRefreshToken,
+    );
+
     if (!tokenResult.success || !tokenResult.accessToken) {
       return { success: false, error: tokenResult.error };
     }
 
     // Encrypt new tokens
     const encryptedAccessToken = encryptToken(tokenResult.accessToken);
-    const encryptedRefreshToken = tokenResult.refreshToken 
-      ? encryptToken(tokenResult.refreshToken) 
+    const encryptedRefreshToken = tokenResult.refreshToken
+      ? encryptToken(tokenResult.refreshToken)
       : integration.refreshToken;
 
     // Calculate new expiry
@@ -101,8 +112,8 @@ export async function rotateOAuthTokens(
       .set({
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
-        expiresAt,
-        updatedAt: new Date(),
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(userIntegrations.id, integration.id));
 
@@ -116,7 +127,7 @@ export async function rotateOAuthTokens(
       provider,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Token rotation failed",
@@ -161,7 +172,7 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
     }
 
     const tokenEndpoint = "https://api.prod.whoop.com/oauth/oauth2/token";
-    
+
     const refreshRequest = {
       grant_type: "refresh_token",
       refresh_token: refreshToken,
@@ -173,7 +184,7 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
       body: new URLSearchParams(refreshRequest).toString(),
     });
@@ -185,7 +196,7 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
       };
     }
 
-    const tokens = await response.json() as {
+    const tokens = (await response.json()) as {
       access_token?: string;
       refresh_token?: string;
       expires_in?: number;
@@ -216,9 +227,19 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
 export async function rotateAllExpiredTokens(): Promise<{
   rotated: number;
   failed: number;
-  results: Array<{ userId: string; provider: string; success: boolean; error?: string }>;
+  results: Array<{
+    userId: string;
+    provider: string;
+    success: boolean;
+    error?: string;
+  }>;
 }> {
-  const results: Array<{ userId: string; provider: string; success: boolean; error?: string }> = [];
+  const results: Array<{
+    userId: string;
+    provider: string;
+    success: boolean;
+    error?: string;
+  }> = [];
   let rotated = 0;
   let failed = 0;
 
@@ -236,13 +257,19 @@ export async function rotateAllExpiredTokens(): Promise<{
         and(
           eq(userIntegrations.isActive, true),
           // Get tokens that expire within 48 hours or are older than 6 days
-          lt(userIntegrations.expiresAt, new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)),
+          lt(
+            userIntegrations.expiresAt,
+            new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          ),
         ),
       );
 
     for (const integration of expiredIntegrations) {
-      const result = await rotateOAuthTokens(integration.user_id, integration.provider);
-      
+      const result = await rotateOAuthTokens(
+        integration.user_id,
+        integration.provider,
+      );
+
       results.push({
         userId: integration.user_id.substring(0, 8) + "...",
         provider: integration.provider,
@@ -273,16 +300,17 @@ export async function getValidAccessToken(
 ): Promise<{ token: string | null; error?: string }> {
   try {
     const rotationResult = await rotateOAuthTokens(userId, provider);
-    
+
     if (rotationResult.success && rotationResult.newAccessToken) {
       return { token: rotationResult.newAccessToken };
     }
-    
+
     return { token: null, error: rotationResult.error };
   } catch (error) {
     return {
       token: null,
-      error: error instanceof Error ? error.message : "Failed to get valid token",
+      error:
+        error instanceof Error ? error.message : "Failed to get valid token",
     };
   }
 }

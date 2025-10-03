@@ -29,8 +29,10 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
       if (lastIdentifiedUser.current !== user.id) {
         posthog.identify(user.id, {
           email: user.email,
-          name: user.user_metadata?.full_name || user.email,
-          createdAt: user.created_at,
+          name: user.user_metadata?.display_name ||
+                (user.first_name || user.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : user.email),
+          first_name: user.first_name,
+          last_name: user.last_name,
         });
         posthog.capture("user_signed_in", {
           userId: user.id,

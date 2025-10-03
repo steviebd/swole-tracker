@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -22,19 +22,16 @@ interface WhoopWorkout {
   zone_duration?: unknown;
 }
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await SessionCookie.get(request);
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check rate limit (use shared env presets)
     const rateLimit = await checkRateLimit(
-      user.id,
+      session.userId,
       "whoop_sync",
       env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
       60 * 60 * 1000, // 1 hour
@@ -63,7 +60,7 @@ export async function POST(_request: NextRequest) {
     }
 
     // Get valid access token (automatically handles rotation if needed)
-    const tokenResult = await getValidAccessToken(user.id, "whoop");
+    const tokenResult = await getValidAccessToken(session.userId, "whoop");
 
     if (!tokenResult.token) {
       return NextResponse.json(
@@ -81,7 +78,7 @@ export async function POST(_request: NextRequest) {
     const [latestWorkout] = await db
       .select({ start: externalWorkoutsWhoop.start })
       .from(externalWorkoutsWhoop)
-      .where(eq(externalWorkoutsWhoop.user_id, user.id))
+      .where(eq(externalWorkoutsWhoop.user_id, session.userId))
       .orderBy(desc(externalWorkoutsWhoop.start))
       .limit(1);
 
@@ -89,7 +86,7 @@ export async function POST(_request: NextRequest) {
     let whoopUrl =
       "https://api.prod.whoop.com/developer/v2/activity/workout?limit=25";
     if (latestWorkout?.start) {
-      const sinceIso = latestWorkout.start.toISOString();
+      const sinceIso = new Date(latestWorkout.start).toISOString();
       whoopUrl += `&since=${encodeURIComponent(sinceIso)}`;
     }
 
@@ -159,13 +156,11 @@ export async function POST(_request: NextRequest) {
         end: externalWorkoutsWhoop.end,
       })
       .from(externalWorkoutsWhoop)
-      .where(eq(externalWorkoutsWhoop.user_id, user.id));
+      .where(eq(externalWorkoutsWhoop.user_id, session.userId));
 
     const existingIds = new Set(existingWorkouts.map((w) => w.whoopWorkoutId));
     const existingTimes = new Set(
-      existingWorkouts.map(
-        (w) => `${w.start.toISOString()}_${w.end.toISOString()}`,
-      ),
+      existingWorkouts.map((w) => `${w.start}_${w.end}`),
     );
 
     // Filter out workouts that already exist by ID or temporal match
@@ -181,16 +176,18 @@ export async function POST(_request: NextRequest) {
     if (newWorkoutData.length > 0) {
       try {
         const workoutValues = newWorkoutData.map((workout) => ({
-          user_id: user.id,
+          user_id: session.userId,
           whoopWorkoutId: workout.id,
-          start: new Date(workout.start),
-          end: new Date(workout.end),
+          start: workout.start,
+          end: workout.end,
           timezone_offset: workout.timezone_offset,
           sport_name: workout.sport_name,
           score_state: workout.score_state,
-          score: workout.score ?? null,
-          during: workout.during ?? null,
-          zone_duration: workout.zone_duration ?? null,
+          score: workout.score ? JSON.stringify(workout.score) : null,
+          during: workout.during ? JSON.stringify(workout.during) : null,
+          zone_duration: workout.zone_duration
+            ? JSON.stringify(workout.zone_duration)
+            : null,
         }));
 
         await db.insert(externalWorkoutsWhoop).values(workoutValues);
@@ -205,16 +202,18 @@ export async function POST(_request: NextRequest) {
         for (const workout of newWorkoutData) {
           try {
             await db.insert(externalWorkoutsWhoop).values({
-              user_id: user.id,
+              user_id: session.userId,
               whoopWorkoutId: workout.id,
-              start: new Date(workout.start),
-              end: new Date(workout.end),
+              start: workout.start,
+              end: workout.end,
               timezone_offset: workout.timezone_offset,
               sport_name: workout.sport_name,
               score_state: workout.score_state,
-              score: workout.score ?? null,
-              during: workout.during ?? null,
-              zone_duration: workout.zone_duration ?? null,
+              score: workout.score ? JSON.stringify(workout.score) : null,
+              during: workout.during ? JSON.stringify(workout.during) : null,
+              zone_duration: workout.zone_duration
+                ? JSON.stringify(workout.zone_duration)
+                : null,
             });
             newWorkouts++;
           } catch (individualError) {
