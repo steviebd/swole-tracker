@@ -4,15 +4,10 @@ import path from "path";
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
+    environment: "happy-dom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
-    environmentOptions: {
-      jsdom: {
-        resources: "usable",
-        pretendToBeVisual: true,
-      },
-    },
+
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: [
       "**/*.spec.{ts,tsx}",

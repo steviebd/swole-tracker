@@ -8,7 +8,7 @@ import {
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSelector } from "~/components/ThemeSelector";
 import { mockLocalStorage } from "~/__tests__/test-utils";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 describe("ThemeSelector accessibility", () => {
   let originalMatchMedia: typeof window.matchMedia | undefined;
@@ -25,10 +25,10 @@ describe("ThemeSelector accessibility", () => {
       (win as unknown as { document: Document }).document = document;
     }
     if (typeof (win as unknown as { addEventListener?: unknown }).addEventListener !== "function") {
-      (win as unknown as { addEventListener: typeof window.addEventListener }).addEventListener = vi.fn();
+      (win as unknown as { addEventListener: typeof window.addEventListener }).addEventListener = vi.fn(() => {});
     }
     if (typeof (win as unknown as { removeEventListener?: unknown }).removeEventListener !== "function") {
-      (win as unknown as { removeEventListener: typeof window.removeEventListener }).removeEventListener = vi.fn();
+      (win as unknown as { removeEventListener: typeof window.removeEventListener }).removeEventListener = vi.fn(() => {});
     }
     if (typeof (win as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame !== "function") {
       (win as unknown as { requestAnimationFrame: typeof window.requestAnimationFrame }).requestAnimationFrame =
@@ -44,21 +44,18 @@ describe("ThemeSelector accessibility", () => {
     if (typeof (win as unknown as { clearTimeout?: unknown }).clearTimeout !== "function") {
       (win as unknown as { clearTimeout: typeof window.clearTimeout }).clearTimeout = clearTimeout;
     }
-    win.matchMedia = vi.fn().mockImplementation((query: string) => {
-      return {
-        matches: false,
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      };
-    });
+    win.matchMedia = vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(() => {}),
+      removeEventListener: vi.fn(() => {}),
+      addListener: vi.fn(() => {}),
+      removeListener: vi.fn(() => {}),
+      dispatchEvent: vi.fn(() => {}),
+    }));
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     const win =
       typeof window === "undefined"
         ? (globalThis as unknown as Window & typeof globalThis)

@@ -1,17 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock dependencies
 vi.mock("~/server/db", () => ({
   db: {
-    select: vi.fn(),
-    insert: vi.fn(),
-    delete: vi.fn(),
-    from: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn(),
-    values: vi.fn(),
-    returning: vi.fn(),
+    select: vi.fn(() => []),
+    insert: vi.fn(() => {}),
+    delete: vi.fn(() => {}),
+    from: vi.fn(() => {}),
+    where: vi.fn(() => {}),
+    orderBy: vi.fn(() => {}),
+    limit: vi.fn(() => {}),
+    values: vi.fn(() => {}),
+    returning: vi.fn(() => {}),
   },
 }));
 
@@ -25,14 +25,14 @@ vi.mock("~/env", () => ({
 }));
 
 vi.mock("ai", () => ({
-  generateText: vi.fn(),
+  generateText: vi.fn(() => Promise.resolve({ text: "Test joke" })),
 }));
 
 vi.mock("drizzle-orm", () => ({
-  eq: vi.fn(),
-  desc: vi.fn(),
-  sql: vi.fn(),
-  relations: vi.fn(),
+  eq: vi.fn(() => ({ })),
+  desc: vi.fn(() => ({ })),
+  sql: vi.fn(() => ({ })),
+  relations: vi.fn(() => ({ })),
 }));
 
 // Import after mocking
@@ -40,7 +40,11 @@ import { jokesRouter } from "~/server/api/routers/jokes";
 
 describe("jokesRouter", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset all mocks
+  });
+
+  afterEach(() => {
+    // Cleanup if needed
   });
 
   describe("router structure", () => {

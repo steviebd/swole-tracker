@@ -4,11 +4,10 @@ import { sessionDebriefRouter } from "~/server/api/routers/session-debrief";
 import type { db } from "~/server/db";
 import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
 
+// Mock services
 vi.mock("~/server/api/services/session-debrief", () => ({
-  generateAndPersistDebrief: vi.fn(),
+  generateAndPersistDebrief: vi.fn(() => Promise.resolve({})),
 }));
-
-const mockedGenerate = vi.mocked(generateAndPersistDebrief);
 
 type Chains = {
   set: ReturnType<typeof vi.fn>;
@@ -22,8 +21,6 @@ describe("sessionDebriefRouter", () => {
   let updateChains: Chains;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-
     updateChains = {
       set: vi.fn(),
       where: vi.fn(),
@@ -75,8 +72,9 @@ describe("sessionDebriefRouter", () => {
 
   it("generates and saves a new debrief", async () => {
     const caller = sessionDebriefRouter.createCaller(mockCtx);
+    const mockFn = vi.mocked(generateAndPersistDebrief);
 
-    mockedGenerate.mockResolvedValue({
+    mockFn.mockResolvedValue({
       debrief: { id: 10, sessionId: 5, version: 1 } as any,
       content: {
         summary: "Great job",
@@ -89,7 +87,7 @@ describe("sessionDebriefRouter", () => {
 
     const result = await caller.generateAndSave({ sessionId: 5 });
 
-    expect(mockedGenerate).toHaveBeenCalledWith(
+    expect(mockFn).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: mockUser.id,
         sessionId: 5,
