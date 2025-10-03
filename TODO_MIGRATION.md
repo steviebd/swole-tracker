@@ -1,87 +1,209 @@
-# Migration Plan: Vercel + Supabase to Cloudflare + WorkOS
+# Migration Playbook: Vercel + Supabase ➜ Cloudflare Workers + WorkOS
 
-This document outlines the step-by-step process for migrating the Swole Tracker application from its current stack (Vercel, Supabase) to a new stack (Cloudflare Pages, Cloudflare D1, WorkOS). Mark each item as complete by placing an `x` in the brackets (`[x]`)
+This checklist replaces the previous migration outline. Tick items with `[x]` as they are completed.
 
-**Guiding Principles:**
-- **Start Fresh:** We will start with a fresh, empty database on Cloudflare D1. No data migration is required.
-- **Application-Layer Security:** All data access policies currently enforced by Supabase's Row-Level Security (RLS) will be re-implemented in the application layer.
-
----
-
-## Phase 1: Project Setup & Tooling
-
-- [ ] **Install Wrangler CLI:** Install the command-line tool for Cloudflare's developer platform.
-  ```bash
-  bun install -g wrangler
-  ```
-
-- [ ] **Create `wrangler.toml`:** Create and configure the `wrangler.toml` file in the project root for Cloudflare Pages and D1 bindings. You will need to create the D1 databases in the Cloudflare dashboard to get the necessary `database_id` values.
-
-- [ ] **Update `package.json` Scripts:** Modify the `dev` and `build` scripts to use Wrangler for local development and building.
+**Guiding Principles**
+- **Fresh start:** Provision new Cloudflare D1 databases per environment — no user data migration.
+- **Stateless sessions:** Authenticate with WorkOS, mint our own signed HTTP-only cookies, and enforce tenant isolation through application code.
+- **SQLite-first design:** Align schema, queries, and tooling with D1/SQLite limitations.
+- **Confidence by phase:** Each phase includes a definition of done (DoD) so contributors know when the handoff is complete.
 
 ---
 
-## Phase 2: Authentication (Supabase Auth -> WorkOS)
+## Environment Matrix & Variables
 
-- [ ] **Set up WorkOS Project:**
-  - [ ] Create a new project in the WorkOS dashboard.
-  - [ ] Configure "Email and Password" and "Google OAuth" authentication methods.
-  - [ ] Note the **Client ID** and **API Key** for the next step.
+- [ ] **Bootstrap `.env.example`**
+  - [ ] Create environment-specific sections with comments, e.g.:
+    ```
+    # --- dev ---
+    NEXT_PUBLIC_SITE_URL=http://localhost:3000
+    WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
+    ...
 
-- [ ] **Configure Environment & Secrets:**
-  - [ ] Add WorkOS credentials (`WORKOS_API_KEY`, `WORKOS_CLIENT_ID`) to Cloudflare secrets using the dashboard or `wrangler secret put`.
-  - [ ] Create a new `.env.example` file that reflects the new variable requirements for WorkOS, Cloudflare, and other services.
+    # --- staging ---
+    NEXT_PUBLIC_SITE_URL=https://preview.stevenduong.com
+    WORKOS_REDIRECT_URI=https://preview.stevenduong.com/api/auth/callback
+    ...
 
-- [ ] **Refactor Authentication Code:**
-  - [ ] Install the WorkOS Node.js SDK: `bun add @workos-inc/node`.
-  - [ ] Remove unused Supabase packages: `bun remove @supabase/ssr @supabase/auth-helpers-nextjs`.
-  - [ ] Create a new library file (`src/lib/workos.ts`) to initialize and export the WorkOS client.
-  - [ ] Refactor `src/providers/AuthProvider.tsx` to use a new hook that manages the WorkOS user session.
-  - [ ] Rebuild the sign-in UI at `src/app/sign-in/page.tsx` to use the WorkOS SDK for login flows.
-  - [ ] Update `src/middleware.ts` to protect routes by validating the WorkOS session instead of the Supabase one.
+    # --- production ---
+    NEXT_PUBLIC_SITE_URL=https://workout.stevenduong.com
+    WORKOS_REDIRECT_URI=https://workout.stevenduong.com/api/auth/callback
+    ...
+    ```
+  - [ ] For now, only `NEXT_PUBLIC_SITE_URL` and `WORKOS_REDIRECT_URI` differ per environment; add more overrides in these blocks if future services require environment-specific values.
+  - [ ] Ensure sensitive values are shown as placeholders (e.g., `WORKOS_API_KEY=___`) and never committed.
+  - [ ] Use Infisical folders/labels to mirror the three environments (e.g., `infisical/env/dev`, `infisical/env/staging`, `infisical/env/prod`).
 
----
+| Environment | Domain / Base URL              | Cloudflare env | D1 database name            | Infisical scope          | `.env.example` baseline                            | Notes |
+|-------------|--------------------------------|----------------|-----------------------------|--------------------------|----------------------------------------------------|-------|
+| dev         | `http://localhost:3000`        | default        | `swole-tracker-dev`         | `infisical/env/dev`      | `NEXT_PUBLIC_SITE_URL=http://localhost:3000`       | Local Wrangler preview |
+| staging     | `https://preview.stevenduong.com` | `staging`     | `swole-tracker-staging`     | `infisical/env/staging`  | `NEXT_PUBLIC_SITE_URL=https://preview.stevenduong.com` | Deployed preview Worker |
+| production  | `https://workout.stevenduong.com` | `production`  | `swole-tracker-prod`        | `infisical/env/prod`     | `NEXT_PUBLIC_SITE_URL=https://workout.stevenduong.com` | Customer-facing Worker |
 
-## Phase 3: Database (Postgres -> Cloudflare D1)
-
-- [ ] **Update Drizzle Configuration:**
-  - [ ] Install the D1 driver for Drizzle: `bun add @drizzle-team/d1`.
-  - [ ] Modify `drizzle.config.ts` to set the `dialect` to `sqlite` and the `driver` to `d1`.
-
-- [ ] **Review and Refactor DB Schema:**
-  - [ ] Audit the schema in `src/server/db/schema.ts`.
-  - [ ] Convert any Postgres-specific data types to their SQLite-compatible equivalents.
-
-- [ ] **Implement Application-Layer Security (Replaces RLS):**
-  - [ ] **CRITICAL:** Audit every database query in the application.
-  - [ ] For every query that accesses user-specific data, add a `where` clause to filter results by the `userId` obtained from the authenticated WorkOS session.
-
-- [ ] **Generate and Apply New Migrations:**
-  - [ ] After refactoring the schema, generate the initial D1 migration: `bun run drizzle-kit push` (or your configured push script).
-
----
-
-## Phase 4: Deployment
-
-- [ ] **Configure Cloudflare Pages:**
-  - [ ] **Workflow:** Connect your GitHub repository to a new Cloudflare Pages project for a git-based deployment workflow.
-  - [ ] **Production Secrets:** Add all production secrets (`WORKOS_API_KEY`, `WHOOP_CLIENT_SECRET`, etc.) in the Pages project settings.
-  - [ ] **Production Environment Variables:** Add all production build variables (`NEXT_PUBLIC_SITE_URL`, etc.).
-  - [ ] **D1 Database Binding:** Link the production D1 database in **Settings -> Functions -> D1 database bindings**.
-
-- [ ] **Trigger Initial Deployment:** Push a commit to the main branch to trigger the first build and deployment on Cloudflare Pages.
-
-- [ ] **Verify Production:** Thoroughly test the live deployment, including login, data fetching, and form submissions.
+**Key environment variables** (capture in `.env.example` and Infisical):
+- `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`, `WORKOS_REDIRECT_URI`
+- `WORKER_SESSION_SECRET`
+- `NEXT_PUBLIC_SITE_URL` (different per environment)
+- `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`
+- Whoop credentials (`WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_REDIRECT_URI`, `WHOOP_WEBHOOK_SECRET`)
+- Vercel AI Gateway keys (`VERCEL_AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL`, etc.)
+- Rate limiting knobs (`RATE_LIMIT_*`)
+- Any other existing app secrets (encryption keys, analytics tokens) ported from Supabase setup
+- Cloudflare-specific bindings (e.g., `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`) for CI/CD
 
 ---
 
-## Phase 5: Cleanup
+## Phase 0 – Prerequisites & Tooling
 
-- [ ] **Remove Old Code & Config:**
-  - [ ] Delete `vercel.json`.
-  - [ ] Delete Supabase-specific helper files (`supabase-browser.ts`, `supabase-server.ts`).
-  - [ ] Delete old SQL files related to RLS from the `drizzle/` directory.
+- [ ] **Install core tooling**
+  - [ ] `bun install -g wrangler`
+  - [ ] `bun add -D @cloudflare/next-on-pages @cloudflare/workers-types`
+  - [ ] Ensure `node@20.19.4` / `bun@1.2.21` via Volta.
+- [ ] **Authenticate with Cloudflare**
+  - [ ] `wrangler login` (developer accounts)
+  - [ ] Capture API token + account ID for CI later.
+- [ ] **Create D1 databases**
+  - [ ] `wrangler d1 create swole-tracker-dev`
+  - [ ] `wrangler d1 create swole-tracker-staging`
+  - [ ] `wrangler d1 create swole-tracker-prod` (empty placeholder)
+- [ ] **Scaffold `wrangler.toml`**
+  - [ ] Include account ID, `name`, `main`, `compatibility_date`.
+  - [ ] Bind `DB` (D1), declare environment sections (`[env.dev]`, `[env.staging]`, `[env.production]`).
+  - [ ] Add placeholders for secrets loaded via Wrangler/CI (ensure no secret values committed).
 
-- [ ] **Decommission Old Services:**
-  - [ ] Once the Cloudflare deployment is stable and verified, delete the project from Vercel.
-  - [ ] Delete the project from Supabase.
+**DoD:** Local environment can run `wrangler pages dev` (or `wrangler dev`) and recognizes the D1 binding; project has a committed `wrangler.toml` template.
+
+---
+
+## Phase 1 – Next.js on Workers Foundation
+
+- [ ] **Configure Next.js adapter**
+  - [ ] Add `@cloudflare/next-on-pages` config file (`.mf/config.ts`) pointing at `.next` output.
+  - [ ] Update `next.config.js` for edge runtime compatibility (disable Node APIs, replace Supabase CSP placeholders).
+- [ ] **Adjust scripts**
+  - [ ] Replace `bun dev`/`bun build` scripts to call `npx @cloudflare/next-on-pages` (`nop dev`, `nop build`, `nop preview`).
+  - [ ] Add helper scripts for `wrangler pages dev` and `wrangler deploy`.
+- [ ] **Runtime verification**
+  - [ ] Confirm dynamic routes, middleware, and API handlers execute in Workers locally.
+  - [ ] Document unsupported APIs or polyfills needed (e.g., Node streams, `Buffer`).
+
+**DoD:** Running `bun dev` uses the Workers runtime via next-on-pages; local requests resolve without Supabase dependencies; README lists new dev commands.
+
+---
+
+## Phase 2 – Authentication: Supabase ➜ WorkOS + Signed Cookies
+
+- [ ] **Environment updates**
+  - [ ] Add WorkOS env vars to `src/env.js`, `.env.example`, and Infisical (`WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, callback origins, `WORKER_SESSION_SECRET`).
+  - [ ] Remove Supabase variables from the schema and examples.
+- [ ] **WorkOS client & session utilities**
+  - [ ] `bun add @workos-inc/node`
+  - [ ] Create `src/lib/workos.ts` (singleton WorkOS client factory).
+  - [ ] Add `src/lib/session-cookie.ts` (sign/verify stateless cookies with `WORKER_SESSION_SECRET`, set `HttpOnly`/`Secure` attributes).
+- [ ] **Middleware & providers**
+  - [ ] Replace Supabase logic in `src/middleware.ts` with WorkOS session validation (verify cookie, refresh via WorkOS API if expiring, block unauthorized routes).
+  - [ ] Refactor `src/providers/AuthProvider.tsx` to consume WorkOS session endpoints (use fetcher to `/api/auth/session`).
+  - [ ] Implement `/api/auth/[login|callback|logout]` routes using WorkOS flows for Google SSO + email/password.
+- [ ] **Server context & API routes**
+  - [ ] Update `src/server/api/trpc.ts` to read user info from the signed cookie helper.
+  - [ ] Sweep `src/app/api/**` for `createServerSupabaseClient` usage and replace with WorkOS session checks.
+- [ ] **Dependency cleanup**
+  - [ ] `bun remove @supabase/ssr @supabase/supabase-js`
+  - [ ] Remove Supabase mocks from `src/__tests__/setup.ts` and related test utilities.
+  - [ ] Delete Supabase helpers (`src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`).
+
+**DoD:** Logging in/out works locally for Google SSO and email/password; protected routes read `ctx.user.id` from the cookie; no Supabase packages or imports remain.
+
+---
+
+## Phase 3 – Database: Postgres ➜ D1/SQLite
+
+- [ ] **Drizzle configuration**
+  - [ ] `bun add @drizzle-team/d1 drizzle-orm/sqlite`
+  - [ ] Update `drizzle.config.ts` with `dialect: "sqlite"`, `driver: "d1"`, and Worker bindings.
+- [ ] **Connection layer**
+  - [ ] Replace `src/server/db/index.ts` with D1 binding usage (`export const db = drizzle(env.DB)`), remove Postgres pooling code.
+- [ ] **Schema rewrite**
+  - [ ] Convert tables to `sqliteTable`; map data types (`timestamp` ➜ `integer` milliseconds or ISO text, `numeric` ➜ `real`, `json` ➜ `text`).
+  - [ ] Trim unsupported indexes (e.g., partials, descending indexes); document alternatives in code comments.
+  - [ ] Introduce a `users` table if WorkOS requires persisted metadata (optional but decide here).
+- [ ] **Query & security sweep**
+  - [ ] Audit all DB calls (`src/server/**`, `src/lib/**`, tRPC routers) to ensure every user-facing query scopes by `user_id` from WorkOS.
+  - [ ] Update offline persistence helpers to match new schema shapes.
+- [ ] **Migrations & seeding**
+  - [ ] Generate initial migration via Drizzle (`bun drizzle-kit generate` or configured command).
+  - [ ] Apply locally with `wrangler d1 migrations apply swole-tracker-dev --local`.
+  - [ ] Add optional seed script (`bun run seed:d1`) for sample data.
+
+**DoD:** Drizzle builds succeed against D1 locally, all tests compile, and user-specific queries enforce the signed cookie `userId`.
+
+---
+
+## Phase 4 – Feature Adjustments & Testing
+
+- [ ] **Real-time simplification**
+  - [ ] Remove `/api/sse/workout-updates`; replace consuming hooks with polling or client-side cache invalidation.
+- [ ] **Offline & analytics**
+  - [ ] Review `src/lib/offline-storage.ts`, `src/lib/cache-analytics.ts`, and PostHog integrations for Supabase assumptions.
+- [ ] **Testing**
+  - [ ] Update Vitest mocks for WorkOS session endpoints.
+  - [ ] Add unit tests for `session-cookie` helpers and protected route middleware.
+  - [ ] Ensure `bun check`, `bun test`, and adapter-specific smoke tests pass.
+
+**DoD:** App features run locally without SSE; automated tests cover the new auth/session flow.
+
+---
+
+## Phase 5 – Deployment & CI/CD
+
+- [ ] **Wrangler deploy workflow**
+  - [ ] Document `wrangler deploy --env production` command and required bindings.
+  - [ ] Create `scripts/generate-wrangler-config.ts` (or shell script) that:
+    - [ ] Reads `wrangler.template.toml` from repo.
+    - [ ] Injects env-specific values (account ID, D1 IDs, binding names, domains) from environment variables.
+    - [ ] Writes a temporary `wrangler.toml` to the workspace (`$RUNNER_TEMP` for CI) without committing.
+  - [ ] Configure Worker custom domains/routes in Cloudflare:
+    - [ ] Map `preview.stevenduong.com` to the staging Worker environment.
+    - [ ] Map `workout.stevenduong.com` to the production Worker environment.
+    - [ ] Ensure DNS records in the Cloudflare zone point the subdomains to the Worker (proxied CNAME or route configuration) before go-live.
+- [ ] **GitHub Actions pipeline (Infisical-driven)**
+  - [ ] Add workflow triggered on `main` (and optionally tags) that:
+    - [ ] Uses Infisical GitHub Action to export secrets into environment variables (Machine Identity credentials stored as GitHub secrets).
+        * Example: `uses: infisical/infisical-action@v1`, with `env:` keys `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_ENVIRONMENT`, `INFISICAL_WORKSPACE_SLUG`.
+        * Alternatively, use CLI: `infisical run --client-id=$INFISICAL_CLIENT_ID --client-secret=$INFISICAL_CLIENT_SECRET --env=$INFISICAL_ENVIRONMENT --workspace-slug=$INFISICAL_WORKSPACE_SLUG -- npx ...`.
+    - [ ] Runs the Wrangler config generator to materialize `wrangler.toml` for the job.
+    - [ ] Installs Bun + dependencies, runs `bun check`, `bun test`, `npx @cloudflare/next-on-pages build`.
+    - [ ] Executes `wrangler deploy --env production` using Cloudflare API token (stored as GitHub secret).
+    - [ ] Cleans up the generated `wrangler.toml` at job end.
+  - [ ] Add job matrix or manual dispatch for `dev`, `staging`, `production` to map:
+    - [ ] `NEXT_PUBLIC_SITE_URL` → `http://localhost:3000`, `https://preview.stevenduong.com`, `https://workout.stevenduong.com` respectively.
+    - [ ] D1 binding names (`swole-tracker-dev`, `swole-tracker-staging`, `swole-tracker-prod`).
+    - [ ] Infisical environments/workspace slug for secret export (dev/staging/prod).
+    - [ ] Pass the target Infisical environment to the action/CLI (e.g., `INFISICAL_ENVIRONMENT=dev|staging|prod` or via CLI flags) so the workflow fetches the correct secrets.
+    - [ ] Store the Machine Identity `INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` as GitHub secrets; reuse them across matrix jobs while only varying `INFISICAL_ENVIRONMENT`.
+- [ ] **Production verification**
+  - [ ] Deploy to staging/preview Worker, run smoke tests (auth flow, D1 writes, offline mode).
+  - [ ] Promote to production once verification succeeds.
+
+**DoD:** GitHub Actions pipeline deploys Workers using Infisical-provided secrets and the transient Wrangler config; documentation describes the workflow end-to-end.
+
+---
+
+## Phase 6 – Cleanup & Documentation
+
+- [ ] **Remove legacy assets**
+  - [ ] Delete `vercel.json`, Supabase directories (`supabase/`, `drizzle/` SQL RLS helpers), and unused scripts.
+  - [ ] Purge Supabase references across code comments and logs.
+- [ ] **Docs & templates**
+  - [ ] Update `.env.example` with final WorkOS/Cloudflare variables.
+  - [ ] Refresh `README.md` (local setup, deployment instructions, troubleshooting).
+  - [ ] Refresh `AGENTS.md` (architecture, auth, DB, tooling updates).
+- [ ] **Service decommissioning**
+  - [ ] Shut down Supabase project and Vercel deployment after production Worker is stable.
+
+**DoD:** Repository, documentation, and infrastructure contain no Supabase/Vercel remnants; knowledge base reflects the Worker stack.
+
+---
+
+## Follow-ups & Open Questions
+- **Session storage fallback:** Confirm whether stateless cookies cover all use cases (e.g., forced logout by deleting WorkOS session). If server-side blacklisting is required, add a lightweight D1/KV revocation list.
