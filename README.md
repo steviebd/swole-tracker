@@ -15,8 +15,8 @@ A modern fitness tracking application built with Next.js, React 19, TypeScript, 
 - **Framework**: Next.js 15 with App Router
 - **Frontend**: React 19, TypeScript, Tailwind CSS v4
 - **Backend**: tRPC v11, Drizzle ORM
-- **Database**: PostgreSQL (Supabase)
-- **Authentication**: Supabase Auth
+- **Database**: Cloudflare D1
+- **Authentication**: WorkOS
 - **Analytics**: PostHog
 - **Package Manager**: Bun
 
@@ -26,7 +26,7 @@ A modern fitness tracking application built with Next.js, React 19, TypeScript, 
 
 - Node.js 20.19.4+ (managed via Volta)
 - Bun package manager
-- PostgreSQL database (Supabase recommended)
+- Cloudflare account with D1 and Workers
 
 ### Installation
 
@@ -56,12 +56,11 @@ bun dev
 
 ## Scripts
 
-- `bun dev` - Start development server with Turbopack
+- `bun dev` - Start development server with Wrangler
 - `bun build` - Build the application for production
-- `bun preview` - Build and start production server locally
+- `bun deploy` - Deploy the application to Cloudflare Workers
 - `bun check` - Run lint + typecheck
 - `bun test` - Run unit tests
-- `bun e2e` - Run end-to-end tests
 
 ## Project Structure
 
@@ -77,8 +76,8 @@ bun dev
 - Run `bun run tokens:build` after editing palette seeds to regenerate both JSON + CSS artifacts.
 - Automated tests guard accessibility:
   ```bash
-  bun run test -- src/__tests__/design-tokens/material3-theme.test.ts \\
-    src/__tests__/components/theme-selector.test.tsx \\
+  bun run test -- src/__tests__/design-tokens/material3-theme.test.ts \
+    src/__tests__/components/theme-selector.test.tsx \
     src/__tests__/hooks/use-reduced-motion.test.ts
   ```
 - Consult `docs/material3-theme-guide.md` for rollout checklists, mobile QA guidance, and tooling notes.

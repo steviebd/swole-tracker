@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const temporalGroups = new Map<string, typeof allWorkouts>();
 
     for (const workout of allWorkouts) {
-      const temporalKey = `${workout.start}_${workout.end}`;
+      const temporalKey = `${workout.start.toISOString()}_${workout.end.toISOString()}`;
       if (!temporalGroups.has(temporalKey)) {
         temporalGroups.set(temporalKey, []);
       }

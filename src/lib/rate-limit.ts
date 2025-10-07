@@ -63,7 +63,7 @@ export async function checkRateLimit(
     .update(rateLimits)
     .set({
       requests: existingLimit.requests + 1,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(rateLimits.id, existingLimit.id));
 

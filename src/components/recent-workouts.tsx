@@ -122,7 +122,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
           const result = await repeatWorkoutMutation.mutateAsync({
             templateId: workout.templateId,
             workoutDate: new Date(),
-            device_type: "desktop",
           });
 
           analytics.workoutStarted(
@@ -212,10 +211,10 @@ const DashboardRecentWorkoutsView = ({
   if (error) {
     return (
       <div ref={forwardedRef} className={cn("space-y-4", className)}>
-        <h2 className="mb-4 text-xl font-semibold text-foreground">
+        <h2 className="text-foreground mb-4 text-xl font-semibold">
           Recent Workouts
         </h2>
-        <div className="rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">
+        <div className="border-border text-muted-foreground rounded-lg border border-dashed p-6 text-center">
           <p>Unable to load recent workouts</p>
           <p className="mt-2 text-sm">Please try again later.</p>
         </div>
@@ -225,11 +224,14 @@ const DashboardRecentWorkoutsView = ({
 
   if (isLoading) {
     return (
-      <div ref={forwardedRef} className={cn("space-y-4 sm:space-y-6", className)}>
+      <div
+        ref={forwardedRef}
+        className={cn("space-y-4 sm:space-y-6", className)}
+      >
         <motion.h2
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 text-xl font-display font-bold text-foreground sm:mb-6 sm:text-2xl"
+          className="font-display text-foreground mb-4 text-xl font-bold sm:mb-6 sm:text-2xl"
         >
           Recent Workouts
         </motion.h2>
@@ -242,7 +244,7 @@ const DashboardRecentWorkoutsView = ({
               transition={{ duration: 0.2, delay: index * 0.05 }}
               className="animate-pulse"
             >
-              <div className="glass-surface h-[180px] rounded-xl bg-muted sm:h-[200px]" />
+              <div className="glass-surface bg-muted h-[180px] rounded-xl sm:h-[200px]" />
             </motion.div>
           ))}
         </div>
@@ -252,11 +254,14 @@ const DashboardRecentWorkoutsView = ({
 
   if (!workouts?.length) {
     return (
-      <div ref={forwardedRef} className={cn("space-y-4 sm:space-y-6", className)}>
+      <div
+        ref={forwardedRef}
+        className={cn("space-y-4 sm:space-y-6", className)}
+      >
         <motion.h2
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 text-xl font-display font-bold text-foreground sm:mb-6 sm:text-2xl"
+          className="font-display text-foreground mb-4 text-xl font-bold sm:mb-6 sm:text-2xl"
         >
           Recent Workouts
         </motion.h2>
@@ -285,10 +290,10 @@ const DashboardRecentWorkoutsView = ({
             >
               💪
             </motion.div>
-            <h3 className="mb-2 text-lg font-display font-bold text-foreground sm:text-xl">
+            <h3 className="font-display text-foreground mb-2 text-lg font-bold sm:text-xl">
               No workouts yet
             </h3>
-            <p className="mx-auto mb-6 max-w-sm text-sm text-muted-foreground">
+            <p className="text-muted-foreground mx-auto mb-6 max-w-sm text-sm">
               Start your first workout to see it appear here and begin tracking
               your fitness journey.
             </p>
@@ -297,7 +302,7 @@ const DashboardRecentWorkoutsView = ({
               className={cn(
                 "inline-flex items-center gap-2 rounded-xl px-6 py-3 text-white",
                 "font-medium transition-all duration-200 hover:scale-105 active:scale-95",
-                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                "focus:ring-primary focus:ring-2 focus:ring-offset-2 focus:outline-none",
                 "shadow-lg hover:shadow-xl",
               )}
               style={{ background: "var(--gradient-universal-action-primary)" }}
@@ -320,7 +325,7 @@ const DashboardRecentWorkoutsView = ({
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
-        <h2 className="text-xl font-display font-bold text-foreground sm:text-2xl">
+        <h2 className="font-display text-foreground text-xl font-bold sm:text-2xl">
           Recent Workouts
         </h2>
         {workouts.length >= limit && (
@@ -329,9 +334,9 @@ const DashboardRecentWorkoutsView = ({
               href="/workouts"
               className={cn(
                 "inline-flex items-center gap-2 rounded-lg px-3 py-2",
-                "text-sm font-medium text-primary transition-all duration-200",
+                "text-primary text-sm font-medium transition-all duration-200",
                 "hover:bg-primary/5 hover:text-primary/80",
-                "focus:outline-none focus:ring-2 focus:ring-primary/20",
+                "focus:ring-primary/20 focus:ring-2 focus:outline-none",
               )}
             >
               View All
@@ -402,13 +407,13 @@ const CardRecentWorkoutsView = ({
       <div ref={forwardedRef} className={cn(className)}>
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-4">
-            <CardTitle className="text-2xl font-serif font-black">
+            <CardTitle className="font-serif text-2xl font-black">
               Recent Workouts
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {[...Array(3)].map((_, index) => (
-              <div key={index} className="rounded-xl bg-muted/30 p-4">
+              <div key={index} className="bg-muted/30 rounded-xl p-4">
                 <div className="space-y-2">
                   <div className="skeleton skeleton-text h-6 w-32" />
                   <div className="skeleton skeleton-text h-4 w-48" />
@@ -428,7 +433,7 @@ const CardRecentWorkoutsView = ({
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl font-serif font-black">
+              <CardTitle className="font-serif text-2xl font-black">
                 Recent Workouts
               </CardTitle>
               <Link href="/workouts">
@@ -456,7 +461,7 @@ const CardRecentWorkoutsView = ({
       <Card className="border-0 shadow-lg">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl font-serif font-black">
+            <CardTitle className="font-serif text-2xl font-black">
               Recent Workouts
             </CardTitle>
             <Link href="/workouts">
@@ -499,21 +504,21 @@ const CardRecentWorkoutsView = ({
             return (
               <div
                 key={workout.id}
-                className="flex items-center justify-between rounded-xl bg-muted/30 p-4 transition-colors hover:bg-muted/50"
+                className="bg-muted/30 hover:bg-muted/50 flex items-center justify-between rounded-xl p-4 transition-colors"
               >
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <h4 className="font-semibold text-foreground">
+                    <h4 className="text-foreground font-semibold">
                       {resolveTemplateName(workout, "Workout")}
                     </h4>
                     <Badge
                       variant="secondary"
-                      className="bg-gradient-to-r from-chart-1 to-chart-3 text-primary-foreground"
+                      className="from-chart-1 to-chart-3 text-primary-foreground bg-gradient-to-r"
                     >
                       completed
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
                       {relativeDate}
@@ -523,7 +528,7 @@ const CardRecentWorkoutsView = ({
                       {durationLabel}
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-muted-foreground text-sm">
                     {statsParts.join(" • ")}
                   </div>
                 </div>

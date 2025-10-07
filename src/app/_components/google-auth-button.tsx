@@ -22,7 +22,7 @@ export function GoogleAuthButton({
 
     try {
       // Redirect to WorkOS login endpoint
-      window.location.href = `/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
+      window.location.href = `/api/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
     } catch {
       setError("An unexpected error occurred during Google authentication");
       setIsLoading(false);

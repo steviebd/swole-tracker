@@ -15,8 +15,10 @@ import {
   whoopBodyMeasurement,
 } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
-import { broadcastWorkoutUpdate } from "~/lib/sse-broadcast";
+
 import { getValidAccessToken } from "~/lib/token-rotation";
+
+export const runtime = "edge";
 
 interface WhoopWorkoutData {
   id: string;
@@ -268,8 +270,8 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(externalWorkoutsWhoop)
         .set({
-          start: new Date(typedWorkout.start).toISOString(),
-          end: new Date(typedWorkout.end).toISOString(),
+          start: new Date(typedWorkout.start),
+          end: new Date(typedWorkout.end),
           timezone_offset: typedWorkout.timezone_offset,
           sport_name: typedWorkout.sport_name,
           score_state: typedWorkout.score_state,
@@ -280,7 +282,7 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
           zone_duration: typedWorkout.zone_duration
             ? JSON.stringify(typedWorkout.zone_duration)
             : null,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(externalWorkoutsWhoop.whoopWorkoutId, workoutId));
     } else {
@@ -291,8 +293,8 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
       await db.insert(externalWorkoutsWhoop).values({
         user_id: dbUserId,
         whoopWorkoutId: workoutId,
-        start: new Date(typedWorkout.start).toISOString(),
-        end: new Date(typedWorkout.end).toISOString(),
+        start: new Date(typedWorkout.start),
+        end: new Date(typedWorkout.end),
         timezone_offset: typedWorkout.timezone_offset,
         sport_name: typedWorkout.sport_name,
         score_state: typedWorkout.score_state,
@@ -307,22 +309,6 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
     }
 
     console.log(`Successfully processed workout update for ${workoutId}`);
-
-    // Broadcast the update to connected clients for this user (skip for test mode since no real user to notify)
-    if (!isTestMode) {
-      try {
-        await broadcastWorkoutUpdate(userId, {
-          id: workoutId,
-          type: payload.type,
-          sport_name: typedWorkout.sport_name,
-          start: typedWorkout.start,
-          end: typedWorkout.end,
-        });
-      } catch (broadcastError) {
-        console.error("Failed to broadcast workout update:", broadcastError);
-        // Don't throw - the webhook processing was successful
-      }
-    }
   } catch (error) {
     console.error(`Error processing workout update:`, error);
     throw error;
@@ -367,7 +353,7 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
         .update(whoopRecovery)
         .set({
           cycle_id: recoveryData.cycle_id || null,
-          date: datePart,
+          date: new Date(datePart),
           recovery_score: recoveryData.score?.recovery_score || null,
           hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
           hrv_rmssd_baseline: recoveryData.score?.hrv_baseline || null,
@@ -375,7 +361,7 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
             recoveryData.score?.resting_heart_rate_milli || null,
           resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
           raw_data: JSON.stringify(recoveryData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
     } else {
@@ -388,7 +374,7 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
           user_id: dbUserId,
           whoop_recovery_id: recoveryId,
           cycle_id: recoveryData.cycle_id || null,
-          date: datePart,
+          date: new Date(datePart),
           recovery_score: recoveryData.score?.recovery_score || null,
           hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
           hrv_rmssd_baseline: recoveryData.score?.hrv_baseline || null,
@@ -441,8 +427,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopSleep)
         .set({
-          start: new Date(sleepData.start).toISOString(),
-          end: new Date(sleepData.end).toISOString(),
+          start: new Date(sleepData.start),
+          end: new Date(sleepData.end),
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
@@ -465,7 +451,7 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
           disturbance_count:
             sleepData.score?.stage_summary?.disturbance_count || null,
           raw_data: JSON.stringify(sleepData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopSleep.whoop_sleep_id, sleepId));
     } else {
@@ -477,8 +463,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
         {
           user_id: dbUserId,
           whoop_sleep_id: sleepId,
-          start: new Date(sleepData.start).toISOString(),
-          end: new Date(sleepData.end).toISOString(),
+          start: new Date(sleepData.start),
+          end: new Date(sleepData.end),
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
@@ -546,15 +532,15 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopCycles)
         .set({
-          start: new Date(cycleData.start).toISOString(),
-          end: new Date(cycleData.end).toISOString(),
+          start: new Date(cycleData.start),
+          end: new Date(cycleData.end),
           timezone_offset: cycleData.timezone_offset || null,
           day_strain: cycleData.score?.strain || null,
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
           kilojoule: cycleData.score?.kilojoule || null,
           raw_data: JSON.stringify(cycleData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopCycles.whoop_cycle_id, cycleId));
     } else {
@@ -566,8 +552,8 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
         {
           user_id: dbUserId,
           whoop_cycle_id: cycleId,
-          start: new Date(cycleData.start).toISOString(),
-          end: new Date(cycleData.end).toISOString(),
+          start: new Date(cycleData.start),
+          end: new Date(cycleData.end),
           timezone_offset: cycleData.timezone_offset || null,
           day_strain: cycleData.score?.strain || null,
           average_heart_rate: cycleData.score?.average_heart_rate || null,
@@ -627,9 +613,9 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
           height_meter: measurementData.height_meter || null,
           weight_kilogram: measurementData.weight_kilogram || null,
           max_heart_rate: measurementData.max_heart_rate || null,
-          measurement_date: measurementDate,
+          measurement_date: new Date(measurementDate),
           raw_data: JSON.stringify(measurementData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
     } else {
@@ -644,7 +630,7 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
           height_meter: measurementData.height_meter || null,
           weight_kilogram: measurementData.weight_kilogram || null,
           max_heart_rate: measurementData.max_heart_rate || null,
-          measurement_date: measurementDate,
+          measurement_date: new Date(measurementDate),
           raw_data: JSON.stringify(measurementData),
         },
       ]);
@@ -679,11 +665,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -776,7 +762,7 @@ export async function POST(request: NextRequest) {
             .set({
               status: "ignored",
               processingTime: Date.now() - startTime,
-              processedAt: new Date().toISOString(),
+              processedAt: new Date(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
         }
@@ -795,7 +781,7 @@ export async function POST(request: NextRequest) {
         .set({
           status: "processed",
           processingTime: Date.now() - startTime,
-          processedAt: new Date().toISOString(),
+          processedAt: new Date(),
         })
         .where(eq(webhookEvents.id, webhookEventId));
     }
@@ -819,7 +805,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

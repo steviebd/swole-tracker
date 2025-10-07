@@ -5,7 +5,7 @@ import {
   WhoopAuthorizationError,
 } from "~/server/api/utils/whoop-authorization";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function GET(request: NextRequest) {
   try {

@@ -99,6 +99,8 @@
 }
 
 :root {
+  --font-open-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-montserrat: "Montserrat", ui-serif, Georgia, "Times New Roman", serif;
   --state-layer-hover-opacity: 0.08;
   --state-layer-focus-opacity: 0.12;
   --state-layer-pressed-opacity: 0.12;

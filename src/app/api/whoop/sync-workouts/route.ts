@@ -8,7 +8,7 @@ import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 interface WhoopWorkout {
   id: string;
@@ -160,7 +160,9 @@ export async function POST(request: NextRequest) {
 
     const existingIds = new Set(existingWorkouts.map((w) => w.whoopWorkoutId));
     const existingTimes = new Set(
-      existingWorkouts.map((w) => `${w.start}_${w.end}`),
+      existingWorkouts.map(
+        (w) => `${w.start.toISOString()}_${w.end.toISOString()}`,
+      ),
     );
 
     // Filter out workouts that already exist by ID or temporal match
@@ -178,8 +180,8 @@ export async function POST(request: NextRequest) {
         const workoutValues = newWorkoutData.map((workout) => ({
           user_id: session.userId,
           whoopWorkoutId: workout.id,
-          start: workout.start,
-          end: workout.end,
+          start: new Date(workout.start),
+          end: new Date(workout.end),
           timezone_offset: workout.timezone_offset,
           sport_name: workout.sport_name,
           score_state: workout.score_state,
@@ -204,8 +206,8 @@ export async function POST(request: NextRequest) {
             await db.insert(externalWorkoutsWhoop).values({
               user_id: session.userId,
               whoopWorkoutId: workout.id,
-              start: workout.start,
-              end: workout.end,
+              start: new Date(workout.start),
+              end: new Date(workout.end),
               timezone_offset: workout.timezone_offset,
               sport_name: workout.sport_name,
               score_state: workout.score_state,

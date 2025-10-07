@@ -80,17 +80,18 @@ const formatMinutes = (minutes: number | null): string => {
   return hours > 0 ? `${hours}h ${remaining}m` : `${remaining}m`;
 };
 
-const formatDateTime = (date: string | null): string => {
+const formatDateTime = (date: Date | string | null): string => {
   if (!date) {
     return "--";
   }
 
+  const dateObj = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(new Date(date));
+  }).format(dateObj);
 };
 
 const getRecoveryDescriptor = (score: number | null) => {
@@ -271,14 +272,16 @@ const getWorkoutAverageHeartRate = (workout: unknown): number | null => {
 };
 
 const getWorkoutDurationMinutes = (
-  workout: { start?: string; end?: string } | undefined,
+  workout: { start?: Date | string; end?: Date | string } | undefined,
 ): number | null => {
   if (!workout?.start || !workout?.end) {
     return null;
   }
 
-  const start = new Date(workout.start);
-  const end = new Date(workout.end);
+  const start =
+    typeof workout.start === "string" ? new Date(workout.start) : workout.start;
+  const end =
+    typeof workout.end === "string" ? new Date(workout.end) : workout.end;
   const diffMilliseconds = end.getTime() - start.getTime();
   return diffMilliseconds > 0 ? diffMilliseconds / 60000 : null;
 };

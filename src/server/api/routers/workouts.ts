@@ -177,7 +177,7 @@ export const workoutsRouter = createTRPCRouter({
 
       const sets = lastExerciseSets.map((set, index) => ({
         id: `prev-${index}`,
-        weight: set.weight ? parseFloat(set.weight) : undefined,
+        weight: set.weight || undefined,
         reps: set.reps,
         sets: set.sets ?? 1,
         unit: set.unit as "kg" | "lbs",
@@ -397,12 +397,6 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         templateId: z.number(),
         workoutDate: z.date().default(() => new Date()),
-        // Phase 3 telemetry (optional on start)
-        theme_used: z.string().max(20).optional(),
-        device_type: z
-          .enum(["android", "ios", "desktop", "ipad", "other"])
-          .optional(),
-        perf_metrics: z.any().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -416,10 +410,7 @@ export const workoutsRouter = createTRPCRouter({
           where: and(
             eq(workoutSessions.user_id, ctx.user.id),
             eq(workoutSessions.templateId, input.templateId),
-            gte(
-              workoutSessions.workoutDate,
-              new Date(Date.now() - 120000).toISOString(),
-            ), // Within last 2 minutes
+            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)), // Within last 2 minutes
           ),
           orderBy: [desc(workoutSessions.workoutDate)],
           with: {
@@ -472,10 +463,6 @@ export const workoutsRouter = createTRPCRouter({
             user_id: ctx.user.id,
             templateId: input.templateId,
             workoutDate: input.workoutDate,
-            // Phase 3 persistence
-            theme_used: input.theme_used ?? null,
-            device_type: input.device_type ?? null,
-            perf_metrics: input.perf_metrics ?? null,
           })
           .returning();
 
@@ -515,12 +502,6 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         sessionId: z.number(),
         exercises: z.array(exerciseInputSchema),
-        // Phase 3 telemetry on save (optional updates)
-        theme_used: z.string().max(20).optional(),
-        device_type: z
-          .enum(["android", "ios", "desktop", "ipad", "other"])
-          .optional(),
-        perf_metrics: z.any().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -531,31 +512,6 @@ export const workoutsRouter = createTRPCRouter({
 
       if (!session || session.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
-      }
-
-      // Optionally update session telemetry fields on save
-      if (
-        typeof input.theme_used !== "undefined" ||
-        typeof input.device_type !== "undefined" ||
-        typeof input.perf_metrics !== "undefined"
-      ) {
-        await ctx.db
-          .update(workoutSessions)
-          .set({
-            theme_used:
-              typeof input.theme_used !== "undefined"
-                ? input.theme_used
-                : undefined,
-            device_type:
-              typeof input.device_type !== "undefined"
-                ? input.device_type
-                : undefined,
-            perf_metrics:
-              typeof input.perf_metrics !== "undefined"
-                ? input.perf_metrics
-                : undefined,
-          })
-          .where(eq(workoutSessions.id, input.sessionId));
       }
 
       // Delete existing exercises for this session
@@ -580,7 +536,7 @@ export const workoutsRouter = createTRPCRouter({
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,
             setOrder: setIndex,
-            weight: set.weight?.toString(),
+            weight: set.weight,
             reps: set.reps,
             sets: set.sets,
             unit: set.unit,
@@ -703,10 +659,7 @@ export const workoutsRouter = createTRPCRouter({
             await ctx.db
               .update(sessionExercises)
               .set({
-                weight:
-                  update.weight !== undefined
-                    ? update.weight.toString()
-                    : undefined,
+                weight: update.weight,
                 reps: update.reps,
                 unit: update.unit,
               })

@@ -21,7 +21,7 @@ export interface BatchWorkoutData {
     templateExerciseId?: number;
     exerciseName: string;
     setOrder: number;
-    weight?: string;
+    weight?: number;
     reps?: number;
     sets?: number;
     unit?: string;
@@ -45,9 +45,9 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
   try {
     return await db.transaction(async (tx) => {
       const insertedSessions = [];
-      
+
       // Insert all workout sessions
-      const sessionsToInsert = workouts.map(workout => ({
+      const sessionsToInsert = workouts.map((workout) => ({
         user_id: workout.user_id,
         templateId: workout.templateId,
         workoutDate: workout.workoutDate,
@@ -63,7 +63,7 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
       for (let i = 0; i < workouts.length; i++) {
         const workout = workouts[i]!;
         const sessionId = sessions[i]!.id;
-        
+
         for (const exercise of workout.exercises) {
           allExercises.push({
             user_id: workout.user_id,
@@ -97,19 +97,19 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
       }
 
       const duration = Date.now() - startTime;
-      logger.debug("Batch workout insert completed", { 
-        count: workouts.length, 
+      logger.debug("Batch workout insert completed", {
+        count: workouts.length,
         exerciseCount: allExercises.length,
-        durationMs: duration 
+        durationMs: duration,
       });
 
       return insertedSessions;
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error("Batch workout insert failed", error, { 
-      count: workouts.length, 
-      durationMs: duration 
+    logger.error("Batch workout insert failed", error, {
+      count: workouts.length,
+      durationMs: duration,
     });
     throw error;
   }
@@ -123,17 +123,17 @@ export const batchUpdateSessionExercises = async (
   userId: string,
   updates: Array<{
     exerciseId: number;
-    weight?: string;
+    weight?: number;
     reps?: number;
     unit?: string;
-  }>
+  }>,
 ) => {
   if (updates.length === 0) return { success: true, updatedCount: 0 };
 
   const startTime = Date.now();
-  logger.debug("Starting batch exercise update", { 
-    sessionId, 
-    count: updates.length 
+  logger.debug("Starting batch exercise update", {
+    sessionId,
+    count: updates.length,
   });
 
   try {
@@ -144,7 +144,7 @@ export const batchUpdateSessionExercises = async (
       const session = await tx.query.workoutSessions.findFirst({
         where: and(
           eq(workoutSessions.id, sessionId),
-          eq(workoutSessions.user_id, userId)
+          eq(workoutSessions.user_id, userId),
         ),
       });
 
@@ -161,11 +161,14 @@ export const batchUpdateSessionExercises = async (
             reps: update.reps,
             unit: update.unit,
           })
-          .where(and(
-            eq(sessionExercises.id, update.exerciseId),
-            eq(sessionExercises.user_id, userId)
-          ));
-        
+          .where(
+            and(
+              eq(sessionExercises.id, update.exerciseId),
+              eq(sessionExercises.user_id, userId),
+            ),
+          );
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return result;
       });
 
@@ -173,20 +176,20 @@ export const batchUpdateSessionExercises = async (
       updatedCount = updates.length;
 
       const duration = Date.now() - startTime;
-      logger.debug("Batch exercise update completed", { 
-        sessionId, 
-        updatedCount, 
-        durationMs: duration 
+      logger.debug("Batch exercise update completed", {
+        sessionId,
+        updatedCount,
+        durationMs: duration,
       });
 
       return { success: true, updatedCount };
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error("Batch exercise update failed", error, { 
-      sessionId, 
-      count: updates.length, 
-      durationMs: duration 
+    logger.error("Batch exercise update failed", error, {
+      sessionId,
+      count: updates.length,
+      durationMs: duration,
     });
     throw error;
   }
@@ -202,14 +205,14 @@ export const batchCreateMasterExerciseLinks = async (
     templateExerciseId: number;
     exerciseName: string;
     linkingRejected?: boolean;
-  }>
+  }>,
 ) => {
   if (exerciseData.length === 0) return [];
 
   const startTime = Date.now();
-  logger.debug("Starting batch master exercise linking", { 
-    userId, 
-    count: exerciseData.length 
+  logger.debug("Starting batch master exercise linking", {
+    userId,
+    count: exerciseData.length,
   });
 
   try {
@@ -218,10 +221,10 @@ export const batchCreateMasterExerciseLinks = async (
 
       // Group exercises by normalized name to avoid duplicates
       const exerciseGroups = new Map<string, typeof exerciseData>();
-      
+
       for (const exercise of exerciseData) {
         if (exercise.linkingRejected) continue;
-        
+
         const normalizedName = exercise.exerciseName.toLowerCase().trim();
         if (!exerciseGroups.has(normalizedName)) {
           exerciseGroups.set(normalizedName, []);
@@ -232,12 +235,12 @@ export const batchCreateMasterExerciseLinks = async (
       // Process each unique exercise name
       for (const [normalizedName, exercises] of exerciseGroups) {
         const firstExercise = exercises[0]!;
-        
+
         // Try to find existing master exercise
         let masterExercise = await tx.query.masterExercises.findFirst({
           where: and(
             eq(masterExercises.user_id, userId),
-            eq(masterExercises.normalizedName, normalizedName)
+            eq(masterExercises.normalizedName, normalizedName),
           ),
         });
 
@@ -257,7 +260,7 @@ export const batchCreateMasterExerciseLinks = async (
         if (!masterExercise) continue;
 
         // Create links for all template exercises in this group
-        const linksToCreate = exercises.map(exercise => ({
+        const linksToCreate = exercises.map((exercise) => ({
           templateExerciseId: exercise.templateExerciseId,
           masterExerciseId: masterExercise!.id,
           user_id: userId,
@@ -272,7 +275,9 @@ export const batchCreateMasterExerciseLinks = async (
             await tx
               .update(exerciseLinks)
               .set({ masterExerciseId: link.masterExerciseId })
-              .where(eq(exerciseLinks.templateExerciseId, link.templateExerciseId));
+              .where(
+                eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
+              );
           }
         }
 
@@ -284,21 +289,21 @@ export const batchCreateMasterExerciseLinks = async (
       }
 
       const duration = Date.now() - startTime;
-      logger.debug("Batch master exercise linking completed", { 
-        userId, 
+      logger.debug("Batch master exercise linking completed", {
+        userId,
         processedGroups: results.length,
         totalExercises: exerciseData.length,
-        durationMs: duration 
+        durationMs: duration,
       });
 
       return results;
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error("Batch master exercise linking failed", error, { 
-      userId, 
-      count: exerciseData.length, 
-      durationMs: duration 
+    logger.error("Batch master exercise linking failed", error, {
+      userId,
+      count: exerciseData.length,
+      durationMs: duration,
     });
     throw error;
   }
@@ -308,15 +313,15 @@ export const batchCreateMasterExerciseLinks = async (
  * Batch delete operations with proper cleanup
  */
 export const batchDeleteWorkouts = async (
-  userId: string, 
-  sessionIds: number[]
+  userId: string,
+  sessionIds: number[],
 ) => {
   if (sessionIds.length === 0) return { success: true, deletedCount: 0 };
 
   const startTime = Date.now();
-  logger.debug("Starting batch workout deletion", { 
-    userId, 
-    count: sessionIds.length 
+  logger.debug("Starting batch workout deletion", {
+    userId,
+    count: sessionIds.length,
   });
 
   try {
@@ -325,14 +330,16 @@ export const batchDeleteWorkouts = async (
       const ownedSessions = await tx.query.workoutSessions.findMany({
         where: and(
           eq(workoutSessions.user_id, userId),
-          // Note: Drizzle doesn't have inArray for this specific case, 
+          // Note: Drizzle doesn't have inArray for this specific case,
           // so we'll verify each one individually for security
         ),
         columns: { id: true },
       });
 
-      const ownedSessionIds = ownedSessions.map(s => s.id);
-      const validSessionIds = sessionIds.filter(id => ownedSessionIds.includes(id));
+      const ownedSessionIds = ownedSessions.map((s) => s.id);
+      const validSessionIds = sessionIds.filter((id) =>
+        ownedSessionIds.includes(id),
+      );
 
       if (validSessionIds.length === 0) {
         throw new Error("No valid sessions found for deletion");
@@ -342,25 +349,27 @@ export const batchDeleteWorkouts = async (
       // Since we have cascade delete, just delete the sessions
       let deletedCount = 0;
       for (const sessionId of validSessionIds) {
-        await tx.delete(workoutSessions).where(eq(workoutSessions.id, sessionId));
+        await tx
+          .delete(workoutSessions)
+          .where(eq(workoutSessions.id, sessionId));
         deletedCount++;
       }
 
       const duration = Date.now() - startTime;
-      logger.debug("Batch workout deletion completed", { 
-        userId, 
-        deletedCount, 
-        durationMs: duration 
+      logger.debug("Batch workout deletion completed", {
+        userId,
+        deletedCount,
+        durationMs: duration,
       });
 
       return { success: true, deletedCount };
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error("Batch workout deletion failed", error, { 
-      userId, 
-      count: sessionIds.length, 
-      durationMs: duration 
+    logger.error("Batch workout deletion failed", error, {
+      userId,
+      count: sessionIds.length,
+      durationMs: duration,
     });
     throw error;
   }

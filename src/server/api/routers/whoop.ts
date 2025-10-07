@@ -1,12 +1,12 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { 
-  userIntegrations, 
+import {
+  userIntegrations,
   externalWorkoutsWhoop,
   whoopRecovery,
   whoopCycles,
   whoopSleep,
   whoopProfile,
-  whoopBodyMeasurement
+  whoopBodyMeasurement,
 } from "~/server/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -31,7 +31,7 @@ export const whoopRouter = createTRPCRouter({
 
       // Check if token is expired
       const now = new Date();
-      const isExpired = integration?.expiresAt 
+      const isExpired = integration?.expiresAt
         ? new Date(integration.expiresAt).getTime() < now.getTime()
         : false;
 
@@ -46,7 +46,8 @@ export const whoopRouter = createTRPCRouter({
       console.error("Failed to fetch WHOOP integration status:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to check WHOOP integration status. Please try again later.",
+        message:
+          "Failed to check WHOOP integration status. Please try again later.",
       });
     }
   }),
@@ -108,11 +109,11 @@ export const whoopRouter = createTRPCRouter({
       isConfigured: !!process.env.WHOOP_WEBHOOK_SECRET,
       supportedEvents: [
         "workout.updated",
-        "recovery.updated", 
+        "recovery.updated",
         "sleep.updated",
         "cycle.updated",
         "body_measurement.updated",
-        "user_profile.updated"
+        "user_profile.updated",
       ],
       instructions: [
         "1. Go to your Whoop Developer Dashboard",
@@ -151,14 +152,15 @@ export const whoopRouter = createTRPCRouter({
 
     // Check if token is expired
     const now = new Date();
-    const isExpired = integration.expiresAt 
+    const isExpired = integration.expiresAt
       ? new Date(integration.expiresAt).getTime() < now.getTime()
       : false;
 
     if (isExpired) {
       throw new TRPCError({
         code: "UNAUTHORIZED",
-        message: "WHOOP access token has expired. Please reconnect your WHOOP account.",
+        message:
+          "WHOOP access token has expired. Please reconnect your WHOOP account.",
       });
     }
 
@@ -170,7 +172,8 @@ export const whoopRouter = createTRPCRouter({
           hrv_rmssd_milli: whoopRecovery.hrv_rmssd_milli,
           hrv_rmssd_baseline: whoopRecovery.hrv_rmssd_baseline,
           resting_heart_rate: whoopRecovery.resting_heart_rate,
-          resting_heart_rate_baseline: whoopRecovery.resting_heart_rate_baseline,
+          resting_heart_rate_baseline:
+            whoopRecovery.resting_heart_rate_baseline,
           raw_data: whoopRecovery.raw_data,
           date: whoopRecovery.date,
         })
@@ -178,7 +181,7 @@ export const whoopRouter = createTRPCRouter({
         .where(eq(whoopRecovery.user_id, ctx.user.id))
         .orderBy(desc(whoopRecovery.date))
         .limit(1);
-      
+
       // Get latest sleep data from database (most recent record)
       const [latestSleep] = await ctx.db
         .select({
@@ -190,7 +193,7 @@ export const whoopRouter = createTRPCRouter({
         .where(eq(whoopSleep.user_id, ctx.user.id))
         .orderBy(desc(whoopSleep.start))
         .limit(1);
-      
+
       if (!latestRecovery) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -202,8 +205,8 @@ export const whoopRouter = createTRPCRouter({
       return {
         recovery_score: latestRecovery.recovery_score || null,
         sleep_performance: latestSleep?.sleep_performance_percentage || null,
-        hrv_now_ms: latestRecovery.hrv_rmssd_milli ? parseFloat(latestRecovery.hrv_rmssd_milli) : null,
-        hrv_baseline_ms: latestRecovery.hrv_rmssd_baseline ? parseFloat(latestRecovery.hrv_rmssd_baseline) : null,
+        hrv_now_ms: latestRecovery.hrv_rmssd_milli || null,
+        hrv_baseline_ms: latestRecovery.hrv_rmssd_baseline || null,
         rhr_now_bpm: latestRecovery.resting_heart_rate || null,
         rhr_baseline_bpm: latestRecovery.resting_heart_rate_baseline || null,
         yesterday_strain: null, // Could be calculated from cycles table if needed
@@ -217,8 +220,11 @@ export const whoopRouter = createTRPCRouter({
       if (error instanceof TRPCError) {
         throw error;
       }
-      
-      console.error("Failed to fetch WHOOP recovery data from database:", error);
+
+      console.error(
+        "Failed to fetch WHOOP recovery data from database:",
+        error,
+      );
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to fetch WHOOP data from database. Please try again.",

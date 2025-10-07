@@ -18,8 +18,5 @@ export function getWorkOS(): WorkOS {
   return workos;
 }
 
-// Export the instance for convenience
-export const workosInstance = getWorkOS();
-
 // Export types for use in other files
 export type { User, Organization } from "@workos-inc/node";

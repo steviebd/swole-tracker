@@ -115,7 +115,7 @@ export const exercisesRouter = createTRPCRouter({
         id: number;
         name: string;
         normalizedName: string;
-        createdAt: string;
+        createdAt: Date;
       }> = [];
       try {
         const prefixBuilder = ctx.db
@@ -146,16 +146,15 @@ export const exercisesRouter = createTRPCRouter({
       }
 
       // If we filled the page with prefix matches, return them; otherwise, fill remainder with contains matches excluding duplicates.
-      const items = prefixMatches;
+      const items = prefixMatches.map((match) => ({
+        ...match,
+        createdAt: match.createdAt.toISOString(),
+      }));
       if (items.length < input.limit) {
         const remaining = input.limit - items.length;
 
-        let containsMatches: Array<{
-          id: number;
-          name: string;
-          normalizedName: string;
-          createdAt: string;
-        }> = [];
+        let containsMatches: any[] = [];
+        let containsMatchesStringified: any[] = [];
         try {
           const containsBuilder = ctx.db
             .select({
@@ -179,13 +178,20 @@ export const exercisesRouter = createTRPCRouter({
           containsMatches = Array.isArray(containsMatchesRaw)
             ? containsMatchesRaw.slice(input.cursor, input.cursor + remaining)
             : [];
+          containsMatchesStringified = containsMatches.map((match) => ({
+            id: (match as { id: number }).id,
+            name: (match as { name: string }).name,
+            normalizedName: (match as { normalizedName: string })
+              .normalizedName,
+            createdAt: (match as { createdAt: Date }).createdAt.toISOString(),
+          }));
         } catch {
           containsMatches = [];
         }
 
         // Deduplicate by id while preserving prefix priority
         const seen = new Set(items.map((i) => i.id));
-        for (const row of containsMatches) {
+        for (const row of containsMatchesStringified) {
           if (!seen.has(row.id)) {
             items.push(row);
             seen.add(row.id);

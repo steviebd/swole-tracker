@@ -1,5 +1,5 @@
 name = "swole-tracker"
-# main is handled by next-on-pages build output
+main = ".open-next/worker.js"
 compatibility_date = "2024-10-03"
 account_id = "{{ CLOUDFLARE_ACCOUNT_ID }}"
 
@@ -22,18 +22,8 @@ name = "swole-tracker-prod"
   [env.production.d1_databases]
   DB = { id = "{{ D1_DB_ID }}" }
 
-  # Custom domain configuration for production
-  [[env.production.routes]]
-  pattern = "workout.stevenduong.com/*"
-  zone_name = "workout.stevenduong.com"
-
 [env.preview]
 name = "swole-tracker-preview"
 
   [env.preview.d1_databases]
   DB = { id = "{{ D1_DB_ID }}" }
-
-  # Custom domain configuration for preview
-  [[env.preview.routes]]
-  pattern = "preview.stevenduong.com/*"
-  zone_name = "preview.stevenduong.com"

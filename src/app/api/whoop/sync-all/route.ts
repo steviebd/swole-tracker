@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 import {
   userIntegrations,
   externalWorkoutsWhoop,
@@ -199,7 +199,9 @@ async function syncWorkouts(
 
     const existingIds = new Set(existingWorkouts.map((w) => w.whoopWorkoutId));
     const existingTimes = new Set(
-      existingWorkouts.map((w) => `${w.start}_${w.end}`),
+      existingWorkouts.map(
+        (w) => `${w.start.toISOString()}_${w.end.toISOString()}`,
+      ),
     );
 
     // Filter out workouts that already exist by ID or temporal match
@@ -217,8 +219,8 @@ async function syncWorkouts(
               {
                 user_id: userId,
                 whoopWorkoutId: workout.id,
-                start: new Date(workout.start).toISOString(),
-                end: new Date(workout.end).toISOString(),
+                start: new Date(workout.start),
+                end: new Date(workout.end),
                 timezone_offset: workout.timezone_offset,
                 sport_name: workout.sport_name,
                 score_state: workout.score_state,
@@ -318,7 +320,7 @@ async function syncRecovery(
               user_id: userId,
               whoop_recovery_id: recovery.sleep_id, // Use sleep_id as identifier in v2 API
               cycle_id: recovery.cycle_id?.toString() || null,
-              date: date,
+              date: new Date(date),
               recovery_score: recovery.score?.recovery_score || null,
               hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli || null,
               hrv_rmssd_baseline: null, // hrv_baseline not available in v2 API structure
@@ -386,8 +388,8 @@ async function syncCycles(
           newCycles.map((cycle) => ({
             user_id: userId,
             whoop_cycle_id: cycle.id,
-            start: cycle.start,
-            end: cycle.end,
+            start: new Date(cycle.start),
+            end: new Date(cycle.end),
             timezone_offset: cycle.timezone_offset || null,
             day_strain: cycle.score?.strain || null,
             average_heart_rate: cycle.score?.average_heart_rate || null,
@@ -450,8 +452,8 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
           newSleeps.map((sleep) => ({
             user_id: userId,
             whoop_sleep_id: sleep.id,
-            start: sleep.start,
-            end: sleep.end,
+            start: new Date(sleep.start),
+            end: new Date(sleep.end),
             timezone_offset: sleep.timezone_offset || null,
             sleep_performance_percentage:
               sleep.score?.sleep_performance_percentage || null,
@@ -527,8 +529,8 @@ async function syncProfile(
           first_name: profile.first_name,
           last_name: profile.last_name,
           raw_data: JSON.stringify(profile),
-          last_updated: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          last_updated: new Date(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopProfile.user_id, userId));
       return 0; // Updated, not new
@@ -626,9 +628,9 @@ async function syncBodyMeasurements(
           height_meter: measurementData.height_meter,
           weight_kilogram: measurementData.weight_kilogram,
           max_heart_rate: measurementData.max_heart_rate,
-          measurement_date: measurementData.measurement_date,
+          measurement_date: new Date(measurementData.measurement_date),
           raw_data: measurementData.raw_data,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopBodyMeasurement.user_id, userId));
       return 0; // Updated, not new
@@ -637,7 +639,10 @@ async function syncBodyMeasurements(
       console.log(
         `[Body Measurements Sync] Inserting new measurement for user ${userId}`,
       );
-      await db.insert(whoopBodyMeasurement).values(measurementData);
+      await db.insert(whoopBodyMeasurement).values({
+        ...measurementData,
+        measurement_date: new Date(measurementData.measurement_date),
+      });
       return 1; // New record
     }
   } catch (error) {
@@ -817,7 +822,7 @@ export async function POST(request: NextRequest) {
         .update(userIntegrations)
         .set({
           isActive: false,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(userIntegrations.id, integration.id));
 

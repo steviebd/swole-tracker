@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "~/__tests__/test-utils";
+import { fireEvent, render, screen, waitFor } from "~/__tests__/test-utils";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSelector } from "~/components/ThemeSelector";
 import { mockLocalStorage } from "~/__tests__/test-utils";
@@ -24,34 +19,69 @@ describe("ThemeSelector accessibility", () => {
     if (!(win as unknown as { document?: Document }).document) {
       (win as unknown as { document: Document }).document = document;
     }
-    if (typeof (win as unknown as { addEventListener?: unknown }).addEventListener !== "function") {
-      (win as unknown as { addEventListener: typeof window.addEventListener }).addEventListener = vi.fn(() => {});
+    if (
+      typeof (win as unknown as { addEventListener?: unknown })
+        .addEventListener !== "function"
+    ) {
+      (
+        win as unknown as { addEventListener: typeof window.addEventListener }
+      ).addEventListener = vi.fn(() => {});
     }
-    if (typeof (win as unknown as { removeEventListener?: unknown }).removeEventListener !== "function") {
-      (win as unknown as { removeEventListener: typeof window.removeEventListener }).removeEventListener = vi.fn(() => {});
+    if (
+      typeof (win as unknown as { removeEventListener?: unknown })
+        .removeEventListener !== "function"
+    ) {
+      (
+        win as unknown as {
+          removeEventListener: typeof window.removeEventListener;
+        }
+      ).removeEventListener = vi.fn(() => {});
     }
-    if (typeof (win as unknown as { requestAnimationFrame?: unknown }).requestAnimationFrame !== "function") {
-      (win as unknown as { requestAnimationFrame: typeof window.requestAnimationFrame }).requestAnimationFrame =
-        (cb: FrameRequestCallback) => setTimeout(cb, 16);
+    if (
+      typeof (win as unknown as { requestAnimationFrame?: unknown })
+        .requestAnimationFrame !== "function"
+    ) {
+      (
+        win as unknown as {
+          requestAnimationFrame: typeof window.requestAnimationFrame;
+        }
+      ).requestAnimationFrame = (cb: FrameRequestCallback) =>
+        setTimeout(cb, 16);
     }
-    if (typeof (win as unknown as { cancelAnimationFrame?: unknown }).cancelAnimationFrame !== "function") {
-      (win as unknown as { cancelAnimationFrame: typeof window.cancelAnimationFrame }).cancelAnimationFrame =
-        (handle: number) => clearTimeout(handle);
+    if (
+      typeof (win as unknown as { cancelAnimationFrame?: unknown })
+        .cancelAnimationFrame !== "function"
+    ) {
+      (
+        win as unknown as {
+          cancelAnimationFrame: typeof window.cancelAnimationFrame;
+        }
+      ).cancelAnimationFrame = (handle: number) => clearTimeout(handle);
     }
-    if (typeof (win as unknown as { setTimeout?: unknown }).setTimeout !== "function") {
-      (win as unknown as { setTimeout: typeof window.setTimeout }).setTimeout = setTimeout;
+    if (
+      typeof (win as unknown as { setTimeout?: unknown }).setTimeout !==
+      "function"
+    ) {
+      (win as unknown as { setTimeout: typeof window.setTimeout }).setTimeout =
+        setTimeout;
     }
-    if (typeof (win as unknown as { clearTimeout?: unknown }).clearTimeout !== "function") {
-      (win as unknown as { clearTimeout: typeof window.clearTimeout }).clearTimeout = clearTimeout;
+    if (
+      typeof (win as unknown as { clearTimeout?: unknown }).clearTimeout !==
+      "function"
+    ) {
+      (
+        win as unknown as { clearTimeout: typeof window.clearTimeout }
+      ).clearTimeout = clearTimeout;
     }
     win.matchMedia = vi.fn((query: string) => ({
       matches: false,
       media: query,
+      onchange: null,
       addEventListener: vi.fn(() => {}),
       removeEventListener: vi.fn(() => {}),
       addListener: vi.fn(() => {}),
       removeListener: vi.fn(() => {}),
-      dispatchEvent: vi.fn(() => {}),
+      dispatchEvent: vi.fn(() => true),
     }));
   });
 
@@ -82,7 +112,9 @@ describe("ThemeSelector accessibility", () => {
 
     await waitFor(
       () =>
-        expect(screen.queryByText("Dark theme selected")).not.toBeInTheDocument(),
+        expect(
+          screen.queryByText("Dark theme selected"),
+        ).not.toBeInTheDocument(),
       { timeout: 1500 },
     );
   });

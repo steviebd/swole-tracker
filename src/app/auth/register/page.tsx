@@ -41,7 +41,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   // Since WorkOS handles registration, redirect to login
   React.useEffect(() => {
-    window.location.href = "/auth/login";
+    window.location.href = "/api/auth/login?redirectTo=/";
   }, []);
 
   return (

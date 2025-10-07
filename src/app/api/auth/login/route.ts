@@ -1,15 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { Buffer } from "node:buffer";
+
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
+
+export const runtime = "edge";
+
+function encodeState(payload: string): string {
+  if (typeof btoa === "function") {
+    return btoa(payload);
+  }
+
+  const bufferCtor = (globalThis as unknown as { Buffer?: typeof Buffer })
+    .Buffer;
+  if (bufferCtor) {
+    return bufferCtor.from(payload, "utf-8").toString("base64");
+  }
+
+  throw new Error("Base64 encoder is not available in this runtime");
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const redirectTo = searchParams.get("redirectTo") || "/";
+    const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
 
     if (!env.WORKOS_CLIENT_ID) {
       console.error("WORKOS_CLIENT_ID not configured");
-      return NextResponse.json({ error: "Authentication not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Authentication not configured" },
+        { status: 500 },
+      );
     }
 
     const workos = getWorkOS();
@@ -17,14 +40,19 @@ export async function GET(request: NextRequest) {
     // Get authorization URL
     const authorizationUrl = workos.userManagement.getAuthorizationUrl({
       provider: "GoogleOAuth", // Use GoogleOAuth for Google SSO
-      redirectUri: env.WORKOS_REDIRECT_URI || `${env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
+      redirectUri:
+        env.WORKOS_REDIRECT_URI ||
+        `${env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
       clientId: env.WORKOS_CLIENT_ID!, // We already checked it's defined
-      state: Buffer.from(JSON.stringify({ redirectTo })).toString('base64'),
+      state: encodeState(JSON.stringify({ redirectTo: safeRedirect })),
     });
 
     return NextResponse.redirect(authorizationUrl);
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({ error: "Failed to initiate login" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to initiate login" },
+      { status: 500 },
+    );
   }
 }

@@ -72,18 +72,20 @@ export async function rotateOAuthTokens(
     // Check if rotation is needed
     if (
       !shouldRotateToken(
-        integration.expiresAt ? new Date(integration.expiresAt) : null,
-        integration.updatedAt ? new Date(integration.updatedAt) : null,
+        integration.expiresAt || null,
+        integration.updatedAt || null,
       )
     ) {
       return {
         success: true,
-        newAccessToken: getDecryptedToken(integration.accessToken),
+        newAccessToken: await getDecryptedToken(integration.accessToken),
       };
     }
 
     // Decrypt refresh token
-    const decryptedRefreshToken = getDecryptedToken(integration.refreshToken);
+    const decryptedRefreshToken = await getDecryptedToken(
+      integration.refreshToken!,
+    );
 
     // Perform token refresh based on provider
     const tokenResult = await refreshProviderToken(
@@ -96,9 +98,9 @@ export async function rotateOAuthTokens(
     }
 
     // Encrypt new tokens
-    const encryptedAccessToken = encryptToken(tokenResult.accessToken);
+    const encryptedAccessToken = await encryptToken(tokenResult.accessToken);
     const encryptedRefreshToken = tokenResult.refreshToken
-      ? encryptToken(tokenResult.refreshToken)
+      ? await encryptToken(tokenResult.refreshToken)
       : integration.refreshToken;
 
     // Calculate new expiry
@@ -112,8 +114,8 @@ export async function rotateOAuthTokens(
       .set({
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
-        updatedAt: new Date().toISOString(),
+        expiresAt: expiresAt,
+        updatedAt: new Date(),
       })
       .where(eq(userIntegrations.id, integration.id));
 
@@ -259,7 +261,7 @@ export async function rotateAllExpiredTokens(): Promise<{
           // Get tokens that expire within 48 hours or are older than 6 days
           lt(
             userIntegrations.expiresAt,
-            new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+            new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
           ),
         ),
       );

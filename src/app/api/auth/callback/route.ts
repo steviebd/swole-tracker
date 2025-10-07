@@ -1,7 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { Buffer } from "node:buffer";
+
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
 import { SessionCookie } from "~/lib/session-cookie";
 import { env } from "~/env";
+
+export const runtime = "edge";
+
+function decodeState(value: string): string {
+  if (typeof atob === "function") {
+    return atob(value);
+  }
+
+  const bufferCtor = (globalThis as unknown as { Buffer?: typeof Buffer })
+    .Buffer;
+  if (bufferCtor) {
+    return bufferCtor.from(value, "base64").toString("utf-8");
+  }
+
+  throw new Error("Base64 decoder is not available in this runtime");
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,12 +30,16 @@ export async function GET(request: NextRequest) {
 
     if (!code) {
       console.error("Missing authorization code");
-      return NextResponse.redirect(new URL("/auth/login?error=missing_code", request.url));
+      return NextResponse.redirect(
+        new URL("/auth/login?error=missing_code", request.url),
+      );
     }
 
     if (!env.WORKOS_CLIENT_ID) {
       console.error("WORKOS_CLIENT_ID not configured");
-      return NextResponse.redirect(new URL("/auth/login?error=misconfigured", request.url));
+      return NextResponse.redirect(
+        new URL("/auth/login?error=misconfigured", request.url),
+      );
     }
 
     const workos = getWorkOS();
@@ -30,9 +53,10 @@ export async function GET(request: NextRequest) {
     // Create session with 24 hour expiration
     const session = {
       userId: authResponse.user.id,
+      organizationId: authResponse.organizationId ?? undefined,
       accessToken: authResponse.accessToken,
       refreshToken: authResponse.refreshToken || "",
-      expiresAt: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
+      expiresAt: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
     };
 
     // Create response with session cookie
@@ -42,7 +66,7 @@ export async function GET(request: NextRequest) {
     let redirectTo = "/";
     if (state) {
       try {
-        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+        const decodedState = JSON.parse(decodeState(state));
         redirectTo = decodedState.redirectTo || "/";
       } catch (error) {
         console.error("Failed to decode state:", error);
@@ -55,6 +79,8 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Callback error:", error);
-    return NextResponse.redirect(new URL("/auth/login?error=callback_failed", request.url));
+    return NextResponse.redirect(
+      new URL("/auth/login?error=callback_failed", request.url),
+    );
   }
 }

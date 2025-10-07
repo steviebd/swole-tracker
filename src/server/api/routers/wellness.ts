@@ -88,13 +88,13 @@ export const wellnessRouter = createTRPCRouter({
           .values({
             user_id: userId,
             sessionId: sessionId || null,
-            date: now.toISOString().split("T")[0]!, // Current date only
+            date: now, // Pass Date object, custom type handles conversion
             energy_level: energyLevel,
             sleep_quality: sleepQuality,
             device_timezone: deviceTimezone,
             submitted_at: submittedAt,
             has_whoop_data: hasWhoopData,
-            whoop_data: whoopData ?? null,
+            whoop_data: whoopData ? JSON.stringify(whoopData) : null,
             notes: notes ?? null,
           })
           .onConflictDoUpdate({
@@ -105,7 +105,7 @@ export const wellnessRouter = createTRPCRouter({
               device_timezone: deviceTimezone,
               submitted_at: submittedAt,
               has_whoop_data: hasWhoopData,
-              whoop_data: whoopData ?? null,
+              whoop_data: whoopData ? JSON.stringify(whoopData) : null,
               notes: notes ?? null,
               updatedAt: new Date(),
             },
@@ -193,14 +193,10 @@ export const wellnessRouter = createTRPCRouter({
 
         // Add date filters if provided
         if (startDate) {
-          whereConditions.push(
-            gte(wellnessData.date, startDate.toISOString().split("T")[0]!),
-          );
+          whereConditions.push(gte(wellnessData.date, startDate));
         }
         if (endDate) {
-          whereConditions.push(
-            lte(wellnessData.date, endDate.toISOString().split("T")[0]!),
-          );
+          whereConditions.push(lte(wellnessData.date, endDate));
         }
 
         const results = await ctx.db
@@ -247,7 +243,7 @@ export const wellnessRouter = createTRPCRouter({
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              gte(wellnessData.date, startDate.toISOString().split("T")[0]!),
+              gte(wellnessData.date, startDate),
             ),
           );
 
@@ -265,10 +261,7 @@ export const wellnessRouter = createTRPCRouter({
           .where(
             and(
               eq(wellnessData.user_id, ctx.user.id),
-              gte(
-                wellnessData.date,
-                recentStartDate.toISOString().split("T")[0]!,
-              ),
+              gte(wellnessData.date, recentStartDate),
             ),
           );
 

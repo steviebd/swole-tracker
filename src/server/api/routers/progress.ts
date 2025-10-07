@@ -90,7 +90,7 @@ export const progressRouter = createTRPCRouter({
             and(
               eq(sessionExercises.user_id, ctx.user.id),
               eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -347,7 +347,7 @@ export const progressRouter = createTRPCRouter({
             and(
               eq(sessionExercises.user_id, ctx.user.id),
               eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -514,7 +514,7 @@ export const progressRouter = createTRPCRouter({
             and(
               eq(sessionExercises.user_id, ctx.user.id),
               eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -632,7 +632,7 @@ export const progressRouter = createTRPCRouter({
             and(
               eq(sessionExercises.user_id, ctx.user.id),
               eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -754,7 +754,7 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -930,13 +930,16 @@ export const progressRouter = createTRPCRouter({
           );
 
         // Add oneRMEstimate to progress data
-        const enhancedProgressData = progressData.map((item) => ({
-          ...item,
-          oneRMEstimate: calculateLocalOneRM(
-            parseFloat(String(item.weight || "0")),
-            item.reps || 1,
-          ),
-        }));
+        const enhancedProgressData: ProgressDataRow[] = progressData.map(
+          (item) => ({
+            ...item,
+            weight: item.weight ? String(item.weight) : null,
+            oneRMEstimate: calculateLocalOneRM(
+              parseFloat(String(item.weight || "0")),
+              item.reps || 1,
+            ),
+          }),
+        );
 
         // Process data to get top set per workout per exercise
         const topSets = processTopSets(enhancedProgressData);
@@ -981,7 +984,7 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -991,7 +994,7 @@ export const progressRouter = createTRPCRouter({
         const transformedData = volumeData.map((row) => ({
           workoutDate: row.workoutDate,
           exerciseName: row.exerciseName,
-          weight: row.weight ? parseFloat(row.weight) : 0,
+          weight: row.weight || 0,
           reps: row.reps || 0,
           sets: row.sets || 0,
         }));
@@ -1032,7 +1035,7 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(workoutSessions.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -1077,7 +1080,7 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(workoutSessions.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -1231,7 +1234,7 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           )
@@ -1240,7 +1243,7 @@ export const progressRouter = createTRPCRouter({
         // Transform data to match expected types
         const transformedData = volumeData.map((row) => ({
           exerciseName: row.exerciseName,
-          weight: row.weight ? parseFloat(row.weight) : 0,
+          weight: row.weight || 0,
           reps: row.reps || 0,
           sets: row.sets || 0,
           workoutDate: row.workoutDate,
@@ -1282,7 +1285,7 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate.toISOString()),
+              gte(workoutSessions.workoutDate, startDate),
               lte(workoutSessions.workoutDate, endDate),
             ),
           );
@@ -1693,10 +1696,10 @@ export async function calculatePersonalRecords(
 
   for (const exerciseName of exerciseNames) {
     let exerciseData: {
-      weight: string | null;
+      workoutDate: Date;
+      weight: number | null;
       reps: number | null;
       sets: number | null;
-      workoutDate: Date;
       unit: string;
     }[] = [];
 

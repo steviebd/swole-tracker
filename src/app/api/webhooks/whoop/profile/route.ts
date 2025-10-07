@@ -10,6 +10,8 @@ import { webhookEvents, whoopProfile } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
+export const runtime = "edge";
+
 interface WhoopProfileData {
   user_id: string;
   email?: string;
@@ -126,8 +128,8 @@ async function processProfileUpdate(payload: WhoopWebhookPayload) {
           first_name: profileData.first_name || null,
           last_name: profileData.last_name || null,
           raw_data: JSON.stringify(profileData),
-          last_updated: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          last_updated: new Date(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopProfile.user_id, dbUserId));
     } else {
@@ -174,11 +176,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -242,7 +244,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -262,7 +264,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -285,7 +287,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

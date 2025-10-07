@@ -86,7 +86,7 @@ export function WhoopRecovery() {
             <CardContent className="p-0">
               <div className="space-y-3">
                 <div className="text-muted-foreground text-sm">
-                  {formatDate(item.date)}
+                  {formatDate(item.date.toISOString())}
                 </div>
 
                 <div className="space-y-2">

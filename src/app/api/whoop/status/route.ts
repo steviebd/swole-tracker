@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function GET(request: NextRequest) {
   try {

@@ -41,7 +41,7 @@ async function fetchSession(): Promise<{ user: WorkOSUser | null }> {
     });
 
     if (response.ok) {
-      return await response.json();
+      return (await response.json()) as { user: WorkOSUser | null };
     } else {
       return { user: null };
     }
@@ -113,8 +113,10 @@ export function useAuth() {
 if (typeof window !== "undefined") {
   (window as any).debugAuth = {
     checkAuth: async () => {
-      const response = await fetch("/api/auth/session", { credentials: "include" });
-      const session = await response.json();
+      const response = await fetch("/api/auth/session", {
+        credentials: "include",
+      });
+      const session = (await response.json()) as { user: WorkOSUser | null };
       console.log("Current WorkOS session:", session);
       return session;
     },

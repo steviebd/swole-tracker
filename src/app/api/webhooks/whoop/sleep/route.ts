@@ -10,6 +10,8 @@ import { db } from "~/server/db";
 import { webhookEvents, whoopSleep } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = "edge";
+
 interface WhoopSleepData {
   id: string;
   start?: string;
@@ -149,12 +151,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopSleep)
         .set({
-          start: sleepData.start
-            ? new Date(sleepData.start).toISOString()
-            : new Date().toISOString(),
-          end: sleepData.end
-            ? new Date(sleepData.end).toISOString()
-            : new Date().toISOString(),
+          start: sleepData.start ? new Date(sleepData.start) : new Date(),
+          end: sleepData.end ? new Date(sleepData.end) : new Date(),
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
@@ -168,9 +166,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
           wake_time_milli: stageSum?.wake_time_milli || null,
           arousal_time_milli: stageSum?.arousal_time_milli || null,
           disturbance_count: stageSum?.disturbance_count || null,
-          sleep_latency_milli: stageSum?.sleep_latency_milli || null,
           raw_data: JSON.stringify(sleepData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopSleep.whoop_sleep_id, sleepId));
     } else {
@@ -182,12 +179,8 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
         {
           user_id: dbUserId,
           whoop_sleep_id: sleepId,
-          start: sleepData.start
-            ? new Date(sleepData.start).toISOString()
-            : new Date().toISOString(),
-          end: sleepData.end
-            ? new Date(sleepData.end).toISOString()
-            : new Date().toISOString(),
+          start: sleepData.start ? new Date(sleepData.start) : new Date(),
+          end: sleepData.end ? new Date(sleepData.end) : new Date(),
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
@@ -234,11 +227,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -304,7 +297,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -324,7 +317,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -347,7 +340,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

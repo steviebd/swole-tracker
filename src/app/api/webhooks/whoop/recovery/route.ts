@@ -10,6 +10,8 @@ import { db } from "~/server/db";
 import { webhookEvents, whoopRecovery } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = "edge";
+
 interface WhoopRecoveryData {
   id: string;
   cycle_id?: string;
@@ -148,7 +150,7 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
         .update(whoopRecovery)
         .set({
           cycle_id: recoveryData.cycle_id || null,
-          date: recoveryDateStr,
+          date: new Date(recoveryDateStr),
           recovery_score: recoveryData.score?.recovery_score || null,
           hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
           hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline || null,
@@ -157,7 +159,7 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
             recoveryData.score?.resting_heart_rate_baseline || null,
           raw_data: JSON.stringify(recoveryData),
           timezone_offset: recoveryData.timezone_offset || null,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
     } else {
@@ -169,7 +171,7 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
         user_id: dbUserId,
         whoop_recovery_id: recoveryId,
         cycle_id: recoveryData.cycle_id || null,
-        date: recoveryDateStr,
+        date: new Date(recoveryDateStr),
         recovery_score: recoveryData.score?.recovery_score || null,
         hrv_rmssd_milli: recoveryData.score?.hrv_rmssd_milli || null,
         hrv_rmssd_baseline: recoveryData.score?.hrv_rmssd_baseline || null,
@@ -208,11 +210,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -276,7 +278,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -296,7 +298,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -319,7 +321,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

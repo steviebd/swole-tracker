@@ -183,14 +183,11 @@ describe("WorkoutOperationsClient", () => {
 
       workoutOps.addSessionExercise = vi.fn().mockResolvedValue(mockExercise);
 
-      const result = await workoutOps.addSessionExercise("test-user", 1, {
-        templateExerciseId: null,
-        exerciseName: "Bench Press",
-        weight: "80",
-        reps: 8,
-        sets: 3,
-        unit: "kg",
-      });
+      const result = await workoutOps.addSessionExercise(
+        "test-user",
+        1,
+        "Bench Press",
+      );
 
       expect(workoutOps.addSessionExercise).toHaveBeenCalledWith(
         "test-user",
@@ -208,14 +205,7 @@ describe("WorkoutOperationsClient", () => {
       expect(workoutOps.addSessionExercise).toHaveBeenCalledWith(
         "test-user",
         1,
-        {
-          templateExerciseId: null,
-          exerciseName: "Bench Press",
-          weight: "80",
-          reps: 8,
-          sets: 3,
-          unit: "kg",
-        },
+        "Bench Press",
       );
       expect(result).toEqual(mockExercise);
     });

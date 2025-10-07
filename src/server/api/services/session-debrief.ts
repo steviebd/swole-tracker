@@ -155,7 +155,6 @@ export async function generateAndPersistDebrief({
       sessionId,
       version: nextVersion,
       summary: content.summary,
-      metadata,
       isActive: true,
       regenerationCount: existingActive
         ? existingActive.regenerationCount + (trigger === "regenerate" ? 1 : 0)
@@ -168,24 +167,31 @@ export async function generateAndPersistDebrief({
       insertPayload.parentDebriefId = existingActive.id;
     }
 
-    if (Array.isArray(content.prHighlights) && content.prHighlights.length > 0) {
-      insertPayload.prHighlights = content.prHighlights;
+    if (
+      Array.isArray(content.prHighlights) &&
+      content.prHighlights.length > 0
+    ) {
+      insertPayload.prHighlights = JSON.stringify(content.prHighlights);
     }
 
     if (typeof content.adherenceScore === "number") {
-      insertPayload.adherenceScore = content.adherenceScore.toFixed(2);
+      insertPayload.adherenceScore = content.adherenceScore;
     }
 
     if (Array.isArray(content.focusAreas) && content.focusAreas.length > 0) {
-      insertPayload.focusAreas = content.focusAreas;
+      insertPayload.focusAreas = JSON.stringify(content.focusAreas);
     }
 
     if (content.streakContext && typeof content.streakContext === "object") {
-      insertPayload.streakContext = content.streakContext;
+      insertPayload.streakContext = JSON.stringify(content.streakContext);
     }
 
     if (content.overloadDigest && typeof content.overloadDigest === "object") {
-      insertPayload.overloadDigest = content.overloadDigest;
+      insertPayload.overloadDigest = JSON.stringify(content.overloadDigest);
+    }
+
+    if (metadata) {
+      insertPayload.metadata = JSON.stringify(metadata);
     }
 
     const [inserted] = await tx

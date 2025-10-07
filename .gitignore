@@ -73,8 +73,7 @@ node_modules/
 # tasks.json
 # tasks/ 
 .env.production
-src/__tests__/unit/supabase.coverage.test.ts.skip
-src/__tests__/unit/supabase.more.coverage2.test.ts.skip
+
 apps/template/.next/trace
 apps/template/.next/cache/.rscinfo
 apps/template/.next/cache/webpack/client-development/0.pack.gz

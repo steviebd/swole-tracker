@@ -1,7 +1,6 @@
 import { db } from "~/server/db";
 import { oauthStates } from "~/server/db/schema";
 import { eq, and, lt, sql } from "drizzle-orm";
-import { createHash } from "crypto";
 
 /**
  * Secure OAuth state management for preventing CSRF attacks
@@ -27,7 +26,13 @@ export async function createOAuthState(
   userAgent: string,
 ): Promise<string> {
   const state = crypto.randomUUID();
-  const userAgentHash = createHash("sha256").update(userAgent).digest("hex");
+  const encoder = new TextEncoder();
+  const data = encoder.encode(userAgent);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = new Uint8Array(hashBuffer);
+  const userAgentHash = Array.from(hashArray, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
 
   await db.insert(oauthStates).values({
     state,
@@ -59,7 +64,13 @@ export async function validateOAuthState(
     // Clean up expired states first
     await cleanupExpiredStates();
 
-    const userAgentHash = createHash("sha256").update(userAgent).digest("hex");
+    const encoder = new TextEncoder();
+    const data = encoder.encode(userAgent);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = new Uint8Array(hashBuffer);
+    const userAgentHash = Array.from(hashArray, (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
 
     const storedState = await db
       .select()

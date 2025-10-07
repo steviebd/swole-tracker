@@ -40,7 +40,7 @@ function LoginForm() {
 
   // Since WorkOS handles authentication, redirect immediately
   React.useEffect(() => {
-    window.location.href = `/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
+    window.location.href = `/api/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
   }, [redirectTo]);
 
   return (

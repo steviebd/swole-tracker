@@ -9,7 +9,7 @@ import { env } from "~/env";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
 import { encryptToken } from "~/lib/encryption";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function GET(request: NextRequest) {
   try {
@@ -132,9 +132,9 @@ export async function GET(request: NextRequest) {
       : null;
 
     // Encrypt tokens before storing in database
-    const encryptedAccessToken = encryptToken(tok.access_token!);
+    const encryptedAccessToken = await encryptToken(tok.access_token!);
     const encryptedRefreshToken = tok.refresh_token
-      ? encryptToken(tok.refresh_token)
+      ? await encryptToken(tok.refresh_token)
       : null;
 
     // Store encrypted tokens in database (upsert pattern)
@@ -154,12 +154,12 @@ export async function GET(request: NextRequest) {
         .set({
           accessToken: encryptedAccessToken,
           refreshToken: encryptedRefreshToken,
-          expiresAt: expiresAt?.toISOString(),
+          expiresAt: expiresAt,
           scope:
             tok.scope ??
             "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(
           and(
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
         provider: "whoop",
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
-        expiresAt: expiresAt?.toISOString(),
+        expiresAt: expiresAt,
         scope:
           tok.scope ??
           "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",

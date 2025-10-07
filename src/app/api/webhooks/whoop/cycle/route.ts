@@ -10,6 +10,8 @@ import { db } from "~/server/db";
 import { webhookEvents, whoopCycles } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
+export const runtime = "edge";
+
 interface WhoopCycleData {
   id: string;
   start?: string;
@@ -131,19 +133,15 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopCycles)
         .set({
-          start: cycleData.start
-            ? new Date(cycleData.start).toISOString()
-            : new Date().toISOString(),
-          end: cycleData.end
-            ? new Date(cycleData.end).toISOString()
-            : new Date().toISOString(),
+          start: cycleData.start ? new Date(cycleData.start) : new Date(),
+          end: cycleData.end ? new Date(cycleData.end) : new Date(),
           timezone_offset: cycleData.timezone_offset || null,
           day_strain: cycleData.score?.strain || null,
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
           kilojoule: cycleData.score?.kilojoule || null,
           raw_data: JSON.stringify(cycleData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopCycles.whoop_cycle_id, cycleId));
     } else {
@@ -154,12 +152,8 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
       await db.insert(whoopCycles).values({
         user_id: dbUserId,
         whoop_cycle_id: cycleId,
-        start: cycleData.start
-          ? new Date(cycleData.start).toISOString()
-          : new Date().toISOString(),
-        end: cycleData.end
-          ? new Date(cycleData.end).toISOString()
-          : new Date().toISOString(),
+        start: cycleData.start ? new Date(cycleData.start) : new Date(),
+        end: cycleData.end ? new Date(cycleData.end) : new Date(),
         timezone_offset: cycleData.timezone_offset || null,
         day_strain: cycleData.score?.strain || null,
         average_heart_rate: cycleData.score?.average_heart_rate || null,
@@ -196,11 +190,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -264,7 +258,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -284,7 +278,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -307,7 +301,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

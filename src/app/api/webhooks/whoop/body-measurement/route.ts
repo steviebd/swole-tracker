@@ -10,6 +10,8 @@ import { webhookEvents, whoopBodyMeasurement } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
+export const runtime = "edge";
+
 interface WhoopBodyMeasurementData {
   id: string;
   height_meter?: number;
@@ -140,9 +142,9 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
           height_meter: measurementData.height_meter || null,
           weight_kilogram: measurementData.weight_kilogram || null,
           max_heart_rate: measurementData.max_heart_rate || null,
-          measurement_date: measurementDateStr,
+          measurement_date: new Date(measurementDateStr),
           raw_data: JSON.stringify(measurementData),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
     } else {
@@ -156,7 +158,7 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
         height_meter: measurementData.height_meter || null,
         weight_kilogram: measurementData.weight_kilogram || null,
         max_heart_rate: measurementData.max_heart_rate || null,
-        measurement_date: measurementDateStr,
+        measurement_date: new Date(measurementDateStr),
         raw_data: JSON.stringify(measurementData),
       });
     }
@@ -190,11 +192,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -258,7 +260,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "processed",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -278,7 +280,7 @@ export async function POST(request: NextRequest) {
           .set({
             status: "ignored",
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       }
@@ -301,7 +303,7 @@ export async function POST(request: NextRequest) {
             status: "failed",
             error: error instanceof Error ? error.message : String(error),
             processingTime: Date.now() - startTime,
-            processedAt: new Date().toISOString(),
+            processedAt: new Date(),
           })
           .where(eq(webhookEvents.id, webhookEventId));
       } catch (updateError) {

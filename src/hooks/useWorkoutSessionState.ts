@@ -241,8 +241,8 @@ export function useWorkoutSessionState({
           theme_used: (session as any).theme_used ?? null,
           device_type: (session as any).device_type ?? null,
           perf_metrics: (session as any).perf_metrics ?? null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
           template: sessionTemplate,
           exercises: newWorkout.exercises.flatMap((exercise, exerciseIndex) =>
             exercise.sets.map((set, setIndex) => ({
@@ -263,7 +263,7 @@ export function useWorkoutSessionState({
               is_default_applied: false,
               one_rm_estimate: null,
               volume_load: null,
-              createdAt: new Date().toISOString(),
+              createdAt: new Date(),
             })),
           ),
         } as const;

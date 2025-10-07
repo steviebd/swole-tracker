@@ -71,7 +71,7 @@ export function WhoopBodyMeasurements() {
           <div key={item.id} className="card p-6">
             <div className="space-y-3">
               <div className="text-muted text-sm">
-                {formatDate(item.measurement_date)}
+                {formatDate(item.measurement_date?.toISOString() || null)}
               </div>
 
               <div className="space-y-3">

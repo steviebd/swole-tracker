@@ -87,7 +87,7 @@
 
 ## Auth Pages (/auth/login, /auth/register)
 - Provide password visibility toggles and caps-lock warnings so mobile athletes avoid typos.
-- Google sign-in is the primary action; add fallback messaging for regions where OAuth is blocked and surface Supabase errors via toasts.
+- Google sign-in is the primary action; add fallback messaging for regions where OAuth is blocked and surface WorkOS errors via toasts.
 - Add inline success/error states that auto-focus on the first invalid field, plus CTA buttons sized for mobile reach.
 - Ensure layout accommodates mobile keyboards, preventing jumps when alerts appear.
 

@@ -16,7 +16,7 @@ export const preferencesRouter = createTRPCRouter({
     if (prefs) {
       return prefs;
     }
-    return { 
+    return {
       defaultWeightUnit: "kg",
       predictive_defaults_enabled: false,
       right_swipe_action: "collapse_expand",
@@ -39,7 +39,9 @@ export const preferencesRouter = createTRPCRouter({
             predictive_defaults_enabled: z.boolean().optional(),
             right_swipe_action: z.enum(["collapse_expand", "none"]).optional(),
             enable_manual_wellness: z.boolean().optional(),
-            progression_type: z.enum(["linear", "percentage", "adaptive"]).optional(),
+            progression_type: z
+              .enum(["linear", "percentage", "adaptive"])
+              .optional(),
             linear_progression_kg: z.string().optional(),
             percentage_progression: z.string().optional(),
           }),
@@ -71,8 +73,8 @@ export const preferencesRouter = createTRPCRouter({
         right_swipe_action?: "collapse_expand" | "none";
         enable_manual_wellness?: boolean;
         progression_type?: "linear" | "percentage" | "adaptive";
-        linear_progression_kg?: string;
-        percentage_progression?: string;
+        linear_progression_kg?: number;
+        percentage_progression?: number;
       } = {};
 
       if (typeof input.defaultWeightUnit !== "undefined") {
@@ -91,10 +93,10 @@ export const preferencesRouter = createTRPCRouter({
         patch.progression_type = input.progression_type;
       }
       if (typeof input.linear_progression_kg !== "undefined") {
-        patch.linear_progression_kg = input.linear_progression_kg;
+        patch.linear_progression_kg = parseFloat(input.linear_progression_kg);
       }
       if (typeof input.percentage_progression !== "undefined") {
-        patch.percentage_progression = input.percentage_progression;
+        patch.percentage_progression = parseFloat(input.percentage_progression);
       }
 
       if (existing) {
@@ -115,8 +117,12 @@ export const preferencesRouter = createTRPCRouter({
           right_swipe_action: input.right_swipe_action ?? "collapse_expand",
           enable_manual_wellness: input.enable_manual_wellness ?? false,
           progression_type: input.progression_type ?? "adaptive",
-          linear_progression_kg: input.linear_progression_kg ?? "2.5",
-          percentage_progression: input.percentage_progression ?? "2.5",
+          linear_progression_kg: input.linear_progression_kg
+            ? parseFloat(input.linear_progression_kg)
+            : 2.5,
+          percentage_progression: input.percentage_progression
+            ? parseFloat(input.percentage_progression)
+            : 2.5,
         });
       }
 

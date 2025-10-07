@@ -1,3 +1,5 @@
+import { env } from "~/env";
+
 export interface WorkOSSession {
   userId: string;
   organizationId?: string;
@@ -11,13 +13,15 @@ const SESSION_COOKIE_NAME = "workos_session";
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds
 const SESSION_COOKIE_PATH = "/";
 const SESSION_COOKIE_HTTP_ONLY = true;
-const SESSION_COOKIE_SECURE = process.env.NODE_ENV === "production";
+const SESSION_COOKIE_SECURE = env.NODE_ENV === "production";
 const SESSION_COOKIE_SAME_SITE = "lax" as const;
 
 function getSecret(): string {
-  const secret = process.env.WORKER_SESSION_SECRET;
+  const secret = env.WORKER_SESSION_SECRET;
   if (!secret || secret.length < 32) {
-    throw new Error("WORKER_SESSION_SECRET must be at least 32 characters long");
+    throw new Error(
+      "WORKER_SESSION_SECRET must be at least 32 characters long",
+    );
   }
   return secret;
 }
@@ -31,12 +35,12 @@ async function sign(data: string): Promise<string> {
     encoder.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
   return Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // Verify signed data using Web Crypto API
@@ -53,9 +57,14 @@ function serializeSession(session: WorkOSSession): string {
 // Deserialize session from string
 function deserializeSession(data: string): WorkOSSession {
   try {
-    const session = JSON.parse(data);
+    const session = JSON.parse(data) as WorkOSSession;
     // Validate required fields
-    if (!session.userId || !session.accessToken || !session.refreshToken || !session.expiresAt) {
+    if (
+      !session.userId ||
+      !session.accessToken ||
+      !session.refreshToken ||
+      !session.expiresAt
+    ) {
       throw new Error("Invalid session data");
     }
     return session;
@@ -91,13 +100,14 @@ export class SessionCookie {
     if (!cookieValue) return null;
 
     try {
-      const [data, signature] = cookieValue.split(".");
+      const decodedCookieValue = decodeURIComponent(cookieValue);
+      const [data, signature] = decodedCookieValue.split(".");
       if (!data || !signature) return null;
 
       const isValid = await verify(data, signature);
       if (!isValid) return null;
 
-      return deserializeSession(decodeURIComponent(data));
+      return deserializeSession(data);
     } catch (error) {
       // Invalid cookie format
       return null;
@@ -112,11 +122,16 @@ export class SessionCookie {
       SESSION_COOKIE_HTTP_ONLY ? "HttpOnly" : "",
       SESSION_COOKIE_SECURE ? "Secure" : "",
       `SameSite=${SESSION_COOKIE_SAME_SITE}`,
-    ].filter(Boolean).join("; ");
+    ]
+      .filter(Boolean)
+      .join("; ");
   }
 
-  private static extractCookieValue(cookieString: string, name: string): string | null {
-    const cookies = cookieString.split(";").map(c => c.trim());
+  private static extractCookieValue(
+    cookieString: string,
+    name: string,
+  ): string | null {
+    const cookies = cookieString.split(";").map((c) => c.trim());
     for (const cookie of cookies) {
       if (cookie.startsWith(`${name}=`)) {
         return cookie.substring(`${name}=`.length);

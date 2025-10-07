@@ -487,7 +487,7 @@ export const insightsRouter = createTRPCRouter({
         typeof and
       >[number][];
       if (input.since)
-        where.push(gte(workoutSessions.workoutDate, input.since.toISOString()));
+        where.push(gte(workoutSessions.workoutDate, input.since));
 
       const sessions = await ctx.db.query.workoutSessions.findMany({
         where: and(...where),
@@ -531,7 +531,7 @@ export const insightsRouter = createTRPCRouter({
 
           rows.push(
             [
-              s.workoutDate,
+              s.workoutDate.toISOString(),
               s.id,
               templateName,
               ex.exerciseName,

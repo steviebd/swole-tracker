@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { getWorkOS } from "~/lib/workos";
+
+export const runtime = "edge";
 
 export async function GET(request: NextRequest) {
   try {

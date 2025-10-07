@@ -26,7 +26,7 @@ import { eq, and, desc, gte, asc } from "drizzle-orm";
 import { SessionCookie } from "~/lib/session-cookie";
 import { logger } from "~/lib/logger";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 interface WorkoutSet {
   weight: number | null;
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
         const latestRecovery = await db.query.whoopRecovery.findFirst({
           where: and(
             eq(whoopRecovery.user_id, session.userId),
-            gte(whoopRecovery.date, dateString), // Look back 2 days for recent data
+            gte(whoopRecovery.date, new Date(dateString)), // Look back 2 days for recent data
           ),
           orderBy: desc(whoopRecovery.date),
         });
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
         const latestSleep = await db.query.whoopSleep.findFirst({
           where: and(
             eq(whoopSleep.user_id, session.userId),
-            gte(whoopSleep.start, todayMinus2Days.toISOString()), // Sleep uses timestamp string
+            gte(whoopSleep.start, todayMinus2Days), // Sleep uses timestamp
           ),
           orderBy: desc(whoopSleep.start),
         });
