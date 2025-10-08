@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { getWorkOS } from "~/lib/workos";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {

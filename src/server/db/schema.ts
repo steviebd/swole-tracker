@@ -32,6 +32,23 @@ const date = customType<{
  */
 export const createTable = sqliteTable;
 
+// Users
+export const users = createTable(
+  "user",
+  {
+    id: text().primaryKey(),
+    email: text(),
+    firstName: text(),
+    lastName: text(),
+    profilePictureUrl: text(),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [index("user_email_idx").on(t.email)],
+); // WorkOS-managed identities stored locally for app data isolation
+
 // Workout Templates
 export const workoutTemplates = createTable(
   "workout_template",

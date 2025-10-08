@@ -5,8 +5,9 @@ import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
 import { SessionCookie } from "~/lib/session-cookie";
 import { env } from "~/env";
+import { upsertUserFromWorkOS } from "~/server/db/users";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 function decodeState(value: string): string {
   if (typeof atob === "function") {
@@ -50,12 +51,42 @@ export async function GET(request: NextRequest) {
       clientId: env.WORKOS_CLIENT_ID,
     });
 
+    // Persist the user in the application database so downstream features have access
+    const workosUser = authResponse.user as {
+      id: string;
+      email?: string | null;
+      emails?: Array<{ email?: string | null; primary?: boolean | null }> | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      profilePictureUrl?: string | null;
+    };
+
+    const primaryEmail =
+      workosUser.email ??
+      (Array.isArray(workosUser.emails)
+        ? workosUser.emails.find((mail) => mail?.primary)?.email ??
+          workosUser.emails.find((mail) => Boolean(mail?.email))?.email ??
+          null
+        : null);
+
+    try {
+      await upsertUserFromWorkOS({
+        id: workosUser.id,
+        email: primaryEmail,
+        firstName: workosUser.firstName,
+        lastName: workosUser.lastName,
+        profilePictureUrl: workosUser.profilePictureUrl,
+      });
+    } catch (dbError) {
+      console.error("Failed to upsert user after WorkOS callback:", dbError);
+    }
+
     // Create session with 24 hour expiration
     const session = {
       userId: authResponse.user.id,
       organizationId: authResponse.organizationId ?? undefined,
       accessToken: authResponse.accessToken,
-      refreshToken: authResponse.refreshToken || "",
+      refreshToken: authResponse.refreshToken ?? null,
       expiresAt: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
     };
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-
+import { webcrypto } from "node:crypto";
 // Mock the env before importing
 vi.mock("~/env.js", () => ({
   env: {
@@ -8,24 +8,37 @@ vi.mock("~/env.js", () => ({
   },
 }));
 
+Object.defineProperty(globalThis, "crypto", {
+  value: webcrypto,
+  configurable: true,
+});
+
 import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
 
 describe("SessionCookie", () => {
   const validSession: WorkOSSession = {
     userId: "test-user-id",
     organizationId: "test-org-id",
-    accessToken: "test-access-token",
-    refreshToken: "test-refresh-token",
+    accessToken: "test.access.token",
+    refreshToken: "test.refresh.token",
     expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
   };
 
   const expiredSession: WorkOSSession = {
     userId: "test-user-id",
     organizationId: "test-org-id",
-    accessToken: "test-access-token",
-    refreshToken: "test-refresh-token",
+    accessToken: "test.access.token",
+    refreshToken: "test.refresh.token",
     expiresAt: Math.floor(Date.now() / 1000) - 100, // 100 seconds ago
   };
+
+  const createRequestWithCookie = (cookieHeader?: string) =>
+    ({
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === "cookie" && cookieHeader ? cookieHeader : null,
+      },
+    }) as unknown as Request;
 
   describe("create", () => {
     it("should create a signed session cookie string", async () => {
@@ -43,12 +56,7 @@ describe("SessionCookie", () => {
     it("should extract and verify session from request cookies", async () => {
       const cookieString = await SessionCookie.create(validSession);
 
-      // Create a mock request with the cookie
-      const mockRequest = new Request("http://localhost", {
-        headers: {
-          cookie: cookieString,
-        },
-      });
+      const mockRequest = createRequestWithCookie(cookieString);
 
       const result = await SessionCookie.get(mockRequest);
 
@@ -56,7 +64,7 @@ describe("SessionCookie", () => {
     });
 
     it("should return null when no session cookie exists", async () => {
-      const mockRequest = new Request("http://localhost");
+      const mockRequest = createRequestWithCookie();
 
       const result = await SessionCookie.get(mockRequest);
 
@@ -64,15 +72,29 @@ describe("SessionCookie", () => {
     });
 
     it("should return null for invalid cookie signature", async () => {
-      const mockRequest = new Request("http://localhost", {
-        headers: {
-          cookie: "workos_session=invalid.data.signature",
-        },
-      });
+      const mockRequest = createRequestWithCookie(
+        "workos_session=invalid.data.signature",
+      );
 
       const result = await SessionCookie.get(mockRequest);
 
       expect(result).toBeNull();
+    });
+
+    it("should parse session when refresh token is missing", async () => {
+      const sessionWithoutRefresh: WorkOSSession = {
+        ...validSession,
+        refreshToken: null,
+      };
+
+      const cookieString = await SessionCookie.create(sessionWithoutRefresh);
+      const mockRequest = createRequestWithCookie(cookieString);
+
+      const result = await SessionCookie.get(mockRequest);
+
+      expect(result).not.toBeNull();
+      expect(result?.userId).toBe(validSession.userId);
+      expect(result?.refreshToken).toBeNull();
     });
   });
 
@@ -89,11 +111,7 @@ describe("SessionCookie", () => {
   describe("hasSession", () => {
     it("should return true when valid session exists", async () => {
       const cookieString = await SessionCookie.create(validSession);
-      const mockRequest = new Request("http://localhost", {
-        headers: {
-          cookie: cookieString,
-        },
-      });
+      const mockRequest = createRequestWithCookie(cookieString);
 
       const result = await SessionCookie.hasSession(mockRequest);
 
@@ -101,7 +119,7 @@ describe("SessionCookie", () => {
     });
 
     it("should return false when no session exists", async () => {
-      const mockRequest = new Request("http://localhost");
+      const mockRequest = createRequestWithCookie();
 
       const result = await SessionCookie.hasSession(mockRequest);
 

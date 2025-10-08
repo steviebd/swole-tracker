@@ -5,7 +5,7 @@ import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {

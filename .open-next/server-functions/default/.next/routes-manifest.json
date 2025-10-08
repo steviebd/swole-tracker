@@ -1,0 +1,211 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com; font-src 'self' data:; object-src 'none'; media-src 'self'; frame-src 'none'; worker-src 'self' blob:; child-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; manifest-src 'self'"
+        }
+      ],
+      "regex": "^(?:/(.*))(?:/)?$"
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ],
+      "regex": "^/api(?:/(.*))(?:/)?$"
+    }
+  ],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [
+      {
+        "source": "/ingest/static/:path*",
+        "destination": "https://us-assets.i.posthog.com/static/:path*",
+        "regex": "^/ingest/static(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+      },
+      {
+        "source": "/ingest/:path*",
+        "destination": "https://us.i.posthog.com/:path*",
+        "regex": "^/ingest(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+      },
+      {
+        "source": "/ingest/flags",
+        "destination": "https://us.i.posthog.com/flags",
+        "regex": "^/ingest/flags(?:/)?$"
+      }
+    ],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/trpc/[trpc]",
+      "regex": "^/api/trpc/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPtrpc": "nxtPtrpc"
+      },
+      "namedRegex": "^/api/trpc/(?<nxtPtrpc>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/templates/[id]/edit",
+      "regex": "^/templates/([^/]+?)/edit(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/templates/(?<nxtPid>[^/]+?)/edit(?:/)?$"
+    },
+    {
+      "page": "/workout/session/local/[localId]",
+      "regex": "^/workout/session/local/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPlocalId": "nxtPlocalId"
+      },
+      "namedRegex": "^/workout/session/local/(?<nxtPlocalId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/workout/session/[id]",
+      "regex": "^/workout/session/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/workout/session/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/workouts/[id]",
+      "regex": "^/workouts/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/workouts/(?<nxtPid>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/auth/auth-code-error",
+      "regex": "^/auth/auth\\-code\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/auth/auth\\-code\\-error(?:/)?$"
+    },
+    {
+      "page": "/auth/login",
+      "regex": "^/auth/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/auth/login(?:/)?$"
+    },
+    {
+      "page": "/auth/register",
+      "regex": "^/auth/register(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/auth/register(?:/)?$"
+    },
+    {
+      "page": "/connect-whoop",
+      "regex": "^/connect\\-whoop(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/connect\\-whoop(?:/)?$"
+    },
+    {
+      "page": "/exercises",
+      "regex": "^/exercises(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/exercises(?:/)?$"
+    },
+    {
+      "page": "/privacy",
+      "regex": "^/privacy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/privacy(?:/)?$"
+    },
+    {
+      "page": "/progress",
+      "regex": "^/progress(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/progress(?:/)?$"
+    },
+    {
+      "page": "/templates",
+      "regex": "^/templates(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/templates(?:/)?$"
+    },
+    {
+      "page": "/templates/new",
+      "regex": "^/templates/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/templates/new(?:/)?$"
+    },
+    {
+      "page": "/terms",
+      "regex": "^/terms(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/terms(?:/)?$"
+    },
+    {
+      "page": "/workout/start",
+      "regex": "^/workout/start(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/workout/start(?:/)?$"
+    },
+    {
+      "page": "/workouts",
+      "regex": "^/workouts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/workouts(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

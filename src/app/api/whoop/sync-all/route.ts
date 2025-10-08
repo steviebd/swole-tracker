@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 import {
   userIntegrations,
   externalWorkoutsWhoop,

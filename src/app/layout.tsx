@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export const viewport = {
   width: "device-width",
@@ -55,11 +55,7 @@ export default function RootLayout({
     })();
   `;
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className="antialiased"
-    >
+    <html lang="en" suppressHydrationWarning className="antialiased">
       <body>
         {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
         <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />

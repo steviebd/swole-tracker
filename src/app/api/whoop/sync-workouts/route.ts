@@ -8,7 +8,7 @@ import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 interface WhoopWorkout {
   id: string;

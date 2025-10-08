@@ -7,9 +7,14 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 
 const baseConfig = {
+  // Disable image optimization for Cloudflare Workers
+  images: {
+    unoptimized: true,
+  },
+
   // Performance optimizations
   experimental: {
-    optimizePackageImports: ['lucide-react', 'framer-motion'],
+    optimizePackageImports: ["lucide-react", "framer-motion"],
   },
 
   // Bundle optimization
@@ -24,15 +29,15 @@ const baseConfig = {
           // Separate vendor chunks
           vendor: {
             test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
+            name: "vendors",
+            chunks: "all",
             priority: 10,
           },
           // UI components chunk
           ui: {
             test: /[\\/]src[\\/]components[\\/]ui[\\/]/,
-            name: 'ui-components', 
-            chunks: 'all',
+            name: "ui-components",
+            chunks: "all",
             priority: 20,
           },
         },
@@ -87,7 +92,7 @@ const baseConfig = {
               "form-action 'self'",
               "frame-ancestors 'none'",
               "base-uri 'self'",
-              "manifest-src 'self'"
+              "manifest-src 'self'",
             ].join("; "),
           },
         ],

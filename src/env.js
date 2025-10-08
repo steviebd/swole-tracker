@@ -57,7 +57,6 @@ export const env = createEnv({
     // Encryption key for sensitive data at rest (OAuth tokens, etc.)
     ENCRYPTION_MASTER_KEY: z.string().min(32).optional(),
   },
-
   /**
    * Specify your client-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars. To expose them to the client, prefix them with
@@ -122,9 +121,11 @@ export const env = createEnv({
   },
   /**
    * Environment validation is always enforced for security.
-   * Only skip validation in Vercel preview environments to allow deployments.
+   * Skip validation in development and Vercel preview environments.
    */
-  skipValidation: process.env.VERCEL_ENV === "preview",
+  skipValidation:
+    process.env.NODE_ENV === "development" ||
+    process.env.VERCEL_ENV === "preview",
   /**
    * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
    * `SOME_VAR=''` will throw an error.

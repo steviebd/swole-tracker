@@ -10,7 +10,7 @@ import { db } from "~/server/db";
 import { webhookEvents, whoopRecovery } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 interface WhoopRecoveryData {
   id: string;

@@ -1,7 +1,8 @@
 ## Commands
-- Dev: `bun dev` – Next.js 15 + Turbopack; wraps `infisical run -- wrangler dev` if Infisical is configured
-- Build: `bun build` – `opennext build`; ensure required env vars are loaded (use `.env.local`, CI secrets, or `infisical run -- bun build`)
-- Deploy: `bun deploy` – `wrangler deploy`; ensure required env vars are loaded (use `.env.local`, CI secrets, or `infisical run -- bun deploy`)
+
+- Dev: `bun dev` – Next.js dev server with remote D1; dynamically updates wrangler.toml from Infisical secrets (Wrangler integration pending build fixes)
+- Build: `bun build` – `opennext build`; ensure required env vars are loaded via `infisical run -- bun build`
+- Deploy: `bun deploy` – `wrangler deploy`; ensure required env vars are loaded via `infisical run -- bun deploy`
 - Lint: `bun lint` / `bun lint:fix` – ESLint with a 20 warning cap
 - Type Check: `bun typecheck` – `tsc --noEmit`
 - Check: `bun check` – runs lint + typecheck
@@ -9,11 +10,12 @@
 - DB: `bun db:generate` / `bun db:migrate` / `bun db:push` / `bun db:studio` – Drizzle Kit tooling
 - Unit tests: `bun test` (Vitest watch), `bun test:unit`, `bun test:integration`
 - Coverage: `bun test:coverage` (Vitest), `bun test:ci` (Vitest run + coverage)
-Notes:
+  Notes:
 - Package manager pinned to `bun@1.2.21` (see `package.json#packageManager`)
 - Node.js pinned via Volta: `node@20.19.4`
 
 ## Architecture
+
 - Stack: Next.js 15 App Router + React 19 + strict TypeScript + T3 core (tRPC v11, Drizzle ORM, WorkOS)
 - Auth: WorkOS SSR integration (`src/middleware.ts`)
 - API: tRPC routers in `src/server/api/routers/*`, schemas in `src/server/api/schemas/*`, helpers in `src/server/api/utils/*`, root at `src/server/api/root.ts`
@@ -26,6 +28,7 @@ Notes:
 - Realtime updates: Server-Sent Events endpoint at `src/app/api/sse/workout-updates/route.ts`
 
 ## Key Features
+
 - Authenticated workout dashboards (`/workout`, `/workouts`, `/templates`) gated by WorkOS sessions
 - Workout template + session management, set logging, progression helpers, achievements, and insights
 - Offline-first UX with conflict resolution, queueing, and cache health monitoring
@@ -34,6 +37,7 @@ Notes:
 - Progress analytics, charts, and SSE live updates for active sessions
 
 ## Code Style & Conventions
+
 - Strict TypeScript with `noUncheckedIndexedAccess`; `verbatimModuleSyntax` enforced
 - Import aliases: prefer `~/` (and `@/` when required by tooling) for paths under `src/`
 - Use `import { type Foo } from '...'` for type-only imports
@@ -43,9 +47,10 @@ Notes:
 - Unused values must be prefixed `_` to satisfy lint rules
 
 ## Environment
+
 - Env schema defined in `src/env.js` with `@t3-oss/env-nextjs`
-- Local setup: copy `.env.example` to `.env.local` (or export variables in the shell) and fill WorkOS, PostHog, AI Gateway, Whoop, encryption, and rate-limit values
-- Optional Infisical: `.infisical.json` configured; `bun dev` already wraps `infisical run --`. For other scripts use `infisical run -- bun <script>` if you depend on Infisical instead of `.env.local`
+- Local setup: Configure Infisical (see `.infisical.json`) and ensure all required environment variables are set in your Infisical workspace
+- Infisical integration: Required for local development; `bun dev` auto-wraps with `infisical run --`. For other scripts use `infisical run -- bun <script>`
 - Required variables (per `.env.example`):
   - `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_REDIRECT_URI`
   - `DATABASE_URL` (Cloudflare D1 connection string)
@@ -56,6 +61,7 @@ Notes:
   - Whoop OAuth secrets (`WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_REDIRECT_URI`, `WHOOP_WEBHOOK_SECRET`)
 
 ## Database
+
 - Schema lives in `src/server/db/schema.ts` with `createTable` helper prefixing tables as `swole-tracker_*`
 - Connection + pool tuning in `src/server/db/index.ts`; query monitoring utilities exported from `src/server/db/monitoring.ts`
 - Additional SQL lives under `drizzle/` (RLS scripts, enable/disable helpers) and `scripts/apply-migration.js` for manual SQL migrations
@@ -63,6 +69,7 @@ Notes:
 - RLS: Not currently used.
 
 ## tRPC Guidelines
+
 - Context (`src/server/api/trpc.ts`) provides `{ db, user, headers, requestId }`
 - Use `publicProcedure` for anonymous endpoints (still wrapped in timing middleware) and `protectedProcedure` to enforce WorkOS auth (`ctx.user` is non-null)
 - Validate input with Zod schemas from `src/server/api/schemas/*`; reuse shared types from `src/server/api/types/*`
@@ -70,18 +77,21 @@ Notes:
 - Apply `ctx.user.id` filters in every protected procedure to maintain tenant isolation
 
 ## Middleware & Routing
+
 - `src/middleware.ts` bootstraps a WorkOS SSR client, refreshes sessions, and protects `/workout*`, `/workouts*`, `/templates*`
 - App Router API handlers live in `src/app/api/*` (Whoop OAuth, SSE, AI gateways, webhook endpoints)
 - tRPC HTTP transport at `src/app/api/trpc/[trpc]/route.ts`
 
 ## Local Development Workflow
+
 1. `bun install`
-2. Configure env vars (`.env.local` or Infisical) and confirm WorkOS project access
+2. Configure Infisical workspace and confirm WorkOS project access
 3. Initialize/refresh database: `bun db:push` (optionally apply SQL scripts under `drizzle/` or `scripts/`)
 4. Start dev server: `bun dev`
 5. Before committing: `bun format:write`, `bun check`, and at least `bun test`
 
 ## Commit & PR Checklist
+
 - [ ] Formatting clean (`bun format:write`)
 - [ ] Lint + typecheck pass (`bun check`)
 - [ ] Vitest suite green (`bun test` / `bun test:ci` as appropriate)
@@ -90,25 +100,29 @@ Notes:
 - [ ] Protected pages/components follow WorkOS auth patterns and Tailwind ordering conventions
 
 ## Production & Preview
-- Cloudflare build: `bun build` (ensure env vars are supplied via Cloudflare or Infisical)
+
+- Cloudflare build: `bun build` (ensure env vars are supplied via Infisical)
 - Deploy: `bun deploy`
 - Install step: `bun install`; output directory: `.open-next`
 - Post-deploy: apply Drizzle migrations (`bun db:migrate`) against the production database and ensure WorkOS auth redirect URIs match the deployed domain
 
 ## Recent Changes
+
 - WorkOS auth + SSR middleware replaced earlier Supabase integration; update code/tests to avoid lingering Supabase mocks (`src/__tests__/setup.ts` still carries temporary shims)
 - Offline persistence received major upgrades (`src/lib/offline-storage.ts`, `src/lib/cache-analytics.ts`) with cache health checks, background sync, and PostHog instrumentation
 - AI coaching features expanded: health advice persistence (`src/server/api/routers/health-advice.ts`), wellness tracking (`src/server/api/routers/wellness.ts`), and suggestion routers leverage the Vercel AI Gateway configuration in `src/env.js`
 
 ## Troubleshooting
+
 - WorkOS auth issues: ensure cookies are being set (Next middleware) and WorkOS keys match your environment;
-- Environment problems: validate against `src/env.js`; remember only `bun dev` auto-wraps with Infisical—other scripts need `.env.local` or manual `infisical run`
+- Environment problems: validate against `src/env.js`; `bun dev` auto-wraps with Infisical and dynamically updates wrangler.toml, runs on port 8787—other scripts need manual `infisical run`
 - Database connection: confirm `DATABASE_URL` + SSL params, and watch D1 limits.
 - Rate limiting or Whoop sync errors: check `src/lib/rate-limit.ts` and `src/lib/whoop-webhook.ts`; confirm env knobs are set
 - Offline queue quirks: inspect localStorage size (cache health logs) and PostHog events; `setupEnhancedOfflinePersistence` can fall back to memory-only mode when storage is full
 - SSE failures: verify `/api/sse/workout-updates` returns 200 and that clients stay authorized (WorkOS session cookies must be present)
 
 ## Test Strategy
+
 - Unit & integration tests: Vitest (`vitest.config.ts`) with jsdom, setup in `src/__tests__/setup.ts`; mocks live in `src/__tests__/mocks`
 - Coverage: enforced via `bun test:ci` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
 - E2E: Currently not planned; Playwright config remains in the repo but no browser flows are maintained

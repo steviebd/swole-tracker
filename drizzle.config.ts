@@ -9,5 +9,4 @@ export default {
     databaseId: process.env.D1_DB_ID ?? "",
     token: process.env.CLOUDFLARE_API_TOKEN ?? "",
   },
-  tablesFilter: ["swole-tracker_*"],
 } satisfies Config;

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 function encodeState(payload: string): string {
   if (typeof btoa === "function") {

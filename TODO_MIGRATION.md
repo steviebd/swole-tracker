@@ -88,8 +88,15 @@ This checklist replaces the previous migration outline. Tick items with `[x]` as
   - [x] Replace `bun dev`/`bun build` scripts to call `opennext build` and `wrangler pages dev`.
 - [x] **Runtime verification**
   - [x] Confirm dynamic routes, middleware, and API handlers execute in Workers locally.
+- [x] **Wrangler dev with remote D1 integration**
+  - [x] Add `remote = true` to dev environment D1 binding in `wrangler.toml` for production mirroring.
+  - [x] Create `scripts/update-wrangler-config.sh` to dynamically pull `D1_DB_ID` from Infisical and update wrangler.toml.
+  - [x] Update `package.json` dev script: `"dev": "bun run update-wrangler-config && infisical run -- wrangler dev --env dev"`.
+  - [x] Add fallback `"dev:next": "infisical run -- next dev"` for pure Next.js development when needed.
+  - [x] Configure OpenNext for Cloudflare with nodejs runtime and compatibility flags.
+  - [x] Successfully tested `bun dev` running on port 8787 with remote D1 database access.
 
-**DoD:** Running `bun dev` uses the Workers runtime via OpenNext; local requests resolve without any issues; README lists new dev commands.
+**DoD:** Running `bun dev` uses the Workers runtime via OpenNext; local requests resolve without any issues; README lists new dev commands. Development environment mirrors production with remote D1 database access.
 
 ---
 

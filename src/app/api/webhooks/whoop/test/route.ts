@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { env } from "~/env";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 async function createHmacSignature(secret: string, message: string): Promise<string> {
   const encoder = new TextEncoder();

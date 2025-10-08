@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 
 import { getValidAccessToken } from "~/lib/token-rotation";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 interface WhoopWorkoutData {
   id: string;

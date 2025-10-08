@@ -26,7 +26,7 @@ import { eq, and, desc, gte, asc } from "drizzle-orm";
 import { SessionCookie } from "~/lib/session-cookie";
 import { logger } from "~/lib/logger";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 interface WorkoutSet {
   weight: number | null;

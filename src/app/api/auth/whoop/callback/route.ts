@@ -9,7 +9,7 @@ import { env } from "~/env";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
 import { encryptToken } from "~/lib/encryption";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {

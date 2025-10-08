@@ -4,7 +4,7 @@ export interface WorkOSSession {
   userId: string;
   organizationId?: string;
   accessToken: string;
-  refreshToken: string;
+  refreshToken: string | null;
   expiresAt: number; // Unix timestamp in seconds
 }
 
@@ -59,15 +59,18 @@ function deserializeSession(data: string): WorkOSSession {
   try {
     const session = JSON.parse(data) as WorkOSSession;
     // Validate required fields
-    if (
-      !session.userId ||
-      !session.accessToken ||
-      !session.refreshToken ||
-      !session.expiresAt
-    ) {
+    if (!session.userId || !session.accessToken || !session.expiresAt) {
       throw new Error("Invalid session data");
     }
-    return session;
+    const refreshToken =
+      typeof session.refreshToken === "undefined"
+        ? null
+        : session.refreshToken;
+
+    return {
+      ...session,
+      refreshToken,
+    };
   } catch (error) {
     throw new Error("Invalid session data format");
   }
@@ -75,7 +78,10 @@ function deserializeSession(data: string): WorkOSSession {
 
 export class SessionCookie {
   static async create(session: WorkOSSession): Promise<string> {
-    const serialized = serializeSession(session);
+    const serialized = serializeSession({
+      ...session,
+      refreshToken: session.refreshToken ?? null,
+    });
     const signature = await sign(serialized);
     const signedData = `${serialized}.${signature}`;
 
@@ -101,8 +107,18 @@ export class SessionCookie {
 
     try {
       const decodedCookieValue = decodeURIComponent(cookieValue);
-      const [data, signature] = decodedCookieValue.split(".");
-      if (!data || !signature) return null;
+      // The payload is raw JSON that can contain '.' characters, so split from the end.
+      const separatorIndex = decodedCookieValue.lastIndexOf(".");
+
+      if (
+        separatorIndex <= 0 ||
+        separatorIndex === decodedCookieValue.length - 1
+      ) {
+        return null;
+      }
+
+      const data = decodedCookieValue.slice(0, separatorIndex);
+      const signature = decodedCookieValue.slice(separatorIndex + 1);
 
       const isValid = await verify(data, signature);
       if (!isValid) return null;
