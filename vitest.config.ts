@@ -7,6 +7,8 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
+    mockReset: true,
+    restoreMocks: true,
 
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: [

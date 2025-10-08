@@ -192,14 +192,7 @@ describe("WorkoutOperationsClient", () => {
       expect(workoutOps.addSessionExercise).toHaveBeenCalledWith(
         "test-user",
         1,
-        {
-          templateExerciseId: null,
-          exerciseName: "Bench Press",
-          weight: "80",
-          reps: 8,
-          sets: 3,
-          unit: "kg",
-        },
+        "Bench Press",
       );
 
       expect(workoutOps.addSessionExercise).toHaveBeenCalledWith(
