@@ -16,7 +16,7 @@ src/__e2e__/screenshots/
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
 db.sqlite
-
+.open-next/
 # next.js
 /.next/
 /out/
