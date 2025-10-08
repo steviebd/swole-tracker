@@ -56,7 +56,6 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
     posthog.init(posthogConfig.key, posthogConfig.options);
 
     return () => {
-      posthog.shutdown?.();
       posthog.reset();
     };
   }, [posthogConfig]);
