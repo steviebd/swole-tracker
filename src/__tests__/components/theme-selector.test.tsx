@@ -16,9 +16,6 @@ describe("ThemeSelector accessibility", () => {
     originalMatchMedia = win.matchMedia;
     (win as unknown as { localStorage: Storage }).localStorage =
       mockLocalStorage() as unknown as Storage;
-    if (!(win as unknown as { document?: Document }).document) {
-      (win as unknown as { document: Document }).document = document;
-    }
     if (
       typeof (win as unknown as { addEventListener?: unknown })
         .addEventListener !== "function"

@@ -15,19 +15,6 @@ describe("templatesRouter", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Mock db.select to return empty array for all queries by default
-    const mockSelectBuilder = {
-      from: vi.fn(() => mockSelectBuilder),
-      where: vi.fn(() => mockSelectBuilder),
-      leftJoin: vi.fn(() => mockSelectBuilder),
-      groupBy: vi.fn(() => mockSelectBuilder),
-      orderBy: vi.fn(() => mockSelectBuilder),
-      limit: vi.fn(() => mockSelectBuilder),
-      then: vi.fn((resolve) => resolve([])),
-    };
-
-    (db as any).select = vi.fn(() => mockSelectBuilder);
   });
 
   describe("getAll", () => {
@@ -75,20 +62,22 @@ describe("templatesRouter", () => {
         totalSessions: 0,
       }));
 
-      // Mock the complex query chain used in getAll
-      const mockQueryBuilder = {
-        leftJoin: vi.fn(() => mockQueryBuilder),
-        where: vi.fn(() => mockQueryBuilder),
-        groupBy: vi.fn(() => mockQueryBuilder),
-        orderBy: vi.fn(() => mockQueryBuilder),
-        then: vi.fn((resolve) => resolve(mockQueryResult)),
-      };
-
-      const mockSelectBuilder = {
-        from: vi.fn(() => mockQueryBuilder),
-      };
-
-      (db as any).select = vi.fn(() => mockSelectBuilder);
+      // Mock the database query to return the expected result
+      (db as any).select = vi.fn(() => ({
+        from: vi.fn(() => ({
+          leftJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              groupBy: vi.fn(() => ({
+                orderBy: vi.fn(() => ({
+                  limit: vi.fn(() => ({
+                    then: vi.fn((resolve) => resolve(mockQueryResult)),
+                  })),
+                })),
+              })),
+            })),
+          })),
+        })),
+      }));
 
       // Mock the second query for templates with exercises
       const mockTemplatesWithExercises = mockTemplates.map((template) => ({

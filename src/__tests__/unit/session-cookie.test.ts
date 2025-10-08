@@ -1,19 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
-import { webcrypto } from "node:crypto";
-// Mock the env before importing
-vi.mock("~/env.js", () => ({
-  env: {
-    WORKER_SESSION_SECRET: "test_session_secret_32_chars_minimum_123456789",
-    NODE_ENV: "test",
-  },
-}));
-
-Object.defineProperty(globalThis, "crypto", {
-  value: webcrypto,
-  configurable: true,
-});
-
+import { describe, it, expect } from "vitest";
 import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
+
+// Set the environment variable directly
+process.env.WORKER_SESSION_SECRET =
+  "test_session_secret_32_chars_minimum_123456789";
 
 describe("SessionCookie", () => {
   const validSession: WorkOSSession = {

@@ -1,25 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock the analytics module
-vi.mock("~/lib/analytics", () => ({
-  analytics: {
-    pageView: vi.fn(),
-    workoutStarted: vi.fn(),
-    workoutCompleted: vi.fn(),
-    exerciseLogged: vi.fn(),
-    templateCreated: vi.fn(),
-    templateDeleted: vi.fn(),
-    templateEdited: vi.fn(),
-    templateDuplicated: vi.fn(),
-    weightUnitChanged: vi.fn(),
-    error: vi.fn(),
-    featureUsed: vi.fn(),
-    aiDebriefViewed: vi.fn(),
-    aiDebriefRegenerated: vi.fn(),
-    aiDebriefDismissed: vi.fn(),
-  },
-}));
-
 // Import after setting up mocks
 import { analytics } from "~/lib/analytics";
 

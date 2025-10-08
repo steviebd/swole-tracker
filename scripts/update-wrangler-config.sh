@@ -112,6 +112,17 @@ var_names = [
 ]
 
 vars_header = f"  [env.{target_env}.vars]"
+missing_env_vars = []
+block_lines = [vars_header]
+for name in var_names:
+    value = os.environ.get(name)
+    if value in (None, ""):
+        missing_env_vars.append(name)
+        value = ""
+    block_lines.append(f"  {name} = {json.dumps(value)}")
+block_lines.append("")
+block = "\n".join(block_lines)
+
 start = content.find(vars_header)
 
 if start != -1:
@@ -121,14 +132,23 @@ if start != -1:
     candidates = [pos for pos in (next_env_section, next_db_section) if pos != -1]
     anchor = min(candidates) if candidates else len(content)
 
-    block_lines = [vars_header]
-    for name in var_names:
-        value = os.environ.get(name, "")
-        block_lines.append(f"  {name} = {json.dumps(value)}")
-    block_lines.append("")
-    block = "\n".join(block_lines)
-
     content = content[:start] + block + content[anchor:]
+else:
+    env_header = f"[env.{target_env}]"
+    env_header_index = content.find(env_header)
+
+    if env_header_index == -1:
+        raise SystemExit(f"❌ Could not locate env.{target_env} block in {config_path}")
+
+    same_env_db = content.find(f"  [[env.{target_env}.", env_header_index)
+    next_env_section = content.find("\n[env.", env_header_index + len(env_header))
+
+    candidates = [pos for pos in (same_env_db, next_env_section) if pos != -1]
+    anchor = min(candidates) if candidates else len(content)
+
+    before = content[:anchor].rstrip("\n")
+    after = content[anchor:].lstrip("\n")
+    content = f"{before}\n\n{block}{after}"
 
 with open(config_path, "w", encoding="utf-8") as handle:
     handle.write(content)
@@ -136,6 +156,10 @@ with open(config_path, "w", encoding="utf-8") as handle:
 if missing_placeholders:
     unresolved = ", ".join(sorted(missing_placeholders))
     print(f"⚠️  Warning: No environment values found for placeholders: {unresolved}")
+
+if missing_env_vars:
+    unresolved = ", ".join(sorted(missing_env_vars))
+    print(f"⚠️  Warning: Missing env vars for env.{target_env}.vars entries: {unresolved}")
 PY
 
 echo "✅ env.$TARGET_ENV.database_id -> $DB_ID"
