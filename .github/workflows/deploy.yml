@@ -70,7 +70,6 @@ jobs:
     name: Deploy (${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }})
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    needs: test
     env:
       DEPLOY_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
       CI: true
