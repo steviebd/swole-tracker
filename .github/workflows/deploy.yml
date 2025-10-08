@@ -123,7 +123,7 @@ jobs:
         run: ./scripts/update-wrangler-config.sh "$DEPLOY_ENV"
 
       - name: Build application
-        run: bun build
+        run: bun run build
 
       - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
