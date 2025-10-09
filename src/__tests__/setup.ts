@@ -50,7 +50,8 @@ const mockEnv = {
     DATABASE_URL: "postgresql://test:test@localhost:5432/test",
     WORKOS_API_KEY: "wk_test_dummy",
     WORKOS_CLIENT_ID: "client_test_dummy",
-    WORKER_SESSION_SECRET: "test_session_secret_32_chars_minimum_123456789",
+    WORKER_SESSION_SECRET:
+      "test_session_secret_32_chars_minimum_12345678901234567890123456789012",
     ENCRYPTION_MASTER_KEY: "test_encryption_key_32_chars_minimum_123456789",
     DB: mockD1Database,
     NODE_ENV: "test",
@@ -195,7 +196,10 @@ beforeAll(() => {
   console.log("Setup running...");
   // Set up environment variables
   process.env.ENCRYPTION_MASTER_KEY =
-    "test_encryption_key_32_chars_minimum_123456789";
+    "test_encryption_key_32_chars_minimum_12345678901234567890123456789012";
+  process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
+  process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_dummy";
+  process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
 
   // Ensure atob and btoa are available globally
   if (typeof global.atob === "undefined") {
@@ -209,13 +213,14 @@ beforeAll(() => {
 
   // Mock Web Crypto API with proper encryption simulation
   const mockCryptoStore = new Map<string, string>();
+  let cryptoCounter = 0;
 
   Object.defineProperty(global, "crypto", {
     value: {
       getRandomValues: vi.fn((array) => {
-        // Fill array with predictable values for testing
+        // Fill array with random values for testing
         for (let i = 0; i < array.length; i++) {
-          array[i] = i % 256;
+          array[i] = Math.floor(Math.random() * 256);
         }
         return array;
       }),
@@ -233,14 +238,24 @@ beforeAll(() => {
           }),
         ),
         encrypt: vi.fn((algorithm, key, data) => {
-          // Simulate encryption by creating a deterministic encrypted output
+          // Simulate encryption by creating a unique encrypted output with counter
           const plaintext = new TextDecoder().decode(data);
-          const mockEncrypted = `encrypted_${btoa(plaintext)}_${Date.now()}`;
+          const uniqueId = `${cryptoCounter++}_${Date.now()}_${Math.random()}`;
+          // Use a safe base64 encoding that handles all characters
+          const safeB64 = btoa(unescape(encodeURIComponent(plaintext)));
+          const mockEncrypted = `encrypted_${safeB64}_${uniqueId}`;
           mockCryptoStore.set(mockEncrypted, plaintext);
           // Return a properly formatted encrypted blob (salt + iv + tag + ciphertext)
-          const salt = new Uint8Array(32).fill(1);
-          const iv = new Uint8Array(16).fill(2);
-          const tag = new Uint8Array(16).fill(3);
+          const salt = new Uint8Array(32);
+          const iv = new Uint8Array(16);
+          const tag = new Uint8Array(16);
+          // Fill with random data
+          for (let i = 0; i < salt.length; i++)
+            salt[i] = Math.floor(Math.random() * 256);
+          for (let i = 0; i < iv.length; i++)
+            iv[i] = Math.floor(Math.random() * 256);
+          for (let i = 0; i < tag.length; i++)
+            tag[i] = Math.floor(Math.random() * 256);
           const ciphertext = new TextEncoder().encode(mockEncrypted);
           return Promise.resolve(
             new Uint8Array([...salt, ...iv, ...tag, ...ciphertext]),
@@ -261,7 +276,8 @@ beforeAll(() => {
               const b64Data = parts[1];
               if (b64Data) {
                 try {
-                  const plaintext = atob(b64Data!);
+                  // Decode the safe base64
+                  const plaintext = decodeURIComponent(escape(atob(b64Data)));
                   return Promise.resolve(new TextEncoder().encode(plaintext));
                 } catch (e) {
                   // Fallback
@@ -333,24 +349,24 @@ beforeAll(() => {
       writable: true,
       configurable: true,
     });
+
+    Object.defineProperty(window, "matchMedia", {
+      value: vi.fn(() => ({
+        matches: false,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+      writable: true,
+      configurable: true,
+    });
   }
 
   // Also set on global for tests that access it directly
   Object.defineProperty(global, "localStorage", {
     value: mockLocalStorage,
-    writable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(window, "matchMedia", {
-    value: vi.fn(() => ({
-      matches: false,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
     writable: true,
     configurable: true,
   });
