@@ -14,19 +14,55 @@ interface TokenRotationResult {
   error?: string;
 }
 
+function normalizeDate(
+  value: Date | string | number | null | undefined,
+): Date | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "number") {
+    const fromNumber = new Date(value);
+    return Number.isNaN(fromNumber.getTime()) ? null : fromNumber;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const fromString = new Date(value);
+    return Number.isNaN(fromString.getTime()) ? null : fromString;
+  }
+
+  return null;
+}
+
 /**
  * Check if a token needs rotation based on time or usage criteria
  */
 export function shouldRotateToken(
-  expiresAt: Date | null,
-  lastRotated: Date | null,
+  expiresAtInput: Date | string | number | null | undefined,
+  lastRotatedInput: Date | string | number | null | undefined,
   forceRotation = false,
 ): boolean {
   if (forceRotation) return true;
 
+  const expiresAt = normalizeDate(expiresAtInput);
+  const lastRotated = normalizeDate(lastRotatedInput);
+
   const now = new Date();
   const rotationBuffer = 24 * 60 * 60 * 1000; // 24 hours before expiry
   const maxTokenAge = 7 * 24 * 60 * 60 * 1000; // 7 days max age
+
+  if (!expiresAt) {
+    // Without a reliable expiry, rotate if we've never rotated before
+    if (!lastRotated) {
+      return true;
+    }
+
+    // Otherwise fall back to max age check below
+  }
 
   // Rotate if token expires within 24 hours
   if (expiresAt && expiresAt.getTime() - now.getTime() < rotationBuffer) {
@@ -69,13 +105,11 @@ export async function rotateOAuthTokens(
       return { success: false, error: "No refresh token available" };
     }
 
+    const currentExpiresAt = normalizeDate(integration.expiresAt);
+    const lastRotatedAt = normalizeDate(integration.updatedAt);
+
     // Check if rotation is needed
-    if (
-      !shouldRotateToken(
-        integration.expiresAt || null,
-        integration.updatedAt || null,
-      )
-    ) {
+    if (!shouldRotateToken(currentExpiresAt, lastRotatedAt)) {
       return {
         success: true,
         newAccessToken: await getDecryptedToken(integration.accessToken),
@@ -106,7 +140,7 @@ export async function rotateOAuthTokens(
     // Calculate new expiry
     const expiresAt = tokenResult.expiresIn
       ? new Date(Date.now() + tokenResult.expiresIn * 1000)
-      : integration.expiresAt;
+      : currentExpiresAt;
 
     // Update database with new encrypted tokens
     await db

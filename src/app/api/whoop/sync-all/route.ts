@@ -18,6 +18,7 @@ import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
 const SQLITE_MAX_VARIABLES = 999;
+const MAX_ROWS_PER_BATCH = 20;
 
 function chunkValues<T>(rows: T[], columnsPerRow: number): T[][] {
   if (rows.length === 0) {
@@ -25,7 +26,14 @@ function chunkValues<T>(rows: T[], columnsPerRow: number): T[][] {
   }
 
   const safeColumns = Math.max(columnsPerRow, 1);
-  const batchSize = Math.max(1, Math.floor(SQLITE_MAX_VARIABLES / safeColumns));
+  const maxRowsPerBatch = Math.max(
+    1,
+    Math.floor(SQLITE_MAX_VARIABLES / safeColumns),
+  );
+  const batchSize = Math.max(
+    1,
+    Math.min(MAX_ROWS_PER_BATCH, maxRowsPerBatch),
+  );
   const chunks: T[][] = [];
 
   for (let index = 0; index < rows.length; index += batchSize) {
