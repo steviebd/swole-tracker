@@ -17,30 +17,72 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
 
-const SQLITE_MAX_VARIABLES = 999;
-const MAX_ROWS_PER_BATCH = 20;
+type RecoveryInsert = typeof whoopRecovery.$inferInsert;
+type CycleInsert = typeof whoopCycles.$inferInsert;
+type SleepInsert = typeof whoopSleep.$inferInsert;
 
-function chunkValues<T>(rows: T[], columnsPerRow: number): T[][] {
-  if (rows.length === 0) {
-    return [];
+function safeParseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getErrorCause(error: unknown): unknown | undefined {
+  if (error && typeof error === "object" && "cause" in error) {
+    return (error as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("unique constraint failed") ||
+    message.includes("constraint failed") ||
+    message.includes("already exists")
+  );
+}
+
+async function insertRowsIndividually<RowType>(
+  rows: RowType[],
+  insertRow: (row: RowType) => Promise<void>,
+  options: { label: string; identify: (row: RowType) => string },
+): Promise<number> {
+  let inserted = 0;
+
+  for (const row of rows) {
+    try {
+      await insertRow(row);
+      inserted++;
+    } catch (error) {
+      const identifier = options.identify(row);
+
+      if (isUniqueConstraintError(error)) {
+        console.log(
+          `[${options.label}] Skipping duplicate ${identifier}: ${String(
+            error,
+          )}`,
+        );
+        continue;
+      }
+
+      console.error(
+        `[${options.label}] Failed to insert ${identifier}: ${String(error)}`,
+        error,
+      );
+
+      const cause = getErrorCause(error);
+      if (cause) {
+        console.error(
+          `[${options.label}] Additional details for ${identifier}:`,
+          cause,
+        );
+      }
+    }
   }
 
-  const safeColumns = Math.max(columnsPerRow, 1);
-  const maxRowsPerBatch = Math.max(
-    1,
-    Math.floor(SQLITE_MAX_VARIABLES / safeColumns),
-  );
-  const batchSize = Math.max(
-    1,
-    Math.min(MAX_ROWS_PER_BATCH, maxRowsPerBatch),
-  );
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < rows.length; index += batchSize) {
-    chunks.push(rows.slice(index, index + batchSize));
-  }
-
-  return chunks;
+  return inserted;
 }
 
 interface WhoopWorkout {
@@ -325,41 +367,62 @@ async function syncRecovery(
       (r) => r.sleep_id && !existingIds.has(r.sleep_id),
     );
 
-    if (newRecoveries.length > 0) {
-      const recoveryRows = newRecoveries.map((recovery) => {
-        // Ensure we have a valid date string
-        let date: string;
-        if (recovery.created_at && typeof recovery.created_at === "string") {
-          const datePart = recovery.created_at.split("T")[0];
-          date = datePart || new Date().toISOString().split("T")[0]!;
-        } else {
-          date = new Date().toISOString().split("T")[0]!;
+    if (newRecoveries.length === 0) {
+      return 0;
+    }
+
+    const recoveryRows = newRecoveries
+      .map<RecoveryInsert | null>((recovery) => {
+        const whoopId = recovery.sleep_id?.toString();
+        if (!whoopId) {
+          console.warn("[Recovery Sync] Skipping record without sleep_id", recovery);
+          return null;
+        }
+
+        const createdAt = safeParseDate(recovery.created_at) ?? new Date();
+        const dateOnlyIso = createdAt.toISOString().split("T")[0]!;
+        const normalizedDate =
+          safeParseDate(dateOnlyIso) ??
+          safeParseDate(recovery.updated_at) ??
+          createdAt;
+
+        if (!normalizedDate) {
+          console.warn(
+            `[Recovery Sync] Skipping ${whoopId} due to invalid date payload`,
+            recovery,
+          );
+          return null;
         }
 
         return {
           user_id: userId,
-          whoop_recovery_id: recovery.sleep_id, // Use sleep_id as identifier in v2 API
-          cycle_id: recovery.cycle_id?.toString() || null,
-          date: new Date(date),
-          recovery_score: recovery.score?.recovery_score || null,
-          hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli || null,
-          hrv_rmssd_baseline: null, // hrv_baseline not available in v2 API structure
-          resting_heart_rate: recovery.score?.resting_heart_rate || null,
-          resting_heart_rate_baseline: null, // hr_baseline not available in v2 API structure
+          whoop_recovery_id: whoopId,
+          cycle_id: recovery.cycle_id?.toString() ?? null,
+          date: normalizedDate,
+          recovery_score: recovery.score?.recovery_score ?? null,
+          hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli ?? null,
+          hrv_rmssd_baseline: null,
+          resting_heart_rate: recovery.score?.resting_heart_rate ?? null,
+          resting_heart_rate_baseline: null,
           raw_data: JSON.stringify(recovery),
           timezone_offset: null,
-        };
-      });
+        } satisfies RecoveryInsert;
+      })
+      .filter((row): row is RecoveryInsert => row !== null);
 
-      const columnsPerRow = Object.keys(recoveryRows[0] ?? {}).length || 1;
-      const batches = chunkValues(recoveryRows, columnsPerRow);
-
-      for (const batch of batches) {
-        await db.insert(whoopRecovery).values(batch).onConflictDoNothing();
-      }
+    if (recoveryRows.length === 0) {
+      return 0;
     }
 
-    return newRecoveries.length;
+    return insertRowsIndividually<RecoveryInsert>(
+      recoveryRows,
+      (row) =>
+        db.insert(whoopRecovery).values(row).onConflictDoNothing(),
+      {
+        label: "Recovery Sync",
+        identify: (row) => row.whoop_recovery_id,
+      },
+    );
   } catch (error) {
     console.error("Error syncing recovery:", error);
     throw error;
@@ -406,29 +469,59 @@ async function syncCycles(
     const existingIds = new Set(existingCycles.map((c) => c.whoopCycleId));
     const newCycles = cycles.filter((c) => !existingIds.has(c.id));
 
-    if (newCycles.length > 0) {
-      const cycleRows = newCycles.map((cycle) => ({
-        user_id: userId,
-        whoop_cycle_id: cycle.id,
-        start: new Date(cycle.start),
-        end: new Date(cycle.end),
-        timezone_offset: cycle.timezone_offset || null,
-        day_strain: cycle.score?.strain || null,
-        average_heart_rate: cycle.score?.average_heart_rate || null,
-        max_heart_rate: cycle.score?.max_heart_rate || null,
-        kilojoule: cycle.score?.kilojoule || null,
-        raw_data: JSON.stringify(cycle),
-      }));
-
-      const columnsPerRow = Object.keys(cycleRows[0] ?? {}).length || 1;
-      const batches = chunkValues(cycleRows, columnsPerRow);
-
-      for (const batch of batches) {
-        await db.insert(whoopCycles).values(batch).onConflictDoNothing();
-      }
+    if (newCycles.length === 0) {
+      return 0;
     }
 
-    return newCycles.length;
+    const cycleRows = newCycles
+      .map<CycleInsert | null>((cycle) => {
+        const start = safeParseDate(cycle.start);
+        if (!start) {
+          console.warn(
+            `[Cycle Sync] Skipping cycle ${cycle.id} due to invalid start`,
+            cycle,
+          );
+          return null;
+        }
+
+        const end = safeParseDate(cycle.end) ?? start;
+        const whoopId = cycle.id?.toString();
+
+        if (!whoopId) {
+          console.warn(
+            "[Cycle Sync] Skipping cycle without identifier",
+            cycle,
+          );
+          return null;
+        }
+
+        return {
+          user_id: userId,
+          whoop_cycle_id: whoopId,
+          start,
+          end,
+          timezone_offset: cycle.timezone_offset ?? null,
+          day_strain: cycle.score?.strain ?? null,
+          average_heart_rate: cycle.score?.average_heart_rate ?? null,
+          max_heart_rate: cycle.score?.max_heart_rate ?? null,
+          kilojoule: cycle.score?.kilojoule ?? null,
+          raw_data: JSON.stringify(cycle),
+        } satisfies CycleInsert;
+      })
+      .filter((row): row is CycleInsert => row !== null);
+
+    if (cycleRows.length === 0) {
+      return 0;
+    }
+
+    return insertRowsIndividually<CycleInsert>(
+      cycleRows,
+      (row) => db.insert(whoopCycles).values(row).onConflictDoNothing(),
+      {
+        label: "Cycle Sync",
+        identify: (row) => row.whoop_cycle_id,
+      },
+    );
   } catch (error) {
     console.error("Error syncing cycles:", error);
     throw error;
@@ -472,44 +565,71 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
     const existingIds = new Set(existingSleeps.map((s) => s.whoopSleepId));
     const newSleeps = sleeps.filter((s) => !existingIds.has(s.id));
 
-    if (newSleeps.length > 0) {
-      const sleepRows = newSleeps.map((sleep) => ({
-        user_id: userId,
-        whoop_sleep_id: sleep.id,
-        start: new Date(sleep.start),
-        end: new Date(sleep.end),
-        timezone_offset: sleep.timezone_offset || null,
-        sleep_performance_percentage:
-          sleep.score?.sleep_performance_percentage || null,
-        total_sleep_time_milli:
-          sleep.score?.stage_summary?.total_in_bed_time_milli || null,
-        sleep_efficiency_percentage:
-          sleep.score?.sleep_efficiency_percentage || null,
-        slow_wave_sleep_time_milli:
-          sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli || null,
-        rem_sleep_time_milli:
-          sleep.score?.stage_summary?.total_rem_sleep_time_milli || null,
-        light_sleep_time_milli:
-          sleep.score?.stage_summary?.total_light_sleep_time_milli || null,
-        wake_time_milli:
-          sleep.score?.stage_summary?.total_awake_time_milli || null,
-        arousal_time_milli:
-          sleep.score?.stage_summary?.total_awake_time_milli || null, // Using awake as proxy
-        disturbance_count:
-          sleep.score?.stage_summary?.disturbance_count || null,
-        sleep_latency_milli: null, // Not available in API data
-        raw_data: JSON.stringify(sleep),
-      }));
-
-      const columnsPerRow = Object.keys(sleepRows[0] ?? {}).length || 1;
-      const batches = chunkValues(sleepRows, columnsPerRow);
-
-      for (const batch of batches) {
-        await db.insert(whoopSleep).values(batch).onConflictDoNothing();
-      }
+    if (newSleeps.length === 0) {
+      return 0;
     }
 
-    return newSleeps.length;
+    const sleepRows = newSleeps
+      .map<SleepInsert | null>((sleep) => {
+        const start = safeParseDate(sleep.start);
+        const end = safeParseDate(sleep.end);
+        const whoopId = sleep.id?.toString();
+
+        if (!whoopId) {
+          console.warn("[Sleep Sync] Skipping sleep without identifier", sleep);
+          return null;
+        }
+
+        if (!start || !end) {
+          console.warn(
+            `[Sleep Sync] Skipping ${whoopId} due to invalid timestamps`,
+            sleep,
+          );
+          return null;
+        }
+
+        return {
+          user_id: userId,
+          whoop_sleep_id: whoopId,
+          start,
+          end,
+          timezone_offset: sleep.timezone_offset ?? null,
+          sleep_performance_percentage:
+            sleep.score?.sleep_performance_percentage ?? null,
+          total_sleep_time_milli:
+            sleep.score?.stage_summary?.total_in_bed_time_milli ?? null,
+          sleep_efficiency_percentage:
+            sleep.score?.sleep_efficiency_percentage ?? null,
+          slow_wave_sleep_time_milli:
+            sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ?? null,
+          rem_sleep_time_milli:
+            sleep.score?.stage_summary?.total_rem_sleep_time_milli ?? null,
+          light_sleep_time_milli:
+            sleep.score?.stage_summary?.total_light_sleep_time_milli ?? null,
+          wake_time_milli:
+            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
+          arousal_time_milli:
+            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
+          disturbance_count:
+            sleep.score?.stage_summary?.disturbance_count ?? null,
+          sleep_latency_milli: null,
+          raw_data: JSON.stringify(sleep),
+        } satisfies SleepInsert;
+      })
+      .filter((row): row is SleepInsert => row !== null);
+
+    if (sleepRows.length === 0) {
+      return 0;
+    }
+
+    return insertRowsIndividually<SleepInsert>(
+      sleepRows,
+      (row) => db.insert(whoopSleep).values(row).onConflictDoNothing(),
+      {
+        label: "Sleep Sync",
+        identify: (row) => row.whoop_sleep_id,
+      },
+    );
   } catch (error) {
     console.error("Error syncing sleep:", error);
     throw error;

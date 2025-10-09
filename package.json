@@ -16,7 +16,7 @@
     "db:reset:staging": "infisical run --env staging -- drizzle-kit push --force",
     "db:reset:prod": "infisical run --env production -- drizzle-kit push --force",
     "db:studio": "drizzle-kit studio",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --logpush",
     "dev": "NODE_ENV=development infisical run -- bun run dev:worker",
     "dev:worker": "bun run update-wrangler-config && lsof -ti:8787 | xargs kill -9 2>/dev/null || true && wrangler dev --env dev",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
