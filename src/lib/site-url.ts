@@ -37,20 +37,33 @@ function sanitizeOrigin(candidate: string | null | undefined): string | null {
     const url = new URL(candidate);
     return url.origin;
   } catch (error) {
+    if (!candidate.includes("://")) {
+      try {
+        const url = new URL(`https://${candidate}`);
+        logger.warn("Assuming https:// scheme for origin", { candidate });
+        return url.origin;
+      } catch (httpsError) {
+        logger.warn("Unable to parse site origin after https:// patch", {
+          candidate,
+          error: httpsError,
+        });
+        return null;
+      }
+    }
     logger.warn("Unable to parse site origin", { candidate, error });
     return null;
   }
 }
 
 function resolveBaseOrigin(preferred?: OriginLike): string {
-  const preferredOrigin = sanitizeOrigin(extractOrigin(preferred));
-  if (preferredOrigin) {
-    return preferredOrigin;
-  }
-
   const envOrigin = sanitizeOrigin(env.NEXT_PUBLIC_SITE_URL);
   if (envOrigin) {
     return envOrigin;
+  }
+
+  const preferredOrigin = sanitizeOrigin(extractOrigin(preferred));
+  if (preferredOrigin) {
+    return preferredOrigin;
   }
 
   return DEFAULT_SITE_URL;
