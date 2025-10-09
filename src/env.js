@@ -16,7 +16,6 @@ export const env = createEnv({
     // WorkOS Authentication
     WORKOS_API_KEY: z.string().optional(),
     WORKOS_CLIENT_ID: z.string().optional(),
-    WORKOS_REDIRECT_URI: z.string().url().optional(),
 
     // Worker session management
     WORKER_SESSION_SECRET: z.string().min(32).optional(),
@@ -85,7 +84,6 @@ export const env = createEnv({
     // WorkOS Authentication
     WORKOS_API_KEY: process.env.WORKOS_API_KEY,
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
-    WORKOS_REDIRECT_URI: process.env.WORKOS_REDIRECT_URI,
 
     // Worker session management
     WORKER_SESSION_SECRET: process.env.WORKER_SESSION_SECRET,
@@ -121,10 +119,11 @@ export const env = createEnv({
   },
   /**
    * Environment validation is always enforced for security.
-   * Skip validation in development and Vercel preview environments.
+   * Skip validation in development, test, and Vercel preview environments.
    */
   skipValidation:
     process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test" ||
     process.env.VERCEL_ENV === "preview",
   /**
    * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and

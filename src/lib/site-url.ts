@@ -61,10 +61,6 @@ export function resolveSiteUrl(preferred?: OriginLike): string {
 }
 
 export function resolveWorkOSRedirectUri(preferred?: OriginLike): string {
-  if (env.WORKOS_REDIRECT_URI) {
-    return env.WORKOS_REDIRECT_URI;
-  }
-
   return `${resolveBaseOrigin(preferred)}/api/auth/callback`;
 }
 
