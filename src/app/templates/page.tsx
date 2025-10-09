@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
+import { headers } from "next/headers";
 
 import ClientHydrate from "~/trpc/HydrateClient";
 import {
@@ -13,11 +14,17 @@ import { Button } from "~/components/ui/button";
 import Link from "next/link";
 
 export default async function TemplatesPage() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
 
-  if (!user) {
-    redirect("/sign-in");
+  const session = await SessionCookie.get(mockRequest);
+
+  if (!session || SessionCookie.isExpired(session)) {
+    redirect("/auth/login");
   }
 
   // SSR prefetch + hydrate using TanStack Query to avoid client refetch

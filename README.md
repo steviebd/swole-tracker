@@ -15,8 +15,8 @@ A modern fitness tracking application built with Next.js, React 19, TypeScript, 
 - **Framework**: Next.js 15 with App Router
 - **Frontend**: React 19, TypeScript, Tailwind CSS v4
 - **Backend**: tRPC v11, Drizzle ORM
-- **Database**: PostgreSQL (Supabase)
-- **Authentication**: Supabase Auth
+- **Database**: Cloudflare D1
+- **Authentication**: WorkOS
 - **Analytics**: PostHog
 - **Package Manager**: Bun
 
@@ -26,7 +26,8 @@ A modern fitness tracking application built with Next.js, React 19, TypeScript, 
 
 - Node.js 20.19.4+ (managed via Volta)
 - Bun package manager
-- PostgreSQL database (Supabase recommended)
+- Cloudflare account with D1 and Workers
+- Infisical account with access to the project workspace
 
 ### Installation
 
@@ -36,16 +37,14 @@ A modern fitness tracking application built with Next.js, React 19, TypeScript, 
 bun install
 ```
 
-2. Copy environment variables and configure:
+2. Configure Infisical workspace:
 
-```bash
-cp .env.example .env.local
-```
+Ensure you have access to the Infisical workspace and that all required environment variables are set. The `.infisical.json` file is already configured for this project. Environment variables are managed through Infisical - no local `.env.local` file is needed.
 
 3. Set up your database:
 
 ```bash
-bun db:push
+infisical run -- bun db:push
 ```
 
 4. Start the development server:
@@ -54,14 +53,24 @@ bun db:push
 bun dev
 ```
 
+This command:
+
+- Dynamically updates `wrangler.toml` with your D1 database ID from Infisical
+- Runs Next.js development server with hot reload
+- Connects to your remote D1 database for production-like development experience
+- Serves your app on `http://localhost:3000` (or next available port)
+
+**Note:** Currently using Next.js dev server. Wrangler dev integration is configured but has build issues that need resolution.
+
 ## Scripts
 
-- `bun dev` - Start development server with Turbopack
+- `bun dev` - Start Workers development server with remote D1 database access
+- `bun dev:next` - Start Next.js development server (fallback, no Workers runtime)
 - `bun build` - Build the application for production
-- `bun preview` - Build and start production server locally
+- `bun deploy` - Deploy the application to Cloudflare Workers
 - `bun check` - Run lint + typecheck
 - `bun test` - Run unit tests
-- `bun e2e` - Run end-to-end tests
+- `bun run update-wrangler-config [env]` - Regenerate `wrangler.toml` using Infisical secrets (defaults to `dev`; run via `infisical run --env <target> -- bun run update-wrangler-config <target>` before `wrangler` commands)
 
 ## Project Structure
 
@@ -77,8 +86,8 @@ bun dev
 - Run `bun run tokens:build` after editing palette seeds to regenerate both JSON + CSS artifacts.
 - Automated tests guard accessibility:
   ```bash
-  bun run test -- src/__tests__/design-tokens/material3-theme.test.ts \\
-    src/__tests__/components/theme-selector.test.tsx \\
+  bun run test -- src/__tests__/design-tokens/material3-theme.test.ts \
+    src/__tests__/components/theme-selector.test.tsx \
     src/__tests__/hooks/use-reduced-motion.test.ts
   ```
 - Consult `docs/material3-theme-guide.md` for rollout checklists, mobile QA guidance, and tooling notes.

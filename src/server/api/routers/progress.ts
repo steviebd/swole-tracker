@@ -113,7 +113,7 @@ export const progressRouter = createTRPCRouter({
         // Calculate metrics using computed columns for performance
         const oneRMValues = sessionData.map((session) =>
           // Use computed column if available, fallback to calculation
-          session.oneRMEstimate 
+          session.oneRMEstimate
             ? parseFloat(String(session.oneRMEstimate))
             : calculateLocalOneRM(
                 parseFloat(String(session.weight || "0")),
@@ -161,7 +161,7 @@ export const progressRouter = createTRPCRouter({
 
         const prevOneRMValues = prevSessionData.map((session) =>
           // Use computed column if available, fallback to calculation
-          session.oneRMEstimate 
+          session.oneRMEstimate
             ? parseFloat(String(session.oneRMEstimate))
             : calculateLocalOneRM(
                 parseFloat(String(session.weight || "0")),
@@ -176,27 +176,25 @@ export const progressRouter = createTRPCRouter({
         const currentVolume = sessionData.reduce(
           (sum, s) =>
             sum +
-            (s.volumeLoad 
+            (s.volumeLoad
               ? parseFloat(String(s.volumeLoad))
               : calculateVolumeLoad(
                   s.sets || 1,
                   s.reps || 1,
                   parseFloat(String(s.weight || "0")),
-                )
-            ),
+                )),
           0,
         );
         const prevVolume = prevSessionData.reduce(
           (sum, s) =>
             sum +
-            (s.volumeLoad 
+            (s.volumeLoad
               ? parseFloat(String(s.volumeLoad))
               : calculateVolumeLoad(
                   s.sets || 1,
                   s.reps || 1,
                   parseFloat(String(s.weight || "0")),
-                )
-            ),
+                )),
           0,
         );
         const volumeTrend = calculatePercentageChange(
@@ -932,13 +930,16 @@ export const progressRouter = createTRPCRouter({
           );
 
         // Add oneRMEstimate to progress data
-        const enhancedProgressData = progressData.map((item) => ({
-          ...item,
-          oneRMEstimate: calculateLocalOneRM(
-            parseFloat(String(item.weight || "0")),
-            item.reps || 1,
-          ),
-        }));
+        const enhancedProgressData: ProgressDataRow[] = progressData.map(
+          (item) => ({
+            ...item,
+            weight: item.weight ? String(item.weight) : null,
+            oneRMEstimate: calculateLocalOneRM(
+              parseFloat(String(item.weight || "0")),
+              item.reps || 1,
+            ),
+          }),
+        );
 
         // Process data to get top set per workout per exercise
         const topSets = processTopSets(enhancedProgressData);
@@ -955,7 +956,10 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        logger.debug("Getting volume progression", { timeRange: input.timeRange, userId: ctx.user.id });
+        logger.debug("Getting volume progression", {
+          timeRange: input.timeRange,
+          userId: ctx.user.id,
+        });
         const { startDate, endDate } = getDateRangeFromUtils(
           input.timeRange,
           input.startDate,
@@ -990,14 +994,16 @@ export const progressRouter = createTRPCRouter({
         const transformedData = volumeData.map((row) => ({
           workoutDate: row.workoutDate,
           exerciseName: row.exerciseName,
-          weight: row.weight ? parseFloat(row.weight) : 0,
+          weight: row.weight || 0,
           reps: row.reps || 0,
           sets: row.sets || 0,
         }));
 
         // Calculate volume metrics by workout date
         const volumeByDate = calculateVolumeMetrics(transformedData);
-        logger.debug("Volume progression result", { count: volumeByDate.length });
+        logger.debug("Volume progression result", {
+          count: volumeByDate.length,
+        });
 
         return volumeByDate;
       } catch (error) {
@@ -1011,7 +1017,10 @@ export const progressRouter = createTRPCRouter({
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
       try {
-        logger.debug("Getting consistency stats", { timeRange: input.timeRange, userId: ctx.user.id });
+        logger.debug("Getting consistency stats", {
+          timeRange: input.timeRange,
+          userId: ctx.user.id,
+        });
         const { startDate, endDate } = getDateRangeFromUtils(
           input.timeRange,
           input.startDate,
@@ -1234,7 +1243,7 @@ export const progressRouter = createTRPCRouter({
         // Transform data to match expected types
         const transformedData = volumeData.map((row) => ({
           exerciseName: row.exerciseName,
-          weight: row.weight ? parseFloat(row.weight) : 0,
+          weight: row.weight || 0,
           reps: row.reps || 0,
           sets: row.sets || 0,
           workoutDate: row.workoutDate,
@@ -1412,7 +1421,8 @@ export async function getLinkedExerciseNames(
               template &&
               typeof template === "object" &&
               !Array.isArray(template) &&
-              typeof (template as { exerciseName?: unknown }).exerciseName === "string"
+              typeof (template as { exerciseName?: unknown }).exerciseName ===
+                "string"
             ) {
               return (template as { exerciseName: string }).exerciseName;
             }
@@ -1686,10 +1696,10 @@ export async function calculatePersonalRecords(
 
   for (const exerciseName of exerciseNames) {
     let exerciseData: {
-      weight: string | null;
+      workoutDate: Date;
+      weight: number | null;
       reps: number | null;
       sets: number | null;
-      workoutDate: Date;
       unit: string;
     }[] = [];
 

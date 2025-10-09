@@ -252,7 +252,7 @@ export function useWorkoutSessionState({
               templateExerciseId: exercise.templateExerciseId ?? null,
               exerciseName: exercise.exerciseName,
               setOrder: setIndex,
-              weight: set.weight?.toString() ?? null,
+              weight: set.weight ?? null,
               reps: set.reps ?? null,
               sets: set.sets ?? null,
               unit: set.unit as string,
@@ -387,7 +387,7 @@ export function useWorkoutSessionState({
           sets: exerciseData.map((sessionExercise) => ({
             id: `existing-${sessionExercise.id}`,
             weight: sessionExercise.weight
-              ? parseFloat(sessionExercise.weight)
+              ? Number(sessionExercise.weight)
               : undefined,
             reps: sessionExercise.reps ?? undefined,
             sets: sessionExercise.sets ?? 1,

@@ -16,12 +16,12 @@ src/__e2e__/screenshots/
 /prisma/db.sqlite
 /prisma/db.sqlite-journal
 db.sqlite
-
+.open-next/
 # next.js
 /.next/
 /out/
 next-env.d.ts
-
+.wrangler/
 # production
 /build
 /apps/template
@@ -73,8 +73,7 @@ node_modules/
 # tasks.json
 # tasks/ 
 .env.production
-src/__tests__/unit/supabase.coverage.test.ts.skip
-src/__tests__/unit/supabase.more.coverage2.test.ts.skip
+
 apps/template/.next/trace
 apps/template/.next/cache/.rscinfo
 apps/template/.next/cache/webpack/client-development/0.pack.gz
@@ -84,3 +83,5 @@ apps/template/.next/cache/webpack/client-development/index.pack.gz.old
 apps/template/.next/cache/webpack/server-development/0.pack.gz
 apps/template/.next/cache/webpack/server-development/index.pack.gz
 .infisical.json
+wrangler.toml
+wrangler.toml.backup

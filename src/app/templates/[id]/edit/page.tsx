@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
+import { headers } from "next/headers";
 
 import { api } from "~/trpc/server";
 import { TemplateForm } from "~/app/_components/template-form";
@@ -13,11 +14,17 @@ interface EditTemplatePageProps {
 export default async function EditTemplatePage({
   params,
 }: EditTemplatePageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
+
+  const session = await SessionCookie.get(mockRequest);
   const { id } = await params;
 
-  if (!user) {
+  if (!session || SessionCookie.isExpired(session)) {
     redirect("/sign-in");
   }
 
@@ -44,10 +51,12 @@ export default async function EditTemplatePage({
                   exercise &&
                   typeof exercise === "object" &&
                   !Array.isArray(exercise) &&
-                  typeof (exercise as { exerciseName?: unknown }).exerciseName === "string"
+                  typeof (exercise as { exerciseName?: unknown })
+                    .exerciseName === "string"
                 ) {
                   return {
-                    exerciseName: (exercise as { exerciseName: string }).exerciseName,
+                    exerciseName: (exercise as { exerciseName: string })
+                      .exerciseName,
                   };
                 }
 
@@ -66,13 +75,11 @@ export default async function EditTemplatePage({
 
   return (
     <main className="min-h-screen overflow-x-hidden">
-      <div className="container mx-auto px-4 py-6 w-full min-w-0">
+      <div className="container mx-auto w-full min-w-0 px-4 py-6">
         {/* Header */}
         <div className="mb-6 flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/templates">
-              ← Back
-            </Link>
+            <Link href="/templates">← Back</Link>
           </Button>
           <h1 className="text-2xl font-bold">Edit Template</h1>
         </div>

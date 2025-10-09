@@ -1,7 +1,6 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Open_Sans, Montserrat } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { PostHogProvider } from "~/providers/PostHogProvider";
@@ -16,6 +15,8 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
+export const runtime = "nodejs";
+
 export const viewport = {
   width: "device-width",
   initialScale: 1,
@@ -23,20 +24,6 @@ export const viewport = {
   userScalable: false,
   viewportFit: "cover", // Better Android/iOS handling for devices with notches
 };
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "900"],
-  variable: "--font-montserrat",
-  display: "swap",
-});
 
 export default function RootLayout({
   children,
@@ -68,11 +55,7 @@ export default function RootLayout({
     })();
   `;
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${openSans.variable} ${montserrat.variable} antialiased`}
-    >
+    <html lang="en" suppressHydrationWarning className="antialiased">
       <body>
         {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
         <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />

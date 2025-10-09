@@ -1,25 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock the analytics module
-vi.mock("~/lib/analytics", () => ({
-  analytics: {
-    pageView: vi.fn(),
-    workoutStarted: vi.fn(),
-    workoutCompleted: vi.fn(),
-    exerciseLogged: vi.fn(),
-    templateCreated: vi.fn(),
-    templateDeleted: vi.fn(),
-    templateEdited: vi.fn(),
-    templateDuplicated: vi.fn(),
-    weightUnitChanged: vi.fn(),
-    error: vi.fn(),
-    featureUsed: vi.fn(),
-    aiDebriefViewed: vi.fn(),
-    aiDebriefRegenerated: vi.fn(),
-    aiDebriefDismissed: vi.fn(),
-  },
-}));
-
 // Import after setting up mocks
 import { analytics } from "~/lib/analytics";
 
@@ -96,18 +76,18 @@ describe("analytics", () => {
 
   describe("error tracking", () => {
     it("should call error function with context", () => {
-      expect(() => {
-        const error = new Error("Test error");
-        const context = { userId: "user-123", page: "workout" };
-        analytics.error(error, context);
-      }).not.toThrow();
+      const error = new Error("Test error");
+      const context = { userId: "user-123", page: "workout" };
+      analytics.error(error, context);
+      // Test passes if no exception is thrown
+      expect(true).toBe(true);
     });
 
     it("should call error function without context", () => {
-      expect(() => {
-        const error = new Error("Test error");
-        analytics.error(error);
-      }).not.toThrow();
+      const error = new Error("Test error");
+      analytics.error(error);
+      // Test passes if no exception is thrown
+      expect(true).toBe(true);
     });
   });
 

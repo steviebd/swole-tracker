@@ -1,19 +1,17 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const session = await SessionCookie.get(request);
 
-    if (!user) {
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,7 +30,7 @@ export async function POST() {
         createdAt: externalWorkoutsWhoop.createdAt,
       })
       .from(externalWorkoutsWhoop)
-      .where(eq(externalWorkoutsWhoop.user_id, user.id))
+      .where(eq(externalWorkoutsWhoop.user_id, session.userId))
       .orderBy(externalWorkoutsWhoop.createdAt);
 
     // Group workouts by temporal key (start + end time)
@@ -82,7 +80,9 @@ export async function POST() {
         if (!a.score && b.score) return 1;
 
         // Prefer earliest created (first sync usually has better data)
-        return a.createdAt.getTime() - b.createdAt.getTime();
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       });
 
       const keepWorkout = sortedWorkouts[0]!;
@@ -101,8 +101,8 @@ export async function POST() {
         kept: keepWorkout.whoopWorkoutId,
         removed: removeWorkouts.map((w) => w.whoopWorkoutId),
         sport_name: keepWorkout.sport_name,
-        start: keepWorkout.start.toISOString(),
-        end: keepWorkout.end.toISOString(),
+        start: keepWorkout.start,
+        end: keepWorkout.end,
       });
     }
 

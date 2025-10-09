@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 
 export const runtime = "nodejs";
@@ -16,6 +16,74 @@ import {
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
+
+type RecoveryInsert = typeof whoopRecovery.$inferInsert;
+type CycleInsert = typeof whoopCycles.$inferInsert;
+type SleepInsert = typeof whoopSleep.$inferInsert;
+
+function safeParseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getErrorCause(error: unknown): unknown | undefined {
+  if (error && typeof error === "object" && "cause" in error) {
+    return (error as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("unique constraint failed") ||
+    message.includes("constraint failed") ||
+    message.includes("already exists")
+  );
+}
+
+async function insertRowsIndividually<RowType>(
+  rows: RowType[],
+  insertRow: (row: RowType) => Promise<void>,
+  options: { label: string; identify: (row: RowType) => string },
+): Promise<number> {
+  let inserted = 0;
+
+  for (const row of rows) {
+    try {
+      await insertRow(row);
+      inserted++;
+    } catch (error) {
+      const identifier = options.identify(row);
+
+      if (isUniqueConstraintError(error)) {
+        console.log(
+          `[${options.label}] Skipping duplicate ${identifier}: ${String(
+            error,
+          )}`,
+        );
+        continue;
+      }
+
+      console.error(
+        `[${options.label}] Failed to insert ${identifier}: ${String(error)}`,
+        error,
+      );
+
+      const cause = getErrorCause(error);
+      if (cause) {
+        console.error(
+          `[${options.label}] Additional details for ${identifier}:`,
+          cause,
+        );
+      }
+    }
+  }
+
+  return inserted;
+}
 
 interface WhoopWorkout {
   id: string;
@@ -174,7 +242,9 @@ async function syncWorkouts(
       .orderBy(desc(externalWorkoutsWhoop.start))
       .limit(1);
 
-    const since = latestWorkout?.start;
+    const since = latestWorkout?.start
+      ? new Date(latestWorkout.start)
+      : undefined;
     const workouts = await fetchWhoopDataV2<WhoopWorkout>(
       "activity/workout",
       accessToken,
@@ -213,18 +283,22 @@ async function syncWorkouts(
         try {
           await db
             .insert(externalWorkoutsWhoop)
-            .values({
-              user_id: userId,
-              whoopWorkoutId: workout.id,
-              start: new Date(workout.start),
-              end: new Date(workout.end),
-              timezone_offset: workout.timezone_offset,
-              sport_name: workout.sport_name,
-              score_state: workout.score_state,
-              score: workout.score,
-              during: workout.during,
-              zone_duration: workout.zone_duration,
-            })
+            .values([
+              {
+                user_id: userId,
+                whoopWorkoutId: workout.id,
+                start: new Date(workout.start),
+                end: new Date(workout.end),
+                timezone_offset: workout.timezone_offset,
+                sport_name: workout.sport_name,
+                score_state: workout.score_state,
+                score: workout.score ? JSON.stringify(workout.score) : null,
+                during: workout.during ? JSON.stringify(workout.during) : null,
+                zone_duration: workout.zone_duration
+                  ? JSON.stringify(workout.zone_duration)
+                  : null,
+              },
+            ])
             .onConflictDoNothing();
         } catch (insertError) {
           console.log(`Skipping duplicate workout ${workout.id}:`, insertError);
@@ -254,7 +328,9 @@ async function syncRecovery(
       .orderBy(desc(whoopRecovery.webhook_received_at))
       .limit(1);
 
-    const since = latestRecovery?.webhook_received_at;
+    const since = latestRecovery?.webhook_received_at
+      ? new Date(latestRecovery.webhook_received_at)
+      : undefined;
     // Use WHOOP API v2 recovery endpoint
     const recoveries = await fetchWhoopDataV2<WhoopRecovery>(
       "recovery",
@@ -291,43 +367,62 @@ async function syncRecovery(
       (r) => r.sleep_id && !existingIds.has(r.sleep_id),
     );
 
-    if (newRecoveries.length > 0) {
-      await db
-        .insert(whoopRecovery)
-        .values(
-          newRecoveries.map((recovery) => {
-            // Ensure we have a valid date string
-            let date: string;
-            if (
-              recovery.created_at &&
-              typeof recovery.created_at === "string"
-            ) {
-              const datePart = recovery.created_at.split("T")[0];
-              date = datePart || new Date().toISOString().split("T")[0]!;
-            } else {
-              date = new Date().toISOString().split("T")[0]!;
-            }
-
-            return {
-              user_id: userId,
-              whoop_recovery_id: recovery.sleep_id, // Use sleep_id as identifier in v2 API
-              cycle_id: recovery.cycle_id?.toString() || null,
-              date: date,
-              recovery_score: recovery.score?.recovery_score || null,
-              hrv_rmssd_milli:
-                recovery.score?.hrv_rmssd_milli?.toString() || null,
-              hrv_rmssd_baseline: null, // hrv_baseline not available in v2 API structure
-              resting_heart_rate: recovery.score?.resting_heart_rate || null,
-              resting_heart_rate_baseline: null, // hr_baseline not available in v2 API structure
-              raw_data: recovery,
-              timezone_offset: null,
-            };
-          }),
-        )
-        .onConflictDoNothing();
+    if (newRecoveries.length === 0) {
+      return 0;
     }
 
-    return newRecoveries.length;
+    const recoveryRows = newRecoveries
+      .map<RecoveryInsert | null>((recovery) => {
+        const whoopId = recovery.sleep_id?.toString();
+        if (!whoopId) {
+          console.warn("[Recovery Sync] Skipping record without sleep_id", recovery);
+          return null;
+        }
+
+        const createdAt = safeParseDate(recovery.created_at) ?? new Date();
+        const dateOnlyIso = createdAt.toISOString().split("T")[0]!;
+        const normalizedDate =
+          safeParseDate(dateOnlyIso) ??
+          safeParseDate(recovery.updated_at) ??
+          createdAt;
+
+        if (!normalizedDate) {
+          console.warn(
+            `[Recovery Sync] Skipping ${whoopId} due to invalid date payload`,
+            recovery,
+          );
+          return null;
+        }
+
+        return {
+          user_id: userId,
+          whoop_recovery_id: whoopId,
+          cycle_id: recovery.cycle_id?.toString() ?? null,
+          date: normalizedDate,
+          recovery_score: recovery.score?.recovery_score ?? null,
+          hrv_rmssd_milli: recovery.score?.hrv_rmssd_milli ?? null,
+          hrv_rmssd_baseline: null,
+          resting_heart_rate: recovery.score?.resting_heart_rate ?? null,
+          resting_heart_rate_baseline: null,
+          raw_data: JSON.stringify(recovery),
+          timezone_offset: null,
+        } satisfies RecoveryInsert;
+      })
+      .filter((row): row is RecoveryInsert => row !== null);
+
+    if (recoveryRows.length === 0) {
+      return 0;
+    }
+
+    return insertRowsIndividually<RecoveryInsert>(
+      recoveryRows,
+      (row) =>
+        db.insert(whoopRecovery).values(row).onConflictDoNothing(),
+      {
+        label: "Recovery Sync",
+        identify: (row) => row.whoop_recovery_id,
+      },
+    );
   } catch (error) {
     console.error("Error syncing recovery:", error);
     throw error;
@@ -347,7 +442,7 @@ async function syncCycles(
       .orderBy(desc(whoopCycles.start))
       .limit(1);
 
-    const since = latestCycle?.start;
+    const since = latestCycle?.start ? new Date(latestCycle.start) : undefined;
     const cycles = await fetchWhoopDataV2<WhoopCycle>(
       "cycle",
       accessToken,
@@ -374,27 +469,59 @@ async function syncCycles(
     const existingIds = new Set(existingCycles.map((c) => c.whoopCycleId));
     const newCycles = cycles.filter((c) => !existingIds.has(c.id));
 
-    if (newCycles.length > 0) {
-      await db
-        .insert(whoopCycles)
-        .values(
-          newCycles.map((cycle) => ({
-            user_id: userId,
-            whoop_cycle_id: cycle.id,
-            start: new Date(cycle.start),
-            end: new Date(cycle.end),
-            timezone_offset: cycle.timezone_offset || null,
-            day_strain: cycle.score?.strain?.toString() || null,
-            average_heart_rate: cycle.score?.average_heart_rate || null,
-            max_heart_rate: cycle.score?.max_heart_rate || null,
-            kilojoule: cycle.score?.kilojoule?.toString() || null,
-            raw_data: cycle,
-          })),
-        )
-        .onConflictDoNothing();
+    if (newCycles.length === 0) {
+      return 0;
     }
 
-    return newCycles.length;
+    const cycleRows = newCycles
+      .map<CycleInsert | null>((cycle) => {
+        const start = safeParseDate(cycle.start);
+        if (!start) {
+          console.warn(
+            `[Cycle Sync] Skipping cycle ${cycle.id} due to invalid start`,
+            cycle,
+          );
+          return null;
+        }
+
+        const end = safeParseDate(cycle.end) ?? start;
+        const whoopId = cycle.id?.toString();
+
+        if (!whoopId) {
+          console.warn(
+            "[Cycle Sync] Skipping cycle without identifier",
+            cycle,
+          );
+          return null;
+        }
+
+        return {
+          user_id: userId,
+          whoop_cycle_id: whoopId,
+          start,
+          end,
+          timezone_offset: cycle.timezone_offset ?? null,
+          day_strain: cycle.score?.strain ?? null,
+          average_heart_rate: cycle.score?.average_heart_rate ?? null,
+          max_heart_rate: cycle.score?.max_heart_rate ?? null,
+          kilojoule: cycle.score?.kilojoule ?? null,
+          raw_data: JSON.stringify(cycle),
+        } satisfies CycleInsert;
+      })
+      .filter((row): row is CycleInsert => row !== null);
+
+    if (cycleRows.length === 0) {
+      return 0;
+    }
+
+    return insertRowsIndividually<CycleInsert>(
+      cycleRows,
+      (row) => db.insert(whoopCycles).values(row).onConflictDoNothing(),
+      {
+        label: "Cycle Sync",
+        identify: (row) => row.whoop_cycle_id,
+      },
+    );
   } catch (error) {
     console.error("Error syncing cycles:", error);
     throw error;
@@ -411,7 +538,7 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
       .orderBy(desc(whoopSleep.start))
       .limit(1);
 
-    const since = latestSleep?.start;
+    const since = latestSleep?.start ? new Date(latestSleep.start) : undefined;
     const sleeps = await fetchWhoopDataV2<WhoopSleep>(
       "activity/sleep",
       accessToken,
@@ -438,43 +565,71 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
     const existingIds = new Set(existingSleeps.map((s) => s.whoopSleepId));
     const newSleeps = sleeps.filter((s) => !existingIds.has(s.id));
 
-    if (newSleeps.length > 0) {
-      await db
-        .insert(whoopSleep)
-        .values(
-          newSleeps.map((sleep) => ({
-            user_id: userId,
-            whoop_sleep_id: sleep.id,
-            start: new Date(sleep.start),
-            end: new Date(sleep.end),
-            timezone_offset: sleep.timezone_offset || null,
-            sleep_performance_percentage:
-              sleep.score?.sleep_performance_percentage || null,
-            total_sleep_time_milli:
-              sleep.score?.stage_summary?.total_in_bed_time_milli || null,
-            sleep_efficiency_percentage:
-              sleep.score?.sleep_efficiency_percentage?.toString() || null,
-            slow_wave_sleep_time_milli:
-              sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
-              null,
-            rem_sleep_time_milli:
-              sleep.score?.stage_summary?.total_rem_sleep_time_milli || null,
-            light_sleep_time_milli:
-              sleep.score?.stage_summary?.total_light_sleep_time_milli || null,
-            wake_time_milli:
-              sleep.score?.stage_summary?.total_awake_time_milli || null,
-            arousal_time_milli:
-              sleep.score?.stage_summary?.total_awake_time_milli || null, // Using awake as proxy
-            disturbance_count:
-              sleep.score?.stage_summary?.disturbance_count || null,
-            sleep_latency_milli: null, // Not available in API data
-            raw_data: sleep,
-          })),
-        )
-        .onConflictDoNothing();
+    if (newSleeps.length === 0) {
+      return 0;
     }
 
-    return newSleeps.length;
+    const sleepRows = newSleeps
+      .map<SleepInsert | null>((sleep) => {
+        const start = safeParseDate(sleep.start);
+        const end = safeParseDate(sleep.end);
+        const whoopId = sleep.id?.toString();
+
+        if (!whoopId) {
+          console.warn("[Sleep Sync] Skipping sleep without identifier", sleep);
+          return null;
+        }
+
+        if (!start || !end) {
+          console.warn(
+            `[Sleep Sync] Skipping ${whoopId} due to invalid timestamps`,
+            sleep,
+          );
+          return null;
+        }
+
+        return {
+          user_id: userId,
+          whoop_sleep_id: whoopId,
+          start,
+          end,
+          timezone_offset: sleep.timezone_offset ?? null,
+          sleep_performance_percentage:
+            sleep.score?.sleep_performance_percentage ?? null,
+          total_sleep_time_milli:
+            sleep.score?.stage_summary?.total_in_bed_time_milli ?? null,
+          sleep_efficiency_percentage:
+            sleep.score?.sleep_efficiency_percentage ?? null,
+          slow_wave_sleep_time_milli:
+            sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ?? null,
+          rem_sleep_time_milli:
+            sleep.score?.stage_summary?.total_rem_sleep_time_milli ?? null,
+          light_sleep_time_milli:
+            sleep.score?.stage_summary?.total_light_sleep_time_milli ?? null,
+          wake_time_milli:
+            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
+          arousal_time_milli:
+            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
+          disturbance_count:
+            sleep.score?.stage_summary?.disturbance_count ?? null,
+          sleep_latency_milli: null,
+          raw_data: JSON.stringify(sleep),
+        } satisfies SleepInsert;
+      })
+      .filter((row): row is SleepInsert => row !== null);
+
+    if (sleepRows.length === 0) {
+      return 0;
+    }
+
+    return insertRowsIndividually<SleepInsert>(
+      sleepRows,
+      (row) => db.insert(whoopSleep).values(row).onConflictDoNothing(),
+      {
+        label: "Sleep Sync",
+        identify: (row) => row.whoop_sleep_id,
+      },
+    );
   } catch (error) {
     console.error("Error syncing sleep:", error);
     throw error;
@@ -521,7 +676,7 @@ async function syncProfile(
           email: profile.email,
           first_name: profile.first_name,
           last_name: profile.last_name,
-          raw_data: profile,
+          raw_data: JSON.stringify(profile),
           last_updated: new Date(),
           updatedAt: new Date(),
         })
@@ -535,7 +690,7 @@ async function syncProfile(
         email: profile.email,
         first_name: profile.first_name,
         last_name: profile.last_name,
-        raw_data: profile,
+        raw_data: JSON.stringify(profile),
       });
       return 1; // New profile
     }
@@ -603,11 +758,11 @@ async function syncBodyMeasurements(
     const measurementData = {
       user_id: userId,
       whoop_measurement_id: `${userId}-${measurementDate}`, // Create synthetic ID
-      height_meter: measurement.height_meter?.toString() || null,
-      weight_kilogram: measurement.weight_kilogram?.toString() || null,
+      height_meter: measurement.height_meter || null,
+      weight_kilogram: measurement.weight_kilogram || null,
       max_heart_rate: measurement.max_heart_rate || null,
       measurement_date: measurementDate,
-      raw_data: measurement,
+      raw_data: JSON.stringify(measurement),
     };
 
     if (existingMeasurement) {
@@ -621,7 +776,7 @@ async function syncBodyMeasurements(
           height_meter: measurementData.height_meter,
           weight_kilogram: measurementData.weight_kilogram,
           max_heart_rate: measurementData.max_heart_rate,
-          measurement_date: measurementData.measurement_date,
+          measurement_date: new Date(measurementData.measurement_date),
           raw_data: measurementData.raw_data,
           updatedAt: new Date(),
         })
@@ -632,7 +787,10 @@ async function syncBodyMeasurements(
       console.log(
         `[Body Measurements Sync] Inserting new measurement for user ${userId}`,
       );
-      await db.insert(whoopBodyMeasurement).values(measurementData);
+      await db.insert(whoopBodyMeasurement).values({
+        ...measurementData,
+        measurement_date: new Date(measurementData.measurement_date),
+      });
       return 1; // New record
     }
   } catch (error) {
@@ -641,20 +799,16 @@ async function syncBodyMeasurements(
   }
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const session = await SessionCookie.get(request);
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check rate limit (allow 10 requests per hour for comprehensive sync)
     const rateLimitResult = await checkRateLimit(
-      user.id,
+      session.userId,
       "whoop_sync_all",
       10,
       60 * 60 * 1000,
@@ -675,7 +829,7 @@ export async function POST(_req: NextRequest) {
       .from(userIntegrations)
       .where(
         and(
-          eq(userIntegrations.user_id, user.id),
+          eq(userIntegrations.user_id, session.userId),
           eq(userIntegrations.provider, "whoop"),
           eq(userIntegrations.isActive, true),
         ),
@@ -692,7 +846,7 @@ export async function POST(_req: NextRequest) {
     }
 
     // Get valid access token (handles decryption and rotation automatically)
-    const tokenResult = await getValidAccessToken(user.id, "whoop");
+    const tokenResult = await getValidAccessToken(session.userId, "whoop");
 
     if (!tokenResult.token) {
       return NextResponse.json(
@@ -723,7 +877,7 @@ export async function POST(_req: NextRequest) {
     let tokenInvalid = false;
 
     try {
-      results.workouts = await syncWorkouts(user.id, accessToken);
+      results.workouts = await syncWorkouts(session.userId, accessToken);
     } catch (error) {
       const errorStr = String(error);
       // Check for 401 status in error object or error message
@@ -736,7 +890,7 @@ export async function POST(_req: NextRequest) {
     // Skip other syncs if token is invalid to avoid multiple 401s
     if (!tokenInvalid) {
       try {
-        results.recovery = await syncRecovery(user.id, accessToken);
+        results.recovery = await syncRecovery(session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -747,7 +901,7 @@ export async function POST(_req: NextRequest) {
 
       // Note: Cycles endpoint may not be available for all WHOOP OAuth apps
       try {
-        results.cycles = await syncCycles(user.id, accessToken);
+        results.cycles = await syncCycles(session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -761,7 +915,7 @@ export async function POST(_req: NextRequest) {
       }
 
       try {
-        results.sleep = await syncSleep(user.id, accessToken);
+        results.sleep = await syncSleep(session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -772,7 +926,7 @@ export async function POST(_req: NextRequest) {
 
       // Profile and body measurements may not be available for all WHOOP OAuth apps
       try {
-        results.profile = await syncProfile(user.id, accessToken);
+        results.profile = await syncProfile(session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -786,7 +940,7 @@ export async function POST(_req: NextRequest) {
 
       try {
         results.bodyMeasurements = await syncBodyMeasurements(
-          user.id,
+          session.userId,
           accessToken,
         );
       } catch (error) {

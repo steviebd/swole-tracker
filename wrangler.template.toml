@@ -1,0 +1,79 @@
+name = "swole-tracker"
+main = ".open-next/worker.js"
+compatibility_date = "2024-10-03"
+account_id = "{{ CLOUDFLARE_ACCOUNT_ID }}"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[build]
+command = "bash scripts/opennext-build.sh"
+
+[assets]
+binding = "ASSETS"
+directory = ".open-next/assets"
+
+[env.dev]
+name = "swole-tracker-dev"
+compatibility_flags = ["nodejs_compat"]
+
+  [env.dev.dev]
+  port = 8787
+
+  [env.dev.vars]
+  WORKOS_CLIENT_ID = "client_placeholder_value_for_dev"
+  WORKOS_API_KEY = "sk_test_placeholder_value_for_dev_testing_only"
+  WORKOS_COOKIE_PASSWORD = "placeholder_cookie_password_32_chars_min"
+  ENCRYPTION_MASTER_KEY = "placeholder_encryption_key_32_chars_minimum_length"
+  WORKER_SESSION_SECRET = "placeholder_session_secret_32_chars_minimum_length"
+  WHOOP_CLIENT_ID = "placeholder_whoop_client_id_for_dev"
+  WHOOP_CLIENT_SECRET = "placeholder_whoop_client_secret_32_chars_min"
+  WHOOP_WEBHOOK_SECRET = "placeholder_whoop_webhook_secret_32_chars_min"
+  WHOOP_SYNC_RATE_LIMIT_PER_HOUR = "10"
+  AI_GATEWAY_API_KEY = "placeholder_ai_gateway_key_for_dev_testing"
+  AI_GATEWAY_MODEL = "xai/grok-4-fast-reasoning"
+  AI_GATEWAY_PROMPT = "placeholder_ai_gateway_prompt_for_dev_testing"
+  AI_GATEWAY_JOKE_MEMORY_NUMBER = "3"
+  AI_GATEWAY_MODEL_HEALTH = "xai/grok-3-mini"
+  AI_DEBRIEF_MODEL = "xai/grok-3-mini"
+  AI_DEBRIEF_TEMPERATURE = "0.7"
+  VERCEL_AI_GATEWAY_API_KEY = "placeholder_vercel_ai_gateway_key_for_dev"
+  NEXT_PUBLIC_POSTHOG_KEY = "placeholder_posthog_key_for_dev_testing"
+  NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com"
+  NEXT_PUBLIC_SITE_URL = "http://localhost:8787"
+  RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = "100"
+  RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = "200"
+  RATE_LIMIT_API_CALLS_PER_MINUTE = "60"
+  RATE_LIMIT_ENABLED = "false"
+
+  [[env.dev.d1_databases]]
+  binding = "DB"
+  database_name = "swole-tracker-dev"
+  database_id = "{{ D1_DB_ID }}"
+  remote = true
+
+[env.staging]
+name = "swole-tracker-staging"
+compatibility_flags = ["nodejs_compat"]
+
+  [[env.staging.d1_databases]]
+  binding = "DB"
+  database_id = "{{ D1_DB_ID }}"
+
+[env.production]
+name = "swole-tracker-prod"
+compatibility_flags = ["nodejs_compat"]
+
+  [[env.production.d1_databases]]
+  binding = "DB"
+  database_id = "{{ D1_DB_ID }}"
+
+[env.preview]
+name = "swole-tracker-preview"
+compatibility_flags = ["nodejs_compat"]
+
+  [[env.preview.d1_databases]]
+  binding = "DB"
+  database_id = "{{ D1_DB_ID }}"

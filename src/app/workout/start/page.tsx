@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
+import { headers } from "next/headers";
 
 import { api } from "~/trpc/server";
 import ClientHydrate from "~/trpc/HydrateClient";
@@ -19,12 +20,18 @@ interface StartWorkoutPageProps {
 export default async function StartWorkoutPage({
   searchParams,
 }: StartWorkoutPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
+
+  const session = await SessionCookie.get(mockRequest);
   const { templateId } = await searchParams;
 
-  if (!user) {
-    redirect("/sign-in");
+  if (!session || SessionCookie.isExpired(session)) {
+    redirect("/auth/login");
   }
 
   // SSR prefetch + hydrate to speed up template loading and recent list
@@ -44,17 +51,23 @@ export default async function StartWorkoutPage({
   return (
     <ClientHydrate state={state}>
       <main className="min-h-screen">
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="container mx-auto max-w-7xl px-4 py-6">
           {/* Page Header */}
           <div className="mb-4 sm:mb-6">
             <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/" className="flex-shrink-0">← Back</Link>
+                  <Link href="/" className="flex-shrink-0">
+                    ← Back
+                  </Link>
                 </Button>
                 <div>
-                  <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Start Workout</h1>
-                  <p className="text-sm text-muted-foreground">Choose a template or start from scratch</p>
+                  <h1 className="text-lg font-bold sm:text-xl md:text-2xl">
+                    Start Workout
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    Choose a template or start from scratch
+                  </p>
                 </div>
               </div>
             </div>

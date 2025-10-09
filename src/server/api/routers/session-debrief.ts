@@ -302,7 +302,7 @@ export const sessionDebriefRouter = createTRPCRouter({
 
       const [updated] = await ctx.db
         .update(sessionDebriefs)
-        .set({ metadata: parsed })
+        .set({ metadata: JSON.stringify(parsed) })
         .where(eq(sessionDebriefs.id, target.id))
         .returning();
 

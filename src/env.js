@@ -7,6 +7,20 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
+    // Cloudflare Workers environment
+    CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+    CLOUDFLARE_API_TOKEN: z.string().optional(),
+    // D1 Database binding (provided by Workers runtime)
+    DB: z.any().optional(),
+
+    // WorkOS Authentication
+    WORKOS_API_KEY: z.string().optional(),
+    WORKOS_CLIENT_ID: z.string().optional(),
+    WORKOS_REDIRECT_URI: z.string().url().optional(),
+
+    // Worker session management
+    WORKER_SESSION_SECRET: z.string().min(32).optional(),
+
     DATABASE_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
@@ -39,28 +53,22 @@ export const env = createEnv({
     RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR: z.coerce.number().default(200),
     RATE_LIMIT_API_CALLS_PER_MINUTE: z.coerce.number().default(60),
     RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
-    // Supabase service role (server-side only for admin operations)
-    SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+
     // Encryption key for sensitive data at rest (OAuth tokens, etc.)
     ENCRYPTION_MASTER_KEY: z.string().min(32).optional(),
   },
-
   /**
    * Specify your client-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars. To expose them to the client, prefix them with
    * `NEXT_PUBLIC_`.
    */
   client: {
+    NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
     NEXT_PUBLIC_POSTHOG_KEY: z.string().default("phc_test_dummy"),
     NEXT_PUBLIC_POSTHOG_HOST: z
       .string()
       .url()
       .default("https://us.i.posthog.com"),
-    NEXT_PUBLIC_SUPABASE_URL: z
-      .string()
-      .url()
-      .default("https://test.supabase.co"),
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default("supabase_test_key"),
   },
 
   /**
@@ -68,11 +76,24 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    // Cloudflare Workers environment
+    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+    // D1 Database binding (provided by Workers runtime)
+    DB: process.env.DB,
+
+    // WorkOS Authentication
+    WORKOS_API_KEY: process.env.WORKOS_API_KEY,
+    WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
+    WORKOS_REDIRECT_URI: process.env.WORKOS_REDIRECT_URI,
+
+    // Worker session management
+    WORKER_SESSION_SECRET: process.env.WORKER_SESSION_SECRET,
+
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
@@ -100,9 +121,11 @@ export const env = createEnv({
   },
   /**
    * Environment validation is always enforced for security.
-   * Only skip validation in Vercel preview environments to allow deployments.
+   * Skip validation in development and Vercel preview environments.
    */
-  skipValidation: process.env.VERCEL_ENV === "preview",
+  skipValidation:
+    process.env.NODE_ENV === "development" ||
+    process.env.VERCEL_ENV === "preview",
   /**
    * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
    * `SOME_VAR=''` will throw an error.

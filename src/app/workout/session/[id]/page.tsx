@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
+import { headers } from "next/headers";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
@@ -14,12 +15,18 @@ interface WorkoutSessionPageProps {
 export default async function WorkoutSessionPage({
   params,
 }: WorkoutSessionPageProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const mockRequest = {
+    headers: {
+      get: (name: string) => headersList.get(name),
+    },
+  } as Request;
+
+  const session = await SessionCookie.get(mockRequest);
   const { id } = await params;
 
-  if (!user) {
-    redirect("/sign-in");
+  if (!session || SessionCookie.isExpired(session)) {
+    redirect("/auth/login");
   }
 
   const sessionId = parseInt(id);
@@ -88,7 +95,7 @@ export default async function WorkoutSessionPage({
           }
         />
 
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 w-full min-w-0">
+        <div className="container mx-auto w-full min-w-0 px-3 py-4 sm:px-4 sm:py-6">
           {/* Workout Session with Health Advice */}
           <WorkoutSessionWithHealthAdvice sessionId={sessionId} />
         </div>

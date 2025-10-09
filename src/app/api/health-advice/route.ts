@@ -23,7 +23,7 @@ import {
   templateExercises as templateExercisesTable,
 } from "~/server/db/schema";
 import { eq, and, desc, gte, asc } from "drizzle-orm";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { logger } from "~/lib/logger";
 
 export const runtime = "nodejs";
@@ -70,12 +70,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Get authenticated user for WHOOP data fetching
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const session = await SessionCookie.get(req);
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
@@ -114,7 +110,7 @@ export async function POST(req: NextRequest) {
         .from(userIntegrations)
         .where(
           and(
-            eq(userIntegrations.user_id, user.id),
+            eq(userIntegrations.user_id, session.userId),
             eq(userIntegrations.provider, "whoop"),
             eq(userIntegrations.isActive, true),
           ),
@@ -129,8 +125,8 @@ export async function POST(req: NextRequest) {
         // Fetch latest recovery data from database (stored via webhooks)
         const latestRecovery = await db.query.whoopRecovery.findFirst({
           where: and(
-            eq(whoopRecovery.user_id, user.id),
-            gte(whoopRecovery.date, dateString), // Look back 2 days for recent data
+            eq(whoopRecovery.user_id, session.userId),
+            gte(whoopRecovery.date, new Date(dateString)), // Look back 2 days for recent data
           ),
           orderBy: desc(whoopRecovery.date),
         });
@@ -138,8 +134,8 @@ export async function POST(req: NextRequest) {
         // Fetch latest sleep data from database (stored via webhooks)
         const latestSleep = await db.query.whoopSleep.findFirst({
           where: and(
-            eq(whoopSleep.user_id, user.id),
-            gte(whoopSleep.start, todayMinus2Days), // Sleep uses timestamp, can use Date object
+            eq(whoopSleep.user_id, session.userId),
+            gte(whoopSleep.start, todayMinus2Days), // Sleep uses timestamp
           ),
           orderBy: desc(whoopSleep.start),
         });
@@ -156,10 +152,10 @@ export async function POST(req: NextRequest) {
               realWhoopData.sleep_performance ||
               defaultWhoopData.sleep_performance,
             hrv_now_ms: latestRecovery?.hrv_rmssd_milli
-              ? parseFloat(latestRecovery.hrv_rmssd_milli)
+              ? latestRecovery.hrv_rmssd_milli
               : realWhoopData.hrv_now_ms || defaultWhoopData.hrv_now_ms,
             hrv_baseline_ms: latestRecovery?.hrv_rmssd_baseline
-              ? parseFloat(latestRecovery.hrv_rmssd_baseline)
+              ? latestRecovery.hrv_rmssd_baseline
               : realWhoopData.hrv_baseline_ms ||
                 defaultWhoopData.hrv_baseline_ms,
             rhr_now_bpm:
@@ -176,7 +172,7 @@ export async function POST(req: NextRequest) {
           };
 
           logger.info("using_stored_whoop_data", {
-            userId: user?.id,
+            userId: session.userId,
             recovery_score: realWhoopData.recovery_score,
             sleep_performance: realWhoopData.sleep_performance,
             data_sources: [
@@ -185,14 +181,14 @@ export async function POST(req: NextRequest) {
             ].filter(Boolean),
           });
         } else {
-          logger.warn("no_recent_whoop_data", { userId: user?.id });
+          logger.warn("no_recent_whoop_data", { userId: session.userId });
         }
       }
     } catch (error) {
       logger.error(
         "Failed to fetch WHOOP data from database, using fallback",
         error,
-        { userId: user?.id },
+        { userId: session.userId },
       );
       // Continue with fallback data
     }
@@ -295,7 +291,7 @@ export async function POST(req: NextRequest) {
     let userProgressionPrefs = null;
     try {
       userProgressionPrefs = await db.query.userPreferences.findFirst({
-        where: eq(userPreferences.user_id, user.id),
+        where: eq(userPreferences.user_id, session.userId),
       });
     } catch (error) {
       console.error("Error fetching user preferences:", error);
@@ -342,10 +338,10 @@ export async function POST(req: NextRequest) {
             | "adaptive") || "adaptive",
           {
             linearIncrement: userProgressionPrefs?.linear_progression_kg
-              ? parseFloat(userProgressionPrefs.linear_progression_kg)
+              ? userProgressionPrefs.linear_progression_kg
               : 2.5,
             percentageIncrement: userProgressionPrefs?.percentage_progression
-              ? parseFloat(userProgressionPrefs.percentage_progression)
+              ? userProgressionPrefs.percentage_progression
               : 2.5,
           },
         );
@@ -679,7 +675,7 @@ export async function POST(req: NextRequest) {
           // Batch query: Get all exercise links for template exercises in one query
           const exerciseLinksForTemplate =
             await db.query.exerciseLinks.findMany({
-              where: and(eq(exerciseLinks.user_id, user.id)),
+              where: and(eq(exerciseLinks.user_id, session.userId)),
               with: {
                 templateExercise: {
                   with: {
@@ -778,7 +774,7 @@ export async function POST(req: NextRequest) {
           });
         } catch (error) {
           logger.error("Error fetching exercise linking data", error, {
-            userId: user?.id,
+            userId: session.userId,
           });
           // Return fallback data for all exercises
           return templateExercises.map((ex) => ({

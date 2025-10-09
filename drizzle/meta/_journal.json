@@ -1,61 +1,33 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "sqlite",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1753686345376,
-      "tag": "0000_dashing_goblin_queen",
+      "version": "6",
+      "when": 1759493498937,
+      "tag": "0000_cloudy_morbius",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "7",
-      "when": 1753761143628,
-      "tag": "0001_yummy_malcolm_colcord",
+      "version": "6",
+      "when": 1759964008292,
+      "tag": "0001_brainy_randall_flagg",
       "breakpoints": true
     },
     {
       "idx": 2,
-      "version": "7",
-      "when": 1753933012880,
-      "tag": "0002_lying_gateway",
+      "version": "6",
+      "when": 1760071890000,
+      "tag": "0002_dedupe_templates",
       "breakpoints": true
     },
     {
       "idx": 3,
-      "version": "7",
-      "when": 1754482511952,
-      "tag": "0003_glossy_post",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1754623297331,
-      "tag": "0004_bumpy_husk",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1754954764298,
-      "tag": "0005_skinny_jackal",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1755048183444,
-      "tag": "0006_previous_madelyne_pryor",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1755600000000,
-      "tag": "0007_ai_debrief_feed",
+      "version": "6",
+      "when": 1759990487263,
+      "tag": "0003_spooky_arachne",
       "breakpoints": true
     }
   ]

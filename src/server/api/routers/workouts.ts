@@ -120,7 +120,8 @@ export const workoutsRouter = createTRPCRouter({
                 template &&
                 typeof template === "object" &&
                 !Array.isArray(template) &&
-                typeof (template as { exerciseName?: unknown }).exerciseName === "string"
+                typeof (template as { exerciseName?: unknown }).exerciseName ===
+                  "string"
               ) {
                 return (template as { exerciseName: string }).exerciseName;
               }
@@ -176,7 +177,7 @@ export const workoutsRouter = createTRPCRouter({
 
       const sets = lastExerciseSets.map((set, index) => ({
         id: `prev-${index}`,
-        weight: set.weight ? parseFloat(set.weight) : undefined,
+        weight: set.weight || undefined,
         reps: set.reps,
         sets: set.sets ?? 1,
         unit: set.unit as "kg" | "lbs",
@@ -396,24 +397,20 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         templateId: z.number(),
         workoutDate: z.date().default(() => new Date()),
-        // Phase 3 telemetry (optional on start)
-        theme_used: z.string().max(20).optional(),
-        device_type: z
-          .enum(["android", "ios", "desktop", "ipad", "other"])
-          .optional(),
-        perf_metrics: z.any().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        logger.debug("Starting workout session", { templateId: input.templateId });
-        
+        logger.debug("Starting workout session", {
+          templateId: input.templateId,
+        });
+
         // Check for recent duplicate session (within last 2 minutes)
         const recentSession = await ctx.db.query.workoutSessions.findFirst({
           where: and(
             eq(workoutSessions.user_id, ctx.user.id),
             eq(workoutSessions.templateId, input.templateId),
-            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)) // Within last 2 minutes
+            gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)), // Within last 2 minutes
           ),
           orderBy: [desc(workoutSessions.workoutDate)],
           with: {
@@ -423,8 +420,10 @@ export const workoutsRouter = createTRPCRouter({
 
         // If we found a recent session with the same template and no exercises (just started), return it
         if (recentSession && recentSession.exercises.length === 0) {
-          logger.debug("Returning existing recent session", { sessionId: recentSession.id });
-          
+          logger.debug("Returning existing recent session", {
+            sessionId: recentSession.id,
+          });
+
           // Get the template info for the response
           const template = await ctx.db.query.workoutTemplates.findFirst({
             where: eq(workoutTemplates.id, input.templateId),
@@ -440,7 +439,7 @@ export const workoutsRouter = createTRPCRouter({
             template,
           };
         }
-        
+
         // Verify template ownership
         const template = await ctx.db.query.workoutTemplates.findFirst({
           where: eq(workoutTemplates.id, input.templateId),
@@ -464,10 +463,6 @@ export const workoutsRouter = createTRPCRouter({
             user_id: ctx.user.id,
             templateId: input.templateId,
             workoutDate: input.workoutDate,
-            // Phase 3 persistence
-            theme_used: input.theme_used ?? null,
-            device_type: input.device_type ?? null,
-            perf_metrics: input.perf_metrics ?? null,
           })
           .returning();
 
@@ -507,12 +502,6 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         sessionId: z.number(),
         exercises: z.array(exerciseInputSchema),
-        // Phase 3 telemetry on save (optional updates)
-        theme_used: z.string().max(20).optional(),
-        device_type: z
-          .enum(["android", "ios", "desktop", "ipad", "other"])
-          .optional(),
-        perf_metrics: z.any().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -523,31 +512,6 @@ export const workoutsRouter = createTRPCRouter({
 
       if (!session || session.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
-      }
-
-      // Optionally update session telemetry fields on save
-      if (
-        typeof input.theme_used !== "undefined" ||
-        typeof input.device_type !== "undefined" ||
-        typeof input.perf_metrics !== "undefined"
-      ) {
-        await ctx.db
-          .update(workoutSessions)
-          .set({
-            theme_used:
-              typeof input.theme_used !== "undefined"
-                ? input.theme_used
-                : undefined,
-            device_type:
-              typeof input.device_type !== "undefined"
-                ? input.device_type
-                : undefined,
-            perf_metrics:
-              typeof input.perf_metrics !== "undefined"
-                ? input.perf_metrics
-                : undefined,
-          })
-          .where(eq(workoutSessions.id, input.sessionId));
       }
 
       // Delete existing exercises for this session
@@ -572,7 +536,7 @@ export const workoutsRouter = createTRPCRouter({
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,
             setOrder: setIndex,
-            weight: set.weight?.toString(),
+            weight: set.weight,
             reps: set.reps,
             sets: set.sets,
             unit: set.unit,
@@ -629,9 +593,9 @@ export const workoutsRouter = createTRPCRouter({
             weight: z.number().optional(),
             reps: z.number().int().positive().optional(),
             unit: z.enum(["kg", "lbs"]).default("kg"),
-          })
+          }),
         ),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       // Verify session ownership
@@ -652,10 +616,12 @@ export const workoutsRouter = createTRPCRouter({
 
       // Apply updates to session exercises
       for (const update of input.updates) {
-        console.log(`Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`);
-        
+        console.log(
+          `Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`,
+        );
+
         let setIndex: number;
-        
+
         // Use setIndex if provided, otherwise parse from setId
         if (update.setIndex !== undefined) {
           setIndex = update.setIndex;
@@ -668,36 +634,44 @@ export const workoutsRouter = createTRPCRouter({
             continue;
           }
           setIndex = parseInt(setIdMatch[1]) - 1; // Convert to 0-based index
-          console.log(`Parsed setIndex from setId: ${setIndex} (from ${setIdMatch[1]})`);
+          console.log(
+            `Parsed setIndex from setId: ${setIndex} (from ${setIdMatch[1]})`,
+          );
         }
 
         // Find exercises matching the exercise name
         const exerciseMatches = session.exercises.filter(
-          (ex) => ex.exerciseName === update.exerciseName
+          (ex) => ex.exerciseName === update.exerciseName,
         );
-        console.log(`Found ${exerciseMatches.length} matching exercises for ${update.exerciseName}`);
+        console.log(
+          `Found ${exerciseMatches.length} matching exercises for ${update.exerciseName}`,
+        );
 
         // Find the specific set by index within the exercise
         if (setIndex >= 0 && setIndex < exerciseMatches.length) {
           const targetExercise = exerciseMatches[setIndex];
-          
+
           if (targetExercise) {
-            console.log(`Updating exercise ID ${targetExercise.id} with weight: ${update.weight}, reps: ${update.reps}`);
+            console.log(
+              `Updating exercise ID ${targetExercise.id} with weight: ${update.weight}, reps: ${update.reps}`,
+            );
             // Update the existing set
             await ctx.db
               .update(sessionExercises)
               .set({
-                weight: update.weight !== undefined ? update.weight.toString() : undefined,
+                weight: update.weight,
                 reps: update.reps,
                 unit: update.unit,
               })
               .where(eq(sessionExercises.id, targetExercise.id));
-            
+
             updatedCount++;
             console.log(`Successfully updated set ${targetExercise.id}`);
           }
         } else {
-          console.warn(`Set index ${setIndex} out of range for exercise ${update.exerciseName}. Available sets: ${exerciseMatches.length}`);
+          console.warn(
+            `Set index ${setIndex} out of range for exercise ${update.exerciseName}. Available sets: ${exerciseMatches.length}`,
+          );
         }
       }
 

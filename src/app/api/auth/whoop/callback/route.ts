@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
@@ -8,16 +8,14 @@ import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
 import { encryptToken } from "~/lib/encryption";
+import { resolveWhoopRedirectUri } from "~/lib/site-url";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    const session = await SessionCookie.get(request);
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.redirect(
         `${request.nextUrl.origin}/connect-whoop?error=unauthorized`,
       );
@@ -46,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const stateValidation = await validateOAuthState(
       state,
-      user.id,
+      session.userId,
       "whoop",
       clientIp,
       userAgent,
@@ -65,9 +63,7 @@ export async function GET(request: NextRequest) {
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
 
-    const redirectUri =
-      env.WHOOP_REDIRECT_URI ||
-      `${request.nextUrl.origin}/api/auth/whoop/callback`;
+    const redirectUri = resolveWhoopRedirectUri(request.nextUrl);
 
     // Get the authorization code (we already validated state)
     const code = searchParams.get("code");
@@ -135,9 +131,9 @@ export async function GET(request: NextRequest) {
       : null;
 
     // Encrypt tokens before storing in database
-    const encryptedAccessToken = encryptToken(tok.access_token!);
+    const encryptedAccessToken = await encryptToken(tok.access_token!);
     const encryptedRefreshToken = tok.refresh_token
-      ? encryptToken(tok.refresh_token)
+      ? await encryptToken(tok.refresh_token)
       : null;
 
     // Store encrypted tokens in database (upsert pattern)
@@ -146,7 +142,7 @@ export async function GET(request: NextRequest) {
       .from(userIntegrations)
       .where(
         and(
-          eq(userIntegrations.user_id, user.id),
+          eq(userIntegrations.user_id, session.userId),
           eq(userIntegrations.provider, "whoop"),
         ),
       );
@@ -157,7 +153,7 @@ export async function GET(request: NextRequest) {
         .set({
           accessToken: encryptedAccessToken,
           refreshToken: encryptedRefreshToken,
-          expiresAt,
+          expiresAt: expiresAt,
           scope:
             tok.scope ??
             "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
@@ -166,17 +162,17 @@ export async function GET(request: NextRequest) {
         })
         .where(
           and(
-            eq(userIntegrations.user_id, user.id),
+            eq(userIntegrations.user_id, session.userId),
             eq(userIntegrations.provider, "whoop"),
           ),
         );
     } else {
       await db.insert(userIntegrations).values({
-        user_id: user.id,
+        user_id: session.userId,
         provider: "whoop",
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
-        expiresAt,
+        expiresAt: expiresAt,
         scope:
           tok.scope ??
           "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",

@@ -7,11 +7,10 @@ import {
 } from "~/lib/whoop-webhook";
 import { getValidAccessToken } from "~/lib/token-rotation";
 import { db } from "~/server/db";
-import {
-  webhookEvents,
-  whoopSleep,
-} from "~/server/db/schema";
+import { webhookEvents, whoopSleep } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+
+export const runtime = "nodejs";
 
 interface WhoopSleepData {
   id: string;
@@ -71,7 +70,9 @@ async function fetchSleepFromWhoop(
     const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
 
     if (!tokenResult.token) {
-      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
+      console.error(
+        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+      );
       return null;
     }
 
@@ -106,11 +107,8 @@ async function fetchSleepFromWhoop(
     if (typeof obj.id === "string") {
       return obj as unknown as WhoopSleepData;
     }
-    
-    console.error(
-      "Sleep data failed runtime validation in fetch",
-      sleepData,
-    );
+
+    console.error("Sleep data failed runtime validation in fetch", sleepData);
     return null;
   } catch (error) {
     console.error(`Error fetching sleep ${sleepId} from Whoop API:`, error);
@@ -156,17 +154,19 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
           start: sleepData.start ? new Date(sleepData.start) : new Date(),
           end: sleepData.end ? new Date(sleepData.end) : new Date(),
           timezone_offset: sleepData.timezone_offset || null,
-          sleep_performance_percentage: sleepData.score?.sleep_performance_percentage || null,
+          sleep_performance_percentage:
+            sleepData.score?.sleep_performance_percentage || null,
           total_sleep_time_milli: stageSum?.total_sleep_time_milli || null,
-          sleep_efficiency_percentage: stageSum?.sleep_efficiency_percentage?.toString() || null,
-          slow_wave_sleep_time_milli: stageSum?.slow_wave_sleep_time_milli || null,
+          sleep_efficiency_percentage:
+            stageSum?.sleep_efficiency_percentage || null,
+          slow_wave_sleep_time_milli:
+            stageSum?.slow_wave_sleep_time_milli || null,
           rem_sleep_time_milli: stageSum?.rem_sleep_time_milli || null,
           light_sleep_time_milli: stageSum?.light_sleep_time_milli || null,
           wake_time_milli: stageSum?.wake_time_milli || null,
           arousal_time_milli: stageSum?.arousal_time_milli || null,
           disturbance_count: stageSum?.disturbance_count || null,
-          sleep_latency_milli: stageSum?.sleep_latency_milli || null,
-          raw_data: sleepData as unknown,
+          raw_data: JSON.stringify(sleepData),
           updatedAt: new Date(),
         })
         .where(eq(whoopSleep.whoop_sleep_id, sleepId));
@@ -175,24 +175,29 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
       console.log(
         `Inserting new sleep ${sleepId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
-      await db.insert(whoopSleep).values({
-        user_id: dbUserId,
-        whoop_sleep_id: sleepId,
-        start: sleepData.start ? new Date(sleepData.start) : new Date(),
-        end: sleepData.end ? new Date(sleepData.end) : new Date(),
-        timezone_offset: sleepData.timezone_offset || null,
-        sleep_performance_percentage: sleepData.score?.sleep_performance_percentage || null,
-        total_sleep_time_milli: stageSum?.total_sleep_time_milli || null,
-        sleep_efficiency_percentage: stageSum?.sleep_efficiency_percentage?.toString() || null,
-        slow_wave_sleep_time_milli: stageSum?.slow_wave_sleep_time_milli || null,
-        rem_sleep_time_milli: stageSum?.rem_sleep_time_milli || null,
-        light_sleep_time_milli: stageSum?.light_sleep_time_milli || null,
-        wake_time_milli: stageSum?.wake_time_milli || null,
-        arousal_time_milli: stageSum?.arousal_time_milli || null,
-        disturbance_count: stageSum?.disturbance_count || null,
-        sleep_latency_milli: stageSum?.sleep_latency_milli || null,
-        raw_data: sleepData as unknown,
-      });
+      await db.insert(whoopSleep).values([
+        {
+          user_id: dbUserId,
+          whoop_sleep_id: sleepId,
+          start: sleepData.start ? new Date(sleepData.start) : new Date(),
+          end: sleepData.end ? new Date(sleepData.end) : new Date(),
+          timezone_offset: sleepData.timezone_offset || null,
+          sleep_performance_percentage:
+            sleepData.score?.sleep_performance_percentage || null,
+          total_sleep_time_milli: stageSum?.total_sleep_time_milli || null,
+          sleep_efficiency_percentage:
+            stageSum?.sleep_efficiency_percentage || null,
+          slow_wave_sleep_time_milli:
+            stageSum?.slow_wave_sleep_time_milli || null,
+          rem_sleep_time_milli: stageSum?.rem_sleep_time_milli || null,
+          light_sleep_time_milli: stageSum?.light_sleep_time_milli || null,
+          wake_time_milli: stageSum?.wake_time_milli || null,
+          arousal_time_milli: stageSum?.arousal_time_milli || null,
+          disturbance_count: stageSum?.disturbance_count || null,
+          sleep_latency_milli: stageSum?.sleep_latency_milli || null,
+          raw_data: JSON.stringify(sleepData),
+        },
+      ]);
     }
 
     console.log(`Successfully processed sleep update for ${sleepId}`);
@@ -222,11 +227,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -256,20 +261,22 @@ export async function POST(request: NextRequest) {
     try {
       const [webhookEvent] = await db
         .insert(webhookEvents)
-        .values({
-          provider: "whoop",
-          eventType: payload.type,
-          externalUserId: payload.user_id.toString(),
-          externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
-            signature: webhookHeaders.signature,
-            timestamp: webhookHeaders.timestamp,
-            userAgent: request.headers.get("user-agent") ?? undefined,
-            contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
-          status: "received",
-        })
+        .values([
+          {
+            provider: "whoop",
+            eventType: payload.type,
+            externalUserId: payload.user_id.toString(),
+            externalEntityId: payload.id.toString(),
+            payload: JSON.stringify(payload),
+            headers: JSON.stringify({
+              signature: webhookHeaders.signature,
+              timestamp: webhookHeaders.timestamp,
+              userAgent: request.headers.get("user-agent") ?? undefined,
+              contentType: request.headers.get("content-type") ?? undefined,
+            }),
+            status: "received",
+          },
+        ])
         .returning({ id: webhookEvents.id });
 
       webhookEventId = webhookEvent?.id ?? null;

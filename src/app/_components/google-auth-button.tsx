@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserSupabaseClient } from "~/lib/supabase-browser";
 import { Button } from "~/components/ui/button";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 
@@ -16,26 +15,16 @@ export function GoogleAuthButton({
 }: GoogleAuthButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createBrowserSupabaseClient();
 
   const handleGoogleAuth = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(redirectTo)}`,
-        },
-      });
-
-      if (error) {
-        setError(error.message);
-      }
+      // Redirect to WorkOS login endpoint
+      window.location.href = `/api/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
     } catch {
       setError("An unexpected error occurred during Google authentication");
-    } finally {
       setIsLoading(false);
     }
   };

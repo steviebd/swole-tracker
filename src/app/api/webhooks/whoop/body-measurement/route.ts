@@ -6,12 +6,11 @@ import {
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
 import { db } from "~/server/db";
-import {
-  webhookEvents,
-  whoopBodyMeasurement,
-} from "~/server/db/schema";
+import { webhookEvents, whoopBodyMeasurement } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
+
+export const runtime = "nodejs";
 
 interface WhoopBodyMeasurementData {
   id: string;
@@ -37,15 +36,17 @@ async function fetchBodyMeasurementFromWhoop(
         height_meter: 1.75, // 5'9"
         weight_kilogram: 75.5, // 166 lbs
         max_heart_rate: 190,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString().split("T")[0],
       };
     }
 
     // Get valid access token (handles decryption and rotation automatically)
     const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
-    
+
     if (!tokenResult.token) {
-      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
+      console.error(
+        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+      );
       return null;
     }
 
@@ -80,14 +81,17 @@ async function fetchBodyMeasurementFromWhoop(
     if (typeof obj.id === "string") {
       return obj as unknown as WhoopBodyMeasurementData;
     }
-    
+
     console.error(
       "Body measurement data failed runtime validation in fetch",
       measurementData,
     );
     return null;
   } catch (error) {
-    console.error(`Error fetching body measurement ${measurementId} from Whoop API:`, error);
+    console.error(
+      `Error fetching body measurement ${measurementId} from Whoop API:`,
+      error,
+    );
     return null;
   }
 }
@@ -105,14 +109,21 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
     const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     // Fetch the updated body measurement data from Whoop API
-    const measurementData = await fetchBodyMeasurementFromWhoop(measurementId, payload.user_id);
+    const measurementData = await fetchBodyMeasurementFromWhoop(
+      measurementId,
+      payload.user_id,
+    );
     if (!measurementData) {
-      console.error(`Could not fetch body measurement data for ${measurementId}`);
+      console.error(
+        `Could not fetch body measurement data for ${measurementId}`,
+      );
       return;
     }
 
     // Parse the measurement date (ensure it's in YYYY-MM-DD format)
-    const measurementDateStr = measurementData.date ? measurementData.date : new Date().toISOString().split('T')[0]!;
+    const measurementDateStr = measurementData.date
+      ? measurementData.date
+      : new Date().toISOString().split("T")[0]!;
 
     // Check if body measurement already exists in our database
     const [existingMeasurement] = await db
@@ -128,11 +139,11 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       await db
         .update(whoopBodyMeasurement)
         .set({
-          height_meter: measurementData.height_meter?.toString() || null,
-          weight_kilogram: measurementData.weight_kilogram?.toString() || null,
+          height_meter: measurementData.height_meter || null,
+          weight_kilogram: measurementData.weight_kilogram || null,
           max_heart_rate: measurementData.max_heart_rate || null,
-          measurement_date: measurementDateStr,
-          raw_data: measurementData as unknown,
+          measurement_date: new Date(measurementDateStr),
+          raw_data: JSON.stringify(measurementData),
           updatedAt: new Date(),
         })
         .where(eq(whoopBodyMeasurement.whoop_measurement_id, measurementId));
@@ -144,15 +155,17 @@ async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
       await db.insert(whoopBodyMeasurement).values({
         user_id: dbUserId,
         whoop_measurement_id: measurementId,
-        height_meter: measurementData.height_meter?.toString() || null,
-        weight_kilogram: measurementData.weight_kilogram?.toString() || null,
+        height_meter: measurementData.height_meter || null,
+        weight_kilogram: measurementData.weight_kilogram || null,
         max_heart_rate: measurementData.max_heart_rate || null,
-        measurement_date: measurementDateStr,
-        raw_data: measurementData as unknown,
+        measurement_date: new Date(measurementDateStr),
+        raw_data: JSON.stringify(measurementData),
       });
     }
 
-    console.log(`Successfully processed body measurement update for ${measurementId}`);
+    console.log(
+      `Successfully processed body measurement update for ${measurementId}`,
+    );
   } catch (error) {
     console.error(`Error processing body measurement update:`, error);
     throw error;
@@ -179,11 +192,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -218,13 +231,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });

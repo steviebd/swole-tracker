@@ -80,17 +80,18 @@ const formatMinutes = (minutes: number | null): string => {
   return hours > 0 ? `${hours}h ${remaining}m` : `${remaining}m`;
 };
 
-const formatDateTime = (date: Date | null): string => {
+const formatDateTime = (date: Date | string | null): string => {
   if (!date) {
     return "--";
   }
 
+  const dateObj = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(date);
+  }).format(dateObj);
 };
 
 const getRecoveryDescriptor = (score: number | null) => {
@@ -152,7 +153,10 @@ const getTrainingRecommendation = (score: number | null): string => {
   return "Recovery is in the red. Prioritise mobility, zone-2 cardio, or complete rest.";
 };
 
-const getHrvInsight = (current: number | null, baseline: number | null): string => {
+const getHrvInsight = (
+  current: number | null,
+  baseline: number | null,
+): string => {
   if (current === null || baseline === null) {
     return "HRV trend is unavailable. A fresh sync will surface readiness signals.";
   }
@@ -174,7 +178,10 @@ const getHrvInsight = (current: number | null, baseline: number | null): string 
   return "HRV is tracking near baseline. Stay consistent with sleep and hydration to keep it stable.";
 };
 
-const getRhrInsight = (current: number | null, baseline: number | null): string => {
+const getRhrInsight = (
+  current: number | null,
+  baseline: number | null,
+): string => {
   if (current === null || baseline === null) {
     return "Resting heart rate baseline not available yet.";
   }
@@ -264,12 +271,18 @@ const getWorkoutAverageHeartRate = (workout: unknown): number | null => {
   return null;
 };
 
-const getWorkoutDurationMinutes = (workout: { start?: Date; end?: Date } | undefined): number | null => {
+const getWorkoutDurationMinutes = (
+  workout: { start?: Date | string; end?: Date | string } | undefined,
+): number | null => {
   if (!workout?.start || !workout?.end) {
     return null;
   }
 
-  const diffMilliseconds = workout.end.getTime() - workout.start.getTime();
+  const start =
+    typeof workout.start === "string" ? new Date(workout.start) : workout.start;
+  const end =
+    typeof workout.end === "string" ? new Date(workout.end) : workout.end;
+  const diffMilliseconds = end.getTime() - start.getTime();
   return diffMilliseconds > 0 ? diffMilliseconds / 60000 : null;
 };
 
@@ -336,7 +349,7 @@ export function WhoopIntegrationSection() {
               isConnected ? "bg-success" : "bg-muted"
             } ${statusLoading ? "animate-pulse" : ""}`}
           />
-          <span className="text-sm font-medium text-theme-secondary">
+          <span className="text-theme-secondary text-sm font-medium">
             {statusLoading
               ? "Checking..."
               : isConnected
@@ -351,36 +364,41 @@ export function WhoopIntegrationSection() {
       {!isConnected ? (
         <div className="py-12 text-center">
           <div className="mb-6">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 mx-auto mb-4">
-              <span className="text-2xl font-bold text-background">W</span>
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500">
+              <span className="text-background text-2xl font-bold">W</span>
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-theme-primary">
+            <h3 className="text-theme-primary mb-2 text-lg font-semibold">
               Connect Your WHOOP Device
             </h3>
-            <p className="mb-6 text-sm text-theme-secondary">
-              Sync recovery, strain, and sleep data to unlock personalised coaching.
+            <p className="text-theme-secondary mb-6 text-sm">
+              Sync recovery, strain, and sleep data to unlock personalised
+              coaching.
             </p>
           </div>
 
           <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-lg bg-surface p-4">
+            <div className="bg-surface rounded-lg p-4">
               <div className="mb-2 text-2xl">💤</div>
-              <h4 className="font-medium text-theme-primary">Sleep Tracking</h4>
-              <p className="text-xs text-theme-secondary">
+              <h4 className="text-theme-primary font-medium">Sleep Tracking</h4>
+              <p className="text-theme-secondary text-xs">
                 Monitor sleep quality and recovery
               </p>
             </div>
-            <div className="rounded-lg bg-surface p-4">
+            <div className="bg-surface rounded-lg p-4">
               <div className="mb-2 text-2xl">❤️</div>
-              <h4 className="font-medium text-theme-primary">Heart Rate Zones</h4>
-              <p className="text-xs text-theme-secondary">
+              <h4 className="text-theme-primary font-medium">
+                Heart Rate Zones
+              </h4>
+              <p className="text-theme-secondary text-xs">
                 Optimise training intensity
               </p>
             </div>
-            <div className="rounded-lg bg-surface p-4">
+            <div className="bg-surface rounded-lg p-4">
               <div className="mb-2 text-2xl">🔋</div>
-              <h4 className="font-medium text-theme-primary">Recovery Insights</h4>
-              <p className="text-xs text-theme-secondary">
+              <h4 className="text-theme-primary font-medium">
+                Recovery Insights
+              </h4>
+              <p className="text-theme-secondary text-xs">
                 Know when to push or recover
               </p>
             </div>
@@ -388,7 +406,7 @@ export function WhoopIntegrationSection() {
 
           <Link
             href="/connect-whoop"
-            className="inline-block rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 font-medium text-background shadow-lg transition-all hover:from-purple-600 hover:to-pink-600 hover:scale-105"
+            className="text-background inline-block rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 font-medium shadow-lg transition-all hover:scale-105 hover:from-purple-600 hover:to-pink-600"
           >
             Connect WHOOP
           </Link>
@@ -399,9 +417,15 @@ export function WhoopIntegrationSection() {
             <Alert variant="destructive">
               <AlertDescription className="flex flex-col gap-2 text-sm">
                 <span>
-                  Your WHOOP session has expired. Reconnect to resume syncing and keep recovery scores fresh.
+                  Your WHOOP session has expired. Reconnect to resume syncing
+                  and keep recovery scores fresh.
                 </span>
-                <Button asChild size="sm" variant="secondary" className="self-start">
+                <Button
+                  asChild
+                  size="sm"
+                  variant="secondary"
+                  className="self-start"
+                >
                   <Link href="/connect-whoop">Reconnect WHOOP</Link>
                 </Button>
               </AlertDescription>
@@ -411,7 +435,7 @@ export function WhoopIntegrationSection() {
           {isLoadingData ? (
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="rounded-lg bg-surface p-4">
+                <div key={index} className="bg-surface rounded-lg p-4">
                   <Skeleton className="mb-2 h-4 w-16" />
                   <Skeleton className="h-6 w-24" />
                   <Skeleton className="mt-3 h-3 w-20" />
@@ -424,10 +448,12 @@ export function WhoopIntegrationSection() {
                 <div>
                   <h3 className={subtitleClass}>Today&apos;s Recovery</h3>
                   <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <div className="rounded-lg bg-surface p-4">
+                    <div className="bg-surface rounded-lg p-4">
                       <div className="mb-1 flex items-center space-x-2">
-                        <span className="text-xl">{recoveryDescriptor.emoji}</span>
-                        <h4 className="text-xs font-medium text-theme-secondary">
+                        <span className="text-xl">
+                          {recoveryDescriptor.emoji}
+                        </span>
+                        <h4 className="text-theme-secondary text-xs font-medium">
                           Recovery
                         </h4>
                       </div>
@@ -437,55 +463,60 @@ export function WhoopIntegrationSection() {
                       >
                         {formatPercentage(recoveryScore)}
                       </p>
-                      <p className="text-xs text-theme-muted">
+                      <p className="text-theme-muted text-xs">
                         {recoveryDescriptor.message}
                       </p>
                     </div>
 
-                    <div className="rounded-lg bg-surface p-4">
+                    <div className="bg-surface rounded-lg p-4">
                       <div className="mb-1 flex items-center space-x-2">
-                        <span className="text-xl">{getStrainEmoji(strainScore)}</span>
-                        <h4 className="text-xs font-medium text-theme-secondary">
+                        <span className="text-xl">
+                          {getStrainEmoji(strainScore)}
+                        </span>
+                        <h4 className="text-theme-secondary text-xs font-medium">
                           Latest Strain
                         </h4>
                       </div>
-                      <p className="text-2xl font-bold text-warning">
+                      <p className="text-warning text-2xl font-bold">
                         {strainScore !== null ? strainScore.toFixed(1) : "--"}
                       </p>
-                      <p className="text-xs text-theme-muted">
-                        {averageHeartRate ? `${Math.round(averageHeartRate)} bpm avg HR` : "Awaiting synced workout"}
+                      <p className="text-theme-muted text-xs">
+                        {averageHeartRate
+                          ? `${Math.round(averageHeartRate)} bpm avg HR`
+                          : "Awaiting synced workout"}
                       </p>
                     </div>
 
-                    <div className="rounded-lg bg-surface p-4">
+                    <div className="bg-surface rounded-lg p-4">
                       <div className="mb-1 flex items-center space-x-2">
                         <span className="text-xl">😴</span>
-                        <h4 className="text-xs font-medium text-theme-secondary">
+                        <h4 className="text-theme-secondary text-xs font-medium">
                           Sleep Performance
                         </h4>
                       </div>
-                      <p className="text-2xl font-bold text-info">
+                      <p className="text-info text-2xl font-bold">
                         {formatPercentage(sleepPerformance)}
                       </p>
-                      <p className="text-xs text-theme-muted">
+                      <p className="text-theme-muted text-xs">
                         {sleepPerformance !== null
                           ? "Relative to WHOOP target"
                           : "Sync sleep data to populate"}
                       </p>
                     </div>
 
-                    <div className="rounded-lg bg-surface p-4">
+                    <div className="bg-surface rounded-lg p-4">
                       <div className="mb-1 flex items-center space-x-2">
                         <span className="text-xl">📊</span>
-                        <h4 className="text-xs font-medium text-theme-secondary">
+                        <h4 className="text-theme-secondary text-xs font-medium">
                           HRV (ms)
                         </h4>
                       </div>
-                      <p className="text-2xl font-bold text-primary">
+                      <p className="text-primary text-2xl font-bold">
                         {hrvNow !== null ? Math.round(hrvNow) : "--"}
                       </p>
-                      <p className="text-xs text-theme-muted">
-                        Baseline {hrvBaseline !== null ? Math.round(hrvBaseline) : "--"}
+                      <p className="text-theme-muted text-xs">
+                        Baseline{" "}
+                        {hrvBaseline !== null ? Math.round(hrvBaseline) : "--"}
                       </p>
                     </div>
                   </div>
@@ -493,8 +524,9 @@ export function WhoopIntegrationSection() {
               )}
 
               {showEmptyState && (
-                <div className="rounded-lg bg-surface p-6 text-center text-sm text-theme-secondary">
-                  No cached WHOOP data yet. Run a sync from the workouts page to pull your latest recovery metrics.
+                <div className="bg-surface text-theme-secondary rounded-lg p-6 text-center text-sm">
+                  No cached WHOOP data yet. Run a sync from the workouts page to
+                  pull your latest recovery metrics.
                 </div>
               )}
 
@@ -502,21 +534,21 @@ export function WhoopIntegrationSection() {
                 <div>
                   <h3 className={subtitleClass}>Latest WHOOP Workout</h3>
                   <div className="grid gap-4 lg:grid-cols-3">
-                    <div className="rounded-lg bg-surface p-4">
-                      <p className="text-xs text-theme-secondary">Sport</p>
-                      <p className="text-lg font-semibold text-theme-primary">
+                    <div className="bg-surface rounded-lg p-4">
+                      <p className="text-theme-secondary text-xs">Sport</p>
+                      <p className="text-theme-primary text-lg font-semibold">
                         {latestWorkout.sport_name ?? "Workout"}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-surface p-4">
-                      <p className="text-xs text-theme-secondary">When</p>
-                      <p className="text-lg font-semibold text-theme-primary">
+                    <div className="bg-surface rounded-lg p-4">
+                      <p className="text-theme-secondary text-xs">When</p>
+                      <p className="text-theme-primary text-lg font-semibold">
                         {formatDateTime(latestWorkout?.start ?? null)}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-surface p-4">
-                      <p className="text-xs text-theme-secondary">Duration</p>
-                      <p className="text-lg font-semibold text-theme-primary">
+                    <div className="bg-surface rounded-lg p-4">
+                      <p className="text-theme-secondary text-xs">Duration</p>
+                      <p className="text-theme-primary text-lg font-semibold">
                         {formatMinutes(workoutDuration)}
                       </p>
                     </div>
@@ -526,8 +558,10 @@ export function WhoopIntegrationSection() {
 
               {workoutZones.length > 0 && !showReauthWarning && (
                 <div>
-                  <h3 className={subtitleClass}>Heart Rate Zones (last workout)</h3>
-                  <div className="rounded-lg bg-surface p-4">
+                  <h3 className={subtitleClass}>
+                    Heart Rate Zones (last workout)
+                  </h3>
+                  <div className="bg-surface rounded-lg p-4">
                     <div className="space-y-3">
                       {workoutZones.map((zone) => (
                         <div
@@ -540,16 +574,16 @@ export function WhoopIntegrationSection() {
                               style={{ backgroundColor: zone.color }}
                             />
                             <div>
-                              <p className="text-sm font-medium text-theme-primary">
+                              <p className="text-theme-primary text-sm font-medium">
                                 {zone.label}
                               </p>
-                              <p className="text-xs text-theme-secondary">
+                              <p className="text-theme-secondary text-xs">
                                 {zone.description}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-3">
-                            <div className="h-2 w-24 rounded-full bg-muted">
+                            <div className="bg-muted h-2 w-24 rounded-full">
                               <div
                                 className="h-2 rounded-full"
                                 style={{
@@ -558,7 +592,7 @@ export function WhoopIntegrationSection() {
                                 }}
                               />
                             </div>
-                            <span className="w-10 text-right text-sm font-medium text-theme-secondary">
+                            <span className="text-theme-secondary w-10 text-right text-sm font-medium">
                               {zone.percentage}%
                             </span>
                           </div>
@@ -579,29 +613,29 @@ export function WhoopIntegrationSection() {
 
               {!showReauthWarning && (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg border-l-4 border-l-success bg-surface p-4">
+                  <div className="border-l-success bg-surface rounded-lg border-l-4 p-4">
                     <div className="mb-2 flex items-center space-x-2">
                       <span className="text-xl">💡</span>
-                      <h4 className="font-medium text-theme-primary">
+                      <h4 className="text-theme-primary font-medium">
                         Training Recommendation
                       </h4>
                     </div>
-                    <p className="text-sm text-theme-secondary">
+                    <p className="text-theme-secondary text-sm">
                       {trainingRecommendation}
                     </p>
                   </div>
 
-                  <div className="rounded-lg border-l-4 border-l-info bg-surface p-4">
+                  <div className="border-l-info bg-surface rounded-lg border-l-4 p-4">
                     <div className="mb-2 flex items-center space-x-2">
                       <span className="text-xl">📈</span>
-                      <h4 className="font-medium text-theme-primary">
+                      <h4 className="text-theme-primary font-medium">
                         Recovery Signals
                       </h4>
                     </div>
-                    <p className="mb-2 text-sm text-theme-secondary">
+                    <p className="text-theme-secondary mb-2 text-sm">
                       {hrvInsight}
                     </p>
-                    <p className="text-xs text-theme-muted">{rhrInsight}</p>
+                    <p className="text-theme-muted text-xs">{rhrInsight}</p>
                   </div>
                 </div>
               )}

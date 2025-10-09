@@ -1,19 +1,17 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "~/lib/supabase-server";
+import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const session = await SessionCookie.get(request);
 
-    if (!user) {
+    if (!session || SessionCookie.isExpired(session)) {
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -35,7 +33,7 @@ export async function GET() {
       .from(userIntegrations)
       .where(
         and(
-          eq(userIntegrations.user_id, user.id),
+          eq(userIntegrations.user_id, session.userId),
           eq(userIntegrations.provider, "whoop"),
         ),
       );

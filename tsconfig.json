@@ -43,7 +43,6 @@
     ".next",
     "coverage",
     "apps",
-    "clerk-supabase-demo-backup",
     "scripts",
     "src/__e2e__"
   ]

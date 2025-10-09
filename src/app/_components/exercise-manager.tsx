@@ -5,8 +5,22 @@ import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 
 interface MasterExercise {
   id: number;
@@ -56,8 +70,8 @@ export function ExerciseManager() {
         {[...(Array(5) as number[])].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4">
-              <div className="mb-2 h-4 w-1/4 rounded bg-muted"></div>
-              <div className="h-3 w-1/6 rounded bg-muted"></div>
+              <div className="bg-muted mb-2 h-4 w-1/4 rounded"></div>
+              <div className="bg-muted h-3 w-1/6 rounded"></div>
             </CardContent>
           </Card>
         ))}
@@ -146,7 +160,10 @@ export function ExerciseManager() {
               ))}
               {filteredExercises.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell
+                    colSpan={4}
+                    className="text-muted-foreground py-8 text-center"
+                  >
                     No exercises found
                   </TableCell>
                 </TableRow>
@@ -172,16 +189,17 @@ function ExerciseRow({ exercise, onUpdate }: ExerciseRowProps) {
       <TableRow>
         <TableCell>
           <div className="font-medium">{exercise.name}</div>
-          <div className="text-sm text-muted-foreground sm:hidden">
+          <div className="text-muted-foreground text-sm sm:hidden">
             Created {exercise.createdAt.toLocaleDateString()}
           </div>
         </TableCell>
-        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+        <TableCell className="text-muted-foreground hidden text-sm sm:table-cell">
           {exercise.createdAt.toLocaleDateString()}
         </TableCell>
         <TableCell>
           <div className="text-sm">
-            {exercise.linkedCount} template{exercise.linkedCount !== 1 ? "s" : ""}
+            {exercise.linkedCount} template
+            {exercise.linkedCount !== 1 ? "s" : ""}
           </div>
         </TableCell>
         <TableCell className="text-right">
@@ -199,7 +217,7 @@ function ExerciseRow({ exercise, onUpdate }: ExerciseRowProps) {
       {showDetails && (
         <TableRow>
           <TableCell colSpan={4} className="p-0">
-            <div className="border-t bg-muted/50 p-4">
+            <div className="bg-muted/50 border-t p-4">
               <ExerciseDetails
                 masterExerciseId={exercise.id}
                 masterExerciseName={exercise.name}
@@ -273,7 +291,7 @@ function ExerciseDetails({
 
   if (detailsLoading) {
     return (
-      <div className="mt-4 space-y-3 border-t border-border pt-4">
+      <div className="border-border mt-4 space-y-3 border-t pt-4">
         <div className="text-secondary animate-pulse text-sm">
           Loading linking details...
         </div>
@@ -283,7 +301,7 @@ function ExerciseDetails({
 
   if (!linkingDetails) {
     return (
-      <div className="mt-4 space-y-3 border-t border-border pt-4">
+      <div className="border-border mt-4 space-y-3 border-t pt-4">
         <div className="text-sm text-red-600 dark:text-red-400">
           Failed to load linking details
         </div>
@@ -301,22 +319,31 @@ function ExerciseDetails({
       {/* Basic Info */}
       <Card className="bg-muted/30">
         <CardContent className="p-3">
-          <div className="text-sm space-y-2">
+          <div className="space-y-2 text-sm">
             <div>
               <span className="text-muted-foreground">Normalized name:</span>
-              <span className="ml-2 font-mono text-xs bg-muted px-2 py-1 rounded">{normalizedName}</span>
+              <span className="bg-muted ml-2 rounded px-2 py-1 font-mono text-xs">
+                {normalizedName}
+              </span>
             </div>
             {/* Latest Performance */}
             {latestPerformance && (
               <div>
-                <span className="text-muted-foreground">Latest performance:</span>
-                <div className="ml-2 mt-1">
-                  <span className="text-green-600 dark:text-green-400 font-medium">
+                <span className="text-muted-foreground">
+                  Latest performance:
+                </span>
+                <div className="mt-1 ml-2">
+                  <span className="font-medium text-green-600 dark:text-green-400">
                     {latestPerformance.weight} {latestPerformance.unit} ×{" "}
-                    {latestPerformance.reps} reps × {latestPerformance.sets} sets
+                    {latestPerformance.reps} reps × {latestPerformance.sets}{" "}
+                    sets
                   </span>
                   <span className="text-muted-foreground ml-2 text-xs">
-                    ({latestPerformance.workoutDate.toLocaleDateString()})
+                    (
+                    {new Date(
+                      latestPerformance.workoutDate,
+                    ).toLocaleDateString()}
+                    )
                   </span>
                 </div>
               </div>
@@ -353,13 +380,18 @@ function ExerciseDetails({
       </div>
 
       {/* Confirm Unlink All Dialog */}
-      <Dialog open={showConfirmUnlinkAll} onOpenChange={setShowConfirmUnlinkAll}>
+      <Dialog
+        open={showConfirmUnlinkAll}
+        onOpenChange={setShowConfirmUnlinkAll}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Unlink All</DialogTitle>
             <DialogDescription>
-              This will unlink all {linkedExercises.length} exercises from &quot;
-              {masterExerciseName}&quot;. Historical data will be separated and this action cannot be undone.
+              This will unlink all {linkedExercises.length} exercises from
+              &quot;
+              {masterExerciseName}&quot;. Historical data will be separated and
+              this action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -388,7 +420,10 @@ function ExerciseDetails({
           </h4>
           <div className="space-y-2">
             {linkedExercises.map((linked) => (
-              <Card key={linked.templateExerciseId} className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/50">
+              <Card
+                key={linked.templateExerciseId}
+                className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/50"
+              >
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm">
@@ -440,12 +475,14 @@ function ExerciseDetails({
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm">
-                      <span className="font-medium">{potential.exerciseName}</span>
+                      <span className="font-medium">
+                        {potential.exerciseName}
+                      </span>
                       <span className="text-muted-foreground ml-2">
                         from {potential.templateName}
                       </span>
                       <span
-                        className={`ml-2 text-xs inline-flex items-center rounded-full px-2 py-1 font-medium ${
+                        className={`ml-2 inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                           potential.similarity >= 0.7
                             ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400"
                             : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400"
@@ -454,7 +491,7 @@ function ExerciseDetails({
                         {Math.round(potential.similarity * 100)}% match
                       </span>
                       {potential.linkingRejected && (
-                        <span className="ml-2 text-xs inline-flex items-center rounded-full px-2 py-1 font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/50 dark:text-orange-400">
                           rejected
                         </span>
                       )}

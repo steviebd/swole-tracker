@@ -6,12 +6,11 @@ import {
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
 import { db } from "~/server/db";
-import {
-  webhookEvents,
-  whoopProfile,
-} from "~/server/db/schema";
+import { webhookEvents, whoopProfile } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
+
+export const runtime = "nodejs";
 
 interface WhoopProfileData {
   user_id: string;
@@ -40,9 +39,11 @@ async function fetchProfileFromWhoop(
 
     // Get valid access token (handles decryption and rotation automatically)
     const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
-    
+
     if (!tokenResult.token) {
-      console.error(`No valid Whoop token found for user ${userId}: ${tokenResult.error}`);
+      console.error(
+        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+      );
       return null;
     }
 
@@ -77,7 +78,7 @@ async function fetchProfileFromWhoop(
     if (typeof obj.user_id === "string") {
       return obj as unknown as WhoopProfileData;
     }
-    
+
     console.error(
       "Profile data failed runtime validation in fetch",
       profileData,
@@ -126,7 +127,7 @@ async function processProfileUpdate(payload: WhoopWebhookPayload) {
           email: profileData.email || null,
           first_name: profileData.first_name || null,
           last_name: profileData.last_name || null,
-          raw_data: profileData as unknown,
+          raw_data: JSON.stringify(profileData),
           last_updated: new Date(),
           updatedAt: new Date(),
         })
@@ -142,11 +143,13 @@ async function processProfileUpdate(payload: WhoopWebhookPayload) {
         email: profileData.email || null,
         first_name: profileData.first_name || null,
         last_name: profileData.last_name || null,
-        raw_data: profileData as unknown,
+        raw_data: JSON.stringify(profileData),
       });
     }
 
-    console.log(`Successfully processed profile update for user ${payload.user_id}`);
+    console.log(
+      `Successfully processed profile update for user ${payload.user_id}`,
+    );
   } catch (error) {
     console.error(`Error processing profile update:`, error);
     throw error;
@@ -173,11 +176,11 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature
     if (
-      !verifyWhoopWebhook(
+      !(await verifyWhoopWebhook(
         rawBody,
         webhookHeaders.signature,
         webhookHeaders.timestamp,
-      )
+      ))
     ) {
       console.error("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -212,13 +215,13 @@ export async function POST(request: NextRequest) {
           eventType: payload.type,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
-          payload: payload as unknown,
-          headers: {
+          payload: JSON.stringify(payload),
+          headers: JSON.stringify({
             signature: webhookHeaders.signature,
             timestamp: webhookHeaders.timestamp,
             userAgent: request.headers.get("user-agent") ?? undefined,
             contentType: request.headers.get("content-type") ?? undefined,
-          } as unknown,
+          }),
           status: "received",
         })
         .returning({ id: webhookEvents.id });
