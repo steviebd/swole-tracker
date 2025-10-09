@@ -70,9 +70,14 @@ describe("Security Implementation Tests", () => {
       const originalKey = process.env.ENCRYPTION_MASTER_KEY;
       delete process.env.ENCRYPTION_MASTER_KEY;
 
-      expect(() => encryptToken("test")).toThrow(
-        "ENCRYPTION_MASTER_KEY environment variable is required",
-      );
+      try {
+        encryptToken("test");
+        expect(true).toBe(false); // Should not reach here
+      } catch (error: any) {
+        expect(error.message).toBe(
+          "ENCRYPTION_MASTER_KEY environment variable is required",
+        );
+      }
 
       // Restore key
       process.env.ENCRYPTION_MASTER_KEY = originalKey;
@@ -82,9 +87,14 @@ describe("Security Implementation Tests", () => {
       const originalKey = process.env.ENCRYPTION_MASTER_KEY;
       process.env.ENCRYPTION_MASTER_KEY = "short_key";
 
-      expect(() => encryptToken("test")).toThrow(
-        "ENCRYPTION_MASTER_KEY must be at least 32 characters long",
-      );
+      try {
+        encryptToken("test");
+        expect(true).toBe(false); // Should not reach here
+      } catch (error: any) {
+        expect(error.message).toBe(
+          "ENCRYPTION_MASTER_KEY must be at least 32 characters long",
+        );
+      }
 
       // Restore key
       process.env.ENCRYPTION_MASTER_KEY = originalKey;

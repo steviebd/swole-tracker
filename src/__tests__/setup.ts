@@ -278,32 +278,43 @@ beforeAll(() => {
     writable: true,
   });
 
-  // Mock Buffer for Node.js compatibility
-  Object.defineProperty(global, "Buffer", {
-    value: {
-      from: vi.fn((data, encoding) => {
-        if (encoding === "base64") {
-          // Simple base64 decode simulation for testing
-          try {
-            const decoded = atob(data);
-            const buffer = new Uint8Array(decoded.length);
-            for (let i = 0; i < decoded.length; i++) {
-              buffer[i] = decoded.charCodeAt(i);
-            }
-            // Add length property to make it Buffer-like
-            Object.defineProperty(buffer, "length", { value: buffer.length });
-            return buffer;
-          } catch {
-            throw new Error("Invalid base64");
+  // Mock Buffer for Node.js compatibility - ensure it's a proper constructor
+  const MockBuffer = class Buffer {
+    static from(data: any, encoding?: string) {
+      if (encoding === "base64") {
+        // Simple base64 decode simulation for testing
+        try {
+          const decoded = atob(data);
+          const buffer = new Uint8Array(decoded.length);
+          for (let i = 0; i < decoded.length; i++) {
+            buffer[i] = decoded.charCodeAt(i);
           }
+          // Add length property to make it Buffer-like
+          Object.defineProperty(buffer, "length", { value: buffer.length });
+          return buffer;
+        } catch {
+          throw new Error("Invalid base64");
         }
-        return new Uint8Array();
-      }),
-    },
+      }
+      return new Uint8Array();
+    }
+
+    static isBuffer(obj: any) {
+      return (
+        obj &&
+        typeof obj === "object" &&
+        obj.constructor &&
+        obj.constructor.name === "Uint8Array"
+      );
+    }
+  };
+
+  Object.defineProperty(global, "Buffer", {
+    value: MockBuffer,
     writable: true,
   });
 
-  // Setup global DOM objects for Happy-DOM environment
+  // Setup global DOM objects for jsdom environment
   const mockLocalStorage = {
     getItem: vi.fn(() => null),
     setItem: vi.fn(() => {}),
@@ -322,20 +333,27 @@ beforeAll(() => {
       writable: true,
       configurable: true,
     });
-
-    Object.defineProperty(window, "matchMedia", {
-      value: vi.fn(() => ({
-        matches: false,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-      writable: true,
-      configurable: true,
-    });
   }
+
+  // Also set on global for tests that access it directly
+  Object.defineProperty(global, "localStorage", {
+    value: mockLocalStorage,
+    writable: true,
+    configurable: true,
+  });
+
+  Object.defineProperty(window, "matchMedia", {
+    value: vi.fn(() => ({
+      matches: false,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+    writable: true,
+    configurable: true,
+  });
 
   // Ensure document and document.body exist
   if (typeof document === "undefined") {

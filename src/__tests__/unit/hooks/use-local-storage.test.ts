@@ -1,16 +1,38 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  beforeAll,
+} from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 
-// localStorage is mocked in setup.ts
-const mockLocalStorage = (globalThis as any).window.localStorage;
+// Mock localStorage for this test file
+const mockLocalStorage = {
+  getItem: vi.fn(() => null),
+  setItem: vi.fn(() => {}),
+  removeItem: vi.fn(() => {}),
+  clear: vi.fn(() => {}),
+  key: vi.fn(() => null),
+  length: 0,
+} as any;
 
 describe("useLocalStorage", () => {
+  beforeAll(() => {
+    // Use vi.stubGlobal to properly mock localStorage
+    vi.stubGlobal("localStorage", mockLocalStorage);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocalStorage.getItem.mockReturnValue(null);
     mockLocalStorage.setItem.mockImplementation(() => {});
     mockLocalStorage.removeItem.mockImplementation(() => {});
+    // Verify the mock is working
+    expect(mockLocalStorage.getItem()).toBe(null);
   });
 
   afterEach(() => {

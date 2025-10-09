@@ -4,7 +4,7 @@ import path from "path";
 
 export default defineConfig({
   test: {
-    environment: "happy-dom",
+    environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
     mockReset: true,

@@ -76,18 +76,18 @@ describe("analytics", () => {
 
   describe("error tracking", () => {
     it("should call error function with context", () => {
-      expect(() => {
-        const error = new Error("Test error");
-        const context = { userId: "user-123", page: "workout" };
-        analytics.error(error, context);
-      }).not.toThrow();
+      const error = new Error("Test error");
+      const context = { userId: "user-123", page: "workout" };
+      analytics.error(error, context);
+      // Test passes if no exception is thrown
+      expect(true).toBe(true);
     });
 
     it("should call error function without context", () => {
-      expect(() => {
-        const error = new Error("Test error");
-        analytics.error(error);
-      }).not.toThrow();
+      const error = new Error("Test error");
+      analytics.error(error);
+      // Test passes if no exception is thrown
+      expect(true).toBe(true);
     });
   });
 
