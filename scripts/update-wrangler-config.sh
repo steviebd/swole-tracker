@@ -85,13 +85,11 @@ content = pattern.sub(lambda match: f"{match.group(1)}{db_id}{match.group(3)}", 
 var_names = [
     "WORKOS_API_KEY",
     "WORKOS_CLIENT_ID",
-    "WORKOS_REDIRECT_URI",
     "WORKOS_COOKIE_PASSWORD",
     "WORKER_SESSION_SECRET",
     "ENCRYPTION_MASTER_KEY",
     "WHOOP_CLIENT_ID",
     "WHOOP_CLIENT_SECRET",
-    "WHOOP_REDIRECT_URI",
     "WHOOP_WEBHOOK_SECRET",
     "WHOOP_SYNC_RATE_LIMIT_PER_HOUR",
     "AI_GATEWAY_API_KEY",
@@ -123,17 +121,16 @@ for name in var_names:
 block_lines.append("")
 block = "\n".join(block_lines)
 
-start = content.find(vars_header)
+# Use regex to find and replace the vars section
+import re
+pattern = re.compile(rf"(  \[env\.{re.escape(target_env)}\.vars\]\n(?:  [^\n]*\n)*)", re.MULTILINE)
+match = pattern.search(content)
 
-if start != -1:
-    next_env_section = content.find("[env.", start + 1)
-    next_db_section = content.find("[[env.", start + 1)
-
-    candidates = [pos for pos in (next_env_section, next_db_section) if pos != -1]
-    anchor = min(candidates) if candidates else len(content)
-
-    content = content[:start] + block + content[anchor:]
+if match:
+    content = content[:match.start(1)] + block + content[match.end(1):]
 else:
+    print(f"⚠️  Warning: Could not find existing [env.{target_env}.vars] section, skipping vars update")
+    # Don't add a new section
     env_header = f"[env.{target_env}]"
     env_header_index = content.find(env_header)
 

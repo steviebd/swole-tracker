@@ -52,13 +52,14 @@
 - Local setup: Configure Infisical (see `.infisical.json`) and ensure all required environment variables are set in your Infisical workspace
 - Infisical integration: Required for local development; `bun dev` auto-wraps with `infisical run --`. For other scripts use `infisical run -- bun <script>`
 - Required variables (per `.env.example`):
-  - `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_REDIRECT_URI`
+  - `WORKOS_CLIENT_ID`, `WORKOS_API_KEY` (redirect URI derived from `NEXT_PUBLIC_SITE_URL`)
   - `DATABASE_URL` (Cloudflare D1 connection string)
   - `ENCRYPTION_MASTER_KEY` for secure token storage
   - Rate limit knobs: `RATE_LIMIT_ENABLED`, `RATE_LIMIT_*`
   - AI Gateway config (`VERCEL_AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL`, etc.)
   - PostHog keys (`NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`)
-  - Whoop OAuth secrets (`WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_REDIRECT_URI`, `WHOOP_WEBHOOK_SECRET`)
+  - `NEXT_PUBLIC_SITE_URL` (drives OAuth redirect URIs)
+  - Whoop OAuth secrets (`WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_WEBHOOK_SECRET`)
 
 ## Database
 

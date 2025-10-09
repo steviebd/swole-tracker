@@ -24,10 +24,16 @@ async function deriveKey(
     ["deriveKey"],
   );
 
+  // Ensure we pass only the salt view (respecting offset/length) to PBKDF2
+  const saltBuffer =
+    salt.byteOffset === 0 && salt.byteLength === salt.buffer.byteLength
+      ? (salt.buffer as ArrayBuffer)
+      : salt.slice().buffer;
+
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: salt.buffer as ArrayBuffer,
+      salt: saltBuffer,
       iterations: 100000,
       hash: "SHA-256",
     },

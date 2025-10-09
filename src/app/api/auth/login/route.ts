@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
+import { resolveWorkOSRedirectUri } from "~/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -38,11 +39,11 @@ export async function GET(request: NextRequest) {
     const workos = getWorkOS();
 
     // Get authorization URL
+    const redirectUri = resolveWorkOSRedirectUri(request.nextUrl);
+
     const authorizationUrl = workos.userManagement.getAuthorizationUrl({
       provider: "GoogleOAuth", // Use GoogleOAuth for Google SSO
-      redirectUri:
-        env.WORKOS_REDIRECT_URI ||
-        `${env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
+      redirectUri,
       clientId: env.WORKOS_CLIENT_ID!, // We already checked it's defined
       state: encodeState(JSON.stringify({ redirectTo: safeRedirect })),
     });

@@ -21,13 +21,11 @@ compatibility_flags = ["nodejs_compat"]
   [env.dev.vars]
   WORKOS_CLIENT_ID = "client_placeholder_value_for_dev"
   WORKOS_API_KEY = "sk_test_placeholder_value_for_dev_testing_only"
-  WORKOS_REDIRECT_URI = "http://localhost:8787/api/auth/callback"
   WORKOS_COOKIE_PASSWORD = "placeholder_cookie_password_32_chars_min"
   ENCRYPTION_MASTER_KEY = "placeholder_encryption_key_32_chars_minimum_length"
   WORKER_SESSION_SECRET = "placeholder_session_secret_32_chars_minimum_length"
   WHOOP_CLIENT_ID = "placeholder_whoop_client_id_for_dev"
   WHOOP_CLIENT_SECRET = "placeholder_whoop_client_secret_32_chars_min"
-  WHOOP_REDIRECT_URI = "http://localhost:8787/api/auth/whoop/callback"
   WHOOP_WEBHOOK_SECRET = "placeholder_whoop_webhook_secret_32_chars_min"
   WHOOP_SYNC_RATE_LIMIT_PER_HOUR = "10"
   AI_GATEWAY_API_KEY = "placeholder_ai_gateway_key_for_dev_testing"

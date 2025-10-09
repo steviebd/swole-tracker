@@ -276,6 +276,7 @@ describe("templatesRouter", () => {
       const result = await caller.create({
         name: "Push Day",
         exercises: ["Bench Press", "Shoulder Press"],
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440000",
       });
 
       expect(result).toEqual(mockTemplate);
@@ -299,6 +300,7 @@ describe("templatesRouter", () => {
       const result = await caller.create({
         name: "Push Day",
         exercises: ["Bench Press"],
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440001",
       });
 
       expect(result).toEqual(existingTemplate);
@@ -324,6 +326,7 @@ describe("templatesRouter", () => {
       const result = await caller.create({
         name: "Empty Template",
         exercises: [],
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440002",
       });
 
       expect(result).toEqual(mockTemplate);
@@ -337,6 +340,7 @@ describe("templatesRouter", () => {
         caller.create({
           name: "",
           exercises: ["Bench Press"],
+          dedupeKey: "550e8400-e29b-41d4-a716-446655440003",
         }),
       ).rejects.toThrow();
 
@@ -345,6 +349,7 @@ describe("templatesRouter", () => {
         caller.create({
           name: "a".repeat(257),
           exercises: ["Bench Press"],
+          dedupeKey: "550e8400-e29b-41d4-a716-446655440004",
         }),
       ).rejects.toThrow();
 
@@ -353,6 +358,7 @@ describe("templatesRouter", () => {
         caller.create({
           name: "Test Template",
           exercises: [""],
+          dedupeKey: "550e8400-e29b-41d4-a716-446655440005",
         }),
       ).rejects.toThrow();
     });

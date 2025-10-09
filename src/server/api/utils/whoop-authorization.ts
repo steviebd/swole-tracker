@@ -4,6 +4,7 @@ import {
   createOAuthState,
   getClientIp,
 } from "~/lib/oauth-state";
+import { resolveWhoopRedirectUri } from "~/lib/site-url";
 
 const WHOOP_SCOPE =
   "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline";
@@ -44,10 +45,15 @@ export async function buildWhoopAuthorizationUrl({
   try {
     await cleanupUserStates(userId, "whoop");
 
-    const redirectUri =
-      env.WHOOP_REDIRECT_URI || `${origin}/api/auth/whoop/callback`;
+    const redirectUri = resolveWhoopRedirectUri(origin);
     const clientIp = getClientIp(headers);
     const userAgent = headers.get("user-agent") ?? "unknown";
+
+    console.log("[WHOOP] Creating OAuth state", {
+      userId: userId.substring(0, 8) + "...",
+      redirectUri,
+      clientIp,
+    });
 
     const state = await createOAuthState(
       userId,
@@ -56,6 +62,11 @@ export async function buildWhoopAuthorizationUrl({
       clientIp,
       userAgent,
     );
+
+    console.log("[WHOOP] OAuth state created", {
+      userId: userId.substring(0, 8) + "...",
+      state,
+    });
 
     const authUrl = new URL("https://api.prod.whoop.com/oauth/oauth2/auth");
     authUrl.searchParams.append("client_id", env.WHOOP_CLIENT_ID);

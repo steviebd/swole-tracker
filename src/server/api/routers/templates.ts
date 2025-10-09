@@ -249,6 +249,7 @@ export const templatesRouter = createTRPCRouter({
 
       return sortedTemplates.map((template) => ({
         ...template,
+        exercises: template.exercises ?? [],
         lastUsed: statsByTemplate.get(template.id)?.lastUsed ?? null,
         totalSessions: statsByTemplate.get(template.id)?.totalSessions ?? 0,
       }));
@@ -271,7 +272,10 @@ export const templatesRouter = createTRPCRouter({
         throw new Error("Template not found");
       }
 
-      return template;
+      return {
+        ...template,
+        exercises: template.exercises ?? [],
+      };
     }),
 
   // Create a new template
@@ -281,6 +285,7 @@ export const templatesRouter = createTRPCRouter({
       z.object({
         name: z.string().min(1).max(256),
         exercises: z.array(z.string().min(1).max(256)),
+        dedupeKey: z.string().uuid(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -291,7 +296,72 @@ export const templatesRouter = createTRPCRouter({
       });
       const userId = ctx.user.id;
 
-      // Add server-side deduplication check - prevent creating duplicate templates with same name
+      const dedupeKey = input.dedupeKey;
+
+      const loadTemplateResponse = async (templateId: number) => {
+        const templateWithRelations = await ctx.db.query.workoutTemplates.findFirst({
+          where: eq(workoutTemplates.id, templateId),
+          with: {
+            exercises: {
+              orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+            },
+          },
+        });
+
+        if (!templateWithRelations) {
+          return null;
+        }
+
+        const [stats] = await ctx.db
+          .select({
+            lastUsed: max(workoutSessions.workoutDate).as("lastUsed"),
+            totalSessions: count(workoutSessions.id).as("totalSessions"),
+          })
+          .from(workoutSessions)
+          .where(eq(workoutSessions.templateId, templateId));
+
+        const lastUsedValue = stats?.lastUsed
+          ? stats.lastUsed instanceof Date
+            ? stats.lastUsed
+            : new Date(stats.lastUsed as unknown as string)
+          : null;
+
+        return {
+          ...templateWithRelations,
+          exercises: templateWithRelations.exercises ?? [],
+          lastUsed: lastUsedValue,
+          totalSessions: Number(stats?.totalSessions ?? 0),
+        };
+      };
+
+      if (dedupeKey) {
+        const existingByKey = await ctx.db.query.workoutTemplates.findFirst({
+          where: and(
+            eq(workoutTemplates.user_id, userId),
+            eq(workoutTemplates.dedupeKey, dedupeKey),
+          ),
+        });
+
+        if (existingByKey) {
+          debugLog("templates.create: returning existing template via dedupeKey", {
+            templateId: existingByKey.id,
+            dedupeKey,
+            requestId: ctx.requestId,
+          });
+          const response = await loadTemplateResponse(existingByKey.id);
+          if (response) {
+            return response;
+          }
+          return {
+            ...existingByKey,
+            exercises: [],
+            lastUsed: null,
+            totalSessions: 0,
+          };
+        }
+      }
+
+      // Add server-side deduplication fallback - prevent creating duplicate templates with same name
       // within a short time window (useful for detecting double-clicks)
       const recentTemplate = await ctx.db.query.workoutTemplates.findFirst({
         where: and(
@@ -310,31 +380,75 @@ export const templatesRouter = createTRPCRouter({
             timeDiff,
             requestId: ctx.requestId,
           });
-          return recentTemplate;
+          const response = await loadTemplateResponse(recentTemplate.id);
+          if (response) {
+            return response;
+          }
+          return {
+            ...recentTemplate,
+            exercises: [],
+            lastUsed: null,
+            totalSessions: 0,
+          };
         }
       }
 
       debugLog("templates.create: creating new template", {
         requestId: ctx.requestId,
       });
-      const [template] = await ctx.db
+      const [insertedTemplate] = await ctx.db
         .insert(workoutTemplates)
         .values({
           name: input.name,
           user_id: userId,
+          dedupeKey,
+        })
+        .onConflictDoNothing({
+          target: [workoutTemplates.user_id, workoutTemplates.dedupeKey],
         })
         .returning();
 
+      let template = insertedTemplate;
+      const createdNewTemplate = Boolean(insertedTemplate);
+
       if (!template) {
-        throw new Error("Failed to create template");
+        debugLog("templates.create: insert skipped due to dedupe", {
+          dedupeKey,
+          requestId: ctx.requestId,
+        });
+
+        if (dedupeKey) {
+          template = await ctx.db.query.workoutTemplates.findFirst({
+            where: and(
+              eq(workoutTemplates.user_id, userId),
+              eq(workoutTemplates.dedupeKey, dedupeKey),
+            ),
+          });
+          if (template) {
+            debugLog("templates.create: returning deduped template after conflict", {
+              templateId: template.id,
+              dedupeKey,
+              requestId: ctx.requestId,
+            });
+          }
+        }
+
+        if (!template) {
+          template = await ctx.db.query.workoutTemplates.findFirst({
+            where: and(
+              eq(workoutTemplates.user_id, userId),
+              eq(workoutTemplates.name, input.name),
+            ),
+            orderBy: [desc(workoutTemplates.createdAt)],
+          });
+        }
+
+        if (!template) {
+          throw new Error("Failed to create template");
+        }
       }
 
-      debugLog("templates.create: template created", {
-        templateId: template.id,
-        requestId: ctx.requestId,
-      });
-
-      if (input.exercises.length > 0) {
+      if (createdNewTemplate && input.exercises.length > 0) {
         const insertedExercises = await ctx.db
           .insert(templateExercises)
           .values(
@@ -359,11 +473,17 @@ export const templatesRouter = createTRPCRouter({
         }
       }
 
+      const response = await loadTemplateResponse(template.id);
+      if (!response) {
+        throw new Error("Failed to load template after creation");
+      }
+
       debugLog("templates.create: completed", {
         templateId: template.id,
         requestId: ctx.requestId,
+        createdNewTemplate,
       });
-      return template;
+      return response;
     }),
 
   // Update a template
@@ -383,7 +503,11 @@ export const templatesRouter = createTRPCRouter({
       });
 
       if (!existingTemplate || existingTemplate.user_id !== ctx.user.id) {
-        throw new Error("Template not found");
+        debugLog("templates.delete: template already removed", {
+          templateId: input.id,
+          requestId: ctx.requestId,
+        });
+        return { success: true, alreadyDeleted: true };
       }
 
       // Update template name
@@ -527,7 +651,11 @@ export const templatesRouter = createTRPCRouter({
       });
 
       if (!existingTemplate || existingTemplate.user_id !== ctx.user.id) {
-        throw new Error("Template not found");
+        debugLog("templates.delete: template already removed", {
+          templateId: input.id,
+          requestId: ctx.requestId,
+        });
+        return { success: true, alreadyDeleted: true };
       }
 
       await ctx.db

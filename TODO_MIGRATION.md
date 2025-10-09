@@ -18,38 +18,35 @@ This checklist replaces the previous migration outline. Tick items with `[x]` as
 
     ```
     # --- dev ---
-    NEXT_PUBLIC_SITE_URL=http://localhost:3000
-    WORKOS_REDIRECT_URI=http://localhost:3000/api/auth/callback
+    NEXT_PUBLIC_SITE_URL=http://localhost:8787
     ...
 
     # --- staging ---
     NEXT_PUBLIC_SITE_URL=https://preview.stevenduong.com
-    WORKOS_REDIRECT_URI=https://preview.stevenduong.com/api/auth/callback
     ...
 
     # --- production ---
     NEXT_PUBLIC_SITE_URL=https://workout.stevenduong.com
-    WORKOS_REDIRECT_URI=https://workout.stevenduong.com/api/auth/callback
     ...
     ```
 
-  - [x] For now, only `NEXT_PUBLIC_SITE_URL` and `WORKOS_REDIRECT_URI` differ per environment; add more overrides in these blocks if future services require environment-specific values.
+  - [x] `NEXT_PUBLIC_SITE_URL` drives all derived redirect URIs; add overrides if future services require environment-specific values.
   - [x] Ensure sensitive values are shown as placeholders (e.g., `WORKOS_API_KEY=___`) and never committed.
   - [x] Use Infisical folders/labels to mirror the three environments (e.g., `infisical/env/dev`, `infisical/env/staging`, `infisical/env/prod`).
 
 | Environment | Domain / Base URL                 | Cloudflare env | D1 database name        | Infisical scope         | `.env.example` baseline                                | Notes                   |
 | ----------- | --------------------------------- | -------------- | ----------------------- | ----------------------- | ------------------------------------------------------ | ----------------------- |
-| dev         | `http://localhost:3000`           | default        | `swole-tracker-dev`     | `infisical/env/dev`     | `NEXT_PUBLIC_SITE_URL=http://localhost:3000`           | Local Wrangler preview  |
+| dev         | `http://localhost:8787`           | default        | `swole-tracker-dev`     | `infisical/env/dev`     | `NEXT_PUBLIC_SITE_URL=http://localhost:8787`           | Local Wrangler preview  |
 | staging     | `https://preview.stevenduong.com` | `staging`      | `swole-tracker-staging` | `infisical/env/staging` | `NEXT_PUBLIC_SITE_URL=https://preview.stevenduong.com` | Deployed preview Worker |
 | production  | `https://workout.stevenduong.com` | `production`   | `swole-tracker-prod`    | `infisical/env/prod`    | `NEXT_PUBLIC_SITE_URL=https://workout.stevenduong.com` | Customer-facing Worker  |
 
 **Key environment variables** (capture in `.env.example` and Infisical):
 
-- `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`, `WORKOS_REDIRECT_URI`
+- `WORKOS_API_KEY`, `WORKOS_CLIENT_ID` (redirect URI derived from `NEXT_PUBLIC_SITE_URL`)
 - `WORKER_SESSION_SECRET`
 - `NEXT_PUBLIC_SITE_URL` (different per environment)
 - `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`
-- Whoop credentials (`WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_REDIRECT_URI`, `WHOOP_WEBHOOK_SECRET`)
+- Whoop credentials (`WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, `WHOOP_WEBHOOK_SECRET`)
 - Vercel AI Gateway keys (`VERCEL_AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL`, etc.)
 - Rate limiting knobs (`RATE_LIMIT_*`)
 - Cloudflare-specific bindings (e.g., `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`) for CI/CD
@@ -103,7 +100,7 @@ This checklist replaces the previous migration outline. Tick items with `[x]` as
 ## Phase 2 – Authentication: WorkOS + Signed Cookies
 
 - [x] **Environment updates**
-  - [x] Add WorkOS env vars to `src/env.js`, `.env.example`, and Infisical (`WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, callback origins, `WORKER_SESSION_SECRET`).
+  - [x] Add WorkOS env vars to `src/env.js`, `.env.example`, and Infisical (`WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKER_SESSION_SECRET`); redirect URIs derive from `NEXT_PUBLIC_SITE_URL`.
 - [x] **WorkOS client & session utilities**
   - [x] `bun add @workos-inc/node`
   - [x] Create `src/lib/workos.ts` (singleton WorkOS client factory).

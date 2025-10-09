@@ -45,7 +45,7 @@ function resolveDb(): DrizzleDb {
       offset: vi.fn(() => createQueryBuilder(result)),
       innerJoin: vi.fn(() => createQueryBuilder(result)),
       select: vi.fn(() => createQueryBuilder(result)),
-      then: vi.fn((resolve: any) => resolve(result)),
+      then: vi.fn((resolve: (value: any[]) => void) => resolve(result)),
       execute: vi.fn(() => Promise.resolve(result)),
     });
 
@@ -106,6 +106,7 @@ function resolveDb(): DrizzleDb {
         },
       },
     };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return mockDb as any;
   }
 

@@ -8,6 +8,7 @@ import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
 import { encryptToken } from "~/lib/encryption";
+import { resolveWhoopRedirectUri } from "~/lib/site-url";
 
 export const runtime = "nodejs";
 
@@ -62,9 +63,7 @@ export async function GET(request: NextRequest) {
       token_endpoint: "https://api.prod.whoop.com/oauth/oauth2/token",
     };
 
-    const redirectUri =
-      env.WHOOP_REDIRECT_URI ||
-      `${request.nextUrl.origin}/api/auth/whoop/callback`;
+    const redirectUri = resolveWhoopRedirectUri(request.nextUrl);
 
     // Get the authorization code (we already validated state)
     const code = searchParams.get("code");

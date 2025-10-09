@@ -4,12 +4,13 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { httpBatchStreamLink, loggerLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import SuperJSON from "superjson";
 
 import { type AppRouter } from "~/server/api/root";
 import { createQueryClient } from "./query-client";
 import { setupEnhancedOfflinePersistence } from "~/lib/offline-storage";
+import { useAuth } from "~/providers/AuthProvider";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
 const getQueryClient = () => {
@@ -41,12 +42,40 @@ export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
+  const { user, isLoading } = useAuth();
+  const previousUserIdRef = useRef<string | null>(null);
+  const cleanupRef = useRef<(() => void) | undefined>(undefined);
+  const userId = user?.id ?? null;
 
   // Setup enhanced offline persistence with background sync
   useEffect(() => {
-    const cleanup = setupEnhancedOfflinePersistence(queryClient);
-    return cleanup;
-  }, [queryClient]);
+    if (isLoading) {
+      return;
+    }
+
+    if (
+      previousUserIdRef.current &&
+      previousUserIdRef.current !== userId
+    ) {
+      queryClient.clear();
+    }
+
+    previousUserIdRef.current = userId;
+
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = undefined;
+    }
+
+    cleanupRef.current = setupEnhancedOfflinePersistence(queryClient, userId);
+
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = undefined;
+      }
+    };
+  }, [queryClient, userId, isLoading]);
 
   const [trpcClient] = useState(() =>
     api.createClient({

@@ -55,6 +55,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
     name: string;
     exercises: string[];
     timestamp: number;
+    dedupeKey: string;
   } | null>(null);
 
   // Initialize form with default values
@@ -206,34 +207,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
-    // Check if this is a duplicate submission (same data within 5 seconds)
-    const now = Date.now();
-    const lastSubmit = lastSubmitRef.current;
-
-    if (!template && lastSubmit) {
-      const timeDiff = now - lastSubmit.timestamp;
-      const sameData =
-        lastSubmit.name === trimmedName &&
-        JSON.stringify(lastSubmit.exercises) ===
-          JSON.stringify(filteredExercises);
-
-      if (sameData && timeDiff < 5000) {
-        console.log(
-          "Preventing duplicate submission - same data within 5 seconds",
-          { timeDiff },
-        );
-        return;
-      }
-    }
-
     // Set submission flag and record this attempt
     submitRef.current = true;
-    lastSubmitRef.current = {
-      name: trimmedName,
-      exercises: filteredExercises,
-      timestamp: now,
-    };
-
+    const now = Date.now();
     try {
       if (template) {
         await updateTemplate.mutateAsync({
@@ -242,6 +218,24 @@ export function TemplateForm({ template }: TemplateFormProps) {
           exercises: filteredExercises,
         });
       } else {
+        const previousAttempt = lastSubmitRef.current;
+        let dedupeKey = crypto.randomUUID();
+        if (previousAttempt) {
+          const sameData =
+            previousAttempt.name === trimmedName &&
+            JSON.stringify(previousAttempt.exercises) ===
+              JSON.stringify(filteredExercises);
+          if (sameData) {
+            dedupeKey = previousAttempt.dedupeKey;
+          }
+        }
+
+        lastSubmitRef.current = {
+          name: trimmedName,
+          exercises: filteredExercises,
+          timestamp: now,
+          dedupeKey,
+        };
         console.log("Creating template with data:", {
           name: trimmedName,
           exercises: filteredExercises,
@@ -249,6 +243,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         await createTemplate.mutateAsync({
           name: trimmedName,
           exercises: filteredExercises,
+          dedupeKey,
         });
       }
     } catch (error) {

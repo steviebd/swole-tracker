@@ -259,11 +259,13 @@ beforeAll(() => {
             const parts = encryptedStr.split("_");
             if (parts.length >= 3) {
               const b64Data = parts[1];
-              try {
-                const plaintext = atob(b64Data);
-                return Promise.resolve(new TextEncoder().encode(plaintext));
-              } catch (e) {
-                // Fallback
+              if (b64Data) {
+                try {
+                  const plaintext = atob(b64Data!);
+                  return Promise.resolve(new TextEncoder().encode(plaintext));
+                } catch (e) {
+                  // Fallback
+                }
               }
             }
           }

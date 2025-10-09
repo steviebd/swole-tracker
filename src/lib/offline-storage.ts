@@ -10,8 +10,24 @@ import { offlineQueue, syncStatus, type QueueOperationType } from "./mobile-offl
 import { initializeCacheAnalytics, getCacheAnalytics } from "./cache-analytics";
 
 // Storage key versioning for cache invalidation
-const CACHE_VERSION = "swole-tracker-cache-v3";
+const CACHE_VERSION_PREFIX = "swole-tracker-cache-v3";
+const LEGACY_CACHE_KEY = "swole-tracker-cache";
+const DEFAULT_CACHE_SCOPE = "guest";
 const BACKGROUND_SYNC_INTERVAL = 30000; // 30 seconds
+
+const sanitizeCacheScope = (value: string | null | undefined): string => {
+  if (!value) return DEFAULT_CACHE_SCOPE;
+
+  return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+};
+
+const buildCacheKey = (scope: string): string =>
+  `${CACHE_VERSION_PREFIX}:${scope}`;
+
+let activeCacheScope = DEFAULT_CACHE_SCOPE;
+
+const getActiveCacheKey = (): string => buildCacheKey(activeCacheScope);
+const CACHE_BUSTER = `${CACHE_VERSION_PREFIX}-schema-v1`;
 
 // Cache size management constants (localStorage ~5MB limit)
 const CACHE_SIZE_LIMITS = {
@@ -26,13 +42,22 @@ const CACHE_SIZE_LIMITS = {
  */
 class CacheManager {
   private isMemoryOnlyMode = false;
+  private cacheKey = getActiveCacheKey();
+
+  setCacheKey(key: string): void {
+    this.cacheKey = key;
+  }
+
+  getCacheKey(): string {
+    return this.cacheKey;
+  }
 
   /**
    * Get current cache size in bytes
    */
   private getCacheSize(): number {
     if (typeof window === "undefined") return 0;
-    const cache = localStorage.getItem(CACHE_VERSION);
+    const cache = localStorage.getItem(this.cacheKey);
     return cache ? new Blob([cache]).size : 0;
   }
 
@@ -50,7 +75,7 @@ class CacheManager {
     if (typeof window === "undefined") return;
 
     try {
-      const cacheData = localStorage.getItem(CACHE_VERSION);
+      const cacheData = localStorage.getItem(this.cacheKey);
       if (!cacheData) return;
 
       const parsedCache = JSON.parse(cacheData);
@@ -77,7 +102,7 @@ class CacheManager {
       }
 
       // Save cleaned cache
-      localStorage.setItem(CACHE_VERSION, JSON.stringify(parsedCache));
+      localStorage.setItem(this.cacheKey, JSON.stringify(parsedCache));
 
       // Track cleanup in PostHog and analytics
       void this.trackCacheEvent("cache_cleanup", {
@@ -110,7 +135,7 @@ class CacheManager {
     
     try {
       // Clear all non-essential cached data
-      localStorage.removeItem(CACHE_VERSION);
+      localStorage.removeItem(this.cacheKey);
       void this.trackCacheEvent("quota_exceeded_fallback", {
         previousSize: this.getCacheSize(),
       });
@@ -136,7 +161,7 @@ class CacheManager {
       const currentSize = this.getCacheSize();
       
       // Check for corrupted cache data
-      const cacheData = localStorage.getItem(CACHE_VERSION);
+      const cacheData = localStorage.getItem(this.cacheKey);
       if (cacheData) {
         JSON.parse(cacheData); // Will throw if corrupted
       }
@@ -176,7 +201,7 @@ class CacheManager {
       
       // Clear corrupted cache
       try {
-        localStorage.removeItem(CACHE_VERSION);
+        localStorage.removeItem(this.cacheKey);
       } catch (clearError) {
         console.error("Failed to clear corrupted cache:", clearError);
       }
@@ -196,7 +221,7 @@ class CacheManager {
         (window as any).posthog.capture(`cache_${event}`, {
           ...properties,
           timestamp: Date.now(),
-          cacheVersion: CACHE_VERSION,
+          cacheVersion: this.cacheKey,
         });
       }
     } catch (error) {
@@ -227,13 +252,22 @@ class CacheManager {
 // Global cache manager instance
 const cacheManager = new CacheManager();
 
+export function setOfflineCacheUser(userId: string | null): void {
+  activeCacheScope = sanitizeCacheScope(userId);
+  cacheManager.setCacheKey(getActiveCacheKey());
+}
+
+export function getOfflineCacheKey(): string {
+  return cacheManager.getCacheKey();
+}
+
 // Enhanced persister with size management and error handling
 const createEnhancedPersister = () => {
   const storage = typeof window !== "undefined" ? window.localStorage : undefined;
   
   return createSyncStoragePersister({
     storage: cacheManager.isMemoryOnly() ? undefined : storage, // Fall back to memory if needed
-    key: CACHE_VERSION,
+    key: cacheManager.getCacheKey(),
     serialize: (data) => {
       try {
         // Perform health check before serialization
@@ -270,7 +304,7 @@ const createEnhancedPersister = () => {
         // Clear corrupted data
         try {
           if (typeof window !== "undefined") {
-            localStorage.removeItem(CACHE_VERSION);
+            localStorage.removeItem(cacheManager.getCacheKey());
           }
         } catch (clearError) {
           console.error("Failed to clear corrupted cache:", clearError);
@@ -438,16 +472,20 @@ let backgroundSyncManager: BackgroundSyncManager | undefined;
  * Enhanced offline persistence setup with background sync
  * This is the new primary function that includes all advanced features
  */
-export function setupEnhancedOfflinePersistence(queryClient: QueryClient) {
+export function setupEnhancedOfflinePersistence(
+  queryClient: QueryClient,
+  userId: string | null,
+) {
   if (typeof window === "undefined") return;
 
+  setOfflineCacheUser(userId);
   const persister = createEnhancedPersister();
   
   void persistQueryClient({
     queryClient,
     persister,
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    buster: CACHE_VERSION,
+    buster: CACHE_BUSTER,
     hydrateOptions: {
       // Ensure offline data is immediately available
       defaultOptions: {
@@ -609,7 +647,8 @@ export async function resolveDataConflict<T>(
  */
 export function clearOfflineCache() {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("swole-tracker-cache");
+  localStorage.removeItem(LEGACY_CACHE_KEY);
+  localStorage.removeItem(cacheManager.getCacheKey());
 }
 
 /**
@@ -621,8 +660,20 @@ export async function clearAllOfflineData(): Promise<void> {
   
   try {
     // Clear both old and new cache versions
-    localStorage.removeItem("swole-tracker-cache"); // Legacy
-    localStorage.removeItem(CACHE_VERSION); // New version
+    localStorage.removeItem(LEGACY_CACHE_KEY); // Legacy
+
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key === LEGACY_CACHE_KEY || key.startsWith(`${CACHE_VERSION_PREFIX}:`)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
     
     // Clear offline queue
     await offlineQueue.clearQueue();
@@ -660,8 +711,8 @@ export function getCacheSize(): string {
   if (typeof window === "undefined") return "0 KB";
 
   // Check both old and new cache versions
-  const legacyCache = localStorage.getItem("swole-tracker-cache");
-  const newCache = localStorage.getItem(CACHE_VERSION);
+  const legacyCache = localStorage.getItem(LEGACY_CACHE_KEY);
+  const newCache = localStorage.getItem(cacheManager.getCacheKey());
   const cache = newCache || legacyCache;
   
   if (!cache) return "0 KB";

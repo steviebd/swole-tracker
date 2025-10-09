@@ -10,6 +10,7 @@ import {
   templateExercises,
   sessionExercises,
   workoutSessions,
+  workoutTemplates,
 } from "~/server/db/schema";
 
 // Utility function to normalize exercise names for fuzzy matching
@@ -653,12 +654,16 @@ export const exercisesRouter = createTRPCRouter({
           templateExerciseId: templateExercises.id,
           exerciseName: templateExercises.exerciseName,
           templateId: templateExercises.templateId,
-          templateName: sql<string>`(SELECT name FROM "swole-tracker_workout_template" WHERE id = ${templateExercises.templateId})`,
+          templateName: workoutTemplates.name,
         })
         .from(templateExercises)
         .innerJoin(
           exerciseLinks,
           eq(exerciseLinks.templateExerciseId, templateExercises.id),
+        )
+        .innerJoin(
+          workoutTemplates,
+          eq(workoutTemplates.id, templateExercises.templateId),
         )
         .where(
           and(
@@ -673,10 +678,14 @@ export const exercisesRouter = createTRPCRouter({
           templateExerciseId: templateExercises.id,
           exerciseName: templateExercises.exerciseName,
           templateId: templateExercises.templateId,
-          templateName: sql<string>`(SELECT name FROM "swole-tracker_workout_template" WHERE id = ${templateExercises.templateId})`,
+          templateName: workoutTemplates.name,
           linkingRejected: templateExercises.linkingRejected,
         })
         .from(templateExercises)
+        .innerJoin(
+          workoutTemplates,
+          eq(workoutTemplates.id, templateExercises.templateId),
+        )
         .leftJoin(
           exerciseLinks,
           eq(exerciseLinks.templateExerciseId, templateExercises.id),

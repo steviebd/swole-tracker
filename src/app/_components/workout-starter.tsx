@@ -151,13 +151,16 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       <div>
         <h2 className="mb-4 text-lg font-semibold">Select Workout Template</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => (
-            <Card
-              key={template.id}
-              className={`cursor-pointer transition-all hover:shadow-md ${
-                selectedTemplateId === template.id
-                  ? "ring-primary shadow-md ring-2"
-                  : "hover:ring-muted-foreground/20 hover:ring-1"
+          {templates.map((template) => {
+            const exercises = template.exercises ?? [];
+
+            return (
+              <Card
+                key={template.id}
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  selectedTemplateId === template.id
+                    ? "ring-primary shadow-md ring-2"
+                    : "hover:ring-muted-foreground/20 hover:ring-1"
               }`}
               onClick={() => setSelectedTemplateId(template.id)}
             >
@@ -166,21 +169,22 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                   {template.name}
                 </h3>
                 <p className="text-muted-foreground text-xs sm:text-sm">
-                  {template.exercises.length} exercise
-                  {template.exercises.length !== 1 ? "s" : ""}
+                  {exercises.length} exercise
+                  {exercises.length !== 1 ? "s" : ""}
                 </p>
-                {template.exercises.length > 0 && (
+                {exercises.length > 0 && (
                   <div className="text-muted-foreground mt-2 text-xs">
-                    {template.exercises
+                    {exercises
                       .slice(0, 3)
                       .map((ex) => ex.exerciseName)
                       .join(", ")}
-                    {template.exercises.length > 3 && "..."}
+                    {exercises.length > 3 && "..."}
                   </div>
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -203,15 +207,16 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
               const template = templates.find(
                 (t) => t.id === selectedTemplateId,
               );
+              const exercises = template?.exercises ?? [];
               return template ? (
                 <>
                   <div>
                     <div className="text-muted-foreground text-xs sm:text-sm">
-                      {template.exercises.length === 0 ? (
+                      {exercises.length === 0 ? (
                         "No exercises in this template"
                       ) : (
                         <div className="space-y-1">
-                          {template.exercises.map((exercise, index) => (
+                          {exercises.map((exercise, index) => (
                             <div
                               key={exercise.id}
                               className="flex items-center"

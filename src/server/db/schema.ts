@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   index,
+  uniqueIndex,
   sqliteTable,
   text,
   integer,
@@ -56,6 +57,7 @@ export const workoutTemplates = createTable(
     id: integer().primaryKey({ autoIncrement: true }),
     name: text().notNull(),
     user_id: text().notNull(),
+    dedupeKey: text(),
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -64,6 +66,7 @@ export const workoutTemplates = createTable(
   (t) => [
     index("template_user_id_idx").on(t.user_id),
     index("template_name_idx").on(t.name),
+    uniqueIndex("template_user_dedupe_idx").on(t.user_id, t.dedupeKey),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -339,6 +342,7 @@ export const exerciseLinks = createTable(
     id: integer().primaryKey({ autoIncrement: true }),
     templateExerciseId: integer()
       .notNull()
+      .unique()
       .references(() => templateExercises.id, { onDelete: "cascade" }),
     masterExerciseId: integer()
       .notNull()

@@ -96,6 +96,8 @@ export function DashboardHeader() {
     return letters.toUpperCase() || "S";
   }, [displayName, user]);
 
+  const avatarSrc = user?.profile_picture_url ?? undefined;
+
   const isActive = (href: string) => {
     if (!pathname) return false;
     if (href === "/") {
@@ -286,7 +288,9 @@ export function DashboardHeader() {
                 aria-expanded={userMenuOpen}
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/fitness-user-avatar.png" alt={`${displayName}'s avatar`} />
+                  {avatarSrc ? (
+                    <AvatarImage src={avatarSrc} alt={`${displayName}'s avatar`} />
+                  ) : null}
                   <AvatarFallback className="bg-primary/20 text-sm font-semibold text-primary">
                     {initials}
                   </AvatarFallback>
