@@ -3,7 +3,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { env } from "~/env";
 import { logger } from "~/lib/logger";
 import { buildSessionDebriefPrompt } from "~/lib/ai-prompts/session-debrief";
-import { sessionDebriefContentSchema } from "~/server/api/schemas/health-advice-debrief";
+import {
+  sessionDebriefContentSchema,
+  type SessionDebriefContent,
+} from "~/server/api/schemas/health-advice-debrief";
 import { sessionDebriefs } from "~/server/db/schema";
 import { type db } from "~/server/db";
 import { gatherSessionDebriefContext } from "~/server/api/utils/session-debrief";
@@ -14,6 +17,105 @@ export class AIDebriefRateLimitError extends Error {
     this.name = "AIDebriefRateLimitError";
   }
 }
+
+type SessionDebriefRow = typeof sessionDebriefs.$inferSelect;
+
+const isBeginTransactionError = (error: unknown) => {
+  if (!(error instanceof Error)) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    message.includes("failed query: begin") ||
+    message.includes("cannot start a transaction within a transaction")
+  );
+};
+
+const persistDebriefRecord = async ({
+  dbClient,
+  userId,
+  sessionId,
+  trigger,
+  content,
+  existingActive,
+}: {
+  dbClient: typeof db;
+  userId: string;
+  sessionId: number;
+  trigger: "auto" | "manual" | "regenerate";
+  content: SessionDebriefContent;
+  existingActive: SessionDebriefRow | undefined;
+}) => {
+  const lastVersion = await dbClient
+    .select({ version: sessionDebriefs.version })
+    .from(sessionDebriefs)
+    .where(
+      and(
+        eq(sessionDebriefs.user_id, userId),
+        eq(sessionDebriefs.sessionId, sessionId),
+      ),
+    )
+    .orderBy(desc(sessionDebriefs.version))
+    .limit(1);
+
+  const nextVersion = (lastVersion[0]?.version ?? 0) + 1;
+
+  if (existingActive) {
+    await dbClient
+      .update(sessionDebriefs)
+      .set({ isActive: false })
+      .where(eq(sessionDebriefs.id, existingActive.id));
+  }
+
+  const metadata = {
+    ...(content.metadata ?? {}),
+    generatedAt: new Date().toISOString(),
+    trigger,
+  } satisfies Record<string, unknown>;
+
+  const insertPayload: typeof sessionDebriefs.$inferInsert = {
+    user_id: userId,
+    sessionId,
+    version: nextVersion,
+    summary: content.summary,
+    isActive: true,
+    regenerationCount:
+      (existingActive?.regenerationCount ?? 0) + (trigger === "regenerate" ? 1 : 0),
+    metadata: JSON.stringify(metadata),
+  };
+
+  if (existingActive?.id) {
+    insertPayload.parentDebriefId = existingActive.id;
+  }
+
+  if (
+    Array.isArray(content.prHighlights) &&
+    content.prHighlights.length > 0
+  ) {
+    insertPayload.prHighlights = JSON.stringify(content.prHighlights);
+  }
+
+  if (typeof content.adherenceScore === "number") {
+    insertPayload.adherenceScore = content.adherenceScore;
+  }
+
+  if (Array.isArray(content.focusAreas) && content.focusAreas.length > 0) {
+    insertPayload.focusAreas = JSON.stringify(content.focusAreas);
+  }
+
+  if (content.streakContext && typeof content.streakContext === "object") {
+    insertPayload.streakContext = JSON.stringify(content.streakContext);
+  }
+
+  if (content.overloadDigest && typeof content.overloadDigest === "object") {
+    insertPayload.overloadDigest = JSON.stringify(content.overloadDigest);
+  }
+
+  const [inserted] = await dbClient
+    .insert(sessionDebriefs)
+    .values(insertPayload)
+    .returning();
+
+  return inserted;
+};
 
 interface GenerateDebriefOptions {
   dbClient: typeof db;
@@ -122,85 +224,40 @@ export async function generateAndPersistDebrief({
 
   const content = sessionDebriefContentSchema.parse(parsedJson);
 
-  const nextDebrief = await dbClient.transaction(async (tx) => {
-    const lastVersion = await tx
-      .select({ version: sessionDebriefs.version })
-      .from(sessionDebriefs)
-      .where(
-        and(
-          eq(sessionDebriefs.user_id, userId),
-          eq(sessionDebriefs.sessionId, sessionId),
-        ),
-      )
-      .orderBy(desc(sessionDebriefs.version))
-      .limit(1);
+  let nextDebrief: SessionDebriefRow | undefined;
 
-    const nextVersion = (lastVersion[0]?.version ?? 0) + 1;
-
-    if (existingActive) {
-      await tx
-        .update(sessionDebriefs)
-        .set({ isActive: false })
-        .where(eq(sessionDebriefs.id, existingActive.id));
+  try {
+    nextDebrief = await dbClient.transaction((tx) =>
+      persistDebriefRecord({
+        dbClient: tx,
+        userId,
+        sessionId,
+        trigger,
+        content,
+        existingActive,
+      }),
+    );
+  } catch (error) {
+    if (!isBeginTransactionError(error)) {
+      throw error;
     }
 
-    const metadata = {
-      ...(content.metadata ?? {}),
-      generatedAt: new Date().toISOString(),
-      trigger,
-    } satisfies Record<string, unknown>;
-
-    const insertPayload: typeof sessionDebriefs.$inferInsert = {
-      user_id: userId,
+    logger.warn("session_debrief.transaction_fallback", {
+      userId,
       sessionId,
-      version: nextVersion,
-      summary: content.summary,
-      isActive: true,
-      regenerationCount: existingActive
-        ? existingActive.regenerationCount + (trigger === "regenerate" ? 1 : 0)
-        : trigger === "regenerate"
-          ? 1
-          : 0,
-    };
+      requestId,
+      error: error instanceof Error ? error.message : error,
+    });
 
-    if (existingActive?.id) {
-      insertPayload.parentDebriefId = existingActive.id;
-    }
-
-    if (
-      Array.isArray(content.prHighlights) &&
-      content.prHighlights.length > 0
-    ) {
-      insertPayload.prHighlights = JSON.stringify(content.prHighlights);
-    }
-
-    if (typeof content.adherenceScore === "number") {
-      insertPayload.adherenceScore = content.adherenceScore;
-    }
-
-    if (Array.isArray(content.focusAreas) && content.focusAreas.length > 0) {
-      insertPayload.focusAreas = JSON.stringify(content.focusAreas);
-    }
-
-    if (content.streakContext && typeof content.streakContext === "object") {
-      insertPayload.streakContext = JSON.stringify(content.streakContext);
-    }
-
-    if (content.overloadDigest && typeof content.overloadDigest === "object") {
-      insertPayload.overloadDigest = JSON.stringify(content.overloadDigest);
-    }
-
-    if (metadata) {
-      insertPayload.metadata = JSON.stringify(metadata);
-    }
-
-    const [inserted] = await tx
-      .insert(sessionDebriefs)
-      .values(insertPayload)
-      .returning();
-
-    return inserted;
-  });
+    nextDebrief = await persistDebriefRecord({
+      dbClient,
+      userId,
+      sessionId,
+      trigger,
+      content,
+      existingActive,
+    });
+  }
 
   if (!nextDebrief) {
     throw new Error("Failed to persist session debrief");

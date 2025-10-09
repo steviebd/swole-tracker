@@ -390,6 +390,10 @@ export const healthAdvice = createTable(
     index("health_advice_session_id_idx").on(t.sessionId),
     index("health_advice_created_at_idx").on(t.createdAt),
     index("health_advice_user_created_idx").on(t.user_id, t.createdAt),
+    uniqueIndex("health_advice_user_session_unique").on(
+      t.user_id,
+      t.sessionId,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -496,6 +500,10 @@ export const wellnessData = createTable(
     index("wellness_data_user_date_idx").on(t.user_id, t.date),
     index("wellness_data_user_session_idx").on(t.user_id, t.sessionId),
     index("wellness_data_submitted_at_idx").on(t.user_id, t.submitted_at),
+    uniqueIndex("wellness_data_user_session_unique").on(
+      t.user_id,
+      t.sessionId,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
