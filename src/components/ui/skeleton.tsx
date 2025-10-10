@@ -55,11 +55,24 @@ interface SkeletonProps
     VariantProps<typeof skeletonVariants> {
   width?: string | number;
   height?: string | number;
+  announce?: boolean;
+  ariaLabel?: string;
 }
 
 const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
   (
-    { className, variant, size, shimmer, width, height, style, ...props },
+    {
+      className,
+      variant,
+      size,
+      shimmer,
+      width,
+      height,
+      style,
+      announce = true,
+      ariaLabel = "Loading...",
+      ...props
+    },
     ref,
   ) => {
     const prefersReducedMotion = useReducedMotion();
@@ -72,14 +85,17 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
       }),
     };
 
+    const accessibilityProps: React.HTMLAttributes<HTMLDivElement> = announce
+      ? { role: "status", "aria-label": ariaLabel }
+      : { "aria-hidden": true };
+
     return (
       <div
         ref={ref}
         data-slot="skeleton"
         className={cn(skeletonVariants({ variant, size, shimmer }), className)}
         style={skeletonStyle}
-        role="status"
-        aria-label="Loading..."
+        {...accessibilityProps}
         {...props}
       >
         {/* Shimmer effect overlay */}

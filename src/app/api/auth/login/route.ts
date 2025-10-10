@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
 import { resolveWorkOSRedirectUri } from "~/lib/site-url";
+import { createOAuthState, getClientIp } from "~/lib/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -41,11 +42,31 @@ export async function GET(request: NextRequest) {
     // Get authorization URL
     const redirectUri = resolveWorkOSRedirectUri(request.nextUrl);
 
+    // Generate CSRF protection nonce
+    const csrfNonce = crypto.randomUUID();
+    const clientIp = getClientIp(request.headers);
+    const userAgent = request.headers.get("user-agent") || "";
+
+    // Create OAuth state for CSRF protection (using anonymous user for now)
+    const oauthState = await createOAuthState(
+      `anonymous_${csrfNonce}`, // Temporary user ID for anonymous state
+      "workos",
+      safeRedirect,
+      clientIp,
+      userAgent,
+    );
+
     const authorizationUrl = workos.userManagement.getAuthorizationUrl({
       provider: "GoogleOAuth", // Use GoogleOAuth for Google SSO
       redirectUri,
       clientId: env.WORKOS_CLIENT_ID!, // We already checked it's defined
-      state: encodeState(JSON.stringify({ redirectTo: safeRedirect })),
+      state: encodeState(
+        JSON.stringify({
+          redirectTo: safeRedirect,
+          csrfNonce,
+          oauthState,
+        }),
+      ),
     });
 
     return NextResponse.redirect(authorizationUrl);

@@ -6,6 +6,7 @@ import { getWorkOS } from "~/lib/workos";
 import { SessionCookie } from "~/lib/session-cookie";
 import { env } from "~/env";
 import { upsertUserFromWorkOS } from "~/server/db/users";
+import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
 
 export const runtime = "nodejs";
 
@@ -43,6 +44,51 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Validate CSRF state
+    let redirectTo = "/";
+    let csrfNonce: string | undefined;
+    let oauthState: string | undefined;
+
+    if (state) {
+      try {
+        const decodedState = JSON.parse(decodeState(state));
+        redirectTo = decodedState.redirectTo || "/";
+        csrfNonce = decodedState.csrfNonce;
+        oauthState = decodedState.oauthState;
+      } catch (error) {
+        console.error("Failed to decode state:", error);
+        return NextResponse.redirect(
+          new URL("/auth/login?error=invalid_state", request.url),
+        );
+      }
+    }
+
+    if (!csrfNonce || !oauthState) {
+      console.error("Missing CSRF nonce or OAuth state");
+      return NextResponse.redirect(
+        new URL("/auth/login?error=missing_csrf", request.url),
+      );
+    }
+
+    const clientIp = getClientIp(request.headers);
+    const userAgent = request.headers.get("user-agent") || "";
+
+    // Validate CSRF nonce (using anonymous user pattern)
+    const stateValidation = await validateOAuthState(
+      oauthState,
+      `anonymous_${csrfNonce}`, // Use original nonce as anonymous user ID
+      "workos",
+      clientIp,
+      userAgent,
+    );
+
+    if (!stateValidation.isValid) {
+      console.error("CSRF validation failed");
+      return NextResponse.redirect(
+        new URL("/auth/login?error=csrf_failed", request.url),
+      );
+    }
+
     const workos = getWorkOS();
 
     // Exchange code for tokens
@@ -55,7 +101,10 @@ export async function GET(request: NextRequest) {
     const workosUser = authResponse.user as {
       id: string;
       email?: string | null;
-      emails?: Array<{ email?: string | null; primary?: boolean | null }> | null;
+      emails?: Array<{
+        email?: string | null;
+        primary?: boolean | null;
+      }> | null;
       firstName?: string | null;
       lastName?: string | null;
       profilePictureUrl?: string | null;
@@ -64,9 +113,9 @@ export async function GET(request: NextRequest) {
     const primaryEmail =
       workosUser.email ??
       (Array.isArray(workosUser.emails)
-        ? workosUser.emails.find((mail) => mail?.primary)?.email ??
+        ? (workosUser.emails.find((mail) => mail?.primary)?.email ??
           workosUser.emails.find((mail) => Boolean(mail?.email))?.email ??
-          null
+          null)
         : null);
 
     try {
@@ -92,17 +141,6 @@ export async function GET(request: NextRequest) {
 
     // Create response with session cookie
     const cookieValue = await SessionCookie.create(session);
-
-    // Decode state to get redirect URL
-    let redirectTo = "/";
-    if (state) {
-      try {
-        const decodedState = JSON.parse(decodeState(state));
-        redirectTo = decodedState.redirectTo || "/";
-      } catch (error) {
-        console.error("Failed to decode state:", error);
-      }
-    }
 
     const response = NextResponse.redirect(new URL(redirectTo, request.url));
     response.headers.set("Set-Cookie", cookieValue);

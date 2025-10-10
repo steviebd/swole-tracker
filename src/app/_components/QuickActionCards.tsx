@@ -47,13 +47,17 @@ export function QuickActionCards() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       {cards.map((card) => (
-        <Link key={card.id} href={card.href} className="block">
+        <Link
+          key={card.id}
+          href={card.href}
+          className="group block focus-visible:outline-none focus-visible:ring-0"
+        >
           <Card
             surface="card"
             variant="elevated"
             padding="md"
             interactive={true}
-            className={`${card.gradient} text-white hover:shadow-lg transition-all group relative overflow-hidden`} // eslint-disable-line no-restricted-syntax
+            className={`${card.gradient} text-white hover:shadow-lg transition-all relative overflow-hidden group-focus-visible:shadow-xl group-focus-visible:ring-2 group-focus-visible:ring-white/70 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background`} // eslint-disable-line no-restricted-syntax
           >
           {/* Icon and arrow row */}
           <div className="flex items-center justify-between mb-4">

@@ -213,7 +213,11 @@ export function SingleFAB({
   return (
     <Link
       href={href}
-      className={cn("fab touch-target-large", className)}
+      className={cn(
+        "fab touch-target-large",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        className,
+      )}
       aria-label={label}
       title={label}
     >
@@ -244,7 +248,10 @@ export function QuickActionsGrid({ className }: { className?: string }) {
           <Link
             key={action.href}
             href={action.href}
-            className="quick-action-card touch-target"
+            className={cn(
+              "quick-action-card touch-target",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            )}
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">

@@ -3,6 +3,8 @@
 import * as React from "react";
 import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
 import { StatCard } from "~/components/ui/stat-card";
+import { LoadingState } from "~/components/ui/async-state";
+import { Skeleton } from "~/components/ui/skeleton";
 import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
 import { motion } from "framer-motion";
 import { cn } from "~/lib/utils";
@@ -141,25 +143,30 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
 
     if (isLoading) {
       return (
-        <div
+        <LoadingState
           ref={ref}
+          label="Loading summary cards"
+          description="Fetching your latest workout stats"
           className={cn(
             "mb-6 grid grid-cols-1 gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4",
             className,
           )}
         >
-          {[...Array(4)].map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, delay: i * 0.05 }}
-              className="animate-pulse"
             >
-              <div className="bg-muted glass-surface h-[140px] rounded-lg" />
+              <Skeleton
+                announce={false}
+                variant="card"
+                className="h-[140px] w-full"
+              />
             </motion.div>
           ))}
-        </div>
+        </LoadingState>
       );
     }
 

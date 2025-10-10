@@ -1,3 +1,4 @@
+import { expect } from "vitest";
 import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll, vi } from "vitest";
 import { setupServer } from "msw/node";
@@ -102,101 +103,15 @@ const mockLogger = {
   logSecurityEvent: vi.fn(() => {}),
 };
 
-// Create a comprehensive drizzle-orm query builder mock
-const createDrizzleQueryBuilder = (result: any[] = []) => {
-  const builder: any = {
-    where: vi.fn(() => builder),
-    orderBy: vi.fn(() => builder),
-    limit: vi.fn(() => builder),
-    offset: vi.fn(() => builder),
-    leftJoin: vi.fn(() => builder),
-    innerJoin: vi.fn(() => builder),
-    select: vi.fn(() => builder),
-    from: vi.fn(() => builder),
-    groupBy: vi.fn(() => builder),
-    having: vi.fn(() => builder),
-    // Execute methods
-    execute: vi.fn(() => Promise.resolve(result)),
-    then: vi.fn((resolve: any) => Promise.resolve(result).then(resolve)),
-    catch: vi.fn(() => Promise.resolve(result)),
-    finally: vi.fn(() => Promise.resolve(result)),
-  };
-  return builder;
-};
-
-const mockDb = {
-  db: {
-    // Basic query methods with proper drizzle interface
-    select: vi.fn(() => createDrizzleQueryBuilder()),
-    update: vi.fn((table) => ({
-      set: vi.fn(() => ({
-        where: vi.fn(() => ({
-          returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-        })),
-      })),
-    })),
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        onConflictDoUpdate: vi.fn(() => ({
-          set: vi.fn(() => ({
-            returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-          })),
-        })),
-        set: vi.fn(() => ({
-          returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-        })),
-        returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-      })),
-    })),
-    delete: vi.fn(() => ({
-      where: vi.fn(() => createDrizzleQueryBuilder()),
-    })),
-
-    // Legacy query interface for existing tests
-    query: {
-      workoutTemplates: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      templateExercises: {
-        findMany: vi.fn(() => []),
-      },
-      masterExercises: {
-        findFirst: vi.fn(() => null),
-        findMany: vi.fn(() => []),
-      },
-      exerciseLinks: {
-        findFirst: vi.fn(() => null),
-        findMany: vi.fn(() => []),
-      },
-      workoutSessions: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      whoopData: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      jokes: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      healthAdvice: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-    },
-  },
-};
-
 // Setup MSW server for API mocking
 export const server = setupServer(...workosAuthHandlers);
 
 beforeAll(() => {
-  console.log("Setup running...");
   // Set up environment variables
   process.env.ENCRYPTION_MASTER_KEY =
     "test_encryption_key_32_chars_minimum_12345678901234567890123456789012";
+  process.env.WORKER_SESSION_SECRET =
+    "test_session_secret_32_chars_minimum_12345678901234567890123456789012";
   process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
   process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_dummy";
   process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
@@ -217,6 +132,9 @@ beforeAll(() => {
 
   Object.defineProperty(global, "crypto", {
     value: {
+      randomUUID: vi.fn(
+        () => `test-uuid-${Math.random().toString(36).substr(2, 9)}`,
+      ),
       getRandomValues: vi.fn((array) => {
         // Fill array with random values for testing
         for (let i = 0; i < array.length; i++) {

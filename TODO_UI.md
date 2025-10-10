@@ -9,15 +9,15 @@
 
 ## Global Shell & Navigation
 - [x] Header (`src/components/dashboard-header.tsx`) only exposes theme toggle, bell, preferences, and avatar; surface primary nav (Dashboard, Workouts, Progress, Templates, Whoop) plus a mobile drawer so athletes can jump flows without relying on browser back.
-- Audit gradient/glass treatments for mobile contrast issues. Keep the branded styling but tweak elevation, blur, and overlay opacity so metrics stay legible in all lighting conditions.
+- [x] Audit gradient/glass treatments for mobile contrast issues. Keep the branded styling but tweak elevation, blur, and overlay opacity so metrics stay legible in all lighting conditions.
 - [x] Establish a reusable page shell primitive (breadcrumb, title, actions) instead of hand-rolling one per page (`/workouts`, `/templates`, `/progress`); this keeps heading hierarchy and spacing consistent on small screens.
-- Normalize loading and empty states across dashboards. Several views lean on custom `skeleton-*` utilities while others use `<Skeleton>`; align visuals and announce loading state to screen readers.
-- Audit focus handling for card grids and large buttons. Quick actions, template cards, and workout cards wrap everything in `<Link>` without explicit focus styles, making keyboard navigation hard to track.
+- [x] Normalize loading and empty states across dashboards. Several views lean on custom `skeleton-*` utilities while others use `<Skeleton>`; align visuals and announce loading state to screen readers.
+- [x] Audit focus handling for card grids and large buttons. Quick actions, template cards, and workout cards wrap everything in `<Link>` without explicit focus styles, making keyboard navigation hard to track.
 - [x] Elevate offline/persistence cues into the global shell (header badge, sync tray). Components such as `enhanced-sync-indicator` and `offline-workout-manager` should appear consistently across pages.
 
 ## / (Home Dashboard)
-- Logged-out hero sits inside `motion.div` with dense copy; add a secondary CTA (“Try a demo”) or supporting imagery to communicate value quickly to first-time visitors.
-- Logged-in dashboard shows Stats, Quick Actions, Weekly Progress, and Recent Workouts with disparate shadows/gradients. Align card heights, typography, and spacing so the grid feels cohesive while preserving brand gradients.
+- [x] Logged-out hero sits inside `motion.div` with dense copy; add a secondary CTA (“Try a demo”) or supporting imagery to communicate value quickly to first-time visitors.
+- [x] Logged-in dashboard shows Stats, Quick Actions, Weekly Progress, and Recent Workouts with disparate shadows/gradients. Align card heights, typography, and spacing so the grid feels cohesive while preserving brand gradients.
 - [x] Quick actions render as large gradient CTAs; on mobile the three stacked cards feel heavy. Collapse into a horizontal scroll row or compact list for one-handed reach.
 - [x] `RecentWorkoutsSection` header renders a button labelled “View all workouts” without navigation; replace it with an actual `<Link>` so athletes can jump to `/workouts` immediately.
 - [x] Surface readiness insights (AI coaching highlights, Whoop readiness) on the dashboard so mobile athletes don’t have to open `/progress` during a session.

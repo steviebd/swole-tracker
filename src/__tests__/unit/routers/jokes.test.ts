@@ -1,50 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 
-// Mock dependencies
-vi.mock("~/server/db", () => ({
-  db: {
-    select: vi.fn(() => []),
-    insert: vi.fn(() => {}),
-    delete: vi.fn(() => {}),
-    from: vi.fn(() => {}),
-    where: vi.fn(() => {}),
-    orderBy: vi.fn(() => {}),
-    limit: vi.fn(() => {}),
-    values: vi.fn(() => {}),
-    returning: vi.fn(() => {}),
-  },
-}));
-
-vi.mock("~/env", () => ({
-  env: {
-    AI_GATEWAY_PROMPT: "Tell a fitness joke",
-    AI_GATEWAY_MODEL: "openai/gpt-4o-mini",
-    AI_GATEWAY_JOKE_MEMORY_NUMBER: 3,
-    VERCEL_AI_GATEWAY_API_KEY: "test-key",
-  },
-}));
-
-vi.mock("ai", () => ({
-  generateText: vi.fn(() => Promise.resolve({ text: "Test joke" })),
-}));
-
-vi.mock("drizzle-orm", () => ({
-  eq: vi.fn(() => ({ })),
-  desc: vi.fn(() => ({ })),
-  sql: vi.fn(() => ({ })),
-  relations: vi.fn(() => ({ })),
-}));
-
-// Import after mocking
-import { jokesRouter } from "~/server/api/routers/jokes";
+// Import the router - we'll handle mocking differently
+let jokesRouter: any;
 
 describe("jokesRouter", () => {
-  beforeEach(() => {
-    // Reset all mocks
-  });
-
-  afterEach(() => {
-    // Cleanup if needed
+  beforeAll(async () => {
+    // Dynamic import to avoid mocking issues
+    const { jokesRouter: router } = await import("~/server/api/routers/jokes");
+    jokesRouter = router;
   });
 
   describe("router structure", () => {

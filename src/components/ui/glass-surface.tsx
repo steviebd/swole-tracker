@@ -23,6 +23,11 @@ export interface GlassSurfaceProps extends React.HTMLAttributes<HTMLElement> {
 
 const GlassSurface = React.forwardRef<HTMLElement, GlassSurfaceProps>(
   ({ children, className, as: Component = 'div', ...props }, ref) => {
+    const overlayGradient = `
+      radial-gradient(600px 300px at 10% -10%, var(--color-glass-highlight) 0%, transparent 55%),
+      radial-gradient(420px 220px at 90% 0%, var(--color-glass-accent) 0%, transparent 60%)
+    `;
+
     return (
       <Component
         ref={ref}
@@ -40,22 +45,21 @@ const GlassSurface = React.forwardRef<HTMLElement, GlassSurfaceProps>(
           'rounded-lg',
           // Ensure proper z-index layering for glass architecture
           'relative',
+          // Establish stronger base fill for contrast-sensitive contexts
+          'bg-[color:var(--glass-surface-fill,transparent)]',
           className
         )}
         {...props}
       >
-        {/* Subtle gradient highlight overlay */}
-        <div 
-          className="absolute inset-0 opacity-10"
+        {/* Subtle gradient highlight overlay responsive to motion + contrast tokens */}
+        <div
+          className="glass-surface-overlay pointer-events-none absolute inset-0"
           style={{
-            background: `
-              radial-gradient(600px 300px at 10% -10%, var(--color-glass-highlight) 0%, transparent 50%),
-              radial-gradient(400px 200px at 90% 0%, var(--color-glass-accent) 0%, transparent 50%)
-            `
+            background: overlayGradient,
           }}
           aria-hidden="true"
         />
-        
+
         {/* Content wrapper to ensure proper layering */}
         <div className="relative z-10">
           {children}

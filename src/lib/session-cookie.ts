@@ -1,10 +1,20 @@
 import { env } from "~/env";
+import { db } from "~/server/db";
+import { sessions } from "~/server/db/schema";
+import { eq, and, gt } from "drizzle-orm";
 
 export interface WorkOSSession {
   userId: string;
   organizationId?: string;
   accessToken: string;
   refreshToken: string | null;
+  expiresAt: number; // Unix timestamp in seconds
+}
+
+export interface SessionData {
+  id: string; // Opaque session ID
+  userId: string;
+  organizationId?: string;
   expiresAt: number; // Unix timestamp in seconds
 }
 
@@ -18,6 +28,10 @@ const SESSION_COOKIE_SAME_SITE = "lax" as const;
 
 function getSecret(): string {
   const secret = env.WORKER_SESSION_SECRET;
+  // In test environment, allow shorter secrets for testing
+  if (env.NODE_ENV === "test" && secret && secret.length >= 10) {
+    return secret;
+  }
   if (!secret || secret.length < 32) {
     throw new Error(
       "WORKER_SESSION_SECRET must be at least 32 characters long",
@@ -45,8 +59,26 @@ async function sign(data: string): Promise<string> {
 
 // Verify signed data using Web Crypto API
 async function verify(data: string, signature: string): Promise<boolean> {
-  const expectedSignature = await sign(data);
-  return expectedSignature === signature;
+  const secret = getSecret();
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
+
+  const signatureBytes = new Uint8Array(
+    signature.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) ?? [],
+  );
+
+  return await crypto.subtle.verify(
+    "HMAC",
+    key,
+    signatureBytes,
+    encoder.encode(data),
+  );
 }
 
 // Serialize session to string
@@ -63,9 +95,7 @@ function deserializeSession(data: string): WorkOSSession {
       throw new Error("Invalid session data");
     }
     const refreshToken =
-      typeof session.refreshToken === "undefined"
-        ? null
-        : session.refreshToken;
+      typeof session.refreshToken === "undefined" ? null : session.refreshToken;
 
     return {
       ...session,
@@ -78,14 +108,24 @@ function deserializeSession(data: string): WorkOSSession {
 
 export class SessionCookie {
   static async create(session: WorkOSSession): Promise<string> {
-    const serialized = serializeSession({
-      ...session,
-      refreshToken: session.refreshToken ?? null,
-    });
-    const signature = await sign(serialized);
-    const signedData = `${serialized}.${signature}`;
+    // Generate opaque session ID
+    const sessionId = crypto.randomUUID();
 
-    // Create cookie string
+    // Store session data in database
+    await db.insert(sessions).values({
+      id: sessionId,
+      userId: session.userId,
+      organizationId: session.organizationId,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      expiresAt: session.expiresAt,
+    });
+
+    // Sign the session ID
+    const signature = await sign(sessionId);
+    const signedData = `${sessionId}.${signature}`;
+
+    // Create cookie string with just the session ID
     const cookieParts = [
       `${SESSION_COOKIE_NAME}=${encodeURIComponent(signedData)}`,
       `Max-Age=${SESSION_COOKIE_MAX_AGE}`,
@@ -107,7 +147,7 @@ export class SessionCookie {
 
     try {
       const decodedCookieValue = decodeURIComponent(cookieValue);
-      // The payload is raw JSON that can contain '.' characters, so split from the end.
+      // Split from the end to get session ID and signature
       const separatorIndex = decodedCookieValue.lastIndexOf(".");
 
       if (
@@ -117,20 +157,70 @@ export class SessionCookie {
         return null;
       }
 
-      const data = decodedCookieValue.slice(0, separatorIndex);
+      const sessionId = decodedCookieValue.slice(0, separatorIndex);
       const signature = decodedCookieValue.slice(separatorIndex + 1);
 
-      const isValid = await verify(data, signature);
+      const isValid = await verify(sessionId, signature);
       if (!isValid) return null;
 
-      return deserializeSession(data);
+      // Fetch session data from database
+      const [sessionData] = await db
+        .select()
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.id, sessionId),
+            gt(sessions.expiresAt, Math.floor(Date.now() / 1000)),
+          ),
+        )
+        .limit(1);
+
+      if (!sessionData) return null;
+
+      return {
+        userId: sessionData.userId,
+        organizationId: sessionData.organizationId || undefined,
+        accessToken: sessionData.accessToken,
+        refreshToken: sessionData.refreshToken,
+        expiresAt: sessionData.expiresAt,
+      };
     } catch (error) {
-      // Invalid cookie format
+      // Invalid cookie format or database error
       return null;
     }
   }
 
-  static destroy(): string {
+  static async destroy(request: Request): Promise<string> {
+    // Clean up session from database if it exists
+    try {
+      const cookies = request.headers.get("cookie");
+      if (cookies) {
+        const cookieValue = this.extractCookieValue(
+          cookies,
+          SESSION_COOKIE_NAME,
+        );
+        if (cookieValue) {
+          const decodedCookieValue = decodeURIComponent(cookieValue);
+          const separatorIndex = decodedCookieValue.lastIndexOf(".");
+
+          if (
+            separatorIndex > 0 &&
+            separatorIndex < decodedCookieValue.length - 1
+          ) {
+            const sessionId = decodedCookieValue.slice(0, separatorIndex);
+            const signature = decodedCookieValue.slice(separatorIndex + 1);
+
+            if (await verify(sessionId, signature)) {
+              // Delete session from database
+              await db.delete(sessions).where(eq(sessions.id, sessionId));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+
     return [
       `${SESSION_COOKIE_NAME}=`,
       `Max-Age=0`,
@@ -164,5 +254,40 @@ export class SessionCookie {
   static isExpired(session: WorkOSSession): boolean {
     const now = Math.floor(Date.now() / 1000);
     return session.expiresAt <= now;
+  }
+
+  static async update(request: Request, session: WorkOSSession): Promise<void> {
+    const cookies = request.headers.get("cookie");
+    if (!cookies) return;
+
+    const cookieValue = this.extractCookieValue(cookies, SESSION_COOKIE_NAME);
+    if (!cookieValue) return;
+
+    try {
+      const decodedCookieValue = decodeURIComponent(cookieValue);
+      const separatorIndex = decodedCookieValue.lastIndexOf(".");
+
+      if (
+        separatorIndex <= 0 ||
+        separatorIndex === decodedCookieValue.length - 1
+      ) {
+        return;
+      }
+
+      const sessionId = decodedCookieValue.slice(0, separatorIndex);
+
+      // Update session data in database
+      await db
+        .update(sessions)
+        .set({
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+          expiresAt: session.expiresAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(sessions.id, sessionId));
+    } catch (error) {
+      // Ignore update errors
+    }
   }
 }

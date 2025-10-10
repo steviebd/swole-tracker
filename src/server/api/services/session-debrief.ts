@@ -10,6 +10,7 @@ import {
 import { sessionDebriefs } from "~/server/db/schema";
 import { type db } from "~/server/db";
 import { gatherSessionDebriefContext } from "~/server/api/utils/session-debrief";
+import type { SQLiteTransaction } from "drizzle-orm/sqlite-core";
 
 export class AIDebriefRateLimitError extends Error {
   constructor(message: string) {
@@ -37,7 +38,7 @@ const persistDebriefRecord = async ({
   content,
   existingActive,
 }: {
-  dbClient: typeof db;
+  dbClient: typeof db | SQLiteTransaction<"async", any, any, any>;
   userId: string;
   sessionId: number;
   trigger: "auto" | "manual" | "regenerate";
@@ -78,7 +79,8 @@ const persistDebriefRecord = async ({
     summary: content.summary,
     isActive: true,
     regenerationCount:
-      (existingActive?.regenerationCount ?? 0) + (trigger === "regenerate" ? 1 : 0),
+      (existingActive?.regenerationCount ?? 0) +
+      (trigger === "regenerate" ? 1 : 0),
     metadata: JSON.stringify(metadata),
   };
 
@@ -86,10 +88,7 @@ const persistDebriefRecord = async ({
     insertPayload.parentDebriefId = existingActive.id;
   }
 
-  if (
-    Array.isArray(content.prHighlights) &&
-    content.prHighlights.length > 0
-  ) {
+  if (Array.isArray(content.prHighlights) && content.prHighlights.length > 0) {
     insertPayload.prHighlights = JSON.stringify(content.prHighlights);
   }
 

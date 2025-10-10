@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { webhookEvents } from "~/server/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 
 export const webhooksRouter = createTRPCRouter({
   getRecentEvents: protectedProcedure
@@ -12,15 +12,17 @@ export const webhooksRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const baseWhere = eq(webhookEvents.userId, ctx.user.id);
       const query = ctx.db
         .select()
         .from(webhookEvents)
+        .where(
+          input.provider
+            ? and(baseWhere, eq(webhookEvents.provider, input.provider))
+            : baseWhere,
+        )
         .orderBy(desc(webhookEvents.createdAt))
         .limit(input.limit);
-
-      if (input.provider) {
-        query.where(eq(webhookEvents.provider, input.provider));
-      }
 
       return await query;
     }),
@@ -31,7 +33,12 @@ export const webhooksRouter = createTRPCRouter({
       const [event] = await ctx.db
         .select()
         .from(webhookEvents)
-        .where(eq(webhookEvents.id, input.id));
+        .where(
+          and(
+            eq(webhookEvents.id, input.id),
+            eq(webhookEvents.userId, ctx.user.id),
+          ),
+        );
 
       return event;
     }),
@@ -45,7 +52,8 @@ export const webhooksRouter = createTRPCRouter({
         eventType: webhookEvents.eventType,
         createdAt: webhookEvents.createdAt,
       })
-      .from(webhookEvents);
+      .from(webhookEvents)
+      .where(eq(webhookEvents.userId, ctx.user.id));
 
     const stats = {
       total: events.length,

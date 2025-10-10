@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
 
-// Set the environment variable directly
-process.env.WORKER_SESSION_SECRET =
-  "test_session_secret_32_chars_minimum_123456789";
-
 describe("SessionCookie", () => {
   const validSession: WorkOSSession = {
     userId: "test-user-id",
@@ -89,8 +85,9 @@ describe("SessionCookie", () => {
   });
 
   describe("destroy", () => {
-    it("should create a cookie deletion string", () => {
-      const cookieString = SessionCookie.destroy();
+    it("should create a cookie deletion string", async () => {
+      const mockRequest = new Request("http://localhost");
+      const cookieString = await SessionCookie.destroy(mockRequest);
 
       expect(cookieString).toContain("workos_session=");
       expect(cookieString).toContain("Max-Age=0");

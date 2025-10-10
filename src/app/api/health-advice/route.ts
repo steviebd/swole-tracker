@@ -196,7 +196,10 @@ export async function POST(req: NextRequest) {
     try {
       // Get the workout session and its template
       currentSession = await db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, sessionId),
+        where: and(
+          eq(workoutSessions.id, sessionId),
+          eq(workoutSessions.user_id, session.userId),
+        ),
         with: {
           template: {
             with: {
@@ -208,6 +211,14 @@ export async function POST(req: NextRequest) {
           exercises: true, // Get existing session exercises for set count detection
         },
       });
+
+      // Bail early if session doesn't belong to authenticated user
+      if (!currentSession) {
+        return NextResponse.json(
+          { error: "Session not found or access denied" },
+          { status: 404 },
+        );
+      }
 
       const sessionTemplate =
         currentSession &&
@@ -305,7 +316,7 @@ export async function POST(req: NextRequest) {
       try {
         exerciseHistory = await getExerciseHistory(
           { query: db.query, schema: { workoutSessions, sessionExercises } },
-          currentSession.user_id,
+          session.userId,
           exerciseNames,
           sessionId,
         );

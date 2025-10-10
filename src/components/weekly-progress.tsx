@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
-import { Progress } from "~/components/ui/progress"
-import { Badge } from "~/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Progress } from "~/components/ui/progress";
+import { Badge } from "~/components/ui/badge";
+import { LoadingState } from "~/components/ui/async-state";
+import { Skeleton } from "~/components/ui/skeleton";
 
 export function WeeklyProgress() {
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month">("week");
@@ -68,28 +70,34 @@ export function WeeklyProgress() {
 
   if (isLoading) {
     return (
-      <Card className="border-0 shadow-lg">
+      <Card className="glass-card glass-hairline flex h-full flex-col border border-white/8 bg-card/85 shadow-xl">
         <CardHeader className="pb-4">
-          <CardTitle className="text-2xl font-serif font-black">Weekly Progress</CardTitle>
+          <CardTitle className="font-display text-xl font-bold text-foreground sm:text-2xl">Weekly Progress</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="space-y-3">
-              <div className="skeleton skeleton-text h-6 w-32"></div>
-              <div className="skeleton skeleton-text h-8 w-48"></div>
-              <div className="skeleton skeleton-progress h-3 w-full"></div>
-            </div>
-          ))}
+        <CardContent className="flex-1">
+          <LoadingState
+            label="Loading weekly progress"
+            description="Crunching your workout volume and consistency"
+            className="space-y-6"
+          >
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="space-y-3">
+                <Skeleton announce={false} variant="text" className="h-6 w-32" />
+                <Skeleton announce={false} className="h-8 w-48" />
+                <Skeleton announce={false} className="h-3 w-full" />
+              </div>
+            ))}
+          </LoadingState>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="border-0 shadow-lg">
+    <Card className="glass-card glass-hairline flex h-full flex-col border border-white/8 bg-card/85 shadow-xl">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl font-serif font-black">
+          <CardTitle className="font-display text-xl font-bold text-foreground sm:text-2xl">
             {selectedPeriod === "week" ? "Weekly" : "Monthly"} Progress
           </CardTitle>
           <div className="flex gap-2">
@@ -110,7 +118,7 @@ export function WeeklyProgress() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="flex-1 space-y-6">
         {goals.map((goal, index) => (
           <div key={index} className="space-y-3">
             <div className="flex items-center justify-between">

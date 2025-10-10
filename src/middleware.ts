@@ -4,10 +4,7 @@ import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
 
 export async function middleware(request: NextRequest) {
-  // In development, skip middleware for testing
-  if (process.env.NODE_ENV === "development") {
-    return NextResponse.next();
-  }
+  
 
   // Check if user has a valid session
   const session = await SessionCookie.get(request);
@@ -35,7 +32,10 @@ export async function middleware(request: NextRequest) {
         const redirectUrl = new URL("/auth/login", request.url);
         redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
         const response = NextResponse.redirect(redirectUrl);
-        response.headers.set("Set-Cookie", SessionCookie.destroy());
+        response.headers.set(
+          "Set-Cookie",
+          await SessionCookie.destroy(request),
+        );
         return response;
       }
 
@@ -48,10 +48,10 @@ export async function middleware(request: NextRequest) {
             clientId: env.WORKOS_CLIENT_ID!,
           });
 
-        // Create new session with refreshed tokens
+        // Update existing session with refreshed tokens
         // WorkOS tokens typically last 1 hour, refresh tokens longer
         const accessTokenExpiry = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
-        const newSession = {
+        const updatedSession = {
           userId: refreshedSession.user.id,
           organizationId: refreshedSession.organizationId,
           accessToken: refreshedSession.accessToken,
@@ -59,12 +59,11 @@ export async function middleware(request: NextRequest) {
           expiresAt: accessTokenExpiry,
         };
 
-        // Create response with new session cookie
+        // Update session in database
+        await SessionCookie.update(request, updatedSession);
+
+        // Continue with existing cookie (no need to set new cookie)
         const response = NextResponse.next();
-        response.headers.set(
-          "Set-Cookie",
-          await SessionCookie.create(newSession),
-        );
         return response;
       } catch (error) {
         // Refresh failed, redirect to login and clear cookie
@@ -72,7 +71,10 @@ export async function middleware(request: NextRequest) {
         const redirectUrl = new URL("/auth/login", request.url);
         redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
         const response = NextResponse.redirect(redirectUrl);
-        response.headers.set("Set-Cookie", SessionCookie.destroy());
+        response.headers.set(
+          "Set-Cookie",
+          await SessionCookie.destroy(request),
+        );
         return response;
       }
     }

@@ -299,14 +299,15 @@ export const templatesRouter = createTRPCRouter({
       const dedupeKey = input.dedupeKey;
 
       const loadTemplateResponse = async (templateId: number) => {
-        const templateWithRelations = await ctx.db.query.workoutTemplates.findFirst({
-          where: eq(workoutTemplates.id, templateId),
-          with: {
-            exercises: {
-              orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+        const templateWithRelations =
+          await ctx.db.query.workoutTemplates.findFirst({
+            where: eq(workoutTemplates.id, templateId),
+            with: {
+              exercises: {
+                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+              },
             },
-          },
-        });
+          });
 
         if (!templateWithRelations) {
           return null;
@@ -343,11 +344,14 @@ export const templatesRouter = createTRPCRouter({
         });
 
         if (existingByKey) {
-          debugLog("templates.create: returning existing template via dedupeKey", {
-            templateId: existingByKey.id,
-            dedupeKey,
-            requestId: ctx.requestId,
-          });
+          debugLog(
+            "templates.create: returning existing template via dedupeKey",
+            {
+              templateId: existingByKey.id,
+              dedupeKey,
+              requestId: ctx.requestId,
+            },
+          );
           const response = await loadTemplateResponse(existingByKey.id);
           if (response) {
             return response;
@@ -425,11 +429,14 @@ export const templatesRouter = createTRPCRouter({
             ),
           });
           if (template) {
-            debugLog("templates.create: returning deduped template after conflict", {
-              templateId: template.id,
-              dedupeKey,
-              requestId: ctx.requestId,
-            });
+            debugLog(
+              "templates.create: returning deduped template after conflict",
+              {
+                templateId: template.id,
+                dedupeKey,
+                requestId: ctx.requestId,
+              },
+            );
           }
         }
 

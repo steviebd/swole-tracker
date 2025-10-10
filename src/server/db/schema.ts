@@ -390,10 +390,7 @@ export const healthAdvice = createTable(
     index("health_advice_session_id_idx").on(t.sessionId),
     index("health_advice_created_at_idx").on(t.createdAt),
     index("health_advice_user_created_idx").on(t.user_id, t.createdAt),
-    uniqueIndex("health_advice_user_session_unique").on(
-      t.user_id,
-      t.sessionId,
-    ),
+    uniqueIndex("health_advice_user_session_unique").on(t.user_id, t.sessionId),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -500,10 +497,7 @@ export const wellnessData = createTable(
     index("wellness_data_user_date_idx").on(t.user_id, t.date),
     index("wellness_data_user_session_idx").on(t.user_id, t.sessionId),
     index("wellness_data_submitted_at_idx").on(t.user_id, t.submitted_at),
-    uniqueIndex("wellness_data_user_session_unique").on(
-      t.user_id,
-      t.sessionId,
-    ),
+    uniqueIndex("wellness_data_user_session_unique").on(t.user_id, t.sessionId),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -736,6 +730,29 @@ export const oauthStates = createTable(
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
+export const sessions = createTable(
+  "session",
+  {
+    id: text().primaryKey(), // Opaque session ID
+    userId: text().notNull(),
+    organizationId: text(),
+    accessToken: text().notNull(),
+    refreshToken: text(),
+    expiresAt: integer().notNull(), // Unix timestamp in seconds
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+  },
+  (t) => [
+    index("session_user_id_idx").on(t.userId),
+    index("session_expires_at_idx").on(t.expiresAt),
+    uniqueIndex("session_user_unique").on(t.userId), // One session per user for now
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
 // AI Suggestion History - Track user interactions with AI suggestions
 export const aiSuggestionHistory = createTable(
   "ai_suggestion_history",
@@ -940,3 +957,10 @@ export const whoopBodyMeasurementRelations = relations(
     // Measurements are standalone
   }),
 );
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));

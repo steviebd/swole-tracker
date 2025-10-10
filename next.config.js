@@ -79,8 +79,8 @@ const baseConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
-              "style-src 'self' 'unsafe-inline'",
+              "script-src 'self' https://us.i.posthog.com https://us-assets.i.posthog.com",
+              "style-src 'self'",
               "img-src 'self' data: https: blob:",
               `connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com`,
               "font-src 'self' data:",

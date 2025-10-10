@@ -1,11 +1,15 @@
 "use client";
 
-import { useAuth } from "~/providers/AuthProvider";
-import { SignInButtons } from "~/app/_components/sign-in-buttons";
+import Link from "next/link";
 import { Suspense, lazy } from "react";
 import { m as motion } from "framer-motion";
-import { useReducedMotion } from "~/hooks/use-reduced-motion";
+import { Activity, Smartphone, Sparkles } from "lucide-react";
+
+import { SignInButtons } from "~/app/_components/sign-in-buttons";
+import { Button } from "~/components/ui/button";
 import { StrengthIcon, FireIcon } from "~/components/icons/fitness-icons";
+import { useReducedMotion } from "~/hooks/use-reduced-motion";
+import { useAuth } from "~/providers/AuthProvider";
 
 // Dynamic imports for heavy components
 import { StatsCards } from "~/app/_components/StatsCards";
@@ -13,6 +17,27 @@ import { ReadinessHighlight } from "~/app/_components/readiness-highlight";
 const QuickActions = lazy(() => import("~/components/quick-actions").then(module => ({ default: module.QuickActions })));
 const WeeklyProgress = lazy(() => import("~/components/weekly-progress").then(module => ({ default: module.WeeklyProgress })));
 const RecentWorkouts = lazy(() => import("~/components/recent-workouts").then(module => ({ default: module.RecentWorkouts })));
+
+const heroHighlights = [
+  {
+    id: "offline",
+    Icon: Smartphone,
+    title: "Offline-first logging",
+    description: "Keep recording sets when reception drops—sync resumes automatically.",
+  },
+  {
+    id: "coaching",
+    Icon: Sparkles,
+    title: "AI coaching on tap",
+    description: "Preview readiness cues and guidance before you hit your first set.",
+  },
+  {
+    id: "whoop",
+    Icon: Activity,
+    title: "Whoop + wellness",
+    description: "Blend recovery, strain, and wellness trends into every session plan.",
+  },
+] as const;
 
 // Loading component for dashboard sections
 const DashboardLoading = () => (
@@ -89,13 +114,51 @@ export default function Home() {
             </p>
           </motion.div>
           
-          <motion.div 
-            className="mt-8"
+          <motion.div
+            className="mt-8 space-y-6"
             initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
             animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1], delay: 0.3 }}
           >
             <SignInButtons />
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link href="/auth/register" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full border-white/30 bg-white/5 text-primary-foreground backdrop-blur touch-target-xl hover:bg-white/15"
+                >
+                  Try the interactive demo
+                </Button>
+              </Link>
+              <Link
+                href="#dashboard-preview"
+                className="inline-flex items-center text-sm font-semibold text-primary hover:text-primary/80"
+              >
+                See athlete insights
+              </Link>
+            </div>
+          </motion.div>
+
+          <motion.div
+            id="dashboard-preview"
+            className="mt-10 grid gap-4 sm:grid-cols-3"
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1], delay: 0.4 }}
+          >
+            {heroHighlights.map(({ id, Icon, title, description }) => (
+              <div
+                key={id}
+                className="glass-card glass-hairline flex flex-col gap-2 rounded-xl border border-white/10 p-4 text-left shadow-lg"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-primary-foreground">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <p className="text-sm font-semibold text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground/80">{description}</p>
+              </div>
+            ))}
           </motion.div>
         </motion.div>
       </div>
