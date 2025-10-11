@@ -291,21 +291,27 @@ beforeAll(() => {
 
   // Ensure document and document.body exist
   if (typeof document === "undefined") {
-    // Create a minimal document object for testing
+    // Create a minimal document object for testing with proper DOM-like properties
     const createElement = (tag: string) => {
       const element = {
         tagName: tag.toUpperCase(),
+        nodeType: 1, // ELEMENT_NODE
+        nodeName: tag.toUpperCase(),
         setAttribute: vi.fn(),
+        getAttribute: vi.fn(() => null),
         appendChild: vi.fn(),
         removeChild: vi.fn(),
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
+        contains: vi.fn(() => false),
         style: {},
         classList: {
           add: vi.fn(),
           remove: vi.fn(),
-          contains: vi.fn(),
+          contains: vi.fn(() => false),
         },
+        // Make it inherit from EventTarget-like interface
+        dispatchEvent: vi.fn(),
       };
       return element;
     };
@@ -319,6 +325,9 @@ beforeAll(() => {
         getElementById: vi.fn(() => null),
         querySelector: vi.fn(() => null),
         querySelectorAll: vi.fn(() => []),
+        // Add document properties React might check
+        nodeType: 9, // DOCUMENT_NODE
+        createDocumentFragment: vi.fn(() => ({})),
       } as any,
       writable: true,
       configurable: true,
