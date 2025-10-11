@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// Mock posthog-js before importing analytics
+vi.mock("posthog-js", () => ({
+  default: {
+    capture: vi.fn(),
+    identify: vi.fn(),
+    reset: vi.fn(),
+  },
+}));
+
 // Import after setting up mocks
 import { analytics } from "~/lib/analytics";
+import posthog from "posthog-js";
 
 describe("analytics", () => {
   beforeEach(() => {
@@ -77,17 +87,17 @@ describe("analytics", () => {
   describe("error tracking", () => {
     it("should call error function with context", () => {
       const error = new Error("Test error");
+      // Remove stack to avoid serialization issues in test output
+      error.stack = undefined;
       const context = { userId: "user-123", page: "workout" };
-      analytics.error(error, context);
-      // Test passes if no exception is thrown
-      expect(true).toBe(true);
+      expect(() => analytics.error(error, context)).not.toThrow();
     });
 
     it("should call error function without context", () => {
       const error = new Error("Test error");
-      analytics.error(error);
-      // Test passes if no exception is thrown
-      expect(true).toBe(true);
+      // Remove stack to avoid serialization issues in test output
+      error.stack = undefined;
+      expect(() => analytics.error(error)).not.toThrow();
     });
   });
 

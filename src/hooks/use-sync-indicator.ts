@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 
-import { onSyncStatusChange, triggerManualSync } from "~/lib/offline-storage";
+import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { useOnlineStatus } from "~/hooks/use-online-status";
 
-export type SyncStatusKind = "idle" | "syncing" | "saving" | "offline" | "error";
+export type SyncStatusKind =
+  | "idle"
+  | "syncing"
+  | "saving"
+  | "offline"
+  | "error";
 
 export type SyncTone = "success" | "info" | "warning" | "danger";
 
@@ -54,24 +59,10 @@ const descriptionByStatus: Record<SyncStatusKind, string> = {
 };
 
 export function useSyncIndicator(): UseSyncIndicatorResult {
-  const [snapshot, setSnapshot] = useState<SyncSnapshot>(initialSnapshot);
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const isOnline = useOnlineStatus();
-
-  useEffect(() => {
-    const unsubscribe = onSyncStatusChange((status) => {
-      if (!status) return;
-      setSnapshot((prev) => ({
-        pendingOperations: status.pendingOperations ?? prev.pendingOperations ?? 0,
-        failedOperations: status.failedOperations ?? prev.failedOperations ?? 0,
-        lastSync: status.lastSync ?? prev.lastSync,
-        nextRetry: status.nextRetry ?? prev.nextRetry,
-      }));
-    });
-
-    return unsubscribe;
-  }, []);
+  const { queueSize, status: queueStatus, lastError, flush, isFlushing } = useOfflineSaveQueue();
 
   const computedStatus = useMemo(() => {
     let status: SyncStatusKind = "idle";
@@ -83,16 +74,67 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
     } else if (isMutating > 0) {
       status = "saving";
       isActive = true;
-    } else if (isFetching > 0 || snapshot.pendingOperations > 0) {
+    } else if (isFlushing || (isFetching > 0 && queueSize > 0)) {
       status = "syncing";
       isActive = true;
-    } else if (snapshot.failedOperations > 0) {
-      status = "error";
+    } else if (lastError || queueSize > 0) {
+      status = lastError ? "error" : "syncing";
       isActive = true;
     }
 
     return { status, isActive };
-  }, [isOnline, isMutating, isFetching, snapshot.pendingOperations, snapshot.failedOperations]);
+  }, [isOnline, isMutating, isFetching, queueSize, isFlushing, lastError]);
+
+  const badgeText = useMemo(() => {
+    const { status } = computedStatus;
+    switch (status) {
+      case "offline":
+        return queueSize > 0 ? `Offline (${queueSize})` : "Offline";
+      case "error":
+        return queueSize > 0 ? `${queueSize} to retry` : "Needs attention";
+      case "saving":
+        return "Saving...";
+      case "syncing":
+        return queueSize > 0 ? `Syncing (${queueSize})` : "Syncing...";
+      default:
+        return "All synced";
+    }
+  }, [computedStatus, queueSize]);
+
+  const canManualSync = useMemo(() => {
+    if (!isOnline) return false;
+    return !["syncing", "saving"].includes(computedStatus.status) && queueSize > 0;
+  }, [computedStatus.status, isOnline, queueSize]);
+
+  const status: SyncIndicatorState = {
+    status: computedStatus.status,
+    isActive: computedStatus.isActive,
+    tone: toneByStatus[computedStatus.status],
+    badgeText,
+    description: descriptionByStatus[computedStatus.status],
+    pendingOperations: queueSize,
+    failedOperations: lastError ? 1 : 0, // Simplified: 1 if there's an error, 0 otherwise
+    lastSync: undefined, // Not tracking this in legacy queue
+    nextRetry: undefined, // Not tracking this in legacy queue
+    isOnline,
+    isBusy: ["syncing", "saving"].includes(computedStatus.status),
+  };
+
+  return {
+    ...status,
+    manualSync: flush,
+    canManualSync,
+  };
+}
+
+    return { status, isActive };
+  }, [
+    isOnline,
+    isMutating,
+    isFetching,
+    snapshot.pendingOperations,
+    snapshot.failedOperations,
+  ]);
 
   const badgeText = useMemo(() => {
     const { status } = computedStatus;
@@ -118,7 +160,8 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
 
   const manualSync = useCallback(async () => {
     if (!isOnline) return;
-    await triggerManualSync();
+    // TODO: Update to use legacy queue in Phase 3
+    // await triggerManualSync();
   }, [isOnline]);
 
   const canManualSync = useMemo(() => {

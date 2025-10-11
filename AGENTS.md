@@ -23,7 +23,7 @@
 - Frontend: App Router pages/components live in `src/app/**`; shared client components in `src/components/**`; App Router-only components in `src/app/_components/**`
 - tRPC clients: React Query + RSC helpers in `src/trpc/*` (server caller, `HydrateClient`, persistent query client, offline hydration)
 - Styling: Tailwind CSS v4 with custom utilities in `src/styles/globals.css`; design tokens live in `src/design-tokens/*` and `src/lib/design-tokens.ts` (see `DESIGN_MANIFESTO.md`)
-- Offline & caching: Enhanced persistence, background sync, and analytics in `src/lib/offline-storage.ts`, `src/lib/mobile-offline-queue.ts`, `src/hooks/use-offline-*`
+- Offline & caching: React Query persistence with offline queue in `src/lib/offline-storage.ts`, `src/lib/offline-queue.ts`, `src/hooks/use-offline-*`
 - Integrations: Whoop OAuth + webhooks (`src/server/api/routers/whoop.ts`, `src/lib/whoop-webhook.ts`), AI Gateway prompts (`src/lib/ai-prompts/**`, `src/lib/analytics`), PostHog analytics providers (`src/providers/PostHogProvider.tsx`, `src/lib/posthog.ts`)
 - Realtime updates: Server-Sent Events endpoint at `src/app/api/sse/workout-updates/route.ts`
 
@@ -110,7 +110,7 @@
 ## Recent Changes
 
 - WorkOS auth + SSR middleware replaced earlier Supabase integration; update code/tests to avoid lingering Supabase mocks (`src/__tests__/setup.ts` still carries temporary shims)
-- Offline persistence received major upgrades (`src/lib/offline-storage.ts`, `src/lib/cache-analytics.ts`) with cache health checks, background sync, and PostHog instrumentation
+- Offline persistence simplified to React Query cache with offline queue (`src/lib/offline-storage.ts`, `src/lib/offline-queue.ts`) with automatic flushing and error handling
 - AI coaching features expanded: health advice persistence (`src/server/api/routers/health-advice.ts`), wellness tracking (`src/server/api/routers/wellness.ts`), and suggestion routers leverage the Vercel AI Gateway configuration in `src/env.js`
 
 ## Troubleshooting
@@ -119,7 +119,7 @@
 - Environment problems: validate against `src/env.js`; `bun dev` auto-wraps with Infisical and dynamically updates wrangler.toml, runs on port 8787—other scripts need manual `infisical run`
 - Database connection: confirm `DATABASE_URL` + SSL params, and watch D1 limits.
 - Rate limiting or Whoop sync errors: check `src/lib/rate-limit.ts` and `src/lib/whoop-webhook.ts`; confirm env knobs are set
-- Offline queue quirks: inspect localStorage size (cache health logs) and PostHog events; `setupEnhancedOfflinePersistence` can fall back to memory-only mode when storage is full
+- Offline queue: workouts saved offline are queued in `offline.queue.v1` localStorage key and automatically flushed when online, on app start, tab visibility change, or manual sync
 - SSE failures: verify `/api/sse/workout-updates` returns 200 and that clients stay authorized (WorkOS session cookies must be present)
 
 ## Test Strategy

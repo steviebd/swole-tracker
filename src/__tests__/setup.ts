@@ -289,6 +289,15 @@ beforeAll(() => {
     configurable: true,
   });
 
+  // Mock posthog on window for analytics tests
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "posthog", {
+      value: mockPosthog.posthog,
+      writable: true,
+      configurable: true,
+    });
+  }
+
   // Ensure document and document.body exist
   if (typeof document === "undefined") {
     // Create a minimal document object for testing with proper DOM-like properties

@@ -24,6 +24,28 @@ function backoff(attempt: number) {
   return Math.min(500 * Math.pow(2, attempt), 8000);
 }
 
+/**
+ * Clean up obsolete localStorage keys from the removed offline system
+ */
+function cleanupObsoleteStorageKeys() {
+  if (typeof window === "undefined") return;
+
+  const keysToRemove = [
+    "swole-tracker-offline-queue-v2",
+    "swole-tracker-offline-sessions-v1",
+    "swole-tracker-sync-status-v1",
+  ];
+
+  for (const key of keysToRemove) {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      // Ignore errors when cleaning up
+      console.debug("Failed to remove obsolete key:", key, error);
+    }
+  }
+}
+
 export function useOfflineSaveQueue() {
   const [queueSize, setQueueSize] = useState<number>(() =>
     typeof window !== "undefined" ? getQueueLength() : 0,
@@ -52,6 +74,9 @@ export function useOfflineSaveQueue() {
     setStatus("flushing");
     setLastError(null);
 
+    let processedCount = 0;
+    let errorCount = 0;
+
     try {
       pruneExhausted();
 
@@ -78,6 +103,7 @@ export function useOfflineSaveQueue() {
 
           // Reduce count
           setQueueSize((n) => Math.max(0, n - 1));
+          processedCount++;
         } catch (err) {
           const message =
             err && typeof err === "object" && "message" in err
@@ -91,8 +117,9 @@ export function useOfflineSaveQueue() {
           if (attempts >= 8) {
             // Give up on this item for now; keep it in storage but don't requeue to front
             setLastError(
-              "Some items failed to sync after multiple attempts. See Sync Indicator for details.",
+              `Failed to sync workout after ${attempts} attempts: ${message}`,
             );
+            errorCount++;
           } else {
             // Wait with exponential backoff then requeue at front for immediate retry later
             await sleep(backoff(item.attempts));
@@ -104,10 +131,46 @@ export function useOfflineSaveQueue() {
         }
       }
 
+      // Log success
+      if (processedCount > 0) {
+        console.info(`Successfully synced ${processedCount} workout(s)`);
+        // Optional: emit PostHog event
+        try {
+          if (typeof window !== "undefined" && (window as any).posthog) {
+            (window as any).posthog.capture("offline_sync_success", {
+              itemsProcessed: processedCount,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        } catch (e) {
+          // Ignore analytics errors
+        }
+      }
+
       setStatus("done");
-    } catch {
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unexpected error while flushing queue";
       setStatus("error");
-      setLastError("Unexpected error while flushing queue.");
+      setLastError(message);
+      errorCount++;
+
+      // Log error
+      console.warn("Queue flush failed:", message);
+
+      // Optional: emit PostHog event for errors
+      try {
+        if (typeof window !== "undefined" && (window as any).posthog) {
+          (window as any).posthog.capture("offline_sync_error", {
+            error: message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } catch (e) {
+        // Ignore analytics errors
+      }
     } finally {
       isFlushingRef.current = false;
       // Small debounce before returning to idle
@@ -115,24 +178,56 @@ export function useOfflineSaveQueue() {
     }
   }, [saveWorkout, utils.workouts.getRecent]);
 
-  // Auto-flush when coming back online
+  // Initialize and setup automatic flush triggers
+  // The queue automatically flushes when:
+  // - App starts (if online and queue has items)
+  // - Network comes back online
+  // - Tab becomes visible (if online and queue has items)
+  // - Every 60 seconds (if online and queue has items)
+  // - Manual trigger via flush() function
   useEffect(() => {
+    // Clean up obsolete storage keys on initialization
+    cleanupObsoleteStorageKeys();
+
+    // Flush on app start if online and queue has items
+    if (navigator.onLine && getQueueLength() > 0) {
+      void flush();
+    }
+
     const onOnline = () => {
       if (getQueueLength() > 0) {
         void flush();
       }
     };
+
+    const onVisibilityChange = () => {
+      if (!document.hidden && navigator.onLine && getQueueLength() > 0) {
+        void flush();
+      }
+    };
+
     const onStorage = (e: StorageEvent) => {
       if (e.key === "offline.queue.v1") {
         setQueueSize(getQueueLength());
       }
     };
 
+    // Periodic flush every 60 seconds if queue has items and online
+    const intervalId = setInterval(() => {
+      if (navigator.onLine && getQueueLength() > 0 && !isFlushingRef.current) {
+        void flush();
+      }
+    }, 60000);
+
     window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("storage", onStorage);
+
     return () => {
       window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("storage", onStorage);
+      clearInterval(intervalId);
     };
   }, [flush]);
 
