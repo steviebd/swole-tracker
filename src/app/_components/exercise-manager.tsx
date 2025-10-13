@@ -21,11 +21,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { Label } from "~/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 
 interface MasterExercise {
   id: number;
   name: string;
   normalizedName: string;
+  tags?: string | null;
+  muscleGroup?: string | null;
   createdAt: Date;
   linkedCount: number;
 }
@@ -33,12 +43,21 @@ interface MasterExercise {
 export function ExerciseManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isClient, setIsClient] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<MasterExercise | null>(
+    null,
+  );
+  const [exerciseName, setExerciseName] = useState("");
+  const [exerciseTags, setExerciseTags] = useState("");
+  const [exerciseMuscleGroup, setExerciseMuscleGroup] = useState("");
 
   const {
     data: exercises,
     isLoading,
     refetch,
   } = api.exercises.getAllMaster.useQuery();
+
+  const { data: migrationStatus } = api.exercises.getMigrationStatus.useQuery();
 
   // Ensure client-side rendering after hydration
   useEffect(() => {
@@ -58,10 +77,48 @@ export function ExerciseManager() {
       },
     });
 
+  const createMasterExercise = api.exercises.createMasterExercise.useMutation({
+    onSuccess: () => {
+      void refetch();
+      setShowCreateDialog(false);
+      setExerciseName("");
+      setExerciseTags("");
+      setExerciseMuscleGroup("");
+    },
+    onError: (error) => {
+      alert(`Failed to create exercise: ${error.message}`);
+    },
+  });
+
+  const updateMasterExercise = api.exercises.updateMasterExercise.useMutation({
+    onSuccess: () => {
+      void refetch();
+      setEditingExercise(null);
+      setExerciseName("");
+      setExerciseTags("");
+      setExerciseMuscleGroup("");
+    },
+    onError: (error) => {
+      alert(`Failed to update exercise: ${error.message}`);
+    },
+  });
+
   const filteredExercises =
-    (exercises as MasterExercise[] | undefined)?.filter((exercise) =>
-      exercise.name.toLowerCase().includes(searchTerm.toLowerCase()),
-    ) ?? [];
+    (exercises as MasterExercise[] | undefined)?.filter((exercise) => {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        exercise.name.toLowerCase().includes(searchLower) ||
+        exercise.tags?.toLowerCase().includes(searchLower) ||
+        exercise.muscleGroup?.toLowerCase().includes(searchLower)
+      );
+    }) ?? [];
+
+  const handleEditExercise = (exercise: MasterExercise) => {
+    setEditingExercise(exercise);
+    setExerciseName(exercise.name);
+    setExerciseTags(exercise.tags || "");
+    setExerciseMuscleGroup(exercise.muscleGroup || "");
+  };
 
   // Show loading state during SSR and initial client render
   if (!isClient || isLoading) {
@@ -108,27 +165,71 @@ export function ExerciseManager() {
 
   return (
     <div className="space-y-6">
-      {/* Search and Migration */}
+      {/* Search and Actions */}
       <div className="space-y-4">
-        <Input
-          type="text"
-          placeholder="Search exercises..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full"
-          aria-label="Search exercises"
-        />
+        <div className="flex gap-4">
+          <Input
+            type="text"
+            placeholder="Search exercises, tags, or muscle groups..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1"
+            aria-label="Search exercises"
+          />
+          <Button onClick={() => setShowCreateDialog(true)} size="sm">
+            Create Exercise
+          </Button>
+        </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <div className="text-muted-foreground text-sm">
+            {migrationStatus ? (
+              <>
+                {migrationStatus.needsMigration ? (
+                  <>
+                    {migrationStatus.unlinkedCount} unlinked exercise
+                    {migrationStatus.unlinkedCount !== 1 ? "s" : ""} found
+                    {migrationStatus.lastMigrationAt && (
+                      <span className="ml-2">
+                        • Last migration:{" "}
+                        {new Date(
+                          migrationStatus.lastMigrationAt,
+                        ).toLocaleDateString()}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    All exercises are linked
+                    {migrationStatus.lastMigrationAt && (
+                      <span className="ml-2">
+                        • Last migration:{" "}
+                        {new Date(
+                          migrationStatus.lastMigrationAt,
+                        ).toLocaleDateString()}
+                      </span>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              "Checking migration status..."
+            )}
+          </div>
           <Button
             onClick={() => migrateExistingExercises.mutate()}
-            disabled={migrateExistingExercises.isPending}
+            disabled={
+              migrateExistingExercises.isPending ||
+              !migrationStatus?.needsMigration
+            }
             size="sm"
             aria-label="Migrate unlinked exercises to master exercises"
           >
             {migrateExistingExercises.isPending
               ? "Migrating..."
-              : "Migrate Unlinked Exercises"}
+              : migrationStatus?.needsMigration
+                ? "Migrate Unlinked Exercises"
+                : "No Migration Needed"}
           </Button>
         </div>
       </div>
@@ -156,6 +257,7 @@ export function ExerciseManager() {
                   key={exercise.id}
                   exercise={exercise}
                   onUpdate={refetch}
+                  onEdit={handleEditExercise}
                 />
               ))}
               {filteredExercises.length === 0 && (
@@ -172,6 +274,119 @@ export function ExerciseManager() {
           </Table>
         </div>
       </div>
+
+      {/* Create/Edit Exercise Dialog */}
+      <Dialog
+        open={showCreateDialog || !!editingExercise}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCreateDialog(false);
+            setEditingExercise(null);
+            setExerciseName("");
+            setExerciseTags("");
+            setExerciseMuscleGroup("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingExercise ? "Edit Exercise" : "Create New Exercise"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingExercise
+                ? "Update the exercise details below."
+                : "Add a new master exercise that can be linked to workout templates."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="exercise-name">Exercise Name</Label>
+              <Input
+                id="exercise-name"
+                value={exerciseName}
+                onChange={(e) => setExerciseName(e.target.value)}
+                placeholder="e.g., Bench Press"
+              />
+            </div>
+            <div>
+              <Label htmlFor="exercise-tags">Tags (comma-separated)</Label>
+              <Input
+                id="exercise-tags"
+                value={exerciseTags}
+                onChange={(e) => setExerciseTags(e.target.value)}
+                placeholder="e.g., compound, chest, pressing"
+              />
+            </div>
+            <div>
+              <Label htmlFor="exercise-muscle-group">
+                Primary Muscle Group
+              </Label>
+              <Select
+                value={exerciseMuscleGroup}
+                onValueChange={setExerciseMuscleGroup}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select muscle group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="chest">Chest</SelectItem>
+                  <SelectItem value="back">Back</SelectItem>
+                  <SelectItem value="shoulders">Shoulders</SelectItem>
+                  <SelectItem value="arms">Arms</SelectItem>
+                  <SelectItem value="legs">Legs</SelectItem>
+                  <SelectItem value="core">Core</SelectItem>
+                  <SelectItem value="cardio">Cardio</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateDialog(false);
+                setEditingExercise(null);
+                setExerciseName("");
+                setExerciseTags("");
+                setExerciseMuscleGroup("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingExercise) {
+                  updateMasterExercise.mutate({
+                    id: editingExercise.id,
+                    name: exerciseName,
+                    tags: exerciseTags || undefined,
+                    muscleGroup: exerciseMuscleGroup || undefined,
+                  });
+                } else {
+                  createMasterExercise.mutate({
+                    name: exerciseName,
+                    tags: exerciseTags || undefined,
+                    muscleGroup: exerciseMuscleGroup || undefined,
+                  });
+                }
+              }}
+              disabled={
+                !exerciseName.trim() ||
+                createMasterExercise.isPending ||
+                updateMasterExercise.isPending
+              }
+            >
+              {createMasterExercise.isPending || updateMasterExercise.isPending
+                ? "Saving..."
+                : editingExercise
+                  ? "Update Exercise"
+                  : "Create Exercise"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -179,9 +394,10 @@ export function ExerciseManager() {
 interface ExerciseRowProps {
   exercise: MasterExercise;
   onUpdate: () => void;
+  onEdit: (exercise: MasterExercise) => void;
 }
 
-function ExerciseRow({ exercise, onUpdate }: ExerciseRowProps) {
+function ExerciseRow({ exercise, onUpdate, onEdit }: ExerciseRowProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
@@ -203,15 +419,47 @@ function ExerciseRow({ exercise, onUpdate }: ExerciseRowProps) {
           </div>
         </TableCell>
         <TableCell className="text-right">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDetails(!showDetails)}
-            aria-expanded={showDetails}
-            aria-label={`${showDetails ? "Hide" : "Show"} details for ${exercise.name}`}
-          >
-            {showDetails ? "Hide Details" : "Show Details"}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetails(!showDetails)}
+              aria-expanded={showDetails}
+              aria-label={`${showDetails ? "Hide" : "Show"} details for ${exercise.name}`}
+            >
+              {showDetails ? "Hide" : "Details"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onEdit(exercise)}
+              aria-label={`Edit ${exercise.name}`}
+            >
+              ✏️
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // TODO: Implement merge functionality
+                alert("Merge functionality coming soon");
+              }}
+              aria-label={`Merge ${exercise.name}`}
+            >
+              🔗
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // TODO: Implement favorite functionality
+                alert("Favorite functionality coming soon");
+              }}
+              aria-label={`Mark ${exercise.name} as favorite`}
+            >
+              ⭐
+            </Button>
+          </div>
         </TableCell>
       </TableRow>
       {showDetails && (

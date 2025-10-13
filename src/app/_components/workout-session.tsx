@@ -285,6 +285,16 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     }
   };
 
+  const handleBulkUnitChange = (exerciseIndex: number, unit: "kg" | "lbs") => {
+    // Update all sets in the exercise to the new unit
+    const exercise = exercises[exerciseIndex];
+    if (!exercise) return;
+
+    exercise.sets.forEach((_, setIndex) => {
+      updateSet(exerciseIndex, setIndex, "unit", unit);
+    });
+  };
+
   const handleDelete = async () => {
     // Prevent multiple rapid calls
     if (deleteWorkout.isPending) {
@@ -368,6 +378,41 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         </div>
       )}
 
+      {/* Exercise Navigation */}
+      {exercises.length > 5 && (
+        <div className="mb-4">
+          <details className="group">
+            <summary className="cursor-pointer list-none">
+              <div className="border-border bg-muted/50 flex items-center justify-between rounded-lg border p-3">
+                <span className="font-medium">Jump to Exercise</span>
+                <span className="text-muted-foreground text-sm">
+                  {exercises.length} exercises
+                </span>
+              </div>
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+              {exercises.map((exercise, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    const element = document.getElementById(
+                      `exercise-${index}`,
+                    );
+                    element?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }}
+                  className="border-border bg-background hover:bg-muted/50 rounded border p-2 text-left text-sm"
+                >
+                  {exercise.exerciseName}
+                </button>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+
       {/* Exercise Cards */}
       {(shouldVirtualize
         ? displayOrder
@@ -403,6 +448,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
           return (
             <div
               key={exercise.templateExerciseId ?? originalIndex}
+              id={`exercise-${originalIndex}`}
               style={shouldVirtualize ? { minHeight: 0 } : undefined}
             >
               {/* Swiped Exercises Section Header */}
@@ -411,6 +457,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                 exerciseIndex={originalIndex}
                 onUpdate={updateSet}
                 onToggleUnit={toggleUnit}
+                onBulkUnitChange={handleBulkUnitChange}
                 onAddSet={addSet}
                 onDeleteSet={deleteSet}
                 onMoveSet={moveSet}
@@ -436,7 +483,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
                   dragState.draggedIndex === displayIndex
                 }
                 dragOffset={dragState.dragOffset}
-                onPointerDown={dragHandlers.onPointerDown(displayIndex)}
+                onPointerDown={dragHandlers.onPointerDown}
                 setCardElement={(element) =>
                   dragHandlers.setCardElement?.(displayIndex, element)
                 }

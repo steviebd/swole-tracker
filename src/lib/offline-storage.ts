@@ -239,7 +239,7 @@ export function getOfflineCacheKey(): string {
 }
 
 // Enhanced persister with size management and error handling
-const createEnhancedPersister = () => {
+export const createEnhancedPersister = () => {
   const storage =
     typeof window !== "undefined" ? window.localStorage : undefined;
 
@@ -304,26 +304,17 @@ const createEnhancedPersister = () => {
   });
 };
 
-// Legacy persister for backward compatibility
-const localStoragePersister = createSyncStoragePersister({
-  storage: typeof window !== "undefined" ? window.localStorage : undefined,
-  key: "swole-tracker-cache",
-  serialize: JSON.stringify,
-  deserialize: JSON.parse,
-});
-
 /**
- * Legacy offline persistence setup for backward compatibility
- * Uses the simple persister without advanced features
+ * Setup offline persistence with enhanced features
  */
 export function setupOfflinePersistence(queryClient: QueryClient) {
   if (typeof window === "undefined") return;
 
   void persistQueryClient({
     queryClient,
-    persister: localStoragePersister,
+    persister: createEnhancedPersister(),
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    buster: "swole-tracker-v1", // Increment to clear old cache
+    buster: CACHE_BUSTER,
     hydrateOptions: {},
     dehydrateOptions: {
       // Don't persist failed or loading queries
@@ -332,19 +323,6 @@ export function setupOfflinePersistence(queryClient: QueryClient) {
       },
     },
   });
-}
-
-/**
- * Subscribe to sync status changes
- * @deprecated This function is deprecated and will be removed in a future version.
- */
-export function onSyncStatusChange(
-  callback: (status: any) => void,
-): () => void {
-  // No-op function since backgroundSyncManager is removed
-  return () => {
-    // Empty cleanup function
-  };
 }
 
 /**
@@ -410,16 +388,6 @@ export async function resolveDataConflict<T>(
 }
 
 /**
- * Clear offline cache (useful for debugging or user logout)
- * Legacy function maintained for backward compatibility
- */
-export function clearOfflineCache() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(LEGACY_CACHE_KEY);
-  localStorage.removeItem(cacheManager.getCacheKey());
-}
-
-/**
  * Clear all offline data (for logout or data reset)
  * Enhanced version that clears all offline storage
  */
@@ -461,43 +429,8 @@ export async function clearAllOfflineData(): Promise<void> {
 }
 
 /**
- * Get cache size for debugging (legacy function)
- */
-export function getCacheSize(): string {
-  if (typeof window === "undefined") return "0 KB";
-
-  // Check both old and new cache versions
-  const legacyCache = localStorage.getItem(LEGACY_CACHE_KEY);
-  const newCache = localStorage.getItem(cacheManager.getCacheKey());
-  const cache = newCache || legacyCache;
-
-  if (!cache) return "0 KB";
-
-  const sizeInBytes = new Blob([cache]).size;
-  if (sizeInBytes < 1024) return `${sizeInBytes} B`;
-  if (sizeInBytes < 1024 * 1024) return `${(sizeInBytes / 1024).toFixed(1)} KB`;
-  return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/**
  * Get cache manager instance for advanced operations
  */
 export function getCacheManager(): CacheManager {
   return cacheManager;
-}
-
-/**
- * Get offline storage statistics for debugging (legacy function)
- */
-export function getOfflineStorageStats(): {
-  cacheSize: string;
-  cacheStats: { size: number; availableSpace: number; memoryOnly: boolean };
-} {
-  const cacheSize = getCacheSize();
-  const cacheStats = cacheManager.getStats();
-
-  return {
-    cacheSize,
-    cacheStats,
-  };
 }

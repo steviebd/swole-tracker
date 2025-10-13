@@ -93,7 +93,33 @@ export function SetInput({
   };
 
   return (
-    <div className="glass-card glass-hairline text-foreground card-interactive flex items-center gap-3 rounded-lg p-3 select-none">
+    <div
+      className="glass-card glass-hairline text-foreground card-interactive relative flex items-center gap-3 rounded-lg p-3 select-none"
+      onKeyDown={(e) => {
+        if (readOnly) return;
+        if (e.key === "ArrowUp" && e.ctrlKey && onMoveUp) {
+          e.preventDefault();
+          onMoveUp();
+        } else if (e.key === "ArrowDown" && e.ctrlKey && onMoveDown) {
+          e.preventDefault();
+          onMoveDown();
+        }
+      }}
+      tabIndex={0}
+      role="group"
+      aria-label={`Set ${setIndex + 1} of ${exerciseName}`}
+    >
+      {/* Drag Handle */}
+      {!readOnly && (
+        <div className="absolute top-1/2 left-1 -translate-y-1/2">
+          <div className="flex flex-col gap-0.5">
+            <div className="bg-muted-foreground/30 h-1 w-4 rounded-full"></div>
+            <div className="bg-muted-foreground/30 h-1 w-4 rounded-full"></div>
+            <div className="bg-muted-foreground/30 h-1 w-4 rounded-full"></div>
+          </div>
+        </div>
+      )}
+
       {/* Set Number */}
       <div
         className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium"

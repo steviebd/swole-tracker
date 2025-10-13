@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import { api } from "~/trpc/react";
 import {
@@ -24,6 +25,16 @@ interface SessionDebriefPanelProps {
   sessionId: number;
   templateName: string;
   sessionDate: string;
+  session?: {
+    exercises?: Array<{
+      exerciseName: string;
+      weight?: number | null;
+      reps?: number | null;
+      sets?: number | null;
+      unit?: string;
+      rpe?: number | null;
+    }>;
+  };
 }
 
 function useOnlineStatus() {
@@ -90,6 +101,7 @@ export function SessionDebriefPanel({
   sessionId,
   templateName,
   sessionDate,
+  session,
 }: SessionDebriefPanelProps) {
   const utils = api.useUtils();
   const isOnline = useOnlineStatus();
@@ -316,139 +328,245 @@ export function SessionDebriefPanel({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>AI Session Debrief</CardTitle>
-          <CardDescription>
-            {templateName} · {new Date(sessionDate).toLocaleString()}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {errorMessage ? (
-            <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
-              {errorMessage}
-            </div>
-          ) : null}
-          <div>
-            <h3 className="text-lg font-semibold">Summary</h3>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {latest.content.summary}
-            </p>
-          </div>
-
-          {latest.content.prHighlights?.length ? (
-            <div>
-              <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-                Highlights
-              </h4>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {latest.content.prHighlights.map((highlight, index) => (
-                  <Badge key={`${highlight.exerciseName}-${index}`}>
-                    {highlight.emoji ? `${highlight.emoji} ` : ""}
-                    {highlight.exerciseName}
-                    {highlight.delta !== undefined
-                      ? ` (${highlight.delta > 0 ? "+" : ""}${highlight.delta}${highlight.unit ?? ""})`
-                      : ""}
-                  </Badge>
-                ))}
+      {/* Two-column layout on larger screens */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* AI Debrief Column */}
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Session Debrief</CardTitle>
+            <CardDescription>
+              {templateName} · {new Date(sessionDate).toLocaleString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {errorMessage ? (
+              <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
+                {errorMessage}
               </div>
+            ) : null}
+            <div>
+              <h3 className="text-lg font-semibold">Summary</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {latest.content.summary}
+              </p>
             </div>
-          ) : null}
 
-          {latest.content.focusAreas?.length ? (
-            <div className="space-y-3">
-              <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-                Focus Areas
-              </h4>
-              <div className="grid gap-3 md:grid-cols-2">
-                {latest.content.focusAreas.map((focus, index) => (
-                  <div
-                    key={`${focus.title}-${index}`}
-                    className="border-border/60 bg-muted/20 rounded-lg border p-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{focus.title}</span>
-                      {focus.priority ? (
-                        <Badge variant="outline">{focus.priority}</Badge>
+            {latest.content.prHighlights?.length ? (
+              <div>
+                <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                  Highlights
+                </h4>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {latest.content.prHighlights.map((highlight, index) => (
+                    <Badge key={`${highlight.exerciseName}-${index}`}>
+                      {highlight.emoji ? `${highlight.emoji} ` : ""}
+                      {highlight.exerciseName}
+                      {highlight.delta !== undefined
+                        ? ` (${highlight.delta > 0 ? "+" : ""}${highlight.delta}${highlight.unit ?? ""})`
+                        : ""}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {latest.content.focusAreas?.length ? (
+              <div className="space-y-3">
+                <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                  Focus Areas
+                </h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {latest.content.focusAreas.map((focus, index) => (
+                    <div
+                      key={`${focus.title}-${index}`}
+                      className="border-border/60 bg-muted/20 rounded-lg border p-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{focus.title}</span>
+                        {focus.priority ? (
+                          <Badge variant="outline">{focus.priority}</Badge>
+                        ) : null}
+                      </div>
+                      <p className="text-muted-foreground mt-1 text-sm">
+                        {focus.description}
+                      </p>
+                      {focus.actions?.length ? (
+                        <ul className="text-muted-foreground mt-2 list-disc pl-4 text-xs">
+                          {focus.actions.map((action, idx) => (
+                            <li key={idx}>{action}</li>
+                          ))}
+                        </ul>
                       ) : null}
                     </div>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                      {focus.description}
-                    </p>
-                    {focus.actions?.length ? (
-                      <ul className="text-muted-foreground mt-2 list-disc pl-4 text-xs">
-                        {focus.actions.map((action, idx) => (
-                          <li key={idx}>{action}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {latest.content.overloadDigest ? (
-            <div className="border-border/60 bg-background/40 rounded-lg border p-3">
-              <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-                Overload & Readiness
-              </h4>
-              {latest.content.overloadDigest.recommendation ? (
-                <p className="text-muted-foreground mt-2 text-sm">
-                  {latest.content.overloadDigest.recommendation}
-                </p>
-              ) : null}
-              {latest.content.overloadDigest.cautionFlags?.length ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {latest.content.overloadDigest.cautionFlags.map(
-                    (flag, index) => (
-                      <Badge key={`${flag}-${index}`} variant="destructive">
-                        {flag}
-                      </Badge>
-                    ),
-                  )}
+                  ))}
                 </div>
-              ) : null}
-            </div>
-          ) : null}
-        </CardContent>
-        <CardFooter className="flex flex-wrap gap-2">
-          <Button
-            variant="default"
-            disabled={regenerate.isPending || actionsDisabled}
-            onClick={() => regenerate.mutate({ sessionId })}
-          >
-            {regenerate.isPending ? "Regenerating…" : "Regenerate"}
-          </Button>
-          <Button
-            variant={latest.record.pinnedAt ? "secondary" : "outline"}
-            disabled={togglePinned.isPending || actionsDisabled}
-            onClick={() =>
-              togglePinned.mutate({ sessionId, debriefId: latest.record.id })
-            }
-          >
-            {togglePinned.isPending
-              ? "Updating…"
-              : latest.record.pinnedAt
-                ? "Unpin"
-                : "Pin"}
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={dismiss.isPending || actionsDisabled}
-            onClick={() =>
-              dismiss.mutate({ sessionId, debriefId: latest.record.id })
-            }
-          >
-            {dismiss.isPending ? "Dismissing…" : "Dismiss"}
-          </Button>
-          {!isOnline ? (
-            <span className="text-muted-foreground text-xs">
-              Offline mode – actions disabled
-            </span>
-          ) : null}
-        </CardFooter>
-      </Card>
+              </div>
+            ) : null}
+
+            {latest.content.overloadDigest ? (
+              <div className="border-border/60 bg-background/40 rounded-lg border p-3">
+                <h4 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                  Overload & Readiness
+                </h4>
+                {latest.content.overloadDigest.recommendation ? (
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    {latest.content.overloadDigest.recommendation}
+                  </p>
+                ) : null}
+                {latest.content.overloadDigest.cautionFlags?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {latest.content.overloadDigest.cautionFlags.map(
+                      (flag, index) => (
+                        <Badge key={`${flag}-${index}`} variant="destructive">
+                          {flag}
+                        </Badge>
+                      ),
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </CardContent>
+          <CardFooter className="flex flex-wrap gap-2">
+            <Button
+              variant="default"
+              disabled={regenerate.isPending || actionsDisabled}
+              onClick={() => regenerate.mutate({ sessionId })}
+            >
+              {regenerate.isPending ? "Regenerating…" : "Regenerate"}
+            </Button>
+            <Button
+              variant={latest.record.pinnedAt ? "secondary" : "outline"}
+              disabled={togglePinned.isPending || actionsDisabled}
+              onClick={() =>
+                togglePinned.mutate({ sessionId, debriefId: latest.record.id })
+              }
+            >
+              {togglePinned.isPending
+                ? "Updating…"
+                : latest.record.pinnedAt
+                  ? "Unpin"
+                  : "Pin"}
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={dismiss.isPending || actionsDisabled}
+              onClick={() =>
+                dismiss.mutate({ sessionId, debriefId: latest.record.id })
+              }
+            >
+              {dismiss.isPending ? "Dismissing…" : "Dismiss"}
+            </Button>
+            {!isOnline ? (
+              <span className="text-muted-foreground text-xs">
+                Offline mode – actions disabled
+              </span>
+            ) : null}
+          </CardFooter>
+        </Card>
+
+        {/* Workout Summary Column */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Workout Summary</CardTitle>
+            <CardDescription>Completed exercises and sets</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {session?.exercises && session.exercises.length > 0 ? (
+              <div className="space-y-3">
+                {session.exercises
+                  .reduce(
+                    (acc, exercise) => {
+                      const existing = acc.find(
+                        (e) => e.exerciseName === exercise.exerciseName,
+                      );
+                      if (existing) {
+                        existing.sets.push({
+                          weight: exercise.weight,
+                          reps: exercise.reps,
+                          unit: exercise.unit,
+                          rpe: exercise.rpe,
+                        });
+                      } else {
+                        acc.push({
+                          exerciseName: exercise.exerciseName,
+                          sets: [
+                            {
+                              weight: exercise.weight,
+                              reps: exercise.reps,
+                              unit: exercise.unit,
+                              rpe: exercise.rpe,
+                            },
+                          ],
+                        });
+                      }
+                      return acc;
+                    },
+                    [] as Array<{
+                      exerciseName: string;
+                      sets: Array<{
+                        weight?: number | null;
+                        reps?: number | null;
+                        unit?: string;
+                        rpe?: number | null;
+                      }>;
+                    }>,
+                  )
+                  .map((exercise, idx) => (
+                    <div
+                      key={idx}
+                      className="border-border/60 bg-muted/20 rounded-lg border p-3"
+                    >
+                      <h4 className="mb-2 font-medium">
+                        {exercise.exerciseName}
+                      </h4>
+                      <div className="space-y-1">
+                        {exercise.sets.map((set, setIdx) => (
+                          <div
+                            key={setIdx}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span>Set {setIdx + 1}:</span>
+                            <span className="text-muted-foreground">
+                              {set.weight
+                                ? `${set.weight}${set.unit || "kg"}`
+                                : "Bodyweight"}{" "}
+                              × {set.reps || 0} reps
+                              {set.rpe ? ` @ RPE ${set.rpe}` : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No exercise data available
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Contextual Actions */}
+      <div className="flex flex-wrap justify-center gap-3">
+        <Button variant="outline" asChild>
+          <Link href={`/workout/session/${sessionId}`}>View Full Session</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={`/templates/new?from=${sessionId}`}>Create Template</Link>
+        </Button>
+        <Button variant="outline">Share Summary</Button>
+      </div>
+
+      {/* Sync Status Banner */}
+      {!isOnline && (
+        <div className="border-border/60 text-muted-foreground rounded-lg border border-dashed px-4 py-3 text-center text-sm">
+          <span className="font-medium">Offline Mode</span> - Changes will sync
+          when connection returns
+        </div>
+      )}
 
       {otherHistory.length ? (
         <div>

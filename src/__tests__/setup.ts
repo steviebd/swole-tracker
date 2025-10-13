@@ -74,20 +74,6 @@ const mockRateLimit = {
   cleanupExpiredRateLimits: vi.fn(() => {}),
 };
 
-const MockWorkoutOperationsClient = vi.fn(() => ({
-  getWorkoutTemplates: vi.fn(() => []),
-  createWorkoutTemplate: vi.fn(() => ({})),
-  getRecentWorkouts: vi.fn(() => []),
-  getWorkoutSession: vi.fn(() => ({})),
-  createWorkoutSession: vi.fn(() => ({})),
-  getSessionExercises: vi.fn(() => []),
-  addSessionExercise: vi.fn(() => ({})),
-}));
-
-const mockWorkoutOps = {
-  WorkoutOperationsClient: MockWorkoutOperationsClient,
-};
-
 const mockLogger = {
   logger: {
     debug: vi.fn(() => {}),

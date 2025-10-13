@@ -246,6 +246,8 @@ export const exercisesRouter = createTRPCRouter({
             id: masterExercises.id,
             name: masterExercises.name,
             normalizedName: masterExercises.normalizedName,
+            tags: masterExercises.tags,
+            muscleGroup: masterExercises.muscleGroup,
             createdAt: masterExercises.createdAt,
             linkedCount: sql<number>`count(${exerciseLinks.id})`,
           })
@@ -264,6 +266,55 @@ export const exercisesRouter = createTRPCRouter({
       } catch {
         // If the db stub is minimal and throws, return empty list rather than fail
         return [];
+      }
+    }),
+
+  getMigrationStatus: protectedProcedure
+    .use(apiCallRateLimit)
+    .query(async ({ ctx }) => {
+      try {
+        // Get count of unlinked template exercises
+        const unlinkedResult = await ctx.db
+          .select({
+            count: sql<number>`count(*)`,
+          })
+          .from(templateExercises)
+          .leftJoin(
+            exerciseLinks,
+            eq(exerciseLinks.templateExerciseId, templateExercises.id),
+          )
+          .where(
+            and(
+              eq(templateExercises.user_id, ctx.user.id),
+              sql`${exerciseLinks.id} IS NULL`,
+            ),
+          );
+
+        const unlinkedCount = unlinkedResult[0]?.count ?? 0;
+
+        // Get last migration time (when the first master exercise was created)
+        const lastMigrationResult = await ctx.db
+          .select({
+            createdAt: masterExercises.createdAt,
+          })
+          .from(masterExercises)
+          .where(eq(masterExercises.user_id, ctx.user.id))
+          .orderBy(desc(masterExercises.createdAt))
+          .limit(1);
+
+        const lastMigrationAt = lastMigrationResult[0]?.createdAt ?? null;
+
+        return {
+          unlinkedCount,
+          lastMigrationAt,
+          needsMigration: unlinkedCount > 0,
+        };
+      } catch {
+        return {
+          unlinkedCount: 0,
+          lastMigrationAt: null,
+          needsMigration: false,
+        };
       }
     }),
 
@@ -912,5 +963,110 @@ export const exercisesRouter = createTRPCRouter({
         createdMasterExercises,
         createdLinks,
       };
+    }),
+
+  createMasterExercise: protectedProcedure
+    .use(apiCallRateLimit)
+    .input(
+      z.object({
+        name: z.string().min(1),
+        tags: z.string().optional(),
+        muscleGroup: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const normalizedName = normalizeExerciseName(input.name);
+
+      // Check if exercise already exists
+      const existing = await ctx.db
+        .select()
+        .from(masterExercises)
+        .where(
+          and(
+            eq(masterExercises.user_id, ctx.user.id),
+            eq(masterExercises.normalizedName, normalizedName),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An exercise with this name already exists",
+        });
+      }
+
+      const newExercise = await ctx.db
+        .insert(masterExercises)
+        .values({
+          user_id: ctx.user.id,
+          name: input.name,
+          normalizedName,
+          tags: input.tags || null,
+          muscleGroup: input.muscleGroup || null,
+        })
+        .returning();
+
+      return newExercise[0];
+    }),
+
+  updateMasterExercise: protectedProcedure
+    .use(apiCallRateLimit)
+    .input(
+      z.object({
+        id: z.number(),
+        name: z.string().min(1),
+        tags: z.string().optional(),
+        muscleGroup: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const normalizedName = normalizeExerciseName(input.name);
+
+      // Check if another exercise with this name exists
+      const existing = await ctx.db
+        .select()
+        .from(masterExercises)
+        .where(
+          and(
+            eq(masterExercises.user_id, ctx.user.id),
+            eq(masterExercises.normalizedName, normalizedName),
+            sql`${masterExercises.id} != ${input.id}`,
+          ),
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Another exercise with this name already exists",
+        });
+      }
+
+      const updatedExercise = await ctx.db
+        .update(masterExercises)
+        .set({
+          name: input.name,
+          normalizedName,
+          tags: input.tags || null,
+          muscleGroup: input.muscleGroup || null,
+          updatedAt: sql`(datetime('now'))`,
+        })
+        .where(
+          and(
+            eq(masterExercises.id, input.id),
+            eq(masterExercises.user_id, ctx.user.id),
+          ),
+        )
+        .returning();
+
+      if (updatedExercise.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Exercise not found",
+        });
+      }
+
+      return updatedExercise[0];
     }),
 });

@@ -72,6 +72,31 @@ export function WorkoutSessionWithHealthAdvice({
   const { data: workoutSession, refetch: refetchWorkoutSession } =
     api.workouts.getById.useQuery({ id: sessionId }, { enabled: !!sessionId });
 
+  // Calculate elapsed time (simplified - in a real app this would track actual session time)
+  const elapsedTime = React.useMemo(() => {
+    if (!workoutSession?.workoutDate) return "0:00";
+    const startTime = new Date(workoutSession.workoutDate);
+    const now = new Date();
+    const diffMs = now.getTime() - startTime.getTime();
+    const minutes = Math.floor(diffMs / 60000);
+    const seconds = Math.floor((diffMs % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }, [workoutSession?.workoutDate]);
+
+  // Get template name
+  const templateName = React.useMemo(() => {
+    const template = (workoutSession as { template?: unknown })?.template;
+    if (
+      template &&
+      typeof template === "object" &&
+      !Array.isArray(template) &&
+      typeof (template as { name?: unknown }).name === "string"
+    ) {
+      return (template as { name: string }).name;
+    }
+    return "Workout";
+  }, [workoutSession]);
+
   // Fetch user preferences to determine which wellness modal to show
   const { data: userPreferences } = api.preferences.get.useQuery();
 
@@ -95,12 +120,14 @@ export function WorkoutSessionWithHealthAdvice({
       Array.isArray(
         (workoutSession.template as { exercises?: unknown }).exercises,
       )
-        ? ((workoutSession.template as {
-            exercises: Array<{
-              id: number;
-              exerciseName: string;
-            }>;
-          }).exercises)
+        ? (
+            workoutSession.template as {
+              exercises: Array<{
+                id: number;
+                exerciseName: string;
+              }>;
+            }
+          ).exercises
         : undefined,
     [workoutSession],
   );
@@ -116,49 +143,49 @@ export function WorkoutSessionWithHealthAdvice({
     }
 
     // Create workout plan from template exercises
-    const exercises = templateExercises.map(
-      (templateExercise) => {
-        // Get existing session exercises for this template exercise to determine set count
-        const existingSessionSets = Array.isArray(
-          (workoutSession as { exercises?: unknown })?.exercises,
-        )
-          ? ((workoutSession as {
+    const exercises = templateExercises.map((templateExercise) => {
+      // Get existing session exercises for this template exercise to determine set count
+      const existingSessionSets = Array.isArray(
+        (workoutSession as { exercises?: unknown })?.exercises,
+      )
+        ? (
+            workoutSession as {
               exercises: Array<{
                 exerciseName?: string;
                 reps?: number | null;
                 weight?: string | null;
                 rpe?: number | null;
               }>;
-            }).exercises.filter(
-              (ex) => ex.exerciseName === templateExercise.exerciseName,
-            ))
-          : [];
+            }
+          ).exercises.filter(
+            (ex) => ex.exerciseName === templateExercise.exerciseName,
+          )
+        : [];
 
-        // Determine how many sets to generate (use existing data or default to 3)
-        const setCount =
-          existingSessionSets.length > 0 ? existingSessionSets.length : 3;
+      // Determine how many sets to generate (use existing data or default to 3)
+      const setCount =
+        existingSessionSets.length > 0 ? existingSessionSets.length : 3;
 
-        // Generate sets with data from existing session exercises or defaults
-        const sets = Array.from({ length: setCount }, (_, setIndex) => {
-          const existingSet = existingSessionSets[setIndex];
-          return {
-            set_id: `${templateExercise.id}_${setIndex + 1}`, // Use template exercise ID for consistency
-            target_reps: existingSet?.reps || null,
-            target_weight_kg: existingSet?.weight
-              ? parseFloat(existingSet.weight)
-              : null,
-            target_rpe: existingSet?.rpe || null,
-          };
-        });
-
+      // Generate sets with data from existing session exercises or defaults
+      const sets = Array.from({ length: setCount }, (_, setIndex) => {
+        const existingSet = existingSessionSets[setIndex];
         return {
-          exercise_id: templateExercise.id.toString(), // Use template exercise ID for consistency
-          name: templateExercise.exerciseName, // Include original name for later reference
-          tags: ["strength"] as ("strength" | "hypertrophy" | "endurance")[], // Default tag, could be enhanced with template metadata
-          sets,
+          set_id: `${templateExercise.id}_${setIndex + 1}`, // Use template exercise ID for consistency
+          target_reps: existingSet?.reps || null,
+          target_weight_kg: existingSet?.weight
+            ? parseFloat(existingSet.weight)
+            : null,
+          target_rpe: existingSet?.rpe || null,
         };
-      },
-    );
+      });
+
+      return {
+        exercise_id: templateExercise.id.toString(), // Use template exercise ID for consistency
+        name: templateExercise.exerciseName, // Include original name for later reference
+        tags: ["strength"] as ("strength" | "hypertrophy" | "endurance")[], // Default tag, could be enhanced with template metadata
+        sets,
+      };
+    });
 
     return { exercises };
   }, [templateExercises, workoutSession, workoutPlan]);
@@ -532,6 +559,41 @@ export function WorkoutSessionWithHealthAdvice({
         submitError={wellnessSubmitError ?? undefined}
         sessionId={sessionId}
       />
+
+      {/* Sticky Subheader */}
+      <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-10 border-b backdrop-blur">
+        <div className="container mx-auto px-3 py-3 sm:px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">{templateName}</h2>
+                <p className="text-muted-foreground text-sm">
+                  Elapsed: {elapsedTime} • Online
+                </p>
+              </div>
+              {/* Readiness Chip */}
+              {advice && (
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`rounded-full px-2 py-1 text-xs font-medium ${
+                      advice.readiness.rho > 0.7
+                        ? "bg-green-100 text-green-800"
+                        : advice.readiness.rho > 0.4
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    Readiness: {Math.round(advice.readiness.rho * 100)}%
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button variant="default" size="sm">
+              Complete Workout
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* Original Workout Session */}
       <WorkoutSession sessionId={sessionId} />

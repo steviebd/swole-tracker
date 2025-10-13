@@ -321,6 +321,8 @@ export const masterExercises = createTable(
     user_id: text().notNull(),
     name: text().notNull(),
     normalizedName: text().notNull(), // Lowercased, trimmed name for fuzzy matching
+    tags: text(), // Comma-separated tags for categorization
+    muscleGroup: text(), // Primary muscle group (chest, back, legs, etc.)
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),

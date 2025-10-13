@@ -109,7 +109,7 @@
 
 ## Recent Changes
 
-- WorkOS auth + SSR middleware replaced earlier Supabase integration; update code/tests to avoid lingering Supabase mocks (`src/__tests__/setup.ts` still carries temporary shims)
+- WorkOS auth + SSR middleware replaced earlier Supabase integration
 - Offline persistence simplified to React Query cache with offline queue (`src/lib/offline-storage.ts`, `src/lib/offline-queue.ts`) with automatic flushing and error handling
 - AI coaching features expanded: health advice persistence (`src/server/api/routers/health-advice.ts`), wellness tracking (`src/server/api/routers/wellness.ts`), and suggestion routers leverage the Vercel AI Gateway configuration in `src/env.js`
 
