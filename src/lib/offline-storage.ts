@@ -6,8 +6,6 @@
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { type QueryClient } from "@tanstack/react-query";
-import { offlineQueue, syncStatus, type QueueOperationType } from "./mobile-offline-queue";
-import { initializeCacheAnalytics, getCacheAnalytics } from "./cache-analytics";
 
 // Storage key versioning for cache invalidation
 const CACHE_VERSION_PREFIX = "swole-tracker-cache-v3";
@@ -94,7 +92,9 @@ class CacheManager {
 
       // Determine cleanup threshold
       const targetReduction = aggressive ? 0.3 : 0.2; // Remove 30% or 20% of queries
-      const queriesToRemove = Math.floor(sortedQueries.length * targetReduction);
+      const queriesToRemove = Math.floor(
+        sortedQueries.length * targetReduction,
+      );
 
       // Remove oldest queries
       for (let i = 0; i < queriesToRemove; i++) {
@@ -104,26 +104,17 @@ class CacheManager {
       // Save cleaned cache
       localStorage.setItem(this.cacheKey, JSON.stringify(parsedCache));
 
-      // Track cleanup in PostHog and analytics
+      // Track cleanup in PostHog
       void this.trackCacheEvent("cache_cleanup", {
         aggressive,
         queriesRemoved: queriesToRemove,
         newSize: this.getCacheSize(),
       });
-
-      const analytics = getCacheAnalytics();
-      if (analytics) {
-        analytics.recordCacheHealth({
-          cacheSize: this.getCacheSize(),
-          availableSpace: this.getAvailableSpace(),
-          memoryOnlyMode: this.isMemoryOnlyMode,
-          cleanupPerformed: true,
-          queriesEvicted: queriesToRemove,
-        });
-      }
     } catch (error) {
       console.warn("Cache cleanup failed:", error);
-      void this.trackCacheEvent("cache_cleanup_failed", { error: String(error) });
+      void this.trackCacheEvent("cache_cleanup_failed", {
+        error: String(error),
+      });
     }
   }
 
@@ -132,20 +123,13 @@ class CacheManager {
    */
   private handleQuotaExceeded(): void {
     this.isMemoryOnlyMode = true;
-    
+
     try {
       // Clear all non-essential cached data
       localStorage.removeItem(this.cacheKey);
       void this.trackCacheEvent("quota_exceeded_fallback", {
         previousSize: this.getCacheSize(),
       });
-
-      const analytics = getCacheAnalytics();
-      if (analytics) {
-        analytics.recordQuotaExceeded({
-          previousSize: this.getCacheSize(),
-        });
-      }
     } catch (error) {
       console.warn("Failed to clear cache after quota exceeded:", error);
     }
@@ -159,7 +143,7 @@ class CacheManager {
 
     try {
       const currentSize = this.getCacheSize();
-      
+
       // Check for corrupted cache data
       const cacheData = localStorage.getItem(this.cacheKey);
       if (cacheData) {
@@ -185,20 +169,10 @@ class CacheManager {
         memoryOnlyMode: this.isMemoryOnlyMode,
       });
 
-      // Update cache analytics
-      const analytics = getCacheAnalytics();
-      if (analytics) {
-        analytics.recordCacheHealth({
-          cacheSize: currentSize,
-          availableSpace: this.getAvailableSpace(),
-          memoryOnlyMode: this.isMemoryOnlyMode,
-        });
-      }
-
       return true;
     } catch (error) {
       console.error("Cache health check failed:", error);
-      
+
       // Clear corrupted cache
       try {
         localStorage.removeItem(this.cacheKey);
@@ -214,7 +188,10 @@ class CacheManager {
   /**
    * Track cache-related events for analytics
    */
-  private async trackCacheEvent(event: string, properties: Record<string, any>): Promise<void> {
+  private async trackCacheEvent(
+    event: string,
+    properties: Record<string, any>,
+  ): Promise<void> {
     try {
       // Use dynamic import to avoid breaking server-side rendering
       if (typeof window !== "undefined" && (window as any).posthog) {
@@ -263,8 +240,9 @@ export function getOfflineCacheKey(): string {
 
 // Enhanced persister with size management and error handling
 const createEnhancedPersister = () => {
-  const storage = typeof window !== "undefined" ? window.localStorage : undefined;
-  
+  const storage =
+    typeof window !== "undefined" ? window.localStorage : undefined;
+
   return createSyncStoragePersister({
     storage: cacheManager.isMemoryOnly() ? undefined : storage, // Fall back to memory if needed
     key: cacheManager.getCacheKey(),
@@ -277,20 +255,27 @@ const createEnhancedPersister = () => {
         }
 
         const serialized = JSON.stringify(data);
-        
+
         // Check if serialization would exceed limits
         if (serialized.length > CACHE_SIZE_LIMITS.WARNING_THRESHOLD) {
-          console.log("Large cache detected during serialization, performing cleanup");
+          console.log(
+            "Large cache detected during serialization, performing cleanup",
+          );
           cacheManager.performCacheHealthCheck();
         }
 
         return serialized;
       } catch (error) {
-        if (error instanceof DOMException && error.name === "QuotaExceededError") {
-          console.warn("Storage quota exceeded, falling back to memory-only caching");
+        if (
+          error instanceof DOMException &&
+          error.name === "QuotaExceededError"
+        ) {
+          console.warn(
+            "Storage quota exceeded, falling back to memory-only caching",
+          );
           (cacheManager as any).handleQuotaExceeded();
         }
-        
+
         console.warn("Cache serialization failed:", error);
         return JSON.stringify({ clientState: { queries: {} } });
       }
@@ -299,8 +284,11 @@ const createEnhancedPersister = () => {
       try {
         return JSON.parse(data);
       } catch (error) {
-        console.warn("Cache deserialization failed, clearing corrupted data:", error);
-        
+        console.warn(
+          "Cache deserialization failed, clearing corrupted data:",
+          error,
+        );
+
         // Clear corrupted data
         try {
           if (typeof window !== "undefined") {
@@ -309,7 +297,7 @@ const createEnhancedPersister = () => {
         } catch (clearError) {
           console.error("Failed to clear corrupted cache:", clearError);
         }
-        
+
         return { clientState: { queries: {} } };
       }
     },
@@ -323,219 +311,6 @@ const localStoragePersister = createSyncStoragePersister({
   serialize: JSON.stringify,
   deserialize: JSON.parse,
 });
-
-/**
- * Background sync manager for processing offline queue
- */
-class BackgroundSyncManager {
-  private syncInterval?: NodeJS.Timeout;
-  private isProcessing = false;
-  private callbacks = new Set<(status: any) => void>();
-
-  constructor(private queryClient: QueryClient) {}
-
-  start() {
-    if (this.syncInterval) return;
-    
-    this.syncInterval = setInterval(() => {
-      void this.processPendingOperations();
-    }, BACKGROUND_SYNC_INTERVAL);
-
-    // Also process immediately if online
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      void this.processPendingOperations();
-    }
-  }
-
-  stop() {
-    if (this.syncInterval) {
-      clearInterval(this.syncInterval);
-      this.syncInterval = undefined;
-    }
-  }
-
-  onSyncStatusChange(callback: (status: any) => void): () => void {
-    this.callbacks.add(callback);
-    return () => this.callbacks.delete(callback);
-  }
-
-  private notifyCallbacks(status: any) {
-    this.callbacks.forEach(callback => callback(status));
-  }
-
-  async processPendingOperations(): Promise<void> {
-    if (this.isProcessing) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-
-    this.isProcessing = true;
-    
-    try {
-      let processedCount = 0;
-      let item;
-      
-      // Process up to 5 items per batch to avoid blocking
-      while ((item = await offlineQueue.dequeue()) && processedCount < 5) {
-        try {
-          await this.processQueueItem(item);
-          processedCount++;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.warn('Failed to process queue item:', item.type, errorMessage);
-          
-          // Re-queue with backoff
-          await offlineQueue.requeueWithBackoff(item, errorMessage);
-        }
-      }
-
-      if (processedCount > 0) {
-        await syncStatus.markSyncCompleted();
-        
-        // Invalidate relevant queries after successful sync
-        await this.invalidateQueriesAfterSync();
-      }
-
-      // Update sync status
-      const status = await syncStatus.getSyncStatus();
-      this.notifyCallbacks(status);
-      
-    } finally {
-      this.isProcessing = false;
-    }
-  }
-
-  private async processQueueItem(item: any): Promise<void> {
-    const { type, payload } = item;
-    
-    // This would integrate with your tRPC mutations
-    // For now, we'll simulate the API calls
-    switch (type as QueueOperationType) {
-      case 'workout_save':
-        await this.syncWorkout(payload);
-        break;
-      case 'template_create':
-      case 'template_update':
-        await this.syncTemplate(payload);
-        break;
-      case 'template_delete':
-        await this.deleteTemplate(payload);
-        break;
-      default:
-        throw new Error(`Unknown operation type: ${type}`);
-    }
-  }
-
-  private async syncWorkout(payload: any): Promise<void> {
-    // This would call your tRPC workout.save mutation
-    // For demo purposes, we'll simulate success
-    console.log('Syncing workout:', payload);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // In real implementation:
-    // await api.workouts.save.mutate(payload);
-  }
-
-  private async syncTemplate(payload: any): Promise<void> {
-    console.log('Syncing template:', payload);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // In real implementation:
-    // if (payload.id) {
-    //   await api.templates.update.mutate(payload);
-    // } else {
-    //   await api.templates.create.mutate(payload);
-    // }
-  }
-
-  private async deleteTemplate(payload: any): Promise<void> {
-    console.log('Deleting template:', payload);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // In real implementation:
-    // await api.templates.delete.mutate({ id: payload.id });
-  }
-
-  private async invalidateQueriesAfterSync(): Promise<void> {
-    // Invalidate relevant queries after successful sync
-    await Promise.all([
-      this.queryClient.invalidateQueries({ queryKey: ["workouts"] }),
-      this.queryClient.invalidateQueries({ queryKey: ["templates"] }),
-      this.queryClient.invalidateQueries({ queryKey: ["workouts", "getRecent"] }),
-    ]);
-  }
-}
-
-let backgroundSyncManager: BackgroundSyncManager | undefined;
-
-/**
- * Enhanced offline persistence setup with background sync
- * This is the new primary function that includes all advanced features
- */
-export function setupEnhancedOfflinePersistence(
-  queryClient: QueryClient,
-  userId: string | null,
-) {
-  if (typeof window === "undefined") return;
-
-  setOfflineCacheUser(userId);
-  const persister = createEnhancedPersister();
-  
-  void persistQueryClient({
-    queryClient,
-    persister,
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    buster: CACHE_BUSTER,
-    hydrateOptions: {
-      // Ensure offline data is immediately available
-      defaultOptions: {
-        queries: {
-          // Keep offline data fresh by setting a very long gcTime instead of staleTime
-          gcTime: Infinity,
-        },
-      },
-    },
-    dehydrateOptions: {
-      shouldDehydrateQuery: (query) => {
-        // Persist successful queries and loading states for offline-first UX
-        return query.state.status === "success" || query.state.status === "pending";
-      },
-      shouldDehydrateMutation: () => false, // Don't persist mutations
-    },
-  });
-
-  // Initialize background sync
-  backgroundSyncManager = new BackgroundSyncManager(queryClient);
-  backgroundSyncManager.start();
-
-  // Initialize cache analytics
-  initializeCacheAnalytics(queryClient);
-
-  // Listen for online/offline events
-  const handleOnline = () => {
-    void syncStatus.updateSyncStatus({ isOnline: true });
-    void backgroundSyncManager?.processPendingOperations();
-  };
-
-  const handleOffline = () => {
-    void syncStatus.updateSyncStatus({ isOnline: false });
-  };
-
-  window.addEventListener("online", handleOnline);
-  window.addEventListener("offline", handleOffline);
-
-  // Cleanup function (would be called on app unmount)
-  return () => {
-    backgroundSyncManager?.stop();
-    window.removeEventListener("online", handleOnline);
-    window.removeEventListener("offline", handleOffline);
-    
-    // Cleanup cache analytics
-    void import("./cache-analytics").then(({ destroyCacheAnalytics }) => {
-      destroyCacheAnalytics();
-    });
-  };
-}
 
 /**
  * Legacy offline persistence setup for backward compatibility
@@ -560,23 +335,16 @@ export function setupOfflinePersistence(queryClient: QueryClient) {
 }
 
 /**
- * Manual sync trigger for user-initiated sync
- */
-export async function triggerManualSync(): Promise<void> {
-  if (!backgroundSyncManager) return;
-  await backgroundSyncManager.processPendingOperations();
-}
-
-/**
  * Subscribe to sync status changes
+ * @deprecated This function is deprecated and will be removed in a future version.
  */
-export function onSyncStatusChange(callback: (status: any) => void): () => void {
-  if (!backgroundSyncManager) {
-    return () => {
-      // Empty cleanup function
-    };
-  }
-  return backgroundSyncManager.onSyncStatusChange(callback);
+export function onSyncStatusChange(
+  callback: (status: any) => void,
+): () => void {
+  // No-op function since backgroundSyncManager is removed
+  return () => {
+    // Empty cleanup function
+  };
 }
 
 /**
@@ -585,29 +353,29 @@ export function onSyncStatusChange(callback: (status: any) => void): () => void 
 export function createOptimisticUpdate<T>(
   queryClient: QueryClient,
   queryKey: any[],
-  updateFn: (oldData: T | undefined) => T
+  updateFn: (oldData: T | undefined) => T,
 ) {
   return {
     onMutate: async () => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey });
-      
+
       // Snapshot previous value
       const previousData = queryClient.getQueryData<T>(queryKey);
-      
+
       // Optimistically update
       queryClient.setQueryData<T>(queryKey, updateFn);
-      
+
       return { previousData };
     },
-    
+
     onError: (err: any, variables: any, context: any) => {
       // Rollback on error
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
       }
     },
-    
+
     onSettled: () => {
       // Refresh data after mutation
       void queryClient.invalidateQueries({ queryKey });
@@ -618,21 +386,21 @@ export function createOptimisticUpdate<T>(
 /**
  * Conflict resolution for data synchronization
  */
-export type ConflictResolution = 'local' | 'remote' | 'merge';
+export type ConflictResolution = "local" | "remote" | "merge";
 
 export async function resolveDataConflict<T>(
   localData: T,
   remoteData: T,
-  strategy: ConflictResolution = 'remote'
+  strategy: ConflictResolution = "remote",
 ): Promise<T> {
   switch (strategy) {
-    case 'local':
+    case "local":
       return localData;
-    case 'remote':
+    case "remote":
       return remoteData;
-    case 'merge':
+    case "merge":
       // Simple merge strategy - in practice, this would be more sophisticated
-      if (typeof localData === 'object' && typeof remoteData === 'object') {
+      if (typeof localData === "object" && typeof remoteData === "object") {
         return { ...remoteData, ...localData };
       }
       return remoteData;
@@ -657,7 +425,7 @@ export function clearOfflineCache() {
  */
 export async function clearAllOfflineData(): Promise<void> {
   if (typeof window === "undefined") return;
-  
+
   try {
     // Clear both old and new cache versions
     localStorage.removeItem(LEGACY_CACHE_KEY); // Legacy
@@ -666,7 +434,10 @@ export async function clearAllOfflineData(): Promise<void> {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
-      if (key === LEGACY_CACHE_KEY || key.startsWith(`${CACHE_VERSION_PREFIX}:`)) {
+      if (
+        key === LEGACY_CACHE_KEY ||
+        key.startsWith(`${CACHE_VERSION_PREFIX}:`)
+      ) {
         keysToRemove.push(key);
       }
     }
@@ -674,26 +445,11 @@ export async function clearAllOfflineData(): Promise<void> {
     for (const key of keysToRemove) {
       localStorage.removeItem(key);
     }
-    
-    // Clear offline queue
-    await offlineQueue.clearQueue();
-    
-    // Clear sync status
-    await syncStatus.updateSyncStatus({
-      lastSync: 0,
-      pendingOperations: 0,
-      failedOperations: 0,
-    });
 
     // Track cache clear event
     void (cacheManager as any).trackCacheEvent("cache_cleared", {
       trigger: "logout_or_reset",
     });
-
-    const analytics = getCacheAnalytics();
-    if (analytics) {
-      analytics.recordCacheCleared("logout");
-    }
 
     console.log("All offline data cleared successfully");
   } catch (error) {
@@ -714,7 +470,7 @@ export function getCacheSize(): string {
   const legacyCache = localStorage.getItem(LEGACY_CACHE_KEY);
   const newCache = localStorage.getItem(cacheManager.getCacheKey());
   const cache = newCache || legacyCache;
-  
+
   if (!cache) return "0 KB";
 
   const sizeInBytes = new Blob([cache]).size;
@@ -731,52 +487,17 @@ export function getCacheManager(): CacheManager {
 }
 
 /**
- * Get comprehensive cache performance report for debugging
+ * Get offline storage statistics for debugging (legacy function)
  */
-export async function getCachePerformanceReport(): Promise<{
-  analytics: {
-    summary: string;
-    metrics: any;
-    recentEvents: any[];
-    recommendations: string[];
-  } | null;
-  storageStats: {
-    cacheSize: string;
-    queueStatus: any;
-    syncStatus: any;
-    cacheStats: { size: number; availableSpace: number; memoryOnly: boolean };
-  };
-}> {
-  // Get analytics report
-  const analytics = getCacheAnalytics();
-  const analyticsReport = analytics ? analytics.getCacheReport() : null;
-
-  // Get storage stats
+export function getOfflineStorageStats(): {
+  cacheSize: string;
+  cacheStats: { size: number; availableSpace: number; memoryOnly: boolean };
+} {
   const cacheSize = getCacheSize();
-  const queueStatus = await offlineQueue.getQueueStatus();
-  const currentSyncStatus = await syncStatus.getSyncStatus();
   const cacheStats = cacheManager.getStats();
 
   return {
-    analytics: analyticsReport,
-    storageStats: {
-      cacheSize,
-      queueStatus,
-      syncStatus: currentSyncStatus,
-      cacheStats,
-    },
+    cacheSize,
+    cacheStats,
   };
-}
-
-/**
- * Get offline storage statistics for debugging (legacy function)
- */
-export async function getOfflineStorageStats(): Promise<{
-  cacheSize: string;
-  queueStatus: any;
-  syncStatus: any;
-  cacheStats: { size: number; availableSpace: number; memoryOnly: boolean };
-}> {
-  const report = await getCachePerformanceReport();
-  return report.storageStats;
 }

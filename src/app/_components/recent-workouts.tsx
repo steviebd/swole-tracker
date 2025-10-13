@@ -75,13 +75,13 @@ export function RecentWorkouts() {
           <div className="flex items-center gap-3 text-sm">
             <Link
               href={`/workout/session/${workout.id}`}
-              className="link-primary no-underline"
+              className="link-primary no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               View
             </Link>
             <Link
               href={`/workout/start?templateId=${workout.templateId}`}
-              className="text-secondary hover:text-primary"
+              className="text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Repeat
             </Link>

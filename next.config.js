@@ -54,60 +54,6 @@ const baseConfig = {
     // Allow the Workers build to proceed while we finish the D1 type migration
     ignoreBuildErrors: true,
   },
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://us.i.posthog.com https://us-assets.i.posthog.com",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https: blob:",
-              `connect-src 'self' https://api.prod.whoop.com https://us.i.posthog.com https://us-assets.i.posthog.com`,
-              "font-src 'self' data:",
-              "object-src 'none'",
-              "media-src 'self'",
-              "frame-src 'none'",
-              "worker-src 'self' blob:",
-              "child-src 'self'",
-              "form-action 'self'",
-              "frame-ancestors 'none'",
-              "base-uri 'self'",
-              "manifest-src 'self'",
-            ].join("; "),
-          },
-        ],
-      },
-      {
-        source: "/api/(.*)",
-        headers: [
-          {
-            key: "X-Robots-Tag",
-            value: "noindex",
-          },
-        ],
-      },
-    ];
-  },
   async rewrites() {
     return [
       {

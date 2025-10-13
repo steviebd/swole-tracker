@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     // Clear the session cookie
     const response = NextResponse.json({ success: true });
-    response.headers.set("Set-Cookie", SessionCookie.destroy());
+    response.headers.set("Set-Cookie", await SessionCookie.destroy(request));
 
     return response;
   } catch (error) {

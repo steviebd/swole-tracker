@@ -1,15 +1,34 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
+import {
+  analytics,
+  setPosthogClientForTesting,
+  resetPosthogClientForTesting,
+} from "~/lib/analytics";
 
-// Import after setting up mocks
-import { analytics } from "~/lib/analytics";
+const mockPosthog = {
+  capture: vi.fn(),
+  identify: vi.fn(),
+  reset: vi.fn(),
+};
 
 describe("analytics", () => {
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockPosthog.capture.mockClear();
+    mockPosthog.identify.mockClear();
+    mockPosthog.reset.mockClear();
+    setPosthogClientForTesting(mockPosthog);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    resetPosthogClientForTesting();
   });
 
   describe("pageView", () => {
@@ -77,17 +96,17 @@ describe("analytics", () => {
   describe("error tracking", () => {
     it("should call error function with context", () => {
       const error = new Error("Test error");
+      // Remove stack to avoid serialization issues in test output
+      error.stack = undefined;
       const context = { userId: "user-123", page: "workout" };
-      analytics.error(error, context);
-      // Test passes if no exception is thrown
-      expect(true).toBe(true);
+      expect(() => analytics.error(error, context)).not.toThrow();
     });
 
     it("should call error function without context", () => {
       const error = new Error("Test error");
-      analytics.error(error);
-      // Test passes if no exception is thrown
-      expect(true).toBe(true);
+      // Remove stack to avoid serialization issues in test output
+      error.stack = undefined;
+      expect(() => analytics.error(error)).not.toThrow();
     });
   });
 

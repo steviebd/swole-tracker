@@ -80,7 +80,7 @@ export function ReadinessHighlight() {
   return (
     <Card
       className={cn(
-        "relative overflow-hidden border bg-card/90 p-5 shadow-md transition-shadow",
+        "glass-card glass-hairline relative flex flex-col gap-4 overflow-hidden border border-white/10 bg-card/90 p-5 shadow-xl transition-shadow",
         toneBorder[summary.tone],
       )}
     >

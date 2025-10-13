@@ -8,18 +8,20 @@ import React, {
   useState,
 } from "react";
 
-type Theme =
-  | "system"
-  | "light"
-  | "dark"
-  | "cool"
-  | "warm"
-  | "neutral";
+import {
+  persistThemePreference,
+  parseThemeCookie,
+  readThemeCookieFromDocument,
+  THEME_STORAGE_KEY,
+  type ThemeMode,
+  type ThemePreference,
+  type ThemeVariant,
+} from "~/lib/theme-prefs";
 
 interface ThemeContextValue {
-  theme: Theme;
-  resolvedTheme: "light" | "dark" | "cool" | "warm" | "neutral";
-  setTheme: (t: Theme) => void;
+  theme: ThemeMode;
+  resolvedTheme: ThemeVariant;
+  setTheme: (t: ThemeMode) => void;
   toggle: () => void;
 }
 
@@ -27,80 +29,116 @@ export const ThemeContext = createContext<ThemeContextValue | undefined>(
   undefined,
 );
 
-const THEME_STORAGE_KEY = "theme";
-
-function applyThemeClass(theme: Theme, systemDark: boolean) {
-  const root = document.documentElement;
-
-  // Resolve which palette should be active for CSS variables
-  const effectiveTheme =
-    theme === "system" ? (systemDark ? "dark" : "light") : theme;
-
-  // Toggle Tailwind's dark class for components that rely on it
-  const shouldDark = effectiveTheme === "dark";
-
-  root.dataset.theme = effectiveTheme;
-  root.dataset.themeMode = theme;
-  root.classList.toggle("dark", shouldDark);
+interface ThemeProviderProps {
+  children: React.ReactNode;
+  initialTheme: ThemeMode;
+  initialResolvedTheme: ThemeVariant;
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  // track system dark mode separately so consumers re-render when it changes
-  const [systemDark, setSystemDark] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return (
-      window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false
-    );
-  });
+function resolveThemeVariant(mode: ThemeMode, systemDark: boolean): ThemeVariant {
+  if (mode === "system") {
+    return systemDark ? "dark" : "light";
+  }
+  return mode;
+}
 
-  const resolvedTheme: "light" | "dark" | "cool" | "warm" | "neutral" = useMemo(() => {
-    if (typeof window === "undefined") return "dark";
-    const prefersDark = systemDark;
-    // Handle system theme
-    if (theme === "system") return prefersDark ? "dark" : "light";
-    // All other themes resolve to themselves
-    return theme;
-  }, [theme, systemDark]);
+function applyThemeAttributes(mode: ThemeMode, resolved: ThemeVariant) {
+  const root = document.documentElement;
+  root.dataset.theme = resolved;
+  root.dataset.themeMode = mode;
+  root.classList.toggle("dark", resolved === "dark");
+}
 
-  // initial load from localStorage
+function persistAll(mode: ThemeMode, resolved: ThemeVariant) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+  } catch {
+    // Ignore storage write failures (privacy mode, etc.)
+  }
+  persistThemePreference({ mode, resolved });
+}
+
+function readClientPreference(): ThemePreference | null {
+  const fromCookie = readThemeCookieFromDocument();
+  if (fromCookie) return fromCookie;
+
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (!stored) return null;
+    return parseThemeCookie(stored);
+  } catch {
+    return null;
+  }
+}
+
+export function ThemeProvider({
+  children,
+  initialTheme,
+  initialResolvedTheme,
+}: ThemeProviderProps) {
+  const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<ThemeVariant>(
+    initialResolvedTheme,
+  );
+  const [systemDark, setSystemDark] = useState<boolean>(() =>
+    initialTheme === "system"
+      ? initialResolvedTheme === "dark"
+      : initialTheme === "dark",
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored =
-      (localStorage.getItem(THEME_STORAGE_KEY) as Theme | null) ?? "system";
-    setThemeState(stored);
-    
-    // Get initial system preference
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const initialSystemDark = mq.matches;
-    setSystemDark(initialSystemDark);
-    applyThemeClass(stored, initialSystemDark);
 
-    // respond to system changes; update state so consumers re-render
-    const handler = (e: MediaQueryListEvent) => {
-      setSystemDark(e.matches);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const prefersDark = mq.matches;
+    setSystemDark(prefersDark);
+
+    const stored = readClientPreference();
+    if (stored) {
+      const nextResolved =
+        stored.mode === "system"
+          ? resolveThemeVariant(stored.mode, prefersDark)
+          : stored.resolved;
+      setThemeState(stored.mode);
+      setResolvedTheme(nextResolved);
+      applyThemeAttributes(stored.mode, nextResolved);
+      persistAll(stored.mode, nextResolved);
+    } else {
+      const derived = resolveThemeVariant(initialTheme, prefersDark);
+      setResolvedTheme(derived);
+      applyThemeAttributes(initialTheme, derived);
+      persistAll(initialTheme, derived);
+    }
+
+    const handler = (event: MediaQueryListEvent) => {
+      setSystemDark(event.matches);
     };
-    
+
     mq.addEventListener?.("change", handler);
     return () => mq.removeEventListener?.("change", handler);
-  }, []);
+  }, [initialTheme]);
 
-  // Apply theme changes whenever theme or systemDark changes
   useEffect(() => {
     if (typeof window === "undefined") return;
-    applyThemeClass(theme, systemDark);
+    if (theme !== "system") return;
+    const nextResolved = resolveThemeVariant(theme, systemDark);
+    setResolvedTheme(nextResolved);
+    applyThemeAttributes(theme, nextResolved);
+    persistAll(theme, nextResolved);
   }, [theme, systemDark]);
 
-  const setTheme = useCallback((t: Theme) => {
-    setThemeState(t);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, t);
-    } catch {}
-    applyThemeClass(t, systemDark);
-  }, [systemDark]);
+  const setTheme = useCallback(
+    (mode: ThemeMode) => {
+      const nextResolved = resolveThemeVariant(mode, systemDark);
+      setThemeState(mode);
+      setResolvedTheme(nextResolved);
+      applyThemeAttributes(mode, nextResolved);
+      persistAll(mode, nextResolved);
+    },
+    [systemDark],
+  );
 
   const toggle = useCallback(() => {
-    // Simple toggle between light and dark for legacy compatibility
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 

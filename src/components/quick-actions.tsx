@@ -41,8 +41,9 @@ function MobileActionCard({
     <Link
       href={action.href}
       className={cn(
-        "flex min-w-[220px] snap-start flex-col rounded-2xl border border-border/40 bg-card/80 p-4 text-left shadow-sm",
-        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30",
+        "glass-card glass-hairline flex min-w-[220px] snap-start flex-col rounded-2xl border border-white/8 bg-card/80 p-4 text-left shadow-md",
+        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       )}
     >
       <div className="flex items-center gap-3">
@@ -75,15 +76,23 @@ function DesktopActionCard({
   const Icon = action.icon;
 
   return (
-    <Link href={action.href} className="group block h-full">
-      <Card className="flex h-full flex-col overflow-hidden border-0 bg-card/90 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <Link
+      href={action.href}
+      className="group block h-full focus-visible:outline-none focus-visible:ring-0"
+    >
+      <Card
+        className={cn(
+          "glass-card glass-hairline flex h-full flex-col overflow-hidden border border-white/8 bg-card/85 shadow-xl transition-all duration-300",
+          "hover:-translate-y-1 hover:shadow-xl",
+          "group-focus-visible:-translate-y-1 group-focus-visible:shadow-xl group-focus-visible:ring-2 group-focus-visible:ring-primary/45 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background",
+        )}
+      >
         <div className={cn("h-1 bg-gradient-to-r", action.gradient)} />
         <CardContent className="flex flex-1 flex-col gap-5 p-6">
           <div className="flex items-center gap-4">
             <span
               className={cn(
-                "grid h-12 w-12 place-items-center rounded-2xl text-primary-foreground transition-transform duration-300",
-                "bg-gradient-to-br",
+                "grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br text-primary-foreground transition-transform duration-300",
                 action.gradient,
                 "group-hover:scale-110",
               )}

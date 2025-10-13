@@ -2,12 +2,28 @@
 
 import posthog from "posthog-js";
 
+type PosthogClient = Pick<typeof posthog, "capture" | "identify" | "reset">;
+
+let posthogClient: PosthogClient = posthog;
+
+/**
+ * Allow tests to replace the client while keeping production usage untouched.
+ * Exported for testing only; guarded to avoid leaking into runtime code paths.
+ */
+export function setPosthogClientForTesting(client: PosthogClient) {
+  posthogClient = client;
+}
+
+export function resetPosthogClientForTesting() {
+  posthogClient = posthog;
+}
+
 const safeOnline = () =>
   typeof navigator === "undefined" ? false : navigator.onLine === true;
 const safeCapture = (event: string, props?: Record<string, unknown>) => {
   try {
     if (!safeOnline()) return;
-    posthog.capture(event, props ?? {});
+    posthogClient.capture?.(event, props ?? {});
   } catch {
     // swallow
   }

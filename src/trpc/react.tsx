@@ -9,7 +9,7 @@ import SuperJSON from "superjson";
 
 import { type AppRouter } from "~/server/api/root";
 import { createQueryClient } from "./query-client";
-import { setupEnhancedOfflinePersistence } from "~/lib/offline-storage";
+import { setupOfflinePersistence } from "~/lib/offline-storage";
 import { useAuth } from "~/providers/AuthProvider";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
@@ -47,33 +47,22 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const cleanupRef = useRef<(() => void) | undefined>(undefined);
   const userId = user?.id ?? null;
 
-  // Setup enhanced offline persistence with background sync
+  // Setup offline persistence for React Query cache
   useEffect(() => {
     if (isLoading) {
       return;
     }
 
-    if (
-      previousUserIdRef.current &&
-      previousUserIdRef.current !== userId
-    ) {
+    if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
       queryClient.clear();
     }
 
     previousUserIdRef.current = userId;
 
-    if (cleanupRef.current) {
-      cleanupRef.current();
-      cleanupRef.current = undefined;
-    }
-
-    cleanupRef.current = setupEnhancedOfflinePersistence(queryClient, userId);
+    setupOfflinePersistence(queryClient);
 
     return () => {
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = undefined;
-      }
+      // No cleanup needed for simple persistence
     };
   }, [queryClient, userId, isLoading]);
 

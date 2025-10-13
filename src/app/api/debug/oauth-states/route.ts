@@ -2,11 +2,20 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { db } from "~/server/db";
 import { oauthStates } from "~/server/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import { env } from "~/env";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  // Only allow in development environment
+  if (env.NODE_ENV !== "development") {
+    return NextResponse.json(
+      { error: "not available in production" },
+      { status: 404 },
+    );
+  }
+
   const session = await SessionCookie.get(request);
   if (!session || SessionCookie.isExpired(session)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -22,6 +31,7 @@ export async function GET(request: NextRequest) {
       expiresAt: oauthStates.expiresAt,
     })
     .from(oauthStates)
+    .where(eq(oauthStates.user_id, session.userId))
     .orderBy(desc(oauthStates.id))
     .limit(10);
 

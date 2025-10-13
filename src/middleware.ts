@@ -2,12 +2,30 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
+import {
+  applySecurityHeaders,
+  createNonce,
+  isApiRoute,
+  withNonceHeader,
+} from "~/lib/security-headers";
+
+function setSecurityHeaders(
+  response: NextResponse,
+  nonce: string,
+  pathname: string,
+) {
+  return applySecurityHeaders(response, {
+    nonce,
+    isApiRoute: isApiRoute(pathname),
+  });
+}
 
 export async function middleware(request: NextRequest) {
-  // In development, skip middleware for testing
-  if (process.env.NODE_ENV === "development") {
-    return NextResponse.next();
-  }
+  const nonce = createNonce();
+  const forwardedHeaders = withNonceHeader(request.headers, nonce);
+
+  const apply = (response: NextResponse) =>
+    setSecurityHeaders(response, nonce, request.nextUrl.pathname);
 
   // Check if user has a valid session
   const session = await SessionCookie.get(request);
@@ -22,7 +40,7 @@ export async function middleware(request: NextRequest) {
       // No session, redirect to login
       const redirectUrl = new URL("/auth/login", request.url);
       redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
-      return NextResponse.redirect(redirectUrl);
+      return apply(NextResponse.redirect(redirectUrl));
     }
 
     // Check if session is expired or close to expiring (within 5 minutes)
@@ -35,8 +53,11 @@ export async function middleware(request: NextRequest) {
         const redirectUrl = new URL("/auth/login", request.url);
         redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
         const response = NextResponse.redirect(redirectUrl);
-        response.headers.set("Set-Cookie", SessionCookie.destroy());
-        return response;
+        response.headers.set(
+          "Set-Cookie",
+          await SessionCookie.destroy(request),
+        );
+        return apply(response);
       }
 
       try {
@@ -48,10 +69,10 @@ export async function middleware(request: NextRequest) {
             clientId: env.WORKOS_CLIENT_ID!,
           });
 
-        // Create new session with refreshed tokens
+        // Update existing session with refreshed tokens
         // WorkOS tokens typically last 1 hour, refresh tokens longer
         const accessTokenExpiry = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
-        const newSession = {
+        const updatedSession = {
           userId: refreshedSession.user.id,
           organizationId: refreshedSession.organizationId,
           accessToken: refreshedSession.accessToken,
@@ -59,26 +80,39 @@ export async function middleware(request: NextRequest) {
           expiresAt: accessTokenExpiry,
         };
 
-        // Create response with new session cookie
-        const response = NextResponse.next();
-        response.headers.set(
-          "Set-Cookie",
-          await SessionCookie.create(newSession),
+        // Update session in database
+        await SessionCookie.update(request, updatedSession);
+
+        // Continue with existing cookie (no need to set new cookie)
+        return apply(
+          NextResponse.next({
+            request: {
+              headers: forwardedHeaders,
+            },
+          }),
         );
-        return response;
       } catch (error) {
         // Refresh failed, redirect to login and clear cookie
         console.error("Failed to refresh WorkOS session:", error);
         const redirectUrl = new URL("/auth/login", request.url);
         redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
         const response = NextResponse.redirect(redirectUrl);
-        response.headers.set("Set-Cookie", SessionCookie.destroy());
-        return response;
+        response.headers.set(
+          "Set-Cookie",
+          await SessionCookie.destroy(request),
+        );
+        return apply(response);
       }
     }
   }
 
-  return NextResponse.next();
+  return apply(
+    NextResponse.next({
+      request: {
+        headers: forwardedHeaders,
+      },
+    }),
+  );
 }
 
 export const config = {

@@ -6,6 +6,11 @@ import {
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
 import { getValidAccessToken } from "~/lib/token-rotation";
+import {
+  getTestModeUserId,
+  isWhoopTestUserId,
+  resolveWhoopInternalUserId,
+} from "~/lib/whoop-user";
 import { db } from "~/server/db";
 import { webhookEvents, whoopRecovery } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
@@ -28,11 +33,12 @@ interface WhoopRecoveryData {
 
 async function fetchRecoveryFromWhoop(
   recoveryId: string,
-  userId: number,
+  whoopUserId: number,
+  dbUserId: string | null,
+  isTestMode: boolean,
 ): Promise<WhoopRecoveryData | null> {
   try {
-    // Check if this is a test webhook (user_id: 12345)
-    if (userId === 12345) {
+    if (isTestMode) {
       console.log(
         `🧪 Test mode detected for recovery ${recoveryId} - creating mock recovery data`,
       );
@@ -52,12 +58,18 @@ async function fetchRecoveryFromWhoop(
       };
     }
 
-    // Get valid access token (handles decryption and rotation automatically)
-    const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
+    if (!dbUserId) {
+      console.error(
+        `No internal user mapping for WHOOP user ${whoopUserId} when fetching recovery ${recoveryId}`,
+      );
+      return null;
+    }
+
+    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
-        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+        `No valid Whoop token found for user ${dbUserId}: ${tokenResult.error}`,
       );
       return null;
     }
@@ -108,22 +120,21 @@ async function fetchRecoveryFromWhoop(
   }
 }
 
-async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
+async function processRecoveryUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing recovery update webhook:`, payload);
 
   try {
-    // Convert Whoop user_id to string to match our user_id format
-    const userId = payload.user_id.toString();
     const recoveryId = payload.id.toString();
 
-    // For test webhooks (user_id: 12345), use a placeholder user ID
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
-
-    // Fetch the updated recovery data from Whoop API
     const recoveryData = await fetchRecoveryFromWhoop(
       recoveryId,
       payload.user_id,
+      dbUserId,
+      isTestMode,
     );
     if (!recoveryData) {
       console.error(`Could not fetch recovery data for ${recoveryId}`);
@@ -240,6 +251,11 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
+    const isTestMode = isWhoopTestUserId(payload.user_id);
+    const mappedUserId = isTestMode
+      ? getTestModeUserId()
+      : await resolveWhoopInternalUserId(payload.user_id.toString());
+
     // Log webhook event to database for debugging
     try {
       const [webhookEvent] = await db
@@ -247,6 +263,7 @@ export async function POST(request: NextRequest) {
         .values({
           provider: "whoop",
           eventType: payload.type,
+          userId: mappedUserId ?? null,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
           payload: JSON.stringify(payload),
@@ -267,9 +284,42 @@ export async function POST(request: NextRequest) {
       // Continue processing even if logging fails
     }
 
+    if (!isTestMode && !mappedUserId) {
+      const message = `No internal user mapping for WHOOP user ${payload.user_id}`;
+      console.error(message);
+
+      if (webhookEventId) {
+        try {
+          await db
+            .update(webhookEvents)
+            .set({
+              status: "pending_user_mapping",
+              error: message,
+              processedAt: new Date(),
+            })
+            .where(eq(webhookEvents.id, webhookEventId));
+        } catch (statusError) {
+          console.error(
+            "Failed to update webhook event status while awaiting mapping:",
+            statusError,
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          message,
+        },
+        { status: 202 },
+      );
+    }
+
+    const dbUserId = mappedUserId ?? getTestModeUserId();
+
     // Only process recovery.updated events
     if (payload.type === "recovery.updated") {
-      await processRecoveryUpdate(payload);
+      await processRecoveryUpdate(payload, dbUserId, isTestMode);
 
       // Update webhook event status
       if (webhookEventId) {

@@ -2,12 +2,45 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Import after mocking
 import { workoutsRouter } from "~/server/api/routers/workouts";
-import { db } from "~/server/db";
 
 describe("workoutsRouter", () => {
   const mockUser = { id: "user-123" };
+
+  // Create a proper mock db that supports Drizzle query interface
+  const mockDb = {
+    query: {
+      workoutSessions: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      exerciseLinks: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+      },
+      workoutTemplates: {
+        findFirst: vi.fn(),
+      },
+      sessionExercises: {
+        findMany: vi.fn(),
+      },
+    },
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+      }),
+    }),
+    delete: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(undefined),
+    }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
+  } as any;
+
   const mockCtx = {
-    db,
+    db: mockDb,
     user: mockUser,
     requestId: "test-request",
     headers: new Headers(),
@@ -60,14 +93,12 @@ describe("workoutsRouter", () => {
         },
       ];
 
-      db.query.workoutSessions.findMany = vi
-        .fn()
-        .mockResolvedValue(mockWorkouts);
+      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockWorkouts);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getRecent({ limit: 5 });
 
-      expect(db.query.workoutSessions.findMany).toHaveBeenCalledWith({
+      expect(mockDb.query.workoutSessions.findMany).toHaveBeenCalledWith({
         where: expect.any(Object), // eq(workoutSessions.user_id, ctx.user.id) - Drizzle SQL object
         orderBy: [expect.any(Object)], // desc(workoutSessions.workoutDate) - Drizzle SQL object
         limit: 5,
@@ -109,14 +140,12 @@ describe("workoutsRouter", () => {
           unit: string;
         }>;
       }> = [];
-      db.query.workoutSessions.findMany = vi
-        .fn()
-        .mockResolvedValue(mockWorkouts);
+      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockWorkouts);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       await caller.getRecent({});
 
-      expect(db.query.workoutSessions.findMany).toHaveBeenCalledWith(
+      expect(mockDb.query.workoutSessions.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ limit: 10 }),
       );
     });
@@ -139,14 +168,12 @@ describe("workoutsRouter", () => {
         exercises: [],
       };
 
-      db.query.workoutSessions.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockWorkout);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockWorkout);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getById({ id: 1 });
 
-      expect(db.query.workoutSessions.findFirst).toHaveBeenCalledWith({
+      expect(mockDb.query.workoutSessions.findFirst).toHaveBeenCalledWith({
         where: expect.any(Object), // eq(workoutSessions.id, input.id) - Drizzle SQL object
         with: {
           template: {
@@ -161,7 +188,7 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if workout not found", async () => {
-      db.query.workoutSessions.findFirst = vi.fn().mockResolvedValue(null);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
 
       const caller = workoutsRouter.createCaller(mockCtx);
 
@@ -180,9 +207,7 @@ describe("workoutsRouter", () => {
         updatedAt: null,
       };
 
-      db.query.workoutSessions.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockWorkout);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockWorkout);
 
       const caller = workoutsRouter.createCaller(mockCtx);
 
@@ -205,15 +230,14 @@ describe("workoutsRouter", () => {
               reps: 8,
               sets: 3,
               unit: "kg",
+              setOrder: 0,
             },
           ],
         },
       ];
 
-      db.query.exerciseLinks.findFirst = vi.fn().mockResolvedValue(null);
-      db.query.workoutSessions.findMany = vi
-        .fn()
-        .mockResolvedValue(mockSessions);
+      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -269,20 +293,15 @@ describe("workoutsRouter", () => {
               reps: 10,
               sets: 4,
               unit: "kg",
+              setOrder: 0,
             },
           ],
         },
       ];
 
-      db.query.exerciseLinks.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockExerciseLink);
-      db.query.exerciseLinks.findMany = vi
-        .fn()
-        .mockResolvedValue(mockLinkedExercises);
-      db.query.workoutSessions.findMany = vi
-        .fn()
-        .mockResolvedValue(mockSessions);
+      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(mockExerciseLink);
+      mockDb.query.exerciseLinks.findMany.mockResolvedValue(mockLinkedExercises);
+      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -321,15 +340,14 @@ describe("workoutsRouter", () => {
               reps: 8,
               sets: 3,
               unit: "kg",
+              setOrder: 0,
             },
           ],
         },
       ];
 
-      db.query.exerciseLinks.findFirst = vi.fn().mockResolvedValue(null);
-      db.query.workoutSessions.findMany = vi
-        .fn()
-        .mockResolvedValue(mockSessions);
+      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       await caller.getLastExerciseData({
@@ -337,7 +355,7 @@ describe("workoutsRouter", () => {
         excludeSessionId: 2,
       });
 
-      expect(db.query.workoutSessions.findMany).toHaveBeenCalledWith({
+      expect(mockDb.query.workoutSessions.findMany).toHaveBeenCalledWith({
         where: expect.any(Object), // Should include ne condition - Drizzle SQL object
         orderBy: [expect.any(Object)], // desc(workoutSessions.workoutDate) - Drizzle SQL object
         limit: 50,
@@ -346,8 +364,8 @@ describe("workoutsRouter", () => {
     });
 
     it("should return null if no previous data found", async () => {
-      db.query.exerciseLinks.findFirst = vi.fn().mockResolvedValue(null);
-      db.query.workoutSessions.findMany = vi.fn().mockResolvedValue([]);
+      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutSessions.findMany.mockResolvedValue([]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -362,6 +380,7 @@ describe("workoutsRouter", () => {
     it("should start a new workout session", async () => {
       const mockTemplate = {
         id: 1,
+        user_id: "user-123",
         name: "Push Day",
         exercises: [
           {
@@ -384,10 +403,10 @@ describe("workoutsRouter", () => {
         updatedAt: null,
       };
 
-      db.query.workoutTemplates.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockTemplate);
-      db.insert = vi.fn().mockReturnValue({
+      // Mock no recent session found
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutTemplates.findFirst.mockResolvedValue(mockTemplate);
+      mockDb.insert.mockReturnValue({
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([mockSession]),
         }),
@@ -400,13 +419,15 @@ describe("workoutsRouter", () => {
       });
 
       expect(result).toEqual({
-        session: mockSession,
+        sessionId: mockSession.id,
         template: mockTemplate,
       });
     });
 
     it("should throw error if template not found", async () => {
-      db.query.workoutTemplates.findFirst = vi.fn().mockResolvedValue(null);
+      // Mock no recent session found
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutTemplates.findFirst.mockResolvedValue(null);
 
       const caller = workoutsRouter.createCaller(mockCtx);
 
@@ -430,15 +451,13 @@ describe("workoutsRouter", () => {
         updatedAt: null,
       };
 
-      db.query.workoutSessions.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockSession);
-      db.insert = vi.fn().mockReturnValue({
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      mockDb.insert.mockReturnValue({
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([{ id: 1 }]),
         }),
       });
-      db.update = vi.fn().mockReturnValue({
+      mockDb.update.mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue(undefined),
         }),
@@ -469,7 +488,7 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if session not found", async () => {
-      db.query.workoutSessions.findFirst = vi.fn().mockResolvedValue(null);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
 
       const caller = workoutsRouter.createCaller(mockCtx);
 
@@ -491,15 +510,17 @@ describe("workoutsRouter", () => {
           {
             id: 1,
             exerciseName: "Bench Press",
-            sets: [{ id: "set-1", weight: 80, reps: 8, sets: 3, unit: "kg" }],
+            setOrder: 0,
+            weight: 80,
+            reps: 8,
+            sets: 3,
+            unit: "kg",
           },
         ],
       };
 
-      db.query.workoutSessions.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockSession);
-      db.update = vi.fn().mockReturnValue({
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      mockDb.update.mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue(undefined),
         }),
@@ -520,7 +541,7 @@ describe("workoutsRouter", () => {
         ],
       });
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, updatedCount: 1 });
     });
   });
 
@@ -535,10 +556,8 @@ describe("workoutsRouter", () => {
         updatedAt: null,
       };
 
-      db.query.workoutSessions.findFirst = vi
-        .fn()
-        .mockResolvedValue(mockSession);
-      db.delete = vi.fn().mockReturnValue({
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      mockDb.delete.mockReturnValue({
         where: vi.fn().mockResolvedValue(undefined),
       });
 
@@ -549,7 +568,7 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if session not found", async () => {
-      db.query.workoutSessions.findFirst = vi.fn().mockResolvedValue(null);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
 
       const caller = workoutsRouter.createCaller(mockCtx);
 

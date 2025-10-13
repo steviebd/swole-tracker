@@ -15,6 +15,18 @@ import {
 import { logger } from "~/lib/logger";
 import { type db } from "~/server/db";
 
+let generateDebriefImpl = generateAndPersistDebrief;
+
+export function setGenerateDebriefImplementationForTesting(
+  impl: typeof generateAndPersistDebrief,
+) {
+  generateDebriefImpl = impl;
+}
+
+export function resetGenerateDebriefImplementationForTesting() {
+  generateDebriefImpl = generateAndPersistDebrief;
+}
+
 const generateInputSchema = z.object({
   sessionId: z.number().int().positive(),
   locale: z.string().optional(),
@@ -72,7 +84,7 @@ export const sessionDebriefRouter = createTRPCRouter({
     .input(generateInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
-        const { debrief, content } = await generateAndPersistDebrief({
+        const { debrief, content } = await generateDebriefImpl({
           dbClient: ctx.db,
           userId: ctx.user.id,
           sessionId: input.sessionId,
@@ -102,7 +114,7 @@ export const sessionDebriefRouter = createTRPCRouter({
     .input(generateInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
-        const { debrief, content } = await generateAndPersistDebrief({
+        const { debrief, content } = await generateDebriefImpl({
           dbClient: ctx.db,
           userId: ctx.user.id,
           sessionId: input.sessionId,

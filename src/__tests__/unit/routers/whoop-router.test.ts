@@ -28,9 +28,7 @@ describe("whoopRouter", () => {
           }),
         }),
         where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
+          orderBy: vi.fn().mockResolvedValue([]),
         }),
       }),
     }),
@@ -255,7 +253,7 @@ describe("whoopRouter", () => {
     it("should return latest recovery data when integration is active", async () => {
       const mockIntegration = {
         isActive: true,
-        expiresAt: new Date("2024-12-31"),
+        expiresAt: new Date("2025-12-31"),
       };
 
       const mockRecovery = {
@@ -276,11 +274,13 @@ describe("whoopRouter", () => {
 
       mockDb.select.mockImplementation(() => ({
         from: vi.fn().mockImplementation((table: any) => {
-          if (table === "userIntegrations") {
+          // Import tables to compare
+          const { userIntegrations, whoopRecovery, whoopSleep } = require("~/server/db/schema");
+          if (table === userIntegrations) {
             return {
               where: vi.fn().mockResolvedValue([mockIntegration]),
             };
-          } else if (table === "whoopRecovery") {
+          } else if (table === whoopRecovery) {
             return {
               where: vi.fn().mockReturnValue({
                 orderBy: vi.fn().mockReturnValue({
@@ -288,7 +288,7 @@ describe("whoopRouter", () => {
                 }),
               }),
             };
-          } else if (table === "whoopSleep") {
+          } else if (table === whoopSleep) {
             return {
               where: vi.fn().mockReturnValue({
                 orderBy: vi.fn().mockReturnValue({
@@ -307,8 +307,8 @@ describe("whoopRouter", () => {
       expect(result).toEqual({
         recovery_score: 85,
         sleep_performance: 92,
-        hrv_now_ms: 45.2,
-        hrv_baseline_ms: 42.1,
+        hrv_now_ms: "45.2",
+        hrv_baseline_ms: "42.1",
         rhr_now_bpm: 60,
         rhr_baseline_bpm: 65,
         yesterday_strain: null,
@@ -355,11 +355,20 @@ describe("whoopRouter", () => {
     it("should throw error when no recovery data exists", async () => {
       const mockIntegration = {
         isActive: true,
-        expiresAt: new Date("2024-12-31"),
+        expiresAt: new Date("2025-12-31"),
       };
 
       mockDb.select = vi
         .fn()
+        .mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        })
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([mockIntegration]),
@@ -401,6 +410,7 @@ describe("whoopRouter", () => {
         },
       ];
 
+      mockDb.select.mockReset();
       mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({

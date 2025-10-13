@@ -222,13 +222,14 @@ export const StatsCards = memo(function StatsCards() {
               padding="lg"
               interactive={true}
               className={cn(
-                "glass-surface relative overflow-hidden border-0",
-                "bg-card/80 hover:bg-card/90",
+                "glass-card glass-hairline relative flex h-full flex-col overflow-hidden border border-white/8",
+                "bg-card/85 hover:bg-card/90",
                 "backdrop-blur-xl backdrop-saturate-150",
-                "shadow-lg hover:shadow-xl",
+                "shadow-xl hover:shadow-2xl",
                 "transition-all duration-200 ease-out",
-                "hover:scale-[1.02] hover:shadow-2xl",
-                "group cursor-pointer"
+                "hover:scale-[1.02]",
+                "group cursor-pointer",
+                "min-h-[180px]"
               )}
               aria-label={`${card.title}: ${card.value}${card.unit}`}
               role="button"

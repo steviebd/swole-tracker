@@ -20,6 +20,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { WorkoutCard } from "~/components/ui/workout-card";
+import { EmptyState } from "~/components/ui/async-state";
+import { Skeleton } from "~/components/ui/skeleton";
 
 const DEFAULT_LIMIT = {
   card: 3,
@@ -195,6 +197,9 @@ RecentWorkouts.displayName = "RecentWorkouts";
 
 export { RecentWorkouts };
 
+const dashboardPanelClass =
+  "glass-card glass-hairline flex h-full flex-col border border-white/8 bg-card/85 shadow-xl";
+
 const DashboardRecentWorkoutsView = ({
   className,
   error,
@@ -210,185 +215,160 @@ const DashboardRecentWorkoutsView = ({
 }: DashboardViewProps) => {
   if (error) {
     return (
-      <div ref={forwardedRef} className={cn("space-y-4", className)}>
-        <h2 className="text-foreground mb-4 text-xl font-semibold">
-          Recent Workouts
-        </h2>
-        <div className="border-border text-muted-foreground rounded-lg border border-dashed p-6 text-center">
-          <p>Unable to load recent workouts</p>
-          <p className="mt-2 text-sm">Please try again later.</p>
-        </div>
-      </div>
+      <Card ref={forwardedRef} className={cn(dashboardPanelClass, className)}>
+        <CardHeader>
+          <CardTitle className="font-display text-xl font-bold text-foreground sm:text-2xl">
+            Recent Workouts
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-1 items-center justify-center">
+          <div className="w-full rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-muted-foreground">
+            <p>Unable to load recent workouts.</p>
+            <p className="mt-2 text-xs sm:text-sm">Please try again later.</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (isLoading) {
     return (
-      <div
-        ref={forwardedRef}
-        className={cn("space-y-4 sm:space-y-6", className)}
-      >
-        <motion.h2
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="font-display text-foreground mb-4 text-xl font-bold sm:mb-6 sm:text-2xl"
-        >
-          Recent Workouts
-        </motion.h2>
-        <div className="space-y-3 sm:space-y-4">
-          {[...Array(3)].map((_, index) => (
-            <motion.div
+      <Card ref={forwardedRef} className={cn(dashboardPanelClass, className)}>
+        <CardHeader className="pb-0">
+          <CardTitle className="font-display text-xl font-bold text-foreground sm:text-2xl">
+            Recent Workouts
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 space-y-3 pt-4 sm:space-y-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton
               key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: index * 0.05 }}
-              className="animate-pulse"
-            >
-              <div className="glass-surface bg-muted h-[180px] rounded-xl sm:h-[200px]" />
-            </motion.div>
+              announce={false}
+              variant="card"
+              className="h-[160px] w-full sm:h-[180px]"
+            />
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!workouts?.length) {
     return (
-      <div
-        ref={forwardedRef}
-        className={cn("space-y-4 sm:space-y-6", className)}
-      >
-        <motion.h2
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="font-display text-foreground mb-4 text-xl font-bold sm:mb-6 sm:text-2xl"
-        >
-          Recent Workouts
-        </motion.h2>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="glass-surface relative overflow-hidden rounded-xl p-8 text-center sm:p-12"
-        >
-          <div
-            className="absolute inset-0 opacity-5"
-            style={{ background: "var(--gradient-universal-action-primary)" }}
-            aria-hidden="true"
-          />
-          <div className="relative z-10">
-            <motion.div
-              className="mb-6 text-5xl sm:text-6xl"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 20,
-                delay: 0.2,
-              }}
-            >
-              💪
-            </motion.div>
-            <h3 className="font-display text-foreground mb-2 text-lg font-bold sm:text-xl">
-              No workouts yet
-            </h3>
-            <p className="text-muted-foreground mx-auto mb-6 max-w-sm text-sm">
-              Start your first workout to see it appear here and begin tracking
-              your fitness journey.
-            </p>
-            <motion.button
-              onClick={onStartNewWorkout}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-6 py-3 text-white",
-                "font-medium transition-all duration-200 hover:scale-105 active:scale-95",
-                "focus:ring-primary focus:ring-2 focus:ring-offset-2 focus:outline-none",
-                "shadow-lg hover:shadow-xl",
-              )}
-              style={{ background: "var(--gradient-universal-action-primary)" }}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Plus className="h-5 w-5" />
-              Start Your First Workout
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
+      <Card ref={forwardedRef} className={cn(dashboardPanelClass, className)}>
+        <CardHeader>
+          <CardTitle className="font-display text-xl font-bold text-foreground sm:text-2xl">
+            Recent Workouts
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-1 items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <EmptyState
+              title="No workouts yet"
+              description="Start your first workout to see it appear here and begin tracking your fitness journey."
+              icon={<span>💪</span>}
+              srLabel="No workouts recorded yet. Start a workout to populate the dashboard."
+              actions={
+                <motion.button
+                  onClick={onStartNewWorkout}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-xl px-6 py-3 text-white",
+                    "font-medium transition-all duration-200 hover:scale-105 active:scale-95",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                    "shadow-lg hover:shadow-xl",
+                  )}
+                  style={{ background: "var(--gradient-universal-action-primary)" }}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Plus className="h-5 w-5" />
+                  Start Your First Workout
+                </motion.button>
+              }
+            />
+          </motion.div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div ref={forwardedRef} className={cn("space-y-4 sm:space-y-6", className)}>
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
-        <h2 className="font-display text-foreground text-xl font-bold sm:text-2xl">
-          Recent Workouts
-        </h2>
-        {workouts.length >= limit && (
-          <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.95 }}>
-            <Link
-              href="/workouts"
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3 py-2",
-                "text-primary text-sm font-medium transition-all duration-200",
-                "hover:bg-primary/5 hover:text-primary/80",
-                "focus:ring-primary/20 focus:ring-2 focus:outline-none",
-              )}
-            >
-              View All
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </motion.div>
-        )}
-      </motion.div>
-
-      <AnimatePresence mode="popLayout">
-        <div className="space-y-3 sm:space-y-4">
-          {workouts.map((workout, index) => {
-            const summary = buildWorkoutSummary(workout);
-            const displayDate = workout.workoutDate ?? workout.createdAt;
-            const isoDate = toIsoString(displayDate);
-            const isRecent = isWorkoutWithinHours(
-              workout.createdAt ?? workout.workoutDate,
-            );
-            const isRepeating =
-              repeatPending && repeatingWorkoutId === workout.id;
-
-            const handleRepeat = () => {
-              if (isRepeating) return;
-              void onRepeat(workout);
-            };
-
-            return (
-              <motion.div
-                key={workout.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{
-                  duration: 0.2,
-                  delay: index * 0.05,
-                  ease: [0.4, 0, 0.2, 1],
-                }}
+    <Card ref={forwardedRef} className={cn(dashboardPanelClass, className)}>
+      <CardHeader className="gap-3 pb-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="font-display text-xl font-bold text-foreground sm:text-2xl">
+            Recent Workouts
+          </CardTitle>
+          {workouts.length >= limit && (
+            <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.97 }}>
+              <Link
+                href="/workouts"
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5",
+                  "text-xs font-semibold uppercase tracking-wide text-primary",
+                  "transition-colors duration-200 hover:border-primary/30 hover:text-primary/80",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                )}
               >
-                <WorkoutCard
-                  workoutName={resolveTemplateName(workout, "Unnamed Workout")}
-                  date={isoDate}
-                  metrics={summary.metrics}
-                  isRecent={isRecent}
-                  onRepeat={handleRepeat}
-                  onViewDetails={() => onViewDetails(workout.id)}
-                />
-              </motion.div>
-            );
-          })}
+                View all
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </motion.div>
+          )}
         </div>
-      </AnimatePresence>
-    </div>
+        <p className="text-xs text-muted-foreground sm:text-sm">
+          Jump back into your latest sessions or repeat a template instantly.
+        </p>
+      </CardHeader>
+      <CardContent className="flex-1 pt-4">
+        <AnimatePresence mode="popLayout">
+          <div className="space-y-3 sm:space-y-4">
+            {workouts.map((workout, index) => {
+              const summary = buildWorkoutSummary(workout);
+              const displayDate = workout.workoutDate ?? workout.createdAt;
+              const isoDate = toIsoString(displayDate);
+              const isRecent = isWorkoutWithinHours(
+                workout.createdAt ?? workout.workoutDate,
+              );
+              const isRepeating =
+                repeatPending && repeatingWorkoutId === workout.id;
+
+              const handleRepeat = () => {
+                if (isRepeating) return;
+                void onRepeat(workout);
+              };
+
+              return (
+                <motion.div
+                  key={workout.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{
+                    duration: 0.2,
+                    delay: index * 0.05,
+                    ease: [0.4, 0, 0.2, 1],
+                  }}
+                >
+                  <WorkoutCard
+                    workoutName={resolveTemplateName(workout, "Unnamed Workout")}
+                    date={isoDate}
+                    metrics={summary.metrics}
+                    isRecent={isRecent}
+                    onRepeat={handleRepeat}
+                    onViewDetails={() => onViewDetails(workout.id)}
+                  />
+                </motion.div>
+              );
+            })}
+          </div>
+        </AnimatePresence>
+      </CardContent>
+    </Card>
   );
 };
 

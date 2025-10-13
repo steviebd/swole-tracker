@@ -10,7 +10,6 @@ import {
   WifiOff,
 } from "lucide-react";
 
-import { OfflineWorkoutManager } from "~/app/_components/offline-workout-manager";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -47,7 +46,8 @@ const toneAccent: Record<ReadinessTone, string> = {
 
 function formatRelativeTime(value?: string | Date | number) {
   if (!value) return "never";
-  const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  const timestamp =
+    value instanceof Date ? value.getTime() : new Date(value).getTime();
   if (Number.isNaN(timestamp)) return "unknown";
 
   const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
@@ -73,11 +73,15 @@ export function GlobalStatusTray() {
     : null;
 
   const readinessSummary = useMemo(
-    () => getReadinessSummary(Number.isFinite(readinessScore) ? readinessScore : null),
+    () =>
+      getReadinessSummary(
+        Number.isFinite(readinessScore) ? readinessScore : null,
+      ),
     [readinessScore],
   );
 
-  const ReadinessIcon = readinessScore != null && readinessScore >= 0.6 ? Activity : AlertTriangle;
+  const ReadinessIcon =
+    readinessScore != null && readinessScore >= 0.6 ? Activity : AlertTriangle;
   const StatusIcon = iconByStatus[sync.status];
 
   if (!user) {
@@ -100,10 +104,10 @@ export function GlobalStatusTray() {
               className={cn(
                 "absolute inline-flex h-full w-full rounded-full opacity-75",
                 sync.tone === "danger"
-                  ? "bg-rose-400 animate-ping"
+                  ? "animate-ping bg-rose-400"
                   : sync.tone === "warning"
-                  ? "bg-amber-400 animate-pulse"
-                  : "bg-sky-400 animate-ping",
+                    ? "animate-pulse bg-amber-400"
+                    : "animate-ping bg-sky-400",
                 sync.isBusy ? "" : "animate-none",
               )}
             />
@@ -113,14 +117,18 @@ export function GlobalStatusTray() {
                 sync.tone === "danger"
                   ? "bg-rose-300"
                   : sync.tone === "warning"
-                  ? "bg-amber-300"
-                  : sync.tone === "info"
-                  ? "bg-sky-300"
-                  : "bg-emerald-300",
+                    ? "bg-amber-300"
+                    : sync.tone === "info"
+                      ? "bg-sky-300"
+                      : "bg-emerald-300",
               )}
             />
           </span>
-          <StatusIcon className={cn("h-3.5 w-3.5", sync.status === "saving" && "animate-spin")}
+          <StatusIcon
+            className={cn(
+              "h-3.5 w-3.5",
+              sync.status === "saving" && "animate-spin",
+            )}
             aria-hidden
           />
           <span>{sync.badgeText}</span>
@@ -129,23 +137,26 @@ export function GlobalStatusTray() {
 
       <SheetContent
         side="bottom"
-        className="h-[80vh] overflow-y-auto rounded-t-3xl bg-gradient-to-b from-background/80 via-background to-background/95 px-5 pb-10 pt-6 sm:left-1/2 sm:top-auto sm:max-w-md sm:-translate-x-1/2"
+        className="from-background/80 via-background to-background/95 h-[80vh] overflow-y-auto rounded-t-3xl bg-gradient-to-b px-5 pt-6 pb-10 sm:top-auto sm:left-1/2 sm:max-w-md sm:-translate-x-1/2"
         aria-label="Sync and readiness status drawer"
       >
         <div className="mx-auto flex h-full max-w-xl flex-col gap-6">
           <header className="space-y-1">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+            <p className="text-muted-foreground/80 text-xs tracking-wide uppercase">
               Session health
             </p>
-            <h2 className="bg-gradient-to-r from-primary to-accent bg-clip-text text-xl font-semibold text-transparent">
+            <h2 className="from-primary to-accent bg-gradient-to-r bg-clip-text text-xl font-semibold text-transparent">
               Sync & Readiness
             </h2>
-            <p className="text-sm text-muted-foreground">{sync.description}</p>
+            <p className="text-muted-foreground text-sm">{sync.description}</p>
           </header>
 
-          <section className="rounded-2xl border border-border/60 bg-card/80 p-4 backdrop-blur">
+          <section className="border-border/60 bg-card/80 rounded-2xl border p-4 backdrop-blur">
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline" className="border-border/50 text-xs uppercase tracking-wide">
+              <Badge
+                variant="outline"
+                className="border-border/50 text-xs tracking-wide uppercase"
+              >
                 {sync.isOnline ? "Online" : "Offline"}
               </Badge>
               {sync.pendingOperations > 0 && (
@@ -158,7 +169,7 @@ export function GlobalStatusTray() {
                   {sync.failedOperations} retry
                 </Badge>
               )}
-              <span className="text-xs text-muted-foreground">
+              <span className="text-muted-foreground text-xs">
                 Last sync {formatRelativeTime(sync.lastSync)}
               </span>
             </div>
@@ -167,7 +178,7 @@ export function GlobalStatusTray() {
               <Button
                 onClick={() => void sync.manualSync()}
                 disabled={!sync.canManualSync}
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 flex-1"
               >
                 {sync.isBusy ? (
                   <span className="flex items-center justify-center gap-2 text-sm">
@@ -180,7 +191,7 @@ export function GlobalStatusTray() {
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 border-dashed border-border/60 text-sm"
+                className="border-border/60 flex-1 border-dashed text-sm"
                 onClick={() => void sync.manualSync()}
                 disabled={!sync.isOnline || sync.isBusy}
               >
@@ -189,30 +200,38 @@ export function GlobalStatusTray() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border/60 bg-card/70 p-4 backdrop-blur">
+          <section className="border-border/60 bg-card/70 rounded-2xl border p-4 backdrop-blur">
             <header className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
+                <p className="text-muted-foreground/70 text-xs tracking-wide uppercase">
                   Readiness snapshot
                 </p>
                 <div className="flex items-center gap-2">
-                  <ReadinessIcon className={cn("h-4 w-4", toneAccent[readinessSummary.tone])} aria-hidden />
-                  <h3 className={cn("text-base font-semibold", toneAccent[readinessSummary.tone])}>
+                  <ReadinessIcon
+                    className={cn("h-4 w-4", toneAccent[readinessSummary.tone])}
+                    aria-hidden
+                  />
+                  <h3
+                    className={cn(
+                      "text-base font-semibold",
+                      toneAccent[readinessSummary.tone],
+                    )}
+                  >
                     {readinessSummary.label}
                   </h3>
                 </div>
               </div>
               {readinessScore != null && (
                 <div className="text-right">
-                  <span className="text-2xl font-semibold text-foreground">
+                  <span className="text-foreground text-2xl font-semibold">
                     {(readinessScore * 100).toFixed(0)}
                   </span>
-                  <span className="text-xs text-muted-foreground"> /100</span>
+                  <span className="text-muted-foreground text-xs"> /100</span>
                 </div>
               )}
             </header>
 
-            <div className="mt-3 text-sm text-muted-foreground">
+            <div className="text-muted-foreground mt-3 text-sm">
               {readinessLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-40" />
@@ -221,29 +240,12 @@ export function GlobalStatusTray() {
               ) : (
                 <>
                   <p>{readinessSummary.message}</p>
-                  <p className="mt-2 text-xs text-muted-foreground/80">
+                  <p className="text-muted-foreground/80 mt-2 text-xs">
                     Updated {formatRelativeTime(latestAdvice?.createdAt)}
                   </p>
                 </>
               )}
             </div>
-          </section>
-
-          <section className="rounded-2xl border border-border/60 bg-card/70 p-4 backdrop-blur">
-            <header className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
-                  Offline queue
-                </p>
-                <h3 className="text-base font-semibold text-foreground">
-                  Pending sessions
-                </h3>
-              </div>
-              {!sync.isOnline && (
-                <Badge className="bg-amber-500/20 text-amber-200">Offline</Badge>
-              )}
-            </header>
-            <OfflineWorkoutManager />
           </section>
         </div>
       </SheetContent>

@@ -8,8 +8,8 @@
 - Check: `bun check` – runs lint + typecheck
 - Format: `bun format:write` / `bun format:check` – Prettier + Tailwind plugin
 - DB: `bun db:generate` / `bun db:migrate` / `bun db:push` / `bun db:studio` – Drizzle Kit tooling
-- Unit tests: `bun test` (Vitest watch), `bun test:unit`, `bun test:integration`
-- Coverage: `bun test:coverage` (Vitest), `bun test:ci` (Vitest run + coverage)
+- Unit tests: `bun test` (Vitest run), `bun test:watch` (Vitest watch), `bun test:unit`, `bun test:integration`
+- Coverage: `bun test:coverage` (Vitest), `bun coverage` (Vitest run + coverage)
   Notes:
 - Package manager pinned to `bun@1.2.21` (see `package.json#packageManager`)
 - Node.js pinned via Volta: `node@20.19.4`
@@ -23,7 +23,7 @@
 - Frontend: App Router pages/components live in `src/app/**`; shared client components in `src/components/**`; App Router-only components in `src/app/_components/**`
 - tRPC clients: React Query + RSC helpers in `src/trpc/*` (server caller, `HydrateClient`, persistent query client, offline hydration)
 - Styling: Tailwind CSS v4 with custom utilities in `src/styles/globals.css`; design tokens live in `src/design-tokens/*` and `src/lib/design-tokens.ts` (see `DESIGN_MANIFESTO.md`)
-- Offline & caching: Enhanced persistence, background sync, and analytics in `src/lib/offline-storage.ts`, `src/lib/mobile-offline-queue.ts`, `src/hooks/use-offline-*`
+- Offline & caching: React Query persistence with offline queue in `src/lib/offline-storage.ts`, `src/lib/offline-queue.ts`, `src/hooks/use-offline-*`
 - Integrations: Whoop OAuth + webhooks (`src/server/api/routers/whoop.ts`, `src/lib/whoop-webhook.ts`), AI Gateway prompts (`src/lib/ai-prompts/**`, `src/lib/analytics`), PostHog analytics providers (`src/providers/PostHogProvider.tsx`, `src/lib/posthog.ts`)
 - Realtime updates: Server-Sent Events endpoint at `src/app/api/sse/workout-updates/route.ts`
 
@@ -95,7 +95,7 @@
 
 - [ ] Formatting clean (`bun format:write`)
 - [ ] Lint + typecheck pass (`bun check`)
-- [ ] Vitest suite green (`bun test` / `bun test:ci` as appropriate)
+- [ ] Vitest suite green (`bun test` / `bun coverage` as appropriate)
 - [ ] DB schema changes reviewed; run `bun db:push` or generate migrations + update `drizzle/` SQL helpers if needed
 - [ ] tRPC procedures include Zod input validation and respect `ctx.user.id`
 - [ ] Protected pages/components follow WorkOS auth patterns and Tailwind ordering conventions
@@ -110,7 +110,7 @@
 ## Recent Changes
 
 - WorkOS auth + SSR middleware replaced earlier Supabase integration; update code/tests to avoid lingering Supabase mocks (`src/__tests__/setup.ts` still carries temporary shims)
-- Offline persistence received major upgrades (`src/lib/offline-storage.ts`, `src/lib/cache-analytics.ts`) with cache health checks, background sync, and PostHog instrumentation
+- Offline persistence simplified to React Query cache with offline queue (`src/lib/offline-storage.ts`, `src/lib/offline-queue.ts`) with automatic flushing and error handling
 - AI coaching features expanded: health advice persistence (`src/server/api/routers/health-advice.ts`), wellness tracking (`src/server/api/routers/wellness.ts`), and suggestion routers leverage the Vercel AI Gateway configuration in `src/env.js`
 
 ## Troubleshooting
@@ -119,12 +119,12 @@
 - Environment problems: validate against `src/env.js`; `bun dev` auto-wraps with Infisical and dynamically updates wrangler.toml, runs on port 8787—other scripts need manual `infisical run`
 - Database connection: confirm `DATABASE_URL` + SSL params, and watch D1 limits.
 - Rate limiting or Whoop sync errors: check `src/lib/rate-limit.ts` and `src/lib/whoop-webhook.ts`; confirm env knobs are set
-- Offline queue quirks: inspect localStorage size (cache health logs) and PostHog events; `setupEnhancedOfflinePersistence` can fall back to memory-only mode when storage is full
+- Offline queue: workouts saved offline are queued in `offline.queue.v1` localStorage key and automatically flushed when online, on app start, tab visibility change, or manual sync
 - SSE failures: verify `/api/sse/workout-updates` returns 200 and that clients stay authorized (WorkOS session cookies must be present)
 
 ## Test Strategy
 
 - Unit & integration tests: Vitest (`vitest.config.ts`) with jsdom, setup in `src/__tests__/setup.ts`; mocks live in `src/__tests__/mocks`
-- Coverage: enforced via `bun test:ci` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
+- Coverage: enforced via `bun coverage` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
 - E2E: Currently not planned; Playwright config remains in the repo but no browser flows are maintained
 - Mocking: MSW for network scenarios, custom DB/service mocks per test suite. Keep new utilities in `src/__tests__/test-utils.tsx` for reuse

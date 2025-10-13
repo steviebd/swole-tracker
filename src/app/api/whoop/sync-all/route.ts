@@ -681,6 +681,18 @@ async function syncProfile(
           updatedAt: new Date(),
         })
         .where(eq(whoopProfile.user_id, userId));
+      await db
+        .update(userIntegrations)
+        .set({
+          externalUserId: profile.user_id.toString(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(userIntegrations.user_id, userId),
+            eq(userIntegrations.provider, "whoop"),
+          ),
+        );
       return 0; // Updated, not new
     } else {
       // Insert new profile
@@ -692,6 +704,18 @@ async function syncProfile(
         last_name: profile.last_name,
         raw_data: JSON.stringify(profile),
       });
+      await db
+        .update(userIntegrations)
+        .set({
+          externalUserId: profile.user_id.toString(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(userIntegrations.user_id, userId),
+            eq(userIntegrations.provider, "whoop"),
+          ),
+        );
       return 1; // New profile
     }
   } catch (error) {

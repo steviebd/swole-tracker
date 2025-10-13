@@ -222,6 +222,7 @@ export const userIntegrations = createTable(
     id: integer().primaryKey({ autoIncrement: true }),
     user_id: text().notNull(),
     provider: text().notNull(), // 'whoop', 'strava', etc.
+    externalUserId: text(), // External provider user identifier
     accessToken: text().notNull(),
     refreshToken: text(),
     expiresAt: text(),
@@ -236,6 +237,7 @@ export const userIntegrations = createTable(
     index("user_integration_user_id_idx").on(t.user_id),
     index("user_integration_provider_idx").on(t.provider),
     index("user_integration_user_provider_idx").on(t.user_id, t.provider),
+    index("user_integration_external_user_idx").on(t.externalUserId),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 

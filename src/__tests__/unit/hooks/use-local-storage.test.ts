@@ -1,13 +1,16 @@
+/// <reference types="vitest" />
+
 import {
   describe,
   it,
   expect,
-  vi,
   beforeEach,
   afterEach,
   beforeAll,
+  vi,
 } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { JSDOM } from "jsdom";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 
 // Mock localStorage for this test file
@@ -22,8 +25,21 @@ const mockLocalStorage = {
 
 describe("useLocalStorage", () => {
   beforeAll(() => {
-    // Use vi.stubGlobal to properly mock localStorage
-    vi.stubGlobal("localStorage", mockLocalStorage);
+    // Set up JSDOM for this specific test file
+    const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+      url: "http://localhost:3000",
+    });
+
+    // Set global window and document
+    global.window = dom.window as any;
+    global.document = dom.window.document;
+
+    // Mock localStorage on the window object (not global)
+    Object.defineProperty(dom.window, "localStorage", {
+      value: mockLocalStorage,
+      writable: true,
+      configurable: true,
+    });
   });
 
   beforeEach(() => {

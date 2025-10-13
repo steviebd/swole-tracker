@@ -64,7 +64,7 @@ jobs:
         run: bun run check
 
       - name: Run tests
-        run: bun run test:ci
+        run: bun test
 
   deploy:
     name: Deploy (${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }})

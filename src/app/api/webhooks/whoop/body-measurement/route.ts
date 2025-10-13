@@ -9,6 +9,11 @@ import { db } from "~/server/db";
 import { webhookEvents, whoopBodyMeasurement } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
+import {
+  getTestModeUserId,
+  isWhoopTestUserId,
+  resolveWhoopInternalUserId,
+} from "~/lib/whoop-user";
 
 export const runtime = "nodejs";
 
@@ -22,11 +27,12 @@ interface WhoopBodyMeasurementData {
 
 async function fetchBodyMeasurementFromWhoop(
   measurementId: string,
-  userId: number,
+  whoopUserId: number,
+  dbUserId: string | null,
+  isTestMode: boolean,
 ): Promise<WhoopBodyMeasurementData | null> {
   try {
-    // Check if this is a test webhook (user_id: 12345)
-    if (userId === 12345) {
+    if (isTestMode) {
       console.log(
         `🧪 Test mode detected for body measurement ${measurementId} - creating mock measurement data`,
       );
@@ -40,12 +46,18 @@ async function fetchBodyMeasurementFromWhoop(
       };
     }
 
-    // Get valid access token (handles decryption and rotation automatically)
-    const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
+    if (!dbUserId) {
+      console.error(
+        `No internal user mapping for WHOOP user ${whoopUserId} when fetching body measurement ${measurementId}`,
+      );
+      return null;
+    }
+
+    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
-        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+        `No valid Whoop token found for user ${dbUserId}: ${tokenResult.error}`,
       );
       return null;
     }
@@ -96,22 +108,21 @@ async function fetchBodyMeasurementFromWhoop(
   }
 }
 
-async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
+async function processBodyMeasurementUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing body measurement update webhook:`, payload);
 
   try {
-    // Convert Whoop user_id to string to match our user_id format
-    const userId = payload.user_id.toString();
     const measurementId = payload.id.toString();
 
-    // For test webhooks (user_id: 12345), use a placeholder user ID
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
-
-    // Fetch the updated body measurement data from Whoop API
     const measurementData = await fetchBodyMeasurementFromWhoop(
       measurementId,
       payload.user_id,
+      dbUserId,
+      isTestMode,
     );
     if (!measurementData) {
       console.error(
@@ -222,6 +233,11 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
+    const isTestMode = isWhoopTestUserId(payload.user_id);
+    const mappedUserId = isTestMode
+      ? getTestModeUserId()
+      : await resolveWhoopInternalUserId(payload.user_id.toString());
+
     // Log webhook event to database for debugging
     try {
       const [webhookEvent] = await db
@@ -229,6 +245,7 @@ export async function POST(request: NextRequest) {
         .values({
           provider: "whoop",
           eventType: payload.type,
+          userId: mappedUserId ?? null,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
           payload: JSON.stringify(payload),
@@ -249,9 +266,42 @@ export async function POST(request: NextRequest) {
       // Continue processing even if logging fails
     }
 
+    if (!isTestMode && !mappedUserId) {
+      const message = `No internal user mapping for WHOOP user ${payload.user_id}`;
+      console.error(message);
+
+      if (webhookEventId) {
+        try {
+          await db
+            .update(webhookEvents)
+            .set({
+              status: "pending_user_mapping",
+              error: message,
+              processedAt: new Date(),
+            })
+            .where(eq(webhookEvents.id, webhookEventId));
+        } catch (statusError) {
+          console.error(
+            "Failed to update webhook event status while awaiting mapping:",
+            statusError,
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          message,
+        },
+        { status: 202 },
+      );
+    }
+
+    const dbUserId = mappedUserId ?? getTestModeUserId();
+
     // Only process body_measurement.updated events
     if (payload.type === "body_measurement.updated") {
-      await processBodyMeasurementUpdate(payload);
+      await processBodyMeasurementUpdate(payload, dbUserId, isTestMode);
 
       // Update webhook event status
       if (webhookEventId) {

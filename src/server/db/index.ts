@@ -1,8 +1,29 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { drizzle } from "drizzle-orm/d1";
-import { vi } from "vitest";
 import { env } from "~/env";
 import * as schema from "./schema";
+
+// Conditionally import vi for test environment
+let vi: any;
+if (process.env.NODE_ENV === "test") {
+  // Check if vi is already available globally (from test setup)
+  if (typeof globalThis !== "undefined" && (globalThis as any).vi) {
+    vi = (globalThis as any).vi;
+  } else {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      vi = require("vitest").vi;
+    } catch {
+      // Fallback if vitest is not available
+      vi = {
+        fn: () => ({
+          mockReturnValue: () => ({}),
+          mockReturnThis: () => ({}),
+        }),
+      };
+    }
+  }
+}
 
 type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
 type CloudflareContext = {
@@ -15,6 +36,7 @@ const CLOUDFLARE_CONTEXT_SYMBOL = Symbol.for("__cloudflare-context__");
 
 let cachedDb: DrizzleDb | undefined;
 let cachedBinding: D1Database | undefined;
+let cachedNodeEnv: string | undefined;
 
 function getCloudflareEnv(): CloudflareContext["env"] {
   const context = (globalThis as Record<symbol, CloudflareContext | undefined>)[
@@ -34,20 +56,34 @@ function isD1Database(value: unknown): value is D1Database {
 
 function resolveDb(): DrizzleDb {
   // In test environment, return a mock database
-  if (process.env.NODE_ENV === "test") {
-    const createQueryBuilder = (result: any[] = []) => ({
-      from: vi.fn(() => createQueryBuilder(result)),
-      where: vi.fn(() => createQueryBuilder(result)),
-      leftJoin: vi.fn(() => createQueryBuilder(result)),
-      groupBy: vi.fn(() => createQueryBuilder(result)),
-      orderBy: vi.fn(() => createQueryBuilder(result)),
-      limit: vi.fn(() => createQueryBuilder(result)),
-      offset: vi.fn(() => createQueryBuilder(result)),
-      innerJoin: vi.fn(() => createQueryBuilder(result)),
-      select: vi.fn(() => createQueryBuilder(result)),
-      then: vi.fn((resolve: (value: any[]) => void) => resolve(result)),
-      execute: vi.fn(() => Promise.resolve(result)),
-    });
+  // Check NODE_ENV every time to handle test environment changes
+  const currentNodeEnv = process.env.NODE_ENV;
+
+  // If NODE_ENV changed, clear cache
+  if (cachedNodeEnv !== currentNodeEnv) {
+    cachedDb = undefined;
+    cachedBinding = undefined;
+    cachedNodeEnv = currentNodeEnv;
+  }
+
+  if (currentNodeEnv === "test") {
+    // Create a comprehensive mock that matches drizzle-orm interface
+    const createQueryBuilder = (result: any[] = []) => {
+      const builder = {
+        from: vi.fn(() => builder),
+        where: vi.fn(() => builder),
+        leftJoin: vi.fn(() => builder),
+        groupBy: vi.fn(() => builder),
+        orderBy: vi.fn(() => builder),
+        limit: vi.fn(() => builder),
+        offset: vi.fn(() => builder),
+        innerJoin: vi.fn(() => builder),
+        select: vi.fn(() => builder),
+        then: vi.fn((resolve: (value: any[]) => void) => resolve(result)),
+        execute: vi.fn(() => Promise.resolve(result)),
+      };
+      return builder;
+    };
 
     const mockDb = {
       select: vi.fn(() => createQueryBuilder()),
@@ -71,32 +107,55 @@ function resolveDb(): DrizzleDb {
       delete: vi.fn(() => ({
         where: vi.fn(() => createQueryBuilder()),
       })),
-      // Legacy query interface for existing tests
+      // Add missing Drizzle properties for compatibility
+      batch: vi.fn(() => []),
+      resultKind: "async",
+      _: {},
+      $with: vi.fn(() => mockDb),
+      $client: {} as any,
+      // Legacy query interface for existing tests - make these spies
       query: {
+        users: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
         workoutTemplates: {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
-        },
-        templateExercises: {
-          findMany: vi.fn(() => []),
-        },
-        masterExercises: {
-          findFirst: vi.fn(() => null),
-          findMany: vi.fn(() => []),
-        },
-        exerciseLinks: {
-          findFirst: vi.fn(() => null),
-          findMany: vi.fn(() => []),
         },
         workoutSessions: {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
         },
-        whoopData: {
+        sessionExercises: {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
         },
-        jokes: {
+        userPreferences: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        dailyJokes: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        userIntegrations: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        externalWorkoutsWhoop: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        rateLimits: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        masterExercises: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        exerciseLinks: {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
         },
@@ -104,10 +163,18 @@ function resolveDb(): DrizzleDb {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
         },
+        wellnessData: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        aiSuggestionHistory: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
       },
     };
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return mockDb as any;
+
+    return mockDb as unknown as DrizzleDb;
   }
 
   const runtimeEnv = getCloudflareEnv();

@@ -1,5 +1,27 @@
+import { expect } from "vitest";
 import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll, vi } from "vitest";
+
+// Make vi available globally for tests
+(global as any).vi = vi;
+
+// Ensure vi is available on global for all test files
+Object.defineProperty(global, 'vi', {
+  value: vi,
+  writable: true,
+  configurable: true,
+});
+
+// Also set vi on globalThis for module-level access
+(globalThis as any).vi = vi;
+
+// Export vi for direct import in test files
+export { vi };
+
+// Make vi available at module level for immediate access
+if (typeof vi === 'undefined') {
+  throw new Error('vi is not available');
+}
 import { setupServer } from "msw/node";
 import { workosAuthHandlers } from "./mocks/workos-auth";
 
@@ -102,101 +124,15 @@ const mockLogger = {
   logSecurityEvent: vi.fn(() => {}),
 };
 
-// Create a comprehensive drizzle-orm query builder mock
-const createDrizzleQueryBuilder = (result: any[] = []) => {
-  const builder: any = {
-    where: vi.fn(() => builder),
-    orderBy: vi.fn(() => builder),
-    limit: vi.fn(() => builder),
-    offset: vi.fn(() => builder),
-    leftJoin: vi.fn(() => builder),
-    innerJoin: vi.fn(() => builder),
-    select: vi.fn(() => builder),
-    from: vi.fn(() => builder),
-    groupBy: vi.fn(() => builder),
-    having: vi.fn(() => builder),
-    // Execute methods
-    execute: vi.fn(() => Promise.resolve(result)),
-    then: vi.fn((resolve: any) => Promise.resolve(result).then(resolve)),
-    catch: vi.fn(() => Promise.resolve(result)),
-    finally: vi.fn(() => Promise.resolve(result)),
-  };
-  return builder;
-};
-
-const mockDb = {
-  db: {
-    // Basic query methods with proper drizzle interface
-    select: vi.fn(() => createDrizzleQueryBuilder()),
-    update: vi.fn((table) => ({
-      set: vi.fn(() => ({
-        where: vi.fn(() => ({
-          returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-        })),
-      })),
-    })),
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        onConflictDoUpdate: vi.fn(() => ({
-          set: vi.fn(() => ({
-            returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-          })),
-        })),
-        set: vi.fn(() => ({
-          returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-        })),
-        returning: vi.fn(() => createDrizzleQueryBuilder([{ id: 1 }])),
-      })),
-    })),
-    delete: vi.fn(() => ({
-      where: vi.fn(() => createDrizzleQueryBuilder()),
-    })),
-
-    // Legacy query interface for existing tests
-    query: {
-      workoutTemplates: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      templateExercises: {
-        findMany: vi.fn(() => []),
-      },
-      masterExercises: {
-        findFirst: vi.fn(() => null),
-        findMany: vi.fn(() => []),
-      },
-      exerciseLinks: {
-        findFirst: vi.fn(() => null),
-        findMany: vi.fn(() => []),
-      },
-      workoutSessions: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      whoopData: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      jokes: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-      healthAdvice: {
-        findMany: vi.fn(() => []),
-        findFirst: vi.fn(() => null),
-      },
-    },
-  },
-};
-
 // Setup MSW server for API mocking
 export const server = setupServer(...workosAuthHandlers);
 
 beforeAll(() => {
-  console.log("Setup running...");
   // Set up environment variables
   process.env.ENCRYPTION_MASTER_KEY =
     "test_encryption_key_32_chars_minimum_12345678901234567890123456789012";
+  process.env.WORKER_SESSION_SECRET =
+    "test_session_secret_32_chars_minimum_12345678901234567890123456789012";
   process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
   process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_dummy";
   process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
@@ -217,6 +153,9 @@ beforeAll(() => {
 
   Object.defineProperty(global, "crypto", {
     value: {
+      randomUUID: vi.fn(
+        () => `test-uuid-${Math.random().toString(36).substr(2, 9)}`,
+      ),
       getRandomValues: vi.fn((array) => {
         // Fill array with random values for testing
         for (let i = 0; i < array.length; i++) {
@@ -280,7 +219,8 @@ beforeAll(() => {
                   const plaintext = decodeURIComponent(escape(atob(b64Data)));
                   return Promise.resolve(new TextEncoder().encode(plaintext));
                 } catch (e) {
-                  // Fallback
+                  // Fallback to return the original encrypted string as plaintext for testing
+                  return Promise.resolve(new TextEncoder().encode(encryptedStr));
                 }
               }
             }
@@ -289,6 +229,7 @@ beforeAll(() => {
           return Promise.resolve(new TextEncoder().encode("test"));
         }),
         sign: vi.fn(() => Promise.resolve(new Uint8Array([1, 2, 3, 4]))),
+        verify: vi.fn(() => Promise.resolve(true)),
       },
     },
     writable: true,
@@ -371,49 +312,25 @@ beforeAll(() => {
     configurable: true,
   });
 
-  // Ensure document and document.body exist
-  if (typeof document === "undefined") {
-    // Create a minimal document object for testing
-    const createElement = (tag: string) => {
-      const element = {
-        tagName: tag.toUpperCase(),
-        setAttribute: vi.fn(),
-        appendChild: vi.fn(),
-        removeChild: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        style: {},
-        classList: {
-          add: vi.fn(),
-          remove: vi.fn(),
-          contains: vi.fn(),
-        },
-      };
-      return element;
-    };
-
-    const bodyElement = createElement("body");
-
-    Object.defineProperty(global, "document", {
-      value: {
-        body: bodyElement,
-        createElement,
-        getElementById: vi.fn(() => null),
-        querySelector: vi.fn(() => null),
-        querySelectorAll: vi.fn(() => []),
-      } as any,
+  // Mock posthog on window for analytics tests
+  if (typeof window !== "undefined") {
+    Object.defineProperty(window, "posthog", {
+      value: mockPosthog.posthog,
       writable: true,
       configurable: true,
     });
-  } else if (!document.body) {
-    document.body = document.createElement("body");
   }
 
-  // For components that need aria-live functionality
-  const ariaLiveRegion = document.createElement("div");
-  ariaLiveRegion.setAttribute("aria-live", "polite");
-  ariaLiveRegion.setAttribute("aria-atomic", "true");
-  document.body.appendChild(ariaLiveRegion);
+  // Ensure document.body exists for React Testing Library
+  if (typeof document !== "undefined") {
+    if (!document.body) {
+      document.body = document.createElement("body");
+    }
+    // Ensure document.body is properly attached to document
+    if (!document.body.parentNode) {
+      document.appendChild(document.body);
+    }
+  }
 
   server.listen({ onUnhandledRequest: "error" });
 });

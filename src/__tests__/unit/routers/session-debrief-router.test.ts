@@ -1,13 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-import { sessionDebriefRouter } from "~/server/api/routers/session-debrief";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  sessionDebriefRouter,
+  setGenerateDebriefImplementationForTesting,
+  resetGenerateDebriefImplementationForTesting,
+} from "~/server/api/routers/session-debrief";
 import type { db } from "~/server/db";
-import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
-
-// Mock services
-vi.mock("~/server/api/services/session-debrief", () => ({
-  generateAndPersistDebrief: vi.fn(() => Promise.resolve({})),
-}));
 
 type Chains = {
   set: ReturnType<typeof vi.fn>;
@@ -15,12 +12,19 @@ type Chains = {
   returning: ReturnType<typeof vi.fn>;
 };
 
+type GenerateDebriefFn = Parameters<
+  typeof setGenerateDebriefImplementationForTesting
+>[0];
+
+const mockGenerate = vi.fn();
+
 describe("sessionDebriefRouter", () => {
   const mockUser = { id: "user-abc" };
   let mockDb: typeof db;
   let updateChains: Chains;
 
   beforeEach(() => {
+    mockGenerate.mockReset();
     updateChains = {
       set: vi.fn(),
       where: vi.fn(),
@@ -57,6 +61,10 @@ describe("sessionDebriefRouter", () => {
       query: queryMocks as any,
       update: vi.fn().mockReturnValue(updateBuilder),
     } as unknown as typeof db;
+
+    setGenerateDebriefImplementationForTesting(
+      mockGenerate as unknown as GenerateDebriefFn,
+    );
   });
 
   const mockCtx = {
@@ -70,11 +78,14 @@ describe("sessionDebriefRouter", () => {
     mockCtx.db = mockDb;
   });
 
+  afterEach(() => {
+    resetGenerateDebriefImplementationForTesting();
+  });
+
   it("generates and saves a new debrief", async () => {
     const caller = sessionDebriefRouter.createCaller(mockCtx);
-    const mockFn = vi.mocked(generateAndPersistDebrief);
 
-    mockFn.mockResolvedValue({
+    mockGenerate.mockResolvedValue({
       debrief: { id: 10, sessionId: 5, version: 1 } as any,
       content: {
         summary: "Great job",
@@ -87,7 +98,7 @@ describe("sessionDebriefRouter", () => {
 
     const result = await caller.generateAndSave({ sessionId: 5 });
 
-    expect(mockFn).toHaveBeenCalledWith(
+    expect(mockGenerate).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: mockUser.id,
         sessionId: 5,
