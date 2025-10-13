@@ -1,27 +1,6 @@
 import { expect } from "vitest";
 import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll, vi } from "vitest";
-
-// Make vi available globally for tests
-(global as any).vi = vi;
-
-// Ensure vi is available on global for all test files
-Object.defineProperty(global, 'vi', {
-  value: vi,
-  writable: true,
-  configurable: true,
-});
-
-// Also set vi on globalThis for module-level access
-(globalThis as any).vi = vi;
-
-// Export vi for direct import in test files
-export { vi };
-
-// Make vi available at module level for immediate access
-if (typeof vi === 'undefined') {
-  throw new Error('vi is not available');
-}
 import { setupServer } from "msw/node";
 import { workosAuthHandlers } from "./mocks/workos-auth";
 
@@ -67,9 +46,6 @@ const mockD1Database = {
 
 const mockEnv = {
   env: {
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy",
-    CLERK_SECRET_KEY: "sk_test_dummy",
-    DATABASE_URL: "postgresql://test:test@localhost:5432/test",
     WORKOS_API_KEY: "wk_test_dummy",
     WORKOS_CLIENT_ID: "client_test_dummy",
     WORKER_SESSION_SECRET:
@@ -129,13 +105,17 @@ export const server = setupServer(...workosAuthHandlers);
 
 beforeAll(() => {
   // Set up environment variables
-  process.env.ENCRYPTION_MASTER_KEY =
-    "test_encryption_key_32_chars_minimum_12345678901234567890123456789012";
   process.env.WORKER_SESSION_SECRET =
     "test_session_secret_32_chars_minimum_12345678901234567890123456789012";
+  process.env.ENCRYPTION_MASTER_KEY =
+    "test_encryption_key_32_chars_minimum_12345678901234567890123456789012";
   process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
   process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_dummy";
   process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
+  process.env.AI_GATEWAY_PROMPT = "Tell a fitness joke";
+  process.env.AI_GATEWAY_MODEL = "openai/gpt-4o-mini";
+  process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER = "3";
+  process.env.VERCEL_AI_GATEWAY_API_KEY = "test-key";
 
   // Ensure atob and btoa are available globally
   if (typeof global.atob === "undefined") {
@@ -220,7 +200,9 @@ beforeAll(() => {
                   return Promise.resolve(new TextEncoder().encode(plaintext));
                 } catch (e) {
                   // Fallback to return the original encrypted string as plaintext for testing
-                  return Promise.resolve(new TextEncoder().encode(encryptedStr));
+                  return Promise.resolve(
+                    new TextEncoder().encode(encryptedStr),
+                  );
                 }
               }
             }

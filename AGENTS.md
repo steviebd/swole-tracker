@@ -25,7 +25,7 @@
 - Styling: Tailwind CSS v4 with custom utilities in `src/styles/globals.css`; design tokens live in `src/design-tokens/*` and `src/lib/design-tokens.ts` (see `DESIGN_MANIFESTO.md`)
 - Offline & caching: React Query persistence with offline queue in `src/lib/offline-storage.ts`, `src/lib/offline-queue.ts`, `src/hooks/use-offline-*`
 - Integrations: Whoop OAuth + webhooks (`src/server/api/routers/whoop.ts`, `src/lib/whoop-webhook.ts`), AI Gateway prompts (`src/lib/ai-prompts/**`, `src/lib/analytics`), PostHog analytics providers (`src/providers/PostHogProvider.tsx`, `src/lib/posthog.ts`)
-- Realtime updates: Server-Sent Events endpoint at `src/app/api/sse/workout-updates/route.ts`
+- Realtime updates: Server-Sent Events endpoint planned at `src/app/api/sse/workout-updates/route.ts` (not yet implemented)
 
 ## Key Features
 
@@ -126,5 +126,5 @@
 
 - Unit & integration tests: Vitest (`vitest.config.ts`) with jsdom, setup in `src/__tests__/setup.ts`; mocks live in `src/__tests__/mocks`
 - Coverage: enforced via `bun coverage` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
-- E2E: Currently not planned; Playwright config remains in the repo but no browser flows are maintained
+- E2E: Currently not planned; Playwright dependencies removed from project
 - Mocking: MSW for network scenarios, custom DB/service mocks per test suite. Keep new utilities in `src/__tests__/test-utils.tsx` for reuse

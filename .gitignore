@@ -71,8 +71,25 @@ node_modules/
 
 # Task files
 # tasks.json
-# tasks/ 
+# tasks/
 .env.production
+
+# Build artifacts and cache files
+.next/
+.open-next/
+wrangler.toml.backup
+*.bak
+*.backup
+*.old
+*.tmp
+
+# IDE and tool caches
+.expo/
+.mf/
+.taskmaster/
+.claude/
+.cursor/
+.github/
 
 apps/template/.next/trace
 apps/template/.next/cache/.rscinfo
