@@ -2,9 +2,30 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
+import {
+  applySecurityHeaders,
+  createNonce,
+  isApiRoute,
+  withNonceHeader,
+} from "~/lib/security-headers";
+
+function setSecurityHeaders(
+  response: NextResponse,
+  nonce: string,
+  pathname: string,
+) {
+  return applySecurityHeaders(response, {
+    nonce,
+    isApiRoute: isApiRoute(pathname),
+  });
+}
 
 export async function middleware(request: NextRequest) {
-  
+  const nonce = createNonce();
+  const forwardedHeaders = withNonceHeader(request.headers, nonce);
+
+  const apply = (response: NextResponse) =>
+    setSecurityHeaders(response, nonce, request.nextUrl.pathname);
 
   // Check if user has a valid session
   const session = await SessionCookie.get(request);
@@ -19,7 +40,7 @@ export async function middleware(request: NextRequest) {
       // No session, redirect to login
       const redirectUrl = new URL("/auth/login", request.url);
       redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
-      return NextResponse.redirect(redirectUrl);
+      return apply(NextResponse.redirect(redirectUrl));
     }
 
     // Check if session is expired or close to expiring (within 5 minutes)
@@ -36,7 +57,7 @@ export async function middleware(request: NextRequest) {
           "Set-Cookie",
           await SessionCookie.destroy(request),
         );
-        return response;
+        return apply(response);
       }
 
       try {
@@ -63,8 +84,13 @@ export async function middleware(request: NextRequest) {
         await SessionCookie.update(request, updatedSession);
 
         // Continue with existing cookie (no need to set new cookie)
-        const response = NextResponse.next();
-        return response;
+        return apply(
+          NextResponse.next({
+            request: {
+              headers: forwardedHeaders,
+            },
+          }),
+        );
       } catch (error) {
         // Refresh failed, redirect to login and clear cookie
         console.error("Failed to refresh WorkOS session:", error);
@@ -75,12 +101,18 @@ export async function middleware(request: NextRequest) {
           "Set-Cookie",
           await SessionCookie.destroy(request),
         );
-        return response;
+        return apply(response);
       }
     }
   }
 
-  return NextResponse.next();
+  return apply(
+    NextResponse.next({
+      request: {
+        headers: forwardedHeaders,
+      },
+    }),
+  );
 }
 
 export const config = {

@@ -751,7 +751,7 @@ export const sessions = createTable(
   (t) => [
     index("session_user_id_idx").on(t.userId),
     index("session_expires_at_idx").on(t.expiresAt),
-    uniqueIndex("session_user_unique").on(t.userId), // One session per user for now
+    // Remove unique constraint on userId to allow multiple sessions per user
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 

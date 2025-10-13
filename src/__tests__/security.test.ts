@@ -10,6 +10,9 @@ import {
   validateOAuthState,
   cleanupExpiredStates,
 } from "~/lib/oauth-state";
+import {
+  buildContentSecurityPolicy,
+} from "~/lib/security-headers";
 
 // Mock environment for encryption tests
 beforeAll(() => {
@@ -68,18 +71,20 @@ describe("Security Implementation Tests", () => {
   
 
   describe("Security Headers Validation", () => {
-    it("should validate CSP configuration format", () => {
-      // These would normally be tested against actual HTTP responses
-      // but we can validate the configuration structure
-      const cspPolicies = [
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-        "connect-src 'self'",
-      ];
+    it("should deny generic inline script execution", () => {
+      const nonce = "test-nonce";
+      const csp = buildContentSecurityPolicy(nonce);
 
-      cspPolicies.forEach((policy) => {
-        expect(policy).toMatch(/^[\w-]+\s+'self'/);
-      });
+      expect(csp).toContain(`script-src 'self'`);
+      expect(csp).toContain(`'nonce-${nonce}'`);
+      expect(csp).not.toContain("'unsafe-inline'");
+    });
+
+    it("should allow inline styles with unsafe-hashes for style attributes", () => {
+      const nonce = "test-nonce";
+      const csp = buildContentSecurityPolicy(nonce);
+
+      expect(csp).toContain(`style-src 'self' 'nonce-${nonce}' 'unsafe-hashes'`);
     });
   });
 });

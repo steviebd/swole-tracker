@@ -1,6 +1,7 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { PostHogProvider } from "~/providers/PostHogProvider";
@@ -8,6 +9,12 @@ import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
 import { DashboardHeader } from "~/components/dashboard-header";
 import { ErrorBoundary } from "~/components/error-boundary";
+import {
+  THEME_PREFERENCE_COOKIE,
+  parseThemeCookie,
+  type ThemeMode,
+  type ThemeVariant,
+} from "~/lib/theme-prefs";
 
 export const metadata: Metadata = {
   title: "Swole Tracker",
@@ -25,43 +32,33 @@ export const viewport = {
   viewportFit: "cover", // Better Android/iOS handling for devices with notches
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // No-FOUC inline script: sets initial theme class before hydration
-  // Reads localStorage('theme'), falls back to 'system', and applies theme attributes
-  // Supports new gentle themes: current, cool, warm, neutral
-  // Ensure SSR and client produce the same initial <html> attributes:
-  // - Do NOT set 'dark' class or data-theme at SSR time; only the client-side inline script updates them.
-  // - This avoids hydration mismatches where CSR chooses a different theme than SSR snapshot.
-  const noFoucScript = `
-    (function() {
-      try {
-        var key = 'theme';
-        var stored = localStorage.getItem(key) || 'system';
-        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        // Determine effective theme
-        var effectiveTheme = stored === 'system' ? (prefersDark ? 'dark' : 'light') : stored;
-        
-        var root = document.documentElement;
-        var dark = effectiveTheme === 'dark';
-        if (dark) root.classList.add('dark'); else root.classList.remove('dark');
+  const cookieStore = await cookies();
+  const preferenceCookie = cookieStore.get(THEME_PREFERENCE_COOKIE);
+  const parsed = parseThemeCookie(preferenceCookie?.value);
 
-        // Align data attributes so CSS variables match the active palette
-        root.setAttribute('data-theme', effectiveTheme);
-        root.setAttribute('data-theme-mode', stored);
-      } catch (_) {}
-    })();
-  `;
+  const initialTheme: ThemeMode = parsed?.mode ?? "system";
+  const initialResolvedTheme: ThemeVariant =
+    parsed?.resolved ?? (initialTheme === "system" ? "light" : initialTheme);
+
+  const htmlClassName =
+    initialResolvedTheme === "dark" ? "antialiased dark" : "antialiased";
   return (
-    <html lang="en" suppressHydrationWarning className="antialiased">
+    <html
+      lang="en"
+      className={htmlClassName}
+      data-theme={initialResolvedTheme}
+      data-theme-mode={initialTheme}
+    >
       <body>
-        {/* Prevent theme flash and ensure client applies theme attributes after hydration */}
-        <script dangerouslySetInnerHTML={{ __html: noFoucScript }} />
         <AuthProvider>
           <PostHogProvider>
-            <ThemeProvider>
+            <ThemeProvider
+              initialTheme={initialTheme}
+              initialResolvedTheme={initialResolvedTheme}
+            >
               <TRPCReactProvider>
                 <ErrorBoundary>
                   <DashboardHeader />
