@@ -19,6 +19,14 @@ const baseConfig = {
 
   // Bundle optimization
   webpack: (config, { dev, isServer }) => {
+    // Add support for node: protocol
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'node:crypto': 'crypto-browserify',
+      'node:http': 'stream-http',
+      'node:https': 'https-browserify',
+    };
+
     // Optimize bundle size in production
     if (!dev && !isServer) {
       // Split chunks more aggressively for better caching
