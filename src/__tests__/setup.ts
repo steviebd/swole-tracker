@@ -1,6 +1,27 @@
 import { expect } from "vitest";
 import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll, vi } from "vitest";
+
+// Make vi available globally for tests
+(global as any).vi = vi;
+
+// Ensure vi is available on global for all test files
+Object.defineProperty(global, 'vi', {
+  value: vi,
+  writable: true,
+  configurable: true,
+});
+
+// Also set vi on globalThis for module-level access
+(globalThis as any).vi = vi;
+
+// Export vi for direct import in test files
+export { vi };
+
+// Make vi available at module level for immediate access
+if (typeof vi === 'undefined') {
+  throw new Error('vi is not available');
+}
 import { setupServer } from "msw/node";
 import { workosAuthHandlers } from "./mocks/workos-auth";
 
@@ -198,7 +219,8 @@ beforeAll(() => {
                   const plaintext = decodeURIComponent(escape(atob(b64Data)));
                   return Promise.resolve(new TextEncoder().encode(plaintext));
                 } catch (e) {
-                  // Fallback
+                  // Fallback to return the original encrypted string as plaintext for testing
+                  return Promise.resolve(new TextEncoder().encode(encryptedStr));
                 }
               }
             }
@@ -207,6 +229,7 @@ beforeAll(() => {
           return Promise.resolve(new TextEncoder().encode("test"));
         }),
         sign: vi.fn(() => Promise.resolve(new Uint8Array([1, 2, 3, 4]))),
+        verify: vi.fn(() => Promise.resolve(true)),
       },
     },
     writable: true,
@@ -298,58 +321,16 @@ beforeAll(() => {
     });
   }
 
-  // Ensure document and document.body exist
-  if (typeof document === "undefined") {
-    // Create a minimal document object for testing with proper DOM-like properties
-    const createElement = (tag: string) => {
-      const element = {
-        tagName: tag.toUpperCase(),
-        nodeType: 1, // ELEMENT_NODE
-        nodeName: tag.toUpperCase(),
-        setAttribute: vi.fn(),
-        getAttribute: vi.fn(() => null),
-        appendChild: vi.fn(),
-        removeChild: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        contains: vi.fn(() => false),
-        style: {},
-        classList: {
-          add: vi.fn(),
-          remove: vi.fn(),
-          contains: vi.fn(() => false),
-        },
-        // Make it inherit from EventTarget-like interface
-        dispatchEvent: vi.fn(),
-      };
-      return element;
-    };
-
-    const bodyElement = createElement("body");
-
-    Object.defineProperty(global, "document", {
-      value: {
-        body: bodyElement,
-        createElement,
-        getElementById: vi.fn(() => null),
-        querySelector: vi.fn(() => null),
-        querySelectorAll: vi.fn(() => []),
-        // Add document properties React might check
-        nodeType: 9, // DOCUMENT_NODE
-        createDocumentFragment: vi.fn(() => ({})),
-      } as any,
-      writable: true,
-      configurable: true,
-    });
-  } else if (!document.body) {
-    document.body = document.createElement("body");
+  // Ensure document.body exists for React Testing Library
+  if (typeof document !== "undefined") {
+    if (!document.body) {
+      document.body = document.createElement("body");
+    }
+    // Ensure document.body is properly attached to document
+    if (!document.body.parentNode) {
+      document.appendChild(document.body);
+    }
   }
-
-  // For components that need aria-live functionality
-  const ariaLiveRegion = document.createElement("div");
-  ariaLiveRegion.setAttribute("aria-live", "polite");
-  ariaLiveRegion.setAttribute("aria-atomic", "true");
-  document.body.appendChild(ariaLiveRegion);
 
   server.listen({ onUnhandledRequest: "error" });
 });

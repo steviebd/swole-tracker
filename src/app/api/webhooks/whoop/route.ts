@@ -17,6 +17,11 @@ import {
 import { eq } from "drizzle-orm";
 
 import { getValidAccessToken } from "~/lib/token-rotation";
+import {
+  getTestModeUserId,
+  isWhoopTestUserId,
+  resolveWhoopInternalUserId,
+} from "~/lib/whoop-user";
 
 export const runtime = "nodejs";
 
@@ -126,28 +131,34 @@ interface WhoopBodyMeasurementData {
 async function fetchWhoopData<T>(
   endpoint: string,
   entityId: string,
-  userId: number,
+  whoopUserId: number,
+  dbUserId: string | null,
+  isTestMode: boolean,
 ): Promise<T | null> {
   try {
-    // Check if this is a test webhook (user_id: 12345)
-    if (userId === 12345) {
+    if (isTestMode) {
       console.log(
         `🧪 Test mode detected for ${endpoint}/${entityId} - skipping API call`,
       );
       return null;
     }
 
-    // Get valid access token (handles decryption and rotation automatically)
-    const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
-
-    if (!tokenResult.token) {
+    if (!dbUserId) {
       console.error(
-        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+        `No internal user mapping for WHOOP user ${whoopUserId} while fetching ${endpoint}/${entityId}`,
       );
       return null;
     }
 
-    // Fetch data from WHOOP API v2
+    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
+
+    if (!tokenResult.token) {
+      console.error(
+        `No valid Whoop token found for user ${dbUserId}: ${tokenResult.error}`,
+      );
+      return null;
+    }
+
     const response = await fetch(
       `https://api.prod.whoop.com/developer/v2/${endpoint}/${entityId}`,
       {
@@ -180,18 +191,18 @@ async function fetchWhoopData<T>(
 
 async function fetchWorkoutFromWhoop(
   workoutId: string,
-  userId: number,
+  whoopUserId: number,
+  dbUserId: string | null,
+  isTestMode: boolean,
 ): Promise<WhoopWorkoutData | null> {
-  // Check if this is a test webhook (user_id: 12345)
-  if (userId === 12345) {
+  if (isTestMode) {
     console.log(
       `🧪 Test mode detected for workout ${workoutId} - creating mock workout data`,
     );
-    // Return mock workout data for testing
     return {
       id: workoutId,
       start: new Date().toISOString(),
-      end: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
+      end: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       timezone_offset: "-08:00",
       sport_name: "🧪 TEST WORKOUT",
       score_state: "SCORED",
@@ -211,25 +222,28 @@ async function fetchWorkoutFromWhoop(
   return await fetchWhoopData<WhoopWorkoutData>(
     "activity/workout",
     workoutId,
-    userId,
+    whoopUserId,
+    dbUserId,
+    isTestMode,
   );
 }
 
-async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
+async function processWorkoutUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing workout update webhook:`, payload);
 
   try {
-    // Convert Whoop user_id to string to match our user_id format
-    const userId = payload.user_id.toString();
     const workoutId = payload.id.toString();
 
-    // For test webhooks (user_id: 12345), use a placeholder user ID that exists in your system
-    // You'll need to replace this with an actual user ID from your database
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
-
-    // Fetch the updated workout data from Whoop API
-    const workoutData = await fetchWorkoutFromWhoop(workoutId, payload.user_id);
+    const workoutData = await fetchWorkoutFromWhoop(
+      workoutId,
+      payload.user_id,
+      dbUserId,
+      isTestMode,
+    );
     if (!workoutData) {
       console.error(`Could not fetch workout data for ${workoutId}`);
       return;
@@ -315,19 +329,22 @@ async function processWorkoutUpdate(payload: WhoopWebhookPayload) {
   }
 }
 
-async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
+async function processRecoveryUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing recovery update webhook:`, payload);
 
   try {
-    const userId = payload.user_id.toString();
     const recoveryId = payload.id.toString();
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     const recoveryData = await fetchWhoopData<WhoopRecoveryData>(
       "recovery",
       recoveryId,
       payload.user_id,
+      dbUserId,
+      isTestMode,
     );
     if (!recoveryData) {
       console.error(`Could not fetch recovery data for ${recoveryId}`);
@@ -394,19 +411,22 @@ async function processRecoveryUpdate(payload: WhoopWebhookPayload) {
   }
 }
 
-async function processSleepUpdate(payload: WhoopWebhookPayload) {
+async function processSleepUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing sleep update webhook:`, payload);
 
   try {
-    const userId = payload.user_id.toString();
     const sleepId = payload.id.toString();
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     const sleepData = await fetchWhoopData<WhoopSleepData>(
       "activity/sleep",
       sleepId,
       payload.user_id,
+      dbUserId,
+      isTestMode,
     );
     if (!sleepData) {
       console.error(`Could not fetch sleep data for ${sleepId}`);
@@ -499,19 +519,22 @@ async function processSleepUpdate(payload: WhoopWebhookPayload) {
   }
 }
 
-async function processCycleUpdate(payload: WhoopWebhookPayload) {
+async function processCycleUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing cycle update webhook:`, payload);
 
   try {
-    const userId = payload.user_id.toString();
     const cycleId = payload.id.toString();
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     const cycleData = await fetchWhoopData<WhoopCycleData>(
       "cycle",
       cycleId,
       payload.user_id,
+      dbUserId,
+      isTestMode,
     );
     if (!cycleData) {
       console.error(`Could not fetch cycle data for ${cycleId}`);
@@ -571,19 +594,22 @@ async function processCycleUpdate(payload: WhoopWebhookPayload) {
   }
 }
 
-async function processBodyMeasurementUpdate(payload: WhoopWebhookPayload) {
+async function processBodyMeasurementUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing body measurement update webhook:`, payload);
 
   try {
-    const userId = payload.user_id.toString();
     const measurementId = payload.id.toString();
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
 
     const measurementData = await fetchWhoopData<WhoopBodyMeasurementData>(
       "user/measurement/body",
       measurementId,
       payload.user_id,
+      dbUserId,
+      isTestMode,
     );
     if (!measurementData) {
       console.error(
@@ -695,6 +721,11 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
+    const isTestMode = isWhoopTestUserId(payload.user_id);
+    const mappedUserId = isTestMode
+      ? getTestModeUserId()
+      : await resolveWhoopInternalUserId(payload.user_id.toString());
+
     // Log webhook event to database for debugging
     try {
       const [webhookEvent] = await db
@@ -703,6 +734,7 @@ export async function POST(request: NextRequest) {
           {
             provider: "whoop",
             eventType: payload.type,
+            userId: mappedUserId ?? null,
             externalUserId: payload.user_id.toString(),
             externalEntityId: payload.id.toString(),
             payload: JSON.stringify(payload),
@@ -724,26 +756,59 @@ export async function POST(request: NextRequest) {
       // Continue processing even if logging fails
     }
 
+    if (!isTestMode && !mappedUserId) {
+      const message = `No internal user mapping for WHOOP user ${payload.user_id}`;
+      console.error(message);
+
+      if (webhookEventId) {
+        try {
+          await db
+            .update(webhookEvents)
+            .set({
+              status: "pending_user_mapping",
+              error: message,
+              processedAt: new Date(),
+            })
+            .where(eq(webhookEvents.id, webhookEventId));
+        } catch (statusError) {
+          console.error(
+            "Failed to update webhook event status while awaiting mapping:",
+            statusError,
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          message,
+        },
+        { status: 202 },
+      );
+    }
+
+    const dbUserId = mappedUserId ?? getTestModeUserId();
+
     // Process different webhook event types
     switch (payload.type) {
       case "workout.updated":
-        await processWorkoutUpdate(payload);
+        await processWorkoutUpdate(payload, dbUserId, isTestMode);
         break;
 
       case "recovery.updated":
-        await processRecoveryUpdate(payload);
+        await processRecoveryUpdate(payload, dbUserId, isTestMode);
         break;
 
       case "sleep.updated":
-        await processSleepUpdate(payload);
+        await processSleepUpdate(payload, dbUserId, isTestMode);
         break;
 
       case "cycle.updated":
-        await processCycleUpdate(payload);
+        await processCycleUpdate(payload, dbUserId, isTestMode);
         break;
 
       case "body_measurement.updated":
-        await processBodyMeasurementUpdate(payload);
+        await processBodyMeasurementUpdate(payload, dbUserId, isTestMode);
         break;
 
       case "user_profile.updated":

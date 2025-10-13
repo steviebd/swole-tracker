@@ -9,6 +9,11 @@ import { db } from "~/server/db";
 import { webhookEvents, whoopProfile } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
+import {
+  getTestModeUserId,
+  isWhoopTestUserId,
+  resolveWhoopInternalUserId,
+} from "~/lib/whoop-user";
 
 export const runtime = "nodejs";
 
@@ -20,29 +25,36 @@ interface WhoopProfileData {
 }
 
 async function fetchProfileFromWhoop(
-  userId: number,
+  whoopUserId: number,
+  dbUserId: string | null,
+  isTestMode: boolean,
 ): Promise<WhoopProfileData | null> {
   try {
-    // Check if this is a test webhook (user_id: 12345)
-    if (userId === 12345) {
+    if (isTestMode) {
       console.log(
-        `🧪 Test mode detected for profile ${userId} - creating mock profile data`,
+        `🧪 Test mode detected for profile ${whoopUserId} - creating mock profile data`,
       );
       // Return mock profile data for testing
       return {
-        user_id: userId.toString(),
+        user_id: whoopUserId.toString(),
         email: "test@example.com",
         first_name: "Test",
         last_name: "User",
       };
     }
 
-    // Get valid access token (handles decryption and rotation automatically)
-    const tokenResult = await getValidAccessToken(userId.toString(), "whoop");
+    if (!dbUserId) {
+      console.error(
+        `No internal user mapping for WHOOP user ${whoopUserId} when fetching profile`,
+      );
+      return null;
+    }
+
+    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
-        `No valid Whoop token found for user ${userId}: ${tokenResult.error}`,
+        `No valid Whoop token found for user ${dbUserId}: ${tokenResult.error}`,
       );
       return null;
     }
@@ -90,35 +102,39 @@ async function fetchProfileFromWhoop(
   }
 }
 
-async function processProfileUpdate(payload: WhoopWebhookPayload) {
+async function processProfileUpdate(
+  payload: WhoopWebhookPayload,
+  dbUserId: string,
+  isTestMode: boolean,
+) {
   console.log(`Processing profile update webhook:`, payload);
 
   try {
-    // Convert Whoop user_id to string to match our user_id format
-    const userId = payload.user_id.toString();
     const whoopUserId = payload.id.toString();
 
-    // For test webhooks (user_id: 12345), use a placeholder user ID
-    const isTestMode = payload.user_id === 12345;
-    const dbUserId = isTestMode ? "TEST_USER_12345" : userId;
-
     // Fetch the updated profile data from Whoop API
-    const profileData = await fetchProfileFromWhoop(payload.user_id);
+    const profileData = await fetchProfileFromWhoop(
+      payload.user_id,
+      dbUserId,
+      isTestMode,
+    );
     if (!profileData) {
       console.error(`Could not fetch profile data for user ${payload.user_id}`);
       return;
     }
 
+    const targetUserId = dbUserId;
+
     // Check if profile already exists in our database
     const [existingProfile] = await db
       .select()
       .from(whoopProfile)
-      .where(eq(whoopProfile.user_id, dbUserId));
+      .where(eq(whoopProfile.user_id, targetUserId));
 
     if (existingProfile) {
       // Update existing profile
       console.log(
-        `Updating existing profile for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+        `Updating existing profile for user ${targetUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
       await db
         .update(whoopProfile)
@@ -131,14 +147,14 @@ async function processProfileUpdate(payload: WhoopWebhookPayload) {
           last_updated: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(whoopProfile.user_id, dbUserId));
+        .where(eq(whoopProfile.user_id, targetUserId));
     } else {
       // Insert new profile
       console.log(
-        `Inserting new profile for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+        `Inserting new profile for user ${targetUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
       await db.insert(whoopProfile).values({
-        user_id: dbUserId,
+        user_id: targetUserId,
         whoop_user_id: whoopUserId,
         email: profileData.email || null,
         first_name: profileData.first_name || null,
@@ -206,6 +222,11 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
+    const isTestMode = isWhoopTestUserId(payload.user_id);
+    const mappedUserId = isTestMode
+      ? getTestModeUserId()
+      : await resolveWhoopInternalUserId(payload.user_id.toString());
+
     // Log webhook event to database for debugging
     try {
       const [webhookEvent] = await db
@@ -213,6 +234,7 @@ export async function POST(request: NextRequest) {
         .values({
           provider: "whoop",
           eventType: payload.type,
+          userId: mappedUserId ?? null,
           externalUserId: payload.user_id.toString(),
           externalEntityId: payload.id.toString(),
           payload: JSON.stringify(payload),
@@ -233,9 +255,42 @@ export async function POST(request: NextRequest) {
       // Continue processing even if logging fails
     }
 
+    if (!isTestMode && !mappedUserId) {
+      const message = `No internal user mapping for WHOOP user ${payload.user_id}`;
+      console.error(message);
+
+      if (webhookEventId) {
+        try {
+          await db
+            .update(webhookEvents)
+            .set({
+              status: "pending_user_mapping",
+              error: message,
+              processedAt: new Date(),
+            })
+            .where(eq(webhookEvents.id, webhookEventId));
+        } catch (statusError) {
+          console.error(
+            "Failed to update webhook event status while awaiting mapping:",
+            statusError,
+          );
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          message,
+        },
+        { status: 202 },
+      );
+    }
+
+    const dbUserId = mappedUserId ?? getTestModeUserId();
+
     // Only process user_profile.updated events
     if (payload.type === "user_profile.updated") {
-      await processProfileUpdate(payload);
+      await processProfileUpdate(payload, dbUserId, isTestMode);
 
       // Update webhook event status
       if (webhookEventId) {

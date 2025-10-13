@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import type * as oauth from "oauth4webapi";
 import { db } from "~/server/db";
-import { userIntegrations } from "~/server/db/schema";
+import { userIntegrations, whoopProfile } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
@@ -11,6 +11,14 @@ import { encryptToken } from "~/lib/encryption";
 import { resolveWhoopRedirectUri } from "~/lib/site-url";
 
 export const runtime = "nodejs";
+
+interface WhoopProfileResponse {
+  user_id?: number | string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  [key: string]: unknown;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -125,6 +133,45 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    let whoopExternalUserId: string | null = null;
+    let whoopProfileData: WhoopProfileResponse | null = null;
+
+    if (tok.access_token) {
+      try {
+        const profileResponse = await fetch(
+          "https://api.prod.whoop.com/developer/v2/user/profile/basic",
+          {
+            headers: {
+              Authorization: `Bearer ${tok.access_token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (profileResponse.ok) {
+          const profileJson = (await profileResponse.json()) as
+            | WhoopProfileResponse
+            | null;
+
+          if (profileJson) {
+            whoopProfileData = profileJson;
+            const externalId = profileJson.user_id;
+            if (typeof externalId === "string" || typeof externalId === "number") {
+              whoopExternalUserId = externalId.toString();
+            }
+          }
+        } else {
+          console.error(
+            "Failed to fetch WHOOP profile during OAuth callback:",
+            profileResponse.status,
+            await profileResponse.text().catch(() => ""),
+          );
+        }
+      } catch (profileError) {
+        console.error("WHOOP profile fetch failed during OAuth callback:", profileError);
+      }
+    }
+
     // Calculate expires_at
     const expiresAt = tok.expires_in
       ? new Date(Date.now() + tok.expires_in * 1000)
@@ -158,6 +205,8 @@ export async function GET(request: NextRequest) {
             tok.scope ??
             "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
+          externalUserId:
+            whoopExternalUserId ?? existingIntegration[0]?.externalUserId ?? null,
           updatedAt: new Date(),
         })
         .where(
@@ -170,6 +219,7 @@ export async function GET(request: NextRequest) {
       await db.insert(userIntegrations).values({
         user_id: session.userId,
         provider: "whoop",
+        externalUserId: whoopExternalUserId,
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
         expiresAt: expiresAt,
@@ -178,6 +228,53 @@ export async function GET(request: NextRequest) {
           "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
         isActive: true,
       });
+    }
+
+    if (whoopProfileData && whoopExternalUserId) {
+      const profileEmail =
+        typeof whoopProfileData.email === "string"
+          ? whoopProfileData.email
+          : null;
+      const profileFirstName =
+        typeof whoopProfileData.first_name === "string"
+          ? whoopProfileData.first_name
+          : null;
+      const profileLastName =
+        typeof whoopProfileData.last_name === "string"
+          ? whoopProfileData.last_name
+          : null;
+
+      const serializedProfile = JSON.stringify(whoopProfileData);
+
+      const [existingProfile] = await db
+        .select({ id: whoopProfile.id })
+        .from(whoopProfile)
+        .where(eq(whoopProfile.user_id, session.userId))
+        .limit(1);
+
+      if (existingProfile) {
+        await db
+          .update(whoopProfile)
+          .set({
+            whoop_user_id: whoopExternalUserId,
+            email: profileEmail,
+            first_name: profileFirstName,
+            last_name: profileLastName,
+            raw_data: serializedProfile,
+            last_updated: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(whoopProfile.user_id, session.userId));
+      } else {
+        await db.insert(whoopProfile).values({
+          user_id: session.userId,
+          whoop_user_id: whoopExternalUserId,
+          email: profileEmail,
+          first_name: profileFirstName,
+          last_name: profileLastName,
+          raw_data: serializedProfile,
+        });
+      }
     }
 
     // Note: Automatic sync removed - sync endpoint requires browser session

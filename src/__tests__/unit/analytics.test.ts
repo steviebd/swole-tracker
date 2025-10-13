@@ -1,25 +1,34 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
+import {
+  analytics,
+  setPosthogClientForTesting,
+  resetPosthogClientForTesting,
+} from "~/lib/analytics";
 
-// Mock posthog-js before importing analytics
-vi.mock("posthog-js", () => ({
-  default: {
-    capture: vi.fn(),
-    identify: vi.fn(),
-    reset: vi.fn(),
-  },
-}));
-
-// Import after setting up mocks
-import { analytics } from "~/lib/analytics";
-import posthog from "posthog-js";
+const mockPosthog = {
+  capture: vi.fn(),
+  identify: vi.fn(),
+  reset: vi.fn(),
+};
 
 describe("analytics", () => {
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockPosthog.capture.mockClear();
+    mockPosthog.identify.mockClear();
+    mockPosthog.reset.mockClear();
+    setPosthogClientForTesting(mockPosthog);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    resetPosthogClientForTesting();
   });
 
   describe("pageView", () => {

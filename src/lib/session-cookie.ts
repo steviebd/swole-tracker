@@ -3,6 +3,16 @@ import { db } from "~/server/db";
 import { sessions } from "~/server/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 
+let sessionDb = db;
+
+export function setSessionCookieDbForTesting(mockDb: typeof db) {
+  sessionDb = mockDb;
+}
+
+export function resetSessionCookieDbForTesting() {
+  sessionDb = db;
+}
+
 export interface WorkOSSession {
   userId: string;
   organizationId?: string;
@@ -112,7 +122,7 @@ export class SessionCookie {
     const sessionId = crypto.randomUUID();
 
     // Store session data in database
-    await db.insert(sessions).values({
+    await sessionDb.insert(sessions).values({
       id: sessionId,
       userId: session.userId,
       organizationId: session.organizationId,
@@ -164,7 +174,7 @@ export class SessionCookie {
       if (!isValid) return null;
 
       // Fetch session data from database
-      const [sessionData] = await db
+      const [sessionData] = await sessionDb
         .select()
         .from(sessions)
         .where(
@@ -212,7 +222,7 @@ export class SessionCookie {
 
             if (await verify(sessionId, signature)) {
               // Delete session from database
-              await db.delete(sessions).where(eq(sessions.id, sessionId));
+              await sessionDb.delete(sessions).where(eq(sessions.id, sessionId));
             }
           }
         }
@@ -277,7 +287,7 @@ export class SessionCookie {
       const sessionId = decodedCookieValue.slice(0, separatorIndex);
 
       // Update session data in database
-      await db
+      await sessionDb
         .update(sessions)
         .set({
           accessToken: session.accessToken,

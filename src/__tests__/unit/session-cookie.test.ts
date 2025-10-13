@@ -1,5 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  SessionCookie,
+  type WorkOSSession,
+  setSessionCookieDbForTesting,
+  resetSessionCookieDbForTesting,
+} from "~/lib/session-cookie";
+
+// Mock database store
+const mockSessions: any[] = [];
+
+type MockDb = Parameters<typeof setSessionCookieDbForTesting>[0];
+
+let mockDb: MockDb;
 
 describe("SessionCookie", () => {
   const validSession: WorkOSSession = {
@@ -25,6 +37,52 @@ describe("SessionCookie", () => {
           name.toLowerCase() === "cookie" && cookieHeader ? cookieHeader : null,
       },
     }) as unknown as Request;
+
+  beforeEach(() => {
+    mockSessions.length = 0; // Clear sessions
+    vi.clearAllMocks();
+
+    const insert = vi.fn(() => ({
+      values: vi.fn((data: any) => {
+        mockSessions.push(data);
+        return Promise.resolve();
+      }),
+    }));
+
+    const select = vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() => {
+            const lastSession = mockSessions[mockSessions.length - 1];
+            return Promise.resolve(lastSession ? [lastSession] : []);
+          }),
+        })),
+      })),
+    }));
+
+    const remove = vi.fn(() => ({
+      where: vi.fn(() => Promise.resolve()),
+    }));
+
+    const update = vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => Promise.resolve()),
+      })),
+    }));
+
+    mockDb = {
+      insert,
+      select,
+      delete: remove,
+      update,
+    } as unknown as MockDb;
+
+    setSessionCookieDbForTesting(mockDb);
+  });
+
+  afterEach(() => {
+    resetSessionCookieDbForTesting();
+  });
 
   describe("create", () => {
     it("should create a signed session cookie string", async () => {

@@ -8,8 +8,8 @@
 - Check: `bun check` – runs lint + typecheck
 - Format: `bun format:write` / `bun format:check` – Prettier + Tailwind plugin
 - DB: `bun db:generate` / `bun db:migrate` / `bun db:push` / `bun db:studio` – Drizzle Kit tooling
-- Unit tests: `bun test` (Vitest watch), `bun test:unit`, `bun test:integration`
-- Coverage: `bun test:coverage` (Vitest), `bun test:ci` (Vitest run + coverage)
+- Unit tests: `bun test` (Vitest run), `bun test:watch` (Vitest watch), `bun test:unit`, `bun test:integration`
+- Coverage: `bun test:coverage` (Vitest), `bun coverage` (Vitest run + coverage)
   Notes:
 - Package manager pinned to `bun@1.2.21` (see `package.json#packageManager`)
 - Node.js pinned via Volta: `node@20.19.4`
@@ -95,7 +95,7 @@
 
 - [ ] Formatting clean (`bun format:write`)
 - [ ] Lint + typecheck pass (`bun check`)
-- [ ] Vitest suite green (`bun test` / `bun test:ci` as appropriate)
+- [ ] Vitest suite green (`bun test` / `bun coverage` as appropriate)
 - [ ] DB schema changes reviewed; run `bun db:push` or generate migrations + update `drizzle/` SQL helpers if needed
 - [ ] tRPC procedures include Zod input validation and respect `ctx.user.id`
 - [ ] Protected pages/components follow WorkOS auth patterns and Tailwind ordering conventions
@@ -125,6 +125,6 @@
 ## Test Strategy
 
 - Unit & integration tests: Vitest (`vitest.config.ts`) with jsdom, setup in `src/__tests__/setup.ts`; mocks live in `src/__tests__/mocks`
-- Coverage: enforced via `bun test:ci` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
+- Coverage: enforced via `bun coverage` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
 - E2E: Currently not planned; Playwright config remains in the repo but no browser flows are maintained
 - Mocking: MSW for network scenarios, custom DB/service mocks per test suite. Keep new utilities in `src/__tests__/test-utils.tsx` for reuse

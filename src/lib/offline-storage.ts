@@ -336,16 +336,15 @@ export function setupOfflinePersistence(queryClient: QueryClient) {
 
 /**
  * Subscribe to sync status changes
+ * @deprecated This function is deprecated and will be removed in a future version.
  */
 export function onSyncStatusChange(
   callback: (status: any) => void,
 ): () => void {
-  if (!backgroundSyncManager) {
-    return () => {
-      // Empty cleanup function
-    };
-  }
-  return backgroundSyncManager.onSyncStatusChange(callback);
+  // No-op function since backgroundSyncManager is removed
+  return () => {
+    // Empty cleanup function
+  };
 }
 
 /**

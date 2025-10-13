@@ -1,4 +1,6 @@
 // Global setup runs before everything else
+import { vi } from "vitest";
+
 process.env.WORKER_SESSION_SECRET =
   "test_session_secret_32_chars_minimum_12345678901234567890123456789012";
 process.env.ENCRYPTION_MASTER_KEY =
@@ -10,6 +12,9 @@ process.env.AI_GATEWAY_PROMPT = "Tell a fitness joke";
 process.env.AI_GATEWAY_MODEL = "openai/gpt-4o-mini";
 process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER = "3";
 process.env.VERCEL_AI_GATEWAY_API_KEY = "test-key";
+
+// Make vi available globally
+(global as any).vi = vi;
 
 export default function setup() {
   // This runs before all tests
