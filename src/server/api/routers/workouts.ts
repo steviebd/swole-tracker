@@ -656,81 +656,134 @@ export const workoutsRouter = createTRPCRouter({
       // Verify session ownership
       const session = await ctx.db.query.workoutSessions.findFirst({
         where: eq(workoutSessions.id, input.sessionId),
-        with: {
-          exercises: {
-            orderBy: [sessionExercises.setOrder],
-          },
-        },
       });
 
       if (!session || session.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
 
-      let updatedCount = 0;
+      if (input.updates.length === 0) {
+        return { success: true, updatedCount: 0 };
+      }
 
-      // Apply updates to session exercises
-      for (const update of input.updates) {
-        console.log(
-          `Processing update for setId: ${update.setId}, exerciseName: ${update.exerciseName}`,
-        );
+      const exerciseNames = Array.from(
+        new Set(input.updates.map((update) => update.exerciseName)),
+      );
 
-        let setIndex: number;
+      if (exerciseNames.length === 0) {
+        return { success: true, updatedCount: 0 };
+      }
 
-        // Use setIndex if provided, otherwise parse from setId
-        if (update.setIndex !== undefined) {
-          setIndex = update.setIndex;
-          console.log(`Using provided setIndex: ${setIndex}`);
-        } else {
-          // Legacy parsing for old setId format
-          const setIdMatch = /_set_(\d+)$/.exec(update.setId);
-          if (!setIdMatch?.[1]) {
-            console.warn(`Invalid setId format: ${update.setId}`);
-            continue;
-          }
-          setIndex = parseInt(setIdMatch[1]) - 1; // Convert to 0-based index
-          console.log(
-            `Parsed setIndex from setId: ${setIndex} (from ${setIdMatch[1]})`,
-          );
-        }
+      const existingSets = await ctx.db
+        .select({
+          id: sessionExercises.id,
+          exerciseName: sessionExercises.exerciseName,
+          setOrder: sessionExercises.setOrder,
+        })
+        .from(sessionExercises)
+        .where(
+          and(
+            eq(sessionExercises.user_id, ctx.user.id),
+            eq(sessionExercises.sessionId, input.sessionId),
+            inArray(sessionExercises.exerciseName, exerciseNames),
+          ),
+        )
+        .orderBy(sessionExercises.setOrder);
 
-        // Find exercises matching the exercise name
-        const exerciseMatches = session.exercises.filter(
-          (ex) => ex.exerciseName === update.exerciseName,
-        );
-        console.log(
-          `Found ${exerciseMatches.length} matching exercises for ${update.exerciseName}`,
-        );
+      const setsByExercise = new Map<
+        string,
+        { id: number; setOrder: number }[]
+      >();
+      const setIdIndex = new Map<string, number>();
 
-        // Find the specific set by index within the exercise
-        if (setIndex >= 0 && setIndex < exerciseMatches.length) {
-          const targetExercise = exerciseMatches[setIndex];
+      for (const set of existingSets) {
+        const buckets = setsByExercise.get(set.exerciseName) ?? [];
+        const normalizedSetOrder = set.setOrder ?? 0;
+        buckets.push({ id: set.id, setOrder: normalizedSetOrder });
+        setsByExercise.set(set.exerciseName, buckets);
+      }
 
-          if (targetExercise) {
-            console.log(
-              `Updating exercise ID ${targetExercise.id} with weight: ${update.weight}, reps: ${update.reps}`,
-            );
-            // Update the existing set
-            await ctx.db
-              .update(sessionExercises)
-              .set({
-                weight: update.weight,
-                reps: update.reps,
-                unit: update.unit,
-              })
-              .where(eq(sessionExercises.id, targetExercise.id));
-
-            updatedCount++;
-            console.log(`Successfully updated set ${targetExercise.id}`);
-          }
-        } else {
-          console.warn(
-            `Set index ${setIndex} out of range for exercise ${update.exerciseName}. Available sets: ${exerciseMatches.length}`,
-          );
+      for (const [exerciseName, sets] of setsByExercise) {
+        sets.sort((a, b) => a.setOrder - b.setOrder);
+        for (const set of sets) {
+          setIdIndex.set(`${exerciseName}:${set.setOrder}`, set.id);
         }
       }
 
-      return { success: true, updatedCount };
+      const statements: unknown[] = [];
+
+      for (const update of input.updates) {
+        let setIndex: number | undefined = update.setIndex;
+
+        if (setIndex === undefined) {
+          const setIdMatch = /_set_(\d+)$/.exec(update.setId);
+          if (!setIdMatch?.[1]) {
+            logger.warn("workout.update.invalid_set_id", {
+              sessionId: input.sessionId,
+              setId: update.setId,
+            });
+            continue;
+          }
+
+          setIndex = Number.parseInt(setIdMatch[1] ?? "1", 10) - 1;
+        }
+
+        if (Number.isNaN(setIndex) || setIndex < 0) {
+          logger.warn("workout.update.invalid_set_index", {
+            sessionId: input.sessionId,
+            setIndex,
+            exerciseName: update.exerciseName,
+          });
+          continue;
+        }
+
+        const setsForExercise = setsByExercise.get(update.exerciseName) ?? [];
+        if (setIndex >= setsForExercise.length) {
+          logger.warn("workout.update.set_index_out_of_range", {
+            sessionId: input.sessionId,
+            setIndex,
+            exerciseName: update.exerciseName,
+            availableSets: setsForExercise.length,
+          });
+          continue;
+        }
+
+        const targetSetOrder = setsForExercise[setIndex]!.setOrder;
+        const targetId = setIdIndex.get(
+          `${update.exerciseName}:${targetSetOrder}`,
+        );
+
+        if (!targetId) {
+          logger.warn("workout.update.target_not_found", {
+            sessionId: input.sessionId,
+            setIndex,
+            exerciseName: update.exerciseName,
+          });
+          continue;
+        }
+
+        statements.push(
+          ctx.db
+            .update(sessionExercises)
+            .set({
+              weight: update.weight,
+              reps: update.reps,
+              unit: update.unit,
+            })
+            .where(
+              and(
+                eq(sessionExercises.id, targetId),
+                eq(sessionExercises.user_id, ctx.user.id),
+              ),
+            ),
+        );
+      }
+
+      if (statements.length > 0) {
+        await ctx.db.batch(statements as Parameters<typeof ctx.db.batch>[0]);
+      }
+
+      return { success: true, updatedCount: statements.length };
     }),
 
   // Delete a workout session
