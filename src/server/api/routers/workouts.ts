@@ -8,7 +8,7 @@ import {
   templateExercises,
   exerciseLinks,
 } from "~/server/db/schema";
-import { eq, desc, and, ne, inArray, gte } from "drizzle-orm";
+import { eq, desc, and, ne, inArray, gte, or, asc, type SQL } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -89,110 +89,161 @@ export const workoutsRouter = createTRPCRouter({
     )
     .query(async ({ input, ctx }) => {
       // First check if this exercise is linked to a master exercise
-      let exerciseNamesToSearch = [input.exerciseName];
+      const exerciseNamesToSearch = new Set([input.exerciseName]);
+      const templateExerciseIdsToSearch = new Set<number>();
 
       if (input.templateExerciseId) {
         // Check if this template exercise is linked to a master exercise
-        const exerciseLink = await ctx.db.query.exerciseLinks.findFirst({
-          where: eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
-          with: {
-            masterExercise: true,
-          },
-        });
-
-        if (exerciseLink) {
-          // Find all template exercises linked to the same master exercise
-          const linkedExercises = await ctx.db.query.exerciseLinks.findMany({
-            where: eq(
-              exerciseLinks.masterExerciseId,
-              exerciseLink.masterExerciseId,
+        const [exerciseLink] = await ctx.db
+          .select({ masterExerciseId: exerciseLinks.masterExerciseId })
+          .from(exerciseLinks)
+          .where(
+            and(
+              eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
+              eq(exerciseLinks.user_id, ctx.user.id),
             ),
-            with: {
-              templateExercise: true,
-            },
-          });
+          )
+          .limit(1);
 
-          // Get all exercise names from linked template exercises
-          const extractedNames = linkedExercises
-            .map((link) => {
-              const template = link.templateExercise;
-              if (
-                template &&
-                typeof template === "object" &&
-                !Array.isArray(template) &&
-                typeof (template as { exerciseName?: unknown }).exerciseName ===
-                  "string"
-              ) {
-                return (template as { exerciseName: string }).exerciseName;
-              }
-              return null;
+        if (exerciseLink?.masterExerciseId) {
+          const linkedExercises = await ctx.db
+            .select({
+              templateExerciseId: exerciseLinks.templateExerciseId,
+              exerciseName: templateExercises.exerciseName,
             })
-            .filter((name): name is string => typeof name === "string");
+            .from(exerciseLinks)
+            .innerJoin(
+              templateExercises,
+              eq(templateExercises.id, exerciseLinks.templateExerciseId),
+            )
+            .where(
+              and(
+                eq(
+                  exerciseLinks.masterExerciseId,
+                  exerciseLink.masterExerciseId,
+                ),
+                eq(exerciseLinks.user_id, ctx.user.id),
+              ),
+            );
 
-          if (extractedNames.length > 0) {
-            exerciseNamesToSearch = extractedNames;
+          for (const linkedExercise of linkedExercises) {
+            if (linkedExercise.exerciseName) {
+              exerciseNamesToSearch.add(linkedExercise.exerciseName);
+            }
+
+            if (linkedExercise.templateExerciseId != null) {
+              templateExerciseIdsToSearch.add(linkedExercise.templateExerciseId);
+            }
           }
         }
       }
 
       // Get the most recent workout session that contains any of these linked exercises
-      const whereConditions = [eq(workoutSessions.user_id, ctx.user.id)];
+      const exerciseNameList = Array.from(exerciseNamesToSearch);
+      const templateExerciseIdList = Array.from(templateExerciseIdsToSearch);
 
-      // Exclude the current session if specified
-      if (input.excludeSessionId) {
-        whereConditions.push(ne(workoutSessions.id, input.excludeSessionId));
+      let exerciseFilter: SQL<unknown>;
+
+      const templateFilter =
+        templateExerciseIdList.length > 0
+          ? inArray(
+              sessionExercises.templateExerciseId,
+              templateExerciseIdList,
+            )
+          : undefined;
+
+      const nameFilter =
+        exerciseNameList.length === 1
+          ? eq(sessionExercises.exerciseName, exerciseNameList[0]!)
+          : inArray(sessionExercises.exerciseName, exerciseNameList);
+
+      if (templateFilter) {
+        exerciseFilter = or(templateFilter, nameFilter);
+      } else {
+        exerciseFilter = nameFilter;
       }
 
-      // Build the exercise filter condition
-      const exerciseWhereCondition =
-        exerciseNamesToSearch.length === 1
-          ? eq(sessionExercises.exerciseName, exerciseNamesToSearch[0]!)
-          : inArray(sessionExercises.exerciseName, exerciseNamesToSearch);
+      const subqueryConditions: SQL<unknown>[] = [
+        eq(workoutSessions.user_id, ctx.user.id),
+        eq(sessionExercises.user_id, ctx.user.id),
+        exerciseFilter,
+      ];
 
-      const recentSessionsWithExercise =
-        await ctx.db.query.workoutSessions.findMany({
-          where: and(...whereConditions),
-          orderBy: [desc(workoutSessions.workoutDate)],
-          with: {
-            exercises: {
-              where: exerciseWhereCondition,
-            },
-          },
-          limit: 50, // Check more sessions since we're looking across templates
-        });
+      if (input.excludeSessionId) {
+        subqueryConditions.push(ne(workoutSessions.id, input.excludeSessionId));
+      }
 
-      // Find the first session that actually has this exercise
-      const lastSessionWithExercise = recentSessionsWithExercise.find(
-        (session) => session.exercises.length > 0,
-      );
+      const combinedSubqueryFilter =
+        subqueryConditions.length === 1
+          ? subqueryConditions[0]!
+          : and(...subqueryConditions);
 
-      if (!lastSessionWithExercise) {
+      const latestSessionSubquery = ctx.db
+        .select({ sessionId: sessionExercises.sessionId })
+        .from(sessionExercises)
+        .innerJoin(
+          workoutSessions,
+          eq(workoutSessions.id, sessionExercises.sessionId),
+        )
+        .where(combinedSubqueryFilter)
+        .orderBy(desc(workoutSessions.workoutDate))
+        .limit(1)
+        .as("latest_session");
+
+      const rows = await ctx.db
+        .select({
+          sessionId: sessionExercises.sessionId,
+          workoutDate: workoutSessions.workoutDate,
+          weight: sessionExercises.weight,
+          reps: sessionExercises.reps,
+          sets: sessionExercises.sets,
+          unit: sessionExercises.unit,
+          setOrder: sessionExercises.setOrder,
+        })
+        .from(sessionExercises)
+        .innerJoin(
+          workoutSessions,
+          eq(workoutSessions.id, sessionExercises.sessionId),
+        )
+        .innerJoin(
+          latestSessionSubquery,
+          eq(latestSessionSubquery.sessionId, sessionExercises.sessionId),
+        )
+        .where(
+          and(eq(sessionExercises.user_id, ctx.user.id), exerciseFilter),
+        )
+        .orderBy(desc(workoutSessions.workoutDate), asc(sessionExercises.setOrder));
+
+      if (rows.length === 0) {
         return null;
       }
 
-      // Get all sets from that session for this exercise, ordered by setOrder
-      const lastExerciseSets = lastSessionWithExercise.exercises.sort(
-        (a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0),
-      );
-
-      const sets = lastExerciseSets.map((set, index) => ({
+      const sets = rows.map((row, index) => ({
         id: `prev-${index}`,
-        weight: set.weight || undefined,
-        reps: set.reps,
-        sets: set.sets ?? 1,
-        unit: set.unit as "kg" | "lbs",
+        weight: row.weight ?? undefined,
+        reps: row.reps ?? undefined,
+        sets: row.sets ?? 1,
+        unit: row.unit as "kg" | "lbs",
       }));
 
-      // Calculate best performance for header display
-      const bestWeight = Math.max(...sets.map((set) => set.weight ?? 0));
-      const bestSet = sets.find((set) => set.weight === bestWeight);
+      const bestSet = sets.reduce<typeof sets[number] | undefined>((currentBest, set) => {
+        if (set.weight == null) {
+          return currentBest;
+        }
+
+        if (!currentBest || (currentBest.weight ?? 0) < set.weight) {
+          return set;
+        }
+
+        return currentBest;
+      }, undefined);
 
       return {
         sets,
         best: bestSet
           ? {
               weight: bestSet.weight,
-              reps: bestSet.reps,
+              reps: bestSet.reps ?? undefined,
               sets: bestSet.sets,
               unit: bestSet.unit,
             }
