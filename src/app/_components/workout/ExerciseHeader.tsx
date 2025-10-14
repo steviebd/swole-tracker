@@ -18,6 +18,8 @@ interface ExerciseHeaderProps {
   onToggleExpansion: (exerciseIndex: number) => void;
   onSwipeToBottom?: (exerciseIndex: number) => void;
   exerciseIndex: number;
+  unit?: "kg" | "lbs";
+  onBulkUnitChange?: (exerciseIndex: number, unit: "kg" | "lbs") => void;
 }
 
 export function ExerciseHeader({
@@ -27,13 +29,20 @@ export function ExerciseHeader({
   onToggleExpansion,
   onSwipeToBottom: _onSwipeToBottom,
   exerciseIndex,
+  unit,
+  onBulkUnitChange,
 }: ExerciseHeaderProps) {
   return (
     <div className="mb-2 flex items-center justify-between">
       <div className="flex min-w-0 flex-col">
-        <div className="truncate text-base font-semibold" style={{ color: 'var(--color-text)' }}>{name}</div>
+        <div
+          className="truncate text-base font-semibold"
+          style={{ color: "var(--color-text)" }}
+        >
+          {name}
+        </div>
         {previousBest && (
-          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
             Prev best:{" "}
             {previousBest.weight !== undefined
               ? `${previousBest.weight}${previousBest.unit}`
@@ -46,19 +55,58 @@ export function ExerciseHeader({
         )}
       </div>
       <div className="ml-3 flex shrink-0 items-center gap-2">
+        {/* Unit Controls */}
+        {onBulkUnitChange && unit && (
+          <div
+            className="flex rounded border"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <button
+              type="button"
+              className={`px-2 py-1 text-xs transition-colors ${
+                unit === "kg"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-text"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onBulkUnitChange(exerciseIndex, "kg");
+              }}
+              aria-label="Switch to kilograms"
+            >
+              kg
+            </button>
+            <button
+              type="button"
+              className={`px-2 py-1 text-xs transition-colors ${
+                unit === "lbs"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-text"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onBulkUnitChange(exerciseIndex, "lbs");
+              }}
+              aria-label="Switch to pounds"
+            >
+              lbs
+            </button>
+          </div>
+        )}
+
         <button
           type="button"
           className="rounded border px-2 py-1 text-xs transition-colors"
           style={{
-            borderColor: 'var(--color-border)',
-            backgroundColor: 'var(--color-bg-surface)',
-            color: 'var(--color-text)'
+            borderColor: "var(--color-border)",
+            backgroundColor: "var(--color-bg-surface)",
+            color: "var(--color-text)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-border)';
+            e.currentTarget.style.backgroundColor = "var(--color-border)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-bg-surface)';
+            e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
           }}
           onClick={(e) => {
             e.stopPropagation();

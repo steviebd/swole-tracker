@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
@@ -10,6 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Skeleton } from "~/components/ui/skeleton";
+import {
+  TemplateFilters,
+  type TemplateFiltersState,
+} from "~/components/filters/template-filters";
+import { useSyncIndicator } from "~/hooks/use-sync-indicator";
+import { Badge } from "~/components/ui/badge";
 
 interface WorkoutStarterProps {
   initialTemplateId?: number;
@@ -34,10 +40,104 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
 
+  const [filters, setFilters] = useState<TemplateFiltersState>({
+    search: "",
+    sort: "recent",
+    tag: null,
+  });
+  const [showFullExerciseList, setShowFullExerciseList] = useState(false);
+
   const router = useRouter();
   const { data: templates, isLoading: templatesLoading } =
     api.templates.getAll.useQuery();
   const createWorkoutMutation = api.workouts.start.useMutation();
+  const {
+    status: syncStatus,
+    badgeText,
+    description,
+    isOnline,
+  } = useSyncIndicator();
+
+  const handleStartFreestyle = async () => {
+    if (isStarting) {
+      console.log("Already starting workout, ignoring duplicate request");
+      return;
+    }
+
+    setIsStarting(true);
+
+    try {
+      // Create session without template
+      const result = await createWorkoutMutation.mutateAsync({
+        workoutDate: new Date(workoutDate),
+      });
+
+      // Track analytics
+      analytics.workoutStarted("freestyle", "Freestyle Workout");
+
+      // Navigate to session
+      router.push(`/workout/session/${result.sessionId}`);
+    } catch (error) {
+      console.error("Error creating freestyle workout session:", error);
+      analytics.error(error as Error, {
+        context: "workout_start_freestyle",
+      });
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      alert("Error starting freestyle workout. Please try again.");
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  // Filter and sort templates
+  const filteredTemplates = useMemo(() => {
+    if (!templates) return [];
+
+    const filtered = templates.filter((template) => {
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const matchesName = template.name.toLowerCase().includes(searchLower);
+        const matchesExercises = template.exercises?.some((exercise) =>
+          exercise.exerciseName.toLowerCase().includes(searchLower),
+        );
+        if (!matchesName && !matchesExercises) return false;
+      }
+
+      // Tag filter (not implemented yet - no tags in schema)
+      // if (filters.tag && template.tag !== filters.tag) return false;
+
+      return true;
+    });
+
+    // Sort templates
+    filtered.sort((a, b) => {
+      switch (filters.sort) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "recent":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "lastUsed":
+          // For now, fall back to created date since we don't have last used
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "mostUsed":
+          // For now, fall back to created date since we don't have usage count
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [templates, filters]);
 
   const handleStart = async () => {
     if (!selectedTemplateId) {
@@ -150,8 +250,13 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       {/* Template Selection */}
       <div>
         <h2 className="mb-4 text-lg font-semibold">Select Workout Template</h2>
+        <TemplateFilters
+          value={filters}
+          onChange={setFilters}
+          className="mb-4"
+        />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => {
+          {filteredTemplates.map((template) => {
             const exercises = template.exercises ?? [];
 
             return (
@@ -161,28 +266,28 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                   selectedTemplateId === template.id
                     ? "ring-primary shadow-md ring-2"
                     : "hover:ring-muted-foreground/20 hover:ring-1"
-              }`}
-              onClick={() => setSelectedTemplateId(template.id)}
-            >
-              <CardContent className="p-4">
-                <h3 className="mb-2 truncate text-sm font-semibold sm:text-base">
-                  {template.name}
-                </h3>
-                <p className="text-muted-foreground text-xs sm:text-sm">
-                  {exercises.length} exercise
-                  {exercises.length !== 1 ? "s" : ""}
-                </p>
-                {exercises.length > 0 && (
-                  <div className="text-muted-foreground mt-2 text-xs">
-                    {exercises
-                      .slice(0, 3)
-                      .map((ex) => ex.exerciseName)
-                      .join(", ")}
-                    {exercises.length > 3 && "..."}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                }`}
+                onClick={() => setSelectedTemplateId(template.id)}
+              >
+                <CardContent className="p-4">
+                  <h3 className="mb-2 truncate text-sm font-semibold sm:text-base">
+                    {template.name}
+                  </h3>
+                  <p className="text-muted-foreground text-xs sm:text-sm">
+                    {exercises.length} exercise
+                    {exercises.length !== 1 ? "s" : ""}
+                  </p>
+                  {exercises.length > 0 && (
+                    <div className="text-muted-foreground mt-2 text-xs">
+                      {exercises
+                        .slice(0, 3)
+                        .map((ex) => ex.exerciseName)
+                        .join(", ")}
+                      {exercises.length > 3 && "..."}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -195,7 +300,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
             <CardTitle className="text-base sm:text-lg">
               Selected:{" "}
               {(() => {
-                const template = templates.find(
+                const template = filteredTemplates.find(
                   (t) => t.id === selectedTemplateId,
                 );
                 return template?.name;
@@ -204,7 +309,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             {(() => {
-              const template = templates.find(
+              const template = filteredTemplates.find(
                 (t) => t.id === selectedTemplateId,
               );
               const exercises = template?.exercises ?? [];
@@ -216,7 +321,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                         "No exercises in this template"
                       ) : (
                         <div className="space-y-1">
-                          {exercises.map((exercise, index) => (
+                          {(showFullExerciseList
+                            ? exercises
+                            : exercises.slice(0, 3)
+                          ).map((exercise, index) => (
                             <div
                               key={exercise.id}
                               className="flex items-center"
@@ -229,6 +337,26 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                               </span>
                             </div>
                           ))}
+                          {exercises.length > 3 && !showFullExerciseList && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-xs"
+                              onClick={() => setShowFullExerciseList(true)}
+                            >
+                              Show {exercises.length - 3} more exercises...
+                            </Button>
+                          )}
+                          {showFullExerciseList && exercises.length > 3 && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-xs"
+                              onClick={() => setShowFullExerciseList(false)}
+                            >
+                              Show less
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -236,18 +364,18 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
                   {/* Date/Time Selection */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        htmlFor="workoutDate"
-                        className="text-xs font-medium sm:text-sm"
-                      >
-                        Workout Date & Time
-                      </Label>
+                    <Label
+                      htmlFor="workoutDate"
+                      className="text-xs font-medium sm:text-sm"
+                    >
+                      Workout Date & Time
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
-                        variant="link"
+                        variant="outline"
                         size="sm"
-                        className="h-auto p-0 text-xs"
+                        className="text-xs"
                         onClick={() => {
                           const now = new Date();
                           const year = now.getFullYear();
@@ -266,7 +394,64 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                           );
                         }}
                       >
-                        Use Now
+                        Now
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          const today = new Date();
+                          const year = today.getFullYear();
+                          const month = String(today.getMonth() + 1).padStart(
+                            2,
+                            "0",
+                          );
+                          const day = String(today.getDate()).padStart(2, "0");
+                          setWorkoutDate(`${year}-${month}-${day}T09:00`);
+                        }}
+                      >
+                        Today AM
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          const today = new Date();
+                          const year = today.getFullYear();
+                          const month = String(today.getMonth() + 1).padStart(
+                            2,
+                            "0",
+                          );
+                          const day = String(today.getDate()).padStart(2, "0");
+                          setWorkoutDate(`${year}-${month}-${day}T18:00`);
+                        }}
+                      >
+                        Today PM
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          const yesterday = new Date();
+                          yesterday.setDate(yesterday.getDate() - 1);
+                          const year = yesterday.getFullYear();
+                          const month = String(
+                            yesterday.getMonth() + 1,
+                          ).padStart(2, "0");
+                          const day = String(yesterday.getDate()).padStart(
+                            2,
+                            "0",
+                          );
+                          setWorkoutDate(`${year}-${month}-${day}T18:00`);
+                        }}
+                      >
+                        Yesterday
                       </Button>
                     </div>
                     <Input
@@ -278,6 +463,18 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                       required
                     />
                   </div>
+
+                  {/* Sync Status */}
+                  {!isOnline && (
+                    <div className="text-center">
+                      <Badge variant="secondary" className="text-xs">
+                        {badgeText}
+                      </Badge>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {description}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Start Button */}
                   <Button
@@ -300,9 +497,19 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       {/* No Selection State */}
       {!selectedTemplateId && (
         <div className="py-6 text-center sm:py-8">
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Select a workout template above to continue
+          <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+            Select a workout template above or start freestyle
           </p>
+          <Button
+            onClick={handleStartFreestyle}
+            disabled={isStarting || createWorkoutMutation.isPending}
+            variant="outline"
+            size="lg"
+          >
+            {isStarting || createWorkoutMutation.isPending
+              ? "Starting..."
+              : "Start Freestyle Workout"}
+          </Button>
         </div>
       )}
     </div>

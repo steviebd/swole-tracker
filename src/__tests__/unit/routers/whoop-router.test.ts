@@ -23,12 +23,16 @@ describe("whoopRouter", () => {
         leftJoin: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             groupBy: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockResolvedValue([]),
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
             }),
           }),
         }),
         where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockResolvedValue([]),
+          orderBy: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
         }),
       }),
     }),
@@ -60,11 +64,21 @@ describe("whoopRouter", () => {
           "read:profile read:recovery read:workout read:sleep read:cycle read:body_measurement",
       };
 
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([mockIntegration]),
-        }),
-      });
+      mockDb.select
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockIntegration]),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        });
 
       const caller = whoopRouter.createCaller(mockCtx);
       const result = await caller.getIntegrationStatus();
@@ -75,15 +89,26 @@ describe("whoopRouter", () => {
         expiresAt: mockIntegration.expiresAt,
         isExpired: false,
         scope: mockIntegration.scope,
+        lastSyncAt: null,
       });
     });
 
     it("should return disconnected status when no integration exists", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([]),
-        }),
-      });
+      mockDb.select
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        });
 
       const caller = whoopRouter.createCaller(mockCtx);
       const result = await caller.getIntegrationStatus();
@@ -94,6 +119,7 @@ describe("whoopRouter", () => {
         expiresAt: null,
         isExpired: false,
         scope: null,
+        lastSyncAt: null,
       });
     });
 
@@ -105,11 +131,21 @@ describe("whoopRouter", () => {
         scope: "read:profile",
       };
 
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([mockIntegration]),
-        }),
-      });
+      mockDb.select
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockIntegration]),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        });
 
       const caller = whoopRouter.createCaller(mockCtx);
       const result = await caller.getIntegrationStatus();
@@ -120,6 +156,7 @@ describe("whoopRouter", () => {
         expiresAt: mockIntegration.expiresAt,
         isExpired: true,
         scope: mockIntegration.scope,
+        lastSyncAt: null,
       });
     });
 
@@ -275,7 +312,11 @@ describe("whoopRouter", () => {
       mockDb.select.mockImplementation(() => ({
         from: vi.fn().mockImplementation((table: any) => {
           // Import tables to compare
-          const { userIntegrations, whoopRecovery, whoopSleep } = require("~/server/db/schema");
+          const {
+            userIntegrations,
+            whoopRecovery,
+            whoopSleep,
+          } = require("~/server/db/schema");
           if (table === userIntegrations) {
             return {
               where: vi.fn().mockResolvedValue([mockIntegration]),

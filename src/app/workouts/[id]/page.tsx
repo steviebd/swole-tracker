@@ -74,6 +74,35 @@ export default async function WorkoutDebriefPage({
     return new Date().toISOString();
   })();
 
+  // Calculate quick stats
+  const exercises = Array.isArray(
+    (session as { exercises?: unknown }).exercises,
+  )
+    ? (
+        session as {
+          exercises: Array<{
+            exerciseName: string;
+            weight?: number | null;
+            reps?: number | null;
+            sets?: number | null;
+            unit?: string;
+          }>;
+        }
+      ).exercises
+    : [];
+
+  const uniqueExercises = new Set(exercises.map((ex) => ex.exerciseName)).size;
+
+  const totalVolume = exercises.reduce((sum, ex) => {
+    const weight = ex.weight || 0;
+    const reps = ex.reps || 0;
+    const sets = ex.sets || 1;
+    return sum + weight * reps * sets;
+  }, 0);
+
+  // Estimate duration based on exercises (rough estimate: 5-10 min per exercise + rest time)
+  const estimatedDuration = uniqueExercises * 8; // 8 minutes per exercise average
+
   return (
     <HydrateClient>
       <main className="min-h-screen overflow-x-hidden">
@@ -89,11 +118,32 @@ export default async function WorkoutDebriefPage({
           }
         />
 
+        {/* Quick Stats Bar */}
+        <div className="mx-auto w-full max-w-5xl px-3 py-2 sm:px-6">
+          <div className="bg-muted/50 flex flex-wrap items-center justify-center gap-4 rounded-lg p-3 text-sm">
+            <div className="text-center">
+              <div className="text-lg font-semibold">{uniqueExercises}</div>
+              <div className="text-muted-foreground">Exercises</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold">
+                {totalVolume.toFixed(1)}
+              </div>
+              <div className="text-muted-foreground">Total Volume</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold">{estimatedDuration}m</div>
+              <div className="text-muted-foreground">Est. Duration</div>
+            </div>
+          </div>
+        </div>
+
         <div className="container mx-auto w-full max-w-5xl px-3 py-4 sm:px-6 sm:py-8">
           <SessionDebriefPanel
             sessionId={sessionId}
             templateName={templateName}
             sessionDate={sessionDate}
+            session={session}
           />
         </div>
       </main>

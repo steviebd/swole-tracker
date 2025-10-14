@@ -29,6 +29,17 @@ export const whoopRouter = createTRPCRouter({
           ),
         );
 
+      // Get last sync time from most recent workout
+      const [lastWorkout] = await ctx.db
+        .select({
+          createdAt: externalWorkoutsWhoop.createdAt,
+          updatedAt: externalWorkoutsWhoop.updatedAt,
+        })
+        .from(externalWorkoutsWhoop)
+        .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
+        .orderBy(desc(externalWorkoutsWhoop.createdAt))
+        .limit(1);
+
       // Check if token is expired
       const now = new Date();
       const isExpired = integration?.expiresAt
@@ -41,6 +52,7 @@ export const whoopRouter = createTRPCRouter({
         expiresAt: integration?.expiresAt || null,
         isExpired,
         scope: integration?.scope || null,
+        lastSyncAt: lastWorkout?.createdAt || null,
       };
     } catch (error) {
       console.error("Failed to fetch WHOOP integration status:", error);

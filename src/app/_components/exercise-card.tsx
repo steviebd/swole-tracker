@@ -36,6 +36,7 @@ interface ExerciseCardProps {
     value: string | number | undefined,
   ) => void;
   onToggleUnit: (exerciseIndex: number, setIndex: number) => void;
+  onBulkUnitChange?: (exerciseIndex: number, unit: "kg" | "lbs") => void;
   onAddSet: (exerciseIndex: number) => void;
   onDeleteSet: (exerciseIndex: number, setIndex: number) => void;
   onMoveSet: (
@@ -57,9 +58,9 @@ interface ExerciseCardProps {
   // Universal drag and drop props
   draggable?: boolean;
   onPointerDown?: (
-    e: React.PointerEvent | React.MouseEvent | React.TouchEvent,
+    index: number,
     opts?: { force?: boolean },
-  ) => void;
+  ) => (e: React.PointerEvent | React.MouseEvent | React.TouchEvent) => void;
   setCardElement?: (element: HTMLElement | null) => void;
   preferredUnit?: "kg" | "lbs";
 }
@@ -69,6 +70,7 @@ export function ExerciseCard({
   exerciseIndex,
   onUpdate,
   onToggleUnit,
+  onBulkUnitChange,
   onAddSet,
   onDeleteSet,
   onMoveSet,
@@ -282,6 +284,8 @@ export function ExerciseCard({
               onToggleExpansion={onToggleExpansion}
               onSwipeToBottom={onSwipeToBottom}
               exerciseIndex={exerciseIndex}
+              unit={exercise.unit}
+              onBulkUnitChange={onBulkUnitChange}
             />
           </div>
           {draggable && !readOnly && (
@@ -290,24 +294,9 @@ export function ExerciseCard({
               aria-label="Drag to reorder"
               data-drag-handle="true"
               className="group ml-2 cursor-grab touch-none px-1 py-2 text-gray-400 hover:text-gray-200 active:cursor-grabbing"
-              onPointerDown={(e) =>
-                onPointerDown?.(
-                  e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
-                  { force: true },
-                )
-              }
-              onMouseDown={(e) =>
-                onPointerDown?.(
-                  e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
-                  { force: true },
-                )
-              }
-              onTouchStart={(e) =>
-                onPointerDown?.(
-                  e as React.PointerEvent | React.MouseEvent | React.TouchEvent,
-                  { force: true },
-                )
-              }
+              onPointerDown={onPointerDown?.(exerciseIndex, { force: true })}
+              onMouseDown={onPointerDown?.(exerciseIndex, { force: true })}
+              onTouchStart={onPointerDown?.(exerciseIndex, { force: true })}
               style={{ touchAction: "none" }}
               title="Drag to reorder"
             >
@@ -508,7 +497,7 @@ export function ExerciseCard({
                         className={`flex items-center gap-3 text-sm ${isHighestWeight ? "text-green-700 dark:text-green-300" : "text-gray-700 dark:text-gray-300"}`}
                       >
                         <div
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "bg-green-600 text-background" : "bg-muted text-muted-foreground"}`}
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isHighestWeight ? "text-background bg-green-600" : "bg-muted text-muted-foreground"}`}
                         >
                           {originalIndex + 1}
                         </div>

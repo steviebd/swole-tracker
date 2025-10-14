@@ -19,6 +19,15 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Skeleton } from "~/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { Toast } from "~/components/ui/toast";
 import { analytics } from "~/lib/analytics";
 import { api, type RouterOutputs } from "~/trpc/react";
 
@@ -73,6 +82,16 @@ export function TemplatesList() {
     sort: "recent",
     tag: null,
   });
+
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    template?: { id: number; name: string };
+  }>({ open: false });
+
+  const [deleteToast, setDeleteToast] = useState<{
+    open: boolean;
+    template?: { id: number; name: string; data?: TemplateWithMeta };
+  }>({ open: false });
 
   const queryInput = useMemo(
     () => ({ search: filters.search, sort: filters.sort }),
@@ -169,11 +188,32 @@ export function TemplatesList() {
     },
   });
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!window.confirm(`Delete the template "${name}"?`)) return;
+  const createTemplate = api.templates.create.useMutation({
+    onSuccess: () => {
+      void utils.templates.getAll.invalidate();
+    },
+  });
+
+  const handleDelete = (id: number, name: string) => {
+    setDeleteDialog({ open: true, template: { id, name } });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog.template) return;
+    const { id, name } = deleteDialog.template;
+    setDeleteDialog({ open: false });
+
+    // Find the template data for undo
+    const templateToDelete = templates?.find((t) => t.id === id);
+    if (!templateToDelete) return;
+
     try {
       await deleteTemplate.mutateAsync({ id });
       analytics.templateDeleted(id.toString());
+      setDeleteToast({
+        open: true,
+        template: { id, name, data: templateToDelete },
+      });
     } catch (error) {
       console.error("Error deleting template:", error);
       analytics.error(error as Error, {
@@ -181,6 +221,33 @@ export function TemplatesList() {
         templateId: id.toString(),
       });
     }
+  };
+
+  const undoDelete = async () => {
+    if (!deleteToast.template?.data) return;
+
+    try {
+      // Recreate the template using the stored data
+      await createTemplate.mutateAsync({
+        name: deleteToast.template.data.name,
+        exercises:
+          deleteToast.template.data.exercises?.map((ex) => ex.exerciseName) ??
+          [],
+        dedupeKey: `undo-${deleteToast.template.id}-${Date.now()}`,
+      });
+      analytics.templateCreated(
+        deleteToast.template.id.toString(),
+        deleteToast.template.data.exercises?.length ?? 0,
+      );
+    } catch (error) {
+      console.error("Error undoing delete:", error);
+      analytics.error(error as Error, {
+        context: "template_undo_delete",
+        templateId: deleteToast.template.id.toString(),
+      });
+    }
+
+    setDeleteToast({ open: false });
   };
 
   const handleDuplicate = async (id: number) => {
@@ -402,6 +469,42 @@ export function TemplatesList() {
           </div>
         </section>
       ))}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Template</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialog.template?.name}"?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog({ open: false })}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Success Toast */}
+      <Toast
+        open={deleteToast.open}
+        type="success"
+        message={`Template "${deleteToast.template?.name}" deleted successfully.`}
+        onUndo={undoDelete}
+        onClose={() => setDeleteToast({ open: false })}
+      />
     </div>
   );
 }
