@@ -77,6 +77,8 @@ type FlatSet = {
   unit: Unit;
   rpe?: number | null;
   rest_seconds?: number | null;
+  volumeLoad?: number;
+  oneRMEstimate?: number;
 };
 
 export const insightsRouter = createTRPCRouter({
@@ -216,6 +218,14 @@ export const insightsRouter = createTRPCRouter({
                 "number"
                   ? (ex as { rest_seconds?: number }).rest_seconds
                   : null,
+              volumeLoad: toNumber(
+                (ex as { volume_load?: string | number | null | undefined })
+                  .volume_load,
+              ),
+              oneRMEstimate: toNumber(
+                (ex as { one_rm_estimate?: string | number | null | undefined })
+                  .one_rm_estimate,
+              ),
             });
           }
         }
@@ -233,9 +243,12 @@ export const insightsRouter = createTRPCRouter({
         >();
         for (const fs of flat) {
           const weightTarget = compareUnits(fs.weight, fs.unit, input.unit);
-          const vol = (weightTarget ?? 0) * (fs.reps ?? 0);
+          // Use computed volume_load if available, otherwise calculate
+          const vol = fs.volumeLoad ?? (weightTarget ?? 0) * (fs.reps ?? 0);
           const prev = bySession.get(fs.sessionId);
-          const est = estimate1RM(weightTarget, fs.reps ?? undefined);
+          // Use computed one_rm_estimate if available, otherwise calculate
+          const est =
+            fs.oneRMEstimate ?? estimate1RM(weightTarget, fs.reps ?? undefined);
           if (!prev) {
             bySession.set(fs.sessionId, {
               date: fs.workoutDate,

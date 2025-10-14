@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
+import { logger } from "~/lib/logger";
 import {
   masterExercises,
   exerciseLinks,
@@ -1068,5 +1069,141 @@ export const exercisesRouter = createTRPCRouter({
       }
 
       return updatedExercise[0];
+    }),
+
+  // Merge two master exercises
+  mergeMasterExercises: protectedProcedure
+    .use(apiCallRateLimit)
+    .input(
+      z.object({
+        sourceId: z.number(),
+        targetId: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.sourceId === input.targetId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot merge an exercise with itself",
+        });
+      }
+
+      logger.debug("Merge request", {
+        sourceId: input.sourceId,
+        targetId: input.targetId,
+        userId: ctx.user.id,
+      });
+
+      // Validate that both exercises exist and belong to the user
+      const [sourceExercise, targetExercise] = await Promise.all([
+        ctx.db
+          .select()
+          .from(masterExercises)
+          .where(
+            and(
+              eq(masterExercises.id, input.sourceId),
+              eq(masterExercises.user_id, ctx.user.id),
+            ),
+          )
+          .limit(1),
+        ctx.db
+          .select()
+          .from(masterExercises)
+          .where(
+            and(
+              eq(masterExercises.id, input.targetId),
+              eq(masterExercises.user_id, ctx.user.id),
+            ),
+          )
+          .limit(1),
+      ]);
+
+      logger.debug("Query results", {
+        sourceExerciseCount: sourceExercise.length,
+        targetExerciseCount: targetExercise.length,
+        sourceExercise: sourceExercise[0],
+        targetExercise: targetExercise[0],
+      });
+
+      if (sourceExercise.length === 0 || targetExercise.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "One or both exercises not found",
+        });
+      }
+
+      // Get all links from source exercise
+      const sourceLinks = await ctx.db
+        .select()
+        .from(exerciseLinks)
+        .where(
+          and(
+            eq(exerciseLinks.masterExerciseId, input.sourceId),
+            eq(exerciseLinks.user_id, ctx.user.id),
+          ),
+        );
+
+      let movedLinks = 0;
+      let skippedLinks = 0;
+
+      // Move links from source to target, avoiding duplicates
+      for (const link of sourceLinks) {
+        // Check if target already has a link to this template exercise
+        const existingLink = await ctx.db
+          .select()
+          .from(exerciseLinks)
+          .where(
+            and(
+              eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
+              eq(exerciseLinks.masterExerciseId, input.targetId),
+              eq(exerciseLinks.user_id, ctx.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (existingLink.length === 0) {
+          // Move the link to target
+          await ctx.db
+            .update(exerciseLinks)
+            .set({ masterExerciseId: input.targetId })
+            .where(
+              and(
+                eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
+                eq(exerciseLinks.masterExerciseId, input.sourceId),
+                eq(exerciseLinks.user_id, ctx.user.id),
+              ),
+            );
+          movedLinks++;
+        } else {
+          // Skip duplicate links
+          await ctx.db
+            .delete(exerciseLinks)
+            .where(
+              and(
+                eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
+                eq(exerciseLinks.masterExerciseId, input.sourceId),
+                eq(exerciseLinks.user_id, ctx.user.id),
+              ),
+            );
+          skippedLinks++;
+        }
+      }
+
+      // Delete the source exercise
+      await ctx.db
+        .delete(masterExercises)
+        .where(
+          and(
+            eq(masterExercises.id, input.sourceId),
+            eq(masterExercises.user_id, ctx.user.id),
+          ),
+        );
+
+      return {
+        movedLinks,
+        skippedLinks,
+        sourceName: sourceExercise[0]!.name,
+        targetName: targetExercise[0]!.name,
+      };
     }),
 });

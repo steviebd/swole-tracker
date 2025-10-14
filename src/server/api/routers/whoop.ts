@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   userIntegrations,
@@ -64,34 +65,40 @@ export const whoopRouter = createTRPCRouter({
     }
   }),
 
-  getWorkouts: protectedProcedure.query(async ({ ctx }) => {
-    try {
-      const workouts = await ctx.db
-        .select({
-          id: externalWorkoutsWhoop.id,
-          whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
-          start: externalWorkoutsWhoop.start,
-          end: externalWorkoutsWhoop.end,
-          sport_name: externalWorkoutsWhoop.sport_name,
-          score_state: externalWorkoutsWhoop.score_state,
-          score: externalWorkoutsWhoop.score,
-          during: externalWorkoutsWhoop.during,
-          zone_duration: externalWorkoutsWhoop.zone_duration,
-          createdAt: externalWorkoutsWhoop.createdAt,
-        })
-        .from(externalWorkoutsWhoop)
-        .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
-        .orderBy(desc(externalWorkoutsWhoop.start));
+  getWorkouts: protectedProcedure
+    .input(
+      z.object({ limit: z.number().int().positive().default(50) }).optional(),
+    )
+    .query(async ({ input, ctx }) => {
+      try {
+        const limit = input?.limit ?? 50;
+        const workouts = await ctx.db
+          .select({
+            id: externalWorkoutsWhoop.id,
+            whoopWorkoutId: externalWorkoutsWhoop.whoopWorkoutId,
+            start: externalWorkoutsWhoop.start,
+            end: externalWorkoutsWhoop.end,
+            sport_name: externalWorkoutsWhoop.sport_name,
+            score_state: externalWorkoutsWhoop.score_state,
+            score: externalWorkoutsWhoop.score,
+            during: externalWorkoutsWhoop.during,
+            zone_duration: externalWorkoutsWhoop.zone_duration,
+            createdAt: externalWorkoutsWhoop.createdAt,
+          })
+          .from(externalWorkoutsWhoop)
+          .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
+          .orderBy(desc(externalWorkoutsWhoop.start))
+          .limit(limit);
 
-      return workouts;
-    } catch (error) {
-      console.error("Failed to fetch WHOOP workouts:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch WHOOP workouts. Please try again later.",
-      });
-    }
-  }),
+        return workouts;
+      } catch (error) {
+        console.error("Failed to fetch WHOOP workouts:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch WHOOP workouts. Please try again later.",
+        });
+      }
+    }),
 
   disconnectIntegration: protectedProcedure.mutation(async ({ ctx }) => {
     await ctx.db

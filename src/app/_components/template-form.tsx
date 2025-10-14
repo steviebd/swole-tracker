@@ -306,14 +306,15 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   };
 
+  const watchedName = form.watch("name");
+  const watchedExercises = form.watch("exercises");
+
   const canProceedToNext = () => {
     if (currentStep === "basics") {
-      return form.getValues("name").trim().length > 0;
+      return watchedName.trim().length > 0;
     }
     if (currentStep === "exercises") {
-      return form
-        .getValues("exercises")
-        .some((ex) => ex.exerciseName.trim().length > 0);
+      return watchedExercises.some((ex) => ex.exerciseName.trim().length > 0);
     }
     return true;
   };

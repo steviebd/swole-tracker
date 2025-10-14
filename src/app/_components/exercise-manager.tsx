@@ -50,6 +50,11 @@ export function ExerciseManager() {
   const [exerciseName, setExerciseName] = useState("");
   const [exerciseTags, setExerciseTags] = useState("");
   const [exerciseMuscleGroup, setExerciseMuscleGroup] = useState("");
+  const [mergeMode, setMergeMode] = useState(false);
+  const [selectedForMerge, setSelectedForMerge] = useState<MasterExercise[]>(
+    [],
+  );
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
 
   const {
     data: exercises,
@@ -103,6 +108,21 @@ export function ExerciseManager() {
     },
   });
 
+  const mergeMasterExercises = api.exercises.mergeMasterExercises.useMutation({
+    onSuccess: (result) => {
+      alert(
+        `Successfully merged "${result.sourceName}" into "${result.targetName}". Moved ${result.movedLinks} links, skipped ${result.skippedLinks} duplicates.`,
+      );
+      void refetch();
+      setMergeMode(false);
+      setSelectedForMerge([]);
+      setShowMergeDialog(false);
+    },
+    onError: (error) => {
+      alert(`Failed to merge exercises: ${error.message}`);
+    },
+  });
+
   const filteredExercises =
     (exercises as MasterExercise[] | undefined)?.filter((exercise) => {
       const searchLower = searchTerm.toLowerCase();
@@ -118,6 +138,44 @@ export function ExerciseManager() {
     setExerciseName(exercise.name);
     setExerciseTags(exercise.tags || "");
     setExerciseMuscleGroup(exercise.muscleGroup || "");
+  };
+
+  const handleMergeSelection = (exercise: MasterExercise) => {
+    if (selectedForMerge.find((e) => e.id === exercise.id)) {
+      // Deselect
+      setSelectedForMerge(selectedForMerge.filter((e) => e.id !== exercise.id));
+    } else {
+      // Select (max 2)
+      if (selectedForMerge.length < 2) {
+        setSelectedForMerge([...selectedForMerge, exercise]);
+      }
+    }
+  };
+
+  const handleMergeExercises = () => {
+    if (selectedForMerge.length === 2) {
+      setShowMergeDialog(true);
+    }
+  };
+
+  const confirmMerge = () => {
+    if (selectedForMerge.length === 2) {
+      const [source, target] = selectedForMerge;
+      if (source!.id === target!.id) {
+        alert("Cannot merge an exercise with itself");
+        return;
+      }
+      console.log("Merging exercises:", { source, target });
+      mergeMasterExercises.mutate({
+        sourceId: source!.id,
+        targetId: target!.id,
+      });
+    }
+  };
+
+  const cancelMerge = () => {
+    setMergeMode(false);
+    setSelectedForMerge([]);
   };
 
   // Show loading state during SSR and initial client render
@@ -179,7 +237,47 @@ export function ExerciseManager() {
           <Button onClick={() => setShowCreateDialog(true)} size="sm">
             Create Exercise
           </Button>
+          <Button
+            onClick={() => {
+              if (mergeMode) {
+                cancelMerge();
+              } else {
+                setMergeMode(true);
+              }
+            }}
+            variant={mergeMode ? "destructive" : "outline"}
+            size="sm"
+          >
+            {mergeMode ? "Cancel Merge" : "Merge Exercises"}
+          </Button>
         </div>
+
+        {/* Merge Mode Instructions */}
+        {mergeMode && (
+          <div className="rounded-md bg-blue-50 p-4 dark:bg-blue-950/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-900 dark:text-blue-100">
+                  Merge Mode Active
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Select 2 exercises to merge. The first selected will be merged
+                  into the second.
+                </p>
+                <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                  Selected: {selectedForMerge.map((e) => e.name).join(", ")}
+                </p>
+              </div>
+              <Button
+                onClick={handleMergeExercises}
+                disabled={selectedForMerge.length !== 2}
+                size="sm"
+              >
+                Merge Selected ({selectedForMerge.length}/2)
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <div className="text-muted-foreground text-sm">
@@ -258,6 +356,11 @@ export function ExerciseManager() {
                   exercise={exercise}
                   onUpdate={refetch}
                   onEdit={handleEditExercise}
+                  mergeMode={mergeMode}
+                  isSelectedForMerge={selectedForMerge.some(
+                    (e) => e.id === exercise.id,
+                  )}
+                  onMergeSelection={handleMergeSelection}
                 />
               ))}
               {filteredExercises.length === 0 && (
@@ -387,6 +490,55 @@ export function ExerciseManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Merge Confirmation Dialog */}
+      <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Merge</DialogTitle>
+            <DialogDescription>
+              This will merge "{selectedForMerge[0]?.name}" into "
+              {selectedForMerge[1]?.name}". All linked template exercises will
+              be moved to the target exercise, and the source exercise will be
+              deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted rounded-md p-3">
+              <div className="text-sm">
+                <div className="font-medium">
+                  Source exercise: {selectedForMerge[0]?.name}
+                </div>
+                <div className="text-muted-foreground">
+                  {selectedForMerge[0]?.linkedCount} linked template
+                  {selectedForMerge[0]?.linkedCount !== 1 ? "s" : ""}
+                </div>
+              </div>
+              <div className="mt-2 text-sm">
+                <div className="font-medium">
+                  Target exercise: {selectedForMerge[1]?.name}
+                </div>
+                <div className="text-muted-foreground">
+                  {selectedForMerge[1]?.linkedCount} linked template
+                  {selectedForMerge[1]?.linkedCount !== 1 ? "s" : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMergeDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmMerge}
+              disabled={mergeMasterExercises.isPending}
+            >
+              {mergeMasterExercises.isPending ? "Merging..." : "Confirm Merge"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -395,16 +547,31 @@ interface ExerciseRowProps {
   exercise: MasterExercise;
   onUpdate: () => void;
   onEdit: (exercise: MasterExercise) => void;
+  mergeMode?: boolean;
+  isSelectedForMerge?: boolean;
+  onMergeSelection?: (exercise: MasterExercise) => void;
 }
 
-function ExerciseRow({ exercise, onUpdate, onEdit }: ExerciseRowProps) {
+function ExerciseRow({
+  exercise,
+  onUpdate,
+  onEdit,
+  mergeMode = false,
+  isSelectedForMerge = false,
+  onMergeSelection,
+}: ExerciseRowProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
     <>
-      <TableRow>
+      <TableRow
+        className={isSelectedForMerge ? "bg-blue-50 dark:bg-blue-950/50" : ""}
+      >
         <TableCell>
-          <div className="font-medium">{exercise.name}</div>
+          <div className="font-medium">
+            {isSelectedForMerge && "✓ "}
+            {exercise.name}
+          </div>
           <div className="text-muted-foreground text-sm sm:hidden">
             Created {exercise.createdAt.toLocaleDateString()}
           </div>
@@ -420,45 +587,55 @@ function ExerciseRow({ exercise, onUpdate, onEdit }: ExerciseRowProps) {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDetails(!showDetails)}
-              aria-expanded={showDetails}
-              aria-label={`${showDetails ? "Hide" : "Show"} details for ${exercise.name}`}
-            >
-              {showDetails ? "Hide" : "Details"}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(exercise)}
-              aria-label={`Edit ${exercise.name}`}
-            >
-              ✏️
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                // TODO: Implement merge functionality
-                alert("Merge functionality coming soon");
-              }}
-              aria-label={`Merge ${exercise.name}`}
-            >
-              🔗
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                // TODO: Implement favorite functionality
-                alert("Favorite functionality coming soon");
-              }}
-              aria-label={`Mark ${exercise.name} as favorite`}
-            >
-              ⭐
-            </Button>
+            {mergeMode ? (
+              <Button
+                variant={isSelectedForMerge ? "default" : "outline"}
+                size="sm"
+                onClick={() => onMergeSelection?.(exercise)}
+                aria-label={`${isSelectedForMerge ? "Deselect" : "Select"} ${exercise.name} for merge`}
+              >
+                {isSelectedForMerge ? "Selected" : "Select"}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDetails(!showDetails)}
+                  aria-expanded={showDetails}
+                  aria-label={`${showDetails ? "Hide" : "Show"} details for ${exercise.name}`}
+                >
+                  {showDetails ? "Hide" : "Details"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(exercise)}
+                  aria-label={`Edit ${exercise.name}`}
+                >
+                  ✏️
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onMergeSelection?.(exercise)}
+                  aria-label={`Merge ${exercise.name}`}
+                >
+                  🔗
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    // TODO: Implement favorite functionality
+                    alert("Favorite functionality coming soon");
+                  }}
+                  aria-label={`Mark ${exercise.name} as favorite`}
+                >
+                  ⭐
+                </Button>
+              </>
+            )}
           </div>
         </TableCell>
       </TableRow>
