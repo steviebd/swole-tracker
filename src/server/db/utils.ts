@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db } from ".";
 import {
   workoutSessions,
@@ -330,35 +330,35 @@ export const batchDeleteWorkouts = async (
       const ownedSessions = await tx.query.workoutSessions.findMany({
         where: and(
           eq(workoutSessions.user_id, userId),
-          // Note: Drizzle doesn't have inArray for this specific case,
-          // so we'll verify each one individually for security
+          inArray(workoutSessions.id, sessionIds),
         ),
         columns: { id: true },
       });
 
-      const ownedSessionIds = ownedSessions.map((s) => s.id);
-      const validSessionIds = sessionIds.filter((id) =>
-        ownedSessionIds.includes(id),
-      );
+      const validSessionIds = ownedSessions.map((s) => s.id);
 
       if (validSessionIds.length === 0) {
         throw new Error("No valid sessions found for deletion");
       }
 
-      // Delete in the correct order (exercises first, then sessions)
-      // Since we have cascade delete, just delete the sessions
-      let deletedCount = 0;
-      for (const sessionId of validSessionIds) {
-        await tx
-          .delete(workoutSessions)
-          .where(eq(workoutSessions.id, sessionId));
-        deletedCount++;
-      }
+      const deleteResult = await tx
+        .delete(workoutSessions)
+        .where(inArray(workoutSessions.id, validSessionIds));
+
+      const deletedCount =
+        typeof deleteResult === "object" &&
+        deleteResult !== null &&
+        "changes" in deleteResult &&
+        typeof deleteResult.changes === "number"
+          ? deleteResult.changes
+          : validSessionIds.length;
 
       const duration = Date.now() - startTime;
       logger.debug("Batch workout deletion completed", {
         userId,
+        requestedCount: sessionIds.length,
         deletedCount,
+        bulkDelete: true,
         durationMs: duration,
       });
 
