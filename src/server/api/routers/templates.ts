@@ -167,7 +167,7 @@ export const templatesRouter = createTRPCRouter({
       const whereCondition = searchTerm
         ? and(
             eq(workoutTemplates.user_id, ctx.user.id),
-            sql`${workoutTemplates.name} ILIKE ${`%${searchTerm}%`}`,
+            sql`LOWER(${workoutTemplates.name}) LIKE LOWER(${`%${searchTerm}%`})`,
           )
         : eq(workoutTemplates.user_id, ctx.user.id);
 

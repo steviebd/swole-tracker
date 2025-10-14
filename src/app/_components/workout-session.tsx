@@ -40,6 +40,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     saveWorkout,
     deleteWorkout,
     enqueue,
+    applyOptimisticWorkoutUpdate,
+    applyOptimisticWorkoutUpdateFromPayload,
     swipeSettings,
     dragState,
     dragHandlers,
@@ -243,6 +245,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       // If offline, enqueue and notify
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        applyOptimisticWorkoutUpdateFromPayload(payload);
         enqueue(payload);
         // No navigation here; let user remain on page
         return;
@@ -269,6 +272,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         message.includes("TypeError")
       ) {
         const payload = buildSavePayload();
+        applyOptimisticWorkoutUpdateFromPayload(payload);
         enqueue(payload);
         return;
       }

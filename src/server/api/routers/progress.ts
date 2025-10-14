@@ -5,8 +5,9 @@ import {
   workoutSessions,
   exerciseLinks,
   templateExercises,
+  masterExercises,
 } from "~/server/db/schema";
-import { eq, desc, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, inArray, or } from "drizzle-orm";
 import { type db } from "~/server/db";
 import {
   exerciseProgressInputSchema,
@@ -67,9 +68,13 @@ export const progressRouter = createTRPCRouter({
           input.endDate,
         );
 
-        // Get all session exercises for this exercise in the time range
-        // Using computed columns for better performance
-        const sessionData = await ctx.db
+        // Calculate previous period dates
+        const periodLength = endDate.getTime() - startDate.getTime();
+        const prevEndDate = new Date(startDate.getTime() - 1);
+        const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
+
+        // Single query for both current and previous periods using CASE
+        const allSessionData = await ctx.db
           .select({
             workoutDate: workoutSessions.workoutDate,
             exerciseName: sessionExercises.exerciseName,
@@ -77,9 +82,13 @@ export const progressRouter = createTRPCRouter({
             reps: sessionExercises.reps,
             sets: sessionExercises.sets,
             unit: sessionExercises.unit,
-            // Use computed columns for performance
             oneRMEstimate: sessionExercises.one_rm_estimate,
             volumeLoad: sessionExercises.volume_load,
+            period: sql<string>`CASE
+              WHEN ${gte(workoutSessions.workoutDate, startDate)} AND ${lte(workoutSessions.workoutDate, endDate)} THEN 'current'
+              WHEN ${gte(workoutSessions.workoutDate, prevStartDate)} AND ${lte(workoutSessions.workoutDate, prevEndDate)} THEN 'previous'
+              ELSE NULL
+            END`.as("period"),
           })
           .from(sessionExercises)
           .innerJoin(
@@ -90,11 +99,26 @@ export const progressRouter = createTRPCRouter({
             and(
               eq(sessionExercises.user_id, ctx.user.id),
               eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate),
+              or(
+                and(
+                  gte(workoutSessions.workoutDate, startDate),
+                  lte(workoutSessions.workoutDate, endDate),
+                ),
+                and(
+                  gte(workoutSessions.workoutDate, prevStartDate),
+                  lte(workoutSessions.workoutDate, prevEndDate),
+                ),
+              ),
             ),
           )
           .orderBy(desc(workoutSessions.workoutDate));
+
+        const sessionData = allSessionData.filter(
+          (s) => s.period === "current",
+        );
+        const prevSessionData = allSessionData.filter(
+          (s) => s.period === "previous",
+        );
 
         if (sessionData.length === 0) {
           return {
@@ -112,7 +136,6 @@ export const progressRouter = createTRPCRouter({
 
         // Calculate metrics using computed columns for performance
         const oneRMValues = sessionData.map((session) =>
-          // Use computed column if available, fallback to calculation
           session.oneRMEstimate
             ? parseFloat(String(session.oneRMEstimate))
             : calculateLocalOneRM(
@@ -131,36 +154,7 @@ export const progressRouter = createTRPCRouter({
           endDate,
         );
 
-        // Get previous period data for comparison
-        const periodLength = endDate.getTime() - startDate.getTime();
-        const prevEndDate = new Date(startDate.getTime() - 1);
-        const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
-
-        const prevSessionData = await ctx.db
-          .select({
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            // Use computed columns for performance
-            oneRMEstimate: sessionExercises.one_rm_estimate,
-            volumeLoad: sessionExercises.volume_load,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, prevStartDate),
-              lte(workoutSessions.workoutDate, prevEndDate),
-            ),
-          );
-
         const prevOneRMValues = prevSessionData.map((session) =>
-          // Use computed column if available, fallback to calculation
           session.oneRMEstimate
             ? parseFloat(String(session.oneRMEstimate))
             : calculateLocalOneRM(
@@ -330,13 +324,25 @@ export const progressRouter = createTRPCRouter({
           input.endDate,
         );
 
-        const sessionData = await ctx.db
+        // Calculate previous period dates
+        const periodLength = endDate.getTime() - startDate.getTime();
+        const prevEndDate = new Date(startDate.getTime() - 1);
+        const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
+
+        // Single query for both current and previous periods using CASE
+        const allSessionData = await ctx.db
           .select({
             workoutDate: workoutSessions.workoutDate,
             weight: sessionExercises.weight,
             reps: sessionExercises.reps,
             sets: sessionExercises.sets,
             unit: sessionExercises.unit,
+            volumeLoad: sessionExercises.volume_load,
+            period: sql<string>`CASE
+              WHEN ${gte(workoutSessions.workoutDate, startDate)} AND ${lte(workoutSessions.workoutDate, endDate)} THEN 'current'
+              WHEN ${gte(workoutSessions.workoutDate, prevStartDate)} AND ${lte(workoutSessions.workoutDate, prevEndDate)} THEN 'previous'
+              ELSE NULL
+            END`.as("period"),
           })
           .from(sessionExercises)
           .innerJoin(
@@ -347,11 +353,26 @@ export const progressRouter = createTRPCRouter({
             and(
               eq(sessionExercises.user_id, ctx.user.id),
               eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate),
+              or(
+                and(
+                  gte(workoutSessions.workoutDate, startDate),
+                  lte(workoutSessions.workoutDate, endDate),
+                ),
+                and(
+                  gte(workoutSessions.workoutDate, prevStartDate),
+                  lte(workoutSessions.workoutDate, prevEndDate),
+                ),
+              ),
             ),
           )
           .orderBy(desc(workoutSessions.workoutDate));
+
+        const sessionData = allSessionData.filter(
+          (s) => s.period === "current",
+        );
+        const prevSessionData = allSessionData.filter(
+          (s) => s.period === "previous",
+        );
 
         if (sessionData.length === 0) {
           return {
@@ -368,11 +389,13 @@ export const progressRouter = createTRPCRouter({
         const currentVolume = sessionData.reduce(
           (sum, session) =>
             sum +
-            calculateVolumeLoad(
-              session.sets || 1,
-              session.reps || 1,
-              parseFloat(String(session.weight || "0")),
-            ),
+            (session.volumeLoad
+              ? parseFloat(String(session.volumeLoad))
+              : calculateVolumeLoad(
+                  session.sets || 1,
+                  session.reps || 1,
+                  parseFloat(String(session.weight || "0")),
+                )),
           0,
         );
 
@@ -387,39 +410,16 @@ export const progressRouter = createTRPCRouter({
           endDate,
         );
 
-        // Get previous period for comparison
-        const periodLength = endDate.getTime() - startDate.getTime();
-        const prevEndDate = new Date(startDate.getTime() - 1);
-        const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
-
-        const prevSessionData = await ctx.db
-          .select({
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, prevStartDate),
-              lte(workoutSessions.workoutDate, prevEndDate),
-            ),
-          );
-
         const prevVolume = prevSessionData.reduce(
           (sum, session) =>
             sum +
-            calculateVolumeLoad(
-              session.sets || 1,
-              session.reps || 1,
-              parseFloat(String(session.weight || "0")),
-            ),
+            (session.volumeLoad
+              ? parseFloat(String(session.volumeLoad))
+              : calculateVolumeLoad(
+                  session.sets || 1,
+                  session.reps || 1,
+                  parseFloat(String(session.weight || "0")),
+                )),
           0,
         );
 
@@ -740,7 +740,7 @@ export const progressRouter = createTRPCRouter({
 
         const exerciseData = await ctx.db
           .select({
-            exerciseName: sessionExercises.exerciseName,
+            exerciseName: sql<string>`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
             workoutDate: workoutSessions.workoutDate,
             weight: sessionExercises.weight,
             reps: sessionExercises.reps,
@@ -750,6 +750,18 @@ export const progressRouter = createTRPCRouter({
           .innerJoin(
             workoutSessions,
             eq(workoutSessions.id, sessionExercises.sessionId),
+          )
+          .leftJoin(
+            templateExercises,
+            eq(templateExercises.id, sessionExercises.templateExerciseId),
+          )
+          .leftJoin(
+            exerciseLinks,
+            eq(exerciseLinks.templateExerciseId, templateExercises.id),
+          )
+          .leftJoin(
+            masterExercises,
+            eq(masterExercises.id, exerciseLinks.masterExerciseId),
           )
           .where(
             and(
@@ -1122,11 +1134,25 @@ export const progressRouter = createTRPCRouter({
           // Get PRs for all exercises
           const allExercises = await ctx.db
             .select({
-              exerciseName: sessionExercises.exerciseName,
+              exerciseName: sql<string>`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
             })
             .from(sessionExercises)
+            .leftJoin(
+              templateExercises,
+              eq(templateExercises.id, sessionExercises.templateExerciseId),
+            )
+            .leftJoin(
+              exerciseLinks,
+              eq(exerciseLinks.templateExerciseId, templateExercises.id),
+            )
+            .leftJoin(
+              masterExercises,
+              eq(masterExercises.id, exerciseLinks.masterExerciseId),
+            )
             .where(eq(sessionExercises.user_id, ctx.user.id))
-            .groupBy(sessionExercises.exerciseName);
+            .groupBy(
+              sql`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
+            );
 
           exerciseNamesToSearch = allExercises.map((e) => e.exerciseName);
         }
@@ -1317,7 +1343,7 @@ export const progressRouter = createTRPCRouter({
       logger.debug("Getting exercise list", { userId: ctx.user.id });
       const exercises = await ctx.db
         .select({
-          exerciseName: sessionExercises.exerciseName,
+          exerciseName: sql<string>`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
           lastUsed: sql<Date>`MAX(${workoutSessions.workoutDate})`,
           totalSets: sql<number>`COUNT(*)`,
         })
@@ -1326,8 +1352,22 @@ export const progressRouter = createTRPCRouter({
           workoutSessions,
           eq(workoutSessions.id, sessionExercises.sessionId),
         )
+        .leftJoin(
+          templateExercises,
+          eq(templateExercises.id, sessionExercises.templateExerciseId),
+        )
+        .leftJoin(
+          exerciseLinks,
+          eq(exerciseLinks.templateExerciseId, templateExercises.id),
+        )
+        .leftJoin(
+          masterExercises,
+          eq(masterExercises.id, exerciseLinks.masterExerciseId),
+        )
         .where(eq(sessionExercises.user_id, ctx.user.id))
-        .groupBy(sessionExercises.exerciseName)
+        .groupBy(
+          sql`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
+        )
         .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
 
       logger.debug("Exercise list result", { count: exercises.length });

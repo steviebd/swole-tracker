@@ -360,6 +360,7 @@ export const exerciseLinks = createTable(
     index("exercise_link_template_exercise_idx").on(t.templateExerciseId),
     index("exercise_link_master_exercise_idx").on(t.masterExerciseId),
     index("exercise_link_user_id_idx").on(t.user_id),
+    index("exercise_link_user_master_idx").on(t.user_id, t.masterExerciseId),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 

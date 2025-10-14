@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
-import { api } from "~/trpc/react";
+import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
+import { type RecentWorkout } from "~/lib/workout-metrics";
 
 interface PreviousBest {
   weight?: number;
@@ -226,51 +227,69 @@ export function useWorkoutSessionState({
     },
   );
 
+  const createOptimisticWorkout = (newWorkout: any): any => {
+    if (!session || !sessionTemplate) return null;
+
+    return {
+      id: sessionId,
+      templateId: session.templateId,
+      workoutDate: session.workoutDate,
+      createdAt: new Date(),
+      template: sessionTemplate,
+      exercises: newWorkout.exercises.flatMap(
+        (exercise: any, exerciseIndex: number) =>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          exercise.sets.map((set: any, setIndex: number) => ({
+            id: -(exerciseIndex * 100 + setIndex),
+            exerciseName: exercise.exerciseName,
+            setOrder: setIndex,
+            weight: set.weight ?? null,
+            reps: set.reps ?? null,
+            sets: set.sets ?? null,
+            unit: set.unit as string,
+            templateExerciseId: exercise.templateExerciseId ?? null,
+            one_rm_estimate: null,
+            volume_load: null,
+          })),
+      ),
+    };
+  };
+
+  const applyOptimisticWorkoutUpdate = (
+    optimisticWorkout: NonNullable<ReturnType<typeof createOptimisticWorkout>>,
+  ) => {
+    utils.workouts.getRecent.setData({ limit: 5 }, (old) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      if (!old) return [optimisticWorkout];
+      const existingIndex = old.findIndex((w) => w.id === optimisticWorkout.id);
+      if (existingIndex >= 0) {
+        // Replace existing
+        const newOld = [...old];
+        newOld[existingIndex] = optimisticWorkout;
+        return newOld;
+      } else {
+        // Add to front
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return [optimisticWorkout, ...old.slice(0, 4)];
+      }
+    });
+  };
+
+  const applyOptimisticWorkoutUpdateFromPayload = (payload: any) => {
+    const optimisticWorkout = createOptimisticWorkout(payload);
+    if (optimisticWorkout) {
+      applyOptimisticWorkoutUpdate(optimisticWorkout);
+    }
+  };
+
   const saveWorkout = api.workouts.save.useMutation({
     onMutate: async (newWorkout) => {
       await utils.workouts.getRecent.cancel();
       const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
 
-      if (session && sessionTemplate) {
-        const optimisticWorkout = {
-          id: sessionId,
-          user_id: session.user_id,
-          templateId: session.templateId,
-          workoutDate: session.workoutDate,
-          // Phase 3 telemetry fields with safe defaults to match cache type
-          theme_used: (session as any).theme_used ?? null,
-          device_type: (session as any).device_type ?? null,
-          perf_metrics: (session as any).perf_metrics ?? null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          template: sessionTemplate,
-          exercises: newWorkout.exercises.flatMap((exercise, exerciseIndex) =>
-            exercise.sets.map((set, setIndex) => ({
-              id: -(exerciseIndex * 100 + setIndex),
-              user_id: session.user_id,
-              sessionId: sessionId,
-              templateExerciseId: exercise.templateExerciseId ?? null,
-              exerciseName: exercise.exerciseName,
-              setOrder: setIndex,
-              weight: set.weight ?? null,
-              reps: set.reps ?? null,
-              sets: set.sets ?? null,
-              unit: set.unit as string,
-              // Provide Phase 2 nullable fields to satisfy cache type
-              rpe: null as unknown as number | null,
-              rest_seconds: null as unknown as number | null,
-              is_estimate: false,
-              is_default_applied: false,
-              one_rm_estimate: null,
-              volume_load: null,
-              createdAt: new Date(),
-            })),
-          ),
-        } as const;
-
-        utils.workouts.getRecent.setData({ limit: 5 }, (old) =>
-          old ? [optimisticWorkout, ...old.slice(0, 4)] : [optimisticWorkout],
-        );
+      const optimisticWorkout = createOptimisticWorkout(newWorkout);
+      if (optimisticWorkout) {
+        applyOptimisticWorkoutUpdate(optimisticWorkout);
       }
 
       return { previousWorkouts };
@@ -1138,6 +1157,8 @@ export function useWorkoutSessionState({
     saveWorkout,
     deleteWorkout,
     enqueue,
+    applyOptimisticWorkoutUpdate,
+    applyOptimisticWorkoutUpdateFromPayload,
 
     // interactions
     swipeSettings,
