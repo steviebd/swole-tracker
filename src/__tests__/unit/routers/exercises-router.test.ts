@@ -6,10 +6,22 @@ import { exercisesRouter } from "~/server/api/routers/exercises";
 describe("exercisesRouter", () => {
   const mockUser = { id: "user-123" };
 
+  const masterFindFirstMock = vi.fn();
+  const findManyLinksMock = vi.fn();
+  const findFirstLinkMock = vi.fn();
+
   const mockDb = {
-    select: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    query: {
+      masterExercises: {
+        findFirst: masterFindFirstMock,
+      },
+      exerciseLinks: {
+        findMany: findManyLinksMock,
+        findFirst: findFirstLinkMock,
+      },
+    },
   } as any;
 
   const mockCtx = {
@@ -36,14 +48,7 @@ describe("exercisesRouter", () => {
     });
 
     it("should reject merging non-existent exercises", async () => {
-      // Mock empty results for both exercises
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
+      masterFindFirstMock.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
 
       const caller = exercisesRouter.createCaller(mockCtx);
 
@@ -96,42 +101,14 @@ describe("exercisesRouter", () => {
       ];
 
       // Mock the database queries
-      mockDb.select
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([sourceExercise]),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([targetExercise]),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue(sourceLinks),
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]), // No duplicate links
-            }),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]), // No duplicate links
-            }),
-          }),
-        });
+      let masterCallCount = 0;
+      masterFindFirstMock.mockImplementation(() => {
+        const result = masterCallCount % 2 === 0 ? sourceExercise : targetExercise;
+        masterCallCount++;
+        return Promise.resolve(result);
+      });
+      findManyLinksMock.mockResolvedValue(sourceLinks);
+      findFirstLinkMock.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
 
       mockDb.update.mockReturnValue({
         set: vi.fn().mockReturnValue({

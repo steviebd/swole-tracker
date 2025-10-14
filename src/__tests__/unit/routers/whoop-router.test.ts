@@ -193,7 +193,9 @@ describe("whoopRouter", () => {
       mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue(mockWorkouts),
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue(mockWorkouts),
+            }),
           }),
         }),
       });

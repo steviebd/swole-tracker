@@ -1095,37 +1095,28 @@ export const exercisesRouter = createTRPCRouter({
       });
 
       // Validate that both exercises exist and belong to the user
-      const [sourceExercise, targetExercise] = await Promise.all([
-        ctx.db
-          .select()
-          .from(masterExercises)
-          .where(
-            and(
-              eq(masterExercises.id, input.sourceId),
-              eq(masterExercises.user_id, ctx.user.id),
-            ),
-          )
-          .limit(1),
-        ctx.db
-          .select()
-          .from(masterExercises)
-          .where(
-            and(
-              eq(masterExercises.id, input.targetId),
-              eq(masterExercises.user_id, ctx.user.id),
-            ),
-          )
-          .limit(1),
-      ]);
-
-      logger.debug("Query results", {
-        sourceExerciseCount: sourceExercise.length,
-        targetExerciseCount: targetExercise.length,
-        sourceExercise: sourceExercise[0],
-        targetExercise: targetExercise[0],
+      const sourceExercise = await ctx.db.query.masterExercises.findFirst({
+        where: and(
+          eq(masterExercises.id, input.sourceId),
+          eq(masterExercises.user_id, ctx.user.id),
+        ),
       });
 
-      if (sourceExercise.length === 0 || targetExercise.length === 0) {
+      const targetExercise = await ctx.db.query.masterExercises.findFirst({
+        where: and(
+          eq(masterExercises.id, input.targetId),
+          eq(masterExercises.user_id, ctx.user.id),
+        ),
+      });
+
+      logger.debug("Query results", {
+        sourceExerciseFound: Boolean(sourceExercise),
+        targetExerciseFound: Boolean(targetExercise),
+        sourceExercise,
+        targetExercise,
+      });
+
+      if (!sourceExercise || !targetExercise) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "One or both exercises not found",
@@ -1133,15 +1124,12 @@ export const exercisesRouter = createTRPCRouter({
       }
 
       // Get all links from source exercise
-      const sourceLinks = await ctx.db
-        .select()
-        .from(exerciseLinks)
-        .where(
-          and(
-            eq(exerciseLinks.masterExerciseId, input.sourceId),
-            eq(exerciseLinks.user_id, ctx.user.id),
-          ),
-        );
+      const sourceLinks = await ctx.db.query.exerciseLinks.findMany({
+        where: and(
+          eq(exerciseLinks.masterExerciseId, input.sourceId),
+          eq(exerciseLinks.user_id, ctx.user.id),
+        ),
+      });
 
       let movedLinks = 0;
       let skippedLinks = 0;
@@ -1149,19 +1137,15 @@ export const exercisesRouter = createTRPCRouter({
       // Move links from source to target, avoiding duplicates
       for (const link of sourceLinks) {
         // Check if target already has a link to this template exercise
-        const existingLink = await ctx.db
-          .select()
-          .from(exerciseLinks)
-          .where(
-            and(
-              eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
-              eq(exerciseLinks.masterExerciseId, input.targetId),
-              eq(exerciseLinks.user_id, ctx.user.id),
-            ),
-          )
-          .limit(1);
+        const existingLink = await ctx.db.query.exerciseLinks.findFirst({
+          where: and(
+            eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
+            eq(exerciseLinks.masterExerciseId, input.targetId),
+            eq(exerciseLinks.user_id, ctx.user.id),
+          ),
+        });
 
-        if (existingLink.length === 0) {
+        if (!existingLink) {
           // Move the link to target
           await ctx.db
             .update(exerciseLinks)
@@ -1202,8 +1186,8 @@ export const exercisesRouter = createTRPCRouter({
       return {
         movedLinks,
         skippedLinks,
-        sourceName: sourceExercise[0]!.name,
-        targetName: targetExercise[0]!.name,
+        sourceName: sourceExercise.name,
+        targetName: targetExercise.name,
       };
     }),
 });

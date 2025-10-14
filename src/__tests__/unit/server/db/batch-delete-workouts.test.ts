@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { batchDeleteWorkouts } from "~/server/db/utils";
 
 const transactionMock = vi.fn();
 const findManyMock = vi.fn();
@@ -7,18 +8,14 @@ const deleteWhereMock = vi.fn();
 const debugMock = vi.fn();
 const errorMock = vi.fn();
 
-vi.mock("~/server/db", () => ({
-  db: {
-    transaction: transactionMock,
-  },
-}));
+const mockDb = {
+  transaction: transactionMock,
+} as any;
 
-vi.mock("~/lib/logger", () => ({
-  logger: {
-    debug: debugMock,
-    error: errorMock,
-  },
-}));
+const mockLogger = {
+  debug: debugMock,
+  error: errorMock,
+} as any;
 
 describe("batchDeleteWorkouts", () => {
   beforeEach(() => {
@@ -48,8 +45,10 @@ describe("batchDeleteWorkouts", () => {
     findManyMock.mockResolvedValue([{ id: 1 }, { id: 3 }]);
     deleteWhereMock.mockResolvedValue({ changes: 2 });
 
-    const { batchDeleteWorkouts } = await import("~/server/db/utils");
-    const result = await batchDeleteWorkouts("user-1", [1, 2, 3]);
+    const result = await batchDeleteWorkouts("user-1", [1, 2, 3], {
+      db: mockDb,
+      logger: mockLogger,
+    });
 
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(findManyMock).toHaveBeenCalledTimes(1);
@@ -70,8 +69,10 @@ describe("batchDeleteWorkouts", () => {
     findManyMock.mockResolvedValue([{ id: 10 }, { id: 11 }]);
     deleteWhereMock.mockResolvedValue({});
 
-    const { batchDeleteWorkouts } = await import("~/server/db/utils");
-    const result = await batchDeleteWorkouts("user-2", [10, 11, 12]);
+    const result = await batchDeleteWorkouts("user-2", [10, 11, 12], {
+      db: mockDb,
+      logger: mockLogger,
+    });
 
     expect(deleteWhereMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ success: true, deletedCount: 2 });
@@ -80,9 +81,12 @@ describe("batchDeleteWorkouts", () => {
   it("throws when no valid sessions are owned by the user", async () => {
     findManyMock.mockResolvedValue([]);
 
-    const { batchDeleteWorkouts } = await import("~/server/db/utils");
-
-    await expect(batchDeleteWorkouts("user-3", [99])).rejects.toThrow(
+    await expect(
+      batchDeleteWorkouts("user-3", [99], {
+        db: mockDb,
+        logger: mockLogger,
+      }),
+    ).rejects.toThrow(
       "No valid sessions found for deletion",
     );
     expect(deleteMock).not.toHaveBeenCalled();

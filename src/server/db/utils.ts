@@ -312,20 +312,29 @@ export const batchCreateMasterExerciseLinks = async (
 /**
  * Batch delete operations with proper cleanup
  */
+type BatchDeleteDeps = {
+  db: typeof db;
+  logger: Pick<typeof logger, "debug" | "error">;
+};
+
 export const batchDeleteWorkouts = async (
   userId: string,
   sessionIds: number[],
+  deps?: Partial<BatchDeleteDeps>,
 ) => {
+  const dbClient = deps?.db ?? db;
+  const log = deps?.logger ?? logger;
+
   if (sessionIds.length === 0) return { success: true, deletedCount: 0 };
 
   const startTime = Date.now();
-  logger.debug("Starting batch workout deletion", {
+  log.debug("Starting batch workout deletion", {
     userId,
     count: sessionIds.length,
   });
 
   try {
-    return await db.transaction(async (tx) => {
+    return await dbClient.transaction(async (tx) => {
       // Verify ownership of all sessions first
       const ownedSessions = await tx.query.workoutSessions.findMany({
         where: and(
@@ -354,7 +363,7 @@ export const batchDeleteWorkouts = async (
           : validSessionIds.length;
 
       const duration = Date.now() - startTime;
-      logger.debug("Batch workout deletion completed", {
+      log.debug("Batch workout deletion completed", {
         userId,
         requestedCount: sessionIds.length,
         deletedCount,
@@ -366,7 +375,7 @@ export const batchDeleteWorkouts = async (
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error("Batch workout deletion failed", error, {
+    log.error("Batch workout deletion failed", error, {
       userId,
       count: sessionIds.length,
       durationMs: duration,
