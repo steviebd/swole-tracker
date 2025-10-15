@@ -14,7 +14,11 @@ const baseConfig = {
 
   // Performance optimizations
   experimental: {
-    optimizePackageImports: ["lucide-react", "framer-motion"],
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "@tanstack/react-query",
+    ],
   },
 
   // Bundle optimization
@@ -22,9 +26,9 @@ const baseConfig = {
     // Add support for node: protocol
     config.resolve.alias = {
       ...config.resolve.alias,
-      'node:crypto': 'crypto-browserify',
-      'node:http': 'stream-http',
-      'node:https': 'https-browserify',
+      "node:crypto": "crypto-browserify",
+      "node:http": "stream-http",
+      "node:https": "https-browserify",
     };
 
     // Optimize bundle size in production
@@ -47,6 +51,21 @@ const baseConfig = {
             name: "ui-components",
             chunks: "all",
             priority: 20,
+          },
+          // Analytics and AI chunk (lazy loaded)
+          analytics: {
+            test: /[\\/]providers[\\/]PostHogProvider|[\\/]ai-prompts[\\/]/,
+            name: "analytics-ai",
+            chunks: "all",
+            priority: 15,
+            enforce: true,
+          },
+          // Dashboard components chunk
+          dashboard: {
+            test: /[\\/]app[\\/]_components[\\/]|[\\/]components[\\/](quick-actions|weekly-progress|recent-workouts)/,
+            name: "dashboard-components",
+            chunks: "all",
+            priority: 15,
           },
         },
       };

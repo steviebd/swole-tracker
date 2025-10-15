@@ -2,9 +2,14 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { cookies } from "next/headers";
+import { Suspense, lazy } from "react";
 
 import { TRPCReactProvider } from "~/trpc/react";
-import { PostHogProvider } from "~/providers/PostHogProvider";
+const PostHogProvider = lazy(() =>
+  import("~/providers/PostHogProvider").then((module) => ({
+    default: module.PostHogProvider,
+  })),
+);
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
 import { DashboardHeader } from "~/components/dashboard-header";
@@ -54,19 +59,21 @@ export default async function RootLayout({
     >
       <body>
         <AuthProvider>
-          <PostHogProvider>
-            <ThemeProvider
-              initialTheme={initialTheme}
-              initialResolvedTheme={initialResolvedTheme}
-            >
-              <TRPCReactProvider>
-                <ErrorBoundary>
-                  <DashboardHeader />
-                  {children}
-                </ErrorBoundary>
-              </TRPCReactProvider>
-            </ThemeProvider>
-          </PostHogProvider>
+          <Suspense fallback={<div />}>
+            <PostHogProvider>
+              <ThemeProvider
+                initialTheme={initialTheme}
+                initialResolvedTheme={initialResolvedTheme}
+              >
+                <TRPCReactProvider>
+                  <ErrorBoundary>
+                    <DashboardHeader />
+                    {children}
+                  </ErrorBoundary>
+                </TRPCReactProvider>
+              </ThemeProvider>
+            </PostHogProvider>
+          </Suspense>
         </AuthProvider>
       </body>
     </html>
