@@ -131,6 +131,9 @@ function resolveDb(): DrizzleDb {
       })),
       // Add missing Drizzle properties for compatibility
       batch: vi.fn(() => []),
+      transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+        callback(mockDb),
+      ),
       resultKind: "async",
       _: {},
       $with: vi.fn(() => mockDb),

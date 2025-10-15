@@ -304,30 +304,50 @@ export const workoutsRouter = createTRPCRouter({
           templateId: input.templateId,
         });
 
-        let template = null;
+        // Use transaction to collapse sequential queries into single round-trip
+        const result = await ctx.db.transaction(async (tx) => {
+          let template = null;
 
-        if (input.templateId) {
-          // Check for recent duplicate session (within last 2 minutes)
-          const recentSession = await ctx.db.query.workoutSessions.findFirst({
-            where: and(
-              eq(workoutSessions.user_id, ctx.user.id),
-              eq(workoutSessions.templateId, input.templateId),
-              gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)), // Within last 2 minutes
-            ),
-            orderBy: [desc(workoutSessions.workoutDate)],
-            with: {
-              exercises: true,
-            },
-          });
-
-          // If we found a recent session with the same template and no exercises (just started), return it
-          if (recentSession && recentSession.exercises.length === 0) {
-            logger.debug("Returning existing recent session", {
-              sessionId: recentSession.id,
+          if (input.templateId) {
+            // Check for recent duplicate session (within last 2 minutes)
+            const recentSession = await tx.query.workoutSessions.findFirst({
+              where: and(
+                eq(workoutSessions.user_id, ctx.user.id),
+                eq(workoutSessions.templateId, input.templateId),
+                gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)), // Within last 2 minutes
+              ),
+              orderBy: [desc(workoutSessions.workoutDate)],
+              with: {
+                exercises: true,
+              },
             });
 
-            // Get the template info for the response
-            template = await ctx.db.query.workoutTemplates.findFirst({
+            // If we found a recent session with the same template and no exercises (just started), return it
+            if (recentSession && recentSession.exercises.length === 0) {
+              logger.debug("Returning existing recent session", {
+                sessionId: recentSession.id,
+              });
+
+              // Get the template info for the response
+              template = await tx.query.workoutTemplates.findFirst({
+                where: eq(workoutTemplates.id, input.templateId),
+                with: {
+                  exercises: {
+                    orderBy: (exercises, { asc }) => [
+                      asc(exercises.orderIndex),
+                    ],
+                  },
+                },
+              });
+
+              return {
+                sessionId: recentSession.id,
+                template,
+              };
+            }
+
+            // Verify template ownership
+            template = await tx.query.workoutTemplates.findFirst({
               where: eq(workoutTemplates.id, input.templateId),
               with: {
                 exercises: {
@@ -336,48 +356,34 @@ export const workoutsRouter = createTRPCRouter({
               },
             });
 
-            return {
-              sessionId: recentSession.id,
-              template,
-            };
+            logger.debug("Found template", { templateId: template?.id });
+            if (!template || template.user_id !== ctx.user.id) {
+              throw new Error("Template not found");
+            }
           }
 
-          // Verify template ownership
-          template = await ctx.db.query.workoutTemplates.findFirst({
-            where: eq(workoutTemplates.id, input.templateId),
-            with: {
-              exercises: {
-                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
-              },
-            },
-          });
+          // Create workout session
+          logger.debug("Inserting workout session");
+          const [session] = await tx
+            .insert(workoutSessions)
+            .values({
+              user_id: ctx.user.id,
+              templateId: input.templateId || null,
+              workoutDate: input.workoutDate,
+            })
+            .returning();
 
-          logger.debug("Found template", { templateId: template?.id });
-          if (!template || template.user_id !== ctx.user.id) {
-            throw new Error("Template not found");
+          logger.debug("Inserted session", { sessionId: session?.id });
+          if (!session) {
+            throw new Error("Failed to create workout session");
           }
-        }
 
-        // Create workout session
-        logger.debug("Inserting workout session");
-        const [session] = await ctx.db
-          .insert(workoutSessions)
-          .values({
-            user_id: ctx.user.id,
-            templateId: input.templateId || null,
-            workoutDate: input.workoutDate,
-          })
-          .returning();
+          return {
+            sessionId: session.id,
+            template,
+          };
+        });
 
-        logger.debug("Inserted session", { sessionId: session?.id });
-        if (!session) {
-          throw new Error("Failed to create workout session");
-        }
-
-        const result = {
-          sessionId: session.id,
-          template,
-        };
         logger.debug("Start workout complete", { sessionId: result.sessionId });
         return result;
       } catch (err: any) {

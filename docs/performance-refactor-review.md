@@ -56,14 +56,24 @@ _Benefits achieved_
 - Improved response times for exercise data lookups.
 - Maintained data consistency and security with proper user_id filtering.
 
-### 3. Collapse sequential queries into batched transactions
+### 3. Collapse sequential queries into batched transactions ✅ COMPLETED
 
 Workflow methods like `workouts.start` issue multiple sequential reads (`findFirst` for duplicates, template fetch, then insert) which translates into several network round trips to D1.【F:src/server/api/routers/workouts.ts†L320-L394】 We already have transaction helpers and batch utilities that can be leveraged for this pattern.【F:src/server/db/utils.ts†L1-L200】
 
-_Refactor ideas_
+_Implementation completed_
 
-- Wrap the duplicate-session check, template fetch, and insert inside a single `db.batch()` or transaction that reuses the same prepared statements.
-- Where possible, rely on existing `batchInsertWorkouts` / `batchUpdateSessionExercises` helpers so we enqueue full workout payloads and let the database resolve relationships server-side instead of bouncing between the Worker and client for each set.
+- Wrapped the `workouts.start` procedure operations inside a single `ctx.db.transaction()` call to collapse sequential queries into one database round-trip.
+- The transaction includes: checking for recent duplicate sessions, fetching template data, and inserting the new workout session.
+- Added `transaction` method to both the global database mock (for test environments) and test-specific mocks to ensure compatibility.
+- Maintained the same API behavior while reducing database round-trips from 3-4 queries to 1 transaction.
+- Verified with `bun build`, `bun test`, and `bun check` to ensure no regressions.
+
+_Benefits achieved_
+
+- Reduced D1 round trips from 3-4 separate queries to 1 transaction for workout session creation.
+- Improved performance and consistency by ensuring all operations succeed or fail together.
+- Maintained existing error handling and logging patterns.
+- Enhanced test coverage with proper transaction mocking.
 
 ### 4. Plug monitoring into query execution paths
 

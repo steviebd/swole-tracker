@@ -46,7 +46,7 @@ const createMockDb = () => {
   const updateQueue: unknown[][] = [];
   const deleteQueue: unknown[][] = [];
 
-  return {
+  const mockDb = {
     query: {
       workoutSessions: {
         findMany: vi.fn(),
@@ -71,8 +71,13 @@ const createMockDb = () => {
     insert: vi.fn(() => createQueryChain(insertQueue)),
     update: vi.fn(() => createQueryChain(updateQueue)),
     delete: vi.fn(() => createQueryChain(deleteQueue)),
+    transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+      callback(mockDb),
+    ),
     all: vi.fn(async () => []),
   } as any;
+
+  return mockDb;
 };
 
 describe("workoutsRouter", () => {

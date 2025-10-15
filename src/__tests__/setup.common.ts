@@ -1,7 +1,9 @@
 import { beforeAll } from "vitest";
 
 // Ensure NODE_ENV defaults to test so runtime guards behave as expected
-process.env.NODE_ENV = process.env.NODE_ENV ?? "test";
+if (!process.env.NODE_ENV) {
+  (process.env as any).NODE_ENV = "test";
+}
 
 process.env.WORKER_SESSION_SECRET ??=
   "test_session_secret_32_chars_minimum_12345678901234567890123456789012";
