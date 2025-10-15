@@ -119,13 +119,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-       - name: Generate wrangler.toml
-         run: ./scripts/update-wrangler-config.sh "$DEPLOY_ENV"
+      - name: Generate wrangler.toml
+        run: ./scripts/update-wrangler-config.sh "$DEPLOY_ENV"
 
-       - name: Build application
-         run: bun run build
+      - name: Build application
+        run: bun run build
 
-       - name: Deploy to Cloudflare
+      - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
