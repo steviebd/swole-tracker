@@ -37,6 +37,7 @@ export default defineConfig({
         minThreads: 1,
       },
     },
+    globalSetup: ["./src/__tests__/global-setup.ts"],
     setupFiles: ["./src/__tests__/setup.common.ts"],
     globals: true,
     mockReset: true,

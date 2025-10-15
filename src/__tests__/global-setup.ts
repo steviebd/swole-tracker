@@ -1,17 +1,30 @@
-// Global setup runs before everything else
-
-process.env.WORKER_SESSION_SECRET =
-  "test_session_secret_32_chars_minimum_12345678901234567890123456789012";
-process.env.ENCRYPTION_MASTER_KEY =
-  "test_encryption_key_32_chars_minimum_12345678901234567890123456789012";
-process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
-process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_dummy";
-process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
-process.env.AI_GATEWAY_PROMPT = "Tell a fitness joke";
-process.env.AI_GATEWAY_MODEL = "openai/gpt-4o-mini";
-process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER = "3";
-process.env.VERCEL_AI_GATEWAY_API_KEY = "test-key";
+import { JSDOM } from "jsdom";
 
 export default function setup() {
-  // This runs before all tests
+  const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+    url: "http://localhost:3000",
+  });
+
+  // Set up globals
+  global.window = dom.window as any;
+  global.document = dom.window.document;
+  global.navigator = dom.window.navigator;
+  global.HTMLElement = dom.window.HTMLElement;
+  global.HTMLInputElement = dom.window.HTMLInputElement;
+  global.HTMLButtonElement = dom.window.HTMLButtonElement;
+
+  // Also set on globalThis
+  globalThis.window = dom.window as any;
+  globalThis.document = dom.window.document;
+  globalThis.navigator = dom.window.navigator;
+
+  // Copy all window properties to global
+  Object.keys(dom.window).forEach((key) => {
+    if (!(key in global)) {
+      (global as any)[key] = (dom.window as any)[key];
+    }
+    if (!(key in globalThis)) {
+      (globalThis as any)[key] = (dom.window as any)[key];
+    }
+  });
 }
