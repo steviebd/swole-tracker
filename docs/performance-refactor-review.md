@@ -38,15 +38,23 @@ _Benefits achieved_
 - Reduces D1 round trips by ensuring consistent database connections per request
 - Improves performance and reliability of database operations
 
-### 2. Adopt prepared statements and reduce raw SQL string building
+### 2. Adopt prepared statements and reduce raw SQL string building ✅ COMPLETED
 
-Several hot paths construct raw SQL strings with interpolated variables (e.g., `getLastExerciseData` and `getLatestPerformanceForTemplateExercise`).【F:src/server/api/routers/workouts.ts†L150-L300】 On Workers, every query today is parsed and planned on D1, adding latency.
+Several hot paths construct raw SQL strings with interpolated variables (e.g., getLastExerciseData and getLatestPerformanceForTemplateExercise).【F:src/server/api/routers/workouts.ts†L150-L300】 On Workers, every query today is parsed and planned on D1, adding latency.
 
-_Refactor ideas_
+_Implementation completed_
 
-- Use Drizzle’s `.prepare()` support on the D1 client so these multi-CTE queries are compiled once per Worker instance.
-- When we must fall back to raw SQL, parameterize the statements to let D1 cache query plans across executions and avoid string concatenation bugs.
-- For the exercise lookups, consider precomputing “latest set per exercise” materialized views (or denormalized tables populated by the existing batch utilities) so the Worker returns cached aggregates instead of running large CTEs on every request.
+- Converted getLastExerciseData and getLatestPerformanceForTemplateExercise to use parameterized CTE queries with Drizzle's sql` template literals, reducing multiple sequential queries to single round trips.
+- Used CTEs to handle equivalent exercises and linked exercises within the database, eliminating client-side processing and additional queries.
+- Ensured all SQL parameters are properly parameterized using ${value} syntax, allowing D1 to cache query plans across executions.
+- Maintained the same API responses while improving performance by consolidating database operations.
+
+_Benefits achieved_
+
+- Reduced D1 round trips from 3-4 queries to 1 per procedure call.
+- Enabled query plan caching in D1 through parameterization.
+- Improved response times for exercise data lookups.
+- Maintained data consistency and security with proper user_id filtering.
 
 ### 3. Collapse sequential queries into batched transactions
 

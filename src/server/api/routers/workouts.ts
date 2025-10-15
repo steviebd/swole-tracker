@@ -158,99 +158,43 @@ export const workoutsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      // First, get all equivalent exercise names (including linked ones)
-      const equivalentExercises: string[] = [input.exerciseName];
-
-      if (input.templateExerciseId) {
-        // Find linked exercises
-        const linkedResult = await ctx.db
-          .select({
-            exerciseName: templateExercises.exerciseName,
-          })
-          .from(exerciseLinks)
-          .leftJoin(
-            templateExercises,
-            eq(templateExercises.id, exerciseLinks.templateExerciseId),
+      // Use a parameterized CTE query to get the sets in one round trip
+      const setsResult = await ctx.db.all(
+        sql`
+          WITH equivalent_exercises AS (
+            SELECT ${input.exerciseName} as exercise_name
+            UNION ALL
+            SELECT te.exercise_name
+            FROM exercise_links el
+            LEFT JOIN template_exercises te ON te.id = el.template_exercise_id
+            WHERE el.user_id = ${ctx.user.id} AND el.template_exercise_id = ${input.templateExerciseId}
+          ),
+          latest_session AS (
+            SELECT ws.id as session_id
+            FROM session_exercises se
+            INNER JOIN workout_sessions ws ON se.session_id = ws.id
+            WHERE se.user_id = ${ctx.user.id}
+            AND se.exercise_name IN (SELECT exercise_name FROM equivalent_exercises)
+            AND (${input.templateExerciseId} IS NULL OR se.template_exercise_id = ${input.templateExerciseId})
+            AND (${input.excludeSessionId} IS NULL OR se.session_id != ${input.excludeSessionId})
+            ORDER BY ws.workout_date DESC
+            LIMIT 1
           )
-          .where(
-            and(
-              eq(exerciseLinks.user_id, ctx.user.id),
-              eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
-            ),
-          );
+          SELECT se.weight, se.reps, se.sets, se.unit, se.set_order
+          FROM session_exercises se
+          WHERE se.user_id = ${ctx.user.id}
+          AND se.session_id = (SELECT session_id FROM latest_session)
+          AND se.exercise_name IN (SELECT exercise_name FROM equivalent_exercises)
+          AND (${input.templateExerciseId} IS NULL OR se.template_exercise_id = ${input.templateExerciseId})
+          ORDER BY se.set_order
+        `,
+      );
 
-        for (const result of linkedResult) {
-          if (result.exerciseName) {
-            equivalentExercises.push(result.exerciseName);
-          }
-        }
-      }
-
-      // Find the most recent session with any of these exercises
-      const conditions = [
-        eq(sessionExercises.user_id, ctx.user.id),
-        inArray(sessionExercises.exerciseName, equivalentExercises),
-      ];
-
-      if (input.templateExerciseId) {
-        conditions.push(
-          eq(sessionExercises.templateExerciseId, input.templateExerciseId),
-        );
-      }
-
-      if (input.excludeSessionId) {
-        conditions.push(ne(sessionExercises.sessionId, input.excludeSessionId));
-      }
-
-      const latestSessionResult = await ctx.db
-        .select({
-          sessionId: workoutSessions.id,
-        })
-        .from(sessionExercises)
-        .innerJoin(
-          workoutSessions,
-          eq(sessionExercises.sessionId, workoutSessions.id),
-        )
-        .where(and(...conditions))
-        .orderBy(desc(workoutSessions.workoutDate))
-        .limit(1);
-
-      if (latestSessionResult.length === 0) {
+      if (!setsResult || setsResult.length === 0) {
         return null;
       }
 
-      const latestSessionId = latestSessionResult[0]!.sessionId;
-
-      // Get the sets from that session
-      const setsConditions = [
-        eq(sessionExercises.user_id, ctx.user.id),
-        eq(sessionExercises.sessionId, latestSessionId),
-        inArray(sessionExercises.exerciseName, equivalentExercises),
-      ];
-
-      if (input.templateExerciseId) {
-        setsConditions.push(
-          eq(sessionExercises.templateExerciseId, input.templateExerciseId),
-        );
-      }
-
-      const setsResult = await ctx.db
-        .select({
-          weight: sessionExercises.weight,
-          reps: sessionExercises.reps,
-          sets: sessionExercises.sets,
-          unit: sessionExercises.unit,
-          setOrder: sessionExercises.setOrder,
-        })
-        .from(sessionExercises)
-        .where(and(...setsConditions))
-        .orderBy(asc(sessionExercises.setOrder));
-
-      if (setsResult.length === 0) {
-        return null;
-      }
-
-      const sets = setsResult.map((row, index: number) => ({
+      const sets = setsResult.map((row: any, index: number) => ({
         id: `prev-${index}`,
         weight: row.weight ?? undefined,
         reps: row.reps ?? undefined,
@@ -295,119 +239,53 @@ export const workoutsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      // Get the template exercise
-      const templateExercise = await ctx.db.query.templateExercises.findFirst({
-        where: and(
-          eq(templateExercises.id, input.templateExerciseId),
-          eq(templateExercises.user_id, ctx.user.id),
-        ),
-      });
-
-      if (!templateExercise) {
-        return null;
-      }
-
-      // Find linked exercises
-      const equivalentExercises: string[] = [templateExercise.exerciseName];
-      const equivalentTemplateIds: number[] = [input.templateExerciseId];
-
-      const linkedResult = await ctx.db
-        .select({
-          exerciseName: templateExercises.exerciseName,
-          templateExerciseId: exerciseLinks.templateExerciseId,
-        })
-        .from(exerciseLinks)
-        .leftJoin(
-          templateExercises,
-          eq(templateExercises.id, exerciseLinks.templateExerciseId),
-        )
-        .where(
-          and(
-            eq(exerciseLinks.user_id, ctx.user.id),
-            eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
+      // Use a parameterized CTE query to get the best set in one round trip
+      const result = await ctx.db.all(
+        sql`
+          WITH template_ex AS (
+            SELECT id, exercise_name FROM template_exercises WHERE id = ${input.templateExerciseId} AND user_id = ${ctx.user.id}
           ),
-        );
-
-      for (const result of linkedResult) {
-        if (result.exerciseName) {
-          equivalentExercises.push(result.exerciseName);
-        }
-        if (result.templateExerciseId) {
-          equivalentTemplateIds.push(result.templateExerciseId);
-        }
-      }
-
-      // Find the most recent session with any of these exercises
-      const conditions = [
-        eq(sessionExercises.user_id, ctx.user.id),
-        or(
-          inArray(sessionExercises.exerciseName, equivalentExercises),
-          inArray(sessionExercises.templateExerciseId, equivalentTemplateIds),
-        ),
-      ];
-
-      if (input.excludeSessionId) {
-        conditions.push(ne(sessionExercises.sessionId, input.excludeSessionId));
-      }
-
-      const latestSessionResult = await ctx.db
-        .select({
-          sessionId: workoutSessions.id,
-          workoutDate: workoutSessions.workoutDate,
-        })
-        .from(sessionExercises)
-        .innerJoin(
-          workoutSessions,
-          eq(sessionExercises.sessionId, workoutSessions.id),
-        )
-        .where(and(...conditions))
-        .orderBy(desc(workoutSessions.workoutDate))
-        .limit(1);
-
-      if (latestSessionResult.length === 0) {
-        return null;
-      }
-
-      const latestSessionId = latestSessionResult[0]!.sessionId;
-      const workoutDate = latestSessionResult[0]!.workoutDate;
-
-      // Get the best set (highest weight) from that session
-      const bestSetResult = await ctx.db
-        .select({
-          weight: sessionExercises.weight,
-          reps: sessionExercises.reps,
-          sets: sessionExercises.sets,
-          unit: sessionExercises.unit,
-        })
-        .from(sessionExercises)
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            eq(sessionExercises.sessionId, latestSessionId),
-            or(
-              inArray(sessionExercises.exerciseName, equivalentExercises),
-              inArray(
-                sessionExercises.templateExerciseId,
-                equivalentTemplateIds,
-              ),
-            ),
+          equivalent AS (
+            SELECT te.exercise_name, el.template_exercise_id
+            FROM exercise_links el
+            LEFT JOIN template_exercises te ON te.id = el.template_exercise_id
+            WHERE el.user_id = ${ctx.user.id} AND el.template_exercise_id = ${input.templateExerciseId}
+            UNION ALL
+            SELECT exercise_name, id FROM template_ex
           ),
-        )
-        .orderBy(desc(sessionExercises.weight))
-        .limit(1);
+          latest_session AS (
+            SELECT ws.id as session_id, ws.workout_date
+            FROM session_exercises se
+            INNER JOIN workout_sessions ws ON se.session_id = ws.id
+            WHERE se.user_id = ${ctx.user.id}
+            AND (se.exercise_name IN (SELECT exercise_name FROM equivalent) OR se.template_exercise_id IN (SELECT template_exercise_id FROM equivalent))
+            AND (${input.excludeSessionId} IS NULL OR se.session_id != ${input.excludeSessionId})
+            ORDER BY ws.workout_date DESC
+            LIMIT 1
+          )
+          SELECT se.weight, se.reps, se.sets, se.unit, ls.workout_date
+          FROM session_exercises se
+          CROSS JOIN latest_session ls
+          WHERE se.user_id = ${ctx.user.id}
+          AND se.session_id = ls.session_id
+          AND (se.exercise_name IN (SELECT exercise_name FROM equivalent) OR se.template_exercise_id IN (SELECT template_exercise_id FROM equivalent))
+          ORDER BY se.weight DESC
+          LIMIT 1
+        `,
+      );
 
-      if (bestSetResult.length === 0) {
+      if (!result || result.length === 0) {
         return null;
       }
 
-      const bestSet = bestSetResult[0]!;
+      const bestSet = result[0] as any;
 
       return {
         weight: bestSet.weight,
         reps: bestSet.reps,
         sets: bestSet.sets,
         unit: bestSet.unit,
-        workoutDate,
+        workoutDate: bestSet.workout_date,
       };
     }),
 

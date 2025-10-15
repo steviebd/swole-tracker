@@ -27,8 +27,10 @@ const createQueryChain = <TData extends unknown[]>(
     onConflictDoUpdate: vi.fn(() => chain),
     execute: vi.fn(async () => chain.result),
     all: vi.fn(async () => chain.result),
-    then: (resolve: (value: TData) => void, reject?: (reason: unknown) => void) =>
-      Promise.resolve(chain.result as TData).then(resolve, reject),
+    then: (
+      resolve: (value: TData) => void,
+      reject?: (reason: unknown) => void,
+    ) => Promise.resolve(chain.result as TData).then(resolve, reject),
     catch: (reject: (reason: unknown) => void) =>
       Promise.resolve(chain.result as TData).catch(reject),
     finally: (cb: () => void) =>
@@ -69,6 +71,7 @@ const createMockDb = () => {
     insert: vi.fn(() => createQueryChain(insertQueue)),
     update: vi.fn(() => createQueryChain(updateQueue)),
     delete: vi.fn(() => createQueryChain(deleteQueue)),
+    all: vi.fn(async () => []),
   } as any;
 };
 
@@ -244,14 +247,13 @@ describe("workoutsRouter", () => {
 
   describe("getLastExerciseData", () => {
     it("should return last exercise data for simple exercise", async () => {
-      mockDb.queueSelectResult([{ sessionId: 1 }]);
-      mockDb.queueSelectResult([
+      mockDb.all.mockResolvedValue([
         {
           weight: 80,
           reps: 8,
           sets: 3,
           unit: "kg",
-          setOrder: 0,
+          set_order: 0,
         },
       ]);
 
@@ -280,18 +282,13 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle exercise links for linked exercises", async () => {
-      mockDb.queueSelectResult([
-        { exerciseName: "Bench Press (Barbell)" },
-        { exerciseName: "Bench Press (Dumbbell)" },
-      ]);
-      mockDb.queueSelectResult([{ sessionId: 1 }]);
-      mockDb.queueSelectResult([
+      mockDb.all.mockResolvedValue([
         {
           weight: 75,
           reps: 10,
           sets: 4,
           unit: "kg",
-          setOrder: 0,
+          set_order: 0,
         },
       ]);
 
@@ -321,18 +318,13 @@ describe("workoutsRouter", () => {
     });
 
     it("should exclude specified session", async () => {
-      mockDb.queueSelectResult([
-        {
-          sessionId: 3,
-        },
-      ]);
-      mockDb.queueSelectResult([
+      mockDb.all.mockResolvedValue([
         {
           weight: 80,
           reps: 8,
           sets: 3,
           unit: "kg",
-          setOrder: 0,
+          set_order: 0,
         },
       ]);
 
@@ -362,7 +354,7 @@ describe("workoutsRouter", () => {
     });
 
     it("should return null if no previous data found", async () => {
-      mockDb.queueSelectResult([]);
+      mockDb.all.mockResolvedValue([]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -405,8 +397,10 @@ describe("workoutsRouter", () => {
       const insertChain: any = {
         values: vi.fn(() => insertChain),
         returning: vi.fn(async () => [mockSession]),
-        then: (resolve: (value: unknown[]) => void, reject?: (reason: unknown) => void) =>
-          Promise.resolve([mockSession]).then(resolve, reject),
+        then: (
+          resolve: (value: unknown[]) => void,
+          reject?: (reason: unknown) => void,
+        ) => Promise.resolve([mockSession]).then(resolve, reject),
       };
       mockDb.insert.mockImplementation(() => insertChain);
 
@@ -519,8 +513,10 @@ describe("workoutsRouter", () => {
         from: vi.fn(() => selectChain),
         where: vi.fn(() => selectChain),
         orderBy: vi.fn(() => selectChain),
-        then: (resolve: (value: typeof mockExistingSets) => void, reject?: (reason: unknown) => void) =>
-          Promise.resolve(mockExistingSets).then(resolve, reject),
+        then: (
+          resolve: (value: typeof mockExistingSets) => void,
+          reject?: (reason: unknown) => void,
+        ) => Promise.resolve(mockExistingSets).then(resolve, reject),
       };
       mockDb.select.mockImplementation(() => selectChain);
 
