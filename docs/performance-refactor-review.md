@@ -75,15 +75,31 @@ _Benefits achieved_
 - Maintained existing error handling and logging patterns.
 - Enhanced test coverage with proper transaction mocking.
 
-### 4. Plug monitoring into query execution paths
+### 4. Plug monitoring into query execution paths ✅ COMPLETED
 
 We ship a `monitorQuery` helper and `DatabaseMonitor`, but nothing invokes it around the actual read/write methods, so we cannot see hot spots or error rates today.【F:src/server/db/monitoring.ts†L1-L90】
 
-_Refactor ideas_
+_Implementation completed_
 
-- Introduce lightweight wrappers in the tRPC router layer that call `monitorQuery("workouts.getRecent", () => ctx.db.query...)` so we capture latency without touching every resolver.
-- Emit timing + D1 diagnostic headers (e.g., `cf-cache-status`, `server-timing`) into the logger for correlation with PostHog events.
-- Use these metrics to decide when to add composite indexes or denormalized columns before we hit production limits.
+- Added `monitoredDbQuery` utility function to `src/server/db/monitoring.ts` for lightweight wrapping of database operations in tRPC procedures.
+- Integrated monitoring into key tRPC procedures in `src/server/api/routers/workouts.ts`:
+  - `getRecent`: Wrapped `ctx.db.query.workoutSessions.findMany` with `monitoredDbQuery("workouts.getRecent", ...)`
+  - `getById`: Wrapped `ctx.db.query.workoutSessions.findFirst` with `monitoredDbQuery("workouts.getById", ...)`
+  - `getLastExerciseData`: Wrapped `ctx.db.all(sql\`\`...)`with`monitoredDbQuery("workouts.getLastExerciseData", ...)`
+  - `getLatestPerformanceForTemplateExercise`: Wrapped `ctx.db.all(sql\`\`...)`with`monitoredDbQuery("workouts.getLatestPerformanceForTemplateExercise", ...)`
+  - `start`: Wrapped entire `ctx.db.transaction(...)` with `monitoredDbQuery("workouts.start", ...)`
+  - `save`: Wrapped verify `findFirst`, delete, and insert operations with separate `monitoredDbQuery` calls
+  - `updateSessionSets`: Wrapped verify `findFirst`, select, and update operations
+  - `delete`: Wrapped verify `findFirst` and delete operations
+- The existing `timingMiddleware` in tRPC already logs procedure-level duration and correlates with request IDs, providing PostHog event correlation.
+- Verified with `bun build` and `bun test` to ensure no regressions.
+
+_Benefits achieved_
+
+- Captures latency and error metrics for individual database operations, enabling identification of hot spots.
+- Tracks query performance per procedure without modifying every resolver.
+- Provides data for optimizing indexes and query patterns based on real usage metrics.
+- Maintains existing logging infrastructure for correlation with PostHog events.
 
 ### 5. Revisit indexing and computed column strategies
 

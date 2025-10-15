@@ -30,7 +30,18 @@ describe("rate-limit", () => {
           })),
         })),
       } as any;
-      await expect(checkRateLimit(mockDb, userId, endpoint, limit, windowMs)).resolves.not.toThrow();
+      const result = await checkRateLimit(
+        mockDb,
+        userId,
+        endpoint,
+        limit,
+        windowMs,
+      );
+      expect(result).toEqual({
+        allowed: true,
+        remaining: 9,
+        resetTime: expect.any(Date),
+      });
     });
   });
 
@@ -41,7 +52,8 @@ describe("rate-limit", () => {
           where: vi.fn(() => Promise.resolve()),
         })),
       } as any;
-      await expect(cleanupExpiredRateLimits(mockDb)).resolves.not.toThrow();
+      const result = await cleanupExpiredRateLimits(mockDb);
+      expect(result).toBeUndefined();
     });
   });
 });
