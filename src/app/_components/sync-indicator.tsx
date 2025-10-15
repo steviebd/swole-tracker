@@ -1,26 +1,64 @@
 "use client";
 
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
+import React from "react";
+import { useSyncIndicator } from "~/hooks/use-sync-indicator";
 
 export function SyncIndicator() {
-  const isFetching = useIsFetching();
-  const isMutating = useIsMutating();
-  const isActive = isFetching > 0 || isMutating > 0;
+  const { status, isActive, badgeText } = useSyncIndicator();
 
   if (!isActive) {
     return null;
   }
 
+  const getBackgroundColor = () => {
+    switch (status) {
+      case "error":
+        return "bg-red-600";
+      case "offline":
+        return "bg-orange-600";
+      case "saving":
+      case "syncing":
+        return "bg-blue-600";
+      default:
+        return "bg-green-600";
+    }
+  };
+
   return (
-    <div className="fixed top-4 right-4 z-40 flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-background shadow-lg">
-      <div className="flex space-x-1">
-        <div className="h-1 w-1 animate-bounce rounded-full bg-background [animation-delay:-0.3s]"></div>
-        <div className="h-1 w-1 animate-bounce rounded-full bg-background [animation-delay:-0.15s]"></div>
-        <div className="h-1 w-1 animate-bounce rounded-full bg-background"></div>
-      </div>
-      <span className="text-xs">
-        {isMutating > 0 ? "Saving..." : "Syncing..."}
-      </span>
+    <div
+      className={`text-background fixed top-4 right-4 z-40 flex items-center gap-2 rounded-lg px-3 py-2 shadow-lg ${getBackgroundColor()}`}
+    >
+      {(status === "syncing" || status === "saving") && (
+        <div className="flex space-x-1">
+          <div
+            className="bg-background h-1 w-1 animate-bounce rounded-full [animation-delay:-0.3s]"
+            data-testid="animated-dot"
+          ></div>
+          <div
+            className="bg-background h-1 w-1 animate-bounce rounded-full [animation-delay:-0.15s]"
+            data-testid="animated-dot"
+          ></div>
+          <div
+            className="bg-background h-1 w-1 animate-bounce rounded-full"
+            data-testid="animated-dot"
+          ></div>
+        </div>
+      )}
+      {status === "offline" && (
+        <div
+          className="bg-background h-2 w-2 animate-pulse rounded-full"
+          data-testid="pulse-dot"
+        ></div>
+      )}
+      {status === "error" && (
+        <div
+          className="bg-background flex h-2 w-2 items-center justify-center rounded-full text-xs"
+          data-testid="error-indicator"
+        >
+          !
+        </div>
+      )}
+      <span className="text-xs">{badgeText}</span>
     </div>
   );
 }

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { desc, asc, max, count } from "drizzle-orm";
+import { workoutTemplates, workoutSessions } from "~/server/db/schema";
 
 // Import after mocking
 import { workoutsRouter } from "~/server/api/routers/workouts";
+import * as sessionDebrief from "~/server/api/services/session-debrief";
 
 type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 
@@ -93,6 +96,7 @@ describe("workoutsRouter", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(sessionDebrief, "generateAndPersistDebrief");
     mockDb = createMockDb();
     mockCtx = {
       db: mockDb,
@@ -484,6 +488,49 @@ describe("workoutsRouter", () => {
           exercises: [],
         }),
       ).rejects.toThrow("Workout session not found");
+    });
+
+    it("should trigger generateAndPersistDebrief when saving exercises", async () => {
+      const mockSession = {
+        id: 1,
+        user_id: "user-123",
+        templateId: 1,
+        workoutDate: "2024-01-01",
+        createdAt: new Date(),
+        updatedAt: null,
+      };
+
+      mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+
+      const caller = workoutsRouter.createCaller(mockCtx);
+      await caller.save({
+        sessionId: 1,
+        exercises: [
+          {
+            templateExerciseId: 1,
+            exerciseName: "Bench Press",
+            sets: [
+              {
+                id: "set-1",
+                weight: 80,
+                reps: 8,
+                sets: 3,
+                unit: "kg",
+              },
+            ],
+            unit: "kg",
+          },
+        ],
+      });
+
+      expect(sessionDebrief.generateAndPersistDebrief).toHaveBeenCalledWith({
+        dbClient: mockDb,
+        userId: "user-123",
+        sessionId: 1,
+        locale: undefined,
+        trigger: "auto",
+        requestId: "test-request",
+      });
     });
   });
 

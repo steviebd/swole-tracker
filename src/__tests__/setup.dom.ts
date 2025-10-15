@@ -33,6 +33,18 @@ const ensureLocalStorage = () => {
     writable: true,
     configurable: true,
   });
+
+  // Ensure crypto.randomUUID is available
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    !globalThis.crypto.randomUUID
+  ) {
+    Object.defineProperty(globalThis.crypto, "randomUUID", {
+      value: () => "test-uuid-123",
+      writable: true,
+      configurable: true,
+    });
+  }
 };
 
 const ensureMatchMedia = () => {

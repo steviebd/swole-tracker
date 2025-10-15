@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { desc, asc, max, count } from "drizzle-orm";
+import { workoutTemplates, workoutSessions } from "~/server/db/schema";
 
 // Import after mocking
 import { templatesRouter } from "~/server/api/routers/templates";
@@ -126,6 +128,9 @@ describe("templatesRouter", () => {
 
       const selectChain = mockDb.select.mock.results[0].value;
       expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
+      expect(selectChain.orderBy).toHaveBeenCalledWith(
+        desc(workoutTemplates.createdAt),
+      );
     });
 
     it("should sort by lastUsed when sort='lastUsed'", async () => {
@@ -157,6 +162,9 @@ describe("templatesRouter", () => {
 
       const selectChain = mockDb.select.mock.results[0].value;
       expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
+      expect(selectChain.orderBy).toHaveBeenCalledWith(
+        desc(max(workoutSessions.workoutDate)),
+      );
     });
 
     it("should sort by mostUsed when sort='mostUsed'", async () => {
@@ -188,6 +196,9 @@ describe("templatesRouter", () => {
 
       const selectChain = mockDb.select.mock.results[0].value;
       expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
+      expect(selectChain.orderBy).toHaveBeenCalledWith(
+        desc(count(workoutSessions.id)),
+      );
     });
 
     it("should sort by name when sort='name'", async () => {
@@ -219,99 +230,9 @@ describe("templatesRouter", () => {
 
       const selectChain = mockDb.select.mock.results[0].value;
       expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
-    });
-
-    it("should sort by lastUsed when sort='lastUsed'", async () => {
-      const mockStats = [
-        {
-          template: {
-            id: 1,
-            name: "Template 1",
-            user_id: "user-123",
-            createdAt: new Date(),
-          },
-          lastUsed: new Date("2024-01-01"),
-          totalSessions: 1,
-        },
-      ];
-      mockDb.queueSelectResult(mockStats);
-      mockDb.query.workoutTemplates.findMany.mockResolvedValue([
-        {
-          id: 1,
-          name: "Template 1",
-          user_id: "user-123",
-          createdAt: new Date(),
-          exercises: [],
-        },
-      ]);
-
-      const caller = templatesRouter.createCaller(mockCtx);
-      await caller.getAll({ sort: "lastUsed" });
-
-      const selectChain = mockDb.select.mock.results[0].value;
-      expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
-    });
-
-    it("should sort by mostUsed when sort='mostUsed'", async () => {
-      const mockStats = [
-        {
-          template: {
-            id: 1,
-            name: "Template 1",
-            user_id: "user-123",
-            createdAt: new Date(),
-          },
-          lastUsed: null,
-          totalSessions: 5,
-        },
-      ];
-      mockDb.queueSelectResult(mockStats);
-      mockDb.query.workoutTemplates.findMany.mockResolvedValue([
-        {
-          id: 1,
-          name: "Template 1",
-          user_id: "user-123",
-          createdAt: new Date(),
-          exercises: [],
-        },
-      ]);
-
-      const caller = templatesRouter.createCaller(mockCtx);
-      await caller.getAll({ sort: "mostUsed" });
-
-      const selectChain = mockDb.select.mock.results[0].value;
-      expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
-    });
-
-    it("should sort by name when sort='name'", async () => {
-      const mockStats = [
-        {
-          template: {
-            id: 1,
-            name: "Template A",
-            user_id: "user-123",
-            createdAt: new Date(),
-          },
-          lastUsed: null,
-          totalSessions: 0,
-        },
-      ];
-      mockDb.queueSelectResult(mockStats);
-      mockDb.query.workoutTemplates.findMany.mockResolvedValue([
-        {
-          id: 1,
-          name: "Template A",
-          user_id: "user-123",
-          createdAt: new Date(),
-          exercises: [],
-        },
-      ]);
-
-      const caller = templatesRouter.createCaller(mockCtx);
-      await caller.getAll({ sort: "name" });
-
-      const selectChain = mockDb.select.mock.results[0].value;
-      expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
+      expect(selectChain.orderBy).toHaveBeenCalledWith(
+        asc(workoutTemplates.name),
+      );
     });
   });
 });

@@ -166,18 +166,25 @@ export const workoutsRouter = createTRPCRouter({
             ${ctx.user.id} AS userId,
             ${input.excludeSessionId} AS excludeSessionId
         ),
-        linked AS (
-          SELECT NULL AS masterExerciseId, NULL AS exerciseName, NULL AS templateExerciseId
-          WHERE 1 = 0
-        ),
+         linked AS (
+           SELECT el.masterExerciseId, me.name AS exerciseName, el.templateExerciseId
+           FROM exercise_link el
+           JOIN master_exercise me ON me.id = el.masterExerciseId
+           WHERE el.user_id = (SELECT userId FROM vars)
+           AND (SELECT templateExerciseId FROM vars) IS NOT NULL
+           AND el.templateExerciseId = (SELECT templateExerciseId FROM vars)
+         ),
         all_exercises AS (
           SELECT (SELECT exerciseName FROM vars) AS exerciseName
           UNION ALL
           SELECT exerciseName FROM linked WHERE masterExerciseId IS NOT NULL
         ),
-        all_template_ids AS (
-          SELECT templateExerciseId FROM linked WHERE masterExerciseId IS NOT NULL
-        ),
+         all_template_ids AS (
+           SELECT (SELECT templateExerciseId FROM vars) AS templateExerciseId
+           WHERE (SELECT templateExerciseId FROM vars) IS NOT NULL
+           UNION
+           SELECT templateExerciseId FROM linked WHERE masterExerciseId IS NOT NULL
+         ),
         latest_session AS (
           SELECT se.sessionId
           FROM session_exercise se

@@ -16,6 +16,8 @@ process.env.NEXT_PUBLIC_POSTHOG_KEY ??= "phc_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_HOST ??= "https://us.i.posthog.com";
 process.env.AI_GATEWAY_PROMPT ??= "Tell a fitness joke";
 process.env.AI_GATEWAY_MODEL ??= "openai/gpt-4o-mini";
+process.env.AI_GATEWAY_MODEL_HEALTH ??= "xai/grok-3-mini";
+process.env.AI_DEBRIEF_TEMPERATURE ??= "0.7";
 process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER ??= "3";
 process.env.VERCEL_AI_GATEWAY_API_KEY ??= "test-key";
 
@@ -87,7 +89,10 @@ beforeAll(() => {
 
 if (typeof globalThis.crypto === "undefined") {
   const { webcrypto } = await import("node:crypto");
-  globalThis.crypto = webcrypto as unknown as Crypto;
+  globalThis.crypto = {
+    ...webcrypto,
+    randomUUID: () => "test-uuid-123",
+  } as unknown as Crypto;
 }
 
 ensureBase64Helpers();
