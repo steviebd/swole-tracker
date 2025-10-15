@@ -1,4 +1,6 @@
-import { beforeAll } from "vitest";
+import { beforeAll, vi } from "vitest";
+
+(globalThis as any).vi = vi;
 
 // Ensure NODE_ENV defaults to test so runtime guards behave as expected
 if (!process.env.NODE_ENV) {
@@ -30,19 +32,16 @@ const ensureDomEnvironment = async () => {
 
   const { window: jsdomWindow } = dom;
 
-  globalThis.window = jsdomWindow as unknown as Window & typeof globalThis;
-  globalThis.document = jsdomWindow.document;
-  globalThis.navigator = jsdomWindow.navigator;
-  globalThis.self = jsdomWindow as unknown as typeof globalThis;
-  globalThis.HTMLElement =
-    jsdomWindow.HTMLElement as typeof globalThis.HTMLElement;
-  globalThis.CustomEvent =
-    jsdomWindow.CustomEvent as typeof globalThis.CustomEvent;
-  globalThis.getComputedStyle = jsdomWindow.getComputedStyle.bind(
-    jsdomWindow,
-  );
-  globalThis.Event = jsdomWindow.Event as typeof globalThis.Event;
-  globalThis.Node = jsdomWindow.Node as typeof globalThis.Node;
+  (globalThis as any).window = jsdomWindow;
+  (globalThis as any).document = jsdomWindow.document;
+  (globalThis as any).navigator = jsdomWindow.navigator;
+  (globalThis as any).self = jsdomWindow;
+  (globalThis as any).HTMLElement = jsdomWindow.HTMLElement;
+  (globalThis as any).CustomEvent = jsdomWindow.CustomEvent;
+  (globalThis as any).getComputedStyle =
+    jsdomWindow.getComputedStyle.bind(jsdomWindow);
+  (globalThis as any).Event = jsdomWindow.Event;
+  (globalThis as any).Node = jsdomWindow.Node;
 
   // Some libraries access window.location.{...} setters; cloning ensures they exist.
   Object.defineProperty(globalThis, "location", {

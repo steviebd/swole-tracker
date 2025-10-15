@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
+
+(globalThis as any).vi = vi;
 import { setupServer } from "msw/node";
 import { workosAuthHandlers } from "./mocks/workos-auth";
 

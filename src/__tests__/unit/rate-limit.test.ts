@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Import after mocking
 import { checkRateLimit, cleanupExpiredRateLimits } from "~/lib/rate-limit";
 
 describe("rate-limit", () => {
@@ -11,6 +9,8 @@ describe("rate-limit", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset any spies on the functions
+    vi.restoreAllMocks();
   });
 
   describe("checkRateLimit", () => {
