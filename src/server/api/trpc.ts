@@ -11,8 +11,9 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { SessionCookie } from "~/lib/session-cookie";
+import type { D1Database } from "@cloudflare/workers-types";
 
-import { db } from "~/server/db";
+import { createDb, db as fallbackDb, getD1Binding } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
 
 /**
@@ -32,10 +33,11 @@ type TrpcUser = {
 } | null;
 
 export type TRPCContext = {
-  db: typeof db;
+  db: ReturnType<typeof createDb>;
   user: TrpcUser;
   requestId: string;
   headers: Headers;
+  timings?: Map<string, number>;
 };
 
 export const createTRPCContext = async (opts: {
@@ -59,20 +61,27 @@ export const createTRPCContext = async (opts: {
       user = { id: session.userId };
     }
 
+    // Get D1 binding from Cloudflare context
+    const dbBinding = getD1Binding();
+    const db = createDb(dbBinding);
+
     return {
       db,
       user,
       requestId,
       headers: opts.headers,
+      timings: new Map(),
     };
   } catch (error) {
-    console.error('tRPC context: Failed to get session:', error);
+    console.error("tRPC context: Failed to get session:", error);
     // In case of any session errors, return context with no user
+    // For error cases, fall back to the global db instance
     return {
-      db,
+      db: fallbackDb,
       user: null,
       requestId,
       headers: opts.headers,
+      timings: new Map(),
     };
   }
 };
@@ -90,11 +99,11 @@ export const t = initTRPC.context<TRPCContext>().create({
     // Attach requestId and normalized error info for easier troubleshooting
     const requestId = ctx?.requestId;
     const isProduction = process.env.NODE_ENV === "production";
-    
+
     // Sanitize error messages for production to prevent information disclosure
     const sanitizeMessage = (message: string): string => {
       if (!isProduction) return message;
-      
+
       // In production, sanitize potentially sensitive error messages
       const sensitivePatterns = [
         /invalid input syntax for type/i,
@@ -118,13 +127,13 @@ export const t = initTRPC.context<TRPCContext>().create({
         /bearer/i,
         /oauth/i,
       ];
-      
+
       for (const pattern of sensitivePatterns) {
         if (pattern.test(message)) {
           return "Operation failed. Please contact support.";
         }
       }
-      
+
       // Remove potential file paths and internal references
       return message
         .replace(/\/[a-zA-Z0-9_\-./]+\.(js|ts|tsx|jsx)/g, "[file]")
@@ -238,6 +247,10 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
   const result = await next();
 
   const end = Date.now();
+  const duration = end - start;
+
+  // Store timing for Server-Timing header
+  ctx.timings?.set(`trpc-${path.replace(/\./g, "-")}`, duration);
 
   // Correlated, structured timing log
   const userId = ctx.user?.id ?? "anonymous";
@@ -246,9 +259,9 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
     path,
     userId,
     requestId,
-    durationMs: end - start,
+    durationMs: duration,
   });
-  logApiCall(path, userId, end - start);
+  logApiCall(path, userId, duration);
 
   return result;
 });

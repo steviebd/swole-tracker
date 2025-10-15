@@ -4,11 +4,19 @@ import path from "path";
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
-    setupFiles: ["./src/__tests__/setup.ts"],
+    environment: "node",
+    setupFiles: ["./src/__tests__/setup.common.ts"],
     globals: true,
     mockReset: true,
     restoreMocks: true,
+    environmentMatchGlobs: [
+      ["src/__tests__/components/**/*.test.ts", "jsdom"],
+      ["src/__tests__/components/**/*.test.tsx", "jsdom"],
+      ["src/__tests__/unit/hooks/**/*.test.ts", "jsdom"],
+      ["src/__tests__/unit/hooks/**/*.test.tsx", "jsdom"],
+      ["src/__tests__/hooks/**/*.test.ts", "jsdom"],
+      ["src/__tests__/hooks/**/*.test.tsx", "jsdom"],
+    ],
 
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: [

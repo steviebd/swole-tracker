@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "NODE_ENV=production next build",
+    "build": "bash scripts/opennext-build.sh",
     "check": "bun run lint && bun run typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

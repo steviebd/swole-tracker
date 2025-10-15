@@ -23,6 +23,34 @@ const handler = (req: NextRequest) =>
     req,
     router: appRouter,
     createContext: () => createContext(req),
+    responseMeta: ({ ctx, paths, errors, type }) => {
+      // Collect all timings from the context
+      const timings = ctx?.timings;
+      const serverTiming: string[] = [];
+
+      if (timings) {
+        for (const [key, duration] of timings) {
+          serverTiming.push(`${key};dur=${duration}`);
+        }
+      }
+
+      // Add total request duration if we have context
+      if (ctx?.timings) {
+        const totalDuration = Array.from(ctx.timings.values()).reduce(
+          (sum, dur) => sum + dur,
+          0,
+        );
+        serverTiming.push(`total;dur=${totalDuration}`);
+      }
+
+      return {
+        headers: {
+          ...(serverTiming.length > 0 && {
+            "Server-Timing": serverTiming.join(", "),
+          }),
+        },
+      };
+    },
     onError:
       env.NODE_ENV === "development"
         ? ({ path, error }) => {

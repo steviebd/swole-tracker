@@ -3,10 +3,49 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Import after mocking
 import { workoutsRouter } from "~/server/api/routers/workouts";
 
-describe("workoutsRouter", () => {
-  const mockUser = { id: "user-123" };
+type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 
-  // Create a proper mock db that supports Drizzle query interface
+const createQueryChain = <TData extends unknown[]>(
+  queue: Array<ChainResult<TData>>,
+) => {
+  const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
+
+  const chain: any = {
+    result,
+    from: vi.fn(() => chain),
+    innerJoin: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    where: vi.fn(() => chain),
+    groupBy: vi.fn(() => chain),
+    orderBy: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    limit: vi.fn(async () => chain.result),
+    offset: vi.fn(() => chain),
+    values: vi.fn(() => chain),
+    set: vi.fn(() => chain),
+    returning: vi.fn(async () => chain.result),
+    onConflictDoUpdate: vi.fn(() => chain),
+    execute: vi.fn(async () => chain.result),
+    all: vi.fn(async () => chain.result),
+    then: (
+      resolve: (value: TData) => void,
+      reject?: (reason: unknown) => void,
+    ) => Promise.resolve(chain.result as TData).then(resolve, reject),
+    catch: (reject: (reason: unknown) => void) =>
+      Promise.resolve(chain.result as TData).catch(reject),
+    finally: (cb: () => void) =>
+      Promise.resolve(chain.result as TData).finally(cb),
+  };
+
+  return chain;
+};
+
+const createMockDb = () => {
+  const selectQueue: unknown[][] = [];
+  const insertQueue: unknown[][] = [];
+  const updateQueue: unknown[][] = [];
+  const deleteQueue: unknown[][] = [];
+
   const mockDb = {
     query: {
       workoutSessions: {
@@ -24,40 +63,43 @@ describe("workoutsRouter", () => {
         findMany: vi.fn(),
       },
     },
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-      }),
-    }),
-    delete: vi.fn().mockReturnValue({
-      where: vi.fn().mockResolvedValue(undefined),
-    }),
-    update: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue(undefined),
-      }),
-    }),
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockResolvedValue([]),
-          select: vi.fn().mockResolvedValue([]),
-        }),
-      }),
-    }),
-    all: vi.fn().mockResolvedValue([]),
+    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
+    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
+    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
+    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    select: vi.fn(() => createQueryChain(selectQueue)),
+    insert: vi.fn(() => createQueryChain(insertQueue)),
+    update: vi.fn(() => createQueryChain(updateQueue)),
+    delete: vi.fn(() => createQueryChain(deleteQueue)),
+    transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+      callback(mockDb),
+    ),
+    all: vi.fn(async () => []),
   } as any;
 
-  const mockCtx = {
-    db: mockDb,
-    user: mockUser,
-    requestId: "test-request",
-    headers: new Headers(),
+  return mockDb;
+};
+
+describe("workoutsRouter", () => {
+  const mockUser = { id: "user-123" };
+
+  let mockDb: ReturnType<typeof createMockDb>;
+  let mockCtx: {
+    db: typeof mockDb;
+    user: typeof mockUser;
+    requestId: string;
+    headers: Headers;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDb.all.mockResolvedValue([]);
+    mockDb = createMockDb();
+    mockCtx = {
+      db: mockDb,
+      user: mockUser,
+      requestId: "test-request",
+      headers: new Headers(),
+    };
   });
 
   describe("getRecent", () => {
@@ -210,37 +252,15 @@ describe("workoutsRouter", () => {
 
   describe("getLastExerciseData", () => {
     it("should return last exercise data for simple exercise", async () => {
-      const mockSessions = [
+      mockDb.all.mockResolvedValue([
         {
-          id: 1,
-          exercises: [
-            {
-              id: 1,
-              exerciseName: "Bench Press",
-              weight: 80,
-              reps: 8,
-              sets: 3,
-              unit: "kg",
-              setOrder: 0,
-            },
-          ],
-        },
-      ];
-
-      const mockRows = [
-        {
-          exercise_name: "Bench Press",
           weight: 80,
           reps: 8,
           sets: 3,
           unit: "kg",
           set_order: 0,
         },
-      ];
-
-      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(null);
-      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
-      mockDb.all.mockResolvedValue(mockRows);
+      ]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -267,58 +287,15 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle exercise links for linked exercises", async () => {
-      const mockExerciseLink = {
-        masterExerciseId: 1,
-        masterExercise: { id: 1, name: "Bench Press" },
-      };
-
-      const mockLinkedExercises = [
+      mockDb.all.mockResolvedValue([
         {
-          templateExercise: {
-            exerciseName: "Bench Press (Barbell)",
-          },
-        },
-        {
-          templateExercise: {
-            exerciseName: "Bench Press (Dumbbell)",
-          },
-        },
-      ];
-
-      const mockSessions = [
-        {
-          id: 1,
-          exercises: [
-            {
-              id: 1,
-              exerciseName: "Bench Press (Barbell)",
-              weight: 75,
-              reps: 10,
-              sets: 4,
-              unit: "kg",
-              setOrder: 0,
-            },
-          ],
-        },
-      ];
-
-      const mockRows = [
-        {
-          exercise_name: "Bench Press (Barbell)",
           weight: 75,
           reps: 10,
           sets: 4,
           unit: "kg",
           set_order: 0,
         },
-      ];
-
-      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(mockExerciseLink);
-      mockDb.query.exerciseLinks.findMany.mockResolvedValue(
-        mockLinkedExercises,
-      );
-      mockDb.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
-      mockDb.all.mockResolvedValue(mockRows);
+      ]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -343,40 +320,18 @@ describe("workoutsRouter", () => {
           unit: "kg",
         },
       });
-
-      expect(result).toEqual({
-        sets: [
-          {
-            id: "prev-0",
-            weight: 75,
-            reps: 10,
-            sets: 4,
-            unit: "kg",
-          },
-        ],
-        best: {
-          weight: 75,
-          reps: 10,
-          sets: 4,
-          unit: "kg",
-        },
-      });
     });
 
     it("should exclude specified session", async () => {
-      const mockRows = [
+      mockDb.all.mockResolvedValue([
         {
-          exercise_name: "Bench Press",
           weight: 80,
           reps: 8,
           sets: 3,
           unit: "kg",
           set_order: 0,
         },
-      ];
-
-      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(null);
-      mockDb.all.mockResolvedValue(mockRows);
+      ]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getLastExerciseData({
@@ -404,8 +359,6 @@ describe("workoutsRouter", () => {
     });
 
     it("should return null if no previous data found", async () => {
-      mockDb.query.exerciseLinks.findFirst.mockResolvedValue(null);
-      mockDb.query.workoutSessions.findMany.mockResolvedValue([]);
       mockDb.all.mockResolvedValue([]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
@@ -444,14 +397,17 @@ describe("workoutsRouter", () => {
         updatedAt: null,
       };
 
-      // Mock no recent session found
-      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValueOnce(null);
       mockDb.query.workoutTemplates.findFirst.mockResolvedValue(mockTemplate);
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([mockSession]),
-        }),
-      });
+      const insertChain: any = {
+        values: vi.fn(() => insertChain),
+        returning: vi.fn(async () => [mockSession]),
+        then: (
+          resolve: (value: unknown[]) => void,
+          reject?: (reason: unknown) => void,
+        ) => Promise.resolve([mockSession]).then(resolve, reject),
+      };
+      mockDb.insert.mockImplementation(() => insertChain);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.start({
@@ -466,8 +422,7 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if template not found", async () => {
-      // Mock no recent session found
-      mockDb.query.workoutSessions.findFirst.mockResolvedValue(null);
+      mockDb.query.workoutSessions.findFirst.mockResolvedValueOnce(null);
       mockDb.query.workoutTemplates.findFirst.mockResolvedValue(null);
 
       const caller = workoutsRouter.createCaller(mockCtx);
@@ -493,16 +448,6 @@ describe("workoutsRouter", () => {
       };
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-        }),
-      });
-      mockDb.update.mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
-      });
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.save({
@@ -569,18 +514,16 @@ describe("workoutsRouter", () => {
       ];
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue(mockExistingSets),
-          }),
-        }),
-      });
-      mockDb.update.mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
-      });
+      const selectChain: any = {
+        from: vi.fn(() => selectChain),
+        where: vi.fn(() => selectChain),
+        orderBy: vi.fn(() => selectChain),
+        then: (
+          resolve: (value: typeof mockExistingSets) => void,
+          reject?: (reason: unknown) => void,
+        ) => Promise.resolve(mockExistingSets).then(resolve, reject),
+      };
+      mockDb.select.mockImplementation(() => selectChain);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.updateSessionSets({
@@ -613,9 +556,6 @@ describe("workoutsRouter", () => {
       };
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
-      mockDb.delete.mockReturnValue({
-        where: vi.fn().mockResolvedValue(undefined),
-      });
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.delete({ id: 1 });

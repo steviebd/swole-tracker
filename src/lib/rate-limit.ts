@@ -1,4 +1,4 @@
-import { db } from "~/server/db";
+import type { DrizzleDb } from "~/server/db";
 import { rateLimits } from "~/server/db/schema";
 import { eq, and, lt } from "drizzle-orm";
 
@@ -10,6 +10,7 @@ export interface RateLimitResult {
 }
 
 export async function checkRateLimit(
+  db: DrizzleDb,
   userId: string,
   endpoint: string,
   limit: number,
@@ -74,7 +75,7 @@ export async function checkRateLimit(
   };
 }
 
-export async function cleanupExpiredRateLimits(): Promise<void> {
+export async function cleanupExpiredRateLimits(db: DrizzleDb): Promise<void> {
   const cutoffTime = new Date(Date.now() - 60 * 60 * 1000);
 
   await db

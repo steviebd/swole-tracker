@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 
 export const runtime = "nodejs";
 import {
@@ -230,6 +230,7 @@ async function fetchWhoopDataV2<T>(
 }
 
 async function syncWorkouts(
+  db: ReturnType<typeof createDb>,
   userId: string,
   accessToken: string,
 ): Promise<number> {
@@ -314,6 +315,7 @@ async function syncWorkouts(
 }
 
 async function syncRecovery(
+  db: ReturnType<typeof createDb>,
   userId: string,
   accessToken: string,
 ): Promise<number> {
@@ -375,7 +377,10 @@ async function syncRecovery(
       .map<RecoveryInsert | null>((recovery) => {
         const whoopId = recovery.sleep_id?.toString();
         if (!whoopId) {
-          console.warn("[Recovery Sync] Skipping record without sleep_id", recovery);
+          console.warn(
+            "[Recovery Sync] Skipping record without sleep_id",
+            recovery,
+          );
           return null;
         }
 
@@ -416,8 +421,7 @@ async function syncRecovery(
 
     return insertRowsIndividually<RecoveryInsert>(
       recoveryRows,
-      (row) =>
-        db.insert(whoopRecovery).values(row).onConflictDoNothing(),
+      (row) => db.insert(whoopRecovery).values(row).onConflictDoNothing(),
       {
         label: "Recovery Sync",
         identify: (row) => row.whoop_recovery_id,
@@ -430,6 +434,7 @@ async function syncRecovery(
 }
 
 async function syncCycles(
+  db: ReturnType<typeof createDb>,
   userId: string,
   accessToken: string,
 ): Promise<number> {
@@ -488,10 +493,7 @@ async function syncCycles(
         const whoopId = cycle.id?.toString();
 
         if (!whoopId) {
-          console.warn(
-            "[Cycle Sync] Skipping cycle without identifier",
-            cycle,
-          );
+          console.warn("[Cycle Sync] Skipping cycle without identifier", cycle);
           return null;
         }
 
@@ -528,7 +530,11 @@ async function syncCycles(
   }
 }
 
-async function syncSleep(userId: string, accessToken: string): Promise<number> {
+async function syncSleep(
+  db: ReturnType<typeof createDb>,
+  userId: string,
+  accessToken: string,
+): Promise<number> {
   try {
     // Get the latest sleep timestamp for incremental sync
     const [latestSleep] = await db
@@ -601,7 +607,8 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
           sleep_efficiency_percentage:
             sleep.score?.sleep_efficiency_percentage ?? null,
           slow_wave_sleep_time_milli:
-            sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ?? null,
+            sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ??
+            null,
           rem_sleep_time_milli:
             sleep.score?.stage_summary?.total_rem_sleep_time_milli ?? null,
           light_sleep_time_milli:
@@ -637,6 +644,7 @@ async function syncSleep(userId: string, accessToken: string): Promise<number> {
 }
 
 async function syncProfile(
+  db: ReturnType<typeof createDb>,
   userId: string,
   accessToken: string,
 ): Promise<number> {
@@ -725,6 +733,7 @@ async function syncProfile(
 }
 
 async function syncBodyMeasurements(
+  db: ReturnType<typeof createDb>,
   userId: string,
   accessToken: string,
 ): Promise<number> {
@@ -824,6 +833,8 @@ async function syncBodyMeasurements(
 }
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const session = await SessionCookie.get(request);
     if (!session || SessionCookie.isExpired(session)) {
@@ -832,6 +843,7 @@ export async function POST(request: NextRequest) {
 
     // Check rate limit (allow 10 requests per hour for comprehensive sync)
     const rateLimitResult = await checkRateLimit(
+      db,
       session.userId,
       "whoop_sync_all",
       10,
@@ -870,7 +882,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get valid access token (handles decryption and rotation automatically)
-    const tokenResult = await getValidAccessToken(session.userId, "whoop");
+    const tokenResult = await getValidAccessToken(db, session.userId, "whoop");
 
     if (!tokenResult.token) {
       return NextResponse.json(
@@ -901,7 +913,7 @@ export async function POST(request: NextRequest) {
     let tokenInvalid = false;
 
     try {
-      results.workouts = await syncWorkouts(session.userId, accessToken);
+      results.workouts = await syncWorkouts(db, session.userId, accessToken);
     } catch (error) {
       const errorStr = String(error);
       // Check for 401 status in error object or error message
@@ -914,7 +926,7 @@ export async function POST(request: NextRequest) {
     // Skip other syncs if token is invalid to avoid multiple 401s
     if (!tokenInvalid) {
       try {
-        results.recovery = await syncRecovery(session.userId, accessToken);
+        results.recovery = await syncRecovery(db, session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -925,7 +937,7 @@ export async function POST(request: NextRequest) {
 
       // Note: Cycles endpoint may not be available for all WHOOP OAuth apps
       try {
-        results.cycles = await syncCycles(session.userId, accessToken);
+        results.cycles = await syncCycles(db, session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -939,7 +951,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        results.sleep = await syncSleep(session.userId, accessToken);
+        results.sleep = await syncSleep(db, session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -950,7 +962,7 @@ export async function POST(request: NextRequest) {
 
       // Profile and body measurements may not be available for all WHOOP OAuth apps
       try {
-        results.profile = await syncProfile(session.userId, accessToken);
+        results.profile = await syncProfile(db, session.userId, accessToken);
       } catch (error) {
         const errorStr = String(error);
         if ((error as any).status === 401 || errorStr.includes("401")) {
@@ -964,6 +976,7 @@ export async function POST(request: NextRequest) {
 
       try {
         results.bodyMeasurements = await syncBodyMeasurements(
+          db,
           session.userId,
           accessToken,
         );

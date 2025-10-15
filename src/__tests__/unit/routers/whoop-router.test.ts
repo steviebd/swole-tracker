@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Import after mocking
 import { whoopRouter } from "~/server/api/routers/whoop";
+import {
+  userIntegrations,
+  whoopRecovery,
+  whoopSleep,
+  whoopProfile,
+  whoopCycles,
+} from "~/server/db/schema";
 
 describe("whoopRouter", () => {
   const mockUser = { id: "user-123" };
@@ -313,12 +320,7 @@ describe("whoopRouter", () => {
 
       mockDb.select.mockImplementation(() => ({
         from: vi.fn().mockImplementation((table: any) => {
-          // Import tables to compare
-          const {
-            userIntegrations,
-            whoopRecovery,
-            whoopSleep,
-          } = require("~/server/db/schema");
+          // Tables imported at top
           if (table === userIntegrations) {
             return {
               where: vi.fn().mockResolvedValue([mockIntegration]),

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
 import type * as oauth from "oauth4webapi";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { userIntegrations, whoopProfile } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 import { env } from "~/env";
@@ -21,6 +21,8 @@ interface WhoopProfileResponse {
 }
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const session = await SessionCookie.get(request);
     if (!session || SessionCookie.isExpired(session)) {
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") ?? "unknown";
 
     const stateValidation = await validateOAuthState(
+      db,
       state,
       session.userId,
       "whoop",
@@ -149,14 +152,16 @@ export async function GET(request: NextRequest) {
         );
 
         if (profileResponse.ok) {
-          const profileJson = (await profileResponse.json()) as
-            | WhoopProfileResponse
-            | null;
+          const profileJson =
+            (await profileResponse.json()) as WhoopProfileResponse | null;
 
           if (profileJson) {
             whoopProfileData = profileJson;
             const externalId = profileJson.user_id;
-            if (typeof externalId === "string" || typeof externalId === "number") {
+            if (
+              typeof externalId === "string" ||
+              typeof externalId === "number"
+            ) {
               whoopExternalUserId = externalId.toString();
             }
           }
@@ -168,7 +173,10 @@ export async function GET(request: NextRequest) {
           );
         }
       } catch (profileError) {
-        console.error("WHOOP profile fetch failed during OAuth callback:", profileError);
+        console.error(
+          "WHOOP profile fetch failed during OAuth callback:",
+          profileError,
+        );
       }
     }
 
@@ -206,7 +214,9 @@ export async function GET(request: NextRequest) {
             "read:workout read:recovery read:sleep read:cycles read:profile read:body_measurement offline",
           isActive: true,
           externalUserId:
-            whoopExternalUserId ?? existingIntegration[0]?.externalUserId ?? null,
+            whoopExternalUserId ??
+            existingIntegration[0]?.externalUserId ??
+            null,
           updatedAt: new Date(),
         })
         .where(

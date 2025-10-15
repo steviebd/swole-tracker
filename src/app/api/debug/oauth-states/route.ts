@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { oauthStates } from "~/server/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { env } from "~/env";
@@ -8,6 +8,8 @@ import { env } from "~/env";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   // Only allow in development environment
   if (env.NODE_ENV !== "development") {
     return NextResponse.json(
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
     .orderBy(desc(oauthStates.id))
     .limit(10);
 
-  const sanitized = states.map((row) => ({
+  const sanitized = states.map((row: (typeof states)[0]) => ({
     ...row,
     state: `${row.state.slice(0, 8)}...${row.state.slice(-4)}`,
     userId: `${row.userId.slice(0, 8)}...`,

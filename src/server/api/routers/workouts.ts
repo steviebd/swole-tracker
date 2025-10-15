@@ -43,6 +43,30 @@ const exerciseInputSchema = z.object({
 
 import { logger } from "~/lib/logger";
 import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
+import { monitoredDbQuery } from "~/server/db/monitoring";
+import {
+  calculateOneRM,
+  calculateVolumeLoad,
+} from "~/server/api/utils/exercise-calculations";
+
+const computeOneRmEstimate = (
+  weight: number | null | undefined,
+  reps: number | null | undefined,
+): number | null => {
+  if (weight == null || reps == null) return null;
+  if (weight <= 0 || reps <= 0) return null;
+  return calculateOneRM(weight, reps);
+};
+
+const computeVolumeLoad = (
+  weight: number | null | undefined,
+  reps: number | null | undefined,
+  sets: number | null | undefined,
+): number | null => {
+  if (weight == null || reps == null || sets == null) return null;
+  if (weight <= 0 || reps <= 0 || sets <= 0) return null;
+  return calculateVolumeLoad(sets, reps, weight);
+};
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -50,95 +74,59 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
       logger.debug("Getting recent workouts", { limit: input.limit });
-      return ctx.db.query.workoutSessions.findMany({
-        where: eq(workoutSessions.user_id, ctx.user.id),
-        orderBy: [desc(workoutSessions.workoutDate)],
-        limit: input.limit,
-        columns: {
-          id: true,
-          workoutDate: true,
-          templateId: true,
-          createdAt: true,
-        },
-        with: {
-          template: {
+      return monitoredDbQuery(
+        "workouts.getRecent",
+        () =>
+          ctx.db.query.workoutSessions.findMany({
+            where: eq(workoutSessions.user_id, ctx.user.id),
+            orderBy: [desc(workoutSessions.workoutDate)],
+            limit: input.limit,
             columns: {
               id: true,
-              name: true,
+              workoutDate: true,
+              templateId: true,
+              createdAt: true,
             },
             with: {
-              exercises: {
+              template: {
                 columns: {
                   id: true,
-                  exerciseName: true,
-                  orderIndex: true,
+                  name: true,
                 },
               },
+              exercises: true,
             },
-          },
-          exercises: {
-            columns: {
-              id: true,
-              exerciseName: true,
-              weight: true,
-              reps: true,
-              sets: true,
-              unit: true,
-              setOrder: true,
-              templateExerciseId: true,
-              one_rm_estimate: true,
-              volume_load: true,
-            },
-          },
-        },
-      });
+          }),
+        ctx,
+      );
     }),
 
-  // Get a specific workout session
+  // Get workout by ID
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const workout = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.id),
-        columns: {
-          id: true,
-          workoutDate: true,
-          templateId: true,
-          user_id: true,
-          createdAt: true,
-        },
-        with: {
-          template: {
-            columns: {
-              id: true,
-              name: true,
-            },
+      const workout = await monitoredDbQuery(
+        "workouts.getById",
+        () =>
+          ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.id),
             with: {
-              exercises: {
-                columns: {
-                  id: true,
-                  exerciseName: true,
-                  orderIndex: true,
+              template: {
+                with: {
+                  exercises: {
+                    orderBy: (exercises, { asc }) => [
+                      asc(exercises.orderIndex),
+                    ],
+                  },
                 },
               },
+              exercises: {
+                orderBy: (exercises, { asc }) => [asc(exercises.setOrder)],
+              },
             },
-          },
-          exercises: {
-            columns: {
-              id: true,
-              exerciseName: true,
-              weight: true,
-              reps: true,
-              sets: true,
-              unit: true,
-              setOrder: true,
-              templateExerciseId: true,
-              one_rm_estimate: true,
-              volume_load: true,
-            },
-          },
-        },
-      });
+          }),
+        ctx,
+      );
 
       if (!workout || workout.user_id !== ctx.user.id) {
         throw new Error("Workout not found");
@@ -147,67 +135,65 @@ export const workoutsRouter = createTRPCRouter({
       return workout;
     }),
 
-  // Get last workout data for a specific exercise (for pre-populating)
+  // Get last exercise data for a given exercise name
   getLastExerciseData: protectedProcedure
     .input(
       z.object({
         exerciseName: z.string(),
-        templateId: z.number().optional(),
-        excludeSessionId: z.number().optional(),
         templateExerciseId: z.number().optional(),
+        excludeSessionId: z.number().optional(),
       }),
     )
     .query(async ({ input, ctx }) => {
-      const query = sql`
-        WITH vars AS (SELECT ${input.exerciseName} as exercise_name, ${input.templateExerciseId} as template_exercise_id, ${ctx.user.id} as user_id, ${input.excludeSessionId} as exclude_session_id),
-        linked AS (
-          SELECT el.master_exercise_id, te.exercise_name, el.template_exercise_id
-          FROM exercise_link el
-          LEFT JOIN template_exercise te ON te.id = el.template_exercise_id
-          WHERE el.user_id = (SELECT user_id FROM vars) AND el.template_exercise_id = (SELECT template_exercise_id FROM vars)
-        ),
-        all_exercises AS (
-          SELECT (SELECT exercise_name FROM vars) as exercise_name
-          UNION ALL
-          SELECT exercise_name FROM linked WHERE master_exercise_id IS NOT NULL
-        ),
-        all_template_ids AS (
-          SELECT template_exercise_id FROM linked WHERE master_exercise_id IS NOT NULL
-        ),
-        latest_session AS (
-          SELECT se.session_id
+      let query: SQL;
+      if (input.templateExerciseId) {
+        query = sql`
+          WITH equivalent AS (
+            SELECT te.exerciseName
+            FROM exercise_link el
+            LEFT JOIN template_exercise te ON te.id = el.templateExerciseId
+            WHERE el.user_id = ${ctx.user.id} AND el.templateExerciseId = ${input.templateExerciseId}
+            UNION ALL
+            SELECT exerciseName FROM template_exercise WHERE id = ${input.templateExerciseId} AND user_id = ${ctx.user.id}
+          )
+          SELECT se.weight, se.reps, se.sets, se.unit, se.setOrder, ws.workoutDate
           FROM session_exercise se
-          JOIN workout_session ws ON se.session_id = ws.id
-          WHERE se.user_id = (SELECT user_id FROM vars)
-          AND (se.exercise_name IN (SELECT exercise_name FROM all_exercises) OR se.template_exercise_id IN (SELECT template_exercise_id FROM all_template_ids))
-          AND ((SELECT exclude_session_id FROM vars) IS NULL OR se.session_id != (SELECT exclude_session_id FROM vars))
-          ORDER BY ws.workout_date DESC
-          LIMIT 1
-        ),
-        sets AS (
-          SELECT se.weight, se.reps, se.sets, se.unit, se.set_order
+          INNER JOIN workout_session ws ON se.sessionId = ws.id
+          WHERE se.user_id = ${ctx.user.id}
+          AND se.exerciseName IN (SELECT exerciseName FROM equivalent)
+          ${input.excludeSessionId ? sql`AND se.sessionId != ${input.excludeSessionId}` : sql``}
+          ORDER BY ws.workoutDate DESC, se.setOrder ASC
+          LIMIT 10
+        `;
+      } else {
+        query = sql`
+          SELECT se.weight, se.reps, se.sets, se.unit, se.setOrder, ws.workoutDate
           FROM session_exercise se
-          JOIN latest_session ls ON se.session_id = ls.session_id
-          WHERE se.user_id = (SELECT user_id FROM vars)
-          AND (se.exercise_name IN (SELECT exercise_name FROM all_exercises) OR se.template_exercise_id IN (SELECT template_exercise_id FROM all_template_ids))
-          ORDER BY se.set_order
-        )
-        SELECT * FROM sets
-      `;
-
-      const rows = (await ctx.db.all(query)) as any[];
-
-      if (rows.length === 0) {
-        return null;
+          INNER JOIN workout_session ws ON se.sessionId = ws.id
+          WHERE se.user_id = ${ctx.user.id}
+          AND se.exerciseName = ${input.exerciseName}
+          ${input.excludeSessionId ? sql`AND se.sessionId != ${input.excludeSessionId}` : sql``}
+          ORDER BY ws.workoutDate DESC, se.setOrder ASC
+          LIMIT 10
+        `;
       }
 
-      const sets = rows.map((row: any, index: number) => ({
-        id: `prev-${index}`,
-        weight: row.weight ?? undefined,
-        reps: row.reps ?? undefined,
-        sets: row.sets ?? 1,
-        unit: row.unit as "kg" | "lbs",
-      }));
+      const sets = (await monitoredDbQuery(
+        "workouts.getLastExerciseData",
+        () => ctx.db.all(query),
+        ctx,
+      )) as Array<{
+        weight: number | null;
+        reps: number;
+        sets: number;
+        unit: string;
+        setOrder: number;
+        workoutDate: Date;
+      }>;
+
+      if (sets.length === 0) {
+        return null;
+      }
 
       const bestSet = sets.reduce<(typeof sets)[number] | undefined>(
         (currentBest, set) => {
@@ -215,7 +201,19 @@ export const workoutsRouter = createTRPCRouter({
             return currentBest;
           }
 
-          if (!currentBest || (currentBest.weight ?? 0) < set.weight) {
+          if (currentBest?.weight == null) {
+            return set;
+          }
+
+          // Prefer higher weight, then higher reps
+          if (set.weight > currentBest.weight) {
+            return set;
+          }
+
+          if (
+            set.weight === currentBest.weight &&
+            set.reps > currentBest.reps
+          ) {
             return set;
           }
 
@@ -225,11 +223,17 @@ export const workoutsRouter = createTRPCRouter({
       );
 
       return {
-        sets,
+        sets: sets.map((set, index) => ({
+          id: `prev-${index}`,
+          weight: set.weight,
+          reps: set.reps,
+          sets: set.sets,
+          unit: set.unit,
+        })),
         best: bestSet
           ? {
               weight: bestSet.weight,
-              reps: bestSet.reps ?? undefined,
+              reps: bestSet.reps,
               sets: bestSet.sets,
               unit: bestSet.unit,
             }
@@ -246,58 +250,59 @@ export const workoutsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const query = sql`
-        WITH vars AS (SELECT ${input.templateExerciseId} as template_exercise_id, ${ctx.user.id} as user_id, ${input.excludeSessionId} as exclude_session_id),
-        linked AS (
-          SELECT el.master_exercise_id, te.exercise_name, el.template_exercise_id
-          FROM exercise_link el
-          LEFT JOIN template_exercise te ON te.id = el.template_exercise_id
-          WHERE el.user_id = (SELECT user_id FROM vars) AND el.template_exercise_id = (SELECT template_exercise_id FROM vars)
-        ),
-        all_exercises AS (
-          SELECT te.exercise_name FROM template_exercise te WHERE te.id = (SELECT template_exercise_id FROM vars) AND te.user_id = (SELECT user_id FROM vars)
-          UNION
-          SELECT exercise_name FROM linked WHERE master_exercise_id IS NOT NULL
-        ),
-        all_template_ids AS (
-          SELECT (SELECT template_exercise_id FROM vars) as id
-          UNION
-          SELECT template_exercise_id FROM linked WHERE master_exercise_id IS NOT NULL
-        ),
-        latest_session AS (
-          SELECT se.session_id
+      // Use a parameterized CTE query to get the best set in one round trip
+      const result = await monitoredDbQuery(
+        "workouts.getLatestPerformanceForTemplateExercise",
+        () =>
+          ctx.db.all(
+            sql`
+          WITH template_ex AS (
+            SELECT id, exerciseName FROM template_exercise WHERE id = ${input.templateExerciseId} AND user_id = ${ctx.user.id}
+          ),
+          equivalent AS (
+            SELECT te.exerciseName, el.templateExerciseId
+            FROM exercise_link el
+            LEFT JOIN template_exercise te ON te.id = el.templateExerciseId
+            WHERE el.user_id = ${ctx.user.id} AND el.templateExerciseId = ${input.templateExerciseId}
+            UNION ALL
+            SELECT exerciseName, id FROM template_ex
+          ),
+          latest_session AS (
+            SELECT ws.id as session_id, ws.workoutDate
+            FROM session_exercise se
+            INNER JOIN workout_session ws ON se.sessionId = ws.id
+            WHERE se.user_id = ${ctx.user.id}
+            AND (se.exerciseName IN (SELECT exerciseName FROM equivalent) OR se.templateExerciseId IN (SELECT templateExerciseId FROM equivalent))
+            AND (${input.excludeSessionId} IS NULL OR se.sessionId != ${input.excludeSessionId})
+            ORDER BY ws.workoutDate DESC
+            LIMIT 1
+          )
+          SELECT se.weight, se.reps, se.sets, se.unit, ls.workoutDate
           FROM session_exercise se
-          JOIN workout_session ws ON se.session_id = ws.id
-          WHERE se.user_id = (SELECT user_id FROM vars)
-          AND (se.exercise_name IN (SELECT exercise_name FROM all_exercises) OR se.template_exercise_id IN (SELECT id FROM all_template_ids))
-          AND ((SELECT exclude_session_id FROM vars) IS NULL OR se.session_id != (SELECT exclude_session_id FROM vars))
-          ORDER BY ws.workout_date DESC
-          LIMIT 1
-        ),
-        performance AS (
-          SELECT se.weight, se.reps, se.sets, se.unit, ws.workout_date
-          FROM session_exercise se
-          JOIN workout_session ws ON se.session_id = ws.id
-          JOIN latest_session ls ON se.session_id = ls.session_id
-          WHERE se.user_id = (SELECT user_id FROM vars)
-          AND (se.exercise_name IN (SELECT exercise_name FROM all_exercises) OR se.template_exercise_id IN (SELECT id FROM all_template_ids))
+          CROSS JOIN latest_session ls
+          WHERE se.user_id = ${ctx.user.id}
+          AND se.sessionId = ls.session_id
+          AND (se.exerciseName IN (SELECT exerciseName FROM equivalent) OR se.templateExerciseId IN (SELECT templateExerciseId FROM equivalent))
           ORDER BY se.weight DESC
           LIMIT 1
-        )
-        SELECT * FROM performance
-      `;
+        `,
+          ),
+        ctx,
+      );
 
-      const rows = (await ctx.db.all(query)) as any[];
+      if (!result || result.length === 0) {
+        return null;
+      }
 
-      return rows[0]
-        ? {
-            weight: rows[0].weight,
-            reps: rows[0].reps,
-            sets: rows[0].sets,
-            unit: rows[0].unit,
-            workoutDate: rows[0].workout_date,
-          }
-        : null;
+      const bestSet = result[0] as any;
+
+      return {
+        weight: bestSet.weight,
+        reps: bestSet.reps,
+        sets: bestSet.sets,
+        unit: bestSet.unit,
+        workoutDate: bestSet.workoutDate,
+      };
     }),
 
   // Start a new workout session
@@ -315,80 +320,96 @@ export const workoutsRouter = createTRPCRouter({
           templateId: input.templateId,
         });
 
-        let template = null;
+        // Use transaction to collapse sequential queries into single round-trip
+        const result = await monitoredDbQuery(
+          "workouts.start",
+          () =>
+            ctx.db.transaction(async (tx) => {
+              let template = null;
 
-        if (input.templateId) {
-          // Check for recent duplicate session (within last 2 minutes)
-          const recentSession = await ctx.db.query.workoutSessions.findFirst({
-            where: and(
-              eq(workoutSessions.user_id, ctx.user.id),
-              eq(workoutSessions.templateId, input.templateId),
-              gte(workoutSessions.workoutDate, new Date(Date.now() - 120000)), // Within last 2 minutes
-            ),
-            orderBy: [desc(workoutSessions.workoutDate)],
-            with: {
-              exercises: true,
-            },
-          });
+              if (input.templateId) {
+                // Check for recent duplicate session (within last 2 minutes)
+                const recentSession = await tx.query.workoutSessions.findFirst({
+                  where: and(
+                    eq(workoutSessions.user_id, ctx.user.id),
+                    eq(workoutSessions.templateId, input.templateId),
+                    gte(
+                      workoutSessions.workoutDate,
+                      new Date(Date.now() - 120000),
+                    ), // Within last 2 minutes
+                  ),
+                  orderBy: [desc(workoutSessions.workoutDate)],
+                  with: {
+                    exercises: true,
+                  },
+                });
 
-          // If we found a recent session with the same template and no exercises (just started), return it
-          if (recentSession && recentSession.exercises.length === 0) {
-            logger.debug("Returning existing recent session", {
-              sessionId: recentSession.id,
-            });
+                // If we found a recent session with the same template and no exercises (just started), return it
+                if (recentSession && recentSession.exercises.length === 0) {
+                  logger.debug("Returning existing recent session", {
+                    sessionId: recentSession.id,
+                  });
 
-            // Get the template info for the response
-            template = await ctx.db.query.workoutTemplates.findFirst({
-              where: eq(workoutTemplates.id, input.templateId),
-              with: {
-                exercises: {
-                  orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
-                },
-              },
-            });
+                  // Get the template info for the response
+                  template = await tx.query.workoutTemplates.findFirst({
+                    where: eq(workoutTemplates.id, input.templateId),
+                    with: {
+                      exercises: {
+                        orderBy: (exercises, { asc }) => [
+                          asc(exercises.orderIndex),
+                        ],
+                      },
+                    },
+                  });
 
-            return {
-              sessionId: recentSession.id,
-              template,
-            };
-          }
+                  return {
+                    sessionId: recentSession.id,
+                    template,
+                  };
+                }
 
-          // Verify template ownership
-          template = await ctx.db.query.workoutTemplates.findFirst({
-            where: eq(workoutTemplates.id, input.templateId),
-            with: {
-              exercises: {
-                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
-              },
-            },
-          });
+                // Verify template ownership
+                template = await tx.query.workoutTemplates.findFirst({
+                  where: eq(workoutTemplates.id, input.templateId),
+                  with: {
+                    exercises: {
+                      orderBy: (exercises, { asc }) => [
+                        asc(exercises.orderIndex),
+                      ],
+                    },
+                  },
+                });
 
-          logger.debug("Found template", { templateId: template?.id });
-          if (!template || template.user_id !== ctx.user.id) {
-            throw new Error("Template not found");
-          }
-        }
+                logger.debug("Found template", { templateId: template?.id });
+                if (!template || template.user_id !== ctx.user.id) {
+                  throw new Error("Template not found");
+                }
+              }
 
-        // Create workout session
-        logger.debug("Inserting workout session");
-        const [session] = await ctx.db
-          .insert(workoutSessions)
-          .values({
-            user_id: ctx.user.id,
-            templateId: input.templateId || null,
-            workoutDate: input.workoutDate,
-          })
-          .returning();
+              // Create workout session
+              logger.debug("Inserting workout session");
+              const [session] = await tx
+                .insert(workoutSessions)
+                .values({
+                  user_id: ctx.user.id,
+                  templateId: input.templateId || null,
+                  workoutDate: input.workoutDate,
+                })
+                .returning();
 
-        logger.debug("Inserted session", { sessionId: session?.id });
-        if (!session) {
-          throw new Error("Failed to create workout session");
-        }
+              logger.debug("Inserted session", { sessionId: session?.id });
+              if (!session) {
+                throw new Error("Failed to create workout session");
+              }
 
-        const result = {
-          sessionId: session.id,
-          template,
-        };
+              return {
+                sessionId: session.id,
+                template,
+              };
+            }),
+          ctx,
+        );
+
         logger.debug("Start workout complete", { sessionId: result.sessionId });
         return result;
       } catch (err: any) {
@@ -420,62 +441,75 @@ export const workoutsRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       // Verify session ownership
-      const session = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.sessionId),
-      });
+      const session = await monitoredDbQuery(
+        "workouts.save.verify",
+        () =>
+          ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.sessionId),
+          }),
+        ctx,
+      );
 
       if (!session || session.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
 
       // Delete existing exercises for this session
-      await ctx.db
-        .delete(sessionExercises)
-        .where(eq(sessionExercises.sessionId, input.sessionId));
+      await monitoredDbQuery(
+        "workouts.save.delete",
+        () =>
+          ctx.db
+            .delete(sessionExercises)
+            .where(eq(sessionExercises.sessionId, input.sessionId)),
+        ctx,
+      );
 
       // Flatten exercises into individual sets and filter out empty ones
-      const setsToInsert = input.exercises.flatMap((exercise) =>
-        exercise.sets
-          .filter(
-            (set) =>
-              set.weight !== undefined ||
-              set.reps !== undefined ||
-              set.sets !== undefined ||
-              set.rpe !== undefined ||
-              set.rest !== undefined,
-          )
-          .map((set, setIndex) => {
-            const weight = set.weight ?? 0;
-            const reps = set.reps ?? 1;
-            const sets = set.sets ?? 1;
-            return {
-              user_id: ctx.user.id,
-              sessionId: input.sessionId,
-              templateExerciseId: exercise.templateExerciseId,
-              exerciseName: exercise.exerciseName,
-              setOrder: setIndex,
-              weight: set.weight,
-              reps: set.reps,
-              sets: set.sets,
-              unit: set.unit,
-              // Phase 2 mappings
-              rpe: set.rpe, // maps to session_exercise.rpe
-              rest_seconds: set.rest, // maps to session_exercise.rest_seconds
-              is_estimate: set.isEstimate ?? false,
-              is_default_applied: set.isDefaultApplied ?? false,
-              // Computed columns
-              one_rm_estimate:
-                weight > 0 && reps > 0 ? weight * (1 + reps / 30) : null,
-              volume_load:
-                weight > 0 && reps > 0 && sets > 0
-                  ? sets * reps * weight
-                  : null,
-            };
-          }),
+      const setsToInsert = input.exercises.flatMap(
+        (exercise) =>
+          exercise.sets
+            .filter(
+              (set) =>
+                set.weight !== undefined ||
+                set.reps !== undefined ||
+                set.sets !== undefined ||
+                set.rpe !== undefined ||
+                set.rest !== undefined,
+            )
+            .map((set, setIndex) => {
+              const weight = set.weight ?? null;
+              const reps = set.reps ?? null;
+              const sets = set.sets ?? null;
+              const oneRmEstimate = computeOneRmEstimate(weight, reps);
+              const volumeLoad = computeVolumeLoad(weight, reps, sets);
+              return {
+                user_id: ctx.user.id,
+                sessionId: input.sessionId,
+                templateExerciseId: exercise.templateExerciseId,
+                exerciseName: exercise.exerciseName,
+                setOrder: setIndex,
+                weight,
+                reps,
+                sets,
+                unit: set.unit,
+                // Phase 2 mappings
+                rpe: set.rpe, // maps to session_exercise.rpe
+                rest_seconds: set.rest, // maps to session_exercise.rest_seconds
+                is_estimate: set.isEstimate ?? false,
+                is_default_applied: set.isDefaultApplied ?? false,
+                one_rm_estimate: oneRmEstimate,
+                volume_load: volumeLoad,
+              };
+            }),
+        ctx,
       );
 
       if (setsToInsert.length > 0) {
-        await ctx.db.insert(sessionExercises).values(setsToInsert);
+        await monitoredDbQuery(
+          "workouts.save.insert",
+          () => ctx.db.insert(sessionExercises).values(setsToInsert),
+          ctx,
+        );
       }
 
       if (setsToInsert.length > 0) {
@@ -525,9 +559,14 @@ export const workoutsRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       // Verify session ownership
-      const session = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.sessionId),
-      });
+      const session = await monitoredDbQuery(
+        "workouts.updateSessionSets.verify",
+        () =>
+          ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.sessionId),
+          }),
+        ctx,
+      );
 
       if (!session || session.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
@@ -545,21 +584,25 @@ export const workoutsRouter = createTRPCRouter({
         return { success: true, updatedCount: 0 };
       }
 
-      const existingSets = await ctx.db
-        .select({
-          id: sessionExercises.id,
-          exerciseName: sessionExercises.exerciseName,
-          setOrder: sessionExercises.setOrder,
-        })
-        .from(sessionExercises)
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            eq(sessionExercises.sessionId, input.sessionId),
-            inArray(sessionExercises.exerciseName, exerciseNames),
-          ),
-        )
-        .orderBy(sessionExercises.setOrder);
+      const existingSets = await monitoredDbQuery(
+        "workouts.updateSessionSets.select",
+        () =>
+          ctx.db
+            .select({
+              id: sessionExercises.id,
+              exerciseName: sessionExercises.exerciseName,
+              setOrder: sessionExercises.setOrder,
+            })
+            .from(sessionExercises)
+            .where(
+              and(
+                eq(sessionExercises.user_id, ctx.user.id),
+                eq(sessionExercises.sessionId, input.sessionId),
+                inArray(sessionExercises.exerciseName, exerciseNames),
+              ),
+            )
+            .orderBy(sessionExercises.setOrder),
+      );
 
       const setsByExercise = new Map<
         string,
@@ -652,19 +695,86 @@ export const workoutsRouter = createTRPCRouter({
         .map(([id, update]) => sql`WHEN ${id} THEN ${update.unit}`)
         .join(" ");
 
-      await ctx.db
-        .update(sessionExercises)
-        .set({
-          weight: sql`CASE id ${weightCases} END`,
-          reps: sql`CASE id ${repsCases} END`,
-          unit: sql`CASE id ${unitCases} END`,
-        })
-        .where(
-          and(
-            inArray(sessionExercises.id, ids),
-            eq(sessionExercises.user_id, ctx.user.id),
+      await monitoredDbQuery(
+        "workouts.updateSessionSets.update",
+        () =>
+          ctx.db
+            .update(sessionExercises)
+            .set({
+              weight: sql`CASE id ${weightCases} END`,
+              reps: sql`CASE id ${repsCases} END`,
+              unit: sql`CASE id ${unitCases} END`,
+            })
+            .where(
+              and(
+                inArray(sessionExercises.id, ids),
+                eq(sessionExercises.user_id, ctx.user.id),
+              ),
+            ),
+        ctx,
+      );
+
+      const rowsForRecalc = await monitoredDbQuery(
+        "workouts.updateSessionSets.recomputeFetch",
+        () =>
+          ctx.db
+            .select({
+              id: sessionExercises.id,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+              sets: sessionExercises.sets,
+            })
+            .from(sessionExercises)
+            .where(
+              and(
+                inArray(sessionExercises.id, ids),
+                eq(sessionExercises.user_id, ctx.user.id),
+              ),
+            ),
+        ctx,
+      );
+
+      if (rowsForRecalc.length > 0) {
+        const oneRmCases = sql.join(
+          rowsForRecalc.map(
+            (row) =>
+              sql`WHEN ${row.id} THEN ${computeOneRmEstimate(
+                row.weight,
+                row.reps,
+              )}`,
           ),
+          sql` `,
         );
+        const volumeCases = sql.join(
+          rowsForRecalc.map(
+            (row) =>
+              sql`WHEN ${row.id} THEN ${computeVolumeLoad(
+                row.weight,
+                row.reps,
+                row.sets,
+              )}`,
+          ),
+          sql` `,
+        );
+
+        await monitoredDbQuery(
+          "workouts.updateSessionSets.recompute",
+          () =>
+            ctx.db
+              .update(sessionExercises)
+              .set({
+                one_rm_estimate: sql`CASE id ${oneRmCases} ELSE one_rm_estimate END`,
+                volume_load: sql`CASE id ${volumeCases} ELSE volume_load END`,
+              })
+              .where(
+                and(
+                  inArray(sessionExercises.id, ids),
+                  eq(sessionExercises.user_id, ctx.user.id),
+                ),
+              ),
+          ctx,
+        );
+      }
 
       return { success: true, updatedCount: updatesMap.size };
     }),
@@ -675,18 +785,170 @@ export const workoutsRouter = createTRPCRouter({
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership before deleting
-      const existingSession = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.id),
-      });
+      const existingSession = await monitoredDbQuery(
+        "workouts.delete.verify",
+        () =>
+          ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.id),
+          }),
+        ctx,
+      );
 
       if (!existingSession || existingSession.user_id !== ctx.user.id) {
         throw new Error("Workout session not found");
       }
 
-      await ctx.db
-        .delete(workoutSessions)
-        .where(eq(workoutSessions.id, input.id));
+      await monitoredDbQuery(
+        "workouts.delete.session",
+        () =>
+          ctx.db
+            .delete(workoutSessions)
+            .where(eq(workoutSessions.id, input.id)),
+        ctx,
+      );
 
       return { success: true };
+    }),
+
+  // Batch save multiple workout sessions (for offline queue processing)
+  batchSave: protectedProcedure
+    .use(workoutRateLimit)
+    .input(
+      z.object({
+        workouts: z.array(
+          z.object({
+            sessionId: z.number(),
+            exercises: z.array(exerciseInputSchema),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (input.workouts.length === 0) {
+        return { success: true, processedCount: 0 };
+      }
+
+      const startTime = Date.now();
+      let totalSetsInserted = 0;
+
+      try {
+        // Process each workout in the batch
+        for (const workout of input.workouts) {
+          // Verify session ownership
+          const session = await monitoredDbQuery(
+            "workouts.batchSave.verify",
+            () =>
+              ctx.db.query.workoutSessions.findFirst({
+                where: eq(workoutSessions.id, workout.sessionId),
+              }),
+            ctx,
+          );
+
+          if (!session || session.user_id !== ctx.user.id) {
+            throw new Error(`Workout session ${workout.sessionId} not found`);
+          }
+
+          // Delete existing exercises for this session
+          await monitoredDbQuery(
+            "workouts.batchSave.delete",
+            () =>
+              ctx.db
+                .delete(sessionExercises)
+                .where(eq(sessionExercises.sessionId, workout.sessionId)),
+            ctx,
+          );
+
+          // Flatten exercises into individual sets and filter out empty ones
+          const setsToInsert = workout.exercises.flatMap((exercise) =>
+            exercise.sets
+              .filter(
+                (set) =>
+                  set.weight !== undefined ||
+                  set.reps !== undefined ||
+                  set.sets !== undefined ||
+                  set.rpe !== undefined ||
+                  set.rest !== undefined,
+              )
+              .map((set, setIndex) => {
+                const weight = set.weight ?? null;
+                const reps = set.reps ?? null;
+                const sets = set.sets ?? null;
+                const oneRmEstimate = computeOneRmEstimate(weight, reps);
+                const volumeLoad = computeVolumeLoad(weight, reps, sets);
+
+                return {
+                  user_id: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  templateExerciseId: exercise.templateExerciseId,
+                  exerciseName: exercise.exerciseName,
+                  setOrder: setIndex,
+                  weight,
+                  reps,
+                  sets,
+                  unit: set.unit,
+                  rpe: set.rpe,
+                  rest_seconds: set.rest,
+                  is_estimate: set.isEstimate ?? false,
+                  is_default_applied: set.isDefaultApplied ?? false,
+                  one_rm_estimate: oneRmEstimate,
+                  volume_load: volumeLoad,
+                };
+              }),
+          );
+
+          if (setsToInsert.length > 0) {
+            await monitoredDbQuery(
+              "workouts.batchSave.insert",
+              () => ctx.db.insert(sessionExercises).values(setsToInsert),
+              ctx,
+            );
+            totalSetsInserted += setsToInsert.length;
+          }
+
+          // Generate debrief for workouts with sets
+          if (setsToInsert.length > 0) {
+            const acceptLanguage =
+              ctx.headers.get("accept-language") ?? undefined;
+            const locale = acceptLanguage?.split(",")[0];
+
+            void (async () => {
+              try {
+                await generateAndPersistDebrief({
+                  dbClient: ctx.db,
+                  userId: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  locale,
+                  trigger: "auto",
+                  requestId: ctx.requestId,
+                });
+              } catch (error) {
+                logger.warn("session_debrief.batch_auto_generation_failed", {
+                  userId: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  error: error instanceof Error ? error.message : "unknown",
+                });
+              }
+            })();
+          }
+        }
+
+        const duration = Date.now() - startTime;
+        logger.info("Batch workout save completed", {
+          workoutCount: input.workouts.length,
+          totalSetsInserted,
+          durationMs: duration,
+          requestId: ctx.requestId,
+        });
+
+        return { success: true, processedCount: input.workouts.length };
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        logger.error("Batch workout save failed", error, {
+          workoutCount: input.workouts.length,
+          durationMs: duration,
+          requestId: ctx.requestId,
+        });
+        throw error;
+      }
     }),
 });

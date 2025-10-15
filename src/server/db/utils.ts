@@ -7,6 +7,29 @@ import {
   exerciseLinks,
 } from "./schema";
 import { logger } from "~/lib/logger";
+import {
+  calculateOneRM,
+  calculateVolumeLoad,
+} from "~/server/api/utils/exercise-calculations";
+
+const computeOneRmEstimate = (
+  weight: number | null | undefined,
+  reps: number | null | undefined,
+): number | null => {
+  if (weight == null || reps == null) return null;
+  if (weight <= 0 || reps <= 0) return null;
+  return calculateOneRM(weight, reps);
+};
+
+const computeVolumeLoad = (
+  weight: number | null | undefined,
+  reps: number | null | undefined,
+  sets: number | null | undefined,
+): number | null => {
+  if (weight == null || reps == null || sets == null) return null;
+  if (weight <= 0 || reps <= 0 || sets <= 0) return null;
+  return calculateVolumeLoad(sets, reps, weight);
+};
 
 /**
  * Batch operation utilities for improved database performance
@@ -65,20 +88,28 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
         const sessionId = sessions[i]!.id;
 
         for (const exercise of workout.exercises) {
+          const weight = exercise.weight ?? null;
+          const reps = exercise.reps ?? null;
+          const sets = exercise.sets ?? null;
+          const oneRmEstimate = computeOneRmEstimate(weight, reps);
+          const volumeLoad = computeVolumeLoad(weight, reps, sets);
+
           allExercises.push({
             user_id: workout.user_id,
             sessionId,
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,
             setOrder: exercise.setOrder,
-            weight: exercise.weight,
-            reps: exercise.reps,
-            sets: exercise.sets,
+            weight,
+            reps,
+            sets,
             unit: exercise.unit || "kg",
             rpe: exercise.rpe,
             rest_seconds: exercise.rest_seconds,
             is_estimate: exercise.is_estimate ?? false,
             is_default_applied: exercise.is_default_applied ?? false,
+            one_rm_estimate: oneRmEstimate,
+            volume_load: volumeLoad,
           });
         }
       }

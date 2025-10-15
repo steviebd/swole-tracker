@@ -8,6 +8,13 @@
       "when": 1760442712609,
       "tag": "0000_majestic_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1760492700000,
+      "tag": "0001_restore_session_exercise_metrics",
+      "breakpoints": true
     }
   ]
 }

@@ -48,8 +48,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   const [showFullExerciseList, setShowFullExerciseList] = useState(false);
 
   const router = useRouter();
+  const utils = api.useUtils();
   const { data: templates, isLoading: templatesLoading } =
-    api.templates.getAll.useQuery();
+    api.templates.getAll.useQuery({ search: "", sort: "recent" });
   const createWorkoutMutation = api.workouts.start.useMutation();
   const {
     status: syncStatus,
@@ -207,6 +208,11 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         alert(
           "You already have a recent workout with this template. Check your workout history!",
         );
+      } else if (errorMessage === "Template not found") {
+        alert(
+          "This template has been deleted. Please select another template.",
+        );
+        void utils.templates.getAll.invalidate({ search: "", sort: "recent" });
       } else {
         alert("Error starting workout. Please try again.");
       }

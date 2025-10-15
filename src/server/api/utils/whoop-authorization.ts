@@ -1,3 +1,4 @@
+import type { DrizzleDb } from "~/server/db";
 import { env } from "~/env";
 import {
   cleanupUserStates,
@@ -24,12 +25,14 @@ export class WhoopAuthorizationError extends Error {
 }
 
 interface BuildWhoopAuthorizationUrlParams {
+  db: DrizzleDb;
   origin: string;
   headers: Headers;
   userId: string;
 }
 
 export async function buildWhoopAuthorizationUrl({
+  db,
   origin,
   headers,
   userId,
@@ -43,7 +46,7 @@ export async function buildWhoopAuthorizationUrl({
   }
 
   try {
-    await cleanupUserStates(userId, "whoop");
+    await cleanupUserStates(db, userId, "whoop");
 
     const redirectUri = resolveWhoopRedirectUri(origin);
     const clientIp = getClientIp(headers);
@@ -56,6 +59,7 @@ export async function buildWhoopAuthorizationUrl({
     });
 
     const state = await createOAuthState(
+      db,
       userId,
       "whoop",
       redirectUri,

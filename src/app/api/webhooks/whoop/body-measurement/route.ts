@@ -5,9 +5,10 @@ import {
   extractWebhookHeaders,
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { webhookEvents, whoopBodyMeasurement } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+
 import { getValidAccessToken } from "~/lib/token-rotation";
 import {
   getTestModeUserId,
@@ -26,6 +27,7 @@ interface WhoopBodyMeasurementData {
 }
 
 async function fetchBodyMeasurementFromWhoop(
+  db: ReturnType<typeof createDb>,
   measurementId: string,
   whoopUserId: number,
   dbUserId: string | null,
@@ -53,7 +55,7 @@ async function fetchBodyMeasurementFromWhoop(
       return null;
     }
 
-    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
+    const tokenResult = await getValidAccessToken(db, dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
@@ -109,6 +111,7 @@ async function fetchBodyMeasurementFromWhoop(
 }
 
 async function processBodyMeasurementUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -119,6 +122,7 @@ async function processBodyMeasurementUpdate(
     const measurementId = payload.id.toString();
 
     const measurementData = await fetchBodyMeasurementFromWhoop(
+      db,
       measurementId,
       payload.user_id,
       dbUserId,
@@ -184,6 +188,7 @@ async function processBodyMeasurementUpdate(
 }
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
   const startTime = Date.now();
   let webhookEventId: number | null = null;
 
@@ -236,7 +241,7 @@ export async function POST(request: NextRequest) {
     const isTestMode = isWhoopTestUserId(payload.user_id);
     const mappedUserId = isTestMode
       ? getTestModeUserId()
-      : await resolveWhoopInternalUserId(payload.user_id.toString());
+      : await resolveWhoopInternalUserId(db, payload.user_id.toString());
 
     // Log webhook event to database for debugging
     try {
@@ -301,7 +306,7 @@ export async function POST(request: NextRequest) {
 
     // Only process body_measurement.updated events
     if (payload.type === "body_measurement.updated") {
-      await processBodyMeasurementUpdate(payload, dbUserId, isTestMode);
+      await processBodyMeasurementUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
       if (webhookEventId) {

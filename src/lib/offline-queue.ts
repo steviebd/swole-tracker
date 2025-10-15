@@ -70,6 +70,9 @@ export function getQueueLength(): number {
   return readQueue().length;
 }
 
+export { readQueue, writeQueue };
+export type { QueueItem };
+
 export function enqueueWorkoutSave(payload: SaveWorkoutPayload) {
   const q = readQueue();
   const item: QueueItem = {
@@ -104,6 +107,12 @@ export function requeueFront(item: QueueItem) {
   const q = readQueue();
   q.unshift(item);
   writeQueue(q);
+}
+
+export function removeItem(id: string) {
+  const q = readQueue();
+  const filtered = q.filter((i) => i.id !== id);
+  writeQueue(filtered);
 }
 
 export function pruneExhausted() {

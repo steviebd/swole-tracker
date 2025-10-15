@@ -1,4 +1,4 @@
-import { db } from "~/server/db";
+import type { DrizzleDb } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and, lt } from "drizzle-orm";
 import { env } from "~/env";
@@ -81,6 +81,7 @@ export function shouldRotateToken(
  * Rotate OAuth tokens for a specific user integration
  */
 export async function rotateOAuthTokens(
+  db: DrizzleDb,
   userId: string,
   provider: string,
 ): Promise<TokenRotationResult> {
@@ -260,7 +261,7 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
  * Rotate tokens for all active integrations that need it
  * This can be called periodically (e.g., via a cron job)
  */
-export async function rotateAllExpiredTokens(): Promise<{
+export async function rotateAllExpiredTokens(db: DrizzleDb): Promise<{
   rotated: number;
   failed: number;
   results: Array<{
@@ -302,6 +303,7 @@ export async function rotateAllExpiredTokens(): Promise<{
 
     for (const integration of expiredIntegrations) {
       const result = await rotateOAuthTokens(
+        db,
         integration.user_id,
         integration.provider,
       );
@@ -331,11 +333,12 @@ export async function rotateAllExpiredTokens(): Promise<{
  * This is the main function to use when you need a token
  */
 export async function getValidAccessToken(
+  db: DrizzleDb,
   userId: string,
   provider: string,
 ): Promise<{ token: string | null; error?: string }> {
   try {
-    const rotationResult = await rotateOAuthTokens(userId, provider);
+    const rotationResult = await rotateOAuthTokens(db, userId, provider);
 
     if (rotationResult.success && rotationResult.newAccessToken) {
       return { token: rotationResult.newAccessToken };

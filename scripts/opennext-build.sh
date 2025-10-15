@@ -3,6 +3,21 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 OUTPUT_FILE="$ROOT_DIR/.open-next/worker.js"
+NEXT_BIN="$ROOT_DIR/node_modules/.bin/next"
+
+run_next_build() {
+  if [ ! -x "$NEXT_BIN" ]; then
+    echo "Next.js CLI not found at $NEXT_BIN" >&2
+    exit 1
+  fi
+  echo "OpenNext — running Next.js build"
+  NODE_ENV=production "$NEXT_BIN" build
+}
+
+if [ "${OPENNEXT_CHILD_BUILD:-0}" = "1" ]; then
+  run_next_build
+  exit 0
+fi
 
 LATEST_SOURCE=$(node - <<'NODE' "$ROOT_DIR"
 import fs from "fs";
@@ -56,14 +71,19 @@ const file = process.argv[2];
 if (!fs.existsSync(file)) {
   console.log(0);
 } else {
-  console.log(Math.floor(fs.statSync(file).mtimeMs));
+console.log(Math.floor(fs.statSync(file).mtimeMs));
 }
 NODE
 )
 
+run_open_next_packager() {
+  echo "OpenNext — packaging Cloudflare worker"
+  exec env OPENNEXT_CHILD_BUILD=1 npx --yes @opennextjs/cloudflare build
+}
+
 if [ ! -f "$OUTPUT_FILE" ]; then
   echo "OpenNext — initial build"
-  exec npx --yes @opennextjs/cloudflare build
+  run_open_next_packager
 fi
 
 if [ "$LATEST_SOURCE" -le "$BUILD_TIMESTAMP" ]; then
@@ -72,4 +92,4 @@ if [ "$LATEST_SOURCE" -le "$BUILD_TIMESTAMP" ]; then
 fi
 
 echo "OpenNext — rebuilding Next.js app"
-exec npx --yes @opennextjs/cloudflare build
+run_open_next_packager

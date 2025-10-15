@@ -41,6 +41,8 @@ export function configureQueryCache(queryClient: QueryClient) {
     staleTime: CACHE_TIMES.STATIC.staleTime,
     gcTime: CACHE_TIMES.STATIC.gcTime,
     refetchOnWindowFocus: false, // Don't refetch templates on focus for performance
+    refetchOnMount: true, // Ensure stale templates refetch when visiting the page again
+    refetchOnReconnect: true,
     refetchInterval: false, // Disable automatic polling - rely on manual invalidation
   });
 

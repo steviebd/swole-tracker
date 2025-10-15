@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { externalWorkoutsWhoop } from "~/server/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { env } from "~/env";
@@ -23,6 +23,8 @@ interface WhoopWorkout {
 }
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const session = await SessionCookie.get(request);
     if (!session || SessionCookie.isExpired(session)) {
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Check rate limit (use shared env presets)
     const rateLimit = await checkRateLimit(
+      db,
       session.userId,
       "whoop_sync",
       env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get valid access token (automatically handles rotation if needed)
-    const tokenResult = await getValidAccessToken(session.userId, "whoop");
+    const tokenResult = await getValidAccessToken(db, session.userId, "whoop");
 
     if (!tokenResult.token) {
       return NextResponse.json(

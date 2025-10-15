@@ -4,10 +4,13 @@ import {
   buildWhoopAuthorizationUrl,
   WhoopAuthorizationError,
 } from "~/server/api/utils/whoop-authorization";
+import { createDb, getD1Binding } from "~/server/db";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const session = await SessionCookie.get(request);
     if (!session || SessionCookie.isExpired(session)) {
@@ -15,6 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const authorizeUrl = await buildWhoopAuthorizationUrl({
+      db,
       origin: request.nextUrl.origin,
       headers: request.headers,
       userId: session.userId,
