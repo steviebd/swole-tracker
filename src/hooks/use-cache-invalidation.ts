@@ -17,9 +17,6 @@ export function useCacheInvalidation() {
     // Invalidate preferences after preference updates
     invalidatePreferences: () => invalidateQueries.preferences(queryClient),
 
-    // Invalidate jokes after joke mutations
-    invalidateJokes: () => invalidateQueries.jokes(queryClient),
-
     // Invalidate everything (use sparingly)
     invalidateAll: () => invalidateQueries.all(queryClient),
 

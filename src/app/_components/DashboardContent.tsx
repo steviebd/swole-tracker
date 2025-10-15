@@ -9,7 +9,6 @@ import { SettingsModal } from "./SettingsModal";
 import { HomePageContent } from "./HomePageContent";
 import { QuickActionCards } from "./QuickActionCards";
 import { HomePageFooter } from "./HomePageFooter";
-import { JokeOfTheDay } from "./joke-of-the-day";
 import { DashboardContainer } from "~/components/dashboard/dashboard-container";
 
 export function DashboardContent() {
@@ -126,9 +125,6 @@ export function DashboardContent() {
 
           {/* Bottom content with better spacing */}
           <div className="space-y-6 sm:space-y-8">
-            {/* Joke of the Day */}
-            <JokeOfTheDay />
-
             {/* Homepage Footer */}
             <HomePageFooter />
           </div>

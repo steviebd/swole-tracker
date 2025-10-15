@@ -215,25 +215,6 @@ export const userPreferences = createTable(
   (t) => [index("user_preferences_user_id_idx").on(t.user_id)],
 ); // RLS disabled - using WorkOS auth with application-level security
 
-// Daily Jokes
-export const dailyJokes = createTable(
-  "daily_joke",
-  {
-    id: integer().primaryKey({ autoIncrement: true }),
-    user_id: text().notNull(),
-    joke: text().notNull(),
-    aiModel: text().notNull(),
-    prompt: text().notNull(),
-    createdAt: date()
-      .default(sql`(datetime('now'))`)
-      .notNull(),
-  },
-  (t) => [
-    index("daily_joke_user_id_idx").on(t.user_id),
-    index("daily_joke_created_at_idx").on(t.createdAt),
-    index("daily_joke_user_date_idx").on(t.user_id, t.createdAt),
-  ],
-); // RLS disabled - using WorkOS auth with application-level security
 
 // User Integrations (OAuth tokens for external services)
 export const userIntegrations = createTable(

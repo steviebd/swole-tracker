@@ -32,7 +32,7 @@
 - Authenticated workout dashboards (`/workout`, `/workouts`, `/templates`) gated by WorkOS sessions
 - Workout template + session management, set logging, progression helpers, achievements, and insights
 - Offline-first UX with conflict resolution, queueing, and cache health monitoring
-- AI-assisted coaching: jokes demo route plus health advice & wellness insights (`healthAdvice`, `wellness`, `suggestions` routers)
+- AI-assisted coaching: health advice & wellness insights (`healthAdvice`, `wellness`, `suggestions` routers)
 - Whoop integration: OAuth flow, sync orchestration, webhook processor, and rate limiting
 - Progress analytics, charts, and SSE live updates for active sessions
 
