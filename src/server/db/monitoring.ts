@@ -11,6 +11,13 @@ export interface ConnectionMetrics {
   uptime: number;
 }
 
+export interface QueueMetrics {
+  depth: number;
+  processedCount: number;
+  errorCount: number;
+  lastProcessedAt?: number;
+}
+
 class DatabaseMonitor {
   private metrics: ConnectionMetrics = {
     totalQueries: 0,
@@ -61,6 +68,42 @@ class DatabaseMonitor {
 
 // Global database monitor instance
 export const dbMonitor = new DatabaseMonitor();
+
+class QueueMonitor {
+  private metrics: QueueMetrics = {
+    depth: 0,
+    processedCount: 0,
+    errorCount: 0,
+  };
+
+  public updateDepth(depth: number) {
+    this.metrics.depth = depth;
+  }
+
+  public recordProcessed(count: number) {
+    this.metrics.processedCount += count;
+    this.metrics.lastProcessedAt = Date.now();
+  }
+
+  public recordError() {
+    this.metrics.errorCount++;
+  }
+
+  public getMetrics(): QueueMetrics {
+    return { ...this.metrics };
+  }
+
+  public resetMetrics() {
+    this.metrics = {
+      depth: 0,
+      processedCount: 0,
+      errorCount: 0,
+    };
+  }
+}
+
+// Global queue monitor instance
+export const queueMonitor = new QueueMonitor();
 
 /**
  * Middleware function to wrap database queries with monitoring

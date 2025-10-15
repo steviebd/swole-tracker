@@ -718,4 +718,130 @@ export const workoutsRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  // Batch save multiple workout sessions (for offline queue processing)
+  batchSave: protectedProcedure
+    .use(workoutRateLimit)
+    .input(
+      z.object({
+        workouts: z.array(
+          z.object({
+            sessionId: z.number(),
+            exercises: z.array(exerciseInputSchema),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (input.workouts.length === 0) {
+        return { success: true, processedCount: 0 };
+      }
+
+      const startTime = Date.now();
+      let totalSetsInserted = 0;
+
+      try {
+        // Process each workout in the batch
+        for (const workout of input.workouts) {
+          // Verify session ownership
+          const session = await monitoredDbQuery(
+            "workouts.batchSave.verify",
+            () =>
+              ctx.db.query.workoutSessions.findFirst({
+                where: eq(workoutSessions.id, workout.sessionId),
+              }),
+          );
+
+          if (!session || session.user_id !== ctx.user.id) {
+            throw new Error(`Workout session ${workout.sessionId} not found`);
+          }
+
+          // Delete existing exercises for this session
+          await monitoredDbQuery("workouts.batchSave.delete", () =>
+            ctx.db
+              .delete(sessionExercises)
+              .where(eq(sessionExercises.sessionId, workout.sessionId)),
+          );
+
+          // Flatten exercises into individual sets and filter out empty ones
+          const setsToInsert = workout.exercises.flatMap((exercise) =>
+            exercise.sets
+              .filter(
+                (set) =>
+                  set.weight !== undefined ||
+                  set.reps !== undefined ||
+                  set.sets !== undefined ||
+                  set.rpe !== undefined ||
+                  set.rest !== undefined,
+              )
+              .map((set, setIndex) => ({
+                user_id: ctx.user.id,
+                sessionId: workout.sessionId,
+                templateExerciseId: exercise.templateExerciseId,
+                exerciseName: exercise.exerciseName,
+                setOrder: setIndex,
+                weight: set.weight,
+                reps: set.reps,
+                sets: set.sets,
+                unit: set.unit,
+                rpe: set.rpe,
+                rest_seconds: set.rest,
+                is_estimate: set.isEstimate ?? false,
+                is_default_applied: set.isDefaultApplied ?? false,
+              })),
+          );
+
+          if (setsToInsert.length > 0) {
+            await monitoredDbQuery("workouts.batchSave.insert", () =>
+              ctx.db.insert(sessionExercises).values(setsToInsert),
+            );
+            totalSetsInserted += setsToInsert.length;
+          }
+
+          // Generate debrief for workouts with sets
+          if (setsToInsert.length > 0) {
+            const acceptLanguage =
+              ctx.headers.get("accept-language") ?? undefined;
+            const locale = acceptLanguage?.split(",")[0];
+
+            void (async () => {
+              try {
+                await generateAndPersistDebrief({
+                  dbClient: ctx.db,
+                  userId: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  locale,
+                  trigger: "auto",
+                  requestId: ctx.requestId,
+                });
+              } catch (error) {
+                logger.warn("session_debrief.batch_auto_generation_failed", {
+                  userId: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  error: error instanceof Error ? error.message : "unknown",
+                });
+              }
+            })();
+          }
+        }
+
+        const duration = Date.now() - startTime;
+        logger.info("Batch workout save completed", {
+          workoutCount: input.workouts.length,
+          totalSetsInserted,
+          durationMs: duration,
+          requestId: ctx.requestId,
+        });
+
+        return { success: true, processedCount: input.workouts.length };
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        logger.error("Batch workout save failed", error, {
+          workoutCount: input.workouts.length,
+          durationMs: duration,
+          requestId: ctx.requestId,
+        });
+        throw error;
+      }
+    }),
 });

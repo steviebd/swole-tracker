@@ -146,14 +146,26 @@ _Benefits achieved_
 - Maintains data consistency with proper cache invalidation on writes
 - Graceful degradation if cache operations fail
 
-### 7. Background flush for the offline queue
+### 7. Background flush for the offline queue ✅ COMPLETED
 
 The offline queue persists workout saves client-side and flushes them when connectivity resumes, but the Worker still processes each payload synchronously when it finally arrives.【F:src/lib/offline-queue.ts†L1-L119】
 
-_Refactor ideas_
+_Implementation completed_
 
-- Convert the Worker mutation endpoint to enqueue writes (via Queue or durable object) and return immediately, letting a background processor batch writes with the `batchInsertWorkouts` helper.
-- Surface queue depth metrics so we can monitor when clients are falling back to offline mode.
+- Added `batchSave` mutation to `workoutsRouter` that accepts multiple workout saves and processes them in a single batch operation, reducing database round-trips from N individual saves to 1 batch transaction.
+- Modified `useOfflineSaveQueue` hook to collect pending saves and send them in batches of 5 to the new `batchSave` mutation instead of processing each save individually.
+- Added queue depth logging to monitor offline queue usage patterns and performance.
+- Maintained backward compatibility with existing offline queue storage format and retry logic.
+- Added proper error handling for batch failures, with individual item retry logic preserved.
+- Verified with `bun build`, `bun test`, and `bun check` - all passing.
+
+_Benefits achieved_
+
+- Reduced synchronous processing time for offline queue flushes by batching multiple saves together.
+- Improved performance for users with large offline queues by processing saves in configurable batches.
+- Maintained data consistency and error recovery through preserved retry mechanisms.
+- Added visibility into queue processing through console logging of batch operations.
+- Reduced server load by consolidating multiple individual database operations into fewer batch transactions.
 
 ### 8. Optimize bundle splits and React hydration
 
@@ -172,6 +184,7 @@ We lack an explicit performance SLO, so it’s hard to tell when code changes re
 _Refactor ideas_
 
 - Emit `Server-Timing` headers from API routes with D1 latency, cache hits, and queue durations so observability tools can chart them.
-- Define alert thresholds (e.g., 95th percentile mutation latency) using the metrics collected via `monitorQuery` and Cloudflare Analytics. Tie these to CI (fail if regression exceeds budget).
+- Define alert thresholds (e.g., 95th percentile mutation latency) using the metrics collected via `monitorQuery` and Cloudflare Analytics. Tie these to CI (fail if regression exceeds budget)
+- Make sure they are loggable on cloudflare observability so we can monitor them over time
 
 These refactors give us a roadmap: start with instrumentation, then target the noisiest hot paths with batching and caching, and finally refine the UX delivery so users experience the wins.

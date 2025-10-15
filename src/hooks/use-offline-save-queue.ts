@@ -9,7 +9,10 @@ import {
   requeueFront,
   updateItem,
   pruneExhausted,
+  readQueue,
+  writeQueue,
   type SaveWorkoutPayload,
+  type QueueItem,
 } from "~/lib/offline-queue";
 import { api } from "~/trpc/react";
 
@@ -56,6 +59,7 @@ export function useOfflineSaveQueue() {
 
   const utils = api.useUtils();
   const saveWorkout = api.workouts.save.useMutation();
+  const batchSaveWorkouts = api.workouts.batchSave.useMutation();
 
   const refreshCount = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -80,53 +84,79 @@ export function useOfflineSaveQueue() {
     try {
       pruneExhausted();
 
-      // Process FIFO
-      // We will drain the queue in this session unless errors request a retry
-      while (true) {
-        const item = dequeue();
-        if (!item) break;
+      // Collect all valid workout save items for batch processing
+      const itemsToProcess: QueueItem[] = [];
+      const queueSnapshot = getQueue();
 
-        if (item.type !== "workout_save") {
-          // Unknown item; skip
-          continue;
+      for (const item of queueSnapshot) {
+        if (item.type === "workout_save" && item.attempts < 8) {
+          itemsToProcess.push(item);
         }
+      }
+
+      if (itemsToProcess.length === 0) {
+        setStatus("done");
+        return;
+      }
+
+      // Process in batches of 5 to avoid overwhelming the server
+      const batchSize = 5;
+      for (let i = 0; i < itemsToProcess.length; i += batchSize) {
+        const batch = itemsToProcess.slice(i, i + batchSize);
 
         try {
-          // Attempt to save
-          await saveWorkout.mutateAsync({
+          // Prepare batch payload
+          const workouts = batch.map((item) => ({
             sessionId: item.payload.sessionId,
             exercises: item.payload.exercises,
-          });
+          }));
 
-          // On success, invalidate recent workouts etc.
+          // Attempt batch save
+          await batchSaveWorkouts.mutateAsync({ workouts });
+
+          // On success, remove processed items from queue and invalidate cache
+          for (const item of batch) {
+            // Remove from localStorage queue
+            const currentQueue = readQueue();
+            const filteredQueue = currentQueue.filter(
+              (q: QueueItem) => q.id !== item.id,
+            );
+            writeQueue(filteredQueue);
+          }
+
           await utils.workouts.getRecent.invalidate();
 
-          // Reduce count
-          setQueueSize((n) => Math.max(0, n - 1));
-          processedCount++;
+          // Update counts
+          setQueueSize((n) => Math.max(0, n - batch.length));
+          processedCount += batch.length;
+
+          // Log queue processing metrics
+          console.info(
+            `Processed offline queue batch: ${batch.length} workouts, queue depth: ${getQueueLength()}`,
+          );
         } catch (err) {
           const message =
             err && typeof err === "object" && "message" in err
               ? String((err as Error).message)
               : "Network or server error";
 
-          // Network-ish failures: requeue with backoff
-          const attempts = item.attempts + 1;
-          updateItem(item.id, { attempts, lastError: message });
+          // For batch failures, increment attempts for each item and requeue
+          for (const item of batch) {
+            const attempts = item.attempts + 1;
+            updateItem(item.id, { attempts, lastError: message });
 
-          if (attempts >= 8) {
-            // Give up on this item for now; keep it in storage but don't requeue to front
-            setLastError(
-              `Failed to sync workout after ${attempts} attempts: ${message}`,
-            );
-            errorCount++;
-          } else {
-            // Wait with exponential backoff then requeue at front for immediate retry later
-            await sleep(backoff(item.attempts));
-            requeueFront({ ...item, attempts });
+            if (attempts >= 8) {
+              setLastError(
+                `Failed to sync workout after ${attempts} attempts: ${message}`,
+              );
+              errorCount++;
+            } else {
+              // Requeue failed items at front for retry
+              requeueFront({ ...item, attempts });
+            }
           }
 
-          // Exit loop for now to avoid tight retry loops; let user trigger flush again
+          // Exit after first batch failure to avoid cascading errors
           break;
         }
       }
@@ -176,7 +206,7 @@ export function useOfflineSaveQueue() {
       // Small debounce before returning to idle
       setTimeout(() => setStatus("idle"), 500);
     }
-  }, [saveWorkout, utils.workouts.getRecent]);
+  }, [batchSaveWorkouts, utils.workouts.getRecent]);
 
   // Initialize and setup automatic flush triggers
   // The queue automatically flushes when:

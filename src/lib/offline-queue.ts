@@ -70,6 +70,9 @@ export function getQueueLength(): number {
   return readQueue().length;
 }
 
+export { readQueue, writeQueue };
+export type { QueueItem };
+
 export function enqueueWorkoutSave(payload: SaveWorkoutPayload) {
   const q = readQueue();
   const item: QueueItem = {
