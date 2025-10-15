@@ -145,20 +145,42 @@ export const workoutsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const sets = (await monitoredDbQuery(
-        "workouts.getLastExerciseData",
-        () =>
-          ctx.db.all(
-            sql`
+      let query: SQL;
+      if (input.templateExerciseId) {
+        query = sql`
+          WITH equivalent AS (
+            SELECT te.exerciseName
+            FROM exercise_link el
+            LEFT JOIN template_exercise te ON te.id = el.templateExerciseId
+            WHERE el.user_id = ${ctx.user.id} AND el.templateExerciseId = ${input.templateExerciseId}
+            UNION ALL
+            SELECT exerciseName FROM template_exercise WHERE id = ${input.templateExerciseId} AND user_id = ${ctx.user.id}
+          )
+          SELECT se.weight, se.reps, se.sets, se.unit, se.setOrder, ws.workoutDate
+          FROM session_exercise se
+          INNER JOIN workout_session ws ON se.sessionId = ws.id
+          WHERE se.user_id = ${ctx.user.id}
+          AND se.exerciseName IN (SELECT exerciseName FROM equivalent)
+          ${input.excludeSessionId ? sql`AND se.sessionId != ${input.excludeSessionId}` : sql``}
+          ORDER BY ws.workoutDate DESC, se.setOrder ASC
+          LIMIT 10
+        `;
+      } else {
+        query = sql`
           SELECT se.weight, se.reps, se.sets, se.unit, se.setOrder, ws.workoutDate
           FROM session_exercise se
           INNER JOIN workout_session ws ON se.sessionId = ws.id
           WHERE se.user_id = ${ctx.user.id}
           AND se.exerciseName = ${input.exerciseName}
+          ${input.excludeSessionId ? sql`AND se.sessionId != ${input.excludeSessionId}` : sql``}
           ORDER BY ws.workoutDate DESC, se.setOrder ASC
           LIMIT 10
-        `,
-          ),
+        `;
+      }
+
+      const sets = (await monitoredDbQuery(
+        "workouts.getLastExerciseData",
+        () => ctx.db.all(query),
         ctx,
       )) as Array<{
         weight: number | null;
@@ -279,7 +301,7 @@ export const workoutsRouter = createTRPCRouter({
         reps: bestSet.reps,
         sets: bestSet.sets,
         unit: bestSet.unit,
-        workoutDate: bestSet.workout_date,
+        workoutDate: bestSet.workoutDate,
       };
     }),
 
@@ -419,10 +441,13 @@ export const workoutsRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       // Verify session ownership
-      const session = await monitoredDbQuery("workouts.save.verify", () =>
-        ctx.db.query.workoutSessions.findFirst({
-          where: eq(workoutSessions.id, input.sessionId),
-        }),
+      const session = await monitoredDbQuery(
+        "workouts.save.verify",
+        () =>
+          ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, input.sessionId),
+          }),
+        ctx,
       );
 
       if (!session || session.user_id !== ctx.user.id) {
@@ -430,10 +455,13 @@ export const workoutsRouter = createTRPCRouter({
       }
 
       // Delete existing exercises for this session
-      await monitoredDbQuery("workouts.save.delete", () =>
-        ctx.db
-          .delete(sessionExercises)
-          .where(eq(sessionExercises.sessionId, input.sessionId)),
+      await monitoredDbQuery(
+        "workouts.save.delete",
+        () =>
+          ctx.db
+            .delete(sessionExercises)
+            .where(eq(sessionExercises.sessionId, input.sessionId)),
+        ctx,
       );
 
       // Flatten exercises into individual sets and filter out empty ones
@@ -477,8 +505,10 @@ export const workoutsRouter = createTRPCRouter({
       );
 
       if (setsToInsert.length > 0) {
-        await monitoredDbQuery("workouts.save.insert", () =>
-          ctx.db.insert(sessionExercises).values(setsToInsert),
+        await monitoredDbQuery(
+          "workouts.save.insert",
+          () => ctx.db.insert(sessionExercises).values(setsToInsert),
+          ctx,
         );
       }
 
@@ -665,20 +695,23 @@ export const workoutsRouter = createTRPCRouter({
         .map(([id, update]) => sql`WHEN ${id} THEN ${update.unit}`)
         .join(" ");
 
-      await monitoredDbQuery("workouts.updateSessionSets.update", () =>
-        ctx.db
-          .update(sessionExercises)
-          .set({
-            weight: sql`CASE id ${weightCases} END`,
-            reps: sql`CASE id ${repsCases} END`,
-            unit: sql`CASE id ${unitCases} END`,
-          })
-          .where(
-            and(
-              inArray(sessionExercises.id, ids),
-              eq(sessionExercises.user_id, ctx.user.id),
+      await monitoredDbQuery(
+        "workouts.updateSessionSets.update",
+        () =>
+          ctx.db
+            .update(sessionExercises)
+            .set({
+              weight: sql`CASE id ${weightCases} END`,
+              reps: sql`CASE id ${repsCases} END`,
+              unit: sql`CASE id ${unitCases} END`,
+            })
+            .where(
+              and(
+                inArray(sessionExercises.id, ids),
+                eq(sessionExercises.user_id, ctx.user.id),
+              ),
             ),
-          ),
+        ctx,
       );
 
       const rowsForRecalc = await monitoredDbQuery(
@@ -724,19 +757,22 @@ export const workoutsRouter = createTRPCRouter({
           sql` `,
         );
 
-        await monitoredDbQuery("workouts.updateSessionSets.recompute", () =>
-          ctx.db
-            .update(sessionExercises)
-            .set({
-              one_rm_estimate: sql`CASE id ${oneRmCases} ELSE one_rm_estimate END`,
-              volume_load: sql`CASE id ${volumeCases} ELSE volume_load END`,
-            })
-            .where(
-              and(
-                inArray(sessionExercises.id, ids),
-                eq(sessionExercises.user_id, ctx.user.id),
+        await monitoredDbQuery(
+          "workouts.updateSessionSets.recompute",
+          () =>
+            ctx.db
+              .update(sessionExercises)
+              .set({
+                one_rm_estimate: sql`CASE id ${oneRmCases} ELSE one_rm_estimate END`,
+                volume_load: sql`CASE id ${volumeCases} ELSE volume_load END`,
+              })
+              .where(
+                and(
+                  inArray(sessionExercises.id, ids),
+                  eq(sessionExercises.user_id, ctx.user.id),
+                ),
               ),
-            ),
+          ctx,
         );
       }
 
@@ -762,8 +798,13 @@ export const workoutsRouter = createTRPCRouter({
         throw new Error("Workout session not found");
       }
 
-      await monitoredDbQuery("workouts.delete.session", () =>
-        ctx.db.delete(workoutSessions).where(eq(workoutSessions.id, input.id)),
+      await monitoredDbQuery(
+        "workouts.delete.session",
+        () =>
+          ctx.db
+            .delete(workoutSessions)
+            .where(eq(workoutSessions.id, input.id)),
+        ctx,
       );
 
       return { success: true };
@@ -808,10 +849,13 @@ export const workoutsRouter = createTRPCRouter({
           }
 
           // Delete existing exercises for this session
-          await monitoredDbQuery("workouts.batchSave.delete", () =>
-            ctx.db
-              .delete(sessionExercises)
-              .where(eq(sessionExercises.sessionId, workout.sessionId)),
+          await monitoredDbQuery(
+            "workouts.batchSave.delete",
+            () =>
+              ctx.db
+                .delete(sessionExercises)
+                .where(eq(sessionExercises.sessionId, workout.sessionId)),
+            ctx,
           );
 
           // Flatten exercises into individual sets and filter out empty ones
@@ -853,8 +897,10 @@ export const workoutsRouter = createTRPCRouter({
           );
 
           if (setsToInsert.length > 0) {
-            await monitoredDbQuery("workouts.batchSave.insert", () =>
-              ctx.db.insert(sessionExercises).values(setsToInsert),
+            await monitoredDbQuery(
+              "workouts.batchSave.insert",
+              () => ctx.db.insert(sessionExercises).values(setsToInsert),
+              ctx,
             );
             totalSetsInserted += setsToInsert.length;
           }

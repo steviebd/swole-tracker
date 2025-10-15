@@ -109,6 +109,12 @@ export function requeueFront(item: QueueItem) {
   writeQueue(q);
 }
 
+export function removeItem(id: string) {
+  const q = readQueue();
+  const filtered = q.filter((i) => i.id !== id);
+  writeQueue(filtered);
+}
+
 export function pruneExhausted() {
   const q = readQueue().filter((i) => i.attempts < MAX_ATTEMPTS);
   writeQueue(q);

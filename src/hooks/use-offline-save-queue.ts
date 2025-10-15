@@ -8,6 +8,7 @@ import {
   dequeue,
   requeueFront,
   updateItem,
+  removeItem,
   pruneExhausted,
   readQueue,
   writeQueue,
@@ -145,16 +146,19 @@ export function useOfflineSaveQueue() {
           // For batch failures, increment attempts for each item and requeue
           for (const item of batch) {
             const attempts = item.attempts + 1;
-            updateItem(item.id, { attempts, lastError: message });
 
             if (attempts >= 8) {
+              // Remove exhausted items
+              removeItem(item.id);
               setLastError(
                 `Failed to sync workout after ${attempts} attempts: ${message}`,
               );
               errorCount++;
             } else {
-              // Requeue failed items at front for retry
-              requeueFront({ ...item, attempts });
+              // Update attempts and requeue at front for retry
+              const updatedItem = { ...item, attempts, lastError: message };
+              removeItem(item.id);
+              requeueFront(updatedItem);
             }
           }
 

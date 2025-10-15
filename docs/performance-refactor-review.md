@@ -101,20 +101,9 @@ _Benefits achieved_
 - Provides data for optimizing indexes and query patterns based on real usage metrics.
 - Maintains existing logging infrastructure for correlation with PostHog events.
 
-### 5. Revisit indexing and computed column strategies 🔄 REVERTED
-
-The original plan to move `one_rm_estimate` and `volume_load` calculations into SQLite generated columns was reverted. D1 (and upstream SQLite) cannot apply `ALTER TABLE ... ADD COLUMN` for stored/generated fields, which prevented the migration from running reliably across environments.【F:src/server/db/schema.ts†L1-L200】【F:src/server/api/routers/workouts.ts†L400-L460】
-
-_Current status_
-
-- Restored `one_rm_estimate` and `volume_load` to regular `REAL` columns populated in the application layer.
-- Reinstated computation during workout saves/updates so indexes continue to function for analytics queries.
-- Added recovery migration `0001_restore_session_exercise_metrics.sql` to rebuild the table with stored columns and keep db:push stable on D1.
-- Monitoring (item 4) remains in place to inform any future indexing or materialized view strategy once platform limitations are addressed.
-
 ## Application & Production Delivery
 
-### 6. Cache read-heavy responses at the edge ✅ COMPLETED
+### 5. Cache read-heavy responses at the edge ✅ COMPLETED
 
 Next.js App Router handlers are executed in the Worker, so we can use the Workers Cache API or RSC streaming caches for anonymous/public routes. D1 reads that do not change per request (e.g., master exercise catalog, jokes) could be cached for seconds to minutes to avoid hitting the database on every request.【F:src/server/api/routers/workouts.ts†L47-L148】
 
@@ -134,7 +123,7 @@ _Benefits achieved_
 - Maintains data consistency with proper cache invalidation on writes
 - Graceful degradation if cache operations fail
 
-### 7. Background flush for the offline queue ✅ COMPLETED
+### 6. Background flush for the offline queue ✅ COMPLETED
 
 The offline queue persists workout saves client-side and flushes them when connectivity resumes, but the Worker still processes each payload synchronously when it finally arrives.【F:src/lib/offline-queue.ts†L1-L119】
 
@@ -155,7 +144,7 @@ _Benefits achieved_
 - Added visibility into queue processing through console logging of batch operations.
 - Reduced server load by consolidating multiple individual database operations into fewer batch transactions.
 
-### 8. Optimize bundle splits and React hydration ✅ COMPLETED
+### 7. Optimize bundle splits and React hydration ✅ COMPLETED
 
 We already split vendor and UI component chunks in `next.config.js`, but we can go further by lazy-loading dashboards, sharing React Query caches between RSC and client components, and enabling Partial Prerendering for largely static pages.【F:next.config.js†L1-L74】
 
@@ -175,7 +164,7 @@ _Benefits achieved_
 - Better caching of component chunks with more granular split strategies
 - Maintained data consistency with proper React Query dehydration between server and client
 
-### 9. Production diagnostics and failure budgets ✅ COMPLETED
+### 8. Production diagnostics and failure budgets ✅ COMPLETED
 
 We lack an explicit performance SLO, so it's hard to tell when code changes regress latency versus network noise.
 
@@ -197,3 +186,17 @@ _Benefits achieved_
 - Request IDs enable correlation between application logs and Cloudflare metrics
 
 These refactors give us a roadmap: start with instrumentation, then target the noisiest hot paths with batching and caching, and finally refine the UX delivery so users experience the wins.
+
+## PR Review ✅ COMPLETED
+
+- **Blocker – src/server/api/routers/workouts.ts:142**: `getLastExerciseData` now ignores both `templateExerciseId` and `excludeSessionId`, so we no longer fold in linked exercises via `exercise_link` nor exclude the in-progress session. This regresses the previous behaviour the doc describes; please restore the CTE that includes linked templates and honours the exclusion guard.
+  - **✅ FIXED**: Updated `getLastExerciseData` to use conditional CTE queries that include linked exercises when `templateExerciseId` is provided and exclude the specified session when `excludeSessionId` is provided. Maintains backward compatibility for simple exercise name lookups.
+
+- **Blocker – src/server/api/routers/workouts.ts:282**: The new query returns `workoutDate`, but we read `bestSet.workout_date`, so the API always emits `undefined`. Swap to `bestSet.workoutDate` (or alias the column) to keep the date in the response.
+  - **✅ FIXED**: Changed `bestSet.workout_date` to `bestSet.workoutDate` to match the actual column name returned by the query.
+
+- **Major – src/hooks/use-offline-save-queue.ts:145**: On batch failure we call `updateItem` (persisting the entry) and then `requeueFront` without removing the original, which duplicates queue items/share ids and inflates retry counts. Remove-before-requeue or rewrite the mutation so we only store a single copy per id.
+  - **✅ FIXED**: Added `removeItem()` function to offline-queue utilities and modified batch failure handling to remove items before requeueing them, preventing duplicate queue entries.
+
+- **Suggestion – src/server/api/routers/workouts.ts:422**: The mutation paths wrap queries in `monitoredDbQuery` but skip the `ctx` argument, so those calls never populate `Server-Timing`. Passing `ctx` keeps the instrumentation consistent with the read procedures.
+  - **✅ FIXED**: Updated all mutation procedures in `workoutsRouter` to pass the `ctx` parameter to `monitoredDbQuery`, ensuring Server-Timing headers are properly populated for database operation monitoring.
