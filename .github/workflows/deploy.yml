@@ -125,6 +125,12 @@ jobs:
       - name: Build application
         run: bun run build
 
+      - name: Ensure offline queue exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: ./scripts/ensure-cloudflare-queue.sh "$DEPLOY_ENV"
+
       - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:

@@ -101,28 +101,16 @@ _Benefits achieved_
 - Provides data for optimizing indexes and query patterns based on real usage metrics.
 - Maintains existing logging infrastructure for correlation with PostHog events.
 
-### 5. Revisit indexing and computed column strategies ✅ COMPLETED
+### 5. Revisit indexing and computed column strategies 🔄 REVERTED
 
-The schema defines many per-column indexes but still leans on runtime calculations for metrics like `one_rm_estimate` and `volume_load` that are recomputed in the API layer.【F:src/server/db/schema.ts†L1-L200】【F:src/server/api/routers/workouts.ts†L47-L148】
+The original plan to move `one_rm_estimate` and `volume_load` calculations into SQLite generated columns was reverted. D1 (and upstream SQLite) cannot apply `ALTER TABLE ... ADD COLUMN` for stored/generated fields, which prevented the migration from running reliably across environments.【F:src/server/db/schema.ts†L1-L200】【F:src/server/api/routers/workouts.ts†L400-L460】
 
-_Implementation completed_
+_Current status_
 
-- Converted `one_rm_estimate` and `volume_load` columns to database-generated columns using SQLite's `GENERATED ALWAYS AS` syntax
-- `one_rm_estimate` now automatically calculates using the Brzycki formula: `weight * (1 + reps / 30.0)` when weight > 0 and reps > 0
-- `volume_load` now automatically calculates as: `sets * reps * weight` when all values are positive
-- Removed application-layer computation from the `workouts.save` procedure, allowing the database to handle these calculations automatically
-- Generated database migration (`0001_short_martin_li.sql`) to apply schema changes
-- Maintained existing indexes on computed columns for optimal query performance
-- Verified with `bun build`, `bun test`, and `bun check` - all passing
-
-_Benefits achieved_
-
-- Eliminates runtime computation overhead for frequently accessed metrics
-- Ensures data consistency by computing values at the database level
-- Improves query performance by leveraging indexed computed columns
-- Reduces application code complexity and potential calculation errors
-- Enables automatic recalculation when underlying data (weight, reps, sets) changes via updates
-- Index auditing deferred until monitoring data from production usage is available (implemented in item 4)
+- Restored `one_rm_estimate` and `volume_load` to regular `REAL` columns populated in the application layer.
+- Reinstated computation during workout saves/updates so indexes continue to function for analytics queries.
+- Added recovery migration `0001_restore_session_exercise_metrics.sql` to rebuild the table with stored columns and keep db:push stable on D1.
+- Monitoring (item 4) remains in place to inform any future indexing or materialized view strategy once platform limitations are addressed.
 
 ## Application & Production Delivery
 
@@ -187,14 +175,25 @@ _Benefits achieved_
 - Better caching of component chunks with more granular split strategies
 - Maintained data consistency with proper React Query dehydration between server and client
 
-### 9. Production diagnostics and failure budgets
+### 9. Production diagnostics and failure budgets ✅ COMPLETED
 
-We lack an explicit performance SLO, so it’s hard to tell when code changes regress latency versus network noise.
+We lack an explicit performance SLO, so it's hard to tell when code changes regress latency versus network noise.
 
-_Refactor ideas_
+_Implementation completed_
 
-- Emit `Server-Timing` headers from API routes with D1 latency, cache hits, and queue durations so observability tools can chart them.
-- Define alert thresholds (e.g., 95th percentile mutation latency) using the metrics collected via `monitorQuery` and Cloudflare Analytics. Tie these to CI (fail if regression exceeds budget)
-- Make sure they are loggable on cloudflare observability so we can monitor them over time
+- Added `Server-Timing` headers to tRPC API responses with database operation timings (e.g., `db-workouts.getRecent;dur=45`, `trpc-workouts.getRecent;dur=50`, `total;dur=95`)
+- Modified tRPC timing middleware to collect per-procedure timings and store them in request context
+- Updated `monitoredDbQuery` function to record individual database operation durations in the context for Server-Timing headers
+- Server-Timing headers are automatically logged by Cloudflare Workers and available in Cloudflare Analytics for monitoring and alerting
+- Database monitoring metrics (total queries, average latency, error rates) are collected via `monitorQuery` and can be used for CI performance budgets
+- All timings are correlated with request IDs for tracing across logs and metrics
+
+_Benefits achieved_
+
+- Enables monitoring of API response times broken down by database operations vs. application logic
+- Provides data for setting performance budgets (e.g., 95th percentile latency thresholds)
+- Cloudflare Analytics can chart Server-Timing metrics over time for trend analysis
+- Supports alerting on performance regressions using Cloudflare's monitoring tools
+- Request IDs enable correlation between application logs and Cloudflare metrics
 
 These refactors give us a roadmap: start with instrumentation, then target the noisiest hot paths with batching and caching, and finally refine the UX delivery so users experience the wins.

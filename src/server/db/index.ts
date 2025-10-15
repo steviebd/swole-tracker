@@ -71,9 +71,12 @@ export function getD1Binding(): D1Database {
 }
 
 function createDbInstance(binding: D1Database): DrizzleDb {
-  return drizzle(binding, {
+  const db = drizzle(binding, {
     schema,
   });
+  // Mock transaction since D1 doesn't support SQL transactions
+  db.transaction = async (callback) => callback(db as any);
+  return db;
 }
 
 function resolveDb(): DrizzleDb {

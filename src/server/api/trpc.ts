@@ -37,6 +37,7 @@ export type TRPCContext = {
   user: TrpcUser;
   requestId: string;
   headers: Headers;
+  timings?: Map<string, number>;
 };
 
 export const createTRPCContext = async (opts: {
@@ -69,6 +70,7 @@ export const createTRPCContext = async (opts: {
       user,
       requestId,
       headers: opts.headers,
+      timings: new Map(),
     };
   } catch (error) {
     console.error("tRPC context: Failed to get session:", error);
@@ -79,6 +81,7 @@ export const createTRPCContext = async (opts: {
       user: null,
       requestId,
       headers: opts.headers,
+      timings: new Map(),
     };
   }
 };
@@ -244,6 +247,10 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
   const result = await next();
 
   const end = Date.now();
+  const duration = end - start;
+
+  // Store timing for Server-Timing header
+  ctx.timings?.set(`trpc-${path.replace(/\./g, "-")}`, duration);
 
   // Correlated, structured timing log
   const userId = ctx.user?.id ?? "anonymous";
@@ -252,9 +259,9 @@ const timingMiddleware = t.middleware(async ({ next, path, ctx }) => {
     path,
     userId,
     requestId,
-    durationMs: end - start,
+    durationMs: duration,
   });
-  logApiCall(path, userId, end - start);
+  logApiCall(path, userId, duration);
 
   return result;
 });

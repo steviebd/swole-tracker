@@ -178,6 +178,25 @@ export async function checkDatabaseHealth(db: any): Promise<{
 export function monitoredDbQuery<T>(
   queryName: string,
   dbOperation: () => Promise<T>,
+  ctx?: { timings?: Map<string, number> },
 ): Promise<T> {
-  return monitorQuery(queryName, dbOperation);
+  const startTime = Date.now();
+
+  return monitorQuery(queryName, dbOperation)
+    .then((result) => {
+      const duration = Date.now() - startTime;
+      // Record timing for Server-Timing header
+      if (ctx?.timings) {
+        ctx.timings.set(`db-${queryName.replace(/\./g, "-")}`, duration);
+      }
+      return result;
+    })
+    .catch((error) => {
+      const duration = Date.now() - startTime;
+      // Record timing even on error
+      if (ctx?.timings) {
+        ctx.timings.set(`db-${queryName.replace(/\./g, "-")}`, duration);
+      }
+      throw error;
+    });
 }

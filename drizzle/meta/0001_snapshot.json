@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7f1ae7f0-f27c-4ae0-8774-082ed5c92219",
+  "id": "4e9929b3-34fa-4c0a-823d-2f78a6d8d6d1",
   "prevId": "5224efe1-8a62-48bf-8e5b-83543223f1ea",
   "tables": {
     "ai_suggestion_history": {
@@ -1275,22 +1275,14 @@
           "type": "real",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "generated": {
-            "as": "(CASE WHEN weight IS NOT NULL AND reps IS NOT NULL AND weight > 0 AND reps > 0 THEN weight * (1 + reps / 30.0) ELSE NULL END)",
-            "type": "virtual"
-          }
+          "autoincrement": false
         },
         "volume_load": {
           "name": "volume_load",
           "type": "real",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "generated": {
-            "as": "(CASE WHEN weight IS NOT NULL AND reps IS NOT NULL AND sets IS NOT NULL AND weight > 0 AND reps > 0 AND sets > 0 THEN sets * reps * weight ELSE NULL END)",
-            "type": "virtual"
-          }
+          "autoincrement": false
         },
         "createdAt": {
           "name": "createdAt",

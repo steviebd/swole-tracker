@@ -16,15 +16,42 @@ type MasterExerciseWithLinkedCount = {
   linkedCount: number;
 };
 
+type WorkerCache = {
+  match(request: Request): Promise<Response | undefined>;
+  put(request: Request, response: Response): Promise<void>;
+  delete(request: Request): Promise<boolean>;
+};
+
 // Helper function to invalidate master exercises cache
 async function invalidateMasterExercisesCache(userId: string) {
   try {
-    const cacheKey = `master-exercises-${userId}`;
-    const cache = (caches as any).default;
-    await cache.delete(cacheKey);
+    const cache = getDefaultCache();
+    if (!cache) return;
+
+    const request = createCacheRequest(userId);
+    await cache.delete(request);
   } catch (error) {
     console.warn("Cache invalidation failed:", error);
   }
+}
+
+function getDefaultCache(): WorkerCache | null {
+  if (typeof caches === "undefined") {
+    return null;
+  }
+
+  try {
+    const storage = caches as unknown as { default: Cache };
+    return (storage.default as WorkerCache) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function createCacheRequest(userId: string): Request {
+  return new Request(
+    `https://cache.internal/master-exercises/${encodeURIComponent(userId)}`,
+  );
 }
 import {
   masterExercises,
@@ -263,16 +290,18 @@ export const exercisesRouter = createTRPCRouter({
     .use(apiCallRateLimit)
     .query(async ({ ctx }) => {
       // Use Workers Cache API for read-heavy master exercise catalog
-      const cacheKey = `master-exercises-${ctx.user.id}`;
-      const cache = (caches as any).default;
+      const cache = getDefaultCache();
+      const cacheRequest = createCacheRequest(ctx.user.id);
 
       // Check cache first
       try {
-        const cachedResponse = await cache.match(cacheKey);
-        if (cachedResponse) {
-          const cachedData =
-            (await cachedResponse.json()) as MasterExerciseWithLinkedCount[];
-          return cachedData;
+        if (cache) {
+          const cachedResponse = await cache.match(cacheRequest);
+          if (cachedResponse) {
+            const cachedData =
+              (await cachedResponse.json()) as MasterExerciseWithLinkedCount[];
+            return cachedData;
+          }
         }
       } catch (cacheError) {
         // Cache miss or error, continue to fetch from DB
@@ -311,7 +340,9 @@ export const exercisesRouter = createTRPCRouter({
               "Cache-Control": "max-age=300", // 5 minutes
             },
           });
-          await cache.put(cacheKey, response);
+          if (cache) {
+            await cache.put(cacheRequest, response);
+          }
         } catch (cacheWriteError) {
           // Cache write failed, but don't fail the request
           console.warn(
