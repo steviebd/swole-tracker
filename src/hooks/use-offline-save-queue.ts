@@ -87,6 +87,7 @@ export function useOfflineSaveQueue() {
       // Collect all valid workout save items for batch processing
       const itemsToProcess: QueueItem[] = [];
       const queueSnapshot = getQueue();
+      const processedSessionIds = new Set<number>();
 
       for (const item of queueSnapshot) {
         if (item.type === "workout_save" && item.attempts < 8) {
@@ -114,17 +115,18 @@ export function useOfflineSaveQueue() {
           // Attempt batch save
           await batchSaveWorkouts.mutateAsync({ workouts });
 
-          // On success, remove processed items from queue and invalidate cache
-          for (const item of batch) {
-            // Remove from localStorage queue
-            const currentQueue = readQueue();
-            const filteredQueue = currentQueue.filter(
-              (q: QueueItem) => q.id !== item.id,
-            );
-            writeQueue(filteredQueue);
+          // Track sessions so downstream caches can refresh
+          for (const workout of workouts) {
+            processedSessionIds.add(workout.sessionId);
           }
 
-          await utils.workouts.getRecent.invalidate();
+          // On success, remove processed items from queue and invalidate cache
+          const processedIds = new Set(batch.map((item) => item.id));
+          const currentQueue = readQueue();
+          const filteredQueue = currentQueue.filter(
+            (q: QueueItem) => !processedIds.has(q.id),
+          );
+          writeQueue(filteredQueue);
 
           // Update counts
           setQueueSize((n) => Math.max(0, n - batch.length));
@@ -164,6 +166,28 @@ export function useOfflineSaveQueue() {
       // Log success
       if (processedCount > 0) {
         console.info(`Successfully synced ${processedCount} workout(s)`);
+
+        // Refresh dependent caches so UI reflects synced data
+        const invalidations: Array<Promise<unknown>> = [
+          utils.workouts.getRecent.invalidate(),
+          utils.templates.getAll.invalidate(),
+        ];
+
+        for (const sessionId of processedSessionIds) {
+          invalidations.push(
+            utils.workouts.getById.invalidate({ id: sessionId }),
+          );
+        }
+
+        try {
+          await Promise.all(invalidations);
+        } catch (invalidateError) {
+          console.warn(
+            "Failed to refresh caches after offline sync:",
+            invalidateError,
+          );
+        }
+
         // Optional: emit PostHog event
         try {
           if (typeof window !== "undefined" && (window as any).posthog) {
@@ -205,8 +229,15 @@ export function useOfflineSaveQueue() {
       isFlushingRef.current = false;
       // Small debounce before returning to idle
       setTimeout(() => setStatus("idle"), 500);
+      refreshCount();
     }
-  }, [batchSaveWorkouts, utils.workouts.getRecent]);
+  }, [
+    batchSaveWorkouts,
+    refreshCount,
+    utils.templates.getAll,
+    utils.workouts.getById,
+    utils.workouts.getRecent,
+  ]);
 
   // Initialize and setup automatic flush triggers
   // The queue automatically flushes when:
