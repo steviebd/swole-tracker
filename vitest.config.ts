@@ -5,10 +5,10 @@ import { defineConfig } from "vitest/config";
 
 const isCI = process.env.CI === "true";
 const cpuCount =
-  typeof (os as { availableParallelism?: () => number }).availableParallelism ===
-  "function"
+  typeof (os as { availableParallelism?: () => number })
+    .availableParallelism === "function"
     ? os.availableParallelism()
-    : os.cpus()?.length ?? 1;
+    : (os.cpus()?.length ?? 1);
 const maxLocalThreads = Math.min(4, Math.max(1, Math.floor(cpuCount / 2)));
 
 const baseExclude = [
@@ -37,19 +37,18 @@ export default defineConfig({
         minThreads: 1,
       },
     },
-    setupFiles: ["./src/__tests__/setup.ts"],
+    setupFiles: ["./src/__tests__/setup.common.ts"],
     globals: true,
     mockReset: true,
     restoreMocks: true,
 
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: baseExclude,
+    environment: "jsdom",
     coverage: {
-      provider: "v8",
+      provider: "istanbul",
       // Keep full reporter stack for CI; use a lightweight summary locally.
-      reporter: isCI
-        ? ["text", "lcov", "json", "html"]
-        : ["text-summary"],
+      reporter: isCI ? ["text", "lcov", "json", "html"] : ["text-summary"],
       all: isCI,
       include: [
         "src/app/**/*.{ts,tsx}",
