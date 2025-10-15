@@ -25,7 +25,7 @@ export const CACHE_TIMES = {
     staleTime: 0, // Show cached data immediately while refetching in background
     gcTime: 24 * 60 * 60 * 1000, // 24 hours - keep longer for offline access
   },
-  // Dynamic data (current workout, jokes) - show cached while refetching
+  // Dynamic data (current workout) - show cached while refetching
   DYNAMIC: {
     staleTime: 0, // Show cached data immediately while refetching in background
     gcTime: 2 * 60 * 60 * 1000, // 2 hours
@@ -96,12 +96,6 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnMount: false,
   });
 
-  // Jokes - dynamic data, show cached while refetching
-  queryClient.setQueryDefaults(["jokes"], {
-    staleTime: CACHE_TIMES.DYNAMIC.staleTime, // 0 - show cached while refetching
-    gcTime: CACHE_TIMES.DYNAMIC.gcTime,
-    refetchOnWindowFocus: true,
-  });
 
   // WHOOP Integration Status - current data with moderate caching
   queryClient.setQueryDefaults(["whoop", "getIntegrationStatus"], {
@@ -209,10 +203,6 @@ export const invalidateQueries = {
     void queryClient.invalidateQueries({ queryKey: ["preferences"] });
   },
 
-  // Invalidate jokes
-  jokes: (queryClient: QueryClient) => {
-    void queryClient.invalidateQueries({ queryKey: ["jokes"] });
-  },
 
   // Invalidate WHOOP queries
   whoop: (queryClient: QueryClient) => {

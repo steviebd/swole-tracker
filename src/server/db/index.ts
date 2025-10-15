@@ -163,10 +163,6 @@ function resolveDb(): DrizzleDb {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
         },
-        dailyJokes: {
-          findMany: vi.fn(() => []),
-          findFirst: vi.fn(() => null),
-        },
         userIntegrations: {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4e9929b3-34fa-4c0a-823d-2f78a6d8d6d1",
+  "id": "b36d982e-dd9c-494b-8940-ad287a6c344a",
   "prevId": "5224efe1-8a62-48bf-8e5b-83543223f1ea",
   "tables": {
     "ai_suggestion_history": {
@@ -196,82 +196,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "daily_joke": {
-      "name": "daily_joke",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "joke": {
-          "name": "joke",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "aiModel": {
-          "name": "aiModel",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "prompt": {
-          "name": "prompt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
-        }
-      },
-      "indexes": {
-        "daily_joke_user_id_idx": {
-          "name": "daily_joke_user_id_idx",
-          "columns": [
-            "user_id"
-          ],
-          "isUnique": false
-        },
-        "daily_joke_created_at_idx": {
-          "name": "daily_joke_created_at_idx",
-          "columns": [
-            "createdAt"
-          ],
-          "isUnique": false
-        },
-        "daily_joke_user_date_idx": {
-          "name": "daily_joke_user_date_idx",
-          "columns": [
-            "user_id",
-            "createdAt"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

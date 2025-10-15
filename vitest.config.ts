@@ -1,47 +1,64 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vitest/config";
+import os from "os";
 import path from "path";
+import { defineConfig } from "vitest/config";
+
+const isCI = process.env.CI === "true";
+const cpuCount =
+  typeof (os as { availableParallelism?: () => number }).availableParallelism ===
+  "function"
+    ? os.availableParallelism()
+    : os.cpus()?.length ?? 1;
+const maxLocalThreads = Math.min(4, Math.max(1, Math.floor(cpuCount / 2)));
+
+const baseExclude = [
+  "**/*.spec.{ts,tsx}",
+  "src/__e2e__/**/*",
+  "**/*e2e*",
+  "**/node_modules/**",
+  "**/dist/**",
+  "**/*.e2e.{ts,tsx}",
+  "**/e2e/**/*",
+  "**/playwright/**/*",
+  "playwright.config.ts",
+];
+
+const jsdomTestGlobs = [
+  "src/__tests__/components/**/*.test.{ts,tsx}",
+  "src/__tests__/hooks/**/*.test.{ts,tsx}",
+  "src/__tests__/unit/hooks/**/*.test.{ts,tsx}",
+];
 
 export default defineConfig({
   test: {
-    environment: "node",
-    setupFiles: ["./src/__tests__/setup.common.ts"],
+    poolOptions: {
+      threads: {
+        maxThreads: isCI ? cpuCount : maxLocalThreads,
+        minThreads: 1,
+      },
+    },
+    setupFiles: ["./src/__tests__/setup.ts"],
     globals: true,
     mockReset: true,
     restoreMocks: true,
-    environmentMatchGlobs: [
-      ["src/__tests__/components/**/*.test.ts", "jsdom"],
-      ["src/__tests__/components/**/*.test.tsx", "jsdom"],
-      ["src/__tests__/unit/hooks/**/*.test.ts", "jsdom"],
-      ["src/__tests__/unit/hooks/**/*.test.tsx", "jsdom"],
-      ["src/__tests__/hooks/**/*.test.ts", "jsdom"],
-      ["src/__tests__/hooks/**/*.test.tsx", "jsdom"],
-    ],
 
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
-    exclude: [
-      "**/*.spec.{ts,tsx}",
-      "src/__e2e__/**/*",
-      "**/*e2e*",
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/*.e2e.{ts,tsx}",
-      "**/e2e/**/*",
-      "**/playwright/**/*",
-      "playwright.config.ts",
-    ],
+    exclude: baseExclude,
     coverage: {
       provider: "v8",
-      reporter: ["text", "lcov", "json", "html"],
-      all: true,
+      // Keep full reporter stack for CI; use a lightweight summary locally.
+      reporter: isCI
+        ? ["text", "lcov", "json", "html"]
+        : ["text-summary"],
+      all: isCI,
       include: [
-        "src/**/*.{ts,tsx}",
-        "!src/**/*.d.ts",
-        "!src/**/__tests__/**",
-        "!src/**/*.test.{ts,tsx}",
-        "!src/**/*.spec.{ts,tsx}",
-        "!src/**/types/**",
-        "!src/**/schemas/**",
+        "src/app/**/*.{ts,tsx}",
+        "src/components/**/*.{ts,tsx}",
+        "src/hooks/**/*.{ts,tsx}",
+        "src/lib/**/*.{ts,tsx}",
+        "src/providers/**/*.{ts,tsx}",
+        "src/server/**/*.{ts,tsx}",
+        "src/trpc/**/*.{ts,tsx}",
       ],
       exclude: [
         "src/**/__tests__/**",

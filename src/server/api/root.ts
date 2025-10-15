@@ -1,7 +1,6 @@
 import { templatesRouter } from "~/server/api/routers/templates";
 import { workoutsRouter } from "~/server/api/routers/workouts";
 import { preferencesRouter } from "~/server/api/routers/preferences";
-import { jokesRouter } from "~/server/api/routers/jokes";
 import { whoopRouter } from "~/server/api/routers/whoop";
 import { webhooksRouter } from "~/server/api/routers/webhooks";
 import { insightsRouter } from "~/server/api/routers/insights";
@@ -22,7 +21,6 @@ export const appRouter = createTRPCRouter({
   templates: templatesRouter,
   workouts: workoutsRouter,
   preferences: preferencesRouter,
-  jokes: jokesRouter,
   whoop: whoopRouter,
   webhooks: webhooksRouter,
   exercises: exercisesRouter,
