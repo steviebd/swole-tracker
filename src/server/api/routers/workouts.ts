@@ -678,6 +678,130 @@ export const workoutsRouter = createTRPCRouter({
       return { success: true, updatedCount: updatesMap.size };
     }),
 
+  // Batch save multiple workout sessions (for offline queue processing)
+  batchSave: protectedProcedure
+    .use(workoutRateLimit)
+    .input(
+      z.object({
+        workouts: z.array(
+          z.object({
+            sessionId: z.number(),
+            exercises: z.array(exerciseInputSchema),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const results = [];
+
+      for (const workout of input.workouts) {
+        try {
+          // Verify session ownership
+          const session = await ctx.db.query.workoutSessions.findFirst({
+            where: eq(workoutSessions.id, workout.sessionId),
+          });
+
+          if (!session || session.user_id !== ctx.user.id) {
+            results.push({
+              sessionId: workout.sessionId,
+              success: false,
+              error: "Workout session not found",
+            });
+            continue;
+          }
+
+          // Delete existing exercises for this session
+          await ctx.db
+            .delete(sessionExercises)
+            .where(eq(sessionExercises.sessionId, workout.sessionId));
+
+          // Flatten exercises into individual sets and filter out empty ones
+          const setsToInsert = workout.exercises.flatMap((exercise) =>
+            exercise.sets
+              .filter(
+                (set) =>
+                  set.weight !== undefined ||
+                  set.reps !== undefined ||
+                  set.sets !== undefined ||
+                  set.rpe !== undefined ||
+                  set.rest !== undefined,
+              )
+              .map((set, setIndex) => {
+                const weight = set.weight ?? 0;
+                const reps = set.reps ?? 1;
+                const sets = set.sets ?? 1;
+                return {
+                  user_id: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  templateExerciseId: exercise.templateExerciseId,
+                  exerciseName: exercise.exerciseName,
+                  setOrder: setIndex,
+                  weight: set.weight,
+                  reps: set.reps,
+                  sets: set.sets,
+                  unit: set.unit,
+                  // Phase 2 mappings
+                  rpe: set.rpe, // maps to session_exercise.rpe
+                  rest_seconds: set.rest, // maps to session_exercise.rest_seconds
+                  is_estimate: set.isEstimate ?? false,
+                  is_default_applied: set.isDefaultApplied ?? false,
+                  // Computed columns
+                  one_rm_estimate:
+                    weight > 0 && reps > 0 ? weight * (1 + reps / 30) : null,
+                  volume_load:
+                    weight > 0 && reps > 0 && sets > 0
+                      ? sets * reps * weight
+                      : null,
+                };
+              }),
+          );
+
+          if (setsToInsert.length > 0) {
+            await ctx.db.insert(sessionExercises).values(setsToInsert);
+          }
+
+          // Generate debrief if there are sets
+          if (setsToInsert.length > 0) {
+            const acceptLanguage =
+              ctx.headers.get("accept-language") ?? undefined;
+            const locale = acceptLanguage?.split(",")[0];
+
+            void (async () => {
+              try {
+                await generateAndPersistDebrief({
+                  dbClient: ctx.db,
+                  userId: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  locale,
+                  trigger: "auto",
+                  requestId: ctx.requestId,
+                });
+              } catch (error) {
+                logger.warn("session_debrief.auto_generation_failed", {
+                  userId: ctx.user.id,
+                  sessionId: workout.sessionId,
+                  error: error instanceof Error ? error.message : "unknown",
+                });
+              }
+            })();
+          }
+
+          results.push({
+            sessionId: workout.sessionId,
+            success: true,
+          });
+        } catch (error) {
+          results.push({
+            sessionId: workout.sessionId,
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      return { results };
+    }),
+
   // Delete a workout session
   delete: protectedProcedure
     .use(workoutRateLimit)
