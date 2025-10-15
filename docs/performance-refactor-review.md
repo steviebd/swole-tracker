@@ -126,9 +126,25 @@ _Benefits achieved_
 
 ## Application & Production Delivery
 
-### 6. Cache read-heavy responses at the edge
+### 6. Cache read-heavy responses at the edge ✅ COMPLETED
 
 Next.js App Router handlers are executed in the Worker, so we can use the Workers Cache API or RSC streaming caches for anonymous/public routes. D1 reads that do not change per request (e.g., master exercise catalog, jokes) could be cached for seconds to minutes to avoid hitting the database on every request.【F:src/server/api/routers/workouts.ts†L47-L148】
+
+_Implementation completed_
+
+- Implemented Workers Cache API caching for the `exercises.getAllMaster` procedure, which fetches the user's master exercise catalog
+- Cache key includes user ID for per-user isolation: `master-exercises-${userId}`
+- Cache duration set to 5 minutes to balance performance and data freshness
+- Added cache invalidation on master exercise mutations: `createMasterExercise`, `updateMasterExercise`, and `mergeMasterExercises`
+- Used try-catch blocks around cache operations to ensure DB queries still work if cache fails
+- Verified with `bun build`, `bun test`, and `bun check` - all passing
+
+_Benefits achieved_
+
+- Reduces D1 round trips for frequently accessed master exercise lists
+- Improves response times for exercise management UI
+- Maintains data consistency with proper cache invalidation on writes
+- Graceful degradation if cache operations fail
 
 ### 7. Background flush for the offline queue
 

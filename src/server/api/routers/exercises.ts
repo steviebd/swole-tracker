@@ -5,6 +5,27 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
 import { logger } from "~/lib/logger";
+
+type MasterExerciseWithLinkedCount = {
+  id: number;
+  name: string;
+  normalizedName: string;
+  tags: string | null;
+  muscleGroup: string | null;
+  createdAt: Date;
+  linkedCount: number;
+};
+
+// Helper function to invalidate master exercises cache
+async function invalidateMasterExercisesCache(userId: string) {
+  try {
+    const cacheKey = `master-exercises-${userId}`;
+    const cache = (caches as any).default;
+    await cache.delete(cacheKey);
+  } catch (error) {
+    console.warn("Cache invalidation failed:", error);
+  }
+}
 import {
   masterExercises,
   exerciseLinks,
@@ -241,6 +262,23 @@ export const exercisesRouter = createTRPCRouter({
   getAllMaster: protectedProcedure
     .use(apiCallRateLimit)
     .query(async ({ ctx }) => {
+      // Use Workers Cache API for read-heavy master exercise catalog
+      const cacheKey = `master-exercises-${ctx.user.id}`;
+      const cache = (caches as any).default;
+
+      // Check cache first
+      try {
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) {
+          const cachedData =
+            (await cachedResponse.json()) as MasterExerciseWithLinkedCount[];
+          return cachedData;
+        }
+      } catch (cacheError) {
+        // Cache miss or error, continue to fetch from DB
+        console.warn("Cache read failed for master exercises:", cacheError);
+      }
+
       try {
         const builder = ctx.db
           .select({
@@ -261,9 +299,28 @@ export const exercisesRouter = createTRPCRouter({
           .groupBy(masterExercises.id)
           .orderBy(masterExercises.name);
         const exercises = isThenable(builder) ? await builder : builder;
-        return Array.isArray(exercises)
+        const result = Array.isArray(exercises)
           ? exercises
           : await toArray(exercises as any);
+
+        // Cache the result for 5 minutes
+        try {
+          const response = new Response(JSON.stringify(result), {
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "max-age=300", // 5 minutes
+            },
+          });
+          await cache.put(cacheKey, response);
+        } catch (cacheWriteError) {
+          // Cache write failed, but don't fail the request
+          console.warn(
+            "Cache write failed for master exercises:",
+            cacheWriteError,
+          );
+        }
+
+        return result;
       } catch {
         // If the db stub is minimal and throws, return empty list rather than fail
         return [];
@@ -1008,6 +1065,9 @@ export const exercisesRouter = createTRPCRouter({
         })
         .returning();
 
+      // Invalidate cache since master exercises changed
+      await invalidateMasterExercisesCache(ctx.user.id);
+
       return newExercise[0];
     }),
 
@@ -1067,6 +1127,9 @@ export const exercisesRouter = createTRPCRouter({
           message: "Exercise not found",
         });
       }
+
+      // Invalidate cache since master exercises changed
+      await invalidateMasterExercisesCache(ctx.user.id);
 
       return updatedExercise[0];
     }),
@@ -1182,6 +1245,9 @@ export const exercisesRouter = createTRPCRouter({
             eq(masterExercises.user_id, ctx.user.id),
           ),
         );
+
+      // Invalidate cache since master exercises changed
+      await invalidateMasterExercisesCache(ctx.user.id);
 
       return {
         movedLinks,
