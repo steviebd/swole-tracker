@@ -5,7 +5,7 @@ import {
   extractWebhookHeaders,
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { webhookEvents, whoopProfile } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { getValidAccessToken } from "~/lib/token-rotation";
@@ -25,6 +25,8 @@ interface WhoopProfileData {
 }
 
 async function fetchProfileFromWhoop(
+  db: ReturnType<typeof createDb>,
+  profileId: string,
   whoopUserId: number,
   dbUserId: string | null,
   isTestMode: boolean,
@@ -50,7 +52,7 @@ async function fetchProfileFromWhoop(
       return null;
     }
 
-    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
+    const tokenResult = await getValidAccessToken(db, dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
@@ -103,6 +105,7 @@ async function fetchProfileFromWhoop(
 }
 
 async function processProfileUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -114,6 +117,8 @@ async function processProfileUpdate(
 
     // Fetch the updated profile data from Whoop API
     const profileData = await fetchProfileFromWhoop(
+      db,
+      whoopUserId,
       payload.user_id,
       dbUserId,
       isTestMode,
@@ -173,6 +178,7 @@ async function processProfileUpdate(
 }
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
   const startTime = Date.now();
   let webhookEventId: number | null = null;
 
@@ -225,7 +231,7 @@ export async function POST(request: NextRequest) {
     const isTestMode = isWhoopTestUserId(payload.user_id);
     const mappedUserId = isTestMode
       ? getTestModeUserId()
-      : await resolveWhoopInternalUserId(payload.user_id.toString());
+      : await resolveWhoopInternalUserId(db, payload.user_id.toString());
 
     // Log webhook event to database for debugging
     try {
@@ -290,7 +296,7 @@ export async function POST(request: NextRequest) {
 
     // Only process user_profile.updated events
     if (payload.type === "user_profile.updated") {
-      await processProfileUpdate(payload, dbUserId, isTestMode);
+      await processProfileUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
       if (webhookEventId) {

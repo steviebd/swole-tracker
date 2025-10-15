@@ -1,4 +1,4 @@
-import { db } from "~/server/db";
+import type { DrizzleDb } from "~/server/db";
 import { oauthStates } from "~/server/db/schema";
 import { logger } from "~/lib/logger";
 import { eq, and, lt, sql } from "drizzle-orm";
@@ -58,6 +58,7 @@ function cleanupCachedStates(userId: string, provider: string) {
  * Generate a cryptographically secure state parameter with additional validation data
  */
 export async function createOAuthState(
+  db: DrizzleDb,
   userId: string,
   provider: string,
   redirectUri: string,
@@ -110,13 +111,11 @@ const STATE_LOOKUP_MAX_ATTEMPTS = 6;
 const STATE_LOOKUP_BASE_DELAY_MS = 150;
 
 async function findOAuthStateWithRetry(
+  db: DrizzleDb,
   state: string,
   userId: string,
   provider: string,
-): Promise<
-  | (typeof oauthStates.$inferSelect)
-  | null
-> {
+): Promise<typeof oauthStates.$inferSelect | null> {
   for (let attempt = 1; attempt <= STATE_LOOKUP_MAX_ATTEMPTS; attempt += 1) {
     const [record] = await db
       .select()
@@ -141,8 +140,7 @@ async function findOAuthStateWithRetry(
 
     if (attempt < STATE_LOOKUP_MAX_ATTEMPTS) {
       // Remote D1 can exhibit replication lag in dev; retry with backoff before failing hard.
-      const delayMs =
-        STATE_LOOKUP_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      const delayMs = STATE_LOOKUP_BASE_DELAY_MS * Math.pow(2, attempt - 1);
       logger.debug("OAuth state lookup retry", {
         provider,
         attempt,
@@ -157,6 +155,7 @@ async function findOAuthStateWithRetry(
 }
 
 export async function validateOAuthState(
+  db: DrizzleDb,
   state: string,
   userId: string,
   provider: string,
@@ -169,7 +168,7 @@ export async function validateOAuthState(
 
   try {
     // Clean up expired states first
-    await cleanupExpiredStates();
+    await cleanupExpiredStates(db);
 
     const encoder = new TextEncoder();
     const data = encoder.encode(userAgent);
@@ -187,10 +186,7 @@ export async function validateOAuthState(
         cachedState.user_id === userId && cachedState.provider === provider;
 
       if (ipMatches && userAgentMatches && userMatches) {
-        deleteCachedState(state);
-        await db
-          .delete(oauthStates)
-          .where(eq(oauthStates.state, state));
+        await deleteOAuthState(db, state);
         return {
           isValid: true,
           redirectUri: cachedState.redirect_uri,
@@ -206,7 +202,12 @@ export async function validateOAuthState(
       });
     }
 
-    const stateRecord = await findOAuthStateWithRetry(state, userId, provider);
+    const stateRecord = await findOAuthStateWithRetry(
+      db,
+      state,
+      userId,
+      provider,
+    );
 
     if (!stateRecord) {
       logger.warn("OAuth state validation failed to locate state", {
@@ -218,7 +219,7 @@ export async function validateOAuthState(
 
     // Validate expiry
     if (new Date() > new Date(stateRecord.expiresAt)) {
-      await deleteOAuthState(state);
+      await deleteOAuthState(db, state);
       return { isValid: false };
     }
 
@@ -246,7 +247,7 @@ export async function validateOAuthState(
     }
 
     // Delete the used state to prevent replay attacks
-    await deleteOAuthState(state);
+    await deleteOAuthState(db, state);
 
     return {
       isValid: true,
@@ -261,7 +262,10 @@ export async function validateOAuthState(
 /**
  * Delete a specific OAuth state
  */
-export async function deleteOAuthState(state: string): Promise<void> {
+export async function deleteOAuthState(
+  db: DrizzleDb,
+  state: string,
+): Promise<void> {
   deleteCachedState(state);
   await db.delete(oauthStates).where(eq(oauthStates.state, state));
 }
@@ -269,7 +273,7 @@ export async function deleteOAuthState(state: string): Promise<void> {
 /**
  * Clean up expired OAuth states
  */
-export async function cleanupExpiredStates(): Promise<void> {
+export async function cleanupExpiredStates(db: DrizzleDb): Promise<void> {
   purgeExpiredCacheEntries();
   await db
     .delete(oauthStates)
@@ -280,6 +284,7 @@ export async function cleanupExpiredStates(): Promise<void> {
  * Clean up all OAuth states for a specific user and provider
  */
 export async function cleanupUserStates(
+  db: DrizzleDb,
   userId: string,
   provider: string,
 ): Promise<void> {

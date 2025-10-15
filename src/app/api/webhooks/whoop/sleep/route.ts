@@ -11,7 +11,7 @@ import {
   isWhoopTestUserId,
   resolveWhoopInternalUserId,
 } from "~/lib/whoop-user";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { webhookEvents, whoopSleep } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -39,6 +39,7 @@ interface WhoopSleepData {
 }
 
 async function fetchSleepFromWhoop(
+  db: ReturnType<typeof createDb>,
   sleepId: string,
   whoopUserId: number,
   dbUserId: string | null,
@@ -79,7 +80,7 @@ async function fetchSleepFromWhoop(
       return null;
     }
 
-    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
+    const tokenResult = await getValidAccessToken(db, dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
@@ -129,6 +130,7 @@ async function fetchSleepFromWhoop(
 }
 
 async function processSleepUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -139,6 +141,7 @@ async function processSleepUpdate(
     const sleepId = payload.id.toString();
 
     const sleepData = await fetchSleepFromWhoop(
+      db,
       sleepId,
       payload.user_id,
       dbUserId,
@@ -222,6 +225,7 @@ async function processSleepUpdate(
 }
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
   const startTime = Date.now();
   let webhookEventId: number | null = null;
 
@@ -274,7 +278,7 @@ export async function POST(request: NextRequest) {
     const isTestMode = isWhoopTestUserId(payload.user_id);
     const mappedUserId = isTestMode
       ? getTestModeUserId()
-      : await resolveWhoopInternalUserId(payload.user_id.toString());
+      : await resolveWhoopInternalUserId(db, payload.user_id.toString());
 
     // Log webhook event to database for debugging
     try {
@@ -341,7 +345,7 @@ export async function POST(request: NextRequest) {
 
     // Only process sleep.updated events
     if (payload.type === "sleep.updated") {
-      await processSleepUpdate(payload, dbUserId, isTestMode);
+      await processSleepUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
       if (webhookEventId) {

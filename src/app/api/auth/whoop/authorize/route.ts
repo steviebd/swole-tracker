@@ -4,10 +4,13 @@ import {
   buildWhoopAuthorizationUrl,
   WhoopAuthorizationError,
 } from "~/server/api/utils/whoop-authorization";
+import { createDb, getD1Binding } from "~/server/db";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     // Check if this is a prefetch request and return early to avoid CORS issues
     const purpose =
@@ -21,6 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authorizeUrl = await buildWhoopAuthorizationUrl({
+      db,
       origin: request.nextUrl.origin,
       headers: request.headers,
       userId: session.userId,

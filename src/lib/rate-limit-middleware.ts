@@ -40,6 +40,7 @@ export const rateLimitMiddleware = ({
     }
     try {
       const result = await checkRateLimit(
+        ctx.db,
         ctx.user.id,
         endpoint,
         limit,

@@ -5,7 +5,7 @@ import {
   extractWebhookHeaders,
   type WhoopWebhookPayload,
 } from "~/lib/whoop-webhook";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import {
   externalWorkoutsWhoop,
   webhookEvents,
@@ -129,6 +129,7 @@ interface WhoopBodyMeasurementData {
 
 // Generic function to fetch data from WHOOP API v2
 async function fetchWhoopData<T>(
+  db: ReturnType<typeof createDb>,
   endpoint: string,
   entityId: string,
   whoopUserId: number,
@@ -150,7 +151,7 @@ async function fetchWhoopData<T>(
       return null;
     }
 
-    const tokenResult = await getValidAccessToken(dbUserId, "whoop");
+    const tokenResult = await getValidAccessToken(db, dbUserId, "whoop");
 
     if (!tokenResult.token) {
       console.error(
@@ -190,6 +191,7 @@ async function fetchWhoopData<T>(
 }
 
 async function fetchWorkoutFromWhoop(
+  db: ReturnType<typeof createDb>,
   workoutId: string,
   whoopUserId: number,
   dbUserId: string | null,
@@ -220,6 +222,7 @@ async function fetchWorkoutFromWhoop(
   }
 
   return await fetchWhoopData<WhoopWorkoutData>(
+    db,
     "activity/workout",
     workoutId,
     whoopUserId,
@@ -229,6 +232,7 @@ async function fetchWorkoutFromWhoop(
 }
 
 async function processWorkoutUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -239,6 +243,7 @@ async function processWorkoutUpdate(
     const workoutId = payload.id.toString();
 
     const workoutData = await fetchWorkoutFromWhoop(
+      db,
       workoutId,
       payload.user_id,
       dbUserId,
@@ -330,6 +335,7 @@ async function processWorkoutUpdate(
 }
 
 async function processRecoveryUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -340,6 +346,7 @@ async function processRecoveryUpdate(
     const recoveryId = payload.id.toString();
 
     const recoveryData = await fetchWhoopData<WhoopRecoveryData>(
+      db,
       "recovery",
       recoveryId,
       payload.user_id,
@@ -412,6 +419,7 @@ async function processRecoveryUpdate(
 }
 
 async function processSleepUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -422,6 +430,7 @@ async function processSleepUpdate(
     const sleepId = payload.id.toString();
 
     const sleepData = await fetchWhoopData<WhoopSleepData>(
+      db,
       "activity/sleep",
       sleepId,
       payload.user_id,
@@ -520,6 +529,7 @@ async function processSleepUpdate(
 }
 
 async function processCycleUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -530,6 +540,7 @@ async function processCycleUpdate(
     const cycleId = payload.id.toString();
 
     const cycleData = await fetchWhoopData<WhoopCycleData>(
+      db,
       "cycle",
       cycleId,
       payload.user_id,
@@ -595,6 +606,7 @@ async function processCycleUpdate(
 }
 
 async function processBodyMeasurementUpdate(
+  db: ReturnType<typeof createDb>,
   payload: WhoopWebhookPayload,
   dbUserId: string,
   isTestMode: boolean,
@@ -605,6 +617,7 @@ async function processBodyMeasurementUpdate(
     const measurementId = payload.id.toString();
 
     const measurementData = await fetchWhoopData<WhoopBodyMeasurementData>(
+      db,
       "user/measurement/body",
       measurementId,
       payload.user_id,
@@ -672,6 +685,7 @@ async function processBodyMeasurementUpdate(
 }
 
 export async function POST(request: NextRequest) {
+  const db = createDb(getD1Binding());
   const startTime = Date.now();
   let webhookEventId: number | null = null;
 
@@ -724,7 +738,7 @@ export async function POST(request: NextRequest) {
     const isTestMode = isWhoopTestUserId(payload.user_id);
     const mappedUserId = isTestMode
       ? getTestModeUserId()
-      : await resolveWhoopInternalUserId(payload.user_id.toString());
+      : await resolveWhoopInternalUserId(db, payload.user_id.toString());
 
     // Log webhook event to database for debugging
     try {
@@ -792,23 +806,23 @@ export async function POST(request: NextRequest) {
     // Process different webhook event types
     switch (payload.type) {
       case "workout.updated":
-        await processWorkoutUpdate(payload, dbUserId, isTestMode);
+        await processWorkoutUpdate(db, payload, dbUserId, isTestMode);
         break;
 
       case "recovery.updated":
-        await processRecoveryUpdate(payload, dbUserId, isTestMode);
+        await processRecoveryUpdate(db, payload, dbUserId, isTestMode);
         break;
 
       case "sleep.updated":
-        await processSleepUpdate(payload, dbUserId, isTestMode);
+        await processSleepUpdate(db, payload, dbUserId, isTestMode);
         break;
 
       case "cycle.updated":
-        await processCycleUpdate(payload, dbUserId, isTestMode);
+        await processCycleUpdate(db, payload, dbUserId, isTestMode);
         break;
 
       case "body_measurement.updated":
-        await processBodyMeasurementUpdate(payload, dbUserId, isTestMode);
+        await processBodyMeasurementUpdate(db, payload, dbUserId, isTestMode);
         break;
 
       case "user_profile.updated":

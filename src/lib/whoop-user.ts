@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { db } from "~/server/db";
+import type { DrizzleDb } from "~/server/db";
 import { userIntegrations, whoopProfile } from "~/server/db/schema";
 
 const WHOOP_PROVIDER = "whoop";
@@ -16,6 +16,7 @@ export function getTestModeUserId(): string {
 }
 
 export async function resolveWhoopInternalUserId(
+  db: DrizzleDb,
   whoopUserId: string,
 ): Promise<string | null> {
   const [profile] = await db

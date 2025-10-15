@@ -25,7 +25,7 @@ if (process.env.NODE_ENV === "test") {
   }
 }
 
-type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
+export type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
 type CloudflareContext = {
   env?: {
     DB?: unknown;
@@ -52,6 +52,28 @@ function isD1Database(value: unknown): value is D1Database {
     value !== null &&
     typeof (value as Partial<D1Database>).prepare === "function"
   );
+}
+
+export function getD1Binding(): D1Database {
+  const CLOUDFLARE_CONTEXT_SYMBOL = Symbol.for("__cloudflare-context__");
+  const context = (
+    globalThis as Record<symbol, { env?: { DB?: D1Database } } | undefined>
+  )[CLOUDFLARE_CONTEXT_SYMBOL];
+  const binding = context?.env?.DB ?? env.DB;
+
+  if (!isD1Database(binding)) {
+    throw new Error(
+      "Cloudflare D1 binding `DB` is not available. Ensure wrangler.toml binds the database and requests run through the Workers runtime.",
+    );
+  }
+
+  return binding;
+}
+
+function createDbInstance(binding: D1Database): DrizzleDb {
+  return drizzle(binding, {
+    schema,
+  });
 }
 
 function resolveDb(): DrizzleDb {
@@ -187,16 +209,23 @@ function resolveDb(): DrizzleDb {
   }
 
   if (!cachedDb || binding !== cachedBinding) {
-    cachedDb = drizzle(binding, {
-      schema,
-    });
+    cachedDb = createDbInstance(binding);
     cachedBinding = binding;
   }
 
   return cachedDb;
 }
 
+// Create a database instance from an explicit D1 binding
+export function createDb(binding: D1Database): DrizzleDb {
+  if (process.env.NODE_ENV === "test") {
+    return resolveDb(); // Return mock in test environment
+  }
+  return createDbInstance(binding);
+}
+
 // Lazily resolve the D1 binding per request so the Worker runtime always provides the latest env.
+// This is kept for backward compatibility but should be phased out in favor of createDb.
 const dbProxy = new Proxy({} as DrizzleDb, {
   get(_target, prop, receiver) {
     const instance = resolveDb();

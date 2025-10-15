@@ -15,16 +15,18 @@ describe("rate-limit", () => {
 
   describe("checkRateLimit", () => {
     it("should call checkRateLimit function", async () => {
+      const mockDb = {} as any;
       expect(() => {
-        checkRateLimit(userId, endpoint, limit, windowMs);
+        checkRateLimit(mockDb, userId, endpoint, limit, windowMs);
       }).not.toThrow();
     });
   });
 
   describe("cleanupExpiredRateLimits", () => {
     it("should call cleanupExpiredRateLimits function", async () => {
+      const mockDb = {} as any;
       expect(() => {
-        cleanupExpiredRateLimits();
+        cleanupExpiredRateLimits(mockDb);
       }).not.toThrow();
     });
   });

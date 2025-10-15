@@ -6,6 +6,7 @@ import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
 import { resolveWorkOSRedirectUri } from "~/lib/site-url";
 import { createOAuthState, getClientIp } from "~/lib/oauth-state";
+import { createDb, getD1Binding } from "~/server/db";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,8 @@ function encodeState(payload: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const { searchParams } = new URL(request.url);
     const redirectTo = searchParams.get("redirectTo") || "/";
@@ -49,6 +52,7 @@ export async function GET(request: NextRequest) {
 
     // Create OAuth state for CSRF protection (using anonymous user for now)
     const oauthState = await createOAuthState(
+      db,
       `anonymous_${csrfNonce}`, // Temporary user ID for anonymous state
       "workos",
       safeRedirect,

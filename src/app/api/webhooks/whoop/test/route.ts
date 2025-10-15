@@ -4,7 +4,10 @@ import { env } from "~/env";
 
 export const runtime = "nodejs";
 
-async function createHmacSignature(secret: string, message: string): Promise<string> {
+async function createHmacSignature(
+  secret: string,
+  message: string,
+): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
@@ -13,7 +16,11 @@ async function createHmacSignature(secret: string, message: string): Promise<str
     false,
     ["sign"],
   );
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(message),
+  );
   const bytes = String.fromCharCode(...new Uint8Array(signature));
   return btoa(bytes);
 }
@@ -60,7 +67,10 @@ export async function POST(request: NextRequest) {
 
     // Generate valid webhook signature
     const message = timestamp + payloadString;
-    const signature = await createHmacSignature(env.WHOOP_WEBHOOK_SECRET, message);
+    const signature = await createHmacSignature(
+      env.WHOOP_WEBHOOK_SECRET,
+      message,
+    );
 
     // Get the webhook URL
     const baseUrl = request.nextUrl.origin;

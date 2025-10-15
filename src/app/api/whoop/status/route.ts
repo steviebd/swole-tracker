@@ -1,13 +1,15 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const session = await SessionCookie.get(request);
 

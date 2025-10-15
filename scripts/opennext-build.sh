@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 OUTPUT_FILE="$ROOT_DIR/.open-next/worker.js"
 
+# Clear build cache to ensure clean rebuild
+rm -rf "$ROOT_DIR/.open-next" "$ROOT_DIR/node_modules/.cache"
+
 LATEST_SOURCE=$(node - <<'NODE' "$ROOT_DIR"
 import fs from "fs";
 import path from "path";

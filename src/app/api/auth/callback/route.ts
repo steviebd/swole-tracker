@@ -7,6 +7,7 @@ import { SessionCookie } from "~/lib/session-cookie";
 import { env } from "~/env";
 import { upsertUserFromWorkOS } from "~/server/db/users";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
+import { createDb, getD1Binding } from "~/server/db";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,8 @@ function decodeState(value: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
@@ -75,6 +78,7 @@ export async function GET(request: NextRequest) {
 
     // Validate CSRF nonce (using anonymous user pattern)
     const stateValidation = await validateOAuthState(
+      db,
       oauthState,
       `anonymous_${csrfNonce}`, // Use original nonce as anonymous user ID
       "workos",

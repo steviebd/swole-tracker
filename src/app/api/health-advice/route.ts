@@ -25,6 +25,7 @@ import {
 import { eq, and, desc, gte, asc } from "drizzle-orm";
 import { SessionCookie } from "~/lib/session-cookie";
 import { logger } from "~/lib/logger";
+import { createDb, getD1Binding } from "~/server/db";
 
 export const runtime = "nodejs";
 
@@ -55,6 +56,8 @@ function getApiKey(): string {
 }
 
 export async function POST(req: NextRequest) {
+  const db = createDb(getD1Binding());
+
   try {
     const body = await req.json();
 

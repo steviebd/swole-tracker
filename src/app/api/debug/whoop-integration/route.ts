@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SessionCookie } from "~/lib/session-cookie";
-import { db } from "~/server/db";
+import { createDb, getD1Binding } from "~/server/db";
 import { userIntegrations } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  const db = createDb(getD1Binding());
+
   const session = await SessionCookie.get(request);
   if (!session || SessionCookie.isExpired(session)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
