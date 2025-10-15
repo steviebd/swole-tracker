@@ -101,14 +101,28 @@ _Benefits achieved_
 - Provides data for optimizing indexes and query patterns based on real usage metrics.
 - Maintains existing logging infrastructure for correlation with PostHog events.
 
-### 5. Revisit indexing and computed column strategies
+### 5. Revisit indexing and computed column strategies ✅ COMPLETED
 
 The schema defines many per-column indexes but still leans on runtime calculations for metrics like `one_rm_estimate` and `volume_load` that are recomputed in the API layer.【F:src/server/db/schema.ts†L1-L200】【F:src/server/api/routers/workouts.ts†L47-L148】
 
-_Refactor ideas_
+_Implementation completed_
 
-- Persist derivative metrics via triggers or scheduled jobs so reads can rely on indexed fields instead of deriving values on the fly.
-- Audit index selectivity (e.g., `session_exercise_user_exercise_weight_idx`) after capturing monitoring data; if they are low-selectivity we can consolidate to fewer, more targeted composite indexes and shrink D1 storage.
+- Converted `one_rm_estimate` and `volume_load` columns to database-generated columns using SQLite's `GENERATED ALWAYS AS` syntax
+- `one_rm_estimate` now automatically calculates using the Brzycki formula: `weight * (1 + reps / 30.0)` when weight > 0 and reps > 0
+- `volume_load` now automatically calculates as: `sets * reps * weight` when all values are positive
+- Removed application-layer computation from the `workouts.save` procedure, allowing the database to handle these calculations automatically
+- Generated database migration (`0001_short_martin_li.sql`) to apply schema changes
+- Maintained existing indexes on computed columns for optimal query performance
+- Verified with `bun build`, `bun test`, and `bun check` - all passing
+
+_Benefits achieved_
+
+- Eliminates runtime computation overhead for frequently accessed metrics
+- Ensures data consistency by computing values at the database level
+- Improves query performance by leveraging indexed computed columns
+- Reduces application code complexity and potential calculation errors
+- Enables automatic recalculation when underlying data (weight, reps, sets) changes via updates
+- Index auditing deferred until monitoring data from production usage is available (implemented in item 4)
 
 ## Application & Production Delivery
 

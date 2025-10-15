@@ -1,0 +1,4 @@
+ALTER TABLE `session_exercise` DROP COLUMN `one_rm_estimate`;--> statement-breakpoint
+ALTER TABLE `session_exercise` ADD `one_rm_estimate` real GENERATED ALWAYS AS (CASE WHEN weight IS NOT NULL AND reps IS NOT NULL AND weight > 0 AND reps > 0 THEN weight * (1 + reps / 30.0) ELSE NULL END) VIRTUAL;--> statement-breakpoint
+ALTER TABLE `session_exercise` DROP COLUMN `volume_load`;--> statement-breakpoint
+ALTER TABLE `session_exercise` ADD `volume_load` real GENERATED ALWAYS AS (CASE WHEN weight IS NOT NULL AND reps IS NOT NULL AND sets IS NOT NULL AND weight > 0 AND reps > 0 AND sets > 0 THEN sets * reps * weight ELSE NULL END) VIRTUAL;

@@ -482,13 +482,7 @@ export const workoutsRouter = createTRPCRouter({
               rest_seconds: set.rest, // maps to session_exercise.rest_seconds
               is_estimate: set.isEstimate ?? false,
               is_default_applied: set.isDefaultApplied ?? false,
-              // Computed columns
-              one_rm_estimate:
-                weight > 0 && reps > 0 ? weight * (1 + reps / 30) : null,
-              volume_load:
-                weight > 0 && reps > 0 && sets > 0
-                  ? sets * reps * weight
-                  : null,
+              // Computed columns are now handled by database-generated columns
             };
           }),
       );

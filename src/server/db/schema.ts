@@ -142,8 +142,12 @@ export const sessionExercises = createTable(
     is_estimate: integer({ mode: "boolean" }).notNull().default(false),
     is_default_applied: integer({ mode: "boolean" }).notNull().default(false),
     // Phase 3 additions: Exercise progression computed columns
-    one_rm_estimate: real(), // Computed 1RM using Brzycki formula
-    volume_load: real(), // Computed volume load: sets × reps × weight
+    one_rm_estimate: real().generatedAlwaysAs(
+      sql`CASE WHEN weight IS NOT NULL AND reps IS NOT NULL AND weight > 0 AND reps > 0 THEN weight * (1 + reps / 30.0) ELSE NULL END`,
+    ), // Computed 1RM using Brzycki formula
+    volume_load: real().generatedAlwaysAs(
+      sql`CASE WHEN weight IS NOT NULL AND reps IS NOT NULL AND sets IS NOT NULL AND weight > 0 AND reps > 0 AND sets > 0 THEN sets * reps * weight ELSE NULL END`,
+    ), // Computed volume load: sets × reps × weight
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
