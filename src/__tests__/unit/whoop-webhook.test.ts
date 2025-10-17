@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { verifyWhoopWebhook, extractWebhookHeaders } from "~/lib/whoop-webhook";
 
-// Mock crypto
-Object.defineProperty(globalThis, "crypto", {
-  value: {
-    subtle: {
-      importKey: vi.fn(),
-      sign: vi.fn(),
-    },
-  },
+// Mock crypto.subtle methods
+Object.defineProperty(crypto.subtle, 'importKey', {
+  value: vi.fn().mockResolvedValue({} as CryptoKey),
+  writable: true,
+});
+Object.defineProperty(crypto.subtle, 'sign', {
+  value: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
+  writable: true,
 });
 
 describe("verifyWhoopWebhook", () => {
@@ -45,18 +45,18 @@ describe("verifyWhoopWebhook", () => {
   });
 
   it("should handle crypto errors gracefully", async () => {
-    process.env.WHOOP_WEBHOOK_SECRET = "test-secret";
-    (crypto.subtle.importKey as any).mockRejectedValue(
-      new Error("Crypto error"),
-    );
+  process.env.WHOOP_WEBHOOK_SECRET = "test-secret";
+  (crypto.subtle.importKey as any).mockImplementation(() =>
+  Promise.reject(new Error("Crypto error"))
+  );
 
-    const result = await verifyWhoopWebhook(
-      "payload",
-      "signature",
-      "timestamp",
-    );
+  const result = await verifyWhoopWebhook(
+  "payload",
+  "signature",
+  "timestamp",
+  );
 
-    expect(result).toBe(false);
+  expect(result).toBe(false);
   });
 });
 

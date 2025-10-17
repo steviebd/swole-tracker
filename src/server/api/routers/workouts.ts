@@ -348,7 +348,7 @@ export const workoutsRouter = createTRPCRouter({
           });
 
           // If we found a recent session with the same template and no exercises (just started), return it
-          if (recentSession && recentSession.exercises.length === 0) {
+          if (recentSession?.exercises.length === 0) {
             logger.debug("Returning existing recent session", {
               sessionId: recentSession.id,
             });

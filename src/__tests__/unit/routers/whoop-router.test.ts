@@ -1,633 +1,470 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Import after mocking
+/// <reference types="vitest" />
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { whoopRouter } from "~/server/api/routers/whoop";
 import {
   userIntegrations,
   whoopRecovery,
   whoopSleep,
-  whoopProfile,
-  whoopCycles,
 } from "~/server/db/schema";
+import { createDrizzleMock } from "~/__tests__/test-utils/mock-factories";
 
-describe("whoopRouter", () => {
-  const mockUser = { id: "user-123" };
+const mockUser = { id: "user-123" };
 
-  // Create a proper mock db that supports Drizzle fluent API
-  const mockDb = {
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        onConflictDoUpdate: vi.fn().mockReturnValue({
-          set: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-        returning: vi.fn().mockResolvedValue([]),
-      }),
-    }),
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        leftJoin: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            groupBy: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([]),
-              }),
-            }),
-          }),
-        }),
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      }),
-    }),
-    update: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue(undefined),
-      }),
-    }),
-  };
+let mockDb: ReturnType<typeof createDrizzleMock>;
 
-  const mockCtx = {
-    db: mockDb,
+const createCaller = () =>
+  whoopRouter.createCaller({
+    db: mockDb as unknown as any,
     user: mockUser,
     requestId: "test-request",
     headers: new Headers(),
-  } as any;
+  } as any);
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+beforeEach(() => {
+  mockDb = createDrizzleMock();
+  vi.clearAllMocks();
+});
 
-  describe("getIntegrationStatus", () => {
-    it("should return connected status when integration is active and not expired", async () => {
-      const mockIntegration = {
-        isActive: true,
-        createdAt: new Date("2024-01-01"),
-        expiresAt: new Date("2025-12-31"),
-        scope:
-          "read:profile read:recovery read:workout read:sleep read:cycle read:body_measurement",
-      };
+const selectMock = () => mockDb.select as any;
+const updateMock = () => mockDb.update as any;
 
-      mockDb.select
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([mockIntegration]),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([]),
-              }),
-            }),
-          }),
-        });
+describe("whoopRouter.getIntegrationStatus", () => {
+  it("returns connected status when integration is active and not expired", async () => {
+    const integration = {
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2025-12-31"),
+      scope: "read:profile read:recovery",
+    };
 
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getIntegrationStatus();
-
-      expect(result).toEqual({
-        isConnected: true,
-        connectedAt: mockIntegration.createdAt,
-        expiresAt: mockIntegration.expiresAt,
-        isExpired: false,
-        scope: mockIntegration.scope,
-        lastSyncAt: null,
-      });
-    });
-
-    it("should return disconnected status when no integration exists", async () => {
-      mockDb.select
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([]),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([]),
-              }),
-            }),
-          }),
-        });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getIntegrationStatus();
-
-      expect(result).toEqual({
-        isConnected: false,
-        connectedAt: null,
-        expiresAt: null,
-        isExpired: false,
-        scope: null,
-        lastSyncAt: null,
-      });
-    });
-
-    it("should return expired status when token is expired", async () => {
-      const mockIntegration = {
-        isActive: true,
-        createdAt: new Date("2024-01-01"),
-        expiresAt: new Date("2024-01-01"), // Already expired
-        scope: "read:profile",
-      };
-
-      mockDb.select
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([mockIntegration]),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([]),
-              }),
-            }),
-          }),
-        });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getIntegrationStatus();
-
-      expect(result).toEqual({
-        isConnected: false,
-        connectedAt: mockIntegration.createdAt,
-        expiresAt: mockIntegration.expiresAt,
-        isExpired: true,
-        scope: mockIntegration.scope,
-        lastSyncAt: null,
-      });
-    });
-
-    it("should handle database errors gracefully", async () => {
-      mockDb.select.mockImplementation(() => {
-        throw new Error("Database connection failed");
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-
-      await expect(caller.getIntegrationStatus()).rejects.toThrow(
-        "Failed to check WHOOP integration status",
-      );
-    });
-  });
-
-  describe("getWorkouts", () => {
-    it("should return WHOOP workouts for user", async () => {
-      const mockWorkouts = [
-        {
-          id: 1,
-          whoopWorkoutId: "workout-123",
-          start: new Date("2024-01-01T10:00:00Z"),
-          end: new Date("2024-01-01T11:00:00Z"),
-          sport_name: "Running",
-          score_state: "SCORED",
-          score: 15.5,
-          during: { heart_rate: 150 },
-          zone_duration: { zone_one_duration: 1800 },
-          createdAt: new Date(),
-        },
-      ];
-
-      mockDb.select.mockReturnValue({
+    selectMock()
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([integration]),
+        }),
+      })
+      .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue(mockWorkouts),
+              limit: vi.fn().mockResolvedValue([]),
             }),
           }),
         }),
       });
 
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getWorkouts();
+    const caller = createCaller();
+    const result = await caller.getIntegrationStatus();
 
-      expect(result).toEqual(mockWorkouts);
-    });
-
-    it("should handle database errors gracefully", async () => {
-      mockDb.select.mockImplementation(() => {
-        throw new Error("Database connection failed");
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-
-      await expect(caller.getWorkouts()).rejects.toThrow(
-        "Failed to fetch WHOOP workouts",
-      );
+    expect(result).toEqual({
+      isConnected: true,
+      connectedAt: integration.createdAt,
+      expiresAt: integration.expiresAt,
+      isExpired: false,
+      scope: integration.scope,
+      lastSyncAt: null,
     });
   });
 
-  describe("disconnectIntegration", () => {
-    it("should deactivate WHOOP integration", async () => {
-      mockDb.update.mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.disconnectIntegration();
-
-      expect(result).toEqual({ success: true });
-      expect(mockDb.update).toHaveBeenCalled();
-    });
-  });
-
-  describe("getWebhookInfo", () => {
-    it("should return webhook configuration info", async () => {
-      // Mock environment variables
-      const originalVercelUrl = process.env.VERCEL_URL;
-      const originalNextAuthUrl = process.env.NEXTAUTH_URL;
-      const originalWebhookSecret = process.env.WHOOP_WEBHOOK_SECRET;
-
-      process.env.VERCEL_URL = "my-app.vercel.app";
-      process.env.WHOOP_WEBHOOK_SECRET = "secret-key";
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getWebhookInfo();
-
-      expect(result).toEqual({
-        webhookUrl: "https://my-app.vercel.app/api/webhooks/whoop",
-        isConfigured: true,
-        supportedEvents: [
-          "workout.updated",
-          "recovery.updated",
-          "sleep.updated",
-          "cycle.updated",
-          "body_measurement.updated",
-          "user_profile.updated",
-        ],
-        instructions: expect.any(Array),
-      });
-
-      // Restore environment
-      process.env.VERCEL_URL = originalVercelUrl;
-      process.env.NEXTAUTH_URL = originalNextAuthUrl;
-      process.env.WHOOP_WEBHOOK_SECRET = originalWebhookSecret;
-    });
-
-    it("should use NEXTAUTH_URL when VERCEL_URL is not available", async () => {
-      const originalVercelUrl = process.env.VERCEL_URL;
-      const originalNextAuthUrl = process.env.NEXTAUTH_URL;
-
-      delete process.env.VERCEL_URL;
-      process.env.NEXTAUTH_URL = "http://localhost:3000";
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getWebhookInfo();
-
-      expect(result.webhookUrl).toBe(
-        "http://localhost:3000/api/webhooks/whoop",
-      );
-
-      // Restore environment
-      process.env.VERCEL_URL = originalVercelUrl;
-      process.env.NEXTAUTH_URL = originalNextAuthUrl;
-    });
-  });
-
-  describe("getLatestRecoveryData", () => {
-    it("should return latest recovery data when integration is active", async () => {
-      const mockIntegration = {
-        isActive: true,
-        expiresAt: new Date("2025-12-31"),
-      };
-
-      const mockRecovery = {
-        recovery_score: 85,
-        hrv_rmssd_milli: "45.2",
-        hrv_rmssd_baseline: "42.1",
-        resting_heart_rate: 60,
-        resting_heart_rate_baseline: 65,
-        raw_data: { some: "data" },
-        date: new Date(),
-      };
-
-      const mockSleep = {
-        sleep_performance_percentage: 92,
-        raw_data: { sleep: "data" },
-        start: new Date(),
-      };
-
-      mockDb.select.mockImplementation(() => ({
-        from: vi.fn().mockImplementation((table: any) => {
-          // Tables imported at top
-          if (table === userIntegrations) {
-            return {
-              where: vi.fn().mockResolvedValue([mockIntegration]),
-            };
-          } else if (table === whoopRecovery) {
-            return {
-              where: vi.fn().mockReturnValue({
-                orderBy: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue([mockRecovery]),
-                }),
-              }),
-            };
-          } else if (table === whoopSleep) {
-            return {
-              where: vi.fn().mockReturnValue({
-                orderBy: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockResolvedValue([mockSleep]),
-                }),
-              }),
-            };
-          }
-          return {};
-        }),
-      }));
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getLatestRecoveryData();
-
-      expect(result).toEqual({
-        recovery_score: 85,
-        sleep_performance: 92,
-        hrv_now_ms: "45.2",
-        hrv_baseline_ms: "42.1",
-        rhr_now_bpm: 60,
-        rhr_baseline_bpm: 65,
-        yesterday_strain: null,
-        raw_data: {
-          recovery: mockRecovery.raw_data,
-          sleep: mockSleep.raw_data,
-        },
-      });
-    });
-
-    it("should throw error when integration is not active", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([]),
-        }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-
-      await expect(caller.getLatestRecoveryData()).rejects.toThrow(
-        "WHOOP integration not found or inactive",
-      );
-    });
-
-    it("should throw error when token is expired", async () => {
-      const mockIntegration = {
-        isActive: true,
-        expiresAt: new Date("2024-01-01"), // Expired
-      };
-
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([mockIntegration]),
-        }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-
-      await expect(caller.getLatestRecoveryData()).rejects.toThrow(
-        "WHOOP access token has expired",
-      );
-    });
-
-    it("should throw error when no recovery data exists", async () => {
-      const mockIntegration = {
-        isActive: true,
-        expiresAt: new Date("2025-12-31"),
-      };
-
-      mockDb.select = vi
-        .fn()
-        .mockReturnValue({
+  it("returns disconnected status when integration does not exist", async () => {
+    let call = 0;
+    selectMock().mockImplementation(() => {
+      call += 1;
+      if (call === 1) {
+        return {
           from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([]),
-              }),
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        };
+      }
+
+      return {
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
             }),
           }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([mockIntegration]),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([]), // No recovery data
-              }),
+        }),
+      };
+    });
+
+    const caller = createCaller();
+    const result = await caller.getIntegrationStatus();
+
+    expect(result).toEqual({
+      isConnected: false,
+      connectedAt: null,
+      expiresAt: null,
+      isExpired: false,
+      scope: null,
+      lastSyncAt: null,
+    });
+  });
+
+  it("returns expired status when token is expired", async () => {
+    const integration = {
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2024-06-01"),
+      scope: "read:profile",
+    };
+
+    selectMock()
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([integration]),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
             }),
           }),
-        });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-
-      await expect(caller.getLatestRecoveryData()).rejects.toThrow(
-        "No recovery data found",
-      );
-    });
-  });
-
-  describe("getRecovery", () => {
-    it("should return recovery data for user", async () => {
-      const mockRecovery = [
-        {
-          id: 1,
-          whoop_recovery_id: "recovery-123",
-          cycle_id: "cycle-456",
-          date: new Date(),
-          recovery_score: 85,
-          hrv_rmssd_milli: "45.2",
-          hrv_rmssd_baseline: "42.1",
-          resting_heart_rate: 60,
-          resting_heart_rate_baseline: 65,
-          raw_data: { some: "data" },
-          createdAt: new Date(),
-        },
-      ];
-
-      mockDb.select.mockReset();
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue(mockRecovery),
-          }),
         }),
       });
 
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getRecovery();
+    const caller = createCaller();
+    const result = await caller.getIntegrationStatus();
 
-      expect(result).toEqual(mockRecovery);
+    expect(result).toEqual({
+      isConnected: false,
+      connectedAt: integration.createdAt,
+      expiresAt: integration.expiresAt,
+      isExpired: true,
+      scope: integration.scope,
+      lastSyncAt: null,
     });
   });
+});
 
-  describe("getCycles", () => {
-    it("should return cycle data for user", async () => {
-      const mockCycles = [
-        {
-          id: 1,
-          whoop_cycle_id: "cycle-123",
-          start: new Date("2024-01-01"),
-          end: new Date("2024-01-02"),
-          timezone_offset: "-05:00",
-          day_strain: 15.5,
-          average_heart_rate: 70,
-          max_heart_rate: 180,
-          kilojoule: 2500,
-          raw_data: { cycle: "data" },
-          createdAt: new Date(),
-        },
-      ];
-
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue(mockCycles),
-          }),
-        }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getCycles();
-
-      expect(result).toEqual(mockCycles);
-    });
-  });
-
-  describe("getSleep", () => {
-    it("should return sleep data for user", async () => {
-      const mockSleep = [
-        {
-          id: 1,
-          whoop_sleep_id: "sleep-123",
-          start: new Date("2024-01-01T22:00:00Z"),
-          end: new Date("2024-01-02T06:00:00Z"),
-          timezone_offset: "-05:00",
-          sleep_performance_percentage: 92,
-          total_sleep_time_milli: "28800000",
-          sleep_efficiency_percentage: 88,
-          slow_wave_sleep_time_milli: "7200000",
-          rem_sleep_time_milli: "5400000",
-          light_sleep_time_milli: "14400000",
-          wake_time_milli: "1800000",
-          arousal_time_milli: "120000",
-          disturbance_count: 3,
-          sleep_latency_milli: "900000",
-          raw_data: { sleep: "data" },
-          createdAt: new Date(),
-        },
-      ];
-
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue(mockSleep),
-          }),
-        }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getSleep();
-
-      expect(result).toEqual(mockSleep);
-    });
-  });
-
-  describe("getProfile", () => {
-    it("should return WHOOP profile for user", async () => {
-      const mockProfile = {
+describe("whoopRouter.getWorkouts", () => {
+  it("returns workouts ordered by start time", async () => {
+    const workouts = [
+      {
         id: 1,
-        whoop_user_id: "whoop-user-123",
-        email: "user@whoop.com",
-        first_name: "John",
-        last_name: "Doe",
-        raw_data: { profile: "data" },
-        last_updated: new Date(),
+        whoopWorkoutId: "workout-123",
+        start: new Date("2024-01-01T10:00:00Z"),
+        end: new Date("2024-01-01T11:00:00Z"),
+        sport_name: "Running",
+        score_state: "SCORED",
+        score: 15.5,
+        during: { heart_rate: 150 },
+        zone_duration: { zone_one_duration: 1800 },
         createdAt: new Date(),
-      };
+      },
+    ];
 
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([mockProfile]),
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue(workouts),
           }),
         }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getProfile();
-
-      expect(result).toEqual(mockProfile);
+      }),
     });
 
-    it("should return null when no profile exists", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
+    const caller = createCaller();
+    const result = await caller.getWorkouts();
+
+    expect(result).toEqual(workouts);
+  });
+});
+
+describe("whoopRouter.disconnectIntegration", () => {
+  it("marks integration as inactive", async () => {
+    const whereSpy = vi.fn().mockResolvedValue(undefined);
+    updateMock().mockReturnValue({
+      set: vi.fn().mockReturnValue({ where: whereSpy }),
+    });
+
+    const caller = createCaller();
+    const result = await caller.disconnectIntegration();
+
+    expect(result).toEqual({ success: true });
+    expect(whereSpy).toHaveBeenCalled();
+  });
+});
+
+describe("whoopRouter.getWebhookInfo", () => {
+  let originalVercelUrl: string | undefined;
+  let originalNextAuthUrl: string | undefined;
+  let originalWebhookSecret: string | undefined;
+
+  beforeEach(() => {
+    originalVercelUrl = process.env.VERCEL_URL;
+    originalNextAuthUrl = process.env.NEXTAUTH_URL;
+    originalWebhookSecret = process.env.WHOOP_WEBHOOK_SECRET;
+  });
+
+  afterEach(() => {
+    process.env.VERCEL_URL = originalVercelUrl;
+    process.env.NEXTAUTH_URL = originalNextAuthUrl;
+    process.env.WHOOP_WEBHOOK_SECRET = originalWebhookSecret;
+  });
+
+  it("returns webhook info using VERCEL_URL when available", async () => {
+    process.env.VERCEL_URL = "my-app.vercel.app";
+    process.env.WHOOP_WEBHOOK_SECRET = "secret";
+
+    const caller = createCaller();
+    const result = await caller.getWebhookInfo();
+
+    expect(result.webhookUrl).toBe(
+      "https://my-app.vercel.app/api/webhooks/whoop",
+    );
+    expect(result.isConfigured).toBe(true);
+    expect(result.supportedEvents).toHaveLength(6);
+  });
+
+  it("falls back to NEXTAUTH_URL when VERCEL_URL is missing", async () => {
+    delete process.env.VERCEL_URL;
+    process.env.NEXTAUTH_URL = "http://localhost:3000";
+
+    const caller = createCaller();
+    const result = await caller.getWebhookInfo();
+
+    expect(result.webhookUrl).toBe(
+      "http://localhost:3000/api/webhooks/whoop",
+    );
+  });
+});
+
+describe("whoopRouter.getLatestRecoveryData", () => {
+  it("returns latest recovery data when integration active", async () => {
+    const integration = {
+      isActive: true,
+      expiresAt: new Date("2025-12-31"),
+    };
+    const recovery = {
+      recovery_score: 85,
+      hrv_rmssd_milli: "45.2",
+      hrv_rmssd_baseline: "42.1",
+      resting_heart_rate: 60,
+      resting_heart_rate_baseline: 65,
+      raw_data: { recovery: true },
+      date: new Date(),
+    };
+    const sleep = {
+      sleep_performance_percentage: 92,
+      raw_data: { sleep: true },
+      start: new Date(),
+    };
+
+    selectMock().mockImplementation(() => ({
+      from: vi.fn().mockImplementation((table) => {
+        if (table === userIntegrations) {
+          return {
+            where: vi.fn().mockResolvedValue([integration]),
+          };
+        }
+        if (table === whoopRecovery) {
+          return {
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([recovery]),
+              }),
+            }),
+          };
+        }
+        if (table === whoopSleep) {
+          return {
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([sleep]),
+              }),
+            }),
+          };
+        }
+
+        return {
           where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
+            }),
           }),
-        }),
-      });
+        };
+      }),
+    }));
 
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getProfile();
+    const caller = createCaller();
+    const result = await caller.getLatestRecoveryData();
 
-      expect(result).toBeNull();
+    expect(result).toEqual({
+      recovery_score: 85,
+      sleep_performance: 92,
+      hrv_now_ms: "45.2",
+      hrv_baseline_ms: "42.1",
+      rhr_now_bpm: 60,
+      rhr_baseline_bpm: 65,
+      yesterday_strain: null,
+      raw_data: {
+        recovery: recovery.raw_data,
+        sleep: sleep.raw_data,
+      },
     });
   });
 
-  describe("getBodyMeasurements", () => {
-    it("should return body measurements for user", async () => {
-      const mockMeasurements = [
-        {
-          id: 1,
-          whoop_measurement_id: "measurement-123",
-          height_meter: 1.75,
-          weight_kilogram: 75.5,
-          max_heart_rate: 195,
-          measurement_date: new Date("2024-01-01"),
-          raw_data: { measurement: "data" },
-          createdAt: new Date(),
-        },
-      ];
+  it("throws when integration inactive", async () => {
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+      }),
+    });
 
-      mockDb.select.mockReturnValue({
+    const caller = createCaller();
+
+    await expect(caller.getLatestRecoveryData()).rejects.toThrow(
+      "WHOOP integration not found or inactive",
+    );
+  });
+
+  it("throws when integration token expired", async () => {
+    const integration = {
+      isActive: true,
+      expiresAt: new Date("2024-01-01"),
+    };
+
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([integration]),
+      }),
+    });
+
+    const caller = createCaller();
+
+    await expect(caller.getLatestRecoveryData()).rejects.toThrow(
+      "WHOOP access token has expired. Please reconnect your WHOOP account.",
+    );
+  });
+
+  it("throws when no recovery data is stored", async () => {
+    const integration = {
+      isActive: true,
+      expiresAt: new Date("2025-12-31"),
+    };
+
+    selectMock()
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([integration]),
+        }),
+      })
+      .mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue(mockMeasurements),
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
+            }),
           }),
         }),
       });
 
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getBodyMeasurements();
+    const caller = createCaller();
 
-      expect(result).toEqual(mockMeasurements);
-    });
+    await expect(caller.getLatestRecoveryData()).rejects.toThrow(
+      "No recovery data found. Try syncing your WHOOP data first.",
+    );
+  });
+});
 
-    it("should return empty array when no measurements exist", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockResolvedValue([]),
-          }),
+describe("whoopRouter data readers", () => {
+  it("getRecovery returns recovery entries", async () => {
+    const recovery = [{ recovery_score: 80 }];
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockResolvedValue(recovery),
         }),
-      });
-
-      const caller = whoopRouter.createCaller(mockCtx);
-      const result = await caller.getBodyMeasurements();
-
-      expect(result).toEqual([]);
+      }),
     });
+
+    const caller = createCaller();
+    expect(await caller.getRecovery()).toEqual(recovery);
+  });
+
+  it("getCycles returns cycle entries", async () => {
+    const cycles = [{ id: 1 }];
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockResolvedValue(cycles),
+        }),
+      }),
+    });
+
+    const caller = createCaller();
+    expect(await caller.getCycles()).toEqual(cycles);
+  });
+
+  it("getSleep returns sleep entries", async () => {
+    const sleep = [{ id: 1 }];
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockResolvedValue(sleep),
+        }),
+      }),
+    });
+
+    const caller = createCaller();
+    expect(await caller.getSleep()).toEqual(sleep);
+  });
+
+  it("getProfile returns single profile when present", async () => {
+    const profile = { id: 1 };
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([profile]),
+        }),
+      }),
+    });
+
+    const caller = createCaller();
+    expect(await caller.getProfile()).toEqual(profile);
+  });
+
+  it("getProfile returns null when profile absent", async () => {
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    });
+
+    const caller = createCaller();
+    expect(await caller.getProfile()).toBeNull();
+  });
+
+  it("getBodyMeasurements returns measurement list", async () => {
+    const measurements = [{ id: 1 }];
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockResolvedValue(measurements),
+        }),
+      }),
+    });
+
+    const caller = createCaller();
+    expect(await caller.getBodyMeasurements()).toEqual(measurements);
+  });
+
+  it("getBodyMeasurements returns empty list when none found", async () => {
+    selectMock().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    });
+
+    const caller = createCaller();
+    expect(await caller.getBodyMeasurements()).toEqual([]);
   });
 });

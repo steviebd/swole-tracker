@@ -1,6 +1,6 @@
-import { beforeAll, vi } from "vitest";
+import { beforeAll } from "vitest";
 
-(globalThis as any).vi = vi;
+console.log("setup.common.ts running");
 
 // Ensure NODE_ENV defaults to test so runtime guards behave as expected
 if (!process.env.NODE_ENV) {
@@ -96,6 +96,15 @@ if (typeof globalThis.crypto === "undefined") {
 }
 
 ensureBase64Helpers();
+
+// Mock crypto.randomUUID globally
+if (globalThis.crypto && !globalThis.crypto.randomUUID) {
+  Object.defineProperty(globalThis.crypto, "randomUUID", {
+    value: () => "test-uuid-12345",
+    writable: true,
+    configurable: true,
+  });
+}
 
 await import("./setup.dom");
 

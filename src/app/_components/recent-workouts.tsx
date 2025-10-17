@@ -64,7 +64,7 @@ export function RecentWorkouts() {
               {workout.template?.name ?? "Unknown Template"}
             </h4>
             <div className="text-muted text-xs">
-              {new Date(workout.workoutDate).toLocaleDateString()}
+              {new Date(workout.workoutDate).toLocaleDateString("en-US")}
             </div>
           </div>
 

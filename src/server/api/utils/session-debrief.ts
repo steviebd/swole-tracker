@@ -213,7 +213,7 @@ export async function gatherSessionDebriefContext({
     },
   });
 
-  if (!session || session.user_id !== userId) {
+  if (session?.user_id !== userId) {
     throw new Error("Workout session not found");
   }
 

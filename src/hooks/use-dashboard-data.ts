@@ -75,23 +75,35 @@ export interface UseDashboardDataOptions {
   includeRecentWorkouts?: boolean;
 }
 
+export interface UseDashboardDataDependencies {
+  useWorkoutStats?: typeof useWorkoutStats;
+  useProgressGoals?: typeof useProgressGoals;
+  useRecentWorkoutsQuery?: typeof api.workouts.getRecent.useQuery;
+}
+
 export function useDashboardData({
   recentWorkoutsLimit = 5,
   customTargets,
   includeGoals = true,
   includeRecentWorkouts = true,
-}: UseDashboardDataOptions = {}): DashboardData {
-  
+}: UseDashboardDataOptions = {}, dependencies: UseDashboardDataDependencies = {}): DashboardData {
+  const {
+    useWorkoutStats: useWorkoutStatsImpl = useWorkoutStats,
+    useProgressGoals: useProgressGoalsImpl = useProgressGoals,
+    useRecentWorkoutsQuery: useRecentWorkoutsQueryImpl =
+      api.workouts.getRecent.useQuery,
+  } = dependencies;
+
   // Fetch workout statistics
-  const stats = useWorkoutStats();
+  const stats = useWorkoutStatsImpl();
   
   // Fetch progress goals for both time ranges
-  const weeklyGoals = useProgressGoals({
+  const weeklyGoals = useProgressGoalsImpl({
     timeRange: "week",
     customTargets: customTargets?.weekly,
   });
   
-  const monthlyGoals = useProgressGoals({
+  const monthlyGoals = useProgressGoalsImpl({
     timeRange: "month",
     customTargets: customTargets?.monthly,
   });
@@ -101,7 +113,7 @@ export function useDashboardData({
     data: recentWorkoutsData,
     isLoading: recentWorkoutsLoading,
     error: recentWorkoutsError,
-  } = api.workouts.getRecent.useQuery(
+  } = useRecentWorkoutsQueryImpl(
     { limit: recentWorkoutsLimit },
     { enabled: includeRecentWorkouts }
   );
@@ -191,14 +203,16 @@ export function useDashboardData({
  * Lightweight hook for just checking if we should show dashboard loading
  * Useful for parent components that need to coordinate loading states
  */
-export function useDashboardLoadingState(): {
+export function useDashboardLoadingState(
+  dependencies?: UseDashboardDataDependencies,
+): {
   isLoading: boolean;
   error: string | null;
 } {
   const { isLoading, errorMessage } = useDashboardData({
     includeGoals: false,
     includeRecentWorkouts: false,
-  });
+  }, dependencies);
 
   return {
     isLoading,

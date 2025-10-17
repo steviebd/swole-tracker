@@ -3,8 +3,14 @@
 import React from "react";
 import { useSyncIndicator } from "~/hooks/use-sync-indicator";
 
-export function SyncIndicator() {
-  const { status, isActive, badgeText } = useSyncIndicator();
+export interface SyncIndicatorProps {
+  useSyncIndicatorHook?: typeof useSyncIndicator;
+}
+
+export function SyncIndicator({
+  useSyncIndicatorHook = useSyncIndicator,
+}: SyncIndicatorProps = {}) {
+  const { status, isActive, badgeText } = useSyncIndicatorHook();
 
   if (!isActive) {
     return null;

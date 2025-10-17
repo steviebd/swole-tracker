@@ -66,7 +66,11 @@ export function withErrorBoundary<P extends object>(
     </ErrorBoundary>
   );
   
-  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
+  const componentDisplayName = Component.displayName
+    ? `(${Component.displayName})`
+    : "()";
+
+  WrappedComponent.displayName = `withErrorBoundary${componentDisplayName}`;
   
   return WrappedComponent;
 }

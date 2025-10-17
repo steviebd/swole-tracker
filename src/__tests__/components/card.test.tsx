@@ -1,6 +1,11 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "~/__tests__/test-utils";
+import {
+  simpleRender as render,
+  screen,
+  fireEvent,
+  act,
+} from "~/__tests__/test-utils";
 import {
   Card,
   CardHeader,
@@ -51,36 +56,48 @@ describe("Card", () => {
     expect(card).toHaveClass("bg-surface-primary");
   });
 
-  it("renders with different surfaces", () => {
+  it("renders with different surfaces", async () => {
     const { rerender } = render(<Card surface="app">App surface</Card>);
     expect(screen.getByText("App surface")).toHaveClass("bg-surface-app");
 
-    rerender(<Card surface="surface">Surface</Card>);
+    await act(async () => {
+      rerender(<Card surface="surface">Surface</Card>);
+    });
     expect(screen.getByText("Surface")).toHaveClass("bg-surface-base");
 
-    rerender(<Card surface="elevated">Elevated</Card>);
+    await act(async () => {
+      rerender(<Card surface="elevated">Elevated</Card>);
+    });
     expect(screen.getByText("Elevated")).toHaveClass("bg-surface-elevated");
   });
 
-  it("renders with different variants", () => {
+  it("renders with different variants", async () => {
     const { rerender } = render(<Card variant="elevated">Elevated</Card>);
     expect(screen.getByText("Elevated")).toHaveClass("shadow-md");
 
-    rerender(<Card variant="glass">Glass</Card>);
+    await act(async () => {
+      rerender(<Card variant="glass">Glass</Card>);
+    });
     expect(screen.getByText("Glass")).toHaveClass("glass-card");
 
-    rerender(<Card variant="outline">Outline</Card>);
+    await act(async () => {
+      rerender(<Card variant="outline">Outline</Card>);
+    });
     expect(screen.getByText("Outline")).toHaveClass("bg-transparent");
   });
 
-  it("renders with different padding", () => {
+  it("renders with different padding", async () => {
     const { rerender } = render(<Card padding="sm">Small padding</Card>);
     expect(screen.getByText("Small padding")).toHaveClass("p-4");
 
-    rerender(<Card padding="lg">Large padding</Card>);
+    await act(async () => {
+      rerender(<Card padding="lg">Large padding</Card>);
+    });
     expect(screen.getByText("Large padding")).toHaveClass("p-8");
 
-    rerender(<Card padding="none">No padding</Card>);
+    await act(async () => {
+      rerender(<Card padding="none">No padding</Card>);
+    });
     expect(screen.getByText("No padding")).not.toHaveClass("p-");
   });
 

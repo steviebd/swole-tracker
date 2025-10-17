@@ -2,7 +2,12 @@
 
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "~/__tests__/test-utils";
+import {
+  simpleRender as render,
+  screen,
+  fireEvent,
+  act,
+} from "~/__tests__/test-utils";
 import { Button } from "~/components/ui/button";
 
 describe("Button", () => {
@@ -45,36 +50,50 @@ describe("Button", () => {
     expect(button).toHaveClass("bg-interactive-primary");
   });
 
-  it("renders with different variants", () => {
+  it("renders with different variants", async () => {
     const { rerender } = render(<Button variant="destructive">Delete</Button>);
     expect(screen.getByRole("button")).toHaveClass("bg-destructive");
 
-    rerender(<Button variant="outline">Outline</Button>);
+    await act(async () => {
+      rerender(<Button variant="outline">Outline</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass(
       "border-interactive-primary",
     );
 
-    rerender(<Button variant="secondary">Secondary</Button>);
+    await act(async () => {
+      rerender(<Button variant="secondary">Secondary</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass("bg-interactive-secondary");
 
-    rerender(<Button variant="ghost">Ghost</Button>);
+    await act(async () => {
+      rerender(<Button variant="ghost">Ghost</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass("bg-transparent");
 
-    rerender(<Button variant="link">Link</Button>);
+    await act(async () => {
+      rerender(<Button variant="link">Link</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass("underline-offset-4");
   });
 
-  it("renders with different sizes", () => {
+  it("renders with different sizes", async () => {
     const { rerender } = render(<Button size="sm">Small</Button>);
     expect(screen.getByRole("button")).toHaveClass("h-10");
 
-    rerender(<Button size="lg">Large</Button>);
+    await act(async () => {
+      rerender(<Button size="lg">Large</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass("h-12");
 
-    rerender(<Button size="xl">Extra Large</Button>);
+    await act(async () => {
+      rerender(<Button size="xl">Extra Large</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass("h-14");
 
-    rerender(<Button size="icon">Icon</Button>);
+    await act(async () => {
+      rerender(<Button size="icon">Icon</Button>);
+    });
     expect(screen.getByRole("button")).toHaveClass("size-11");
   });
 

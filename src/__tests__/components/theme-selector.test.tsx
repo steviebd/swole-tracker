@@ -1,9 +1,9 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "~/__tests__/test-utils";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSelector } from "~/components/ThemeSelector";
 import { mockLocalStorage } from "~/__tests__/test-utils";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 describe("ThemeSelector accessibility", () => {
   let originalMatchMedia: typeof window.matchMedia | undefined;

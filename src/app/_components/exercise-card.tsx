@@ -379,8 +379,7 @@ export function ExerciseCard({
                       // Prefill the last set with recommendation conservatively
                       const rec = insights.recommendation;
                       if (
-                        rec &&
-                        rec.type === "weight" &&
+                        rec?.type === "weight" &&
                         Object.prototype.hasOwnProperty.call(
                           rec,
                           "nextWeight",
@@ -396,8 +395,7 @@ export function ExerciseCard({
                           (rec as unknown as { nextWeight: number }).nextWeight,
                         );
                       } else if (
-                        rec &&
-                        rec.type === "reps" &&
+                        rec?.type === "reps" &&
                         Object.prototype.hasOwnProperty.call(rec, "nextReps") &&
                         typeof (rec as { nextReps: unknown }).nextReps ===
                           "number"

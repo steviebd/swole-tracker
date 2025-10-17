@@ -1,8 +1,8 @@
-import "@testing-library/jest-dom";
-import { cleanup } from "@testing-library/react";
+/// <reference types="vitest" />
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
-(globalThis as any).vi = vi;
+import "@testing-library/jest-dom";
+import { cleanup } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { workosAuthHandlers } from "./mocks/workos-auth";
 
@@ -80,10 +80,34 @@ const ensurePosthog = () => {
   });
 };
 
+const ensureImage = () => {
+  if (typeof window === "undefined") return;
+
+  // Mock Image constructor for drag operations
+  globalThis.Image = vi.fn().mockImplementation(() => ({
+    src: "",
+    onload: null,
+    onerror: null,
+    width: 0,
+    height: 0,
+  })) as any;
+};
+
+const ensureFramerMotion = () => {
+  if (typeof window === "undefined") return;
+
+  // Define Element to avoid motion-dom errors
+  if (typeof globalThis.Element === "undefined") {
+    (globalThis as any).Element = class Element {};
+  }
+};
+
 beforeAll(() => {
   ensureLocalStorage();
   ensureMatchMedia();
   ensurePosthog();
+  ensureImage();
+  ensureFramerMotion();
 
   server.listen({ onUnhandledRequest: "error" });
 });
