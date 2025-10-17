@@ -99,8 +99,17 @@ describe("SessionCookie", () => {
           .fn()
           .mockResolvedValue(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
         verify: vi.fn().mockResolvedValue(true),
+        decrypt: vi.fn(),
+        deriveBits: vi.fn(),
+        deriveKey: vi.fn(),
+        digest: vi.fn(),
+        encrypt: vi.fn(),
+        generateKey: vi.fn(),
+        wrapKey: vi.fn(),
+        unwrapKey: vi.fn(),
+        exportKey: vi.fn(),
       },
-      randomUUID: vi.fn(() => "session-id-123"),
+      randomUUID: vi.fn(() => "session-id-123") as any,
       getRandomValues: vi.fn((array: ArrayBufferView) => array),
     } satisfies Crypto;
 

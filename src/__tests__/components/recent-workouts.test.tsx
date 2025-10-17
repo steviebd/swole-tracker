@@ -13,6 +13,20 @@ type FetchHandler = (
   init?: RequestInit,
 ) => Promise<Response>;
 
+interface WorkOSUser {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  profile_picture_url?: string;
+}
+
+type AuthContextType = {
+  user: WorkOSUser | null;
+  isLoading: boolean;
+  signOut: () => Promise<void>;
+};
+
 const defaultUser = {
   user: { id: "test-user", email: "test@example.com" },
   isLoading: false,
@@ -27,7 +41,7 @@ const createResponse = (payload: unknown, status = 200) =>
 
 async function renderRecentWorkouts(
   fetchImpl: FetchHandler,
-  authValue = defaultUser,
+  authValue: AuthContextType = defaultUser,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -168,10 +182,7 @@ describe("RecentWorkouts", () => {
   });
 
   it("does not fetch when user is not authenticated", async () => {
-    const fetchImpl = vi.fn<
-      Parameters<FetchHandler>,
-      ReturnType<FetchHandler>
-    >();
+    const fetchImpl = vi.fn<FetchHandler>();
 
     await renderRecentWorkouts(fetchImpl, {
       user: null,
