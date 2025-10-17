@@ -11,59 +11,92 @@ import {
 } from "~/lib/offline-queue";
 
 describe("offline-queue", () => {
-  describe("getQueue", () => {
-    it("should return empty array when window is not available", () => {
-      const result = getQueue();
-      expect(result).toEqual([]);
+  describe("server environment (no window)", () => {
+    let originalWindow: Window | undefined;
+    let originalLocalStorage: Storage | undefined;
+
+    beforeEach(() => {
+      originalWindow =
+        typeof window === "undefined" ? undefined : (window as Window);
+      originalLocalStorage =
+        typeof globalThis.localStorage === "undefined"
+          ? undefined
+          : (globalThis.localStorage as Storage);
+
+      (globalThis as any).window = undefined;
+      (globalThis as any).localStorage = undefined;
     });
-  });
 
-  describe("getQueueLength", () => {
-    it("should return 0 when window is not available", () => {
-      const result = getQueueLength();
-      expect(result).toBe(0);
+    afterEach(() => {
+      if (typeof originalWindow === "undefined") {
+        delete (globalThis as any).window;
+      } else {
+        (globalThis as any).window = originalWindow;
+      }
+
+      if (typeof originalLocalStorage === "undefined") {
+        delete (globalThis as any).localStorage;
+      } else {
+        (globalThis as any).localStorage = originalLocalStorage;
+      }
+
+      clearQueue();
     });
-  });
 
-  describe("enqueueWorkoutSave", () => {
-    it("should not throw when window is not available", () => {
-      const payload = {
-        sessionId: 123,
-        exercises: [
-          {
-            exerciseName: "Bench Press",
-            sets: [
-              {
-                id: "set-1",
-                weight: 80,
-                reps: 8,
-                sets: 3,
-                unit: "kg" as const,
-              },
-            ],
-            unit: "kg" as const,
-          },
-        ],
-      };
-
-      expect(() => {
-        enqueueWorkoutSave(payload);
-      }).not.toThrow();
+    describe("getQueue", () => {
+      it("should return empty array when window is not available", () => {
+        const result = getQueue();
+        expect(result).toEqual([]);
+      });
     });
-  });
 
-  describe("dequeue", () => {
-    it("should return undefined when window is not available", () => {
-      const result = dequeue();
-      expect(result).toBeUndefined();
+    describe("getQueueLength", () => {
+      it("should return 0 when window is not available", () => {
+        const result = getQueueLength();
+        expect(result).toBe(0);
+      });
     });
-  });
 
-  describe("clearQueue", () => {
-    it("should not throw when window is not available", () => {
-      expect(() => {
-        clearQueue();
-      }).not.toThrow();
+    describe("enqueueWorkoutSave", () => {
+      it("should not throw when window is not available", () => {
+        const payload = {
+          sessionId: 123,
+          exercises: [
+            {
+              exerciseName: "Bench Press",
+              sets: [
+                {
+                  id: "set-1",
+                  weight: 80,
+                  reps: 8,
+                  sets: 3,
+                  unit: "kg" as const,
+                },
+              ],
+              unit: "kg" as const,
+            },
+          ],
+        };
+
+        expect(() => {
+          enqueueWorkoutSave(payload);
+        }).not.toThrow();
+      });
+    });
+
+    describe("dequeue", () => {
+      it("should return undefined when window is not available", () => {
+        const result = dequeue();
+        expect(result).toBeUndefined();
+      });
+    });
+
+    describe("clearQueue", () => {
+      it("should not throw when window is not available", () => {
+        expect(() => {
+          clearQueue();
+        }).not.toThrow();
+      });
     });
   });
 
