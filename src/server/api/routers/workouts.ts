@@ -17,6 +17,7 @@ import {
   gte,
   or,
   asc,
+  lt,
   type SQL,
   sql,
 } from "drizzle-orm";
@@ -49,9 +50,32 @@ export const workoutsRouter = createTRPCRouter({
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
+      const staleThreshold = new Date(Date.now() - 4 * 60 * 60 * 1000);
+
+      await ctx.db
+        .delete(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.user_id, ctx.user.id),
+            lt(workoutSessions.createdAt, staleThreshold),
+            sql`NOT EXISTS (
+              SELECT 1 FROM session_exercise se
+              WHERE se.sessionId = ${workoutSessions.id}
+                AND se.user_id = ${ctx.user.id}
+            )`,
+          ),
+        );
+
       logger.debug("Getting recent workouts", { limit: input.limit });
-      return ctx.db.query.workoutSessions.findMany({
-        where: eq(workoutSessions.user_id, ctx.user.id),
+      const sessions = await ctx.db.query.workoutSessions.findMany({
+        where: and(
+          eq(workoutSessions.user_id, ctx.user.id),
+          sql`EXISTS (
+            SELECT 1 FROM session_exercise se
+            WHERE se.sessionId = ${workoutSessions.id}
+              AND se.user_id = ${ctx.user.id}
+          )`,
+        ),
         orderBy: [desc(workoutSessions.workoutDate)],
         limit: input.limit,
         columns: {
@@ -92,6 +116,8 @@ export const workoutsRouter = createTRPCRouter({
           },
         },
       });
+
+      return sessions;
     }),
 
   // Get a specific workout session

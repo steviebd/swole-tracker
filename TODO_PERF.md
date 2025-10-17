@@ -18,34 +18,34 @@
 - Do not re-architect the entire offline system or add background sync jobs beyond what is necessary for accuracy.
 
 ## Proposal & Implementation Plan
-1. **Session Longevity Revamp**
+1. ✅ **Session Longevity Revamp**
    - Extend `sessions` schema (if needed) or reuse existing columns to track two timestamps: `sessionExpiresAt` (≥72 hours) and `accessTokenExpiresAt` (~1 hour). Keep `expiresAt` for backwards compatibility but migrate usage.
    - In `SessionCookie.create`, set `sessionExpiresAt` to `now + 72h` and `accessTokenExpiresAt` to the WorkOS token’s expiry. Update `SessionCookie.get` / `SessionCookie.isExpired` to check the longer window.
    - Update middleware refresh path to bump both expiries on success: persist the refreshed access token and push `sessionExpiresAt` forward another 72 hours.
    - Ensure `/api/auth/session` respects the longer window and returns 401 only when `sessionExpiresAt` has passed.
    - QA: verify cookie persists across 72 h simulation (adjust timestamps in tests) and that forced refresh still happens hourly. Add Vitest coverage for the new expiry math.
 
-2. **Template List Instant Refresh**
+2. ✅ **Template List Instant Refresh**
    - Align optimistic cache writes with the actual query key shape. Instead of `setData(undefined, …)`, call `queryClient.setQueriesData` targeting all active `templates.getAll` queries (iterate via `utils.templates.getAll.getQueryKey({ search, sort })`).
    - After mutation success, keep redirect to `/templates`, but ensure the landing page can render from the already-updated cache. Only `invalidateQueries` if you need server confirmation.
    - Validate offline scenario: creating while offline should enqueue mutation and add an optimistic entry scoped to the current user.
 
-3. **Offline Queue Reactivity**
+3. ✅ **Offline Queue Reactivity**
    - Replace the static `useMemo` in `useOfflineSaveQueue` with state derived from storage events. Subscribe to queue changes (including `enqueue`, `writeQueue`) and update both `queueSize` and the item list.
    - Consider exposing `useQueueItems()` hook or updating the existing hook to return a snapshot that re-renders when storage changes.
    - Cover with unit tests (Vitest + jsdom) to confirm storage events propagate.
 
-4. **Per-User Cache Scoping**
+4. ✅ **Per-User Cache Scoping**
    - Call `setOfflineCacheUser(userId)` inside `TRPCReactProvider` before `setupOfflinePersistence(queryClient)`. When `userId` changes, clear the old cache namespace and hydrate a fresh persister.
    - Audit logout/sign-out flows to ensure `clearAllOfflineData` wipes all scoped keys.
 
-5. **Recent Workouts Hygiene**
+5. ✅ **Recent Workouts Hygiene**
    - Update `workouts.getRecent` to filter out sessions lacking exercises (e.g. `EXISTS (SELECT 1 FROM session_exercise WHERE …)`).
    - Implement cleanup in the router or a cron endpoint to delete or archive sessions older than 4 hours with zero exercises; perform this prune silently (no UI prompts) either on resume or via background job.
    - Expand optimistic cache updates to cover all active limits (`setQueriesData` on `getRecent` with varying `limit`). Mirror the delete mutation logic accordingly.
    - Verify the `/workout` dashboard, `/workouts`, and `RecentWorkoutsSection` reflect completed sessions instantly.
 
-6. **Audit & Report Additional Lag Hotspots**
+6. ✅ **Audit & Report Additional Lag Hotspots**
    - Build a comprehensive inventory of cached screens/components:
      1. **Dashboard/Home (`DashboardContent`, `StatsCards`, `QuickActionCards`, `RecentWorkoutsSection`, `RecentAchievements`)**
      2. **Progress analytics (`ProgressDashboard`, `WeeklyProgressSection`, strength/volume modals)**
@@ -73,9 +73,6 @@
 - **Cache key fan-out**: updating all query keys risks stale references or memory bloat. Keep helper utilities to iterate keys safely.
 - **Offline queue churn**: more frequent state updates could increase re-render cost. Debounce storage listeners or batch updates if needed.
 - **Cleanup job edge cases**: deleting empty sessions must not touch in-progress workouts; use the 4 hour cutoff and confirm some heartbeat writes mark “active” sessions.
-
-## Open Questions
-- None; requirements captured above. Will surface new questions if additional blockers appear during implementation.
 
 ## Cached-Surface Audit Findings
 - **Dashboard / Home**

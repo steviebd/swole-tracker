@@ -1,7 +1,7 @@
 import { env } from "~/env";
 import { db } from "~/server/db";
 import { sessions } from "~/server/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 let sessionDb = db;
 
@@ -18,7 +18,9 @@ export interface WorkOSSession {
   organizationId?: string;
   accessToken: string;
   refreshToken: string | null;
-  expiresAt: number; // Unix timestamp in seconds
+  accessTokenExpiresAt: number; // Unix timestamp in seconds
+  sessionExpiresAt: number; // Unix timestamp in seconds
+  expiresAt: number; // Deprecated alias for access token expiry
 }
 
 export interface SessionData {
@@ -26,6 +28,8 @@ export interface SessionData {
   userId: string;
   organizationId?: string;
   expiresAt: number; // Unix timestamp in seconds
+  accessTokenExpiresAt?: number | null;
+  sessionExpiresAt?: number | null;
 }
 
 // Cookie configuration
@@ -101,7 +105,23 @@ function deserializeSession(data: string): WorkOSSession {
   try {
     const session = JSON.parse(data) as WorkOSSession;
     // Validate required fields
-    if (!session.userId || !session.accessToken || !session.expiresAt) {
+    const accessTokenExpiresAt =
+      typeof session.accessTokenExpiresAt === "number"
+        ? session.accessTokenExpiresAt
+        : typeof session.expiresAt === "number"
+          ? session.expiresAt
+          : null;
+    const sessionExpiresAt =
+      typeof session.sessionExpiresAt === "number"
+        ? session.sessionExpiresAt
+        : accessTokenExpiresAt;
+
+    if (
+      !session.userId ||
+      !session.accessToken ||
+      accessTokenExpiresAt === null ||
+      sessionExpiresAt === null
+    ) {
       throw new Error("Invalid session data");
     }
     const refreshToken =
@@ -110,6 +130,9 @@ function deserializeSession(data: string): WorkOSSession {
     return {
       ...session,
       refreshToken,
+      accessTokenExpiresAt,
+      sessionExpiresAt,
+      expiresAt: accessTokenExpiresAt,
     };
   } catch (error) {
     throw new Error("Invalid session data format");
@@ -121,6 +144,18 @@ export class SessionCookie {
     // Generate opaque session ID
     const sessionId = crypto.randomUUID();
 
+    const accessTokenExpiresAt =
+      session.accessTokenExpiresAt ?? session.expiresAt;
+    const sessionExpiresAt =
+      session.sessionExpiresAt ?? accessTokenExpiresAt;
+
+    if (
+      typeof accessTokenExpiresAt !== "number" ||
+      typeof sessionExpiresAt !== "number"
+    ) {
+      throw new Error("Session expiry values must be numbers");
+    }
+
     // Store session data in database
     await sessionDb.insert(sessions).values({
       id: sessionId,
@@ -128,7 +163,9 @@ export class SessionCookie {
       organizationId: session.organizationId,
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
-      expiresAt: session.expiresAt,
+      expiresAt: accessTokenExpiresAt,
+      accessTokenExpiresAt,
+      sessionExpiresAt,
     });
 
     // Sign the session ID
@@ -177,22 +214,33 @@ export class SessionCookie {
       const [sessionData] = await sessionDb
         .select()
         .from(sessions)
-        .where(
-          and(
-            eq(sessions.id, sessionId),
-            gt(sessions.expiresAt, Math.floor(Date.now() / 1000)),
-          ),
-        )
+        .where(eq(sessions.id, sessionId))
         .limit(1);
 
       if (!sessionData) return null;
+
+       const nowSeconds = Math.floor(Date.now() / 1000);
+       const sessionExpiresAt =
+         sessionData.sessionExpiresAt ?? sessionData.expiresAt;
+       const accessTokenExpiresAt =
+         sessionData.accessTokenExpiresAt ?? sessionData.expiresAt;
+
+       if (
+         typeof sessionExpiresAt !== "number" ||
+         typeof accessTokenExpiresAt !== "number" ||
+         sessionExpiresAt <= nowSeconds
+       ) {
+         return null;
+       }
 
       return {
         userId: sessionData.userId,
         organizationId: sessionData.organizationId || undefined,
         accessToken: sessionData.accessToken,
         refreshToken: sessionData.refreshToken,
-        expiresAt: sessionData.expiresAt,
+        accessTokenExpiresAt,
+        sessionExpiresAt,
+        expiresAt: accessTokenExpiresAt,
       };
     } catch (error) {
       // Invalid cookie format or database error
@@ -263,7 +311,11 @@ export class SessionCookie {
 
   static isExpired(session: WorkOSSession): boolean {
     const now = Math.floor(Date.now() / 1000);
-    return session.expiresAt <= now;
+    const sessionExpiry =
+      typeof session.sessionExpiresAt === "number"
+        ? session.sessionExpiresAt
+        : session.expiresAt;
+    return sessionExpiry <= now;
   }
 
   static async update(request: Request, session: WorkOSSession): Promise<void> {
@@ -286,13 +338,20 @@ export class SessionCookie {
 
       const sessionId = decodedCookieValue.slice(0, separatorIndex);
 
+      const accessTokenExpiresAt =
+        session.accessTokenExpiresAt ?? session.expiresAt;
+      const sessionExpiresAt =
+        session.sessionExpiresAt ?? accessTokenExpiresAt;
+
       // Update session data in database
       await sessionDb
         .update(sessions)
         .set({
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
-          expiresAt: session.expiresAt,
+          expiresAt: accessTokenExpiresAt,
+          accessTokenExpiresAt,
+          sessionExpiresAt,
           updatedAt: new Date(),
         })
         .where(eq(sessions.id, sessionId));

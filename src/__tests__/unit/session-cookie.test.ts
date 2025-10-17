@@ -17,6 +17,8 @@ type SessionRow = {
   accessToken: string;
   refreshToken: string | null;
   expiresAt: number;
+  accessTokenExpiresAt?: number | null;
+  sessionExpiresAt?: number | null;
 };
 
 function createSessionDbMock() {
@@ -62,12 +64,16 @@ describe("SessionCookie", () => {
   let mockDb: ReturnType<typeof createSessionDbMock>;
   let originalCrypto: Crypto;
 
+  const baseNow = Math.floor(Date.now() / 1000);
+
   const validSession: WorkOSSession = {
     userId: "test-user-id",
     organizationId: "test-org-id",
     accessToken: "test.access.token",
     refreshToken: "test.refresh.token",
-    expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    accessTokenExpiresAt: baseNow + 3600,
+    sessionExpiresAt: baseNow + 72 * 60 * 60,
+    expiresAt: baseNow + 3600,
   };
 
   const expiredSession: WorkOSSession = {
@@ -75,7 +81,9 @@ describe("SessionCookie", () => {
     organizationId: "test-org-id",
     accessToken: "test.access.token",
     refreshToken: "test.refresh.token",
-    expiresAt: Math.floor(Date.now() / 1000) - 100,
+    accessTokenExpiresAt: baseNow - 100,
+    sessionExpiresAt: baseNow - 50,
+    expiresAt: baseNow - 100,
   };
 
   const createRequestWithCookie = (cookieHeader?: string) =>
@@ -150,6 +158,8 @@ describe("SessionCookie", () => {
         accessToken: validSession.accessToken,
         refreshToken: validSession.refreshToken,
         expiresAt: validSession.expiresAt,
+        accessTokenExpiresAt: validSession.accessTokenExpiresAt,
+        sessionExpiresAt: validSession.sessionExpiresAt,
       });
 
       const mockRequest = createRequestWithCookie(cookieString);
@@ -191,6 +201,8 @@ describe("SessionCookie", () => {
         accessToken: sessionWithoutRefresh.accessToken,
         refreshToken: sessionWithoutRefresh.refreshToken,
         expiresAt: sessionWithoutRefresh.expiresAt,
+        accessTokenExpiresAt: sessionWithoutRefresh.accessTokenExpiresAt,
+        sessionExpiresAt: sessionWithoutRefresh.sessionExpiresAt,
       });
 
       const mockRequest = createRequestWithCookie(cookieString);
@@ -213,6 +225,8 @@ describe("SessionCookie", () => {
         accessToken: validSession.accessToken,
         refreshToken: validSession.refreshToken,
         expiresAt: validSession.expiresAt,
+        accessTokenExpiresAt: validSession.accessTokenExpiresAt,
+        sessionExpiresAt: validSession.sessionExpiresAt,
       });
 
       const mockRequest = createRequestWithCookie(cookieString);
@@ -248,6 +262,28 @@ describe("SessionCookie", () => {
 
     it("should return false for valid session", () => {
       expect(SessionCookie.isExpired(validSession)).toBe(false);
+    });
+
+    it("should respect extended session window even if access token expired", () => {
+      const session: WorkOSSession = {
+        ...validSession,
+        accessTokenExpiresAt: baseNow - 30,
+        expiresAt: baseNow - 30,
+        sessionExpiresAt: baseNow + 60,
+      };
+
+      expect(SessionCookie.isExpired(session)).toBe(false);
+    });
+
+    it("should treat session as expired when session window lapses", () => {
+      const session: WorkOSSession = {
+        ...validSession,
+        accessTokenExpiresAt: baseNow + 3600,
+        expiresAt: baseNow + 3600,
+        sessionExpiresAt: baseNow - 1,
+      };
+
+      expect(SessionCookie.isExpired(session)).toBe(true);
     });
   });
 });

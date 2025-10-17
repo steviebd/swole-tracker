@@ -14,9 +14,7 @@ describe("security headers", () => {
   describe("createNonce", () => {
     it("creates a nonce using crypto.randomUUID when available", () => {
       const mockRandomUUID = vi.fn().mockReturnValue("test-uuid");
-      vi.stubGlobal("crypto", { randomUUID: mockRandomUUID });
-
-      const nonce = createNonce();
+      const nonce = createNonce({ randomUUID: mockRandomUUID });
       expect(nonce).toBe("test-uuid");
       expect(mockRandomUUID).toHaveBeenCalled();
 
@@ -24,13 +22,8 @@ describe("security headers", () => {
     });
 
     it("creates a nonce using crypto.getRandomValues when randomUUID not available", () => {
-      const mockGetRandomValues = vi.fn();
-      vi.stubGlobal("crypto", {
-        getRandomValues: mockGetRandomValues,
-        randomUUID: undefined,
-      });
-
-      createNonce();
+      const mockGetRandomValues = vi.fn((array: Uint8Array) => array);
+      createNonce({ getRandomValues: mockGetRandomValues });
       expect(mockGetRandomValues).toHaveBeenCalledWith(expect.any(Uint8Array));
 
       vi.restoreAllMocks();
