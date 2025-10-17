@@ -431,7 +431,7 @@ export function TemplatesList() {
 
                 <CardContent className="pb-3">
                   <p className="text-muted-foreground text-sm">
-                    {!template.exercises || template.exercises.length === 0 ? (
+                    {template.exercises?.length === 0 ? (
                       "No exercises"
                     ) : (
                       <>

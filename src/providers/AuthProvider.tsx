@@ -31,7 +31,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
 
 // Fetch user session from API
 async function fetchSession(): Promise<{ user: WorkOSUser | null }> {

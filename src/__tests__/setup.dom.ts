@@ -1,5 +1,8 @@
-import "@testing-library/jest-dom";
+/// <reference types="vitest" />
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
+
+import "@testing-library/jest-dom";
+import { cleanup } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { workosAuthHandlers } from "./mocks/workos-auth";
 
@@ -30,6 +33,18 @@ const ensureLocalStorage = () => {
     writable: true,
     configurable: true,
   });
+
+  // Ensure crypto.randomUUID is available
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    !globalThis.crypto.randomUUID
+  ) {
+    Object.defineProperty(globalThis.crypto, "randomUUID", {
+      value: () => "test-uuid-123",
+      writable: true,
+      configurable: true,
+    });
+  }
 };
 
 const ensureMatchMedia = () => {
@@ -65,15 +80,42 @@ const ensurePosthog = () => {
   });
 };
 
+const ensureImage = () => {
+  if (typeof window === "undefined") return;
+
+  // Mock Image constructor for drag operations
+  globalThis.Image = vi.fn().mockImplementation(() => ({
+    src: "",
+    onload: null,
+    onerror: null,
+    width: 0,
+    height: 0,
+  })) as any;
+};
+
+const ensureFramerMotion = () => {
+  if (typeof window === "undefined") return;
+
+  // Define Element to avoid motion-dom errors
+  if (typeof globalThis.Element === "undefined") {
+    (globalThis as any).Element = class Element {};
+  }
+};
+
 beforeAll(() => {
   ensureLocalStorage();
   ensureMatchMedia();
   ensurePosthog();
+  ensureImage();
+  ensureFramerMotion();
 
   server.listen({ onUnhandledRequest: "error" });
 });
 
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  cleanup();
+  server.resetHandlers();
+});
 afterAll(() => server.close());
 
 export {};

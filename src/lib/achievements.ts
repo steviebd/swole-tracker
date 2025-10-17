@@ -195,7 +195,7 @@ export function getProgressMilestone(totalWorkouts: number, totalVolume: number)
  * This is a placeholder implementation - in reality you'd want to query the database
  */
 export function calculateStreak(workoutDates: Date[]): StreakInfo {
-  if (!workoutDates || workoutDates.length === 0) {
+  if (workoutDates?.length === 0) {
     return { current: 0, longest: 0 };
   }
   

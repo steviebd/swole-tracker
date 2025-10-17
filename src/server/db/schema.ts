@@ -725,6 +725,8 @@ export const sessions = createTable(
     accessToken: text().notNull(),
     refreshToken: text(),
     expiresAt: integer().notNull(), // Unix timestamp in seconds
+    accessTokenExpiresAt: integer(), // Unix timestamp in seconds
+    sessionExpiresAt: integer(), // Unix timestamp in seconds
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -735,6 +737,8 @@ export const sessions = createTable(
   (t) => [
     index("session_user_id_idx").on(t.userId),
     index("session_expires_at_idx").on(t.expiresAt),
+    index("session_access_expires_idx").on(t.accessTokenExpiresAt),
+    index("session_session_expires_idx").on(t.sessionExpiresAt),
     // Remove unique constraint on userId to allow multiple sessions per user
   ],
 ); // RLS disabled - using WorkOS auth with application-level security

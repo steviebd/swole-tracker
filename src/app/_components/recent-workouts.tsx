@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useAuth } from "~/providers/AuthProvider";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -63,7 +64,7 @@ export function RecentWorkouts() {
               {workout.template?.name ?? "Unknown Template"}
             </h4>
             <div className="text-muted text-xs">
-              {new Date(workout.workoutDate).toLocaleDateString()}
+              {new Date(workout.workoutDate).toLocaleDateString("en-US")}
             </div>
           </div>
 
@@ -75,13 +76,13 @@ export function RecentWorkouts() {
           <div className="flex items-center gap-3 text-sm">
             <Link
               href={`/workout/session/${workout.id}`}
-              className="link-primary no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="link-primary focus-visible:ring-primary/40 focus-visible:ring-offset-background no-underline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               View
             </Link>
             <Link
               href={`/workout/start?templateId=${workout.templateId}`}
-              className="text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="text-secondary hover:text-primary focus-visible:ring-primary/40 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               Repeat
             </Link>

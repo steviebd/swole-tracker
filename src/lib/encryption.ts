@@ -24,11 +24,8 @@ async function deriveKey(
     ["deriveKey"],
   );
 
-  // Ensure we pass only the salt view (respecting offset/length) to PBKDF2
-  const saltBuffer =
-    salt.byteOffset === 0 && salt.byteLength === salt.buffer.byteLength
-      ? (salt.buffer as ArrayBuffer)
-      : salt.slice().buffer;
+  // Create a new Uint8Array to ensure proper BufferSource typing
+  const saltBuffer = new Uint8Array(salt);
 
   return crypto.subtle.deriveKey(
     {

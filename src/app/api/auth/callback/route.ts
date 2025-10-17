@@ -134,13 +134,19 @@ export async function GET(request: NextRequest) {
       console.error("Failed to upsert user after WorkOS callback:", dbError);
     }
 
-    // Create session with 24 hour expiration
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const accessTokenExpiresAt =
+      authResponse.oauthTokens?.expiresAt ?? nowInSeconds + 60 * 60; // fallback: 1 hour
+    const sessionExpiresAt = nowInSeconds + 72 * 60 * 60; // 72 hours from now
+
     const session = {
       userId: authResponse.user.id,
       organizationId: authResponse.organizationId ?? undefined,
       accessToken: authResponse.accessToken,
       refreshToken: authResponse.refreshToken ?? null,
-      expiresAt: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours from now
+      accessTokenExpiresAt,
+      sessionExpiresAt,
+      expiresAt: accessTokenExpiresAt,
     };
 
     // Create response with session cookie

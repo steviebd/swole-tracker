@@ -134,7 +134,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   };
 
   const computeCurrentBest = (ex: ExerciseData): BestMetrics => {
-    if (!ex.sets || ex.sets.length === 0) return {};
+    if (ex.sets?.length === 0) return {};
     // Max weight, tie-break by reps
     const maxWeight = Math.max(...ex.sets.map((s) => s.weight ?? 0));
     const weightCandidates = ex.sets.filter(

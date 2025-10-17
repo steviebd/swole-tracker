@@ -45,10 +45,24 @@ export async function middleware(request: NextRequest) {
 
     // Check if session is expired or close to expiring (within 5 minutes)
     const now = Math.floor(Date.now() / 1000);
-    const isExpired = session.expiresAt <= now;
-    const shouldRefresh = session.expiresAt <= now + 300; // 5 minutes buffer
+    const accessTokenExpiry =
+      session.accessTokenExpiresAt ?? session.expiresAt;
+    const sessionExpiry =
+      session.sessionExpiresAt ??
+      session.accessTokenExpiresAt ??
+      session.expiresAt;
 
-    if (isExpired || shouldRefresh) {
+    if (sessionExpiry <= now) {
+      const redirectUrl = new URL("/auth/login", request.url);
+      redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+      const response = NextResponse.redirect(redirectUrl);
+      response.headers.set("Set-Cookie", await SessionCookie.destroy(request));
+      return apply(response);
+    }
+
+    const shouldRefresh = accessTokenExpiry <= now + 300; // 5 minute buffer
+
+    if (shouldRefresh) {
       if (!session.refreshToken) {
         const redirectUrl = new URL("/auth/login", request.url);
         redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
@@ -71,13 +85,17 @@ export async function middleware(request: NextRequest) {
 
         // Update existing session with refreshed tokens
         // WorkOS tokens typically last 1 hour, refresh tokens longer
-        const accessTokenExpiry = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
+        const refreshedAt = Math.floor(Date.now() / 1000);
+        const newAccessTokenExpiry = refreshedAt + 60 * 60; // 1 hour from now
+        const newSessionExpiry = refreshedAt + 72 * 60 * 60; // 72 hours from now
         const updatedSession = {
           userId: refreshedSession.user.id,
           organizationId: refreshedSession.organizationId,
           accessToken: refreshedSession.accessToken,
           refreshToken: refreshedSession.refreshToken ?? null,
-          expiresAt: accessTokenExpiry,
+          accessTokenExpiresAt: newAccessTokenExpiry,
+          sessionExpiresAt: newSessionExpiry,
+          expiresAt: newAccessTokenExpiry,
         };
 
         // Update session in database

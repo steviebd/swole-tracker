@@ -17,6 +17,7 @@ import {
   gte,
   or,
   asc,
+  lt,
   type SQL,
   sql,
 } from "drizzle-orm";
@@ -49,9 +50,32 @@ export const workoutsRouter = createTRPCRouter({
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
     .query(async ({ input, ctx }) => {
+      const staleThreshold = new Date(Date.now() - 4 * 60 * 60 * 1000);
+
+      await ctx.db
+        .delete(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.user_id, ctx.user.id),
+            lt(workoutSessions.createdAt, staleThreshold),
+            sql`NOT EXISTS (
+              SELECT 1 FROM session_exercise se
+              WHERE se.sessionId = ${workoutSessions.id}
+                AND se.user_id = ${ctx.user.id}
+            )`,
+          ),
+        );
+
       logger.debug("Getting recent workouts", { limit: input.limit });
-      return ctx.db.query.workoutSessions.findMany({
-        where: eq(workoutSessions.user_id, ctx.user.id),
+      const sessions = await ctx.db.query.workoutSessions.findMany({
+        where: and(
+          eq(workoutSessions.user_id, ctx.user.id),
+          sql`EXISTS (
+            SELECT 1 FROM session_exercise se
+            WHERE se.sessionId = ${workoutSessions.id}
+              AND se.user_id = ${ctx.user.id}
+          )`,
+        ),
         orderBy: [desc(workoutSessions.workoutDate)],
         limit: input.limit,
         columns: {
@@ -92,6 +116,8 @@ export const workoutsRouter = createTRPCRouter({
           },
         },
       });
+
+      return sessions;
     }),
 
   // Get a specific workout session
@@ -166,18 +192,25 @@ export const workoutsRouter = createTRPCRouter({
             ${ctx.user.id} AS userId,
             ${input.excludeSessionId} AS excludeSessionId
         ),
-        linked AS (
-          SELECT NULL AS masterExerciseId, NULL AS exerciseName, NULL AS templateExerciseId
-          WHERE 1 = 0
-        ),
+         linked AS (
+           SELECT el.masterExerciseId, me.name AS exerciseName, el.templateExerciseId
+           FROM exercise_link el
+           JOIN master_exercise me ON me.id = el.masterExerciseId
+           WHERE el.user_id = (SELECT userId FROM vars)
+           AND (SELECT templateExerciseId FROM vars) IS NOT NULL
+           AND el.templateExerciseId = (SELECT templateExerciseId FROM vars)
+         ),
         all_exercises AS (
           SELECT (SELECT exerciseName FROM vars) AS exerciseName
           UNION ALL
           SELECT exerciseName FROM linked WHERE masterExerciseId IS NOT NULL
         ),
-        all_template_ids AS (
-          SELECT templateExerciseId FROM linked WHERE masterExerciseId IS NOT NULL
-        ),
+         all_template_ids AS (
+           SELECT (SELECT templateExerciseId FROM vars) AS templateExerciseId
+           WHERE (SELECT templateExerciseId FROM vars) IS NOT NULL
+           UNION
+           SELECT templateExerciseId FROM linked WHERE masterExerciseId IS NOT NULL
+         ),
         latest_session AS (
           SELECT se.sessionId
           FROM session_exercise se
@@ -341,7 +374,7 @@ export const workoutsRouter = createTRPCRouter({
           });
 
           // If we found a recent session with the same template and no exercises (just started), return it
-          if (recentSession && recentSession.exercises.length === 0) {
+          if (recentSession?.exercises.length === 0) {
             logger.debug("Returning existing recent session", {
               sessionId: recentSession.id,
             });

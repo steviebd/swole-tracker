@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { api } from "~/trpc/react";
+import { useQueryClient, type QueryKey } from "@tanstack/react-query";
+import { getQueryKey } from "@trpc/react-query";
+import { api, type RouterInputs, type RouterOutputs } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
@@ -96,6 +98,126 @@ export function TemplateForm({ template }: TemplateFormProps) {
   );
 
   const utils = api.useUtils();
+  const queryClient = useQueryClient();
+  const templatesQueryKeyRoot = getQueryKey(api.templates.getAll);
+
+  type TemplateList = RouterOutputs["templates"]["getAll"];
+  type TemplateItem = TemplateList[number];
+  type TemplatesGetAllInput = Exclude<
+    RouterInputs["templates"]["getAll"],
+    undefined | void
+  >;
+
+  type TemplatesQuerySnapshot = Array<[QueryKey, TemplateList | undefined]>;
+
+  type TemplateMutationContext = {
+    previousQueries: TemplatesQuerySnapshot;
+  };
+
+  const snapshotTemplateQueries = (): TemplatesQuerySnapshot => {
+    const matches = queryClient.getQueriesData<TemplateList>({
+      queryKey: templatesQueryKeyRoot,
+    });
+
+    const snapshot: TemplatesQuerySnapshot = [];
+    for (const [key, data] of matches) {
+      snapshot.push([key, data]);
+    }
+
+    return snapshot;
+  };
+
+  const restoreTemplateQueries = (snapshot: TemplatesQuerySnapshot) => {
+    for (const [key, data] of snapshot) {
+      queryClient.setQueryData<TemplateList | undefined>(key, data);
+    }
+  };
+
+  const toTimestamp = (value: Date | string | null | undefined): number => {
+    if (!value) return 0;
+    if (value instanceof Date) return value.getTime();
+    const parsed = new Date(value);
+    const time = parsed.getTime();
+    return Number.isFinite(time) ? time : 0;
+  };
+
+  const sortTemplates = (
+    list: TemplateList,
+    sort: TemplatesGetAllInput["sort"] | undefined,
+  ): TemplateList => {
+    const resolvedSort = sort ?? "recent";
+    const sorted = [...list];
+
+    switch (resolvedSort) {
+      case "name":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "lastUsed":
+        sorted.sort(
+          (a, b) => toTimestamp(b.lastUsed) - toTimestamp(a.lastUsed),
+        );
+        break;
+      case "mostUsed":
+        sorted.sort((a, b) => {
+          const diff =
+            (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
+          if (diff !== 0) {
+            return diff;
+          }
+          return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+        });
+        break;
+      default:
+        sorted.sort(
+          (a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
+        );
+    }
+
+    return sorted;
+  };
+
+  const shouldIncludeInQuery = (
+    templateRecord: TemplateItem,
+    input: TemplatesGetAllInput | undefined,
+  ): boolean => {
+    const searchTerm = input?.search?.trim();
+    if (!searchTerm) {
+      return true;
+    }
+    const normalizedSearch = searchTerm.toLowerCase();
+    return templateRecord.name.toLowerCase().includes(normalizedSearch);
+  };
+
+  const upsertTemplateIntoList = (
+    list: TemplateList | undefined,
+    templateRecord: TemplateItem,
+    sort: TemplatesGetAllInput["sort"] | undefined,
+  ): TemplateList => {
+    const base = (list ?? []).filter((item) => item.id !== templateRecord.id);
+    return sortTemplates([...base, templateRecord], sort);
+  };
+
+  const updateAllTemplateQueries = (
+    updater: (
+      list: TemplateList | undefined,
+      input: TemplatesGetAllInput | undefined,
+    ) => TemplateList | undefined,
+  ) => {
+    const matching = queryClient.getQueriesData<TemplateList>({
+      queryKey: templatesQueryKeyRoot,
+    });
+
+    for (const [key] of matching) {
+      const maybeOpts =
+        (key as QueryKey)[1] as { input?: TemplatesGetAllInput } | undefined;
+      const input = maybeOpts?.input;
+
+      queryClient.setQueryData<TemplateList | undefined>(
+        key,
+        (current: TemplateList | undefined) => updater(current, input),
+      );
+    }
+  };
 
   const createTemplate = api.templates.create.useMutation({
     onMutate: async (_newTemplate) => {
@@ -103,14 +225,17 @@ export function TemplateForm({ template }: TemplateFormProps) {
       await utils.templates.getAll.cancel();
 
       // Snapshot the previous value for error rollback
-      const previousTemplates = utils.templates.getAll.getData();
+      const previousQueries = snapshotTemplateQueries();
 
-      return { previousTemplates };
+      return { previousQueries } satisfies TemplateMutationContext;
     },
     onError: (err, newTemplate, context) => {
+      const mutationContext = context as
+        | TemplateMutationContext
+        | undefined;
       // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
+      if (mutationContext?.previousQueries) {
+        restoreTemplateQueries(mutationContext.previousQueries);
       }
       // Reset submission flag on error
       submitRef.current = false;
@@ -130,10 +255,13 @@ export function TemplateForm({ template }: TemplateFormProps) {
       // Reset submission flag
       submitRef.current = false;
 
-      // Update cache with the new template optimistically
-      utils.templates.getAll.setData(undefined, (old) => {
-        const newTemplate = data as NonNullable<typeof old>[number];
-        return old ? [newTemplate, ...old] : [newTemplate];
+      const newTemplate = data as TemplateItem;
+
+      updateAllTemplateQueries((current, input) => {
+        if (!shouldIncludeInQuery(newTemplate, input)) {
+          return current;
+        }
+        return upsertTemplateIntoList(current, newTemplate, input?.sort);
       });
 
       // Navigate immediately with updated cache
@@ -141,7 +269,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
     },
     onSettled: () => {
       // Ensure cache is invalidated
-      void utils.templates.getAll.invalidate();
+      void queryClient.invalidateQueries({ queryKey: templatesQueryKeyRoot });
     },
   });
 
@@ -151,44 +279,63 @@ export function TemplateForm({ template }: TemplateFormProps) {
       await utils.templates.getAll.cancel();
 
       // Snapshot the previous value
-      const previousTemplates = utils.templates.getAll.getData();
+      const previousQueries = snapshotTemplateQueries();
 
-      // Optimistically update the cache
-      utils.templates.getAll.setData(
-        undefined,
-        (old) =>
-          old?.map((template) =>
-            template.id === updatedTemplate.id
-              ? {
-                  ...template,
-                  name: updatedTemplate.name,
-                  updatedAt: new Date(),
-                  exercises: updatedTemplate.exercises.map(
-                    (exerciseName, index) => ({
-                      id: template.exercises?.[index]?.id ?? -index - 1,
-                      user_id:
-                        template.exercises?.[index]?.user_id ?? "temp-user",
-                      templateId: template.id,
-                      exerciseName,
-                      orderIndex: index,
-                      linkingRejected:
-                        template.exercises?.[index]?.linkingRejected ?? false,
-                      createdAt:
-                        template.exercises?.[index]?.createdAt ?? new Date(),
-                    }),
-                  ),
-                }
-              : template,
-          ) ?? [],
-      );
+      const updatedAt = new Date();
 
-      return { previousTemplates };
+      // Optimistically update the cache across all matching queries
+      updateAllTemplateQueries((current, input) => {
+        if (!current) {
+          return current;
+        }
+
+        const existing = current.find(
+          (record) => record.id === updatedTemplate.id,
+        );
+        if (!existing) {
+          return current;
+        }
+
+        const exercises = updatedTemplate.exercises.map(
+          (exerciseName, index) => {
+            const existingExercise = existing.exercises?.[index];
+            return {
+              id: existingExercise?.id ?? -index - 1,
+              user_id: existingExercise?.user_id ?? existing.user_id,
+              templateId: existing.id,
+              exerciseName,
+              orderIndex: index,
+              linkingRejected: existingExercise?.linkingRejected ?? false,
+              createdAt: existingExercise?.createdAt ?? updatedAt,
+            };
+          },
+        );
+
+        const mergedTemplate: TemplateItem = {
+          ...existing,
+          name: updatedTemplate.name,
+          updatedAt,
+          exercises,
+        };
+
+        if (!shouldIncludeInQuery(mergedTemplate, input)) {
+          return current.filter((record) => record.id !== mergedTemplate.id);
+        }
+
+        return upsertTemplateIntoList(current, mergedTemplate, input?.sort);
+      });
+
+      return { previousQueries } satisfies TemplateMutationContext;
     },
     onError: (err, updatedTemplate, context) => {
+      const mutationContext = context as
+        | TemplateMutationContext
+        | undefined;
       // Rollback on error
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(undefined, context.previousTemplates);
+      if (mutationContext?.previousQueries) {
+        restoreTemplateQueries(mutationContext.previousQueries);
       }
+      submitRef.current = false;
     },
     onSuccess: () => {
       analytics.templateEdited(
@@ -202,7 +349,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
     },
     onSettled: () => {
       // Always refetch to ensure we have the latest data
-      void utils.templates.getAll.invalidate();
+      void queryClient.invalidateQueries({ queryKey: templatesQueryKeyRoot });
     },
   });
 

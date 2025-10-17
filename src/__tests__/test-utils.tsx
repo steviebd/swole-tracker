@@ -2,6 +2,68 @@ import React, { type ReactElement } from "react";
 import { render, type RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
+import { AuthContext } from "~/providers/AuthProvider";
+import { api } from "~/trpc/react";
+import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
+import SuperJSON from "superjson";
+
+// Mock implementations for common testing scenarios
+export const mockUser = {
+  id: "user-123",
+  email: "test@example.com",
+  name: "Test User",
+};
+
+// Mock Auth Provider for testing
+const MockAuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const authContextValue = {
+    user: mockUser,
+    isLoading: false,
+    signOut: vi.fn(),
+  };
+
+  return React.createElement(
+    AuthContext.Provider,
+    { value: authContextValue },
+    children,
+  );
+};
+
+// Mock TRPC Provider for testing
+const MockTRPCProvider = ({ children }: { children: React.ReactNode }) => {
+  // Create a mock TRPC client that doesn't make real requests
+  const mockClient = createTRPCProxyClient({
+    links: [
+      httpBatchLink({
+        url: "http://mock-trpc-url",
+        transformer: SuperJSON,
+        fetch: async () =>
+          new Response(JSON.stringify({ result: { data: null } }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      }),
+    ],
+  });
+
+  const TRPCProvider = api.Provider;
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+
+  return (
+    <TRPCProvider client={mockClient as any} queryClient={queryClient}>
+      {children}
+    </TRPCProvider>
+  );
+};
 
 // Custom render function that includes providers
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
@@ -17,8 +79,22 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   });
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <MockAuthProvider>
+        <MockTRPCProvider>{children}</MockTRPCProvider>
+      </MockAuthProvider>
+    </QueryClientProvider>
   );
+};
+
+// Simplified providers without TRPC for components that don't need it
+const SimpleProviders = ({ children }: { children: React.ReactNode }) => {
+  return <MockAuthProvider>{children}</MockAuthProvider>;
+};
+
+// Minimal providers for basic component testing
+const MinimalProviders = ({ children }: { children: React.ReactNode }) => {
+  return <>{children}</>;
 };
 
 const customRender = (
@@ -26,12 +102,15 @@ const customRender = (
   options?: Omit<RenderOptions, "wrapper">,
 ) => render(ui, { wrapper: AllTheProviders, ...options });
 
-// Mock implementations for common testing scenarios
-export const mockUser = {
-  id: "user-123",
-  email: "test@example.com",
-  name: "Test User",
-};
+const simpleRender = (
+  ui: ReactElement,
+  options?: Omit<RenderOptions, "wrapper">,
+) => render(ui, { wrapper: SimpleProviders, ...options });
+
+const minimalRender = (
+  ui: ReactElement,
+  options?: Omit<RenderOptions, "wrapper">,
+) => render(ui, { wrapper: MinimalProviders, ...options });
 
 export const mockWorkout = {
   id: "workout-123",
@@ -109,4 +188,9 @@ export const createMockDate = (dateString: string) => new Date(dateString);
 
 // Export everything
 export * from "@testing-library/react";
-export { customRender as render };
+export {
+  customRender as render,
+  simpleRender,
+  minimalRender,
+  MockTRPCProvider,
+};

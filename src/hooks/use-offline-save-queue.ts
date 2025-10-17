@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   enqueueWorkoutSave,
   getQueue,
@@ -14,6 +14,7 @@ import {
   writeQueue,
   type SaveWorkoutPayload,
   type QueueItem,
+  QUEUE_UPDATED_EVENT,
 } from "~/lib/offline-queue";
 import { api } from "~/trpc/react";
 
@@ -57,6 +58,9 @@ export function useOfflineSaveQueue() {
   const [status, setStatus] = useState<FlushStatus>("idle");
   const [lastError, setLastError] = useState<string | null>(null);
   const isFlushingRef = useRef(false);
+  const [items, setItems] = useState<QueueItem[]>(() =>
+    typeof window !== "undefined" ? getQueue() : [],
+  );
 
   const utils = api.useUtils();
   const saveWorkout = api.workouts.save.useMutation();
@@ -65,13 +69,17 @@ export function useOfflineSaveQueue() {
   const refreshCount = useCallback(() => {
     if (typeof window === "undefined") return;
     setQueueSize(getQueueLength());
+    setItems(getQueue());
   }, []);
 
-  const enqueue = useCallback((payload: SaveWorkoutPayload) => {
-    const id = enqueueWorkoutSave(payload);
-    setQueueSize((n) => n + 1);
-    return id;
-  }, []);
+  const enqueue = useCallback(
+    (payload: SaveWorkoutPayload) => {
+      const id = enqueueWorkoutSave(payload);
+      refreshCount();
+      return id;
+    },
+    [refreshCount],
+  );
 
   const flush = useCallback(async () => {
     if (isFlushingRef.current) return;
@@ -273,8 +281,12 @@ export function useOfflineSaveQueue() {
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === "offline.queue.v1") {
-        setQueueSize(getQueueLength());
+        refreshCount();
       }
+    };
+
+    const onQueueUpdated = () => {
+      refreshCount();
     };
 
     // Periodic flush every 60 seconds if queue has items and online
@@ -287,19 +299,16 @@ export function useOfflineSaveQueue() {
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("storage", onStorage);
+    window.addEventListener(QUEUE_UPDATED_EVENT, onQueueUpdated);
 
     return () => {
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener(QUEUE_UPDATED_EVENT, onQueueUpdated);
       clearInterval(intervalId);
     };
-  }, [flush]);
-
-  const items = useMemo(() => {
-    if (typeof window === "undefined") return [];
-    return getQueue();
-  }, []);
+  }, [flush, refreshCount]);
 
   return {
     queueSize,

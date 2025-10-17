@@ -30,6 +30,7 @@ type QueueItem = {
 
 const STORAGE_KEY = "offline.queue.v1";
 const MAX_ATTEMPTS = 8;
+export const QUEUE_UPDATED_EVENT = "offline-queue:updated";
 
 function now() {
   return Date.now();
@@ -52,6 +53,18 @@ function writeQueue(items: QueueItem[]) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    try {
+      window.dispatchEvent(
+        new CustomEvent(QUEUE_UPDATED_EVENT, {
+          detail: {
+            size: items.length,
+            items,
+          },
+        }),
+      );
+    } catch {
+      // Ignore event dispatch failures (e.g., CustomEvent not supported)
+    }
   } catch (error) {
     // Silently handle localStorage errors (quota exceeded, etc.)
     console.warn("Failed to write to localStorage:", error);

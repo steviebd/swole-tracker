@@ -1,5 +1,7 @@
 import { beforeAll } from "vitest";
 
+console.log("setup.common.ts running");
+
 // Ensure NODE_ENV defaults to test so runtime guards behave as expected
 if (!process.env.NODE_ENV) {
   (process.env as any).NODE_ENV = "test";
@@ -14,8 +16,60 @@ process.env.NEXT_PUBLIC_POSTHOG_KEY ??= "phc_test_dummy";
 process.env.NEXT_PUBLIC_POSTHOG_HOST ??= "https://us.i.posthog.com";
 process.env.AI_GATEWAY_PROMPT ??= "Tell a fitness joke";
 process.env.AI_GATEWAY_MODEL ??= "openai/gpt-4o-mini";
+process.env.AI_GATEWAY_MODEL_HEALTH ??= "xai/grok-3-mini";
+process.env.AI_DEBRIEF_TEMPERATURE ??= "0.7";
 process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER ??= "3";
 process.env.VERCEL_AI_GATEWAY_API_KEY ??= "test-key";
+
+const ensureDomEnvironment = async () => {
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    return;
+  }
+
+  const { JSDOM } = await import("jsdom");
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    pretendToBeVisual: true,
+  });
+
+  const { window: jsdomWindow } = dom;
+
+  (globalThis as any).window = jsdomWindow;
+  (globalThis as any).document = jsdomWindow.document;
+  (globalThis as any).navigator = jsdomWindow.navigator;
+  (globalThis as any).self = jsdomWindow;
+  (globalThis as any).HTMLElement = jsdomWindow.HTMLElement;
+  (globalThis as any).CustomEvent = jsdomWindow.CustomEvent;
+  (globalThis as any).getComputedStyle =
+    jsdomWindow.getComputedStyle.bind(jsdomWindow);
+  (globalThis as any).Event = jsdomWindow.Event;
+  (globalThis as any).Node = jsdomWindow.Node;
+
+  // Some libraries access window.location.{...} setters; cloning ensures they exist.
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return jsdomWindow.location;
+    },
+    set(value: URL | string) {
+      jsdomWindow.location.href = value.toString();
+    },
+  });
+
+  // Provide no-op implementations for APIs not implemented by JSDOM
+  jsdomWindow.scrollTo ??= () => {};
+  jsdomWindow.requestAnimationFrame ??= (callback: FrameRequestCallback) =>
+    setTimeout(() => callback(Date.now()), 0) as unknown as number;
+  jsdomWindow.cancelAnimationFrame ??= (handle: number) =>
+    clearTimeout(handle as unknown as NodeJS.Timeout);
+  globalThis.requestAnimationFrame =
+    jsdomWindow.requestAnimationFrame.bind(jsdomWindow);
+  globalThis.cancelAnimationFrame =
+    jsdomWindow.cancelAnimationFrame.bind(jsdomWindow);
+};
+
+await ensureDomEnvironment();
 
 const ensureBase64Helpers = () => {
   if (typeof globalThis.atob !== "function") {
@@ -35,13 +89,23 @@ beforeAll(() => {
 
 if (typeof globalThis.crypto === "undefined") {
   const { webcrypto } = await import("node:crypto");
-  globalThis.crypto = webcrypto as unknown as Crypto;
+  globalThis.crypto = {
+    ...webcrypto,
+    randomUUID: () => "test-uuid-123",
+  } as unknown as Crypto;
 }
 
 ensureBase64Helpers();
 
-if (typeof window !== "undefined") {
-  await import("./setup.dom");
+// Mock crypto.randomUUID globally
+if (globalThis.crypto && !globalThis.crypto.randomUUID) {
+  Object.defineProperty(globalThis.crypto, "randomUUID", {
+    value: () => "test-uuid-12345",
+    writable: true,
+    configurable: true,
+  });
 }
+
+await import("./setup.dom");
 
 export {};

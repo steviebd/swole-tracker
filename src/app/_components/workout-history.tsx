@@ -83,7 +83,7 @@ export function WorkoutHistory() {
 
     return workouts.filter((workout) => {
       // Only show workouts that have exercises (completed workouts)
-      if (!workout.exercises || workout.exercises.length === 0) {
+      if (workout.exercises?.length === 0) {
         return false;
       }
 

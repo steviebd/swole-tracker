@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useQueryClient, type QueryKey } from "@tanstack/react-query";
+import { getQueryKey } from "@trpc/react-query";
 import { type SwipeSettings } from "~/hooks/use-swipe-gestures";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
@@ -77,6 +79,62 @@ export function useWorkoutSessionState({
   const REDO_LIMIT = 30;
 
   const utils = api.useUtils();
+  const queryClient = useQueryClient();
+  type RecentWorkoutsList = RouterOutputs["workouts"]["getRecent"];
+  type RecentWorkoutsQueryKey = QueryKey;
+  type RecentQueriesSnapshot = Array<
+    [RecentWorkoutsQueryKey, RecentWorkoutsList | undefined]
+  >;
+
+  const recentQueryKeyRoot = getQueryKey(api.workouts.getRecent);
+
+  const snapshotRecentQueries = (): RecentQueriesSnapshot => {
+    const matches = queryClient.getQueriesData<RecentWorkoutsList>({
+      queryKey: recentQueryKeyRoot,
+    });
+
+    const snapshot: RecentQueriesSnapshot = [];
+    for (const [key, data] of matches) {
+      snapshot.push([key, data]);
+    }
+
+    return snapshot;
+  };
+
+  const restoreRecentQueries = (snapshot: RecentQueriesSnapshot) => {
+    for (const [key, data] of snapshot) {
+      queryClient.setQueryData<RecentWorkoutsList | undefined>(
+        key,
+        data,
+      );
+    }
+  };
+
+  const updateRecentQueries = (
+    updater: (
+      current: RecentWorkoutsList | undefined,
+      input: { limit?: number } | undefined,
+    ) => RecentWorkoutsList | undefined,
+  ) => {
+    const queries = queryClient.getQueriesData<RecentWorkoutsList>({
+      queryKey: recentQueryKeyRoot,
+    });
+
+    for (const [key] of queries) {
+      const maybeOpts =
+        (key as QueryKey)[1] as { input?: { limit?: number } } | undefined;
+      const input = maybeOpts?.input;
+
+      queryClient.setQueryData<RecentWorkoutsList | undefined>(
+        key,
+        (current: RecentWorkoutsList | undefined) => updater(current, input),
+      );
+    }
+  };
+
+  type RecentMutationContext = {
+    previousQueries: RecentQueriesSnapshot;
+  };
   const { data: session } = api.workouts.getById.useQuery(
     { id: sessionId },
     { enabled: sessionId > 0 }, // Only run query if we have a valid session ID
@@ -258,20 +316,18 @@ export function useWorkoutSessionState({
   const applyOptimisticWorkoutUpdate = (
     optimisticWorkout: NonNullable<ReturnType<typeof createOptimisticWorkout>>,
   ) => {
-    utils.workouts.getRecent.setData({ limit: 5 }, (old) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      if (!old) return [optimisticWorkout];
-      const existingIndex = old.findIndex((w) => w.id === optimisticWorkout.id);
+    updateRecentQueries((current, input) => {
+      const limit = input?.limit ?? 10;
+      const list = current ? [...current] : [];
+      const existingIndex = list.findIndex((w) => w.id === optimisticWorkout.id);
+
       if (existingIndex >= 0) {
-        // Replace existing
-        const newOld = [...old];
-        newOld[existingIndex] = optimisticWorkout;
-        return newOld;
+        list[existingIndex] = optimisticWorkout;
       } else {
-        // Add to front
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return [optimisticWorkout, ...old.slice(0, 4)];
+        list.unshift(optimisticWorkout);
       }
+
+      return list.slice(0, limit);
     });
   };
 
@@ -285,21 +341,21 @@ export function useWorkoutSessionState({
   const saveWorkout = api.workouts.save.useMutation({
     onMutate: async (newWorkout) => {
       await utils.workouts.getRecent.cancel();
-      const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
+      const previousQueries = snapshotRecentQueries();
 
       const optimisticWorkout = createOptimisticWorkout(newWorkout);
       if (optimisticWorkout) {
         applyOptimisticWorkoutUpdate(optimisticWorkout);
       }
 
-      return { previousWorkouts };
+      return { previousQueries } satisfies RecentMutationContext;
     },
     onError: (_err, _newWorkout, context) => {
-      if (context?.previousWorkouts) {
-        utils.workouts.getRecent.setData(
-          { limit: 5 },
-          context.previousWorkouts,
-        );
+      const mutationContext = context as
+        | RecentMutationContext
+        | undefined;
+      if (mutationContext?.previousQueries) {
+        restoreRecentQueries(mutationContext.previousQueries);
       }
     },
     onSettled: () => {
@@ -312,15 +368,15 @@ export function useWorkoutSessionState({
     retry: false,
     onMutate: async (variables) => {
       await utils.workouts.getRecent.cancel();
-      const previousWorkouts = utils.workouts.getRecent.getData({ limit: 5 });
+      const previousQueries = snapshotRecentQueries();
 
       // Optimistic update - remove from cache immediately
       const deleteId = variables.id;
-      utils.workouts.getRecent.setData({ limit: 5 }, (old) =>
-        old ? old.filter((workout) => workout.id !== deleteId) : [],
+      updateRecentQueries((current) =>
+        current ? current.filter((workout) => workout.id !== deleteId) : [],
       );
 
-      return { previousWorkouts };
+      return { previousQueries } satisfies RecentMutationContext;
     },
     onSuccess: () => {
       console.log("Workout deleted successfully");
@@ -337,11 +393,11 @@ export function useWorkoutSessionState({
       }
 
       // Only restore cache for actual server errors
-      if (context?.previousWorkouts) {
-        utils.workouts.getRecent.setData(
-          { limit: 5 },
-          context.previousWorkouts,
-        );
+      const mutationContext = context as
+        | RecentMutationContext
+        | undefined;
+      if (mutationContext?.previousQueries) {
+        restoreRecentQueries(mutationContext.previousQueries);
       }
     },
     onSettled: () => {

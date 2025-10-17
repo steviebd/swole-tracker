@@ -9,7 +9,11 @@ import SuperJSON from "superjson";
 
 import { type AppRouter } from "~/server/api/root";
 import { createQueryClient } from "./query-client";
-import { setupOfflinePersistence } from "~/lib/offline-storage";
+import {
+  setupOfflinePersistence,
+  setOfflineCacheUser,
+  getOfflineCacheKey,
+} from "~/lib/offline-storage";
 import { useAuth } from "~/providers/AuthProvider";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
@@ -44,7 +48,6 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
   const { user, isLoading } = useAuth();
   const previousUserIdRef = useRef<string | null>(null);
-  const cleanupRef = useRef<(() => void) | undefined>(undefined);
   const userId = user?.id ?? null;
 
   // Setup offline persistence for React Query cache
@@ -53,8 +56,20 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
       return;
     }
 
-    if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
+    const previousUserId = previousUserIdRef.current;
+    const previousCacheKey = getOfflineCacheKey();
+
+    setOfflineCacheUser(userId);
+
+    if (previousUserId && previousUserId !== userId) {
       queryClient.clear();
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem(previousCacheKey);
+        } catch (error) {
+          console.warn("Failed to remove previous cache scope", error);
+        }
+      }
     }
 
     previousUserIdRef.current = userId;

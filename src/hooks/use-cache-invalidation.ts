@@ -1,24 +1,32 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateQueries } from "~/trpc/cache-config";
 
+export interface CacheInvalidationDependencies {
+  useQueryClientHook?: typeof useQueryClient;
+  invalidateHelpers?: typeof invalidateQueries;
+}
+
 /**
  * Hook to provide cache invalidation helpers for mutations
  */
-export function useCacheInvalidation() {
-  const queryClient = useQueryClient();
+export function useCacheInvalidation({
+  useQueryClientHook = useQueryClient,
+  invalidateHelpers = invalidateQueries,
+}: CacheInvalidationDependencies = {}) {
+  const queryClient = useQueryClientHook();
 
   return {
     // Invalidate workout queries after workout-related mutations
-    invalidateWorkouts: () => invalidateQueries.workouts(queryClient),
+    invalidateWorkouts: () => invalidateHelpers.workouts(queryClient),
 
     // Invalidate templates after template mutations
-    invalidateTemplates: () => invalidateQueries.templates(queryClient),
+    invalidateTemplates: () => invalidateHelpers.templates(queryClient),
 
     // Invalidate preferences after preference updates
-    invalidatePreferences: () => invalidateQueries.preferences(queryClient),
+    invalidatePreferences: () => invalidateHelpers.preferences(queryClient),
 
     // Invalidate everything (use sparingly)
-    invalidateAll: () => invalidateQueries.all(queryClient),
+    invalidateAll: () => invalidateHelpers.all(queryClient),
 
     // Specific invalidation for workout start (immediate cache refresh)
     onWorkoutStart: () => {
@@ -34,7 +42,7 @@ export function useCacheInvalidation() {
     // Specific invalidation for workout save
     onWorkoutSave: () => {
       // Invalidate all workout-related queries
-      invalidateQueries.workouts(queryClient);
+      invalidateHelpers.workouts(queryClient);
     },
 
     // Optimistic updates for better UX

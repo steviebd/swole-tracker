@@ -18,18 +18,46 @@ const API_ROBOTS_VALUE = "noindex";
 
 const NONCE_HEADER_KEY = "x-nonce";
 
-export function createNonce(): string {
-  if (typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
+type CryptoLike = {
+  randomUUID?: () => string;
+  getRandomValues?: (array: Uint8Array) => Uint8Array;
+};
+
+const globalCrypto = globalThis.crypto as CryptoLike | undefined;
+
+export function createNonce(cryptoImpl: CryptoLike | undefined = globalCrypto): string {
+  if (!cryptoImpl) {
+    throw new Error("Crypto API is not available");
   }
 
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  let binary = "";
-  array.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary);
+  if (typeof cryptoImpl.randomUUID === "function") {
+    return cryptoImpl.randomUUID();
+  }
+
+  if (typeof cryptoImpl.getRandomValues === "function") {
+    const array = new Uint8Array(16);
+    cryptoImpl.getRandomValues(array);
+    return encodeBase64(array);
+  }
+
+  throw new Error("Crypto API does not support secure random generation");
+}
+
+function encodeBase64(bytes: Uint8Array): string {
+  const maybeBuffer = (globalThis as { Buffer?: { from: (input: Uint8Array) => { toString(encoding: string): string } } }).Buffer;
+  if (maybeBuffer) {
+    return maybeBuffer.from(bytes).toString("base64");
+  }
+
+  if (typeof globalThis.btoa === "function") {
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return globalThis.btoa(binary);
+  }
+
+  throw new Error("No base64 encoder available");
 }
 
 export function buildContentSecurityPolicy(nonce: string): string {

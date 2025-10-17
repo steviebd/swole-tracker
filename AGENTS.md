@@ -127,4 +127,4 @@
 - Unit & integration tests: Vitest (`vitest.config.ts`) with jsdom, setup in `src/__tests__/setup.ts`; mocks live in `src/__tests__/mocks`
 - Coverage: enforced via `bun coverage` / `bun test:coverage` (v8 provider, thresholds set to 80/75)
 - E2E: Currently not planned; Playwright dependencies removed from project
-- Mocking: MSW for network scenarios, custom DB/service mocks per test suite. Keep new utilities in `src/__tests__/test-utils.tsx` for reuse
+- Mocking: MSW for network scenarios, custom DB/service mocks per test suite. Keep new utilities in `src/__tests__/test-utils.tsx` for reuse. Bun's test runner does **not** implement `vi.mock`, so favor dependency injection on hooks/components for unit tests (e.g., `useDashboardData(options, { useWorkoutStatsHook })`).
