@@ -5,17 +5,18 @@
  * with complex dependencies like database operations and external APIs.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import {
   createDrizzleMock,
   createBrowserAPIMock,
-  createReactHookMock,
   createTRPCMockContext,
-  setupGlobalMocks,
   createWorkoutData,
   createUserData,
 } from "../test-utils/mock-factories";
+import { MockTRPCProvider } from "../test-utils";
+import * as sharedWorkoutData from "~/hooks/use-shared-workout-data";
+import { useWorkoutStats, formatWorkoutStats } from "~/hooks/use-workout-stats";
 
 // Import the component/hook we want to test
 // import { useWorkoutStats } from '~/hooks/use-workout-stats';
@@ -98,7 +99,9 @@ describe("Database Layer Integration", () => {
   it("saves workout with proper validation", async () => {
     // Arrange: Setup mock database response
     const savedWorkout = createWorkoutData({ id: "new-workout-id" });
-    (dbMock.insert as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({
+    (
+      dbMock.insert as unknown as { mockReturnValue: (value: unknown) => void }
+    ).mockReturnValue({
       values: vi.fn().mockReturnValue({
         returning: vi.fn().mockResolvedValue([savedWorkout]),
       }),
@@ -110,10 +113,7 @@ describe("Database Layer Integration", () => {
     const workoutRepository = {
       async save(workoutData: any) {
         const db = ctx.db as any;
-        const result = await db
-          .insert({})
-          .values(workoutData)
-          .returning();
+        const result = await db.insert({}).values(workoutData).returning();
 
         return result[0];
       },
@@ -136,6 +136,22 @@ describe("Database Layer Integration", () => {
 // =============================================================================
 
 describe("Progressive Testing - Hook with Complex Dependencies", () => {
+  const sharedDataSpy = vi.spyOn(sharedWorkoutData, "useSharedWorkoutData");
+
+  const makeDate = (offsetDays: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() - offsetDays);
+    return date.toISOString();
+  };
+
+  beforeEach(() => {
+    sharedDataSpy.mockReset();
+  });
+
+  afterAll(() => {
+    sharedDataSpy.mockRestore();
+  });
+
   // Level 1: Test pure logic separately
   describe("Pure Logic (No Mocks)", () => {
     const calculateStreak = (dates: string[]): number => {
@@ -157,34 +173,118 @@ describe("Progressive Testing - Hook with Complex Dependencies", () => {
 
   // Level 2: Test with simple mocks
   describe("Hook Integration (Simple Mocks)", () => {
-    const mockWorkoutData = createReactHookMock({
-      thisWeekWorkouts: ["2024-01-01", "2024-01-02", "2024-01-03"],
-      lastWeekWorkouts: [],
-      isLoading: false,
-      error: null,
-    });
+    it("calculates workout statistics with mocked data", () => {
+      // Setup spy for this test
+      const testSpy = vi.spyOn(sharedWorkoutData, "useSharedWorkoutData");
+      testSpy.mockReturnValue({
+        thisWeekWorkouts: [makeDate(0), makeDate(1), makeDate(2)],
+        thisWeekVolume: [
+          {
+            workoutDate: new Date(makeDate(0)),
+            totalVolume: 1000,
+            totalSets: 16,
+            totalReps: 32,
+            uniqueExercises: 4,
+          },
+          {
+            workoutDate: new Date(makeDate(1)),
+            totalVolume: 900,
+            totalSets: 14,
+            totalReps: 28,
+            uniqueExercises: 3,
+          },
+        ],
+        lastWeekWorkouts: [makeDate(7), makeDate(8)],
+        monthWorkouts: [makeDate(0), makeDate(1), makeDate(2)],
+        consistencyData: undefined,
+        isLoading: false,
+        isCriticalLoading: false,
+        isSecondaryLoading: false,
+        isExtendedLoading: false,
+        hasCriticalData: true,
+        hasSecondaryData: true,
+        hasExtendedData: true,
+        error: null,
+      });
 
-    it.skip("calculates workout statistics with mocked data", () => {
-      // This test is skipped because:
-      // 1. Mocking complexity is high
-      // 2. Integration tests cover this better
-      // 3. Pure logic is tested separately above
-      // If we wanted to test it:
-      // const { result } = renderHook(() => useWorkoutStats());
-      // expect(result.current.workoutsThisWeek).toBe(3);
+      const { result } = renderHook(() => useWorkoutStats(), {
+        wrapper: MockTRPCProvider,
+      });
+
+      expect(result.current.workoutsThisWeek).toBe(3);
+      expect(result.current.workoutsLastWeek).toBe(2);
+      expect(result.current.weeklyChange).toBe("+50.0%");
+      expect(result.current.avgDuration).toBe("53min");
+      expect(result.current.durationChange).toBe("+5%");
+      expect(result.current.currentStreak).toBe(3);
+      expect(result.current.streakAchievement).toBe("📈 Building!");
+      expect(result.current.weeklyGoal).toEqual({
+        current: 3,
+        target: 3,
+        percentage: 100,
+      });
+      expect(result.current.goalAchievement).toBe("🎯 Perfect!");
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+
+      testSpy.mockRestore();
     });
   });
 
   // Level 3: Full integration test
   describe("Full Integration (Real Dependencies)", () => {
-    it.skip("end-to-end workout statistics flow", () => {
-      // This would be tested in E2E test suite:
-      // 1. Create user via API
-      // 2. Log workouts via UI
-      // 3. Verify statistics display correctly
-      // 4. Test with real database
+    it("end-to-end workout statistics flow", () => {
+      const testSpy = vi.spyOn(sharedWorkoutData, "useSharedWorkoutData");
+      testSpy.mockReturnValue({
+        thisWeekWorkouts: [makeDate(0), makeDate(2)],
+        thisWeekVolume: [
+          {
+            workoutDate: new Date(makeDate(0)),
+            totalVolume: 800,
+            totalSets: 12,
+            totalReps: 24,
+            uniqueExercises: 3,
+          },
+          {
+            workoutDate: new Date(makeDate(2)),
+            totalVolume: 800,
+            totalSets: 12,
+            totalReps: 24,
+            uniqueExercises: 3,
+          },
+        ],
+        lastWeekWorkouts: [makeDate(8), makeDate(9), makeDate(10)],
+        monthWorkouts: [makeDate(0), makeDate(2), makeDate(6)],
+        consistencyData: undefined,
+        isLoading: false,
+        isCriticalLoading: false,
+        isSecondaryLoading: false,
+        isExtendedLoading: false,
+        hasCriticalData: true,
+        hasSecondaryData: true,
+        hasExtendedData: true,
+        error: null,
+      });
 
-      expect(true).toBe(true); // Placeholder
+      const { result } = renderHook(() => useWorkoutStats(), {
+        wrapper: MockTRPCProvider,
+      });
+      const summary = formatWorkoutStats(result.current);
+
+      expect(summary.thisWeekDisplay).toEqual({
+        value: "2",
+        change: "-33.3%",
+        label: "This Week",
+      });
+      expect(summary.durationDisplay).toEqual({
+        value: "42min",
+        change: "+2%",
+        label: "Avg Duration",
+      });
+      expect(summary.streakDisplay.value).toMatch(/\d+ day/);
+      expect(summary.goalDisplay.percentage).toBe(67);
+
+      testSpy.mockRestore();
     });
   });
 });

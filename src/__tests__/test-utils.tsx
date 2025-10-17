@@ -37,13 +37,11 @@ const MockTRPCProvider = ({ children }: { children: React.ReactNode }) => {
       httpBatchLink({
         url: "http://mock-trpc-url",
         transformer: SuperJSON,
-        fetch: async () => {
-          // Return empty data for all queries
-          return new Response(JSON.stringify({ result: { data: null } }), {
+        fetch: async () =>
+          new Response(JSON.stringify({ result: { data: null } }), {
             status: 200,
             headers: { "content-type": "application/json" },
-          });
-        },
+          }),
       }),
     ],
   });
@@ -190,4 +188,9 @@ export const createMockDate = (dateString: string) => new Date(dateString);
 
 // Export everything
 export * from "@testing-library/react";
-export { customRender as render, simpleRender, minimalRender };
+export {
+  customRender as render,
+  simpleRender,
+  minimalRender,
+  MockTRPCProvider,
+};
