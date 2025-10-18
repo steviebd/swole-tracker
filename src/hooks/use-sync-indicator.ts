@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
@@ -63,6 +63,8 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
   const isMutating = useIsMutating();
   const isOnline = useOnlineStatus();
   const { queueSize, status: queueStatus, lastError, flush, isFlushing } = useOfflineSaveQueue();
+  const [lastSyncAt, setLastSyncAt] = useState<number | undefined>(undefined);
+  const previousQueueStatus = useRef(queueStatus);
 
   const computedStatus = useMemo(() => {
     let status: SyncStatusKind = "idle";
@@ -88,6 +90,14 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
   const badgeText = useMemo(() => {
     const { status } = computedStatus;
     switch (status) {
+      case "idle": {
+        if (lastSyncAt) {
+          const secondsAgo = Math.round((Date.now() - lastSyncAt) / 1000);
+          if (secondsAgo < 5) return "Just synced";
+          if (secondsAgo < 60) return `Synced ${secondsAgo}s ago`;
+        }
+        return "All synced";
+      }
       case "offline":
         return queueSize > 0 ? `Offline (${queueSize})` : "Offline";
       case "error":
@@ -99,12 +109,23 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
       default:
         return "All synced";
     }
-  }, [computedStatus, queueSize]);
+  }, [computedStatus, queueSize, lastSyncAt]);
 
   const canManualSync = useMemo(() => {
     if (!isOnline) return false;
     return !["syncing", "saving"].includes(computedStatus.status) && queueSize > 0;
   }, [computedStatus.status, isOnline, queueSize]);
+
+  useEffect(() => {
+    if (
+      previousQueueStatus.current === "flushing" &&
+      (queueStatus === "done" || queueStatus === "idle") &&
+      queueSize === 0
+    ) {
+      setLastSyncAt(Date.now());
+    }
+    previousQueueStatus.current = queueStatus;
+  }, [queueStatus, queueSize]);
 
   const status: SyncIndicatorState = {
     status: computedStatus.status,
@@ -114,7 +135,7 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
     description: descriptionByStatus[computedStatus.status],
     pendingOperations: queueSize,
     failedOperations: lastError ? 1 : 0, // Simplified: 1 if there's an error, 0 otherwise
-    lastSync: undefined, // Not tracking this in legacy queue
+    lastSync: lastSyncAt,
     nextRetry: undefined, // Not tracking this in legacy queue
     isOnline,
     isBusy: ["syncing", "saving"].includes(computedStatus.status),

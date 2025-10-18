@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Calendar, Filter, Download, RotateCcw } from "lucide-react";
 import { api } from "~/trpc/react";
@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 
 type ViewMode = "cards" | "table";
 
@@ -57,9 +58,20 @@ export function WorkoutHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
 
-  const { data: workouts, isLoading } = api.workouts.getRecent.useQuery({
+  const { status: queueStatus, queueSize } = useOfflineSaveQueue();
+  const previousQueueStatus = useRef(queueStatus);
+
+  const { data: workouts, isLoading, refetch } = api.workouts.getRecent.useQuery({
     limit: 100, // Increase limit for filtering
   });
+
+  useEffect(() => {
+    const prev = previousQueueStatus.current;
+    if (prev === "flushing" && (queueStatus === "done" || (queueStatus === "idle" && queueSize === 0))) {
+      void refetch();
+    }
+    previousQueueStatus.current = queueStatus;
+  }, [queueStatus, queueSize, refetch]);
 
   const { isFetching: isExporting, refetch: refetchExport } =
     useExportWorkoutsCSV();

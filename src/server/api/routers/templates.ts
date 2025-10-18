@@ -644,7 +644,33 @@ export const templatesRouter = createTRPCRouter({
         }
       }
 
-      return created;
+      const duplicatedTemplate = await ctx.db.query.workoutTemplates.findFirst({
+        where: eq(workoutTemplates.id, created.id),
+        with: {
+          exercises: {
+            orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+          },
+        },
+      });
+
+      if (!duplicatedTemplate || duplicatedTemplate.user_id !== ctx.user.id) {
+        throw new Error("Failed to load duplicated template");
+      }
+
+      const [stats] = await ctx.db
+        .select({
+          lastUsed: max(workoutSessions.workoutDate).as("lastUsed"),
+          totalSessions: count(workoutSessions.id).as("totalSessions"),
+        })
+        .from(workoutSessions)
+        .where(eq(workoutSessions.templateId, created.id));
+
+      return {
+        ...duplicatedTemplate,
+        exercises: duplicatedTemplate.exercises ?? [],
+        lastUsed: stats?.lastUsed ?? null,
+        totalSessions: Number(stats?.totalSessions ?? 0),
+      };
     }),
 
   // Delete a template

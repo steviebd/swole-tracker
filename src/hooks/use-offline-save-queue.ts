@@ -17,6 +17,7 @@ import {
   QUEUE_UPDATED_EVENT,
 } from "~/lib/offline-queue";
 import { api } from "~/trpc/react";
+import { invalidateWorkoutDependentCaches } from "~/lib/workout-cache-helpers";
 
 type FlushStatus = "idle" | "flushing" | "error" | "done";
 
@@ -180,25 +181,7 @@ export function useOfflineSaveQueue() {
         console.info(`Successfully synced ${processedCount} workout(s)`);
 
         // Refresh dependent caches so UI reflects synced data
-        const invalidations: Array<Promise<unknown>> = [
-          utils.workouts.getRecent.invalidate(),
-          utils.templates.getAll.invalidate(),
-        ];
-
-        for (const sessionId of processedSessionIds) {
-          invalidations.push(
-            utils.workouts.getById.invalidate({ id: sessionId }),
-          );
-        }
-
-        try {
-          await Promise.all(invalidations);
-        } catch (invalidateError) {
-          console.warn(
-            "Failed to refresh caches after offline sync:",
-            invalidateError,
-          );
-        }
+        await invalidateWorkoutDependentCaches(utils, processedSessionIds);
 
         // Optional: emit PostHog event
         try {
@@ -243,13 +226,7 @@ export function useOfflineSaveQueue() {
       setTimeout(() => setStatus("idle"), 500);
       refreshCount();
     }
-  }, [
-    batchSaveWorkouts,
-    refreshCount,
-    utils.templates.getAll,
-    utils.workouts.getById,
-    utils.workouts.getRecent,
-  ]);
+  }, [batchSaveWorkouts, refreshCount, utils]);
 
   // Initialize and setup automatic flush triggers
   // The queue automatically flushes when:

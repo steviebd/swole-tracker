@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
+import { useDocumentVisibility } from "~/hooks/use-document-visibility";
 
 const cardClass = "glass-surface transition-all duration-300 rounded-xl";
 const titleClass = "text-xl font-bold mb-4 text-theme-primary";
@@ -287,18 +289,48 @@ const getWorkoutDurationMinutes = (
 };
 
 export function WhoopIntegrationSection() {
+  const isTabVisible = useDocumentVisibility();
+
   const { data: whoopStatus, isLoading: statusLoading } =
-    api.whoop.getIntegrationStatus.useQuery();
+    api.whoop.getIntegrationStatus.useQuery(undefined, {
+      refetchInterval: isTabVisible ? 5 * 60 * 1000 : false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    });
 
   const isConnected = whoopStatus?.isConnected ?? false;
 
   const recoveryQuery = api.whoop.getLatestRecoveryData.useQuery(undefined, {
     enabled: isConnected,
     retry: 0,
+    refetchInterval: isConnected && isTabVisible ? 5 * 60 * 1000 : false,
+    refetchOnWindowFocus: isConnected,
+    refetchOnReconnect: isConnected,
   });
   const workoutsQuery = api.whoop.getWorkouts.useQuery(undefined, {
     enabled: isConnected,
+    refetchInterval: isConnected && isTabVisible ? 5 * 60 * 1000 : false,
+    refetchOnWindowFocus: isConnected,
+    refetchOnReconnect: isConnected,
   });
+  const refetchRecovery = recoveryQuery.refetch;
+  const refetchWhoopWorkouts = workoutsQuery.refetch;
+
+  useEffect(() => {
+    if (!isConnected) {
+      return;
+    }
+    if (!whoopStatus?.lastSyncAt) {
+      return;
+    }
+    void refetchRecovery();
+    void refetchWhoopWorkouts();
+  }, [
+    isConnected,
+    refetchRecovery,
+    refetchWhoopWorkouts,
+    whoopStatus?.lastSyncAt,
+  ]);
 
   const recoveryData = recoveryQuery.data;
   const workouts = workoutsQuery.data ?? [];

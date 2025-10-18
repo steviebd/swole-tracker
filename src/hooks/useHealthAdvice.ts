@@ -28,6 +28,8 @@ export function useHealthAdvice(sessionId?: number) {
   const [advice, setAdvice] = useState<HealthAdviceResponse | null>(null);
   const [acceptedSuggestions, setAcceptedSuggestions] = useState<number>(0);
 
+  const utils = api.useUtils();
+
   // tRPC mutations and queries
   const saveHealthAdvice = api.healthAdvice.save.useMutation();
   const saveHealthAdviceWithWellness =
@@ -99,6 +101,9 @@ export function useHealthAdvice(sessionId?: number) {
               responseTimeMs: totalDuration,
               modelUsed: "health-model",
             });
+            void utils.healthAdvice.getHistory.invalidate();
+            void utils.healthAdvice.getBySessionId.invalidate({ sessionId });
+            void utils.wellness.getHistory.invalidate();
           } catch (dbError) {
             logger.error("Failed to save health advice to database", dbError, {
               sessionId,
@@ -154,7 +159,14 @@ export function useHealthAdvice(sessionId?: number) {
         setLoading(false);
       }
     },
-    [sessionId, saveHealthAdvice, acceptedSuggestions],
+    [
+      sessionId,
+      saveHealthAdvice,
+      acceptedSuggestions,
+      utils.healthAdvice.getBySessionId,
+      utils.healthAdvice.getHistory,
+      utils.wellness.getHistory,
+    ],
   );
 
   const fetchAdviceWithSubjectiveData = useCallback(
@@ -241,6 +253,10 @@ export function useHealthAdvice(sessionId?: number) {
               modelUsed: "health-model",
               wellnessDataId,
             });
+            void utils.healthAdvice.getHistory.invalidate();
+            void utils.healthAdvice.getBySessionId.invalidate({ sessionId });
+            void utils.wellness.getHistory.invalidate();
+            void utils.wellness.getStats.invalidate();
           } catch (dbError) {
             logger.error("Failed to save health advice to database", dbError, {
               sessionId,
@@ -315,7 +331,15 @@ export function useHealthAdvice(sessionId?: number) {
         setLoading(false);
       }
     },
-    [sessionId, saveHealthAdviceWithWellness, acceptedSuggestions],
+    [
+      sessionId,
+      saveHealthAdviceWithWellness,
+      acceptedSuggestions,
+      utils.healthAdvice.getBySessionId,
+      utils.healthAdvice.getHistory,
+      utils.wellness.getHistory,
+      utils.wellness.getStats,
+    ],
   );
 
   const clearAdvice = useCallback(() => {
@@ -334,13 +358,19 @@ export function useHealthAdvice(sessionId?: number) {
           sessionId,
           acceptedCount: newCount,
         });
+        void utils.healthAdvice.getBySessionId.invalidate({ sessionId });
       } catch (dbError) {
         console.error("Failed to update accepted suggestions count:", dbError);
         // Revert on error
         setAcceptedSuggestions(acceptedSuggestions);
       }
     }
-  }, [sessionId, acceptedSuggestions, updateAcceptedCount]);
+  }, [
+    sessionId,
+    acceptedSuggestions,
+    updateAcceptedCount,
+    utils.healthAdvice.getBySessionId,
+  ]);
 
   const rejectSuggestion = useCallback(async () => {
     if (acceptedSuggestions > 0) {
@@ -353,6 +383,7 @@ export function useHealthAdvice(sessionId?: number) {
             sessionId,
             acceptedCount: newCount,
           });
+          void utils.healthAdvice.getBySessionId.invalidate({ sessionId });
         } catch (dbError) {
           logger.error("Failed to update accepted suggestions count", dbError, {
             sessionId,
@@ -362,7 +393,12 @@ export function useHealthAdvice(sessionId?: number) {
         }
       }
     }
-  }, [sessionId, acceptedSuggestions, updateAcceptedCount]);
+  }, [
+    sessionId,
+    acceptedSuggestions,
+    updateAcceptedCount,
+    utils.healthAdvice.getBySessionId,
+  ]);
 
   return {
     advice,
