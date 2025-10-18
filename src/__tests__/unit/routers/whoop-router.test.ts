@@ -1,6 +1,15 @@
 /// <reference types="vitest" />
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import type { MockInstance } from "vitest";
 import { whoopRouter } from "~/server/api/routers/whoop";
+import * as tokenRotationModule from "~/lib/token-rotation";
 import {
   userIntegrations,
   whoopRecovery,
@@ -11,6 +20,10 @@ import { createDrizzleMock } from "~/__tests__/test-utils/mock-factories";
 const mockUser = { id: "user-123" };
 
 let mockDb: ReturnType<typeof createDrizzleMock>;
+let rotateOAuthTokensSpy: MockInstance<
+  Parameters<typeof tokenRotationModule.rotateOAuthTokens>,
+  ReturnType<typeof tokenRotationModule.rotateOAuthTokens>
+>;
 
 const createCaller = () =>
   whoopRouter.createCaller({
@@ -23,10 +36,35 @@ const createCaller = () =>
 beforeEach(() => {
   mockDb = createDrizzleMock();
   vi.clearAllMocks();
+  rotateOAuthTokensSpy = vi
+    .spyOn(tokenRotationModule, "rotateOAuthTokens")
+    .mockResolvedValue({
+      success: true,
+      rotated: false,
+      newAccessToken: "access-token",
+    });
+});
+
+afterEach(() => {
+  rotateOAuthTokensSpy.mockRestore();
 });
 
 const selectMock = () => mockDb.select as any;
 const updateMock = () => mockDb.update as any;
+
+function withLimit<Result>(value: Result) {
+  return {
+    limit: vi.fn().mockResolvedValue(value),
+  };
+}
+
+function mockIntegrationQuery(result: unknown[]) {
+  return {
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue(withLimit(result)),
+    }),
+  };
+}
 
 describe("whoopRouter.getIntegrationStatus", () => {
   it("returns connected status when integration is active and not expired", async () => {
@@ -38,11 +76,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
     };
 
     selectMock()
-      .mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([integration]),
-        }),
-      })
+      .mockReturnValueOnce(mockIntegrationQuery([integration]))
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
@@ -71,11 +105,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
     selectMock().mockImplementation(() => {
       call += 1;
       if (call === 1) {
-        return {
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([]),
-          }),
-        };
+        return mockIntegrationQuery([]);
       }
 
       return {
@@ -111,11 +141,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
     };
 
     selectMock()
-      .mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([integration]),
-        }),
-      })
+      .mockReturnValueOnce(mockIntegrationQuery([integration]))
       .mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
@@ -258,7 +284,7 @@ describe("whoopRouter.getLatestRecoveryData", () => {
       from: vi.fn().mockImplementation((table) => {
         if (table === userIntegrations) {
           return {
-            where: vi.fn().mockResolvedValue([integration]),
+            where: vi.fn().mockReturnValue(withLimit([integration])),
           };
         }
         if (table === whoopRecovery) {
@@ -309,11 +335,7 @@ describe("whoopRouter.getLatestRecoveryData", () => {
   });
 
   it("throws when integration inactive", async () => {
-    selectMock().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([]),
-      }),
-    });
+    selectMock().mockReturnValue(mockIntegrationQuery([]));
 
     const caller = createCaller();
 
@@ -328,11 +350,7 @@ describe("whoopRouter.getLatestRecoveryData", () => {
       expiresAt: new Date("2024-01-01"),
     };
 
-    selectMock().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue([integration]),
-      }),
-    });
+    selectMock().mockReturnValue(mockIntegrationQuery([integration]));
 
     const caller = createCaller();
 
@@ -348,11 +366,7 @@ describe("whoopRouter.getLatestRecoveryData", () => {
     };
 
     selectMock()
-      .mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([integration]),
-        }),
-      })
+      .mockReturnValueOnce(mockIntegrationQuery([integration]))
       .mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({

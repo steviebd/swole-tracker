@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { eq, and, desc } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import type { DrizzleDb } from "~/server/db";
 import {
   userIntegrations,
   externalWorkoutsWhoop,
@@ -9,26 +12,102 @@ import {
   whoopProfile,
   whoopBodyMeasurement,
 } from "~/server/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+import { rotateOAuthTokens } from "~/lib/token-rotation";
+import { logger } from "~/lib/logger";
+
+const whoopIntegrationSelection = {
+  isActive: userIntegrations.isActive,
+  createdAt: userIntegrations.createdAt,
+  expiresAt: userIntegrations.expiresAt,
+  scope: userIntegrations.scope,
+};
+
+async function loadWhoopIntegration(
+  db: DrizzleDb,
+  userId: string,
+): Promise<
+  | {
+      isActive: boolean | null;
+      createdAt: Date | string | null;
+      expiresAt: Date | string | null;
+      scope: string | null;
+    }
+  | undefined
+> {
+  const [integration] = await db
+    .select(whoopIntegrationSelection)
+    .from(userIntegrations)
+    .where(
+      and(
+        eq(userIntegrations.user_id, userId),
+        eq(userIntegrations.provider, "whoop"),
+      ),
+    )
+    .limit(1);
+
+  return integration;
+}
+
+const benignRotationErrors = new Set([
+  "Integration not found",
+  "No refresh token available",
+]);
+
+async function refreshWhoopIntegrationIfNeeded(
+  db: DrizzleDb,
+  userId: string,
+): Promise<{
+  integration:
+    | {
+        isActive: boolean | null;
+        createdAt: Date | string | null;
+        expiresAt: Date | string | null;
+        scope: string | null;
+      }
+    | undefined;
+  rotationError?: string;
+}> {
+  const integration = await loadWhoopIntegration(db, userId);
+
+  if (!integration) {
+    return { integration: undefined };
+  }
+
+  if (!integration.isActive) {
+    return { integration };
+  }
+
+  const rotationResult = await rotateOAuthTokens(db, userId, "whoop");
+
+  if (!rotationResult.success) {
+    if (
+      rotationResult.error &&
+      !benignRotationErrors.has(rotationResult.error)
+    ) {
+      logger.warn("WHOOP token rotation failed", {
+        userId: `${userId.substring(0, 8)}...`,
+        error: rotationResult.error,
+      });
+    }
+
+    return { integration, rotationError: rotationResult.error };
+  }
+
+  if (rotationResult.rotated) {
+    const refreshedIntegration = await loadWhoopIntegration(db, userId);
+    return { integration: refreshedIntegration ?? integration };
+  }
+
+  return { integration };
+}
 
 export const whoopRouter = createTRPCRouter({
   getIntegrationStatus: protectedProcedure.query(async ({ ctx }) => {
     try {
-      const [integration] = await ctx.db
-        .select({
-          isActive: userIntegrations.isActive,
-          createdAt: userIntegrations.createdAt,
-          expiresAt: userIntegrations.expiresAt,
-          scope: userIntegrations.scope,
-        })
-        .from(userIntegrations)
-        .where(
-          and(
-            eq(userIntegrations.user_id, ctx.user.id),
-            eq(userIntegrations.provider, "whoop"),
-          ),
-        );
+      const { integration } = await refreshWhoopIntegrationIfNeeded(
+        ctx.db,
+        ctx.user.id,
+      );
 
       // Get last sync time from most recent workout
       const [lastWorkout] = await ctx.db
@@ -148,19 +227,10 @@ export const whoopRouter = createTRPCRouter({
 
   // Get latest sleep and recovery data from cached database
   getLatestRecoveryData: protectedProcedure.query(async ({ ctx }) => {
-    // Check if user has active WHOOP integration
-    const [integration] = await ctx.db
-      .select({
-        isActive: userIntegrations.isActive,
-        expiresAt: userIntegrations.expiresAt,
-      })
-      .from(userIntegrations)
-      .where(
-        and(
-          eq(userIntegrations.user_id, ctx.user.id),
-          eq(userIntegrations.provider, "whoop"),
-        ),
-      );
+    const { integration, rotationError } = await refreshWhoopIntegrationIfNeeded(
+      ctx.db,
+      ctx.user.id,
+    );
 
     if (!integration?.isActive) {
       throw new TRPCError({
@@ -179,7 +249,9 @@ export const whoopRouter = createTRPCRouter({
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message:
-          "WHOOP access token has expired. Please reconnect your WHOOP account.",
+          rotationError === "No refresh token available"
+            ? "WHOOP authorization can no longer be renewed automatically. Please reconnect your WHOOP account."
+            : "WHOOP access token has expired. Please reconnect your WHOOP account.",
       });
     }
 
