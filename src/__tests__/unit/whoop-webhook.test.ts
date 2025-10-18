@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { verifyWhoopWebhook, extractWebhookHeaders } from "~/lib/whoop-webhook";
 
 // Mock crypto.subtle methods
@@ -14,9 +14,12 @@ Object.defineProperty(crypto.subtle, 'sign', {
 describe("verifyWhoopWebhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock crypto.subtle methods
     (crypto.subtle.importKey as any).mockResolvedValue("mock-key");
     (crypto.subtle.sign as any).mockResolvedValue(new Uint8Array([1, 2, 3, 4]));
+  });
+
+  afterEach(() => {
+    delete process.env.WHOOP_WEBHOOK_SECRET;
   });
 
   it("should return false when WHOOP_WEBHOOK_SECRET is not configured", async () => {
@@ -33,8 +36,6 @@ describe("verifyWhoopWebhook", () => {
 
   it("should return false for invalid signature", async () => {
     process.env.WHOOP_WEBHOOK_SECRET = "test-secret";
-    globalThis.btoa = vi.fn(() => "invalid-signature");
-
     const result = await verifyWhoopWebhook(
       "payload",
       "wrong-signature",
@@ -103,6 +104,21 @@ describe("extractWebhookHeaders", () => {
     const result = extractWebhookHeaders(headers);
 
     expect(result).toBe(null);
+  });
+
+  it("should accept timestamp in seconds", () => {
+    const timestampSeconds = Math.floor(Date.now() / 1000).toString();
+    const headers = new Headers({
+      "x-whoop-signature": "signature",
+      "x-whoop-signature-timestamp": timestampSeconds,
+    });
+
+    const result = extractWebhookHeaders(headers);
+
+    expect(result).toEqual({
+      signature: "signature",
+      timestamp: timestampSeconds,
+    });
   });
 
   it("should return signature and timestamp for valid headers", () => {

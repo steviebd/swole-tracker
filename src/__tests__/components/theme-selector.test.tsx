@@ -1,5 +1,11 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "~/__tests__/test-utils";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  act,
+} from "~/__tests__/test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ThemeProvider } from "~/providers/ThemeProvider";
 import { ThemeSelector } from "~/components/ThemeSelector";
@@ -96,19 +102,33 @@ describe("ThemeSelector accessibility", () => {
   });
 
   it("renders with proper accessibility attributes", async () => {
-    render(
-      <ThemeProvider initialTheme="light" initialResolvedTheme="light">
-        <ThemeSelector />
-      </ThemeProvider>,
-    );
-
-    const radioGroup = screen.getByRole("radiogroup", {
-      name: /appearance/i,
+    // Set up document.dataset for ThemeProvider
+    Object.defineProperty(document.documentElement, "dataset", {
+      value: {},
+      writable: true,
     });
-    expect(radioGroup).toBeInTheDocument();
+
+    await act(async () => {
+      render(
+        <ThemeProvider initialTheme="light" initialResolvedTheme="light">
+          <ThemeSelector />
+        </ThemeProvider>,
+      );
+    });
+
+    await waitFor(() => {
+      const radioGroup = screen.getByRole("radiogroup", {
+        name: /appearance/i,
+      });
+      expect(radioGroup).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      const radioButtons = screen.getAllByRole("radio");
+      expect(radioButtons).toHaveLength(6); // 6 theme options
+    });
 
     const radioButtons = screen.getAllByRole("radio");
-    expect(radioButtons).toHaveLength(6); // 6 theme options
 
     // Check that one radio button is checked (default theme)
     const checkedRadios = radioButtons.filter(

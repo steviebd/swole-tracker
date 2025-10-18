@@ -25,6 +25,13 @@ import {
 
 export const runtime = "nodejs";
 
+class WebhookProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookProcessingError";
+  }
+}
+
 interface WhoopWorkoutData {
   id: string;
   start: string;
@@ -250,8 +257,9 @@ async function processWorkoutUpdate(
       isTestMode,
     );
     if (!workoutData) {
-      console.error(`Could not fetch workout data for ${workoutId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch workout data for ${workoutId}`,
+      );
     }
     // Runtime shape guard to satisfy type checker
     const isWhoopWorkoutData = (w: unknown): w is WhoopWorkoutData => {
@@ -354,8 +362,9 @@ async function processRecoveryUpdate(
       isTestMode,
     );
     if (!recoveryData) {
-      console.error(`Could not fetch recovery data for ${recoveryId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch recovery data for ${recoveryId}`,
+      );
     }
 
     // Check if recovery already exists
@@ -438,8 +447,9 @@ async function processSleepUpdate(
       isTestMode,
     );
     if (!sleepData) {
-      console.error(`Could not fetch sleep data for ${sleepId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch sleep data for ${sleepId}`,
+      );
     }
 
     // Check if sleep already exists
@@ -548,8 +558,9 @@ async function processCycleUpdate(
       isTestMode,
     );
     if (!cycleData) {
-      console.error(`Could not fetch cycle data for ${cycleId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch cycle data for ${cycleId}`,
+      );
     }
 
     // Check if cycle already exists
@@ -625,10 +636,9 @@ async function processBodyMeasurementUpdate(
       isTestMode,
     );
     if (!measurementData) {
-      console.error(
+      throw new WebhookProcessingError(
         `Could not fetch body measurement data for ${measurementId}`,
       );
-      return;
     }
 
     // Check if measurement already exists
@@ -779,8 +789,9 @@ export async function POST(request: NextRequest) {
           await db
             .update(webhookEvents)
             .set({
-              status: "pending_user_mapping",
+              status: "failed",
               error: message,
+              processingTime: Date.now() - startTime,
               processedAt: new Date(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
@@ -892,10 +903,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const isProcessingError = error instanceof WebhookProcessingError;
+    const status = isProcessingError ? 202 : 500;
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

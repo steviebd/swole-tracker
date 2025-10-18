@@ -17,6 +17,13 @@ import {
 
 export const runtime = "nodejs";
 
+class WebhookProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookProcessingError";
+  }
+}
+
 interface WhoopProfileData {
   user_id: string;
   email?: string;
@@ -26,7 +33,6 @@ interface WhoopProfileData {
 
 async function fetchProfileFromWhoop(
   db: ReturnType<typeof createDb>,
-  profileId: string,
   whoopUserId: number,
   dbUserId: string | null,
   isTestMode: boolean,
@@ -63,7 +69,7 @@ async function fetchProfileFromWhoop(
 
     // Fetch profile from Whoop API
     const response = await fetch(
-      `https://api.prod.whoop.com/developer/v1/user/profile/basic`,
+      `https://api.prod.whoop.com/developer/v2/user/profile/basic`,
       {
         headers: {
           Authorization: `Bearer ${tokenResult.token}`,
@@ -118,14 +124,14 @@ async function processProfileUpdate(
     // Fetch the updated profile data from Whoop API
     const profileData = await fetchProfileFromWhoop(
       db,
-      whoopUserId,
       payload.user_id,
       dbUserId,
       isTestMode,
     );
     if (!profileData) {
-      console.error(`Could not fetch profile data for user ${payload.user_id}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch profile data for user ${payload.user_id}`,
+      );
     }
 
     const targetUserId = dbUserId;
@@ -270,8 +276,9 @@ export async function POST(request: NextRequest) {
           await db
             .update(webhookEvents)
             .set({
-              status: "pending_user_mapping",
+              status: "failed",
               error: message,
+              processingTime: Date.now() - startTime,
               processedAt: new Date(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
@@ -356,10 +363,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const isProcessingError = error instanceof WebhookProcessingError;
+    const status = isProcessingError ? 202 : 500;
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

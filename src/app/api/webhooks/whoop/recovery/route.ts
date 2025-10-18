@@ -17,6 +17,13 @@ import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
+class WebhookProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookProcessingError";
+  }
+}
+
 interface WhoopRecoveryData {
   id: string;
   cycle_id?: string;
@@ -77,7 +84,7 @@ async function fetchRecoveryFromWhoop(
 
     // Fetch the specific recovery from Whoop API
     const response = await fetch(
-      `https://api.prod.whoop.com/developer/v1/recovery/${recoveryId}`,
+      `https://api.prod.whoop.com/developer/v2/recovery/${recoveryId}`,
       {
         headers: {
           Authorization: `Bearer ${tokenResult.token}`,
@@ -140,8 +147,9 @@ async function processRecoveryUpdate(
       isTestMode,
     );
     if (!recoveryData) {
-      console.error(`Could not fetch recovery data for ${recoveryId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch recovery data for ${recoveryId}`,
+      );
     }
 
     // Parse the date from the recovery data (ensure it's in YYYY-MM-DD format)
@@ -297,8 +305,9 @@ export async function POST(request: NextRequest) {
           await db
             .update(webhookEvents)
             .set({
-              status: "pending_user_mapping",
+              status: "failed",
               error: message,
+              processingTime: Date.now() - startTime,
               processedAt: new Date(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
@@ -383,10 +392,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const isProcessingError = error instanceof WebhookProcessingError;
+    const status = isProcessingError ? 202 : 500;
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

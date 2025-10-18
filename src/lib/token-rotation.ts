@@ -11,6 +11,7 @@ import { encryptToken, getDecryptedToken } from "./encryption";
 interface TokenRotationResult {
   success: boolean;
   newAccessToken?: string;
+  rotated: boolean;
   error?: string;
 }
 
@@ -54,6 +55,7 @@ export function shouldRotateToken(
   const now = new Date();
   const rotationBuffer = 24 * 60 * 60 * 1000; // 24 hours before expiry
   const maxTokenAge = 7 * 24 * 60 * 60 * 1000; // 7 days max age
+  const minRotationInterval = 10 * 60 * 1000; // Avoid rotating more than once every 10 minutes
 
   if (!expiresAt) {
     // Without a reliable expiry, rotate if we've never rotated before
@@ -64,9 +66,24 @@ export function shouldRotateToken(
     // Otherwise fall back to max age check below
   }
 
-  // Rotate if token expires within 24 hours
-  if (expiresAt && expiresAt.getTime() - now.getTime() < rotationBuffer) {
-    return true;
+  if (expiresAt) {
+    const timeToExpiry = expiresAt.getTime() - now.getTime();
+
+    // Rotate immediately if already expired
+    if (timeToExpiry <= 0) {
+      return true;
+    }
+
+    // Rotate when within the buffer window and we haven't rotated recently
+    if (timeToExpiry < rotationBuffer) {
+      if (!lastRotated) {
+        return true;
+      }
+
+      if (now.getTime() - lastRotated.getTime() >= minRotationInterval) {
+        return true;
+      }
+    }
   }
 
   // Rotate if token is older than 7 days
@@ -99,11 +116,15 @@ export async function rotateOAuthTokens(
       );
 
     if (!integration) {
-      return { success: false, error: "Integration not found" };
+      return { success: false, rotated: false, error: "Integration not found" };
     }
 
     if (!integration.refreshToken) {
-      return { success: false, error: "No refresh token available" };
+      return {
+        success: false,
+        rotated: false,
+        error: "No refresh token available",
+      };
     }
 
     const currentExpiresAt = normalizeDate(integration.expiresAt);
@@ -113,6 +134,7 @@ export async function rotateOAuthTokens(
     if (!shouldRotateToken(currentExpiresAt, lastRotatedAt)) {
       return {
         success: true,
+        rotated: false,
         newAccessToken: await getDecryptedToken(integration.accessToken),
       };
     }
@@ -129,7 +151,11 @@ export async function rotateOAuthTokens(
     );
 
     if (!tokenResult.success || !tokenResult.accessToken) {
-      return { success: false, error: tokenResult.error };
+      return {
+        success: false,
+        rotated: false,
+        error: tokenResult.error,
+      };
     }
 
     // Encrypt new tokens
@@ -156,6 +182,7 @@ export async function rotateOAuthTokens(
 
     return {
       success: true,
+      rotated: true,
       newAccessToken: tokenResult.accessToken,
     };
   } catch (error) {
@@ -167,6 +194,7 @@ export async function rotateOAuthTokens(
 
     return {
       success: false,
+      rotated: false,
       error: error instanceof Error ? error.message : "Token rotation failed",
     };
   }
