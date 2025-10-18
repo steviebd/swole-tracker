@@ -56,6 +56,13 @@ export function ExerciseManager() {
   );
   const [showMergeDialog, setShowMergeDialog] = useState(false);
 
+  const utils = api.useUtils();
+  const invalidateExerciseDependents = () => {
+    void utils.templates.getAll.invalidate();
+    void utils.progress.getExerciseList.invalidate();
+    void utils.exercises.getAllMaster.invalidate();
+  };
+
   const {
     data: exercises,
     isLoading,
@@ -76,6 +83,7 @@ export function ExerciseManager() {
           `Migration completed! Created ${result.createdMasterExercises} master exercises and ${result.createdLinks} links for ${result.migratedExercises} exercises.`,
         );
         void refetch();
+        invalidateExerciseDependents();
       },
       onError: (error) => {
         alert(`Migration failed: ${error.message}`);
@@ -85,6 +93,7 @@ export function ExerciseManager() {
   const createMasterExercise = api.exercises.createMasterExercise.useMutation({
     onSuccess: () => {
       void refetch();
+      invalidateExerciseDependents();
       setShowCreateDialog(false);
       setExerciseName("");
       setExerciseTags("");
@@ -98,6 +107,7 @@ export function ExerciseManager() {
   const updateMasterExercise = api.exercises.updateMasterExercise.useMutation({
     onSuccess: () => {
       void refetch();
+      invalidateExerciseDependents();
       setEditingExercise(null);
       setExerciseName("");
       setExerciseTags("");
@@ -114,6 +124,7 @@ export function ExerciseManager() {
         `Successfully merged "${result.sourceName}" into "${result.targetName}". Moved ${result.movedLinks} links, skipped ${result.skippedLinks} duplicates.`,
       );
       void refetch();
+      invalidateExerciseDependents();
       setMergeMode(false);
       setSelectedForMerge([]);
       setShowMergeDialog(false);
@@ -354,7 +365,10 @@ export function ExerciseManager() {
                 <ExerciseRow
                   key={exercise.id}
                   exercise={exercise}
-                  onUpdate={refetch}
+                  onUpdate={() => {
+                    void refetch();
+                    invalidateExerciseDependents();
+                  }}
                   onEdit={handleEditExercise}
                   mergeMode={mergeMode}
                   isSelectedForMerge={selectedForMerge.some(

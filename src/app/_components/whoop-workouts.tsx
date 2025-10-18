@@ -23,9 +23,16 @@ import {
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useWhoopConnect } from "~/hooks/use-whoop-connect";
+import { useDocumentVisibility } from "~/hooks/use-document-visibility";
+import {
+  invalidateWhoopCaches,
+  invalidateWorkoutDependentCaches,
+} from "~/lib/workout-cache-helpers";
 
 export function WhoopWorkouts() {
   const searchParams = useSearchParams();
+  const utils = api.useUtils();
+  const isTabVisible = useDocumentVisibility();
   const [syncLoading, setSyncLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -68,13 +75,25 @@ export function WhoopWorkouts() {
     }
   };
 
-  const { data: integrationStatus, refetch: refetchStatus } =
-    api.whoop.getIntegrationStatus.useQuery();
+  const {
+    data: integrationStatus,
+    refetch: refetchStatus,
+  } = api.whoop.getIntegrationStatus.useQuery(undefined, {
+    refetchInterval: isTabVisible ? 5 * 60 * 1000 : false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
   const {
     data: workouts,
     refetch: refetchWorkouts,
     isLoading: workoutsLoading,
-  } = api.whoop.getWorkouts.useQuery();
+  } = api.whoop.getWorkouts.useQuery(undefined, {
+    enabled: Boolean(integrationStatus?.isConnected),
+    refetchInterval:
+      integrationStatus?.isConnected && isTabVisible ? 5 * 60 * 1000 : false,
+    refetchOnWindowFocus: Boolean(integrationStatus?.isConnected),
+    refetchOnReconnect: Boolean(integrationStatus?.isConnected),
+  });
   const {
     startConnect: startWhoopConnect,
     isConnecting: connectLoading,
@@ -173,7 +192,11 @@ export function WhoopWorkouts() {
           type: "success",
           text: result.message,
         });
-        void refetchWorkouts(); // Refresh workout list
+        await Promise.all([
+          refetchWorkouts(),
+          refetchStatus(),
+          invalidateWhoopCaches(utils),
+        ]);
       } else {
         setMessage({ type: "error", text: result.error || "Cleanup failed" });
       }
@@ -226,14 +249,22 @@ export function WhoopWorkouts() {
           type: "success",
           text: syncSummary,
         });
-        void refetchWorkouts();
+        if (result.rateLimit) {
+          setRateLimit(result.rateLimit);
+        }
+        await Promise.all([
+          refetchWorkouts(),
+          refetchStatus(),
+          invalidateWhoopCaches(utils),
+          invalidateWorkoutDependentCaches(utils),
+        ]);
       } else if (response.status === 401 && result.needsReauthorization) {
         setMessage({
           type: "error",
           text: "🔐 Your WHOOP connection has expired. Please reconnect your account to continue syncing.",
         });
         // Refresh the integration status to show the connect button
-        void refetchStatus();
+        await refetchStatus();
       } else if (response.status === 429) {
         setMessage({
           type: "error",

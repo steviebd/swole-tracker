@@ -107,6 +107,8 @@ export function SessionDebriefPanel({
   const isOnline = useOnlineStatus();
   const latestVersionTracked = useRef<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [awaitingGeneration, setAwaitingGeneration] = useState(false);
+  const pollAttemptsRef = useRef(0);
 
   const queryKey = useMemo(
     () => ({ sessionId, includeInactive: false, limit: 10 }),
@@ -217,6 +219,8 @@ export function SessionDebriefPanel({
     onMutate: async () => {
       await utils.sessionDebriefs.listBySession.cancel(queryKey);
       setErrorMessage(null);
+      setAwaitingGeneration(true);
+      pollAttemptsRef.current = 0;
     },
     onSuccess: ({ debrief }) => {
       if (debrief) {
@@ -225,6 +229,7 @@ export function SessionDebriefPanel({
     },
     onError: (error) => {
       setErrorMessage(error.message ?? "Failed to regenerate debrief.");
+      setAwaitingGeneration(false);
     },
     onSettled: async () => {
       await utils.sessionDebriefs.listBySession.invalidate(queryKey);
@@ -235,6 +240,8 @@ export function SessionDebriefPanel({
   const manualGenerate = api.sessionDebriefs.generateAndSave.useMutation({
     onMutate: () => {
       setErrorMessage(null);
+      setAwaitingGeneration(true);
+      pollAttemptsRef.current = 0;
     },
     onSuccess: ({ debrief }) => {
       if (debrief) {
@@ -248,6 +255,7 @@ export function SessionDebriefPanel({
     },
     onError: (error) => {
       setErrorMessage(error.message ?? "Failed to generate debrief.");
+      setAwaitingGeneration(false);
     },
     onSettled: async () => {
       await utils.sessionDebriefs.listBySession.invalidate(queryKey);
@@ -259,10 +267,12 @@ export function SessionDebriefPanel({
     if (!latest) return;
     if (latest.record.viewedAt) {
       latestVersionTracked.current = latest.record.version;
+      setAwaitingGeneration(false);
       return;
     }
     if (latestVersionTracked.current === latest.record.version) return;
     latestVersionTracked.current = latest.record.version;
+    setAwaitingGeneration(false);
     markViewed.mutate({ sessionId, debriefId: latest.record.id });
     analytics.aiDebriefViewed(
       sessionId.toString(),
@@ -270,6 +280,26 @@ export function SessionDebriefPanel({
       latest.content.streakContext?.current,
     );
   }, [latest, markViewed, sessionId]);
+
+  useEffect(() => {
+    if (!awaitingGeneration || !isOnline) {
+      pollAttemptsRef.current = 0;
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      pollAttemptsRef.current += 1;
+      void refetch();
+      if (pollAttemptsRef.current >= 10) {
+        setAwaitingGeneration(false);
+      }
+    }, 4000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      pollAttemptsRef.current = 0;
+    };
+  }, [awaitingGeneration, isOnline, refetch]);
 
   const actionsDisabled = !isOnline;
 

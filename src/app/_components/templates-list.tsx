@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 
 import {
@@ -29,6 +30,13 @@ import {
 } from "~/components/ui/dialog";
 import { Toast } from "~/components/ui/toast";
 import { analytics } from "~/lib/analytics";
+import {
+  upsertTemplateInCaches,
+  removeTemplateFromCaches,
+  snapshotTemplateCaches,
+  restoreTemplateCaches,
+  type TemplateCacheSnapshot,
+} from "~/lib/template-cache-helpers";
 import { api, type RouterOutputs } from "~/trpc/react";
 
 const TAG_PATTERNS: Array<{ tag: string; keywords: RegExp }> = [
@@ -82,6 +90,7 @@ export function TemplatesList() {
     sort: "recent",
     tag: null,
   });
+  const queryClient = useQueryClient();
 
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -164,17 +173,13 @@ export function TemplatesList() {
   const deleteTemplate = api.templates.delete.useMutation({
     onMutate: async (deletedTemplate) => {
       await utils.templates.getAll.cancel();
-      const previousTemplates = utils.templates.getAll.getData(queryInput);
-      utils.templates.getAll.setData(
-        queryInput,
-        (old) =>
-          old?.filter((template) => template.id !== deletedTemplate.id) ?? [],
-      );
-      return { previousTemplates };
+      const snapshot = snapshotTemplateCaches(queryClient);
+      removeTemplateFromCaches(queryClient, deletedTemplate.id);
+      return { snapshot } satisfies { snapshot: TemplateCacheSnapshot };
     },
     onError: (_error, _deletedTemplate, context) => {
-      if (context?.previousTemplates) {
-        utils.templates.getAll.setData(queryInput, context.previousTemplates);
+      if (context?.snapshot) {
+        restoreTemplateCaches(queryClient, context.snapshot);
       }
     },
     onSettled: () => {
@@ -183,13 +188,19 @@ export function TemplatesList() {
   });
 
   const duplicateTemplate = api.templates.duplicate.useMutation({
-    onSuccess: () => {
+    onSuccess: (newTemplate) => {
+      if (newTemplate) {
+        upsertTemplateInCaches(queryClient, newTemplate as TemplateRecord);
+      }
       void utils.templates.getAll.invalidate();
     },
   });
 
   const createTemplate = api.templates.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (createdTemplate) => {
+      if (createdTemplate) {
+        upsertTemplateInCaches(queryClient, createdTemplate as TemplateRecord);
+      }
       void utils.templates.getAll.invalidate();
     },
   });

@@ -101,19 +101,37 @@ describe("useOfflineSaveQueue", () => {
       </QueryClientProvider>
     );
 
+    const resolved = vi.fn().mockResolvedValue(undefined);
     const utilsStub = {
       templates: {
-        getAll: {
-          invalidate: vi.fn().mockResolvedValue(undefined),
-        },
+        getAll: { invalidate: resolved },
       },
       workouts: {
-        getRecent: {
-          invalidate: vi.fn().mockResolvedValue(undefined),
-        },
-        getById: {
-          invalidate: vi.fn().mockResolvedValue(undefined),
-        },
+        getRecent: { invalidate: resolved },
+        getById: { invalidate: resolved },
+      },
+      progress: {
+        getWorkoutDates: { invalidate: resolved },
+        getVolumeProgression: { invalidate: resolved },
+        getConsistencyStats: { invalidate: resolved },
+        getPersonalRecords: { invalidate: resolved },
+      },
+      insights: {
+        getExerciseInsights: { invalidate: resolved },
+        getSessionInsights: { invalidate: resolved },
+      },
+      sessionDebriefs: {
+        listRecent: { invalidate: resolved },
+        listBySession: { invalidate: resolved },
+      },
+      healthAdvice: {
+        getHistory: { invalidate: resolved },
+        getBySessionId: { invalidate: resolved },
+      },
+      wellness: {
+        getHistory: { invalidate: resolved },
+        getStats: { invalidate: resolved },
+        getBySessionId: { invalidate: resolved },
       },
     };
 

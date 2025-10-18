@@ -74,38 +74,32 @@
 - **Offline queue churn**: more frequent state updates could increase re-render cost. Debounce storage listeners or batch updates if needed.
 - **Cleanup job edge cases**: deleting empty sessions must not touch in-progress workouts; use the 4 hour cutoff and confirm some heartbeat writes mark “active” sessions.
 
-## Cached-Surface Audit Findings
+## Cached-Surface Audit Findings ✅
+- ✅ Expanded cache invalidations, optimistic updates, and Whoop refresh cadence to keep cached surfaces in sync.
 - **Dashboard / Home**
   - Queries: `progress.getWorkoutDates` (week/month variants with staggered `staleTime`) and `progress.getVolumeProgression` via `useSharedWorkoutData` (`src/hooks/use-shared-workout-data.ts:12`). Mutations: none; relies on `workouts.save` side effects.
   - Gaps: workout saves (online/offline) never invalidate `progress.*` queries, so `StatsCards` (`src/app/_components/StatsCards.tsx:15`) and `RecentAchievements` (`src/app/_components/RecentAchievements.tsx:7`) show stale streak/volume data. Offline flush only touches `workouts.getRecent`/`templates.getAll`.
   - Actions: expand post-save invalidations to cover `progress.getWorkoutDates`, `progress.getVolumeProgression`, `progress.getConsistencyStats`, and `progress.getPersonalRecords` for active time ranges; mirror that in offline queue flush. Consider `queryClient.setQueriesData` to update “this week” counts immediately.
 
-- **Progress Analytics**
-  - Queries: multiple `progress.*` under `ProgressDashboard` and related modals (`src/app/_components/ProgressDashboard.tsx:9`, `ProgressionModal.tsx:22`, `ConsistencyAnalysisModal.tsx:24`, `VolumeTrackingSection.tsx:16`).
-  - Gaps: same missing invalidations; staleTime (10–30 min) means heavy lag after a workout. Some modals fetch on open without prewarm, so offline saves leave them blank until manual refresh.
-  - Actions: reuse dashboard invalidation set; add `setQueriesData` patterns for localized metrics when data is available (e.g., append new workout volume). Evaluate whether modal queries should share cached data via `useSharedWorkoutData`.
+- ✅ **Progress Analytics**
+  - Added optimistic volume summaries via `applyOptimisticVolumeMetrics` and `calculateVolumeSummaryFromExercises` (`src/lib/workout-cache-helpers.ts:153`, `src/lib/workout-cache-helpers.ts:103`), wiring them into the workout save mutation (`src/hooks/useWorkoutSessionState.ts:356`) so dashboard cards refresh instantly.
+  - Existing helper invalidations already hit `progress.*`; no further gaps observed beyond potential modal data prewarming (tracked separately).
 
-- **Whoop Integration**
-  - Queries: `whoop.getIntegrationStatus`, `whoop.getLatestRecoveryData`, `whoop.getWorkouts` (`src/app/_components/WhoopIntegrationSection.tsx:292`).
-  - Gaps: no periodic refetch (`refetchInterval` absent) and no automatic refresh after webhook or manual sync, so data can stay stale until hard reload. Error states (expired tokens) rely on manual navigation.
-  - Actions: add background refetch (e.g., interval when tab visible), trigger targeted invalidation after `/api/whoop/sync` endpoints, and consider optimistic updates when workouts are imported.
+- ✅ **Whoop Integration**
+  - Added visibility-aware polling on status and data queries (`src/app/_components/WhoopIntegrationSection.tsx:291`, `src/app/_components/whoop-workouts.tsx:81`) driven by a new shared hook (`src/hooks/use-document-visibility.ts:1`).
+  - Manual sync paths now fan out invalidations through `invalidateWhoopCaches` and workout refresh helpers (`src/lib/workout-cache-helpers.ts:269`, `src/app/_components/whoop-connection.tsx:112`, `src/app/_components/whoop-workouts.tsx:255`) so dashboards pick up imported workouts immediately.
 
-- **AI & Wellness (Session Debriefs, Health Advice, Wellness History)**
-  - Queries: `sessionDebriefs.listBySession`, `sessionDebriefs.*` mutations (`src/app/_components/session-debrief-panel.tsx:117`); likely `healthAdvice`/`wellness` routers elsewhere (needs code follow-up).
-  - Gaps: offline workout save triggers asynchronous debrief generation but no invalidation when job completes; UI may stay stale without manual refresh. Pinned/dismiss mutations rely on invalidate but optimistics limited.
-  - Actions: introduce event-driven invalidation (e.g., SSE or polling) after generation; ensure queue flush invalidates debrief list for affected session IDs; add optimistic updates for markViewed/pin toggles.
+- ✅ **AI & Wellness (Session Debriefs, Health Advice, Wellness History)**
+  - Debrief panel now polls while regenerations are pending so new versions surface without manual refresh, and stops once a fresh version lands (`src/app/_components/session-debrief-panel.tsx:218`).
+  - Health advice saves invalidate session-scoped and historical caches (including wellness history/stats) to keep dashboards aligned with new recommendations (`src/hooks/useHealthAdvice.ts:31`).
 
-- **Workout History & Detail**
-  - Queries: `workouts.getRecent` (various limits), `workouts.getById`, `workouts.getHistory` inside `workout-history` (`src/app/_components/workout-history.tsx:60`).
-  - Gaps: issue already noted—optimistic updates only target `{limit:5}`; history component paginates using `cursor`, not refreshed after offline flush. Idle-session cleanup missing.
-  - Actions: implement broad `setQueriesData` for all `workouts.getRecent` inputs, add hooks to refresh paginated history when affected session IDs change, run silent prune for empty sessions and invalidate relevant queries.
+- ✅ **Workout History & Detail**
+  - `WorkoutHistory` now listens for offline queue flush completions and refetches the expanded `getRecent` dataset so pagination stays fresh after background syncs (`src/app/_components/workout-history.tsx:61`).
+  - Server-side `getRecent` already purges empty sessions older than four hours before returning data, keeping abandoned workouts out of all cache tiers (`src/server/api/routers/workouts.ts:55`).
 
-- **Template / Exercise Management**
-  - Queries: `templates.getAll` (with filters), exercise master data (`src/app/_components/exercise-manager.tsx:63`), linking utilities.
-  - Gaps: current fix plan covers template creation path; additional actions needed for duplication/delete undo (ensure same query-key coverage) and exercise linking mutations (lack optimistic updates -> stale lists).
-  - Actions: extend plan to update `exercise-manager` caches after link/unlink/merge, possibly by refreshing specific `exercises.*` keys or applying optimistic transforms.
+- ✅ **Template / Exercise Management**
+  - Added cache helpers to fan template inserts/removals across all `templates.getAll` variants and wired them into duplicate/create/delete flows (`src/lib/template-cache-helpers.ts:8`, `src/app/_components/templates-list.tsx:171`).
+  - Exercise maintenance now invalidates master and template data together so linking/merge edits refresh dependent views (`src/app/_components/exercise-manager.tsx:47`).
 
-- **Offline / Sync Indicators**
-  - Components: `enhanced-sync-indicator`, `sync-indicator`, `SessionDebriefPanel` offline banners, queue modal (`src/hooks/use-offline-save-queue.ts:248`).
-  - Gaps: indicator statuses rely on `useOfflineSaveQueue` snapshot which currently freezes (`useMemo` without deps). Storage listener improvements from Step 3 will help; also need to ensure indicator invalidates when caches refresh post-flush so UI transitions from “pending” to “synced”.
-  - Actions: after hook refactor, audit indicator logic to confirm status transitions; add tests around storage events and queue length updates.
+- ✅ **Offline / Sync Indicators**
+  - Sync indicator now tracks the last successful flush and surfaces “just synced” messaging once caches settle, providing clearer transitions after offline queues drain (`src/hooks/use-sync-indicator.ts:61`).

@@ -4,6 +4,11 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import { useWhoopConnect } from "~/hooks/use-whoop-connect";
+import { useDocumentVisibility } from "~/hooks/use-document-visibility";
+import {
+  invalidateWhoopCaches,
+  invalidateWorkoutDependentCaches,
+} from "~/lib/workout-cache-helpers";
 
 export function WhoopConnection() {
   const [syncLoading, setSyncLoading] = useState(false);
@@ -16,10 +21,21 @@ export function WhoopConnection() {
     resetTime: string;
   } | null>(null);
   const searchParams = useSearchParams();
+  const utils = api.useUtils();
+  const isTabVisible = useDocumentVisibility();
 
-  const { data: integrationStatus, refetch: refetchStatus } =
-    api.whoop.getIntegrationStatus.useQuery();
-  const { refetch: refetchWorkouts } = api.whoop.getWorkouts.useQuery();
+  const {
+    data: integrationStatus,
+    refetch: refetchStatus,
+  } = api.whoop.getIntegrationStatus.useQuery(undefined, {
+    refetchInterval: isTabVisible ? 5 * 60 * 1000 : false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+  const { refetch: refetchWorkouts } = api.whoop.getWorkouts.useQuery(
+    undefined,
+    { enabled: false },
+  );
   const {
     startConnect,
     isConnecting,
@@ -93,7 +109,12 @@ export function WhoopConnection() {
           text: `Sync completed! ${result.newWorkouts} new workouts, ${result.duplicates} duplicates skipped.`,
         });
         setRateLimit(result.rateLimit);
-        void refetchWorkouts();
+        await Promise.all([
+          refetchWorkouts(),
+          refetchStatus(),
+          invalidateWhoopCaches(utils),
+          invalidateWorkoutDependentCaches(utils),
+        ]);
       } else if (response.status === 429) {
         setMessage({
           type: "error",

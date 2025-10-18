@@ -8,6 +8,12 @@ import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
 import { type RecentWorkout } from "~/lib/workout-metrics";
+import {
+  applyOptimisticWorkoutDate,
+  applyOptimisticVolumeMetrics,
+  calculateVolumeSummaryFromExercises,
+  invalidateWorkoutDependentCaches,
+} from "~/lib/workout-cache-helpers";
 
 interface PreviousBest {
   weight?: number;
@@ -347,6 +353,19 @@ export function useWorkoutSessionState({
       if (optimisticWorkout) {
         applyOptimisticWorkoutUpdate(optimisticWorkout);
       }
+      const workoutDate =
+        session?.workoutDate instanceof Date
+          ? session.workoutDate
+          : session?.workoutDate
+            ? new Date(session.workoutDate)
+            : new Date();
+      applyOptimisticWorkoutDate(queryClient, workoutDate);
+      const volumeSummary = calculateVolumeSummaryFromExercises(
+        newWorkout.exercises,
+      );
+      if (volumeSummary) {
+        applyOptimisticVolumeMetrics(queryClient, workoutDate, volumeSummary);
+      }
 
       return { previousQueries } satisfies RecentMutationContext;
     },
@@ -359,7 +378,7 @@ export function useWorkoutSessionState({
       }
     },
     onSettled: () => {
-      void utils.workouts.getRecent.invalidate();
+      void invalidateWorkoutDependentCaches(utils, [sessionId]);
     },
   });
 
@@ -401,7 +420,7 @@ export function useWorkoutSessionState({
       }
     },
     onSettled: () => {
-      void utils.workouts.getRecent.invalidate();
+      void invalidateWorkoutDependentCaches(utils, [sessionId]);
     },
   });
 
