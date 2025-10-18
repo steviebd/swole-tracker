@@ -1,12 +1,5 @@
 /// <reference types="vitest" />
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { whoopRouter } from "~/server/api/routers/whoop";
 import * as tokenRotationModule from "~/lib/token-rotation";
@@ -21,8 +14,7 @@ const mockUser = { id: "user-123" };
 
 let mockDb: ReturnType<typeof createDrizzleMock>;
 let rotateOAuthTokensSpy: MockInstance<
-  Parameters<typeof tokenRotationModule.rotateOAuthTokens>,
-  ReturnType<typeof tokenRotationModule.rotateOAuthTokens>
+  typeof tokenRotationModule.rotateOAuthTokens
 >;
 
 const createCaller = () =>
@@ -253,9 +245,7 @@ describe("whoopRouter.getWebhookInfo", () => {
     const caller = createCaller();
     const result = await caller.getWebhookInfo();
 
-    expect(result.webhookUrl).toBe(
-      "http://localhost:3000/api/webhooks/whoop",
-    );
+    expect(result.webhookUrl).toBe("http://localhost:3000/api/webhooks/whoop");
   });
 });
 
