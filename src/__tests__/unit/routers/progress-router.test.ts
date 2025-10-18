@@ -466,6 +466,91 @@ describe("progressRouter", () => {
     });
   });
 
+  describe("getStrengthPulse", () => {
+    it("should return baseline metrics when no sessions exist", async () => {
+      db.select.mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              orderBy: vi.fn().mockResolvedValue([]),
+            })),
+          })),
+        })),
+      });
+
+      const result = await caller.getStrengthPulse({ timeRange: "week" });
+
+      expect(result).toEqual({
+        currentOneRm: 0,
+        previousOneRm: 0,
+        delta: 0,
+        trend: "flat",
+        heavySetCount: 0,
+        sessionCount: 0,
+        topLift: null,
+        lastLiftedAt: null,
+      });
+    });
+
+    it("should summarise strength sets for current and previous periods", async () => {
+      const currentRows = [
+        {
+          workoutDate: new Date("2024-03-05"),
+          exerciseName: "Back Squat",
+          weight: 160,
+          reps: 3,
+          oneRMEstimate: 176,
+        },
+        {
+          workoutDate: new Date("2024-03-03"),
+          exerciseName: "Bench Press",
+          weight: 140,
+          reps: 5,
+          oneRMEstimate: 163,
+        },
+      ];
+      const previousRows = [
+        {
+          workoutDate: new Date("2024-02-25"),
+          exerciseName: "Back Squat",
+          weight: 155,
+          reps: 3,
+          oneRMEstimate: 170,
+        },
+      ];
+
+      const mockOrderBy = vi
+        .fn()
+        .mockResolvedValueOnce(currentRows)
+        .mockResolvedValueOnce(previousRows);
+
+      db.select.mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              orderBy: mockOrderBy,
+            })),
+          })),
+        })),
+      });
+
+      const result = await caller.getStrengthPulse({ timeRange: "week" });
+
+      expect(result.currentOneRm).toBeCloseTo(176);
+      expect(result.previousOneRm).toBeCloseTo(170);
+      expect(result.delta).toBeCloseTo(6);
+      expect(result.heavySetCount).toBeGreaterThanOrEqual(2);
+      expect(result.sessionCount).toBeGreaterThanOrEqual(2);
+      expect(result.topLift).toEqual(
+        expect.objectContaining({
+          exerciseName: "Back Squat",
+          oneRm: expect.any(Number),
+        }),
+      );
+      expect(result.lastLiftedAt).toBeInstanceOf(Date);
+    });
+  });
+
   describe("getVolumeProgression", () => {
     it("should return volume progression data", async () => {
       const mockData = [

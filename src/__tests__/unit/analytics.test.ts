@@ -39,6 +39,14 @@ describe("analytics", () => {
     });
   });
 
+  describe("custom events", () => {
+    it("should call event function", () => {
+      expect(() => {
+        analytics.event("test_event", { context: "unit-test" });
+      }).not.toThrow();
+    });
+  });
+
   describe("workout events", () => {
     it("should call workoutStarted function", () => {
       expect(() => {

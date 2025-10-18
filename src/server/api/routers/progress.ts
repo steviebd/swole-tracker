@@ -963,6 +963,101 @@ export const progressRouter = createTRPCRouter({
       }
     }),
 
+  getStrengthPulse: protectedProcedure
+    .input(timeRangeInputSchema)
+    .query(async ({ input, ctx }) => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(
+          input.timeRange,
+          input.startDate,
+          input.endDate,
+        );
+
+        const windowLength = Math.max(
+          1,
+          endDate.getTime() - startDate.getTime(),
+        );
+        const previousEndDate = new Date(startDate.getTime() - 1);
+        const previousStartDate = new Date(
+          previousEndDate.getTime() - windowLength,
+        );
+
+        const fetchStrengthSets = async (rangeStart: Date, rangeEnd: Date) => {
+          if (rangeStart.getTime() > rangeEnd.getTime()) {
+            return [];
+          }
+
+          const rows = await ctx.db
+            .select({
+              workoutDate: workoutSessions.workoutDate,
+              exerciseName: sessionExercises.exerciseName,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+              oneRMEstimate: sessionExercises.one_rm_estimate,
+            })
+            .from(sessionExercises)
+            .innerJoin(
+              workoutSessions,
+              eq(workoutSessions.id, sessionExercises.sessionId),
+            )
+            .where(
+              and(
+                eq(sessionExercises.user_id, ctx.user.id),
+                gte(workoutSessions.workoutDate, rangeStart),
+                lte(workoutSessions.workoutDate, rangeEnd),
+              ),
+            )
+            .orderBy(desc(workoutSessions.workoutDate));
+
+          return rows;
+        };
+
+        const [currentRows, previousRows] = await Promise.all([
+          fetchStrengthSets(startDate, endDate),
+          fetchStrengthSets(previousStartDate, previousEndDate),
+        ]);
+
+        const currentSummary = summarizeStrengthSets(currentRows);
+        const previousSummary = summarizeStrengthSets(previousRows);
+
+        const delta = currentSummary.maxOneRm - previousSummary.maxOneRm;
+        const trend: StrengthTrend =
+          delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+
+        return {
+          currentOneRm: currentSummary.maxOneRm,
+          previousOneRm: previousSummary.maxOneRm,
+          delta,
+          trend,
+          heavySetCount: currentSummary.heavySetCount,
+          sessionCount: currentSummary.sessionCount,
+          topLift: currentSummary.bestLift
+            ? {
+                exerciseName: currentSummary.bestLift.exerciseName,
+                reps: currentSummary.bestLift.reps,
+                weight: currentSummary.bestLift.weight,
+                oneRm: currentSummary.bestLift.oneRm,
+              }
+            : null,
+          lastLiftedAt: currentSummary.lastWorkoutDate ?? null,
+        };
+      } catch (error) {
+        logger.error("Error in getStrengthPulse", error, {
+          userId: ctx.user?.id,
+        });
+        return {
+          currentOneRm: 0,
+          previousOneRm: 0,
+          delta: 0,
+          trend: "flat" as const,
+          heavySetCount: 0,
+          sessionCount: 0,
+          topLift: null,
+          lastLiftedAt: null,
+        };
+      }
+    }),
+
   // Get volume tracking data (total weight moved, sets, reps)
   getVolumeProgression: protectedProcedure
     .input(timeRangeInputSchema)
@@ -1562,6 +1657,117 @@ export function processTopSets(progressData: ProgressDataRow[]): Array<{
       set.reps || 1,
     ),
   }));
+}
+
+type StrengthTrend = "up" | "down" | "flat";
+
+type StrengthSetRow = {
+  workoutDate: Date;
+  exerciseName: string;
+  weight: unknown;
+  reps: number | null;
+  oneRMEstimate: unknown;
+};
+
+type StrengthSetSummary = {
+  maxOneRm: number;
+  bestLift: {
+    exerciseName: string;
+    weight: number;
+    reps: number;
+    oneRm: number;
+    workoutDate: Date;
+  } | null;
+  heavySetCount: number;
+  sessionCount: number;
+  lastWorkoutDate: Date | null;
+};
+
+function toNumber(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+  return 0;
+}
+
+function summarizeStrengthSets(rows: StrengthSetRow[]): StrengthSetSummary {
+  if (!rows.length) {
+    return {
+      maxOneRm: 0,
+      bestLift: null,
+      heavySetCount: 0,
+      sessionCount: 0,
+      lastWorkoutDate: null,
+    };
+  }
+
+  const normalized = rows.map((row) => {
+    const weight = toNumber(row.weight);
+    const reps = row.reps ?? 0;
+    const estimated = toNumber(row.oneRMEstimate);
+    const oneRmCandidate =
+      estimated > 0
+        ? estimated
+        : calculateLocalOneRM(weight, Math.max(reps, 1));
+
+    return {
+      workoutDate: row.workoutDate,
+      exerciseName: row.exerciseName,
+      weight,
+      reps,
+      oneRm: Number.isFinite(oneRmCandidate) ? oneRmCandidate : 0,
+    };
+  });
+
+  const bestLift = normalized.reduce<
+    StrengthSetSummary["bestLift"]
+  >((best, entry) => {
+    if (!best || entry.oneRm > best.oneRm) {
+      return {
+        exerciseName: entry.exerciseName,
+        weight: entry.weight,
+        reps: entry.reps,
+        oneRm: entry.oneRm,
+        workoutDate: entry.workoutDate,
+      };
+    }
+    return best;
+  }, null);
+
+  const maxOneRm = bestLift?.oneRm ?? 0;
+  const heavyThreshold = maxOneRm > 0 ? maxOneRm * 0.85 : 0;
+  const heavySetCount =
+    heavyThreshold > 0
+      ? normalized.filter((entry) => entry.oneRm >= heavyThreshold).length
+      : 0;
+
+  const sessionCount = new Set(
+    normalized.map((entry) => entry.workoutDate.toDateString()),
+  ).size;
+
+  const lastWorkoutDate = normalized.reduce<Date | null>(
+    (latest, entry) => {
+      if (!latest) return entry.workoutDate;
+      return entry.workoutDate > latest ? entry.workoutDate : latest;
+    },
+    null,
+  );
+
+  return {
+    maxOneRm: maxOneRm > 0 ? Math.round(maxOneRm * 10) / 10 : 0,
+    bestLift,
+    heavySetCount,
+    sessionCount,
+    lastWorkoutDate,
+  };
 }
 
 export function calculateVolumeMetrics(

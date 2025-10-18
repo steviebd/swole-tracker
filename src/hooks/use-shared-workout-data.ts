@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { api } from "~/trpc/react";
+import { api, type RouterOutputs } from "~/trpc/react";
+
+type StrengthPulse = RouterOutputs["progress"]["getStrengthPulse"];
 
 /**
  * Progressive data loading hook - loads critical data first, then secondary data
@@ -43,6 +45,17 @@ export function useSharedWorkoutData() {
       }
     );
 
+  const { data: strengthPulseData, isLoading: strengthPulseLoading } =
+    api.progress.getStrengthPulse.useQuery(
+      { timeRange: "week" },
+      {
+        enabled: !!thisWeekWorkouts,
+        staleTime: 10 * 60 * 1000,
+        gcTime: 20 * 60 * 1000,
+        refetchOnMount: false,
+      },
+    );
+
   // Priority 4: Monthly data for streaks - lowest priority
   const { data: monthWorkouts, isLoading: monthLoading } =
     api.progress.getWorkoutDates.useQuery(
@@ -69,6 +82,21 @@ export function useSharedWorkoutData() {
   }, []);
 
   // Priority 5: Comparison data - load last for trends
+  const { data: lastWeekVolume, isLoading: lastWeekVolumeLoading } =
+    api.progress.getVolumeProgression.useQuery(
+      {
+        timeRange: "week",
+        startDate: lastWeekStart,
+        endDate: lastWeekEnd,
+      },
+      {
+        enabled: !!thisWeekWorkouts && !!thisWeekVolume,
+        staleTime: 30 * 60 * 1000,
+        gcTime: 60 * 60 * 1000,
+        refetchOnMount: false,
+      },
+    );
+
   const { data: lastWeekWorkouts, isLoading: lastWeekLoading } =
     api.progress.getWorkoutDates.useQuery(
       {
@@ -86,7 +114,11 @@ export function useSharedWorkoutData() {
 
   // Progressive loading states
   const isCriticalLoading = thisWeekLoading;
-  const isSecondaryLoading = thisWeekVolumeLoading || consistencyLoading;
+  const isSecondaryLoading =
+    thisWeekVolumeLoading ||
+    consistencyLoading ||
+    strengthPulseLoading ||
+    lastWeekVolumeLoading;
   const isExtendedLoading = monthLoading || lastWeekLoading;
   const isLoading = isCriticalLoading; // Only critical data blocks rendering
   const error = thisWeekError?.message || null;
@@ -96,10 +128,12 @@ export function useSharedWorkoutData() {
     thisWeekWorkouts: thisWeekWorkouts || [],
     thisWeekVolume: thisWeekVolume || [],
     consistencyData: consistencyData,
-    
+    strengthPulse: (strengthPulseData ?? null) as StrengthPulse | null,
+    lastWeekVolume: lastWeekVolume || [],
+
     // Comparison data (loads progressively)
     lastWeekWorkouts: lastWeekWorkouts || [],
-    
+
     // Extended period for streaks (loads last)
     monthWorkouts: monthWorkouts || [],
     

@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
+import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Toast, type ToastType } from "~/components/ui/toast";
 import {
   TemplateFilters,
   type TemplateFiltersState,
@@ -48,16 +50,89 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   const [showFullExerciseList, setShowFullExerciseList] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const utils = api.useUtils();
   const { data: templates, isLoading: templatesLoading } =
     api.templates.getAll.useQuery({ search: "", sort: "recent" });
   const createWorkoutMutation = api.workouts.start.useMutation();
   const {
-    status: syncStatus,
     badgeText,
     description,
     isOnline,
+    pendingOperations,
+    canManualSync,
+    manualSync,
+    isBusy: syncBusy,
+    failedOperations,
   } = useSyncIndicator();
+
+  const strengthSuggestions = useMemo(
+    () => [
+      {
+        id: "upper",
+        title: "Upper body power",
+        description: "Heavy presses with vertical pulls and arm finishers.",
+        searchTerm: "upper",
+      },
+      {
+        id: "lower",
+        title: "Lower body strength",
+        description: "Squats, pulls, and posterior-chain accessories.",
+        searchTerm: "lower",
+      },
+    ],
+    [],
+  );
+
+  const handleSuggestionSelect = useCallback(
+    (suggestion: (typeof strengthSuggestions)[number]) => {
+      setFilters((prev) => ({
+        ...prev,
+        search: suggestion.searchTerm,
+      }));
+
+      const match = templates?.find((template) =>
+        template.name
+          .toLowerCase()
+          .includes(suggestion.searchTerm.toLowerCase()),
+      );
+      if (match) {
+        setSelectedTemplateId(match.id);
+      }
+
+      analytics.event("workout_starter_suggestion_selected", {
+        suggestion: suggestion.id,
+      });
+    },
+    [templates, setFilters, setSelectedTemplateId],
+  );
+
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastProps, setToastProps] = useState<{ type: ToastType; message: string } | null>(null);
+
+  const showToast = useCallback((toastType: ToastType, toastMessage: string) => {
+    setToastProps({ type: toastType, message: toastMessage });
+    setToastOpen(true);
+  }, []);
+
+  const toastComponent = (
+    <Toast
+      open={toastOpen}
+      type={toastProps?.type ?? "info"}
+      message={toastProps?.message ?? ""}
+      onClose={() => setToastOpen(false)}
+    />
+  );
+
+  useEffect(() => {
+    const focus = searchParams?.get("focus");
+    if (!focus) return;
+    const suggestion = strengthSuggestions.find((entry) => entry.id === focus);
+    if (suggestion) {
+      handleSuggestionSelect(suggestion);
+      router.replace("/workout/start");
+    }
+  }, [handleSuggestionSelect, router, searchParams, strengthSuggestions]);
 
   const handleStartFreestyle = async () => {
     if (isStarting) {
@@ -86,7 +161,10 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      alert("Error starting freestyle workout. Please try again.");
+      showToast(
+        "error",
+        errorMessage || "Error starting freestyle workout. Please try again.",
+      );
     } finally {
       setIsStarting(false);
     }
@@ -142,7 +220,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
   const handleStart = async () => {
     if (!selectedTemplateId) {
-      alert("Please select a template");
+      showToast("warning", "Select a template to get started.");
       return;
     }
 
@@ -205,16 +283,18 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       if (errorMessage.includes("Recent session found")) {
-        alert(
-          "You already have a recent workout with this template. Check your workout history!",
+        showToast(
+          "warning",
+          "Recent session already exists for this template. Check your history.",
         );
       } else if (errorMessage === "Template not found") {
-        alert(
-          "This template has been deleted. Please select another template.",
+        showToast(
+          "error",
+          "This template is no longer available. Pick another template.",
         );
         void utils.templates.getAll.invalidate({ search: "", sort: "recent" });
       } else {
-        alert("Error starting workout. Please try again.");
+        showToast("error", "Error starting workout. Please try again.");
       }
     } finally {
       setIsStarting(false);
@@ -223,39 +303,79 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
 
   if (templatesLoading) {
     return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="p-4">
-            <Skeleton className="mb-4 h-4 w-1/3" />
-            <Skeleton className="h-10 w-full" />
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <Skeleton className="mb-4 h-4 w-1/3" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+        {toastComponent}
+      </>
     );
   }
 
   if (!templates?.length) {
     return (
-      <div className="py-8 text-center sm:py-12">
-        <div className="mb-4 text-4xl sm:text-6xl">📋</div>
-        <h3 className="mb-2 text-lg font-semibold sm:text-xl">
-          No templates available
-        </h3>
-        <p className="text-muted-foreground mb-6 px-4 text-sm sm:text-base">
-          You need to create a workout template before you can start a workout
-        </p>
-        <Button asChild>
-          <Link href="/templates/new">Create Your First Template</Link>
-        </Button>
-      </div>
+      <>
+        <div className="py-8 text-center sm:py-12">
+          <div className="mb-4 text-4xl sm:text-6xl">📋</div>
+          <h3 className="mb-2 text-lg font-semibold sm:text-xl">
+            No templates available
+          </h3>
+          <p className="text-muted-foreground mb-6 px-4 text-sm sm:text-base">
+            You need to create a workout template before you can start a workout
+          </p>
+          <Button asChild>
+            <Link href="/templates/new">Create Your First Template</Link>
+          </Button>
+        </div>
+        {toastComponent}
+      </>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <>
+      <div className="space-y-4 sm:space-y-6">
       {/* Template Selection */}
       <div>
         <h2 className="mb-4 text-lg font-semibold">Select Workout Template</h2>
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {strengthSuggestions.map((suggestion) => {
+            const isActive = filters.search
+              .toLowerCase()
+              .includes(suggestion.searchTerm.toLowerCase());
+            return (
+              <button
+                key={suggestion.id}
+                type="button"
+                onClick={() => handleSuggestionSelect(suggestion)}
+                className={cn(
+                  "rounded-xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  isActive
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border/60 bg-surface-secondary hover:border-primary/30 hover:bg-surface-secondary/80",
+                )}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Recommended split
+                </p>
+                <p className="mt-1 text-sm font-semibold text-content-primary">
+                  {suggestion.title}
+                </p>
+                <p className="mt-1 text-xs text-content-secondary">
+                  {suggestion.description}
+                </p>
+                <span className="mt-3 inline-flex items-center text-[11px] font-semibold uppercase tracking-wide text-primary">
+                  {isActive ? "Selected" : "Tap to focus"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <TemplateFilters
           value={filters}
           onChange={setFilters}
@@ -471,14 +591,30 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
                   </div>
 
                   {/* Sync Status */}
-                  {!isOnline && (
-                    <div className="text-center">
+                  {(!isOnline || pendingOperations > 0 || failedOperations > 0) && (
+                    <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-3 text-center shadow-sm backdrop-blur">
                       <Badge variant="secondary" className="text-xs">
                         {badgeText}
                       </Badge>
                       <p className="text-muted-foreground mt-1 text-xs">
-                        {description}
+                        {!isOnline
+                          ? description
+                          : pendingOperations > 0
+                            ? `${pendingOperations} change${pendingOperations === 1 ? "" : "s"} waiting to sync.`
+                            : `${failedOperations} item${failedOperations === 1 ? "" : "s"} need attention. Tap sync to retry now.`}
                       </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 text-xs"
+                        onClick={() => {
+                          void manualSync();
+                        }}
+                        disabled={!isOnline || !canManualSync || syncBusy}
+                      >
+                        {syncBusy ? "Syncing…" : "Sync now"}
+                      </Button>
                     </div>
                   )}
 
@@ -514,10 +650,12 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
           >
             {isStarting || createWorkoutMutation.isPending
               ? "Starting..."
-              : "Start Freestyle Workout"}
-          </Button>
-        </div>
+          : "Start Freestyle Workout"}
+        </Button>
+      </div>
       )}
-    </div>
+      </div>
+      {toastComponent}
+    </>
   );
 }

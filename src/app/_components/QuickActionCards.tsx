@@ -1,103 +1,86 @@
 "use client";
 
 import Link from "next/link";
+import { History, ArrowUpRight, ArrowDownLeft, BarChart3 } from "lucide-react";
+
 import { Card } from "~/components/ui/card";
+import { analytics } from "~/lib/analytics";
 
 export function QuickActionCards() {
   // Card definitions matching template design
   const cards = [
     {
-      id: "start-workout", 
-      title: "💪 Let's Get Swole!",
-      description: "Time to crush your next workout and dominate your goals",
-      href: "/workout/start",
-      gradient: "bg-gradient-to-r from-orange-500 to-red-500",
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      ),
+      id: "resume",
+      title: "Resume last session",
+      description: "Jump back into the workout you logged most recently.",
+      href: "/workouts",
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-primary-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-30) 60%, black 10%) 100%)",
+      icon: <History className="h-6 w-6" aria-hidden />,
+    },
+    {
+      id: "start-upper",
+      title: "Start upper",
+      description: "Heavy presses, vertical pulls, and arm finishers.",
+      href: "/workout/start?focus=upper",
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-secondary-40) 70%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-30) 55%, black 10%) 100%)",
+      icon: <ArrowUpRight className="h-6 w-6" aria-hidden />,
+    },
+    {
+      id: "start-lower",
+      title: "Start lower",
+      description: "Squats, pulls, and posterior-chain accessories.",
+      href: "/workout/start?focus=lower",
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-tertiary-40) 70%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-tertiary-30) 55%, black 10%) 100%)",
+      icon: <ArrowDownLeft className="h-6 w-6" aria-hidden />,
     },
     {
       id: "view-progress",
-      title: "🔥 Track Your Gains",
-      description: "Celebrate every PR and see how strong you're becoming",
+      title: "View progress",
+      description: "Track volume, PRs, and readiness trends.",
       href: "/progress",
-      gradient: "bg-gradient-to-r from-pink-500 to-red-500",
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
-      ),
-    },
-    {
-      id: "manage-templates", 
-      title: "⚡ Build Your Arsenal",
-      description: "Craft the perfect workout templates for maximum gains",
-      href: "/templates",
-      gradient: "bg-gradient-to-r from-amber-500 to-orange-500",
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-      ),
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-secondary-30) 65%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-40) 70%, black 15%) 100%)",
+      icon: <BarChart3 className="h-6 w-6" aria-hidden />,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
         <Link
           key={card.id}
           href={card.href}
           className="group block focus-visible:outline-none focus-visible:ring-0"
+          onClick={() =>
+            analytics.event("quick_action_selected", { action: card.id })
+          }
         >
           <Card
             surface="card"
             variant="elevated"
             padding="md"
-            interactive={true}
-            className={`${card.gradient} text-white hover:shadow-lg transition-all relative overflow-hidden group-focus-visible:shadow-xl group-focus-visible:ring-2 group-focus-visible:ring-white/70 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background`} // eslint-disable-line no-restricted-syntax
+            interactive
+            className="relative flex h-full flex-col justify-between overflow-hidden text-white shadow-xl transition-all hover:shadow-2xl group-focus-visible:shadow-2xl group-focus-visible:ring-2 group-focus-visible:ring-white/70 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background"
+            style={{ background: card.background }}
           >
-          {/* Icon and arrow row */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-black/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              {card.icon}
+            <div className="pointer-events-none absolute inset-0 bg-black/10" />
+            <div className="relative flex items-center justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 shadow-inner backdrop-blur">
+                {card.icon}
+              </div>
+              <span className="text-sm font-semibold uppercase tracking-wide text-white/70">
+                Go
+              </span>
             </div>
-            <svg 
-              className="h-5 w-5 text-white/80 transition-transform duration-300 group-hover:translate-x-1" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-
-          {/* Content */}
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold">
-              {card.title}
-            </h3>
-            <p className="text-sm text-white/90">
-              {card.description}
-            </p>
-          </div>
-
-          {/* Button */}
-          <div className="mt-4">
-            <div className="inline-flex items-center text-sm font-medium">
-              Get Started
-              <svg 
-                className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
+            <div className="relative mt-4 space-y-2">
+              <h3 className="text-lg font-semibold leading-tight">
+                {card.title}
+              </h3>
+              <p className="text-sm text-white/85">{card.description}</p>
             </div>
-          </div>
           </Card>
         </Link>
       ))}

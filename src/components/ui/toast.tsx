@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { useReducedMotion } from "framer-motion";
+
 import { cn } from "~/lib/utils";
 
 export type ToastType = "success" | "error" | "info" | "warning";
@@ -27,6 +29,8 @@ export function Toast({
   onUndo,
   className,
 }: ToastProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   // Auto-dismiss behavior
   useEffect(() => {
     if (!open || !onClose) return;
@@ -57,39 +61,58 @@ export function Toast({
 
   if (!open) return null;
 
-  // Determine styles based on type
-  const typeStyles = {
-    success: "bg-emerald-50 text-emerald-900 border-emerald-200",
-    error: "bg-red-50 text-red-900 border-red-200", 
-    warning: "bg-yellow-50 text-yellow-900 border-yellow-200",
-    info: "bg-blue-50 text-blue-900 border-blue-200",
+  const toneTokens: Record<ToastType, { background: string; border: string; icon: string }> = {
+    success: {
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-tertiary-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-tertiary-30) 55%, black 10%) 100%)",
+      border: "rgba(54, 211, 153, 0.4)",
+      icon: "✅",
+    },
+    error: {
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-error-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-error-30) 55%, black 10%) 100%)",
+      border: "rgba(248, 113, 113, 0.45)",
+      icon: "❌",
+    },
+    warning: {
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-primary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-30) 55%, black 10%) 100%)",
+      border: "rgba(250, 204, 21, 0.5)",
+      icon: "⚠️",
+    },
+    info: {
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-secondary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-30) 55%, black 10%) 100%)",
+      border: "rgba(125, 211, 252, 0.45)",
+      icon: "ℹ️",
+    },
   };
 
-  const iconMap = {
-    success: "✅",
-    error: "❌",
-    warning: "⚠️", 
-    info: "ℹ️",
-  };
+  const tone = toneTokens[type] ?? toneTokens.info;
 
   return (
     <div
       className={cn(
-        "fixed top-4 left-1/2 z-50 flex min-w-[300px] max-w-md -translate-x-1/2 items-center gap-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm",
-        "animate-in fade-in-0 slide-in-from-top-2 duration-300",
-        typeStyles[type],
+        "fixed top-4 left-1/2 z-50 flex min-w-[280px] max-w-md -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3 text-white shadow-xl backdrop-blur-lg",
+        prefersReducedMotion
+          ? ""
+          : "animate-in fade-in-0 slide-in-from-top-2 duration-300",
         className,
       )}
       role="alert"
       aria-live="polite"
+      style={{
+        background: tone.background,
+        borderColor: tone.border,
+      }}
     >
       {/* Icon */}
       <span className="text-lg" aria-hidden="true">
-        {iconMap[type]}
+        {tone.icon}
       </span>
 
       {/* Message */}
-      <div className="flex-1 text-sm font-medium">
+      <div className="flex-1 text-sm font-medium text-white/90">
         {message}
       </div>
 
@@ -111,7 +134,7 @@ export function Toast({
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-1 text-current/60 hover:text-current focus:outline-none focus:ring-2 focus:ring-current focus:ring-offset-1 rounded"
+            className="ml-1 text-white/70 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-1 rounded"
             aria-label="Close notification"
           >
             <span className="text-lg leading-none" aria-hidden="true">×</span>
