@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import {
   encryptToken,
   decryptToken,
@@ -10,9 +10,7 @@ import {
   validateOAuthState,
   cleanupExpiredStates,
 } from "~/lib/oauth-state";
-import {
-  buildContentSecurityPolicy,
-} from "~/lib/security-headers";
+import { buildContentSecurityPolicy } from "~/lib/security-headers";
 
 // Mock environment for encryption tests
 beforeAll(() => {
@@ -53,7 +51,11 @@ describe("Security Implementation Tests", () => {
     });
 
     it("should fail on invalid encrypted data", async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       await expect(decryptToken("invalid_encrypted_data")).rejects.toThrow();
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -67,8 +69,6 @@ describe("Security Implementation Tests", () => {
       expect(isEncrypted(encrypted)).toBe(true);
     });
   });
-
-  
 
   describe("Security Headers Validation", () => {
     it("should deny generic inline script execution", () => {
@@ -84,7 +84,9 @@ describe("Security Implementation Tests", () => {
       const nonce = "test-nonce";
       const csp = buildContentSecurityPolicy(nonce);
 
-      expect(csp).toContain(`style-src 'self' 'nonce-${nonce}' 'unsafe-hashes'`);
+      expect(csp).toContain(
+        `style-src 'self' 'nonce-${nonce}' 'unsafe-hashes'`,
+      );
     });
   });
 });
