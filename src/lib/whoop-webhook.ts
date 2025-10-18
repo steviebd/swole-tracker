@@ -52,15 +52,13 @@ export async function verifyWhoopWebhook(
       key,
       encoder.encode(message),
     );
-    const calculatedSignature = Buffer.from(
-      new Uint8Array(signatureBuffer),
-    );
+    const calculatedSignature = Buffer.from(new Uint8Array(signatureBuffer));
 
     let providedSignature: Buffer;
     try {
       providedSignature = Buffer.from(signature, "base64");
     } catch (error) {
-      logger.warn("Failed to parse provided webhook signature", error);
+      logger.error("Failed to parse provided webhook signature", error);
       return false;
     }
 
