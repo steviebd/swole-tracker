@@ -17,6 +17,13 @@ import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
+class WebhookProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookProcessingError";
+  }
+}
+
 interface WhoopSleepData {
   id: string;
   start?: string;
@@ -91,7 +98,7 @@ async function fetchSleepFromWhoop(
 
     // Fetch the specific sleep from Whoop API
     const response = await fetch(
-      `https://api.prod.whoop.com/developer/v1/activity/sleep/${sleepId}`,
+      `https://api.prod.whoop.com/developer/v2/activity/sleep/${sleepId}`,
       {
         headers: {
           Authorization: `Bearer ${tokenResult.token}`,
@@ -148,8 +155,9 @@ async function processSleepUpdate(
       isTestMode,
     );
     if (!sleepData) {
-      console.error(`Could not fetch sleep data for ${sleepId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch sleep data for ${sleepId}`,
+      );
     }
 
     // Check if sleep already exists in our database
@@ -319,8 +327,9 @@ export async function POST(request: NextRequest) {
           await db
             .update(webhookEvents)
             .set({
-              status: "pending_user_mapping",
+              status: "failed",
               error: message,
+              processingTime: Date.now() - startTime,
               processedAt: new Date(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
@@ -405,10 +414,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const isProcessingError = error instanceof WebhookProcessingError;
+    const status = isProcessingError ? 202 : 500;
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

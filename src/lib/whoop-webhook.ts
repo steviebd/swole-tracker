@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { env } from "~/env";
 import { logger } from "~/lib/logger";
 
@@ -50,14 +52,28 @@ export async function verifyWhoopWebhook(
       key,
       encoder.encode(message),
     );
-    const calculatedSignature = btoa(
-      String.fromCharCode(...new Uint8Array(signatureBuffer)),
+    const calculatedSignature = Buffer.from(
+      new Uint8Array(signatureBuffer),
     );
 
-    // Compare signatures using constant-time comparison
-    // Web Crypto doesn't have timingSafeEqual, so we use a simple comparison
-    // In production, you might want a more secure comparison
-    return signature === calculatedSignature;
+    let providedSignature: Buffer;
+    try {
+      providedSignature = Buffer.from(signature, "base64");
+    } catch (error) {
+      logger.warn("Failed to parse provided webhook signature", error);
+      return false;
+    }
+
+    if (calculatedSignature.length !== providedSignature.length) {
+      logger.warn("Webhook signature length mismatch", {
+        calculatedLength: calculatedSignature.length,
+        providedLength: providedSignature.length,
+      });
+      return false;
+    }
+
+    // Compare signatures using constant-time comparison to mitigate timing attacks
+    return timingSafeEqual(calculatedSignature, providedSignature);
   } catch (error) {
     logger.error("Error verifying webhook signature", error);
     return false;
@@ -79,7 +95,16 @@ export function extractWebhookHeaders(headers: Headers) {
   }
 
   // Validate timestamp (should be within last 5 minutes to prevent replay attacks)
-  const timestampMs = parseInt(timestamp, 10);
+  const numericTimestamp = Number(timestamp);
+  if (!Number.isFinite(numericTimestamp)) {
+    logger.warn("Webhook timestamp is not a valid number", { timestamp });
+    return null;
+  }
+
+  const timestampMs =
+    numericTimestamp < 1_000_000_000_000
+      ? numericTimestamp * 1000
+      : numericTimestamp;
   const now = Date.now();
   const fiveMinutesAgo = now - 5 * 60 * 1000;
 

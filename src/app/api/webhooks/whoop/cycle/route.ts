@@ -17,6 +17,13 @@ import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 
+class WebhookProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WebhookProcessingError";
+  }
+}
+
 interface WhoopCycleData {
   id: string;
   start?: string;
@@ -75,7 +82,7 @@ async function fetchCycleFromWhoop(
 
     // Fetch the specific cycle from Whoop API
     const response = await fetch(
-      `https://api.prod.whoop.com/developer/v1/cycle/${cycleId}`,
+      `https://api.prod.whoop.com/developer/v2/cycle/${cycleId}`,
       {
         headers: {
           Authorization: `Bearer ${tokenResult.token}`,
@@ -132,8 +139,9 @@ async function processCycleUpdate(
       isTestMode,
     );
     if (!cycleData) {
-      console.error(`Could not fetch cycle data for ${cycleId}`);
-      return;
+      throw new WebhookProcessingError(
+        `Could not fetch cycle data for ${cycleId}`,
+      );
     }
 
     // Check if cycle already exists in our database
@@ -280,8 +288,9 @@ export async function POST(request: NextRequest) {
           await db
             .update(webhookEvents)
             .set({
-              status: "pending_user_mapping",
+              status: "failed",
               error: message,
+              processingTime: Date.now() - startTime,
               processedAt: new Date(),
             })
             .where(eq(webhookEvents.id, webhookEventId));
@@ -366,10 +375,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const isProcessingError = error instanceof WebhookProcessingError;
+    const status = isProcessingError ? 202 : 500;
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
