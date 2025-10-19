@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { env } from "~/env";
-import { healthAdviceRequestSchema } from "~/server/api/schemas/health-advice";
+import {
+  healthAdviceRequestSchema,
+  healthAdviceResponseSchema,
+} from "~/server/api/schemas/health-advice";
 import { enhancedHealthAdviceRequestSchema } from "~/server/api/schemas/wellness";
 import {
   calculateReadiness,
@@ -816,7 +819,9 @@ export async function POST(req: NextRequest) {
     };
 
     // Dynamically import AI SDK (similar to jokes router pattern)
-    const { generateText } = await import("ai");
+    const { generateObject, zodSchema, TypeValidationError } = await import(
+      "ai",
+    );
 
     const promptText = JSON.stringify(enhancedInput);
     logger.info("Sending prompt to AI", {
@@ -824,48 +829,56 @@ export async function POST(req: NextRequest) {
       model: modelId,
     });
 
-    const result = await generateText({
-      model: modelId,
-      system: systemPrompt,
-      prompt: promptText,
-    });
-
     let aiResponse;
     try {
-      aiResponse = JSON.parse(result.text);
-    } catch (parseError) {
-      const errorMessage =
-        parseError instanceof Error ? parseError.message : String(parseError);
-      // Try to clean the JSON by finding the first { and last }
-      const cleanedText = result.text.trim();
-      const startIndex = cleanedText.indexOf("{");
-      const lastIndex = cleanedText.lastIndexOf("}");
-      if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
-        const jsonCandidate = cleanedText.substring(startIndex, lastIndex + 1);
-        try {
-          aiResponse = JSON.parse(jsonCandidate);
-          logger.warn("Successfully parsed cleaned JSON", {
-            originalError: errorMessage,
-            cleanedLength: jsonCandidate.length,
-          });
-        } catch (cleanParseError) {
-          logger.error("Failed to parse even cleaned AI response JSON", {
-            originalError: errorMessage,
-            cleanError:
-              cleanParseError instanceof Error
-                ? cleanParseError.message
-                : String(cleanParseError),
-            aiResponseText: result.text.substring(0, 5000),
-          });
-          throw new Error(`AI returned invalid JSON: ${errorMessage}`);
-        }
-      } else {
-        logger.error("Failed to parse AI response JSON", {
-          error: errorMessage,
-          aiResponseText: result.text.substring(0, 5000),
+      const result = await generateObject({
+        model: modelId,
+        system: systemPrompt,
+        prompt: promptText,
+        schema: zodSchema(healthAdviceResponseSchema),
+      });
+
+      if (result.warnings?.length) {
+        logger.warn("AI generation warnings", {
+          warnings: result.warnings,
         });
-        throw new Error(`AI returned invalid JSON: ${errorMessage}`);
       }
+
+      aiResponse = result.object;
+    } catch (error) {
+      const baseError =
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : { name: "UnknownError", message: String(error) };
+
+      const isTypeValidationError =
+        typeof TypeValidationError?.isInstance === "function" &&
+        TypeValidationError.isInstance(error);
+
+      logger.error("AI object generation failed", {
+        ...baseError,
+        isTypeValidationError,
+        value:
+          isTypeValidationError && error && typeof error === "object"
+            ? (() => {
+                try {
+                  return JSON.stringify((error as any).value);
+                } catch {
+                  return "[unserializable]";
+                }
+              })()
+            : undefined,
+        cause:
+          error instanceof Error && error.cause
+            ? String(error.cause)
+            : undefined,
+      });
+
+      throw new Error(
+        isTypeValidationError
+          ? "AI returned data that did not match the expected schema"
+          : baseError.message,
+      );
     }
 
     // Server-side validation of AI response
