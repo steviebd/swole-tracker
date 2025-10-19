@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
-import { m as motion } from "framer-motion";
 import { BarChart3, Target, Flame, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -401,16 +400,11 @@ export const StatsCards = memo(function StatsCards() {
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card, index) => {
+      {cards.map((card) => {
         const BadgeIcon = card.badge ? formatAchievementBadge(card.badge) : null;
 
         return (
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05, duration: 0.25 }}
-          >
+          <div key={card.id} className="h-full">
             <Card
               surface="card"
               variant="glass"
@@ -496,7 +490,7 @@ export const StatsCards = memo(function StatsCards() {
                 ) : null}
               </div>
             </Card>
-          </motion.div>
+          </div>
         );
       })}
     </div>

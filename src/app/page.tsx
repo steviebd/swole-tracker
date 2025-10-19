@@ -1,6 +1,5 @@
 import { Suspense, lazy } from "react";
 import { StatsCards } from "~/app/_components/StatsCards";
-import { ReadinessHighlight } from "~/app/_components/readiness-highlight";
 import { DashboardClient } from "./_components/DashboardClient";
 
 const QuickActions = lazy(() =>
@@ -24,17 +23,18 @@ export default function Home() {
   return (
     <DashboardClient>
       <div className="bg-app-gradient min-h-screen">
-        <main className="container mx-auto space-y-10 px-6 py-8 sm:px-8">
-          <Suspense
-            fallback={
-              <div className="bg-muted/50 h-16 animate-pulse rounded-lg"></div>
-            }
-          >
-            <QuickActions />
-          </Suspense>
-          <ReadinessHighlight />
-          <StatsCards />
-          <div className="grid gap-8 lg:grid-cols-2">
+        <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-16 pt-10 sm:gap-10 sm:px-6 lg:gap-12 lg:px-8">
+          <section className="flex flex-col gap-6 sm:gap-7 lg:gap-8">
+            <Suspense
+              fallback={
+                <div className="bg-muted/50 h-16 animate-pulse rounded-lg"></div>
+              }
+            >
+              <QuickActions />
+            </Suspense>
+            <StatsCards />
+          </section>
+          <section className="grid gap-6 sm:gap-7 lg:grid-cols-2">
             <Suspense
               fallback={
                 <div className="bg-muted/50 h-64 animate-pulse rounded-lg"></div>
@@ -49,7 +49,7 @@ export default function Home() {
             >
               <RecentWorkouts />
             </Suspense>
-          </div>
+          </section>
         </main>
       </div>
     </DashboardClient>
