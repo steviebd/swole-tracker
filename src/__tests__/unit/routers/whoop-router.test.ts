@@ -84,6 +84,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     expect(result).toEqual({
       isConnected: true,
+      hasEverConnected: true,
       connectedAt: integration.createdAt,
       expiresAt: integration.expiresAt,
       isExpired: false,
@@ -116,6 +117,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     expect(result).toEqual({
       isConnected: false,
+      hasEverConnected: false,
       connectedAt: null,
       expiresAt: null,
       isExpired: false,
@@ -149,6 +151,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     expect(result).toEqual({
       isConnected: false,
+      hasEverConnected: true,
       connectedAt: integration.createdAt,
       expiresAt: integration.expiresAt,
       isExpired: true,

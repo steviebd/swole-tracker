@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import type { HealthAdviceResponse } from "~/server/api/schemas/health-advice";
-import { trackSuggestionInteraction } from "~/lib/analytics/health-advice";
+import {
+  trackSuggestionInteraction,
+  type AdviceDataSource,
+} from "~/lib/analytics/health-advice";
 
 type ProgressionPreference =
   | "weight_focus"
@@ -27,6 +30,8 @@ interface SetSuggestionsProps {
   ) => void;
   onOverrideSuggestion: (setId: string) => void;
   sessionId?: string; // For analytics tracking
+  adviceSource?: AdviceDataSource;
+  getInteractionTimeMs?: () => number | undefined;
 }
 
 function cx(...args: Array<string | false | null | undefined>) {
@@ -38,6 +43,8 @@ export function SetSuggestions({
   onAcceptSuggestion,
   onOverrideSuggestion,
   sessionId,
+  adviceSource = "unknown",
+  getInteractionTimeMs,
 }: SetSuggestionsProps) {
   const [acceptedSets, setAcceptedSets] = useState<Set<string>>(new Set());
   const [showAlternatives, setShowAlternatives] = useState<
@@ -91,6 +98,7 @@ export function SetSuggestions({
     if (sessionId) {
       const set = exercise.sets.find((s) => s.set_id === setId);
       if (set) {
+        const interactionTime = getInteractionTimeMs?.();
         if (
           suggestion.weight !== undefined &&
           set.suggested_weight_kg !== undefined
@@ -103,6 +111,8 @@ export function SetSuggestions({
             suggestionType: "weight",
             suggestedValue: set.suggested_weight_kg ?? undefined,
             acceptedValue: suggestion.weight,
+            interactionTimeMs: interactionTime,
+            dataSource: adviceSource,
           });
         }
         if (suggestion.reps !== undefined && set.suggested_reps !== undefined) {
@@ -114,6 +124,8 @@ export function SetSuggestions({
             suggestionType: "reps",
             suggestedValue: set.suggested_reps ?? undefined,
             acceptedValue: suggestion.reps,
+            interactionTimeMs: interactionTime,
+            dataSource: adviceSource,
           });
         }
       }
@@ -128,18 +140,21 @@ export function SetSuggestions({
     });
     onOverrideSuggestion(setId);
 
-    // Track analytics for overridden suggestions
+    // Track analytics for rejected suggestions
     if (sessionId) {
       const set = exercise.sets.find((s) => s.set_id === setId);
       if (set) {
+        const interactionTime = getInteractionTimeMs?.();
         if (set.suggested_weight_kg !== undefined) {
           trackSuggestionInteraction({
             sessionId,
             exerciseId: exercise.exercise_id,
             setId,
-            action: "overridden",
+            action: "rejected",
             suggestionType: "weight",
             suggestedValue: set.suggested_weight_kg ?? undefined,
+            interactionTimeMs: interactionTime,
+            dataSource: adviceSource,
           });
         }
         if (set.suggested_reps !== undefined) {
@@ -147,9 +162,11 @@ export function SetSuggestions({
             sessionId,
             exerciseId: exercise.exercise_id,
             setId,
-            action: "overridden",
+            action: "rejected",
             suggestionType: "reps",
             suggestedValue: set.suggested_reps ?? undefined,
+            interactionTimeMs: interactionTime,
+            dataSource: adviceSource,
           });
         }
       }

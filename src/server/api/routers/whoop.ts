@@ -128,6 +128,7 @@ export const whoopRouter = createTRPCRouter({
 
       return {
         isConnected: !!integration?.isActive && !isExpired,
+        hasEverConnected: !!integration,
         connectedAt: integration?.createdAt || null,
         expiresAt: integration?.expiresAt || null,
         isExpired,

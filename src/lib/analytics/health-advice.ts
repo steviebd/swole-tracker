@@ -1,6 +1,8 @@
 import { analytics } from '~/lib/analytics';
 import posthog from 'posthog-js';
 
+export type AdviceDataSource = "whoop" | "manual" | "subjective" | "unknown";
+
 interface HealthAdviceUsageMetrics {
   sessionId: string;
   readiness: number; // 0-1
@@ -126,19 +128,23 @@ export function trackSuggestionInteraction({
   suggestionType,
   originalValue,
   suggestedValue,
-  acceptedValue
+  acceptedValue,
+  interactionTimeMs,
+  dataSource,
 }: {
   sessionId: string;
   exerciseId: string;
   setId: string;
-  action: 'accepted' | 'overridden' | 'ignored';
-  suggestionType: 'weight' | 'reps';
+  action: "accepted" | "rejected" | "ignored";
+  suggestionType: "weight" | "reps";
   originalValue?: number;
   suggestedValue?: number;
   acceptedValue?: number;
+  interactionTimeMs?: number;
+  dataSource?: AdviceDataSource;
 }) {
-  if (typeof window !== 'undefined') {
-    posthog.capture('health_advice_suggestion_interaction', {
+  if (typeof window !== "undefined") {
+    posthog.capture("health_advice_suggestion_interaction", {
       session_id: sessionId,
       exercise_id: exerciseId,
       set_id: setId,
@@ -147,8 +153,12 @@ export function trackSuggestionInteraction({
       original_value: originalValue,
       suggested_value: suggestedValue,
       accepted_value: acceptedValue,
-      suggestion_change_percent: originalValue && suggestedValue ? 
-        ((suggestedValue - originalValue) / originalValue) * 100 : null
+      interaction_time_ms: interactionTimeMs ?? null,
+      advice_source: dataSource ?? "unknown",
+      suggestion_change_percent:
+        originalValue && suggestedValue
+          ? ((suggestedValue - originalValue) / originalValue) * 100
+          : null,
     });
   }
 }

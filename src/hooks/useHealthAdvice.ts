@@ -414,8 +414,10 @@ export function useHealthAdvice(sessionId?: number) {
     hasExistingAdvice: !!existingAdvice,
     whoopStatus: {
       isConnected: whoopStatus?.isConnected ?? false,
-      hasIntegration: !!whoopStatus,
+      hasIntegration: whoopStatus?.hasEverConnected ?? false,
       connectedAt: whoopStatus?.connectedAt ?? null,
+      hasEverConnected: whoopStatus?.hasEverConnected ?? false,
+      isExpired: whoopStatus?.isExpired ?? false,
     },
   };
 }
