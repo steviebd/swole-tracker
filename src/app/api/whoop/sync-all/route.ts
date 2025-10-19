@@ -111,6 +111,8 @@ interface WhoopRecovery {
     hrv_rmssd_milli: number;
     spo2_percentage: number;
     skin_temp_celsius: number;
+    respiratory_rate?: number;
+    respiratory_rate_baseline?: number;
   };
 }
 
@@ -163,6 +165,8 @@ interface WhoopSleep {
       total_rem_sleep_time_milli: number;
       sleep_cycle_count: number;
       disturbance_count: number;
+      arousal_time_milli?: number;
+      sleep_latency_milli?: number;
     };
     sleep_needed: {
       baseline_milli: number;
@@ -409,6 +413,9 @@ async function syncRecovery(
           hrv_rmssd_baseline: null,
           resting_heart_rate: recovery.score?.resting_heart_rate ?? null,
           resting_heart_rate_baseline: null,
+          respiratory_rate: recovery.score?.respiratory_rate ?? null,
+          respiratory_rate_baseline:
+            recovery.score?.respiratory_rate_baseline ?? null,
           raw_data: JSON.stringify(recovery),
           timezone_offset: null,
         } satisfies RecoveryInsert;
@@ -507,6 +514,10 @@ async function syncCycles(
           average_heart_rate: cycle.score?.average_heart_rate ?? null,
           max_heart_rate: cycle.score?.max_heart_rate ?? null,
           kilojoule: cycle.score?.kilojoule ?? null,
+          percent_recorded: cycle.score?.percent_recorded ?? null,
+          distance_meter: cycle.score?.distance_meter ?? null,
+          altitude_gain_meter: cycle.score?.altitude_gain_meter ?? null,
+          altitude_change_meter: cycle.score?.altitude_change_meter ?? null,
           raw_data: JSON.stringify(cycle),
         } satisfies CycleInsert;
       })
@@ -580,6 +591,10 @@ async function syncSleep(
         const start = safeParseDate(sleep.start);
         const end = safeParseDate(sleep.end);
         const whoopId = sleep.id?.toString();
+        const stageSummary = sleep.score?.stage_summary;
+        const sleepNeed = sleep.score?.sleep_needed;
+        const sleepConsistency =
+          sleep.score?.sleep_consistency_percentage ?? null;
 
         if (!whoopId) {
           console.warn("[Sleep Sync] Skipping sleep without identifier", sleep);
@@ -603,23 +618,27 @@ async function syncSleep(
           sleep_performance_percentage:
             sleep.score?.sleep_performance_percentage ?? null,
           total_sleep_time_milli:
-            sleep.score?.stage_summary?.total_in_bed_time_milli ?? null,
+            stageSummary?.total_in_bed_time_milli ?? null,
           sleep_efficiency_percentage:
             sleep.score?.sleep_efficiency_percentage ?? null,
           slow_wave_sleep_time_milli:
-            sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ??
-            null,
+            stageSummary?.total_slow_wave_sleep_time_milli ?? null,
           rem_sleep_time_milli:
-            sleep.score?.stage_summary?.total_rem_sleep_time_milli ?? null,
+            stageSummary?.total_rem_sleep_time_milli ?? null,
           light_sleep_time_milli:
-            sleep.score?.stage_summary?.total_light_sleep_time_milli ?? null,
-          wake_time_milli:
-            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
-          arousal_time_milli:
-            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
-          disturbance_count:
-            sleep.score?.stage_summary?.disturbance_count ?? null,
-          sleep_latency_milli: null,
+            stageSummary?.total_light_sleep_time_milli ?? null,
+          wake_time_milli: stageSummary?.total_awake_time_milli ?? null,
+          arousal_time_milli: stageSummary?.arousal_time_milli ?? null,
+          disturbance_count: stageSummary?.disturbance_count ?? null,
+          sleep_latency_milli: stageSummary?.sleep_latency_milli ?? null,
+          sleep_consistency_percentage: sleepConsistency,
+          sleep_need_baseline_milli: sleepNeed?.baseline_milli ?? null,
+          sleep_need_from_sleep_debt_milli:
+            sleepNeed?.need_from_sleep_debt_milli ?? null,
+          sleep_need_from_recent_strain_milli:
+            sleepNeed?.need_from_recent_strain_milli ?? null,
+          sleep_need_from_recent_nap_milli:
+            sleepNeed?.need_from_recent_nap_milli ?? null,
           raw_data: JSON.stringify(sleep),
         } satisfies SleepInsert;
       })

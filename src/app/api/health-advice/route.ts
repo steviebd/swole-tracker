@@ -818,13 +818,55 @@ export async function POST(req: NextRequest) {
     // Dynamically import AI SDK (similar to jokes router pattern)
     const { generateText } = await import("ai");
 
+    const promptText = JSON.stringify(enhancedInput);
+    logger.info("Sending prompt to AI", {
+      promptLength: promptText.length,
+      model: modelId,
+    });
+
     const result = await generateText({
       model: modelId,
       system: systemPrompt,
-      prompt: JSON.stringify(enhancedInput),
+      prompt: promptText,
     });
 
-    const aiResponse = JSON.parse(result.text);
+    let aiResponse;
+    try {
+      aiResponse = JSON.parse(result.text);
+    } catch (parseError) {
+      const errorMessage =
+        parseError instanceof Error ? parseError.message : String(parseError);
+      // Try to clean the JSON by finding the first { and last }
+      const cleanedText = result.text.trim();
+      const startIndex = cleanedText.indexOf("{");
+      const lastIndex = cleanedText.lastIndexOf("}");
+      if (startIndex !== -1 && lastIndex !== -1 && lastIndex > startIndex) {
+        const jsonCandidate = cleanedText.substring(startIndex, lastIndex + 1);
+        try {
+          aiResponse = JSON.parse(jsonCandidate);
+          logger.warn("Successfully parsed cleaned JSON", {
+            originalError: errorMessage,
+            cleanedLength: jsonCandidate.length,
+          });
+        } catch (cleanParseError) {
+          logger.error("Failed to parse even cleaned AI response JSON", {
+            originalError: errorMessage,
+            cleanError:
+              cleanParseError instanceof Error
+                ? cleanParseError.message
+                : String(cleanParseError),
+            aiResponseText: result.text.substring(0, 5000),
+          });
+          throw new Error(`AI returned invalid JSON: ${errorMessage}`);
+        }
+      } else {
+        logger.error("Failed to parse AI response JSON", {
+          error: errorMessage,
+          aiResponseText: result.text.substring(0, 5000),
+        });
+        throw new Error(`AI returned invalid JSON: ${errorMessage}`);
+      }
+    }
 
     // Server-side validation of AI response
     if (!aiResponse.session_id || !aiResponse.readiness) {

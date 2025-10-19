@@ -33,6 +33,8 @@ interface WhoopRecoveryData {
     hrv_rmssd_baseline?: number;
     resting_heart_rate?: number;
     resting_heart_rate_baseline?: number;
+    respiratory_rate?: number;
+    respiratory_rate_baseline?: number;
   };
   date?: string;
   timezone_offset?: string;
@@ -179,6 +181,9 @@ async function processRecoveryUpdate(
           resting_heart_rate: recoveryData.score?.resting_heart_rate || null,
           resting_heart_rate_baseline:
             recoveryData.score?.resting_heart_rate_baseline || null,
+          respiratory_rate: recoveryData.score?.respiratory_rate || null,
+          respiratory_rate_baseline:
+            recoveryData.score?.respiratory_rate_baseline || null,
           raw_data: JSON.stringify(recoveryData),
           timezone_offset: recoveryData.timezone_offset || null,
           updatedAt: new Date(),
@@ -200,6 +205,9 @@ async function processRecoveryUpdate(
         resting_heart_rate: recoveryData.score?.resting_heart_rate || null,
         resting_heart_rate_baseline:
           recoveryData.score?.resting_heart_rate_baseline || null,
+        respiratory_rate: recoveryData.score?.respiratory_rate || null,
+        respiratory_rate_baseline:
+          recoveryData.score?.respiratory_rate_baseline || null,
         raw_data: JSON.stringify(recoveryData),
         timezone_offset: recoveryData.timezone_offset || null,
       });

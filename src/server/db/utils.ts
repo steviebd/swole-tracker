@@ -1,10 +1,11 @@
 import { eq, and, inArray } from "drizzle-orm";
-import { db } from ".";
+import { db, type DrizzleDb } from ".";
 import {
   workoutSessions,
   sessionExercises,
   masterExercises,
   exerciseLinks,
+  templateExercises,
 } from "./schema";
 import { logger } from "~/lib/logger";
 import {
@@ -29,6 +30,76 @@ const computeVolumeLoad = (
   if (weight == null || reps == null || sets == null) return null;
   if (weight <= 0 || reps <= 0 || sets <= 0) return null;
   return calculateVolumeLoad(sets, reps, weight);
+};
+
+export type ResolvedExerciseNameMap = Map<
+  number,
+  {
+    name: string;
+    masterExerciseId: number | null;
+  }
+>;
+
+export const loadResolvedExerciseNameMap = async (
+  database: DrizzleDb,
+  templateExerciseIds: number[],
+): Promise<ResolvedExerciseNameMap> => {
+  if (templateExerciseIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await database
+    .select({
+      templateExerciseId: templateExercises.id,
+      templateName: templateExercises.exerciseName,
+      masterName: masterExercises.name,
+      masterExerciseId: exerciseLinks.masterExerciseId,
+    })
+    .from(templateExercises)
+    .leftJoin(
+      exerciseLinks,
+      eq(exerciseLinks.templateExerciseId, templateExercises.id),
+    )
+    .leftJoin(
+      masterExercises,
+      eq(masterExercises.id, exerciseLinks.masterExerciseId),
+    )
+    .where(inArray(templateExercises.id, templateExerciseIds));
+
+  const map: ResolvedExerciseNameMap = new Map();
+
+  for (const row of rows) {
+    const templateExerciseId = Number(row.templateExerciseId);
+    if (!Number.isFinite(templateExerciseId)) continue;
+
+    const resolvedName = row.masterName ?? row.templateName;
+    map.set(templateExerciseId, {
+      name: resolvedName ?? "",
+      masterExerciseId: row.masterExerciseId ?? null,
+    });
+  }
+
+  return map;
+};
+
+export const resolveExerciseNameWithLookup = (
+  templateExerciseId: number | null | undefined,
+  fallback: string,
+  lookup: ResolvedExerciseNameMap,
+): { name: string; masterExerciseId: number | null } => {
+  if (templateExerciseId == null) {
+    return { name: fallback, masterExerciseId: null };
+  }
+
+  const entry = lookup.get(templateExerciseId);
+  if (!entry) {
+    return { name: fallback, masterExerciseId: null };
+  }
+
+  return {
+    name: entry.name || fallback,
+    masterExerciseId: entry.masterExerciseId,
+  };
 };
 
 /**
@@ -65,6 +136,23 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
   const startTime = Date.now();
   logger.debug("Starting batch workout insert", { count: workouts.length });
 
+  const templateExerciseIds = new Set<number>();
+  for (const workout of workouts) {
+    for (const exercise of workout.exercises) {
+      if (
+        typeof exercise.templateExerciseId === "number" &&
+        Number.isInteger(exercise.templateExerciseId)
+      ) {
+        templateExerciseIds.add(exercise.templateExerciseId);
+      }
+    }
+  }
+
+  const resolvedNameLookup = await loadResolvedExerciseNameMap(
+    db,
+    Array.from(templateExerciseIds),
+  );
+
   try {
     return await db.transaction(async (tx) => {
       const insertedSessions = [];
@@ -93,12 +181,18 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
           const sets = exercise.sets ?? null;
           const oneRmEstimate = computeOneRmEstimate(weight, reps);
           const volumeLoad = computeVolumeLoad(weight, reps, sets);
+          const { name: resolvedExerciseName } = resolveExerciseNameWithLookup(
+            exercise.templateExerciseId ?? null,
+            exercise.exerciseName,
+            resolvedNameLookup,
+          );
 
           allExercises.push({
             user_id: workout.user_id,
             sessionId,
             templateExerciseId: exercise.templateExerciseId,
             exerciseName: exercise.exerciseName,
+            resolvedExerciseName,
             setOrder: exercise.setOrder,
             weight,
             reps,
@@ -311,6 +405,22 @@ export const batchCreateMasterExerciseLinks = async (
               );
           }
         }
+
+        const resolvedName =
+          masterExercise.name ?? firstExercise.exerciseName;
+
+        await tx
+          .update(sessionExercises)
+          .set({ resolvedExerciseName: resolvedName })
+          .where(
+            and(
+              eq(sessionExercises.user_id, userId),
+              inArray(
+                sessionExercises.templateExerciseId,
+                linksToCreate.map((link) => link.templateExerciseId),
+              ),
+            ),
+          );
 
         results.push({
           masterExerciseId: masterExercise.id,

@@ -5,8 +5,8 @@ import {
   workoutSessions,
   exerciseLinks,
   templateExercises,
-  masterExercises,
 } from "~/server/db/schema";
+import { sessionExerciseMetricsView } from "~/server/db/views";
 import { eq, desc, and, gte, lte, sql, inArray, or } from "drizzle-orm";
 import { type db } from "~/server/db";
 import {
@@ -73,52 +73,22 @@ export const progressRouter = createTRPCRouter({
         const prevEndDate = new Date(startDate.getTime() - 1);
         const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
 
-        // Single query for both current and previous periods using CASE
-        const allSessionData = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            exerciseName: sessionExercises.exerciseName,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-            oneRMEstimate: sessionExercises.one_rm_estimate,
-            volumeLoad: sessionExercises.volume_load,
-            period: sql<string>`CASE
-              WHEN ${gte(workoutSessions.workoutDate, startDate)} AND ${lte(workoutSessions.workoutDate, endDate)} THEN 'current'
-              WHEN ${gte(workoutSessions.workoutDate, prevStartDate)} AND ${lte(workoutSessions.workoutDate, prevEndDate)} THEN 'previous'
-              ELSE NULL
-            END`.as("period"),
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              eq(sessionExercises.exerciseName, input.exerciseName),
-              or(
-                and(
-                  gte(workoutSessions.workoutDate, startDate),
-                  lte(workoutSessions.workoutDate, endDate),
-                ),
-                and(
-                  gte(workoutSessions.workoutDate, prevStartDate),
-                  lte(workoutSessions.workoutDate, prevEndDate),
-                ),
-              ),
-            ),
-          )
-          .orderBy(desc(workoutSessions.workoutDate));
-
-        const sessionData = allSessionData.filter(
-          (s) => s.period === "current",
-        );
-        const prevSessionData = allSessionData.filter(
-          (s) => s.period === "previous",
-        );
+        const [sessionData, prevSessionData] = await Promise.all([
+          fetchSessionMetricRows(
+            ctx.db,
+            ctx.user.id,
+            input.exerciseName,
+            startDate,
+            endDate,
+          ),
+          fetchSessionMetricRows(
+            ctx.db,
+            ctx.user.id,
+            input.exerciseName,
+            prevStartDate,
+            prevEndDate,
+          ),
+        ]);
 
         if (sessionData.length === 0) {
           return {
@@ -329,50 +299,22 @@ export const progressRouter = createTRPCRouter({
         const prevEndDate = new Date(startDate.getTime() - 1);
         const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
 
-        // Single query for both current and previous periods using CASE
-        const allSessionData = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-            volumeLoad: sessionExercises.volume_load,
-            period: sql<string>`CASE
-              WHEN ${gte(workoutSessions.workoutDate, startDate)} AND ${lte(workoutSessions.workoutDate, endDate)} THEN 'current'
-              WHEN ${gte(workoutSessions.workoutDate, prevStartDate)} AND ${lte(workoutSessions.workoutDate, prevEndDate)} THEN 'previous'
-              ELSE NULL
-            END`.as("period"),
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              eq(sessionExercises.exerciseName, input.exerciseName),
-              or(
-                and(
-                  gte(workoutSessions.workoutDate, startDate),
-                  lte(workoutSessions.workoutDate, endDate),
-                ),
-                and(
-                  gte(workoutSessions.workoutDate, prevStartDate),
-                  lte(workoutSessions.workoutDate, prevEndDate),
-                ),
-              ),
-            ),
-          )
-          .orderBy(desc(workoutSessions.workoutDate));
-
-        const sessionData = allSessionData.filter(
-          (s) => s.period === "current",
-        );
-        const prevSessionData = allSessionData.filter(
-          (s) => s.period === "previous",
-        );
+        const [sessionData, prevSessionData] = await Promise.all([
+          fetchSessionMetricRows(
+            ctx.db,
+            ctx.user.id,
+            input.exerciseName,
+            startDate,
+            endDate,
+          ),
+          fetchSessionMetricRows(
+            ctx.db,
+            ctx.user.id,
+            input.exerciseName,
+            prevStartDate,
+            prevEndDate,
+          ),
+        ]);
 
         if (sessionData.length === 0) {
           return {
@@ -498,27 +440,13 @@ export const progressRouter = createTRPCRouter({
           input.endDate,
         );
 
-        const sessionData = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              eq(sessionExercises.exerciseName, input.exerciseName),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate),
-            ),
-          )
-          .orderBy(workoutSessions.workoutDate); // Chronological order for PR detection
+        const sessionData = await fetchSessionMetricRows(
+          ctx.db,
+          ctx.user.id,
+          input.exerciseName,
+          startDate,
+          endDate,
+        );
 
         if (sessionData.length === 0) {
           return {
@@ -534,12 +462,19 @@ export const progressRouter = createTRPCRouter({
         let maxWeight = 0;
         let maxVolume = 0;
 
-        for (const session of sessionData) {
-          const weight = parseFloat(String(session.weight || "0"));
-          const oneRM = calculateLocalOneRM(weight, session.reps || 1);
+        const chronologicalSessions = [...sessionData].reverse();
+
+        for (const session of chronologicalSessions) {
+          const weight = parseFloat(String(session.weight ?? "0"));
+          const reps = session.reps ?? 1;
+          const sets = session.sets ?? 1;
+          const oneRM =
+            session.oneRMEstimate != null
+              ? Number(session.oneRMEstimate)
+              : calculateLocalOneRM(weight, reps || 1);
           const volume = calculateVolumeLoad(
-            session.sets || 1,
-            session.reps || 1,
+            sets || 1,
+            reps || 1,
             weight,
           );
 
@@ -548,7 +483,7 @@ export const progressRouter = createTRPCRouter({
             recentPRs.push({
               date: session.workoutDate.toISOString().split("T")[0]!,
               weight,
-              reps: session.reps || 1,
+              reps,
               type: "1RM",
               oneRMPercentage: 100,
             });
@@ -559,7 +494,7 @@ export const progressRouter = createTRPCRouter({
             recentPRs.push({
               date: session.workoutDate.toISOString().split("T")[0]!,
               weight,
-              reps: session.reps || 1,
+              reps,
               type: "Weight",
               oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
             });
@@ -570,7 +505,7 @@ export const progressRouter = createTRPCRouter({
             recentPRs.push({
               date: session.workoutDate.toISOString().split("T")[0]!,
               weight,
-              reps: session.reps || 1,
+              reps,
               type: "Volume",
               oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
             });
@@ -738,130 +673,251 @@ export const progressRouter = createTRPCRouter({
           input.endDate,
         );
 
-        const exerciseData = await ctx.db
+        const startIso = startDate.toISOString();
+        const endIso = endDate.toISOString();
+
+        const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
+        const userIdColumn = sessionExerciseMetricsView.userId;
+        const workoutDateColumn = sessionExerciseMetricsView.workoutDate;
+        const volumeLoadColumn = sessionExerciseMetricsView.volumeLoad;
+        const oneRmColumn = sessionExerciseMetricsView.oneRmEstimate;
+        const weightColumn = sessionExerciseMetricsView.weight;
+        const repsColumn = sessionExerciseMetricsView.reps;
+        const setsColumn = sessionExerciseMetricsView.sets;
+
+        if (
+          !resolvedNameColumn ||
+          !userIdColumn ||
+          !workoutDateColumn ||
+          !volumeLoadColumn ||
+          !oneRmColumn ||
+          !weightColumn ||
+          !repsColumn ||
+          !setsColumn
+        ) {
+          throw new Error("sessionExerciseMetricsView columns are not defined");
+        }
+
+        const resolvedColumn = resolvedNameColumn!;
+        const userIdCol = userIdColumn!;
+        const workoutDateCol = workoutDateColumn!;
+        const volumeLoadCol = volumeLoadColumn!;
+        const oneRmCol = oneRmColumn!;
+        const weightCol = weightColumn!;
+        const repsCol = repsColumn!;
+        const setsCol = setsColumn!;
+
+        const aggregates = await ctx.db
           .select({
-            exerciseName: sql<string>`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
-            workoutDate: workoutSessions.workoutDate,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
+            exerciseName: resolvedColumn,
+            sessionCount: sql<number>`COUNT(DISTINCT ${workoutDateCol})`,
+            totalVolume: sql<number>`COALESCE(SUM(${volumeLoadCol}), 0)`,
+            lastWorkoutDate: sql<Date | string | null>`MAX(${workoutDateCol})`,
           })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .leftJoin(
-            templateExercises,
-            eq(templateExercises.id, sessionExercises.templateExerciseId),
-          )
-          .leftJoin(
-            exerciseLinks,
-            eq(exerciseLinks.templateExerciseId, templateExercises.id),
-          )
-          .leftJoin(
-            masterExercises,
-            eq(masterExercises.id, exerciseLinks.masterExerciseId),
-          )
+          .from(sessionExerciseMetricsView)
           .where(
             and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate),
+              eq(userIdCol, ctx.user.id),
+              gte(workoutDateCol, startIso),
+              lte(workoutDateCol, endIso),
             ),
           )
-          .orderBy(desc(workoutSessions.workoutDate));
+          .groupBy(resolvedColumn);
 
-        if (exerciseData.length === 0) {
+        const aggregateStats = aggregates
+          .map((row) => {
+            const exerciseName =
+              typeof row.exerciseName === "string" && row.exerciseName.length > 0
+                ? row.exerciseName
+                : null;
+
+            const rawLastWorkoutDate = row.lastWorkoutDate as unknown;
+            const lastWorkoutDateValue = (() => {
+              if (rawLastWorkoutDate instanceof Date) {
+                return rawLastWorkoutDate;
+              }
+              if (typeof rawLastWorkoutDate === "string") {
+                const parsed = new Date(rawLastWorkoutDate);
+                return Number.isNaN(parsed.getTime()) ? null : parsed;
+              }
+              if (typeof rawLastWorkoutDate === "number") {
+                const parsed = new Date(rawLastWorkoutDate);
+                return Number.isNaN(parsed.getTime()) ? null : parsed;
+              }
+              return null;
+            })();
+
+            return {
+              exerciseName,
+              sessionCount: Number(row.sessionCount ?? 0),
+              totalVolume: Number(row.totalVolume ?? 0),
+              lastWorkoutDate: lastWorkoutDateValue,
+            };
+          })
+          .filter(
+            (row): row is {
+              exerciseName: string;
+              sessionCount: number;
+              totalVolume: number;
+              lastWorkoutDate: Date | null;
+            } => row.exerciseName !== null,
+          );
+
+        if (aggregateStats.length === 0) {
           return [];
         }
 
-        // Group by exercise name and calculate metrics
+        const exerciseNames = aggregateStats.map((row) => row.exerciseName);
+
+        const rawSeries = await ctx.db
+          .select({
+            exerciseName: resolvedColumn,
+            workoutDate: workoutDateCol,
+            weight: weightCol,
+            reps: repsCol,
+            sets: setsCol,
+            oneRMEstimate: oneRmCol,
+          })
+          .from(sessionExerciseMetricsView)
+          .where(
+            and(
+              eq(userIdCol, ctx.user.id),
+              gte(workoutDateCol, startIso),
+              lte(workoutDateCol, endIso),
+              inArray(resolvedColumn, exerciseNames),
+            ),
+          )
+          .orderBy(desc(workoutDateCol));
+
+        type SeriesRow = {
+          exerciseName: string;
+          workoutDate: Date;
+          weight: number | null;
+          reps: number | null;
+          sets: number | null;
+          oneRMEstimate: number | null;
+        };
+
+        const normalizedSeries: SeriesRow[] = rawSeries
+          .map((row) => {
+            const rawExerciseName = row.exerciseName as unknown;
+            const exerciseName =
+              typeof rawExerciseName === "string" ? rawExerciseName : null;
+
+            let workoutDate: Date | null = null;
+            const rawWorkoutDate = row.workoutDate as unknown;
+            if (rawWorkoutDate instanceof Date) {
+              workoutDate = rawWorkoutDate;
+            } else if (
+              typeof rawWorkoutDate === "string" ||
+              typeof rawWorkoutDate === "number"
+            ) {
+              const parsedDate = new Date(rawWorkoutDate);
+              workoutDate = Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+            }
+
+            if (!exerciseName || !workoutDate) {
+              return null;
+            }
+
+            return {
+              exerciseName,
+              workoutDate,
+              weight: row.weight == null ? null : Number(row.weight),
+              reps: row.reps == null ? null : Number(row.reps),
+              sets: row.sets == null ? null : Number(row.sets),
+              oneRMEstimate:
+                row.oneRMEstimate == null ? null : Number(row.oneRMEstimate),
+            } satisfies SeriesRow;
+          })
+          .filter((row): row is SeriesRow => row !== null);
+
         const exerciseMap = new Map<
           string,
           {
-            sessions: Set<string>;
+            sessionCount: number;
             totalVolume: number;
+            lastWorkoutDate: Date | null;
+            workoutDates: Date[];
             oneRMValues: number[];
-            lastWorkoutDate: Date;
           }
         >();
 
-        for (const session of exerciseData) {
-          if (!exerciseMap.has(session.exerciseName)) {
-            exerciseMap.set(session.exerciseName, {
-              sessions: new Set(),
-              totalVolume: 0,
-              oneRMValues: [],
-              lastWorkoutDate: session.workoutDate,
-            });
-          }
+        for (const stat of aggregateStats) {
+          exerciseMap.set(stat.exerciseName, {
+            sessionCount: stat.sessionCount,
+            totalVolume: stat.totalVolume,
+            lastWorkoutDate: stat.lastWorkoutDate,
+            workoutDates: [],
+            oneRMValues: [],
+          });
+        }
 
-          const data = exerciseMap.get(session.exerciseName)!;
-          data.sessions.add(session.workoutDate.toDateString());
+        for (const row of normalizedSeries) {
+          const data = exerciseMap.get(row.exerciseName);
+          if (!data) continue;
+          data.workoutDates.push(row.workoutDate);
 
-          const weight = parseFloat(String(session.weight || "0"));
-          const volume = calculateVolumeLoad(
-            session.sets || 1,
-            session.reps || 1,
-            weight,
-          );
-          data.totalVolume += volume;
+          const weight = Number(row.weight ?? 0);
+          const reps = row.reps ?? 1;
+          const oneRm =
+            row.oneRMEstimate != null
+              ? Number(row.oneRMEstimate)
+              : calculateLocalOneRM(weight, Math.max(reps, 1));
+          data.oneRMValues.push(oneRm);
 
-          const oneRM = calculateLocalOneRM(weight, session.reps || 1);
-          data.oneRMValues.push(oneRM);
-
-          if (session.workoutDate > data.lastWorkoutDate) {
-            data.lastWorkoutDate = session.workoutDate;
+          if (
+            data.lastWorkoutDate === null ||
+            row.workoutDate > data.lastWorkoutDate
+          ) {
+            data.lastWorkoutDate = row.workoutDate;
           }
         }
 
-        // Calculate trend for each exercise (last quarter vs previous quarter)
         const topExercises: TopExercise[] = [];
 
         for (const [exerciseName, data] of exerciseMap) {
-          const sessionCount = data.sessions.size;
+          if (data.sessionCount === 0) continue;
+
           const frequency = calculateFrequency(
-            [...data.sessions].map((dateStr) => new Date(dateStr)),
+            data.workoutDates,
             startDate,
             endDate,
           );
+
           const averageOneRM =
             data.oneRMValues.length > 0
-              ? data.oneRMValues.reduce((sum, val) => sum + val, 0) /
+              ? data.oneRMValues.reduce((sum, value) => sum + value, 0) /
                 data.oneRMValues.length
               : 0;
 
-          // Determine trend by comparing recent vs older 1RM values
-          const recentOneRMs = data.oneRMValues.slice(
-            0,
-            Math.ceil(data.oneRMValues.length / 2),
-          );
-          const olderOneRMs = data.oneRMValues.slice(
-            Math.ceil(data.oneRMValues.length / 2),
-          );
+          const midpoint = Math.ceil(data.oneRMValues.length / 2);
+          const recentOneRMs = data.oneRMValues.slice(0, midpoint);
+          const olderOneRMs = data.oneRMValues.slice(midpoint);
 
           let trend: "improving" | "stable" | "declining" = "stable";
           if (recentOneRMs.length > 0 && olderOneRMs.length > 0) {
             const recentAvg =
-              recentOneRMs.reduce((sum, val) => sum + val, 0) /
+              recentOneRMs.reduce((sum, value) => sum + value, 0) /
               recentOneRMs.length;
             const olderAvg =
-              olderOneRMs.reduce((sum, val) => sum + val, 0) /
+              olderOneRMs.reduce((sum, value) => sum + value, 0) /
               olderOneRMs.length;
-            const change = ((recentAvg - olderAvg) / olderAvg) * 100;
-
+            const change =
+              olderAvg === 0 ? 0 : ((recentAvg - olderAvg) / olderAvg) * 100;
             if (change > 5) trend = "improving";
             else if (change < -5) trend = "declining";
           }
 
           topExercises.push({
             exerciseName,
-            sessionCount,
+            sessionCount: data.sessionCount,
             frequency,
             totalVolume: data.totalVolume,
             averageOneRM,
-            lastTrained: data.lastWorkoutDate.toISOString().split("T")[0]!,
+            lastTrained: data.lastWorkoutDate
+              ? data.lastWorkoutDate.toISOString().split("T")[0]!
+              : "",
             trend,
           });
         }
@@ -871,7 +927,7 @@ export const progressRouter = createTRPCRouter({
           .sort((a, b) => b.frequency - a.frequency)
           .slice(0, input.limit);
       } catch (error) {
-        console.error("Error in getTopExercises:", error);
+        logger.error("Error in getTopExercises", error);
         return [];
       }
     }),
@@ -896,6 +952,7 @@ export const progressRouter = createTRPCRouter({
           const linkedExercises = await getLinkedExerciseNames(
             ctx.db,
             input.templateExerciseId,
+            ctx.user.id,
           );
           exerciseNamesToSearch = linkedExercises;
         } else if (input.exerciseName) {
@@ -1219,6 +1276,7 @@ export const progressRouter = createTRPCRouter({
           const linkedExercises = await getLinkedExerciseNames(
             ctx.db,
             input.templateExerciseId,
+            ctx.user.id,
           );
           exerciseNamesToSearch = linkedExercises;
         } else if (input.exerciseName) {
@@ -1227,29 +1285,24 @@ export const progressRouter = createTRPCRouter({
 
         if (exerciseNamesToSearch.length === 0) {
           // Get PRs for all exercises
+          const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
+          const userIdColumn = sessionExerciseMetricsView.userId;
+
+          if (!resolvedNameColumn || !userIdColumn) {
+            throw new Error("sessionExerciseMetricsView columns are not defined");
+          }
+
           const allExercises = await ctx.db
             .select({
-              exerciseName: sql<string>`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
+              exerciseName: resolvedNameColumn!,
             })
-            .from(sessionExercises)
-            .leftJoin(
-              templateExercises,
-              eq(templateExercises.id, sessionExercises.templateExerciseId),
-            )
-            .leftJoin(
-              exerciseLinks,
-              eq(exerciseLinks.templateExerciseId, templateExercises.id),
-            )
-            .leftJoin(
-              masterExercises,
-              eq(masterExercises.id, exerciseLinks.masterExerciseId),
-            )
-            .where(eq(sessionExercises.user_id, ctx.user.id))
-            .groupBy(
-              sql`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
-            );
+            .from(sessionExerciseMetricsView)
+            .where(eq(userIdColumn!, ctx.user.id))
+            .groupBy(resolvedNameColumn!);
 
-          exerciseNamesToSearch = allExercises.map((e) => e.exerciseName);
+          exerciseNamesToSearch = allExercises
+            .map((e) => e.exerciseName)
+            .filter((name): name is string => Boolean(name));
         }
 
         const personalRecords = await calculatePersonalRecords(
@@ -1436,37 +1489,63 @@ export const progressRouter = createTRPCRouter({
   getExerciseList: protectedProcedure.query(async ({ ctx }) => {
     try {
       logger.debug("Getting exercise list", { userId: ctx.user.id });
+      const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
+      const userIdColumn = sessionExerciseMetricsView.userId;
+      const workoutDateColumn = sessionExerciseMetricsView.workoutDate;
+
+      if (!resolvedNameColumn || !userIdColumn || !workoutDateColumn) {
+        throw new Error("sessionExerciseMetricsView columns are not defined");
+      }
+
+      const resolvedColumn = resolvedNameColumn!;
+      const userIdCol = userIdColumn!;
+      const workoutDateCol = workoutDateColumn!;
+
       const exercises = await ctx.db
         .select({
-          exerciseName: sql<string>`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
-          lastUsed: sql<Date>`MAX(${workoutSessions.workoutDate})`,
+          exerciseName: resolvedColumn,
+          lastUsed: sql<Date>`MAX(${workoutDateCol})`,
           totalSets: sql<number>`COUNT(*)`,
         })
-        .from(sessionExercises)
-        .innerJoin(
-          workoutSessions,
-          eq(workoutSessions.id, sessionExercises.sessionId),
-        )
-        .leftJoin(
-          templateExercises,
-          eq(templateExercises.id, sessionExercises.templateExerciseId),
-        )
-        .leftJoin(
-          exerciseLinks,
-          eq(exerciseLinks.templateExerciseId, templateExercises.id),
-        )
-        .leftJoin(
-          masterExercises,
-          eq(masterExercises.id, exerciseLinks.masterExerciseId),
-        )
-        .where(eq(sessionExercises.user_id, ctx.user.id))
-        .groupBy(
-          sql`COALESCE(${masterExercises.name}, ${sessionExercises.exerciseName})`,
-        )
-        .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
+        .from(sessionExerciseMetricsView)
+        .where(eq(userIdCol, ctx.user.id))
+        .groupBy(resolvedColumn)
+        .orderBy(desc(sql`MAX(${workoutDateCol})`));
 
-      logger.debug("Exercise list result", { count: exercises.length });
-      return exercises;
+      const normalizedExercises = exercises.map((exercise) => {
+        const exerciseName =
+          typeof exercise.exerciseName === "string" && exercise.exerciseName.length > 0
+            ? exercise.exerciseName
+            : "Unknown Exercise";
+
+        const lastUsed = (() => {
+          if (exercise.lastUsed instanceof Date) {
+            return exercise.lastUsed;
+          }
+          if (typeof exercise.lastUsed === "string") {
+            const parsed = new Date(exercise.lastUsed);
+            return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+          }
+          if (typeof exercise.lastUsed === "number") {
+            const parsed = new Date(exercise.lastUsed);
+            return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+          }
+          return new Date(0);
+        })();
+
+        return {
+          exerciseName,
+          lastUsed,
+          totalSets: Number(exercise.totalSets ?? 0),
+        };
+      });
+
+      logger.debug("Exercise list result", { count: normalizedExercises.length });
+      return normalizedExercises as Array<{
+        exerciseName: string;
+        lastUsed: Date;
+        totalSets: number;
+      }>;
     } catch (error) {
       logger.error("Error in getExerciseList", error);
       return [];
@@ -1517,87 +1596,179 @@ export function getPreviousPeriod(
   return { startDate: prevStartDate, endDate: prevEndDate };
 }
 
+type SessionMetricRow = {
+  workoutDate: Date;
+  weight: number | null;
+  reps: number | null;
+  sets: number | null;
+  unit: string | null;
+  oneRMEstimate: number | null;
+  volumeLoad: number | null;
+};
+
+async function fetchSessionMetricRows(
+  database: typeof db,
+  userId: string,
+  exerciseName: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<SessionMetricRow[]> {
+  const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
+  const userIdColumn = sessionExerciseMetricsView.userId;
+  const workoutDateColumn = sessionExerciseMetricsView.workoutDate;
+  const weightColumn = sessionExerciseMetricsView.weight;
+  const repsColumn = sessionExerciseMetricsView.reps;
+  const setsColumn = sessionExerciseMetricsView.sets;
+  const unitColumn = sessionExerciseMetricsView.unit;
+  const oneRmColumn = sessionExerciseMetricsView.oneRmEstimate;
+  const volumeLoadColumn = sessionExerciseMetricsView.volumeLoad;
+
+  if (
+    !resolvedNameColumn ||
+    !userIdColumn ||
+    !workoutDateColumn ||
+    !weightColumn ||
+    !repsColumn ||
+    !setsColumn ||
+    !unitColumn ||
+    !oneRmColumn ||
+    !volumeLoadColumn
+  ) {
+    throw new Error("sessionExerciseMetricsView columns are not defined");
+  }
+
+  const rows = await database
+    .select({
+      workoutDate: workoutDateColumn!,
+      weight: weightColumn!,
+      reps: repsColumn!,
+      sets: setsColumn!,
+      unit: unitColumn!,
+      oneRMEstimate: oneRmColumn!,
+      volumeLoad: volumeLoadColumn!,
+    })
+    .from(sessionExerciseMetricsView)
+    .where(
+      and(
+        eq(userIdColumn!, userId),
+        eq(resolvedNameColumn!, exerciseName),
+        gte(workoutDateColumn!, startDate.toISOString()),
+        lte(workoutDateColumn!, endDate.toISOString()),
+      ),
+    )
+    .orderBy(desc(workoutDateColumn!));
+
+  return rows.map((row) => {
+    const rawWorkoutDate = row.workoutDate as unknown;
+    let workoutDate: Date;
+    if (rawWorkoutDate instanceof Date) {
+      workoutDate = rawWorkoutDate;
+    } else if (typeof rawWorkoutDate === "string" || typeof rawWorkoutDate === "number") {
+      const parsed = new Date(rawWorkoutDate);
+      workoutDate = Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    } else {
+      workoutDate = new Date(0);
+    }
+
+    return {
+      workoutDate,
+      weight:
+        row.weight == null
+          ? null
+          : Number(row.weight as unknown as number | string),
+      reps:
+        row.reps == null
+          ? null
+          : Number(row.reps as unknown as number | string),
+      sets:
+        row.sets == null
+          ? null
+          : Number(row.sets as unknown as number | string),
+      unit:
+        typeof row.unit === "string" && row.unit.length > 0
+          ? row.unit
+          : null,
+      oneRMEstimate:
+        row.oneRMEstimate == null
+          ? null
+          : Number(row.oneRMEstimate as unknown as number | string),
+      volumeLoad:
+        row.volumeLoad == null
+          ? null
+          : Number(row.volumeLoad as unknown as number | string),
+    } satisfies SessionMetricRow;
+  });
+}
+
 export async function getLinkedExerciseNames(
   database: typeof db,
   templateExerciseId: number,
+  userId: string,
 ): Promise<string[]> {
   try {
-    // Check if this template exercise is linked to a master exercise
-    // Handle both real database and mock database cases
-    if (!database) {
+    const [templateRow] = await database
+      .select({
+        templateExerciseId: templateExercises.id,
+        templateName: templateExercises.exerciseName,
+        masterExerciseId: exerciseLinks.masterExerciseId,
+      })
+      .from(templateExercises)
+      .leftJoin(
+        exerciseLinks,
+        and(
+          eq(exerciseLinks.templateExerciseId, templateExercises.id),
+          eq(exerciseLinks.user_id, userId),
+        ),
+      )
+      .where(
+        and(
+          eq(templateExercises.id, templateExerciseId),
+          eq(templateExercises.user_id, userId),
+        ),
+      )
+      .limit(1);
+
+    if (!templateRow) {
       return [];
     }
 
-    // If it's a mock database with query and queryOne properties
-    if (database.query) {
-      const exerciseLink = await database.query.exerciseLinks.findFirst({
-        where: eq(exerciseLinks.templateExerciseId, templateExerciseId),
-        with: {
-          masterExercise: true,
-        },
-      });
+    const names = new Set<string>();
+    if (templateRow.templateName) {
+      names.add(templateRow.templateName);
+    }
 
-      if (exerciseLink) {
-        // Find all template exercises linked to the same master exercise
-        const linkedExercises = await database.query.exerciseLinks.findMany({
-          where: eq(
-            exerciseLinks.masterExerciseId,
-            exerciseLink.masterExerciseId,
-          ),
-          with: {
-            templateExercise: true,
-          },
-        });
+    if (!templateRow.masterExerciseId) {
+      return Array.from(names);
+    }
 
-        const exerciseNames = linkedExercises
-          .map((link) => {
-            const template = link.templateExercise;
-            if (
-              template &&
-              typeof template === "object" &&
-              !Array.isArray(template) &&
-              typeof (template as { exerciseName?: unknown }).exerciseName ===
-                "string"
-            ) {
-              return (template as { exerciseName: string }).exerciseName;
-            }
-            return null;
-          })
-          .filter((name): name is string => typeof name === "string");
+    const linkedRows = await database
+      .select({
+        exerciseName: templateExercises.exerciseName,
+      })
+      .from(exerciseLinks)
+      .innerJoin(
+        templateExercises,
+        eq(templateExercises.id, exerciseLinks.templateExerciseId),
+      )
+      .where(
+        and(
+          eq(exerciseLinks.masterExerciseId, templateRow.masterExerciseId),
+          eq(exerciseLinks.user_id, userId),
+        ),
+      );
 
-        return exerciseNames;
-      } else {
-        // Fallback to getting exercise name from templateExerciseId using queryOne if available (for mocks)
-        if (typeof (database as any).queryOne === "function") {
-          try {
-            const templateExercise: any = await (database as any).queryOne();
-            return templateExercise
-              ? [templateExercise.exerciseName as string]
-              : [];
-          } catch {
-            // If queryOne fails, continue to normal query
-          }
-        }
-
-        // Try normal query for templateExercises (for real database)
-        try {
-          const templateExercise =
-            await database.query.templateExercises.findFirst({
-              where: eq(templateExercises.id, templateExerciseId),
-            });
-
-          return templateExercise ? [templateExercise.exerciseName] : [];
-        } catch {
-          // If normal query fails, return empty array
-          return [];
-        }
+    for (const row of linkedRows) {
+      if (row.exerciseName) {
+        names.add(row.exerciseName);
       }
-    } else {
-      // If it's a mock without query property, return empty array
-      return [];
     }
+
+    return Array.from(names);
   } catch (error) {
-    console.error("Error in getLinkedExerciseNames:", error);
+    logger.error("Error in getLinkedExerciseNames", error, {
+      templateExerciseId,
+      userId,
+    });
     return [];
   }
 }
@@ -1941,37 +2112,16 @@ export async function calculatePersonalRecords(
   const records = [];
 
   for (const exerciseName of exerciseNames) {
-    let exerciseData: {
-      workoutDate: Date;
-      weight: number | null;
-      reps: number | null;
-      sets: number | null;
-      unit: string;
-    }[] = [];
+    let exerciseData: SessionMetricRow[] = [];
 
     try {
-      exerciseData = await ctx.db
-        .select({
-          workoutDate: workoutSessions.workoutDate,
-          weight: sessionExercises.weight,
-          reps: sessionExercises.reps,
-          sets: sessionExercises.sets,
-          unit: sessionExercises.unit,
-        })
-        .from(sessionExercises)
-        .innerJoin(
-          workoutSessions,
-          eq(workoutSessions.id, sessionExercises.sessionId),
-        )
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            eq(sessionExercises.exerciseName, exerciseName),
-            gte(workoutSessions.workoutDate, startDate),
-            lte(workoutSessions.workoutDate, endDate),
-          ),
-        )
-        .orderBy(desc(workoutSessions.workoutDate));
+      exerciseData = await fetchSessionMetricRows(
+        ctx.db,
+        ctx.user.id,
+        exerciseName,
+        startDate,
+        endDate,
+      );
     } catch (error) {
       console.error("Error fetching exercise data for", exerciseName, error);
       // When there's a database error, return empty array (as expected by the test)
@@ -2011,7 +2161,7 @@ export async function calculatePersonalRecords(
         weight: parseFloat(String(weightPR.weight || "0")),
         reps: weightPR.reps || 0,
         sets: weightPR.sets || 0,
-        unit: weightPR.unit,
+        unit: weightPR.unit ?? "kg",
         workoutDate: weightPR.workoutDate,
         oneRMEstimate: calculateLocalOneRM(
           parseFloat(String(weightPR.weight || "0")),
@@ -2031,7 +2181,7 @@ export async function calculatePersonalRecords(
         weight: parseFloat(String(volumePR.weight || "0")),
         reps: volumePR.reps || 0,
         sets: volumePR.sets || 0,
-        unit: volumePR.unit,
+        unit: volumePR.unit ?? "kg",
         workoutDate: volumePR.workoutDate,
         totalVolume: volume,
       });

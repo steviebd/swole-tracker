@@ -265,6 +265,9 @@ export const whoopRouter = createTRPCRouter({
           resting_heart_rate: whoopRecovery.resting_heart_rate,
           resting_heart_rate_baseline:
             whoopRecovery.resting_heart_rate_baseline,
+          respiratory_rate: whoopRecovery.respiratory_rate,
+          respiratory_rate_baseline:
+            whoopRecovery.respiratory_rate_baseline,
           raw_data: whoopRecovery.raw_data,
           date: whoopRecovery.date,
         })
@@ -300,6 +303,9 @@ export const whoopRouter = createTRPCRouter({
         hrv_baseline_ms: latestRecovery.hrv_rmssd_baseline || null,
         rhr_now_bpm: latestRecovery.resting_heart_rate || null,
         rhr_baseline_bpm: latestRecovery.resting_heart_rate_baseline || null,
+        respiratory_rate: latestRecovery.respiratory_rate || null,
+        respiratory_rate_baseline:
+          latestRecovery.respiratory_rate_baseline || null,
         yesterday_strain: null, // Could be calculated from cycles table if needed
         raw_data: {
           recovery: latestRecovery.raw_data,
@@ -335,6 +341,8 @@ export const whoopRouter = createTRPCRouter({
         hrv_rmssd_baseline: whoopRecovery.hrv_rmssd_baseline,
         resting_heart_rate: whoopRecovery.resting_heart_rate,
         resting_heart_rate_baseline: whoopRecovery.resting_heart_rate_baseline,
+        respiratory_rate: whoopRecovery.respiratory_rate,
+        respiratory_rate_baseline: whoopRecovery.respiratory_rate_baseline,
         raw_data: whoopRecovery.raw_data,
         createdAt: whoopRecovery.createdAt,
       })
@@ -357,6 +365,10 @@ export const whoopRouter = createTRPCRouter({
         average_heart_rate: whoopCycles.average_heart_rate,
         max_heart_rate: whoopCycles.max_heart_rate,
         kilojoule: whoopCycles.kilojoule,
+        percent_recorded: whoopCycles.percent_recorded,
+        distance_meter: whoopCycles.distance_meter,
+        altitude_gain_meter: whoopCycles.altitude_gain_meter,
+        altitude_change_meter: whoopCycles.altitude_change_meter,
         raw_data: whoopCycles.raw_data,
         createdAt: whoopCycles.createdAt,
       })
@@ -385,6 +397,15 @@ export const whoopRouter = createTRPCRouter({
         arousal_time_milli: whoopSleep.arousal_time_milli,
         disturbance_count: whoopSleep.disturbance_count,
         sleep_latency_milli: whoopSleep.sleep_latency_milli,
+        sleep_consistency_percentage:
+          whoopSleep.sleep_consistency_percentage,
+        sleep_need_baseline_milli: whoopSleep.sleep_need_baseline_milli,
+        sleep_need_from_sleep_debt_milli:
+          whoopSleep.sleep_need_from_sleep_debt_milli,
+        sleep_need_from_recent_strain_milli:
+          whoopSleep.sleep_need_from_recent_strain_milli,
+        sleep_need_from_recent_nap_milli:
+          whoopSleep.sleep_need_from_recent_nap_milli,
         raw_data: whoopSleep.raw_data,
         createdAt: whoopSleep.createdAt,
       })
