@@ -48,6 +48,13 @@ const exerciseInputSchema = z.object({
 
 import { logger } from "~/lib/logger";
 import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
+import {
+  chunkArray,
+  chunkedBatch,
+  getInsertChunkSize,
+  SQLITE_VARIABLE_LIMIT,
+  whereInChunks,
+} from "~/server/db/chunk-utils";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -56,19 +63,17 @@ export const workoutsRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       const staleThreshold = new Date(Date.now() - 4 * 60 * 60 * 1000);
 
-      await ctx.db
-        .delete(workoutSessions)
-        .where(
-          and(
-            eq(workoutSessions.user_id, ctx.user.id),
-            lt(workoutSessions.createdAt, staleThreshold),
-            sql`NOT EXISTS (
+      await ctx.db.delete(workoutSessions).where(
+        and(
+          eq(workoutSessions.user_id, ctx.user.id),
+          lt(workoutSessions.createdAt, staleThreshold),
+          sql`NOT EXISTS (
               SELECT 1 FROM session_exercise se
               WHERE se.sessionId = ${workoutSessions.id}
                 AND se.user_id = ${ctx.user.id}
             )`,
-          ),
-        );
+        ),
+      );
 
       logger.debug("Getting recent workouts", { limit: input.limit });
       const sessions = await ctx.db.query.workoutSessions.findMany({
@@ -353,6 +358,7 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         templateId: z.number().optional(),
         workoutDate: z.date().default(() => new Date()),
+        copyFromSessionId: z.number().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -431,6 +437,39 @@ export const workoutsRouter = createTRPCRouter({
           throw new Error("Failed to create workout session");
         }
 
+        // If copying from another session, copy the exercises
+        if (input.copyFromSessionId) {
+          const sourceExercises = await ctx.db.query.sessionExercises.findMany({
+            where: and(
+              eq(sessionExercises.sessionId, input.copyFromSessionId),
+              eq(sessionExercises.user_id, ctx.user.id),
+            ),
+          });
+
+          if (sourceExercises.length > 0) {
+            // Chunk the inserts to avoid D1 parameter limits
+            const exerciseRows = sourceExercises.map((ex) => ({
+              sessionId: session.id,
+              user_id: ctx.user.id,
+              exerciseName: ex.exerciseName,
+              weight: ex.weight,
+              reps: ex.reps,
+              sets: ex.sets,
+              unit: ex.unit,
+              setOrder: ex.setOrder,
+              templateExerciseId: ex.templateExerciseId,
+              one_rm_estimate: ex.one_rm_estimate,
+              volume_load: ex.volume_load,
+            }));
+            await chunkedBatch(
+              ctx.db,
+              exerciseRows,
+              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
+              { limit: 50 },
+            ); // Lower limit for D1 safety
+          }
+        }
+
         const result = {
           sessionId: session.id,
           template,
@@ -506,8 +545,7 @@ export const workoutsRouter = createTRPCRouter({
                 set.rest !== undefined,
             )
             .map((set, setIndex) => {
-              const templateExerciseId =
-                exercise.templateExerciseId ?? null;
+              const templateExerciseId = exercise.templateExerciseId ?? null;
               const hasValidTemplateExercise =
                 templateExerciseId !== null &&
                 resolvedNameLookup.has(templateExerciseId);
@@ -530,10 +568,8 @@ export const workoutsRouter = createTRPCRouter({
                 ? templateExerciseId
                 : null;
 
-              const weight =
-                typeof set.weight === "number" ? set.weight : null;
-              const reps =
-                typeof set.reps === "number" ? set.reps : null;
+              const weight = typeof set.weight === "number" ? set.weight : null;
+              const reps = typeof set.reps === "number" ? set.reps : null;
               const sets =
                 typeof set.sets === "number"
                   ? set.sets
@@ -583,19 +619,13 @@ export const workoutsRouter = createTRPCRouter({
         );
 
         if (setsToInsert.length > 0) {
-          let chunkSize = setsToInsert.length;
+          const chunkSize = getInsertChunkSize(setsToInsert);
           try {
-            const columnsPerRow = Object.keys(setsToInsert[0] ?? {}).length;
-            const SQLITE_VARIABLE_LIMIT = 90; // conservative cap observed in D1 dev environment
-            chunkSize = Math.max(
-              1,
-              Math.floor(SQLITE_VARIABLE_LIMIT / Math.max(columnsPerRow, 1)),
+            await chunkedBatch(
+              ctx.db,
+              setsToInsert,
+              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
             );
-
-            for (let i = 0; i < setsToInsert.length; i += chunkSize) {
-              const chunk = setsToInsert.slice(i, i + chunkSize);
-              await ctx.db.insert(sessionExercises).values(chunk);
-            }
           } catch (error) {
             logger.error(
               "workouts.save.insert_failed",
@@ -703,21 +733,36 @@ export const workoutsRouter = createTRPCRouter({
         return { success: true, updatedCount: 0 };
       }
 
-      const existingSets = await ctx.db
-        .select({
-          id: sessionExercises.id,
-          exerciseName: sessionExercises.exerciseName,
-          setOrder: sessionExercises.setOrder,
-        })
-        .from(sessionExercises)
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            eq(sessionExercises.sessionId, input.sessionId),
-            inArray(sessionExercises.exerciseName, exerciseNames),
-          ),
-        )
-        .orderBy(sessionExercises.setOrder);
+      let existingSets: Array<{
+        id: number;
+        exerciseName: string;
+        setOrder: number | null;
+      }> = [];
+
+      await whereInChunks(exerciseNames, async (nameChunk) => {
+        const exerciseCondition =
+          nameChunk.length === 1
+            ? eq(sessionExercises.exerciseName, nameChunk[0]!)
+            : inArray(sessionExercises.exerciseName, nameChunk);
+
+        const chunkSets = await ctx.db
+          .select({
+            id: sessionExercises.id,
+            exerciseName: sessionExercises.exerciseName,
+            setOrder: sessionExercises.setOrder,
+          })
+          .from(sessionExercises)
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.sessionId, input.sessionId),
+              exerciseCondition,
+            ),
+          )
+          .orderBy(sessionExercises.setOrder);
+
+        existingSets = existingSets.concat(chunkSets);
+      });
 
       const setsByExercise = new Map<
         string,
@@ -798,31 +843,40 @@ export const workoutsRouter = createTRPCRouter({
         return { success: true, updatedCount: 0 };
       }
 
-      const ids = Array.from(updatesMap.keys());
+      const updateEntries = Array.from(updatesMap.entries());
+      const perRowVariables = 3; // weight, reps, unit
+      const updateChunkSize = Math.max(
+        1,
+        Math.floor(SQLITE_VARIABLE_LIMIT / Math.max(perRowVariables, 1)),
+      );
 
-      const weightCases = Array.from(updatesMap.entries())
-        .map(([id, update]) => sql`WHEN ${id} THEN ${update.weight}`)
-        .join(" ");
-      const repsCases = Array.from(updatesMap.entries())
-        .map(([id, update]) => sql`WHEN ${id} THEN ${update.reps}`)
-        .join(" ");
-      const unitCases = Array.from(updatesMap.entries())
-        .map(([id, update]) => sql`WHEN ${id} THEN ${update.unit}`)
-        .join(" ");
+      for (const chunk of chunkArray(updateEntries, updateChunkSize)) {
+        const ids = chunk.map(([id]) => id);
 
-      await ctx.db
-        .update(sessionExercises)
-        .set({
-          weight: sql`CASE id ${weightCases} END`,
-          reps: sql`CASE id ${repsCases} END`,
-          unit: sql`CASE id ${unitCases} END`,
-        })
-        .where(
-          and(
-            inArray(sessionExercises.id, ids),
-            eq(sessionExercises.user_id, ctx.user.id),
-          ),
-        );
+        const weightCases = chunk
+          .map(([id, update]) => sql`WHEN ${id} THEN ${update.weight}`)
+          .join(" ");
+        const repsCases = chunk
+          .map(([id, update]) => sql`WHEN ${id} THEN ${update.reps}`)
+          .join(" ");
+        const unitCases = chunk
+          .map(([id, update]) => sql`WHEN ${id} THEN ${update.unit}`)
+          .join(" ");
+
+        await ctx.db
+          .update(sessionExercises)
+          .set({
+            weight: sql`CASE id ${weightCases} END`,
+            reps: sql`CASE id ${repsCases} END`,
+            unit: sql`CASE id ${unitCases} END`,
+          })
+          .where(
+            and(
+              inArray(sessionExercises.id, ids),
+              eq(sessionExercises.user_id, ctx.user.id),
+            ),
+          );
+      }
 
       return { success: true, updatedCount: updatesMap.size };
     }),
@@ -930,7 +984,11 @@ export const workoutsRouter = createTRPCRouter({
           );
 
           if (setsToInsert.length > 0) {
-            await ctx.db.insert(sessionExercises).values(setsToInsert);
+            await chunkedBatch(
+              ctx.db,
+              setsToInsert,
+              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
+            );
           }
 
           // Generate debrief if there are sets

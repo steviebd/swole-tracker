@@ -12,6 +12,7 @@ import {
   calculateOneRM,
   calculateVolumeLoad,
 } from "~/server/api/utils/exercise-calculations";
+import { chunkedBatch, whereInChunks } from "./chunk-utils";
 
 const computeOneRmEstimate = (
   weight: number | null | undefined,
@@ -48,23 +49,36 @@ export const loadResolvedExerciseNameMap = async (
     return new Map();
   }
 
-  const rows = await database
-    .select({
-      templateExerciseId: templateExercises.id,
-      templateName: templateExercises.exerciseName,
-      masterName: masterExercises.name,
-      masterExerciseId: exerciseLinks.masterExerciseId,
-    })
-    .from(templateExercises)
-    .leftJoin(
-      exerciseLinks,
-      eq(exerciseLinks.templateExerciseId, templateExercises.id),
-    )
-    .leftJoin(
-      masterExercises,
-      eq(masterExercises.id, exerciseLinks.masterExerciseId),
-    )
-    .where(inArray(templateExercises.id, templateExerciseIds));
+  type Row = {
+    templateExerciseId: number;
+    templateName: string | null;
+    masterName: string | null;
+    masterExerciseId: number | null;
+  };
+
+  const rows: Row[] = [];
+
+  await whereInChunks(templateExerciseIds, async (idChunk) => {
+    const chunkRows = await database
+      .select({
+        templateExerciseId: templateExercises.id,
+        templateName: templateExercises.exerciseName,
+        masterName: masterExercises.name,
+        masterExerciseId: exerciseLinks.masterExerciseId,
+      })
+      .from(templateExercises)
+      .leftJoin(
+        exerciseLinks,
+        eq(exerciseLinks.templateExerciseId, templateExercises.id),
+      )
+      .leftJoin(
+        masterExercises,
+        eq(masterExercises.id, exerciseLinks.masterExerciseId),
+      )
+      .where(inArray(templateExercises.id, idChunk));
+
+    rows.push(...chunkRows);
+  });
 
   const map: ResolvedExerciseNameMap = new Map();
 
@@ -164,10 +178,25 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
         workoutDate: workout.workoutDate,
       }));
 
-      const sessions = await tx
-        .insert(workoutSessions)
-        .values(sessionsToInsert)
-        .returning({ id: workoutSessions.id });
+      let sessions: Array<{ id: number }> = [];
+      if (sessionsToInsert.length > 0) {
+        const sessionResults = await chunkedBatch(
+          tx,
+          sessionsToInsert,
+          (chunk) =>
+            tx
+              .insert(workoutSessions)
+              .values(chunk)
+              .returning({ id: workoutSessions.id }),
+        );
+        sessions = (
+          sessionResults as Array<Array<{ id: number }>>
+        ).flat();
+
+        if (sessions.length !== workouts.length) {
+          throw new Error("Mismatch between inserted sessions and payload");
+        }
+      }
 
       // Prepare all exercises for batch insert
       const allExercises = [];
@@ -210,7 +239,11 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
 
       // Batch insert all exercises
       if (allExercises.length > 0) {
-        await tx.insert(sessionExercises).values(allExercises);
+        await chunkedBatch(
+          tx,
+          allExercises,
+          (chunk) => tx.insert(sessionExercises).values(chunk),
+        );
       }
 
       // Return session IDs with workout data
@@ -393,7 +426,11 @@ export const batchCreateMasterExerciseLinks = async (
 
         // Batch insert links (ignore duplicates)
         try {
-          await tx.insert(exerciseLinks).values(linksToCreate);
+          await chunkedBatch(
+            tx,
+            linksToCreate,
+            (chunk) => tx.insert(exerciseLinks).values(chunk),
+          );
         } catch {
           // Handle duplicate key constraint - update existing links
           for (const link of linksToCreate) {
@@ -409,18 +446,20 @@ export const batchCreateMasterExerciseLinks = async (
         const resolvedName =
           masterExercise.name ?? firstExercise.exerciseName;
 
-        await tx
-          .update(sessionExercises)
-          .set({ resolvedExerciseName: resolvedName })
-          .where(
-            and(
-              eq(sessionExercises.user_id, userId),
-              inArray(
-                sessionExercises.templateExerciseId,
-                linksToCreate.map((link) => link.templateExerciseId),
-              ),
-            ),
-          );
+        await whereInChunks(
+          linksToCreate.map((link) => link.templateExerciseId),
+          async (templateIds) => {
+            await tx
+              .update(sessionExercises)
+              .set({ resolvedExerciseName: resolvedName })
+              .where(
+                and(
+                  eq(sessionExercises.user_id, userId),
+                  inArray(sessionExercises.templateExerciseId, templateIds),
+                ),
+              );
+          },
+        );
 
         results.push({
           masterExerciseId: masterExercise.id,
@@ -477,12 +516,16 @@ export const batchDeleteWorkouts = async (
   try {
     return await dbClient.transaction(async (tx) => {
       // Verify ownership of all sessions first
-      const ownedSessions = await tx.query.workoutSessions.findMany({
-        where: and(
-          eq(workoutSessions.user_id, userId),
-          inArray(workoutSessions.id, sessionIds),
-        ),
-        columns: { id: true },
+      let ownedSessions: Array<{ id: number }> = [];
+      await whereInChunks(sessionIds, async (idChunk) => {
+        const chunkSessions = await tx.query.workoutSessions.findMany({
+          where: and(
+            eq(workoutSessions.user_id, userId),
+            inArray(workoutSessions.id, idChunk),
+          ),
+          columns: { id: true },
+        });
+        ownedSessions = ownedSessions.concat(chunkSessions);
       });
 
       const validSessionIds = ownedSessions.map((s) => s.id);
@@ -491,17 +534,22 @@ export const batchDeleteWorkouts = async (
         throw new Error("No valid sessions found for deletion");
       }
 
-      const deleteResult = await tx
-        .delete(workoutSessions)
-        .where(inArray(workoutSessions.id, validSessionIds));
+      let deletedCount = 0;
+      await whereInChunks(validSessionIds, async (idChunk) => {
+        const deleteResult = await tx
+          .delete(workoutSessions)
+          .where(inArray(workoutSessions.id, idChunk));
 
-      const deletedCount =
-        typeof deleteResult === "object" &&
-        deleteResult !== null &&
-        "changes" in deleteResult &&
-        typeof deleteResult.changes === "number"
-          ? deleteResult.changes
-          : validSessionIds.length;
+        const changes =
+          typeof deleteResult === "object" &&
+          deleteResult !== null &&
+          "changes" in deleteResult &&
+          typeof deleteResult.changes === "number"
+            ? deleteResult.changes
+            : idChunk.length;
+
+        deletedCount += changes;
+      });
 
       const duration = Date.now() - startTime;
       log.debug("Batch workout deletion completed", {

@@ -16,6 +16,7 @@ import {
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
+import { whereInChunks } from "~/server/db/chunk-utils";
 
 type RecoveryInsert = typeof whoopRecovery.$inferInsert;
 type CycleInsert = typeof whoopCycles.$inferInsert;
@@ -354,24 +355,33 @@ async function syncRecovery(
     }
 
     // Recovery records in v2 API use sleep_id as identifier, not a top-level id
-    const sleepIds = recoveries.map((r) => r.sleep_id).filter(Boolean);
+    const sleepIds = recoveries
+      .map((r) => (r.sleep_id != null ? r.sleep_id.toString() : null))
+      .filter((id): id is string => Boolean(id));
 
-    const existingRecoveries = await db
-      .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
-      .from(whoopRecovery)
-      .where(
-        and(
-          eq(whoopRecovery.user_id, userId),
-          inArray(whoopRecovery.whoop_recovery_id, sleepIds),
-        ),
-      );
+    const existingRecoveries: Array<{ whoopRecoveryId: string | null }> = [];
+    await whereInChunks(sleepIds, async (idChunk) => {
+      const chunkRecoveries = await db
+        .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
+        .from(whoopRecovery)
+        .where(
+          and(
+            eq(whoopRecovery.user_id, userId),
+            inArray(whoopRecovery.whoop_recovery_id, idChunk),
+          ),
+        );
+      existingRecoveries.push(...chunkRecoveries);
+    });
 
     const existingIds = new Set(
-      existingRecoveries.map((r) => r.whoopRecoveryId),
+      existingRecoveries
+        .map((r) => r.whoopRecoveryId ?? undefined)
+        .filter(Boolean),
     );
-    const newRecoveries = recoveries.filter(
-      (r) => r.sleep_id && !existingIds.has(r.sleep_id),
-    );
+    const newRecoveries = recoveries.filter((r) => {
+      const id = r.sleep_id != null ? r.sleep_id.toString() : null;
+      return id !== null && !existingIds.has(id);
+    });
 
     if (newRecoveries.length === 0) {
       return 0;
@@ -465,21 +475,34 @@ async function syncCycles(
     // Fetched cycles from WHOOP API
     if (cycles.length === 0) return 0;
 
-    const existingCycles = await db
-      .select({ whoopCycleId: whoopCycles.whoop_cycle_id })
-      .from(whoopCycles)
-      .where(
-        and(
-          eq(whoopCycles.user_id, userId),
-          inArray(
-            whoopCycles.whoop_cycle_id,
-            cycles.map((c) => c.id),
-          ),
-        ),
-      );
+    const cycleIds = cycles
+      .map((c) => (c.id != null ? c.id.toString() : null))
+      .filter((id): id is string => Boolean(id));
 
-    const existingIds = new Set(existingCycles.map((c) => c.whoopCycleId));
-    const newCycles = cycles.filter((c) => !existingIds.has(c.id));
+    const existingCycles: Array<{ whoopCycleId: string | null }> = [];
+    await whereInChunks(
+      cycleIds,
+      async (idChunk) => {
+        const chunkCycles = await db
+          .select({ whoopCycleId: whoopCycles.whoop_cycle_id })
+          .from(whoopCycles)
+          .where(
+            and(
+              eq(whoopCycles.user_id, userId),
+              inArray(whoopCycles.whoop_cycle_id, idChunk),
+            ),
+          );
+        existingCycles.push(...chunkCycles);
+      },
+    );
+
+    const existingIds = new Set(
+      existingCycles.map((c) => c.whoopCycleId ?? undefined).filter(Boolean),
+    );
+    const newCycles = cycles.filter((c) => {
+      const id = c.id != null ? c.id.toString() : null;
+      return id !== null && !existingIds.has(id);
+    });
 
     if (newCycles.length === 0) {
       return 0;
@@ -566,21 +589,33 @@ async function syncSleep(
     // Fetched sleep records from WHOOP API
     if (sleeps.length === 0) return 0;
 
-    const existingSleeps = await db
-      .select({ whoopSleepId: whoopSleep.whoop_sleep_id })
-      .from(whoopSleep)
-      .where(
-        and(
-          eq(whoopSleep.user_id, userId),
-          inArray(
-            whoopSleep.whoop_sleep_id,
-            sleeps.map((s) => s.id),
-          ),
-        ),
-      );
+    const sleepIds = sleeps
+      .map((s) => (s.id != null ? s.id.toString() : null))
+      .filter((id): id is string => Boolean(id));
 
-    const existingIds = new Set(existingSleeps.map((s) => s.whoopSleepId));
-    const newSleeps = sleeps.filter((s) => !existingIds.has(s.id));
+    const existingSleeps: Array<{ whoopSleepId: string | null }> = [];
+    await whereInChunks(sleepIds, async (idChunk) => {
+      const chunkSleeps = await db
+        .select({ whoopSleepId: whoopSleep.whoop_sleep_id })
+        .from(whoopSleep)
+        .where(
+          and(
+            eq(whoopSleep.user_id, userId),
+            inArray(whoopSleep.whoop_sleep_id, idChunk),
+          ),
+        );
+      existingSleeps.push(...chunkSleeps);
+    });
+
+    const existingIds = new Set(
+      existingSleeps
+        .map((s) => s.whoopSleepId ?? undefined)
+        .filter(Boolean),
+    );
+    const newSleeps = sleeps.filter((s) => {
+      const id = s.id != null ? s.id.toString() : null;
+      return id !== null && !existingIds.has(id);
+    });
 
     if (newSleeps.length === 0) {
       return 0;

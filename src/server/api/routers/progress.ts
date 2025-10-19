@@ -21,6 +21,7 @@ import {
   getDateRange as getDateRangeFromUtils,
   calculateFrequency,
 } from "~/server/api/utils/exercise-calculations";
+import { SQLITE_VARIABLE_LIMIT, whereInChunks } from "~/server/db/chunk-utils";
 import type {
   ExerciseStrengthProgression,
   ExerciseVolumeProgression,
@@ -769,26 +770,6 @@ export const progressRouter = createTRPCRouter({
 
         const exerciseNames = aggregateStats.map((row) => row.exerciseName);
 
-        const rawSeries = await ctx.db
-          .select({
-            exerciseName: resolvedColumn,
-            workoutDate: workoutDateCol,
-            weight: weightCol,
-            reps: repsCol,
-            sets: setsCol,
-            oneRMEstimate: oneRmCol,
-          })
-          .from(sessionExerciseMetricsView)
-          .where(
-            and(
-              eq(userIdCol, ctx.user.id),
-              gte(workoutDateCol, startIso),
-              lte(workoutDateCol, endIso),
-              inArray(resolvedColumn, exerciseNames),
-            ),
-          )
-          .orderBy(desc(workoutDateCol));
-
         type SeriesRow = {
           exerciseName: string;
           workoutDate: Date;
@@ -798,39 +779,73 @@ export const progressRouter = createTRPCRouter({
           oneRMEstimate: number | null;
         };
 
-        const normalizedSeries: SeriesRow[] = rawSeries
-          .map((row) => {
-            const rawExerciseName = row.exerciseName as unknown;
-            const exerciseName =
-              typeof rawExerciseName === "string" ? rawExerciseName : null;
+        let normalizedSeries: SeriesRow[] = [];
 
-            let workoutDate: Date | null = null;
-            const rawWorkoutDate = row.workoutDate as unknown;
-            if (rawWorkoutDate instanceof Date) {
-              workoutDate = rawWorkoutDate;
-            } else if (
-              typeof rawWorkoutDate === "string" ||
-              typeof rawWorkoutDate === "number"
-            ) {
-              const parsedDate = new Date(rawWorkoutDate);
-              workoutDate = Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
-            }
+        await whereInChunks(exerciseNames, async (nameChunk) => {
+          const chunkSeries = await ctx.db
+            .select({
+              exerciseName: resolvedColumn,
+              workoutDate: workoutDateCol,
+              weight: weightCol,
+              reps: repsCol,
+              sets: setsCol,
+              oneRMEstimate: oneRmCol,
+            })
+            .from(sessionExerciseMetricsView)
+            .where(
+              and(
+                eq(userIdCol, ctx.user.id),
+                gte(workoutDateCol, startIso),
+                lte(workoutDateCol, endIso),
+                inArray(resolvedColumn, nameChunk),
+              ),
+            )
+            .orderBy(desc(workoutDateCol));
 
-            if (!exerciseName || !workoutDate) {
-              return null;
-            }
+          const chunkNormalized = chunkSeries
+            .map((row) => {
+              const rawExerciseName = row.exerciseName as unknown;
+              const exerciseName =
+                typeof rawExerciseName === "string" ? rawExerciseName : null;
 
-            return {
-              exerciseName,
-              workoutDate,
-              weight: row.weight == null ? null : Number(row.weight),
-              reps: row.reps == null ? null : Number(row.reps),
-              sets: row.sets == null ? null : Number(row.sets),
-              oneRMEstimate:
-                row.oneRMEstimate == null ? null : Number(row.oneRMEstimate),
-            } satisfies SeriesRow;
-          })
-          .filter((row): row is SeriesRow => row !== null);
+              let workoutDate: Date | null = null;
+              const rawWorkoutDate = row.workoutDate as unknown;
+              if (rawWorkoutDate instanceof Date) {
+                workoutDate = rawWorkoutDate;
+              } else if (
+                typeof rawWorkoutDate === "string" ||
+                typeof rawWorkoutDate === "number"
+              ) {
+                const parsedDate = new Date(rawWorkoutDate);
+                workoutDate = Number.isNaN(parsedDate.getTime())
+                  ? null
+                  : parsedDate;
+              }
+
+              if (!exerciseName || !workoutDate) {
+                return null;
+              }
+
+              return {
+                exerciseName,
+                workoutDate,
+                weight: row.weight == null ? null : Number(row.weight),
+                reps: row.reps == null ? null : Number(row.reps),
+                sets: row.sets == null ? null : Number(row.sets),
+                oneRMEstimate:
+                  row.oneRMEstimate == null
+                    ? null
+                    : Number(row.oneRMEstimate),
+              } satisfies SeriesRow;
+            })
+            .filter((row): row is SeriesRow => row !== null);
+
+          normalizedSeries = normalizedSeries.concat(chunkNormalized);
+        });
+
+        normalizedSeries.sort(
+          (a, b) => b.workoutDate.getTime() - a.workoutDate.getTime(),
+        );
 
         const exerciseMap = new Map<
           string,
@@ -964,54 +979,105 @@ export const progressRouter = createTRPCRouter({
         }
 
         // Get all session exercises for the specified time range and exercises
-        const whereConditions = [
+        const baseConditions = [
           eq(sessionExercises.user_id, ctx.user.id),
           gte(workoutSessions.workoutDate, startDate),
           lte(workoutSessions.workoutDate, endDate),
         ];
 
-        // Add exercise name filter
-        const exerciseCondition =
-          exerciseNamesToSearch.length === 1
-            ? eq(sessionExercises.exerciseName, exerciseNamesToSearch[0]!)
-            : inArray(sessionExercises.exerciseName, exerciseNamesToSearch);
+        let progressRows: ProgressDataRow[] = [];
 
-        whereConditions.push(exerciseCondition);
+        await whereInChunks(
+          exerciseNamesToSearch,
+          async (nameChunk) => {
+          const exerciseCondition =
+            nameChunk.length === 1
+              ? eq(sessionExercises.exerciseName, nameChunk[0]!)
+              : inArray(sessionExercises.exerciseName, nameChunk);
 
-        const progressData = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            exerciseName: sessionExercises.exerciseName,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(and(...whereConditions))
-          .orderBy(
-            desc(workoutSessions.workoutDate),
-            desc(sessionExercises.weight),
-          );
+          const whereConditions = [...baseConditions, exerciseCondition];
 
-        // Add oneRMEstimate to progress data
-        const enhancedProgressData: ProgressDataRow[] = progressData.map(
-          (item) => ({
-            ...item,
-            weight: item.weight ? String(item.weight) : null,
-            oneRMEstimate: calculateLocalOneRM(
-              parseFloat(String(item.weight || "0")),
-              item.reps || 1,
-            ),
-          }),
+          const chunkProgressData = await ctx.db
+            .select({
+              workoutDate: workoutSessions.workoutDate,
+              exerciseName: sessionExercises.exerciseName,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+              sets: sessionExercises.sets,
+              unit: sessionExercises.unit,
+            })
+            .from(sessionExercises)
+            .innerJoin(
+              workoutSessions,
+              eq(workoutSessions.id, sessionExercises.sessionId),
+            )
+            .where(and(...whereConditions))
+            .orderBy(
+              desc(workoutSessions.workoutDate),
+              desc(sessionExercises.weight),
+            );
+
+          const normalizedChunk = chunkProgressData
+            .map((item) => {
+              const workoutDate =
+                item.workoutDate instanceof Date
+                  ? item.workoutDate
+                  : new Date(item.workoutDate ?? 0);
+
+              if (!(workoutDate instanceof Date) || Number.isNaN(+workoutDate)) {
+                return null;
+              }
+
+              const exerciseName =
+                typeof item.exerciseName === "string"
+                  ? item.exerciseName
+                  : String(item.exerciseName ?? "").trim();
+
+              if (!exerciseName) {
+                return null;
+              }
+
+              const weightValue =
+                item.weight == null ? null : Number(item.weight);
+
+              const unitValue =
+                item.unit === "lbs" || item.unit === "kg"
+                  ? item.unit
+                  : "kg";
+
+              return {
+                workoutDate,
+                exerciseName,
+                weight: weightValue == null ? null : String(weightValue),
+                reps: item.reps ?? null,
+                sets: item.sets ?? null,
+                unit: unitValue,
+                oneRMEstimate: calculateLocalOneRM(
+                  weightValue ?? 0,
+                  item.reps ?? 1,
+                ),
+              } satisfies ProgressDataRow;
+            })
+            .filter((row): row is ProgressDataRow => row !== null);
+
+          progressRows = progressRows.concat(normalizedChunk);
+          },
+          SQLITE_VARIABLE_LIMIT,
         );
 
+        progressRows = progressRows.sort((a, b) => {
+          const dateA = a.workoutDate.getTime();
+          const dateB = b.workoutDate.getTime();
+          if (dateA === dateB) {
+            const weightA = a.weight ? Number(a.weight) : -Infinity;
+            const weightB = b.weight ? Number(b.weight) : -Infinity;
+            return weightB - weightA;
+          }
+          return dateB - dateA;
+        });
+
         // Process data to get top set per workout per exercise
-        const topSets = processTopSets(enhancedProgressData);
+        const topSets = processTopSets(progressRows);
 
         return topSets;
       } catch (error) {
