@@ -89,44 +89,14 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   const saveDisabled = useMemo(() => {
     // Always disable if we're currently saving
     if (saving) return true;
-    
-    // If no prefs loaded yet, allow initial save
-    if (!prefs) return false;
-    
-    const pe =
-      "predictive_defaults_enabled" in prefs
-        ? Boolean(prefs.predictive_defaults_enabled ?? false)
-        : false;
-    const rs =
-      "right_swipe_action" in prefs
-        ? ((prefs.right_swipe_action ?? "collapse_expand") as RightSwipeAction)
-        : ("collapse_expand" as RightSwipeAction);
-    const wu =
-      "defaultWeightUnit" in prefs
-        ? (prefs.defaultWeightUnit ?? "kg")
-        : "kg";
-    const lt =
-      "leftSwipeThreshold" in prefs
-        ? String(prefs.leftSwipeThreshold ?? 120)
-        : "120";
-    const rt =
-      "rightSwipeThreshold" in prefs
-        ? String(prefs.rightSwipeThreshold ?? 120)
-        : "120";
-    
-    // Only disable if nothing has changed
-    return (
-      pe === predictiveEnabled &&
-      rs === rightSwipeAction &&
-      wu === defaultWeightUnit &&
-      lt === leftSwipeThreshold &&
-      rt === rightSwipeThreshold
-    );
-  }, [prefs, predictiveEnabled, rightSwipeAction, defaultWeightUnit, leftSwipeThreshold, rightSwipeThreshold, saving]);
+
+    // Save button is always enabled (except when saving)
+    return false;
+  }, [saving]);
 
   const handleSave = () => {
-    // If no changes, just close the modal
-    if (saveDisabled && !saving) {
+    // Always close the modal when save is clicked (even if no changes)
+    if (!saving) {
       onClose();
       return;
     }

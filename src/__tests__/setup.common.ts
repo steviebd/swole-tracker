@@ -21,55 +21,37 @@ process.env.AI_DEBRIEF_TEMPERATURE ??= "0.7";
 process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER ??= "3";
 process.env.VERCEL_AI_GATEWAY_API_KEY ??= "test-key";
 
-const ensureDomEnvironment = async () => {
+const ensureDomEnvironment = () => {
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     return;
   }
 
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-    url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    pretendToBeVisual: true,
-  });
-
-  const { window: jsdomWindow } = dom;
-
-  (globalThis as any).window = jsdomWindow;
-  (globalThis as any).document = jsdomWindow.document;
-  (globalThis as any).navigator = jsdomWindow.navigator;
-  (globalThis as any).self = jsdomWindow;
-  (globalThis as any).HTMLElement = jsdomWindow.HTMLElement;
-  (globalThis as any).CustomEvent = jsdomWindow.CustomEvent;
-  (globalThis as any).getComputedStyle =
-    jsdomWindow.getComputedStyle.bind(jsdomWindow);
-  (globalThis as any).Event = jsdomWindow.Event;
-  (globalThis as any).Node = jsdomWindow.Node;
-
-  // Some libraries access window.location.{...} setters; cloning ensures they exist.
-  Object.defineProperty(globalThis, "location", {
-    configurable: true,
-    enumerable: true,
-    get() {
-      return jsdomWindow.location;
+  (globalThis as any).window = {
+    location: {
+      href: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     },
-    set(value: URL | string) {
-      jsdomWindow.location.href = value.toString();
-    },
-  });
+    scrollTo: () => {},
+    requestAnimationFrame: (callback: FrameRequestCallback) =>
+      setTimeout(() => callback(Date.now()), 0),
+    cancelAnimationFrame: (handle: number) =>
+      clearTimeout(handle as unknown as NodeJS.Timeout),
+  };
 
-  // Provide no-op implementations for APIs not implemented by JSDOM
-  jsdomWindow.scrollTo ??= () => {};
-  jsdomWindow.requestAnimationFrame ??= (callback: FrameRequestCallback) =>
-    setTimeout(() => callback(Date.now()), 0) as unknown as number;
-  jsdomWindow.cancelAnimationFrame ??= (handle: number) =>
-    clearTimeout(handle as unknown as NodeJS.Timeout);
-  globalThis.requestAnimationFrame =
-    jsdomWindow.requestAnimationFrame.bind(jsdomWindow);
-  globalThis.cancelAnimationFrame =
-    jsdomWindow.cancelAnimationFrame.bind(jsdomWindow);
+  (globalThis as any).document = {
+    documentElement: {
+      dataset: {},
+    },
+  };
+
+  (globalThis as any).navigator = {};
+  (globalThis as any).self = globalThis;
+  (globalThis as any).HTMLElement = class {};
+  (globalThis as any).CustomEvent = class {};
+  (globalThis as any).Event = class {};
+  (globalThis as any).Node = class {};
 };
 
-await ensureDomEnvironment();
+ensureDomEnvironment();
 
 const ensureBase64Helpers = () => {
   if (typeof globalThis.atob !== "function") {

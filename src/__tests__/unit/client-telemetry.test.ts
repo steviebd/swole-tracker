@@ -130,6 +130,7 @@ describe("client-telemetry", () => {
     });
 
     it("should return theme from documentElement dataset", () => {
+      // @ts-ignore
       Object.defineProperty(document.documentElement, "dataset", {
         value: { theme: "dark" },
         configurable: true,
@@ -139,6 +140,7 @@ describe("client-telemetry", () => {
     });
 
     it("should return null when dataset.theme is not set", () => {
+      // @ts-ignore
       Object.defineProperty(document.documentElement, "dataset", {
         value: {},
         configurable: true,
@@ -151,6 +153,7 @@ describe("client-telemetry", () => {
       const mockGet = vi.fn(() => {
         throw new Error("Access denied");
       });
+      // @ts-ignore
       Object.defineProperty(document.documentElement, "dataset", {
         get: mockGet,
       });
