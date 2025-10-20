@@ -9,18 +9,7 @@ import {
   type AdviceDataSource,
 } from "~/lib/analytics/health-advice";
 
-type ProgressionPreference =
-  | "weight_focus"
-  | "reps_focus"
-  | "balanced"
-  | "ai_recommended";
-
-interface AlternativeSuggestion {
-  weight_kg: number;
-  reps: number;
-  rationale: string;
-  progression_type: ProgressionPreference;
-}
+type ProgressionPreference = "ai_recommended";
 
 interface SetSuggestionsProps {
   exercise: HealthAdviceResponse["per_exercise"][0] & { name?: string };
@@ -47,44 +36,9 @@ export function SetSuggestions({
   getInteractionTimeMs,
 }: SetSuggestionsProps) {
   const [acceptedSets, setAcceptedSets] = useState<Set<string>>(new Set());
-  const [showAlternatives, setShowAlternatives] = useState<
-    Record<string, boolean>
-  >({});
 
-  // Generate alternative suggestions based on progression preference
-  const generateAlternatives = (
-    originalWeight: number,
-    originalReps: number,
-  ): AlternativeSuggestion[] => {
-    const alternatives: AlternativeSuggestion[] = [];
-
-    // Weight-focused progression (increase weight, maintain or slightly reduce reps)
-    alternatives.push({
-      weight_kg: Math.round((originalWeight + 2.5) * 10) / 10,
-      reps: Math.max(originalReps - 1, originalReps),
-      rationale:
-        "Weight-focused: Prioritize strength gains through load increases",
-      progression_type: "weight_focus",
-    });
-
-    // Reps-focused progression (maintain weight, increase reps)
-    alternatives.push({
-      weight_kg: originalWeight,
-      reps: originalReps + 1,
-      rationale: "Reps-focused: Build endurance and volume tolerance",
-      progression_type: "reps_focus",
-    });
-
-    // Balanced progression (moderate increases in both)
-    alternatives.push({
-      weight_kg: Math.round((originalWeight + 1.25) * 10) / 10,
-      reps: originalReps,
-      rationale: "Balanced: Steady progression in both strength and volume",
-      progression_type: "balanced",
-    });
-
-    return alternatives;
-  };
+  // Use only the first set (AI should generate exactly one set per exercise)
+  const recommendationSet = exercise.sets.length > 0 ? exercise.sets[0] : null;
 
   const handleAcceptSet = (
     setId: string,
@@ -176,25 +130,24 @@ export function SetSuggestions({
   const chancePercent = Math.round(
     exercise.predicted_chance_to_beat_best * 100,
   );
-  const chanceColor =
+  const chanceColorClass =
     exercise.predicted_chance_to_beat_best >= 0.7
-      ? "text-success"
+      ? "text-[var(--color-status-success-default)]"
       : exercise.predicted_chance_to_beat_best >= 0.5
-        ? "text-warning"
-        : "text-danger";
+        ? "text-[var(--color-status-warning-default)]"
+        : "text-[var(--color-status-danger-default)]";
 
   return (
     <Card className="space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <h3
-          className="text-lg font-semibold"
-          style={{ color: "var(--color-text)" }}
-        >
+        <h3 className="text-lg font-semibold text-[var(--color-text)]">
           {exercise.name || exercise.exercise_id}
         </h3>
         <div className="text-right">
-          <div className="text-muted text-sm">Beat Best Chance</div>
-          <div className={cx("text-lg font-bold", chanceColor)}>
+          <div className="text-sm text-[var(--color-text-secondary)]">
+            Beat Best Chance
+          </div>
+          <div className={cx("text-lg font-bold", chanceColorClass)}>
             {chancePercent}%
           </div>
         </div>
@@ -202,13 +155,7 @@ export function SetSuggestions({
 
       {/* Volume comparison */}
       {(exercise.planned_volume_kg || exercise.best_volume_kg) && (
-        <div
-          className="grid grid-cols-2 gap-4 rounded-lg p-3"
-          style={{
-            backgroundColor:
-              "color-mix(in oklab, var(--color-bg-surface) 50%, var(--color-bg-app) 50%)",
-          }}
-        >
+        <div className="grid grid-cols-2 gap-4 rounded-lg bg-[color-mix(in_oklab,_var(--color-bg-surface)_50%,_var(--color-bg-app)_50%)] p-3">
           <div>
             <div className="text-muted text-xs">Planned Volume</div>
             <div className="font-semibold">
@@ -228,178 +175,99 @@ export function SetSuggestions({
 
       {/* Set suggestions */}
       <div className="space-y-3">
-        <h4
-          className="text-md font-medium"
-          style={{ color: "var(--color-text)" }}
-        >
+        <h4 className="text-md font-medium text-[var(--color-text)]">
           Set Suggestions
         </h4>
-        {exercise.sets.map((set, index) => {
-          const isAccepted = acceptedSets.has(set.set_id);
+        {recommendationSet &&
+          (() => {
+            const set = recommendationSet;
+            const isAccepted = acceptedSets.has(set.set_id);
+            const suggestionVariantClasses = isAccepted
+              ? "border-[var(--color-success)] bg-[color-mix(in_oklab,_var(--color-success)_10%,_var(--color-bg-surface))]"
+              : "border-[var(--color-border)] bg-[var(--color-bg-surface)]";
 
-          return (
-            <div
-              key={set.set_id}
-              className={cx(
-                "rounded-lg border p-3 transition-all",
-                isAccepted ? "border-green-200 dark:border-green-700" : "",
-              )}
-              style={{
-                backgroundColor: isAccepted
-                  ? "color-mix(in oklab, var(--color-success) 10%, var(--color-bg-surface))"
-                  : "var(--color-bg-surface)",
-                borderColor: isAccepted
-                  ? "var(--color-success)"
-                  : "var(--color-border)",
-              }}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium">Set {index + 1}</span>
-                <div className="flex gap-2">
-                  {!isAccepted ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() =>
-                          handleAcceptSet(
-                            set.set_id,
-                            {
-                              weight: set.suggested_weight_kg || undefined,
-                              reps: set.suggested_reps || undefined,
-                            },
-                            "ai_recommended",
-                          )
-                        }
-                      >
-                        Accept AI
-                      </Button>
+            return (
+              <div
+                key={set.set_id}
+                className={cx(
+                  "rounded-lg border p-3 transition-all",
+                  suggestionVariantClasses,
+                  isAccepted ? "border-green-200 dark:border-green-700" : "",
+                )}
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    Highest Weight Set
+                  </span>
+                  <div className="flex gap-2">
+                    {!isAccepted ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() =>
+                            handleAcceptSet(
+                              set.set_id,
+                              {
+                                weight: set.suggested_weight_kg || undefined,
+                                reps: set.suggested_reps || undefined,
+                              },
+                              "ai_recommended",
+                            )
+                          }
+                        >
+                          Accept AI
+                        </Button>
+                      </>
+                    ) : (
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() =>
-                          setShowAlternatives((prev) => ({
-                            ...prev,
-                            [set.set_id]: !prev[set.set_id],
-                          }))
-                        }
+                        onClick={() => handleOverrideSet(set.set_id)}
                       >
-                        {showAlternatives[set.set_id] ? "Hide" : "Options"}
+                        Override
                       </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleOverrideSet(set.set_id)}
-                    >
-                      Override
-                    </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Suggestions */}
+                <div className="mb-2 grid grid-cols-2 gap-3">
+                  {set.suggested_weight_kg && (
+                    <div>
+                      <div className="text-muted text-xs">Suggested Weight</div>
+                      <div className="font-semibold">
+                        {set.suggested_weight_kg}kg
+                      </div>
+                    </div>
+                  )}
+                  {set.suggested_reps && (
+                    <div>
+                      <div className="text-muted text-xs">Suggested Reps</div>
+                      <div className="font-semibold">{set.suggested_reps}</div>
+                    </div>
                   )}
                 </div>
-              </div>
 
-              {/* Suggestions */}
-              <div className="mb-2 grid grid-cols-2 gap-3">
-                {set.suggested_weight_kg && (
-                  <div>
-                    <div className="text-muted text-xs">Suggested Weight</div>
+                {/* Rest period suggestion */}
+                {(set as any).suggested_rest_seconds && (
+                  <div className="mb-2">
+                    <div className="text-muted text-xs">Suggested Rest</div>
                     <div className="font-semibold">
-                      {set.suggested_weight_kg}kg
+                      {Math.round((set as any).suggested_rest_seconds / 60)}{" "}
+                      minutes
                     </div>
                   </div>
                 )}
-                {set.suggested_reps && (
-                  <div>
-                    <div className="text-muted text-xs">Suggested Reps</div>
-                    <div className="font-semibold">{set.suggested_reps}</div>
-                  </div>
-                )}
-              </div>
 
-              {/* Rest period suggestion */}
-              {(set as any).suggested_rest_seconds && (
-                <div className="mb-2">
-                  <div className="text-muted text-xs">Suggested Rest</div>
-                  <div className="font-semibold">
-                    {Math.round((set as any).suggested_rest_seconds / 60)}{" "}
-                    minutes
-                  </div>
+                {/* Rationale */}
+                <div className="rounded bg-[color-mix(in_oklab,_var(--color-bg-surface)_50%,_var(--color-bg-app)_50%)] p-2 text-sm text-[var(--color-text-secondary)]">
+                  <div className="text-muted mb-1 text-xs">AI Rationale</div>
+                  {set.rationale}
                 </div>
-              )}
-
-              {/* Alternative suggestions based on progression preference */}
-              {showAlternatives[set.set_id] &&
-                !isAccepted &&
-                set.suggested_weight_kg &&
-                set.suggested_reps && (
-                  <div
-                    className="mt-3 rounded-lg p-3"
-                    style={{
-                      backgroundColor:
-                        "color-mix(in oklab, var(--color-bg-surface) 70%, var(--color-bg-app) 30%)",
-                      borderColor: "var(--color-border)",
-                    }}
-                  >
-                    <div className="text-muted mb-2 text-xs">
-                      Alternative Progressions
-                    </div>
-                    <div className="space-y-2">
-                      {generateAlternatives(
-                        set.suggested_weight_kg,
-                        set.suggested_reps,
-                      ).map((alt, altIndex) => (
-                        <div
-                          key={altIndex}
-                          className="flex items-center justify-between rounded p-2"
-                          style={{ backgroundColor: "var(--color-bg-surface)" }}
-                        >
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">
-                              {alt.weight_kg}kg × {alt.reps} reps
-                            </div>
-                            <div className="text-muted text-xs">
-                              {alt.rationale}
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() =>
-                              handleAcceptSet(
-                                set.set_id,
-                                {
-                                  weight: alt.weight_kg,
-                                  reps: alt.reps,
-                                },
-                                alt.progression_type,
-                              )
-                            }
-                            className="ml-2"
-                          >
-                            Use This
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {/* Rationale */}
-              <div
-                className="rounded p-2 text-sm"
-                style={{
-                  backgroundColor:
-                    "color-mix(in oklab, var(--color-bg-surface) 50%, var(--color-bg-app) 50%)",
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                <div className="text-muted mb-1 text-xs">AI Rationale</div>
-                {set.rationale}
               </div>
-            </div>
-          );
-        })}
+            );
+          })()}
       </div>
     </Card>
   );

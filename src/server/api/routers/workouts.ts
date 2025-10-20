@@ -621,10 +621,8 @@ export const workoutsRouter = createTRPCRouter({
         if (setsToInsert.length > 0) {
           const chunkSize = getInsertChunkSize(setsToInsert);
           try {
-            await chunkedBatch(
-              ctx.db,
-              setsToInsert,
-              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
+            await chunkedBatch(ctx.db, setsToInsert, (chunk) =>
+              ctx.db.insert(sessionExercises).values(chunk),
             );
           } catch (error) {
             logger.error(
@@ -984,10 +982,8 @@ export const workoutsRouter = createTRPCRouter({
           );
 
           if (setsToInsert.length > 0) {
-            await chunkedBatch(
-              ctx.db,
-              setsToInsert,
-              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
+            await chunkedBatch(ctx.db, setsToInsert, (chunk) =>
+              ctx.db.insert(sessionExercises).values(chunk),
             );
           }
 

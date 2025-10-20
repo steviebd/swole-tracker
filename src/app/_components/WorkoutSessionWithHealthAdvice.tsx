@@ -29,6 +29,7 @@ import type {
   SubjectiveWellnessData,
   ManualWellnessData,
 } from "~/lib/subjective-wellness-mapper";
+import { useWorkoutSessionContext } from "~/contexts/WorkoutSessionContext";
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -49,6 +50,11 @@ interface WorkoutSessionWithHealthAdviceProps {
   };
   workoutPlan?: HealthAdviceRequest["workout_plan"];
   priorBests?: HealthAdviceRequest["prior_bests"];
+  onAcceptSuggestion?: (
+    exerciseName: string,
+    setIndex: number,
+    suggestion: { weight?: number; reps?: number },
+  ) => void;
 }
 
 type IntegrationState = "never_connected" | "disconnected" | "connected";
@@ -69,7 +75,11 @@ export function WorkoutSessionWithHealthAdvice({
   userProfile,
   workoutPlan,
   priorBests,
+  onAcceptSuggestion,
 }: WorkoutSessionWithHealthAdviceProps) {
+  // Get the workout session context for UI state updates
+  const { updateSet, exercises } = useWorkoutSessionContext();
+
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
   const [showManualWellnessModal, setShowManualWellnessModal] = useState(false);
@@ -461,25 +471,39 @@ export function WorkoutSessionWithHealthAdvice({
           }
         | undefined;
     } | null => {
-      const match = /^(\d+)_(\d+)$/.exec(setId);
+      // Handle both formats: templateExerciseId_setIndex and templateExerciseId_highest
+      const match = /^(\d+)_(?:(\d+)|highest)$/.exec(setId);
       if (!match) {
         console.error(
           "Invalid setId format:",
           setId,
-          "Expected format: templateExerciseId_setIndex",
+          "Expected format: templateExerciseId_setIndex or templateExerciseId_highest",
         );
         return null;
       }
 
       const templateExerciseId = Number.parseInt(match[1] ?? "", 10);
-      const setIndex = Number.parseInt(match[2] ?? "", 10) - 1;
+      const isHighest = match[2] === undefined; // If no second group, it's "highest"
+      let setIndex: number;
 
-      if (!Number.isFinite(templateExerciseId) || setIndex < 0) {
+      if (!Number.isFinite(templateExerciseId)) {
         console.error(
           "Unable to parse template exercise information from setId:",
           setId,
         );
         return null;
+      }
+
+      if (isHighest) {
+        // For "highest" format, since we now only show one set (the AI recommendation),
+        // treat it as setIndex 0 (the first and only set)
+        setIndex = 0;
+      } else {
+        setIndex = Number.parseInt(match[2] ?? "", 10) - 1;
+        if (setIndex < 0) {
+          console.error("Invalid set index in setId:", setId);
+          return null;
+        }
       }
 
       if (!templateExercises) {
@@ -508,7 +532,10 @@ export function WorkoutSessionWithHealthAdvice({
           ex.exercise_id === templateExerciseId.toString() ||
           ex.name === actualExerciseName,
       );
-      const setAdvice = exerciseAdvice?.sets.find((s) => s.set_id === setId);
+      // For "highest" format, get the single set advice (should be the only set)
+      const setAdvice = isHighest
+        ? exerciseAdvice?.sets[0]
+        : exerciseAdvice?.sets.find((s) => s.set_id === setId);
 
       return {
         templateExerciseId,
@@ -534,23 +561,30 @@ export function WorkoutSessionWithHealthAdvice({
     const context = resolveSetContext(setId);
     if (!context) return;
 
-    const { actualExerciseName, setIndex, setAdvice } = context;
+    const { actualExerciseName, setAdvice } = context;
+    const setIndex = context.setIndex;
     const interactionTimeMs = getInteractionTimeMs();
 
     try {
-      await updateSessionSets.mutateAsync({
-        sessionId,
-        updates: [
-          {
-            setId,
-            exerciseName: actualExerciseName,
-            setIndex, // Include set index for proper targeting
-            weight: suggestion.weight,
-            reps: suggestion.reps,
-            unit: "kg", // Default to kg, could be made configurable
-          },
-        ],
-      });
+      // Use the callback to update UI state if provided, otherwise fall back to database update
+      if (onAcceptSuggestion) {
+        onAcceptSuggestion(actualExerciseName, setIndex, suggestion);
+      } else {
+        // Fallback to database update for backward compatibility
+        await updateSessionSets.mutateAsync({
+          sessionId,
+          updates: [
+            {
+              setId,
+              exerciseName: actualExerciseName,
+              setIndex,
+              weight: suggestion.weight,
+              reps: suggestion.reps,
+              unit: "kg",
+            },
+          ],
+        });
+      }
 
       if (setAdvice) {
         try {
@@ -582,7 +616,7 @@ export function WorkoutSessionWithHealthAdvice({
       }
 
       await acceptSuggestion();
-      showToast("Suggestion saved to your workout.", "success");
+      showToast("Suggestion applied to your workout.", "success");
       logger.info("suggestion_applied", {
         setId,
         suggestion,
@@ -592,7 +626,10 @@ export function WorkoutSessionWithHealthAdvice({
       });
     } catch (error) {
       logger.error("Failed to apply suggestion", error, { setId, sessionId });
-      showToast("We couldn't save that suggestion. Please try again.", "error");
+      showToast(
+        "We couldn't apply that suggestion. Please try again.",
+        "error",
+      );
     }
   };
 
@@ -600,7 +637,8 @@ export function WorkoutSessionWithHealthAdvice({
     const context = resolveSetContext(setId);
     if (!context) return;
 
-    const { actualExerciseName, setIndex, setAdvice } = context;
+    const { actualExerciseName, setAdvice } = context;
+    const setIndex = context.setIndex;
     const interactionTimeMs = getInteractionTimeMs();
 
     if (setAdvice) {

@@ -14,17 +14,57 @@ function cx(...args: Array<string | false | null | undefined>) {
 
 export function ProbabilityGauge({ probability, title, subtitle }: ProbabilityGaugeProps) {
   const percent = Math.round(probability * 100);
-  
-  // Determine color based on probability
-  const getColor = (prob: number) => {
-    if (prob >= 0.8) return { bg: 'bg-green-500', text: 'text-green-600', border: 'border-green-200' };
-    if (prob >= 0.6) return { bg: 'bg-blue-500', text: 'text-blue-600', border: 'border-blue-200' };
-    if (prob >= 0.4) return { bg: 'bg-yellow-500', text: 'text-yellow-600', border: 'border-yellow-200' };
-    if (prob >= 0.2) return { bg: 'bg-orange-500', text: 'text-orange-600', border: 'border-orange-200' };
-    return { bg: 'bg-red-500', text: 'text-red-600', border: 'border-red-200' };
-  };
 
-  const colors = getColor(probability);
+  // Determine color based on probability
+  const variant =
+    probability >= 0.8
+      ? "excellent"
+      : probability >= 0.6
+        ? "good"
+        : probability >= 0.4
+          ? "moderate"
+          : probability >= 0.2
+            ? "low"
+            : "veryLow";
+
+  const variantConfig = {
+    excellent: {
+      percentClass: "text-[var(--color-status-success-default)]",
+      progressClass: "text-[var(--color-status-success-default)]",
+      pillClasses:
+        "text-[var(--color-status-success-default)] bg-[color-mix(in_srgb,_var(--color-status-success)_10%,_transparent_90%)] border-[color-mix(in_srgb,_var(--color-status-success)_30%,_transparent_70%)]",
+      label: "🔥 Excellent",
+    },
+    good: {
+      percentClass: "text-[var(--color-primary-default)]",
+      progressClass: "text-[var(--color-primary-default)]",
+      pillClasses:
+        "text-[var(--color-primary-default)] bg-[color-mix(in_srgb,_var(--color-primary)_10%,_transparent_90%)] border-[color-mix(in_srgb,_var(--color-primary)_30%,_transparent_70%)]",
+      label: "💪 Good",
+    },
+    moderate: {
+      percentClass: "text-[var(--color-text)]",
+      progressClass: "text-[var(--color-text-secondary)]",
+      pillClasses:
+        "text-[var(--color-text)] bg-[color-mix(in_srgb,_var(--color-bg-surface)_50%,_var(--color-bg-app)_50%)] border-[var(--color-border)]",
+      label: "⚖️ Moderate",
+    },
+    low: {
+      percentClass: "text-[var(--color-status-warning-default)]",
+      progressClass: "text-[var(--color-status-warning-default)]",
+      pillClasses:
+        "text-[var(--color-status-warning-default)] bg-[color-mix(in_srgb,_var(--color-status-warning)_10%,_transparent_90%)] border-[color-mix(in_srgb,_var(--color-status-warning)_30%,_transparent_70%)]",
+      label: "⚠️ Low",
+    },
+    veryLow: {
+      percentClass: "text-[var(--color-status-danger-default)]",
+      progressClass: "text-[var(--color-status-danger-default)]",
+      pillClasses:
+        "text-[var(--color-status-danger-default)] bg-[color-mix(in_srgb,_var(--color-status-danger)_10%,_transparent_90%)] border-[color-mix(in_srgb,_var(--color-status-danger)_30%,_transparent_70%)]",
+      label: "🚨 Very Low",
+    },
+  } as const;
+  const config = variantConfig[variant];
 
   // Calculate the stroke-dasharray for the circular progress
   const circumference = 2 * Math.PI * 40; // radius = 40
@@ -33,12 +73,18 @@ export function ProbabilityGauge({ probability, title, subtitle }: ProbabilityGa
   return (
     <Card className="p-4 text-center">
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
-        
+        <h3 className="text-lg font-semibold text-[var(--color-text)]">
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            {subtitle}
+          </p>
+        )}
+
         {/* Circular gauge */}
-        <div className="relative w-24 h-24 mx-auto">
-          <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+        <div className="relative mx-auto h-24 w-24">
+          <svg className="h-24 w-24 -rotate-90 transform" viewBox="0 0 100 100">
             {/* Background circle */}
             <circle
               cx="50"
@@ -47,7 +93,7 @@ export function ProbabilityGauge({ probability, title, subtitle }: ProbabilityGa
               stroke="currentColor"
               strokeWidth="8"
               fill="none"
-              className="text-gray-200"
+              className="text-[var(--color-border)]"
             />
             {/* Progress circle */}
             <circle
@@ -60,28 +106,29 @@ export function ProbabilityGauge({ probability, title, subtitle }: ProbabilityGa
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
-              className={cx(colors.bg.replace('bg-', 'text-'), "transition-all duration-1000 ease-out")}
+              className={cx(
+                "transition-all duration-1000 ease-out",
+                config.progressClass,
+              )}
             />
           </svg>
           {/* Percentage in center */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className={cx("text-2xl font-bold", colors.text)}>
+            <span className={cx("text-2xl font-bold", config.percentClass)}>
               {percent}%
             </span>
           </div>
         </div>
 
         {/* Status indicator */}
-        <div className={cx(
-          "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border",
-          colors.text,
-          colors.bg.replace('bg-', 'bg-').replace('-500', '-50'),
-          colors.border
-        )}>
-          {probability >= 0.8 ? '🔥 Excellent' :
-           probability >= 0.6 ? '💪 Good' :
-           probability >= 0.4 ? '⚖️ Moderate' :
-           probability >= 0.2 ? '⚠️ Low' : '🚨 Very Low'}
+        <div
+          data-variant={variant}
+          className={cx(
+            "inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium",
+            config.pillClasses,
+          )}
+        >
+          {config.label}
         </div>
       </div>
     </Card>

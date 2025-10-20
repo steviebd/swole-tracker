@@ -1,6 +1,6 @@
 /**
  * Enhanced Health Advice AI Prompt
- * 
+ *
  * Comprehensive prompt for generating intelligent workout recommendations
  * based on historical data, WHOOP recovery metrics, and exercise linking.
  */
@@ -166,22 +166,19 @@ Deterministic algorithm you MUST apply before reasoning:
 2) Overload multiplier (applies to today's planned load):
    let Delta = clip(1 + 0.3*(rho - 0.5), 0.9, 1.1);
 
-3) Per-set adjustments with progression analysis and fatigue consideration:
-   - Analyze historical_sessions to identify progression trends (weight increases, rep increases, stagnation)
-   - Use exercise_linking data to consider performance across different templates
-   - Apply individual set recommendations with fatigue consideration:
-     * Set 1: Full intensity with target_weight_kg * Delta
-     * Set 2: Apply 5% fatigue reduction: target_weight_kg * Delta * 0.95 
-     * Set 3: Apply 10% fatigue reduction: target_weight_kg * Delta * 0.90
-     * Continue pattern for additional sets
-   - If target_weight_kg exists: new_weight = round_to_increment(target_weight_kg * Delta * fatigue_multiplier)
-     Keep reps; optionally adjust reps by ±1 if target_rpe is provided to better match.
-   - If no weight but target_reps exists (e.g., bodyweight): adjust reps by
-       reps' = round(target_reps * Delta * fatigue_multiplier)
-     For endurance/very high reps, cap change to ±2 reps.
-   - Respect min_increment_kg if provided; default increment is 2.5 kg.
-   - Factor in cross-template performance when making recommendations
-   - Each set should have unique suggested_weight_kg, suggested_reps, and rationale
+3) Highest weight set progression analysis:
+    - Identify the set with the highest weight from historical_sessions
+    - Analyze progression trends for this specific set (weight increases, rep consistency)
+    - Use exercise_linking data to consider performance across different templates
+    - Calculate progression for ONLY the highest weight set:
+      * Find the maximum weight used in recent sessions for this exercise
+      * Apply readiness-adjusted progression: new_weight = max_weight * Delta
+      * Suggest reps based on the last session's performance for that weight
+    - If target_weight_kg exists: new_weight = round_to_increment(target_weight_kg * Delta)
+      Keep reps consistent with last performance at similar weight.
+    - Respect min_increment_kg if provided; default increment is 2.5 kg.
+    - Factor in cross-template performance when determining max weight
+    - Provide EXACTLY ONE set suggestion per exercise (sets array must contain exactly 1 element)
 
 4) Recovery and rest recommendations (individualized per set):
    - Based on readiness score, recommend rest periods between sets (90-180s for strength, 60-90s for hypertrophy)
@@ -219,7 +216,7 @@ Safety & behavior:
 - Include rest period suggestions in rationale
 - Not medical advice.
 
-Output schema (respond with EXACTLY this shape):
+Output schema (respond with EXACTLY this shape - generate EXACTLY one exercise object per exercise in workout_plan.exercises):
 {
   "session_id": "string",
   "readiness": {
@@ -229,18 +226,18 @@ Output schema (respond with EXACTLY this shape):
   },
   "per_exercise": [
     {
-      "exercise_id": "string",
+      "exercise_id": "string (must match workout_plan.exercises[].exercise_id)",
       "name": "string (exercise display name)",
       "predicted_chance_to_beat_best": number,
       "planned_volume_kg": number | null,
       "best_volume_kg": number | null,
       "sets": [
         {
-          "set_id": "string",
+          "set_id": "string (EXACTLY ONE set per exercise)",
           "suggested_weight_kg": number | null,
           "suggested_reps": number | null,
           "suggested_rest_seconds": number | null,
-          "rationale": "string (include rest period recommendation and progression reasoning)"
+          "rationale": "string (include rest period recommendation and progression reasoning - NO newlines)"
         }
       ]
     }
@@ -261,4 +258,7 @@ Formatting:
 - Use concise English, metric units, and conservative tone.
 - Include specific rest period recommendations (e.g., "2-3 minutes rest")
 - Mention cross-template progression when relevant
-- Include session-to-session recovery advice in summary`;
+- Include session-to-session recovery advice in summary
+- IMPORTANT: Do not include literal newlines (\n) in any string values - use spaces instead for readability
+- IMPORTANT: Generate exactly one exercise object in per_exercise array for each unique exercise in workout_plan.exercises
+- IMPORTANT: For each exercise, the sets array must contain EXACTLY ONE element`;
