@@ -2,12 +2,14 @@
 
 import { createContext, useContext } from "react";
 
+import { type SetData } from "~/app/_components/set-input";
+
 export const WorkoutSessionContext = createContext<{
   updateSet: (
     exerciseIndex: number,
     setIndex: number,
-    field: string,
-    value: any,
+    field: keyof SetData,
+    value: string | number | undefined,
   ) => void;
   exercises: any[];
   handleAcceptSuggestion: (

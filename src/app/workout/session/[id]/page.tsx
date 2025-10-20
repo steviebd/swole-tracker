@@ -11,7 +11,6 @@ import {
   WorkoutSessionContext,
   useWorkoutSessionContext,
 } from "~/contexts/WorkoutSessionContext";
-import HydrateClient from "~/trpc/HydrateClient";
 
 interface WorkoutSessionProviderProps {
   sessionId: number;
@@ -95,14 +94,17 @@ export default function WorkoutSessionPage({
   }
 
   // Prefetch data
-  const { data: workoutSession, error: workoutError } =
-    api.workouts.getById.useQuery({
-      id: sessionId,
-    });
+  const {
+    data: workoutSession,
+    error: workoutError,
+    isLoading,
+  } = api.workouts.getById.useQuery({
+    id: sessionId,
+  });
   const { data: preferences } = api.preferences.get.useQuery();
 
   // Handle case where workout session doesn't exist
-  if (workoutError || (workoutSession === null && !loading)) {
+  if (workoutError || (workoutSession === null && !isLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -163,28 +165,26 @@ export default function WorkoutSessionPage({
   })();
 
   return (
-    <HydrateClient>
-      <main className="min-h-screen overflow-x-hidden">
-        {/* Glass Header */}
-        <GlassHeader
-          title={headerTitle}
-          subtitle={headerSubtitle}
-          actions={
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                ← Back
-              </Button>
-            </Link>
-          }
-        />
+    <main className="min-h-screen overflow-x-hidden">
+      {/* Glass Header */}
+      <GlassHeader
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        actions={
+          <Link href="/">
+            <Button variant="ghost" size="sm">
+              ← Back
+            </Button>
+          </Link>
+        }
+      />
 
-        <div className="container mx-auto w-full min-w-0 px-3 py-4 sm:px-4 sm:py-6">
-          {/* Workout Session with Health Advice */}
-          <WorkoutSessionProvider sessionId={sessionId}>
-            <WorkoutSessionWithHealthAdviceContent sessionId={sessionId} />
-          </WorkoutSessionProvider>
-        </div>
-      </main>
-    </HydrateClient>
+      <div className="container mx-auto w-full min-w-0 px-3 py-4 sm:px-4 sm:py-6">
+        {/* Workout Session with Health Advice */}
+        <WorkoutSessionProvider sessionId={sessionId}>
+          <WorkoutSessionWithHealthAdviceContent sessionId={sessionId} />
+        </WorkoutSessionProvider>
+      </div>
+    </main>
   );
 }
