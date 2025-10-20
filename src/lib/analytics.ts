@@ -45,6 +45,13 @@ export const analytics = {
     }
   },
 
+  event: (name: string, properties?: Record<string, unknown>) => {
+    safeCapture(name, {
+      ...properties,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
   // Workout events
   workoutStarted: (templateId: string, templateName: string) => {
     safeCapture("workout_started", {

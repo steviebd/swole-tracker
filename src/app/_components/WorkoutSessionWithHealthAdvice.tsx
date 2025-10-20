@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button } from "~/components/ui/button";
 import { WorkoutSession } from "~/app/_components/workout-session";
 import { ReadinessIndicator } from "~/app/_components/health-advice/ReadinessIndicator";
@@ -9,14 +15,21 @@ import { ProbabilityGauge } from "~/app/_components/health-advice/ProbabilityGau
 import { AISummary } from "~/app/_components/health-advice/AISummary";
 import { SubjectiveWellnessModal } from "~/app/_components/health-advice/SubjectiveWellnessModal";
 import { ManualWellnessModal } from "~/app/_components/health-advice/ManualWellnessModal";
+import { RecoveryRecommendationsCard } from "~/app/_components/health-advice/RecoveryRecommendationsCard";
 import { useHealthAdvice } from "~/hooks/useHealthAdvice";
 import { api } from "~/trpc/react";
 import { logger } from "~/lib/logger";
-import type { HealthAdviceRequest } from "~/server/api/schemas/health-advice";
+import { Toast, type ToastType } from "~/components/ui/toast";
+import type { AdviceDataSource } from "~/lib/analytics/health-advice";
+import type {
+  HealthAdviceRequest,
+  HealthAdviceResponse,
+} from "~/server/api/schemas/health-advice";
 import type {
   SubjectiveWellnessData,
   ManualWellnessData,
 } from "~/lib/subjective-wellness-mapper";
+import { useWorkoutSessionContext } from "~/contexts/WorkoutSessionContext";
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -37,6 +50,23 @@ interface WorkoutSessionWithHealthAdviceProps {
   };
   workoutPlan?: HealthAdviceRequest["workout_plan"];
   priorBests?: HealthAdviceRequest["prior_bests"];
+  onAcceptSuggestion?: (
+    exerciseName: string,
+    setIndex: number,
+    suggestion: { weight?: number; reps?: number },
+  ) => void;
+}
+
+type IntegrationState = "never_connected" | "disconnected" | "connected";
+type AdviceSource = AdviceDataSource;
+
+function getIntegrationState(status: {
+  hasIntegration: boolean;
+  isConnected: boolean;
+}): IntegrationState {
+  if (status.isConnected) return "connected";
+  if (status.hasIntegration) return "disconnected";
+  return "never_connected";
 }
 
 export function WorkoutSessionWithHealthAdvice({
@@ -45,17 +75,25 @@ export function WorkoutSessionWithHealthAdvice({
   userProfile,
   workoutPlan,
   priorBests,
+  onAcceptSuggestion,
 }: WorkoutSessionWithHealthAdviceProps) {
+  // Get the workout session context for UI state updates
+  const { updateSet, exercises } = useWorkoutSessionContext();
+
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
   const [showManualWellnessModal, setShowManualWellnessModal] = useState(false);
-  const [, setAcceptedSuggestions] = useState<
-    Map<string, { weight?: number; reps?: number }>
-  >(new Map());
   const [wellnessSubmitError, setWellnessSubmitError] = useState<string | null>(
     null,
   );
   const [isSubmittingWellness, setIsSubmittingWellness] = useState(false);
+  const [toastState, setToastState] = useState<{
+    message: string;
+    type: ToastType;
+  } | null>(null);
+  const [lastAdviceSource, setLastAdviceSource] =
+    useState<AdviceSource>("unknown");
+  const suggestionInteractionStartRef = useRef<number | null>(null);
 
   const {
     advice,
@@ -66,6 +104,8 @@ export function WorkoutSessionWithHealthAdvice({
     fetchAdviceWithManualWellness,
     hasExistingAdvice,
     whoopStatus,
+    acceptSuggestion,
+    rejectSuggestion,
   } = useHealthAdvice(sessionId);
 
   // Fetch the actual workout session to get template exercises
@@ -99,6 +139,41 @@ export function WorkoutSessionWithHealthAdvice({
 
   // Fetch user preferences to determine which wellness modal to show
   const { data: userPreferences } = api.preferences.get.useQuery();
+  const isManualWellnessEnabled =
+    userPreferences?.enable_manual_wellness ?? false;
+  const integrationState = useMemo(
+    () => getIntegrationState(whoopStatus),
+    [whoopStatus],
+  );
+  const manualFallbackAvailable =
+    isManualWellnessEnabled && integrationState !== "connected";
+  const primaryActionLabel = useMemo(() => {
+    if (loading || isSubmittingWellness) {
+      return "Getting AI Advice...";
+    }
+
+    if (hasExistingAdvice) {
+      return "🔄 Refresh Workout Intelligence";
+    }
+
+    if (integrationState === "never_connected") {
+      return isManualWellnessEnabled
+        ? "🎯 Quick Wellness Check"
+        : "🤖 Get Workout Intelligence";
+    }
+
+    if (integrationState === "disconnected") {
+      return "🔌 Reconnect WHOOP";
+    }
+
+    return "🤖 Get Workout Intelligence";
+  }, [
+    hasExistingAdvice,
+    integrationState,
+    isManualWellnessEnabled,
+    isSubmittingWellness,
+    loading,
+  ]);
 
   // Wellness mutations
   const saveWellness = api.wellness.save.useMutation();
@@ -192,21 +267,56 @@ export function WorkoutSessionWithHealthAdvice({
 
   const actualPriorBests = priorBests || { by_exercise_id: {} };
 
-  // Show existing advice automatically
-  React.useEffect(() => {
+  const showToast = useCallback(
+    (message: string, type: ToastType = "success") => {
+      setToastState({ message, type });
+    },
+    [],
+  );
+
+  const dismissToast = useCallback(() => {
+    setToastState(null);
+  }, []);
+
+  const getInteractionTimeMs = useCallback(() => {
+    const start = suggestionInteractionStartRef.current;
+    if (!start) return undefined;
+    const elapsed = Math.round(performance.now() - start);
+    return elapsed > 0 ? elapsed : undefined;
+  }, []);
+
+  // Show existing advice automatically and track interaction timing
+  useEffect(() => {
     if (hasExistingAdvice && advice) {
       setShowHealthAdvice(true);
+    }
+
+    if (advice) {
+      suggestionInteractionStartRef.current = performance.now();
+    } else {
+      suggestionInteractionStartRef.current = null;
     }
   }, [hasExistingAdvice, advice]);
 
   const handleGetHealthAdvice = async () => {
-    // Determine which wellness system to use based on user preferences
-    const isManualWellnessEnabled =
-      userPreferences?.enable_manual_wellness ?? false;
+    if (integrationState === "disconnected") {
+      if (manualFallbackAvailable) {
+        showToast(
+          "WHOOP looks disconnected. We'll use a quick wellness check for now.",
+          "warning",
+        );
+        setShowManualWellnessModal(true);
+      } else {
+        showToast(
+          "WHOOP connection requires attention. Reconnect to keep insights flowing.",
+          "info",
+        );
+        handleConnectWhoop();
+      }
+      return;
+    }
 
-    // Check if user has WHOOP connected
     if (whoopStatus.isConnected) {
-      // User has WHOOP - use actual WHOOP data
       const request: HealthAdviceRequest = {
         session_id: sessionId.toString(),
         user_profile: actualUserProfile,
@@ -215,15 +325,28 @@ export function WorkoutSessionWithHealthAdvice({
         prior_bests: actualPriorBests,
       };
 
-      await fetchAdvice(request);
-      setShowHealthAdvice(true);
-    } else if (isManualWellnessEnabled) {
-      // User has manual wellness enabled - show simplified modal
-      setShowManualWellnessModal(true);
-    } else {
-      // User doesn't have WHOOP and manual wellness disabled - show legacy 4-input modal
-      setShowWellnessModal(true);
+      try {
+        await fetchAdvice(request);
+        setLastAdviceSource("whoop");
+        setShowHealthAdvice(true);
+      } catch (error) {
+        logger.error("Failed to fetch WHOOP-backed health advice", error, {
+          sessionId,
+        });
+        showToast(
+          "We couldn't fetch WHOOP insights right now. Please try again.",
+          "error",
+        );
+      }
+      return;
     }
+
+    if (isManualWellnessEnabled) {
+      setShowManualWellnessModal(true);
+      return;
+    }
+
+    setShowWellnessModal(true);
   };
 
   const handleSubjectiveWellnessSubmit = async (
@@ -238,8 +361,19 @@ export function WorkoutSessionWithHealthAdvice({
       prior_bests: actualPriorBests,
     };
 
-    await fetchAdviceWithSubjectiveData(request, subjectiveData);
-    setShowHealthAdvice(true);
+    try {
+      await fetchAdviceWithSubjectiveData(request, subjectiveData);
+      setLastAdviceSource("subjective");
+      setShowHealthAdvice(true);
+    } catch (error) {
+      logger.error("Failed to process subjective wellness submission", error, {
+        sessionId,
+      });
+      showToast(
+        "We couldn't use your wellness inputs. Please try again.",
+        "error",
+      );
+    }
   };
 
   const handleManualWellnessSubmit = async (manualData: ManualWellnessData) => {
@@ -280,13 +414,22 @@ export function WorkoutSessionWithHealthAdvice({
       }
 
       setShowManualWellnessModal(false);
+      setLastAdviceSource("manual");
       setShowHealthAdvice(true);
+      showToast(
+        "Wellness check saved. Generating fresh suggestions.",
+        "success",
+      );
     } catch (error) {
       console.error("Failed to submit manual wellness:", error);
       setWellnessSubmitError(
         error instanceof Error
           ? error.message
           : "Failed to submit wellness data. Please try again.",
+      );
+      showToast(
+        "We couldn't save your wellness check. Please try again.",
+        "error",
       );
     } finally {
       setIsSubmittingWellness(false);
@@ -312,109 +455,168 @@ export function WorkoutSessionWithHealthAdvice({
   const trackSuggestionInteraction =
     api.suggestions.trackInteraction.useMutation();
 
+  const resolveSetContext = useCallback(
+    (
+      setId: string,
+    ): {
+      templateExerciseId: number;
+      setIndex: number;
+      actualExerciseName: string;
+      setAdvice:
+        | {
+            suggested_weight_kg: number | null | undefined;
+            suggested_reps: number | null | undefined;
+            suggested_rest_seconds: number | null | undefined;
+            rationale: string;
+          }
+        | undefined;
+    } | null => {
+      // Handle both formats: templateExerciseId_setIndex and templateExerciseId_highest
+      const match = /^(\d+)_(?:(\d+)|highest)$/.exec(setId);
+      if (!match) {
+        console.error(
+          "Invalid setId format:",
+          setId,
+          "Expected format: templateExerciseId_setIndex or templateExerciseId_highest",
+        );
+        return null;
+      }
+
+      const templateExerciseId = Number.parseInt(match[1] ?? "", 10);
+      const isHighest = match[2] === undefined; // If no second group, it's "highest"
+      let setIndex: number;
+
+      if (!Number.isFinite(templateExerciseId)) {
+        console.error(
+          "Unable to parse template exercise information from setId:",
+          setId,
+        );
+        return null;
+      }
+
+      if (isHighest) {
+        // For "highest" format, since we now only show one set (the AI recommendation),
+        // treat it as setIndex 0 (the first and only set)
+        setIndex = 0;
+      } else {
+        setIndex = Number.parseInt(match[2] ?? "", 10) - 1;
+        if (setIndex < 0) {
+          console.error("Invalid set index in setId:", setId);
+          return null;
+        }
+      }
+
+      if (!templateExercises) {
+        console.error(
+          "Template exercises are unavailable when processing set:",
+          setId,
+        );
+        return null;
+      }
+
+      const templateExercise = templateExercises.find(
+        (ex) => ex.id === templateExerciseId,
+      );
+
+      if (!templateExercise) {
+        console.error(
+          "Could not find template exercise for ID:",
+          templateExerciseId,
+        );
+        return null;
+      }
+
+      const actualExerciseName = templateExercise.exerciseName;
+      const exerciseAdvice = advice?.per_exercise.find(
+        (ex) =>
+          ex.exercise_id === templateExerciseId.toString() ||
+          ex.name === actualExerciseName,
+      );
+      // For "highest" format, get the single set advice (should be the only set)
+      const setAdvice = isHighest
+        ? exerciseAdvice?.sets[0]
+        : exerciseAdvice?.sets.find((s) => s.set_id === setId);
+
+      return {
+        templateExerciseId,
+        setIndex,
+        actualExerciseName,
+        setAdvice: setAdvice
+          ? {
+              suggested_weight_kg: setAdvice.suggested_weight_kg,
+              suggested_reps: setAdvice.suggested_reps,
+              suggested_rest_seconds: setAdvice.suggested_rest_seconds,
+              rationale: setAdvice.rationale,
+            }
+          : undefined,
+      };
+    },
+    [advice, templateExercises],
+  );
+
   const handleAcceptSuggestion = async (
     setId: string,
     suggestion: { weight?: number; reps?: number },
   ) => {
-    setAcceptedSuggestions((prev) => new Map(prev).set(setId, suggestion));
+    const context = resolveSetContext(setId);
+    if (!context) return;
 
-    // Extract template exercise ID and set index from setId format: "{templateExerciseId}_{setIndex}"
-    const match = /^(\d+)_(\d+)$/.exec(setId);
-    if (!match) {
-      console.error(
-        "Invalid setId format:",
-        setId,
-        "Expected format: templateExerciseId_setIndex",
-      );
-      return;
-    }
-
-    const templateExerciseId = parseInt(match[1]!);
-    const setIndex = parseInt(match[2]!) - 1; // Convert to 0-based index
-
-    if (!templateExerciseId) {
-      console.error("No template exercise ID captured from setId:", setId);
-      return;
-    }
-
-    if (!templateExercises) {
-      console.error(
-        "Template exercises are unavailable when processing set:",
-        setId,
-      );
-      return;
-    }
-
-    // Find the template exercise to get the actual exercise name
-    const templateExercise = templateExercises.find(
-      (ex) => ex.id === templateExerciseId,
-    );
-
-    if (!templateExercise) {
-      console.error(
-        "Could not find template exercise for ID:",
-        templateExerciseId,
-      );
-      return;
-    }
-
-    const actualExerciseName = templateExercise.exerciseName;
+    const { actualExerciseName, setAdvice } = context;
+    const setIndex = context.setIndex;
+    const interactionTimeMs = getInteractionTimeMs();
 
     try {
-      await updateSessionSets.mutateAsync({
-        sessionId,
-        updates: [
-          {
-            setId,
-            exerciseName: actualExerciseName,
-            setIndex, // Include set index for proper targeting
-            weight: suggestion.weight,
-            reps: suggestion.reps,
-            unit: "kg", // Default to kg, could be made configurable
-          },
-        ],
-      });
-
-      // Track the suggestion interaction for analytics
-      const currentAdvice = advice;
-      if (currentAdvice) {
-        const exercise = currentAdvice.per_exercise.find(
-          (ex) =>
-            ex.exercise_id === templateExerciseId.toString() ||
-            ex.name === actualExerciseName,
-        );
-        const set = exercise?.sets.find((s) => s.set_id === setId);
-
-        if (set) {
-          try {
-            await trackSuggestionInteraction.mutateAsync({
-              sessionId,
-              exerciseName: actualExerciseName,
+      // Use the callback to update UI state if provided, otherwise fall back to database update
+      if (onAcceptSuggestion) {
+        onAcceptSuggestion(actualExerciseName, setIndex, suggestion);
+      } else {
+        // Fallback to database update for backward compatibility
+        await updateSessionSets.mutateAsync({
+          sessionId,
+          updates: [
+            {
               setId,
+              exerciseName: actualExerciseName,
               setIndex,
-              suggestedWeightKg: set.suggested_weight_kg,
-              suggestedReps: set.suggested_reps,
-              suggestedRestSeconds: set.suggested_rest_seconds,
-              suggestionRationale: set.rationale,
-              action: "accepted",
-              acceptedWeightKg: suggestion.weight,
-              acceptedReps: suggestion.reps,
-              progressionType: userPreferences?.progression_type ?? "adaptive",
-              readinessScore: currentAdvice.readiness.rho,
-              plateauDetected:
-                set.rationale.includes("Plateau Alert") ||
-                set.rationale.includes("plateau detected"),
-            });
-          } catch (trackingError) {
-            console.warn(
-              "Failed to track suggestion interaction:",
-              trackingError,
-            );
-            // Don't fail the main operation if tracking fails
-          }
+              weight: suggestion.weight,
+              reps: suggestion.reps,
+              unit: "kg",
+            },
+          ],
+        });
+      }
+
+      if (setAdvice) {
+        try {
+          await trackSuggestionInteraction.mutateAsync({
+            sessionId,
+            exerciseName: actualExerciseName,
+            setId,
+            setIndex,
+            suggestedWeightKg: setAdvice.suggested_weight_kg ?? undefined,
+            suggestedReps: setAdvice.suggested_reps ?? undefined,
+            suggestedRestSeconds: setAdvice.suggested_rest_seconds ?? undefined,
+            suggestionRationale: setAdvice.rationale,
+            action: "accepted",
+            acceptedWeightKg: suggestion.weight,
+            acceptedReps: suggestion.reps,
+            progressionType: userPreferences?.progression_type ?? "adaptive",
+            readinessScore: advice?.readiness.rho,
+            plateauDetected:
+              setAdvice.rationale.includes("Plateau Alert") ||
+              setAdvice.rationale.includes("plateau detected"),
+            interactionTimeMs,
+          });
+        } catch (trackingError) {
+          console.warn(
+            "Failed to track suggestion interaction:",
+            trackingError,
+          );
         }
       }
 
+      await acceptSuggestion();
+      showToast("Suggestion applied to your workout.", "success");
       logger.info("suggestion_applied", {
         setId,
         suggestion,
@@ -424,179 +626,347 @@ export function WorkoutSessionWithHealthAdvice({
       });
     } catch (error) {
       logger.error("Failed to apply suggestion", error, { setId, sessionId });
-      // Revert the UI state if the backend update failed
-      setAcceptedSuggestions((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(setId);
-        return newMap;
-      });
+      showToast(
+        "We couldn't apply that suggestion. Please try again.",
+        "error",
+      );
     }
   };
 
-  const handleOverrideSuggestion = (setId: string) => {
-    setAcceptedSuggestions((prev) => {
-      const newMap = new Map(prev);
-      newMap.delete(setId);
-      return newMap;
+  const handleOverrideSuggestion = async (setId: string) => {
+    const context = resolveSetContext(setId);
+    if (!context) return;
+
+    const { actualExerciseName, setAdvice } = context;
+    const setIndex = context.setIndex;
+    const interactionTimeMs = getInteractionTimeMs();
+
+    if (setAdvice) {
+      try {
+        await trackSuggestionInteraction.mutateAsync({
+          sessionId,
+          exerciseName: actualExerciseName,
+          setId,
+          setIndex,
+          suggestedWeightKg: setAdvice.suggested_weight_kg ?? undefined,
+          suggestedReps: setAdvice.suggested_reps ?? undefined,
+          suggestedRestSeconds: setAdvice.suggested_rest_seconds ?? undefined,
+          suggestionRationale: setAdvice.rationale,
+          action: "rejected",
+          progressionType: userPreferences?.progression_type ?? "adaptive",
+          readinessScore: advice?.readiness.rho,
+          plateauDetected:
+            setAdvice.rationale.includes("Plateau Alert") ||
+            setAdvice.rationale.includes("plateau detected"),
+          interactionTimeMs,
+        });
+      } catch (trackingError) {
+        console.warn("Failed to track rejected suggestion:", trackingError);
+      }
+    }
+
+    try {
+      await rejectSuggestion();
+      showToast("Suggestion dismissed.", "info");
+    } catch (error) {
+      logger.error("Failed to mark suggestion as rejected", error, {
+        setId,
+        sessionId,
+      });
+      showToast(
+        "We couldn't record that dismissal. Please try again.",
+        "error",
+      );
+    }
+
+    logger.info("suggestion_rejected", {
+      setId,
+      exerciseName: actualExerciseName,
+      setIndex,
+      sessionId,
     });
-    console.log("Overridden suggestion for set", setId);
   };
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Health Advice Toggle */}
-      <div className="flex justify-center">
+      {toastState && (
+        <Toast
+          open
+          type={toastState.type}
+          message={toastState.message}
+          onClose={dismissToast}
+        />
+      )}
+
+      <div className="flex flex-col items-center gap-3">
         <Button
           onClick={handleGetHealthAdvice}
           disabled={loading || isSubmittingWellness}
           variant="default"
           size="lg"
         >
-          {loading || isSubmittingWellness
-            ? "Getting AI Advice..."
-            : hasExistingAdvice
-              ? "🔄 Refresh Workout Intelligence"
-              : userPreferences?.enable_manual_wellness &&
-                  !whoopStatus.isConnected
-                ? "🎯 Quick Wellness Check"
-                : "🤖 Get Workout Intelligence"}
+          {primaryActionLabel}
         </Button>
+        <IntegrationStatusNotice
+          state={integrationState}
+          manualFallbackAvailable={manualFallbackAvailable}
+          hasManualWellness={isManualWellnessEnabled}
+        />
       </div>
 
-      {/* Health Advice Panel */}
       {showHealthAdvice && advice && (
-        <div
-          className="glass-surface space-y-3 p-3 sm:space-y-4 sm:p-4"
-          style={{
-            backgroundColor: "var(--color-bg-surface)",
-            color: "var(--color-text)",
-            borderColor: "var(--color-border)",
-          }}
-        >
-          <h2
-            className="text-center text-lg font-bold sm:text-xl md:text-2xl"
-            style={{ color: "var(--color-text)" }}
-          >
-            🏋️ Today's Workout Intelligence
-          </h2>
-
-          <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-            {/* Readiness and Overall Chance */}
-            <div className="space-y-4">
-              <ReadinessIndicator
-                rho={advice.readiness.rho}
-                flags={advice.readiness.flags}
-                overloadMultiplier={advice.readiness.overload_multiplier}
-              />
-              <ProbabilityGauge
-                probability={advice.session_predicted_chance}
-                title="Session Success Chance"
-                subtitle="Probability to beat your previous bests"
-              />
-            </div>
-
-            {/* AI Summary */}
-            <AISummary summary={advice.summary} warnings={advice.warnings} />
-          </div>
-
-          {/* Exercise-specific suggestions */}
-          <div className="space-y-3 sm:space-y-4">
-            <h3
-              className="text-lg font-semibold sm:text-xl"
-              style={{ color: "var(--color-text)" }}
-            >
-              Exercise Recommendations
-            </h3>
-            {advice.per_exercise.map((exercise) => (
-              <SetSuggestions
-                key={exercise.exercise_id}
-                exercise={exercise}
-                onAcceptSuggestion={handleAcceptSuggestion}
-                onOverrideSuggestion={handleOverrideSuggestion}
-                sessionId={sessionId.toString()}
-              />
-            ))}
-          </div>
-        </div>
+        <HealthAdvicePanel
+          advice={advice}
+          sessionId={sessionId}
+          onAcceptSuggestion={handleAcceptSuggestion}
+          onOverrideSuggestion={handleOverrideSuggestion}
+          adviceSource={lastAdviceSource}
+          getInteractionTimeMs={getInteractionTimeMs}
+        />
       )}
 
-      {/* Error display */}
-      {error && (
-        <div
-          className="glass-surface rounded-lg p-4"
-          style={{
-            borderColor: "var(--color-danger)",
-            color: "var(--color-danger)",
-          }}
-        >
-          <h3 className="font-semibold">Health Advice Error</h3>
-          <p>{error}</p>
-        </div>
-      )}
+      {error && <ErrorNotice message={error} />}
 
-      {/* Subjective Wellness Modal (Legacy 4-input system) */}
-      <SubjectiveWellnessModal
-        isOpen={showWellnessModal}
-        onClose={() => setShowWellnessModal(false)}
-        onSubmit={handleSubjectiveWellnessSubmit}
-        hasWhoopIntegration={whoopStatus.hasIntegration}
-        isWhoopConnected={whoopStatus.isConnected}
-        onConnectWhoop={handleConnectWhoop}
-      />
-
-      {/* Manual Wellness Modal (Simplified 2-input system) */}
-      <ManualWellnessModal
-        isOpen={showManualWellnessModal}
-        onClose={() => {
+      <WellnessModals
+        showSubjective={showWellnessModal}
+        onCloseSubjective={() => setShowWellnessModal(false)}
+        onSubmitSubjective={handleSubjectiveWellnessSubmit}
+        showManual={showManualWellnessModal}
+        onCloseManual={() => {
           setShowManualWellnessModal(false);
           setWellnessSubmitError(null);
         }}
-        onSubmit={handleManualWellnessSubmit}
-        hasWhoopIntegration={whoopStatus.hasIntegration}
-        isWhoopConnected={whoopStatus.isConnected}
+        onSubmitManual={handleManualWellnessSubmit}
+        whoopStatus={whoopStatus}
         onConnectWhoop={handleConnectWhoop}
-        isSubmitting={isSubmittingWellness}
-        submitError={wellnessSubmitError ?? undefined}
+        isSubmittingManual={isSubmittingWellness}
+        manualSubmitError={wellnessSubmitError}
         sessionId={sessionId}
       />
 
-      {/* Sticky Subheader */}
-      <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-10 border-b backdrop-blur">
-        <div className="container mx-auto px-3 py-3 sm:px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">{templateName}</h2>
-                <p className="text-muted-foreground text-sm">
-                  Elapsed: {elapsedTime} • Online
-                </p>
-              </div>
-              {/* Readiness Chip */}
-              {advice && (
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      advice.readiness.rho > 0.7
-                        ? "bg-green-100 text-green-800"
-                        : advice.readiness.rho > 0.4
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    Readiness: {Math.round(advice.readiness.rho * 100)}%
-                  </div>
-                </div>
-              )}
-            </div>
-            <Button variant="default" size="sm">
-              Complete Workout
-            </Button>
-          </div>
+      <WorkoutSessionStickyHeader
+        templateName={templateName}
+        elapsedTime={elapsedTime}
+        readiness={advice?.readiness.rho}
+      />
+
+      <WorkoutSession sessionId={sessionId} />
+    </div>
+  );
+}
+
+interface HealthAdvicePanelProps {
+  advice: HealthAdviceResponse;
+  sessionId: number;
+  adviceSource: AdviceSource;
+  onAcceptSuggestion: (
+    setId: string,
+    suggestion: { weight?: number; reps?: number },
+  ) => void;
+  onOverrideSuggestion: (setId: string) => void;
+  getInteractionTimeMs: () => number | undefined;
+}
+
+function HealthAdvicePanel({
+  advice,
+  sessionId,
+  adviceSource,
+  onAcceptSuggestion,
+  onOverrideSuggestion,
+  getInteractionTimeMs,
+}: HealthAdvicePanelProps) {
+  return (
+    <div className="glass-surface space-y-3 p-3 sm:space-y-4 sm:p-4">
+      <h2
+        className="text-center text-lg font-bold sm:text-xl md:text-2xl"
+        style={{ color: "var(--color-text)" }}
+      >
+        🏋️ Today's Workout Intelligence
+      </h2>
+
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <ReadinessIndicator
+            rho={advice.readiness.rho}
+            flags={advice.readiness.flags}
+            overloadMultiplier={advice.readiness.overload_multiplier}
+          />
+          <ProbabilityGauge
+            probability={advice.session_predicted_chance}
+            title="Session Success Chance"
+            subtitle="Probability to beat your previous bests"
+          />
+        </div>
+        <div className="space-y-4">
+          <AISummary summary={advice.summary} warnings={advice.warnings} />
+          {advice.recovery_recommendations && (
+            <RecoveryRecommendationsCard
+              recommendations={advice.recovery_recommendations}
+            />
+          )}
         </div>
       </div>
 
-      {/* Original Workout Session */}
-      <WorkoutSession sessionId={sessionId} />
+      <div className="space-y-3 sm:space-y-4">
+        <h3
+          className="text-lg font-semibold sm:text-xl"
+          style={{ color: "var(--color-text)" }}
+        >
+          Exercise Recommendations
+        </h3>
+        {advice.per_exercise.map((exercise) => (
+          <SetSuggestions
+            key={exercise.exercise_id}
+            exercise={exercise}
+            onAcceptSuggestion={onAcceptSuggestion}
+            onOverrideSuggestion={onOverrideSuggestion}
+            sessionId={sessionId.toString()}
+            adviceSource={adviceSource}
+            getInteractionTimeMs={getInteractionTimeMs}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface IntegrationStatusNoticeProps {
+  state: IntegrationState;
+  manualFallbackAvailable: boolean;
+  hasManualWellness: boolean;
+}
+
+function IntegrationStatusNotice({
+  state,
+  manualFallbackAvailable,
+  hasManualWellness,
+}: IntegrationStatusNoticeProps) {
+  if (state === "connected") return null;
+
+  let message: string;
+
+  if (state === "never_connected") {
+    message = hasManualWellness
+      ? "No WHOOP data yet. Use a quick wellness check to get AI guidance."
+      : "Connect WHOOP or add a quick wellness check to unlock AI guidance.";
+  } else {
+    message = manualFallbackAvailable
+      ? "WHOOP connection looks inactive. We'll prompt for a quick wellness check until you reconnect."
+      : "WHOOP connection looks inactive. Reconnect to keep automated insights flowing.";
+  }
+
+  return (
+    <p className="text-muted-foreground max-w-lg text-center text-sm">
+      {message}
+    </p>
+  );
+}
+
+interface WellnessModalsProps {
+  showSubjective: boolean;
+  onCloseSubjective: () => void;
+  onSubmitSubjective: (data: SubjectiveWellnessData) => void | Promise<void>;
+  showManual: boolean;
+  onCloseManual: () => void;
+  onSubmitManual: (data: ManualWellnessData) => void | Promise<void>;
+  whoopStatus: {
+    hasIntegration: boolean;
+    isConnected: boolean;
+  };
+  onConnectWhoop: () => void;
+  isSubmittingManual: boolean;
+  manualSubmitError: string | null;
+  sessionId: number;
+}
+
+function WellnessModals({
+  showSubjective,
+  onCloseSubjective,
+  onSubmitSubjective,
+  showManual,
+  onCloseManual,
+  onSubmitManual,
+  whoopStatus,
+  onConnectWhoop,
+  isSubmittingManual,
+  manualSubmitError,
+  sessionId,
+}: WellnessModalsProps) {
+  return (
+    <>
+      <SubjectiveWellnessModal
+        isOpen={showSubjective}
+        onClose={onCloseSubjective}
+        onSubmit={onSubmitSubjective}
+        hasWhoopIntegration={whoopStatus.hasIntegration}
+        isWhoopConnected={whoopStatus.isConnected}
+        onConnectWhoop={onConnectWhoop}
+      />
+      <ManualWellnessModal
+        isOpen={showManual}
+        onClose={onCloseManual}
+        onSubmit={onSubmitManual}
+        hasWhoopIntegration={whoopStatus.hasIntegration}
+        isWhoopConnected={whoopStatus.isConnected}
+        onConnectWhoop={onConnectWhoop}
+        isSubmitting={isSubmittingManual}
+        submitError={manualSubmitError ?? undefined}
+        sessionId={sessionId}
+      />
+    </>
+  );
+}
+
+interface WorkoutSessionStickyHeaderProps {
+  templateName: string;
+  elapsedTime: string;
+  readiness?: number;
+}
+
+function WorkoutSessionStickyHeader({
+  templateName,
+  elapsedTime,
+  readiness,
+}: WorkoutSessionStickyHeaderProps) {
+  return (
+    <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-10 border-b backdrop-blur">
+      <div className="container mx-auto px-3 py-3 sm:px-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">{templateName}</h2>
+              <p className="text-muted-foreground text-sm">
+                Elapsed: {elapsedTime} • Online
+              </p>
+            </div>
+            {typeof readiness === "number" && (
+              <div
+                className={`rounded-full px-2 py-1 text-xs font-medium ${
+                  readiness > 0.7
+                    ? "bg-green-100 text-green-800"
+                    : readiness > 0.4
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-red-100 text-red-800"
+                }`}
+              >
+                Readiness: {Math.round(readiness * 100)}%
+              </div>
+            )}
+          </div>
+          <Button variant="default" size="sm">
+            Complete Workout
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorNotice({ message }: { message: string }) {
+  return (
+    <div className="glass-surface rounded-lg border border-red-500/40 p-4 text-red-600">
+      <h3 className="font-semibold">Health Advice Error</h3>
+      <p className="mt-1 text-sm">{message}</p>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 
-const actions = [
+const ACTIONS = [
   {
     title: "Start Workout",
     description: "Begin a new workout session",
@@ -28,57 +28,17 @@ const actions = [
     gradient: "from-chart-3 to-chart-4",
     href: "/templates",
   },
-];
+] as const;
 
-function MobileActionCard({
-  action,
-}: {
-  action: (typeof actions)[number];
-}) {
+type QuickAction = (typeof ACTIONS)[number];
+
+function QuickActionCard({ action }: { action: QuickAction }) {
   const Icon = action.icon;
 
   return (
     <Link
       href={action.href}
-      className={cn(
-        "glass-card glass-hairline flex min-w-[220px] snap-start flex-col rounded-2xl border border-white/8 bg-card/80 p-4 text-left shadow-md",
-        "transition-transform duration-300 hover:-translate-y-1 hover:shadow-md",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            "grid h-10 w-10 place-items-center rounded-xl text-primary-foreground",
-            "bg-gradient-to-br",
-            action.gradient,
-          )}
-        >
-          <Icon className="h-5 w-5" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{action.title}</p>
-          <p className="text-xs text-muted-foreground">{action.description}</p>
-        </div>
-      </div>
-      <span className="mt-4 inline-flex items-center text-xs font-semibold uppercase tracking-wide text-primary">
-        Open
-      </span>
-    </Link>
-  );
-}
-
-function DesktopActionCard({
-  action,
-}: {
-  action: (typeof actions)[number];
-}) {
-  const Icon = action.icon;
-
-  return (
-    <Link
-      href={action.href}
-      className="group block h-full focus-visible:outline-none focus-visible:ring-0"
+      className="group focus-visible:outline-none focus-visible:ring-0"
     >
       <Card
         className={cn(
@@ -88,7 +48,7 @@ function DesktopActionCard({
         )}
       >
         <div className={cn("h-1 bg-gradient-to-r", action.gradient)} />
-        <CardContent className="flex flex-1 flex-col gap-5 p-6">
+        <CardContent className="flex flex-1 flex-col gap-5 p-5 sm:p-6">
           <div className="flex items-center gap-4">
             <span
               className={cn(
@@ -100,8 +60,12 @@ function DesktopActionCard({
               <Icon className="h-6 w-6" aria-hidden />
             </span>
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-foreground">{action.title}</h3>
-              <p className="text-sm text-muted-foreground">{action.description}</p>
+              <h3 className="text-lg font-semibold text-foreground">
+                {action.title}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {action.description}
+              </p>
             </div>
           </div>
           <Button
@@ -122,20 +86,13 @@ function DesktopActionCard({
 
 export const QuickActions = memo(function QuickActions() {
   return (
-    <div className="space-y-4">
-      <div className="-mx-6 flex gap-3 overflow-x-auto px-6 pb-2 md:hidden" aria-label="Quick actions">
-        <div className="flex snap-x snap-mandatory gap-3">
-          {actions.map((action) => (
-            <MobileActionCard key={action.href} action={action} />
-          ))}
-        </div>
-      </div>
-
-      <div className="hidden gap-6 md:grid md:grid-cols-3" aria-hidden>
-        {actions.map((action) => (
-          <DesktopActionCard key={action.href} action={action} />
-        ))}
-      </div>
-    </div>
+    <section
+      aria-label="Quick actions"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+    >
+      {ACTIONS.map((action) => (
+        <QuickActionCard key={action.href} action={action} />
+      ))}
+    </section>
   );
 });

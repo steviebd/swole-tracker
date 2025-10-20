@@ -84,6 +84,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     expect(result).toEqual({
       isConnected: true,
+      hasEverConnected: true,
       connectedAt: integration.createdAt,
       expiresAt: integration.expiresAt,
       isExpired: false,
@@ -116,6 +117,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     expect(result).toEqual({
       isConnected: false,
+      hasEverConnected: false,
       connectedAt: null,
       expiresAt: null,
       isExpired: false,
@@ -149,6 +151,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     expect(result).toEqual({
       isConnected: false,
+      hasEverConnected: true,
       connectedAt: integration.createdAt,
       expiresAt: integration.expiresAt,
       isExpired: true,
@@ -261,6 +264,8 @@ describe("whoopRouter.getLatestRecoveryData", () => {
       hrv_rmssd_baseline: "42.1",
       resting_heart_rate: 60,
       resting_heart_rate_baseline: 65,
+      respiratory_rate: 14.2,
+      respiratory_rate_baseline: 13.9,
       raw_data: { recovery: true },
       date: new Date(),
     };
@@ -316,6 +321,8 @@ describe("whoopRouter.getLatestRecoveryData", () => {
       hrv_baseline_ms: "42.1",
       rhr_now_bpm: 60,
       rhr_baseline_bpm: 65,
+      respiratory_rate: 14.2,
+      respiratory_rate_baseline: 13.9,
       yesterday_strain: null,
       raw_data: {
         recovery: recovery.raw_data,

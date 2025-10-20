@@ -692,10 +692,21 @@ function ExerciseDetails({
     refetch: refetchDetails,
   } = api.exercises.getLinkingDetails.useQuery({ masterExerciseId });
 
-  const { data: latestPerformance } =
+  const { data: latestPerformanceData } =
     api.exercises.getLatestPerformance.useQuery({
       masterExerciseId,
     });
+
+  type LatestPerformanceDetails = {
+    weight: number | null;
+    unit: string | null;
+    reps: number | null;
+    sets: number | null;
+    workoutDate: Date;
+  };
+
+  const latestPerformance =
+    latestPerformanceData as LatestPerformanceDetails | null;
 
   const unlinkExercise = api.exercises.unlink.useMutation({
     onSuccess: () => {

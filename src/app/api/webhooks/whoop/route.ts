@@ -58,6 +58,8 @@ interface WhoopRecoveryData {
     resting_heart_rate_milli: number;
     hr_baseline: number;
     hrv_baseline: number;
+    respiratory_rate?: number;
+    respiratory_rate_baseline?: number;
   };
 }
 
@@ -81,6 +83,8 @@ interface WhoopSleepData {
       total_rem_sleep_time_milli: number;
       sleep_cycle_count: number;
       disturbance_count: number;
+      arousal_time_milli?: number;
+      sleep_latency_milli?: number;
     };
     sleep_needed: {
       baseline_milli: number;
@@ -393,6 +397,9 @@ async function processRecoveryUpdate(
           resting_heart_rate:
             recoveryData.score?.resting_heart_rate_milli || null,
           resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
+          respiratory_rate: recoveryData.score?.respiratory_rate || null,
+          respiratory_rate_baseline:
+            recoveryData.score?.respiratory_rate_baseline || null,
           raw_data: JSON.stringify(recoveryData),
           updatedAt: new Date(),
         })
@@ -414,6 +421,9 @@ async function processRecoveryUpdate(
           resting_heart_rate:
             recoveryData.score?.resting_heart_rate_milli || null,
           resting_heart_rate_baseline: recoveryData.score?.hr_baseline || null,
+          respiratory_rate: recoveryData.score?.respiratory_rate || null,
+          respiratory_rate_baseline:
+            recoveryData.score?.respiratory_rate_baseline || null,
           raw_data: JSON.stringify(recoveryData),
           timezone_offset: null,
         },
@@ -458,6 +468,11 @@ async function processSleepUpdate(
       .from(whoopSleep)
       .where(eq(whoopSleep.whoop_sleep_id, sleepId));
 
+    const stageSummary = sleepData.score?.stage_summary;
+    const sleepNeed = sleepData.score?.sleep_needed;
+    const sleepConsistency =
+      sleepData.score?.sleep_consistency_percentage ?? null;
+
     if (existingSleep) {
       // Update existing sleep
       console.log(
@@ -472,23 +487,27 @@ async function processSleepUpdate(
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
           total_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
+            stageSummary?.total_in_bed_time_milli || null,
           sleep_efficiency_percentage:
             sleepData.score?.sleep_efficiency_percentage || null,
           slow_wave_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
-            null,
+            stageSummary?.total_slow_wave_sleep_time_milli || null,
           rem_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
+            stageSummary?.total_rem_sleep_time_milli || null,
           light_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_light_sleep_time_milli ||
-            null,
-          wake_time_milli:
-            sleepData.score?.stage_summary?.total_awake_time_milli || null,
-          arousal_time_milli:
-            sleepData.score?.stage_summary?.total_awake_time_milli || null,
-          disturbance_count:
-            sleepData.score?.stage_summary?.disturbance_count || null,
+            stageSummary?.total_light_sleep_time_milli || null,
+          wake_time_milli: stageSummary?.total_awake_time_milli || null,
+          arousal_time_milli: stageSummary?.arousal_time_milli || null,
+          disturbance_count: stageSummary?.disturbance_count || null,
+          sleep_latency_milli: stageSummary?.sleep_latency_milli || null,
+          sleep_consistency_percentage: sleepConsistency,
+          sleep_need_baseline_milli: sleepNeed?.baseline_milli || null,
+          sleep_need_from_sleep_debt_milli:
+            sleepNeed?.need_from_sleep_debt_milli || null,
+          sleep_need_from_recent_strain_milli:
+            sleepNeed?.need_from_recent_strain_milli || null,
+          sleep_need_from_recent_nap_milli:
+            sleepNeed?.need_from_recent_nap_milli || null,
           raw_data: JSON.stringify(sleepData),
           updatedAt: new Date(),
         })
@@ -508,24 +527,27 @@ async function processSleepUpdate(
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
           total_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_in_bed_time_milli || null,
+            stageSummary?.total_in_bed_time_milli || null,
           sleep_efficiency_percentage:
             sleepData.score?.sleep_efficiency_percentage || null,
           slow_wave_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_slow_wave_sleep_time_milli ||
-            null,
+            stageSummary?.total_slow_wave_sleep_time_milli || null,
           rem_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_rem_sleep_time_milli || null,
+            stageSummary?.total_rem_sleep_time_milli || null,
           light_sleep_time_milli:
-            sleepData.score?.stage_summary?.total_light_sleep_time_milli ||
-            null,
-          wake_time_milli:
-            sleepData.score?.stage_summary?.total_awake_time_milli || null,
-          arousal_time_milli:
-            sleepData.score?.stage_summary?.total_awake_time_milli || null,
-          disturbance_count:
-            sleepData.score?.stage_summary?.disturbance_count || null,
-          sleep_latency_milli: null,
+            stageSummary?.total_light_sleep_time_milli || null,
+          wake_time_milli: stageSummary?.total_awake_time_milli || null,
+          arousal_time_milli: stageSummary?.arousal_time_milli || null,
+          disturbance_count: stageSummary?.disturbance_count || null,
+          sleep_latency_milli: stageSummary?.sleep_latency_milli || null,
+          sleep_consistency_percentage: sleepConsistency,
+          sleep_need_baseline_milli: sleepNeed?.baseline_milli || null,
+          sleep_need_from_sleep_debt_milli:
+            sleepNeed?.need_from_sleep_debt_milli || null,
+          sleep_need_from_recent_strain_milli:
+            sleepNeed?.need_from_recent_strain_milli || null,
+          sleep_need_from_recent_nap_milli:
+            sleepNeed?.need_from_recent_nap_milli || null,
           raw_data: JSON.stringify(sleepData),
         },
       ]);
@@ -584,6 +606,10 @@ async function processCycleUpdate(
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
           kilojoule: cycleData.score?.kilojoule || null,
+          percent_recorded: cycleData.score?.percent_recorded || null,
+          distance_meter: cycleData.score?.distance_meter || null,
+          altitude_gain_meter: cycleData.score?.altitude_gain_meter || null,
+          altitude_change_meter: cycleData.score?.altitude_change_meter || null,
           raw_data: JSON.stringify(cycleData),
           updatedAt: new Date(),
         })
@@ -604,6 +630,10 @@ async function processCycleUpdate(
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
           kilojoule: cycleData.score?.kilojoule || null,
+          percent_recorded: cycleData.score?.percent_recorded || null,
+          distance_meter: cycleData.score?.distance_meter || null,
+          altitude_gain_meter: cycleData.score?.altitude_gain_meter || null,
+          altitude_change_meter: cycleData.score?.altitude_change_meter || null,
           raw_data: JSON.stringify(cycleData),
         },
       ]);

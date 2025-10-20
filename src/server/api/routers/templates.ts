@@ -9,6 +9,7 @@ import {
   workoutSessions,
 } from "~/server/db/schema";
 import { eq, desc, and, inArray, sql, asc, max, count } from "drizzle-orm";
+import { chunkedBatch, whereInChunks } from "~/server/db/chunk-utils";
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
@@ -214,13 +215,22 @@ export const templatesRouter = createTRPCRouter({
         >;
       }
 
-      const templates = await ctx.db.query.workoutTemplates.findMany({
-        where: inArray(workoutTemplates.id, templateIds),
-        with: {
-          exercises: {
-            orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+      const templates: Array<
+        typeof workoutTemplates.$inferSelect & {
+          exercises: (typeof templateExercises.$inferSelect)[];
+        }
+      > = [];
+
+      await whereInChunks(templateIds, async (idChunk) => {
+        const chunkTemplates = await ctx.db.query.workoutTemplates.findMany({
+          where: inArray(workoutTemplates.id, idChunk),
+          with: {
+            exercises: {
+              orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+            },
           },
-        },
+        });
+        templates.push(...chunkTemplates);
       });
 
       const statsByTemplate = new Map<
@@ -456,18 +466,23 @@ export const templatesRouter = createTRPCRouter({
       }
 
       if (createdNewTemplate && input.exercises.length > 0) {
-        const insertedExercises = await ctx.db
-          .insert(templateExercises)
-          .values(
-            input.exercises.map((exerciseName, index) => ({
-              user_id: ctx.user.id,
-              templateId: template.id,
-              exerciseName,
-              orderIndex: index,
-              linkingRejected: false,
-            })),
-          )
-          .returning();
+        const exerciseRows = input.exercises.map((exerciseName, index) => ({
+          user_id: ctx.user.id,
+          templateId: template.id,
+          exerciseName,
+          orderIndex: index,
+          linkingRejected: false,
+        }));
+
+        const batchResults = await chunkedBatch(
+          ctx.db,
+          exerciseRows,
+          (chunk) =>
+            ctx.db.insert(templateExercises).values(chunk).returning(),
+        );
+        const insertedExercises = (
+          batchResults as Array<typeof templateExercises.$inferSelect[]>
+        ).flat();
 
         for (const templateExercise of insertedExercises) {
           await createAndLinkMasterExercise(
@@ -530,18 +545,23 @@ export const templatesRouter = createTRPCRouter({
 
       // Insert new exercises and create master exercise links
       if (input.exercises.length > 0) {
-        const insertedExercises = await ctx.db
-          .insert(templateExercises)
-          .values(
-            input.exercises.map((exerciseName, index) => ({
-              user_id: ctx.user.id,
-              templateId: input.id,
-              exerciseName,
-              orderIndex: index,
-              linkingRejected: false,
-            })),
-          )
-          .returning();
+        const exerciseRows = input.exercises.map((exerciseName, index) => ({
+          user_id: ctx.user.id,
+          templateId: input.id,
+          exerciseName,
+          orderIndex: index,
+          linkingRejected: false,
+        }));
+
+        const batchResults = await chunkedBatch(
+          ctx.db,
+          exerciseRows,
+          (chunk) =>
+            ctx.db.insert(templateExercises).values(chunk).returning(),
+        );
+        const insertedExercises = (
+          batchResults as Array<typeof templateExercises.$inferSelect[]>
+        ).flat();
 
         // Create master exercises and links for each template exercise
         for (const templateExercise of insertedExercises) {
@@ -620,18 +640,22 @@ export const templatesRouter = createTRPCRouter({
       const originalExercises = original.exercises ?? [];
 
       if (originalExercises.length > 0) {
-        const inserted = await ctx.db
-          .insert(templateExercises)
-          .values(
-            originalExercises.map((exercise) => ({
-              user_id: ctx.user.id,
-              templateId: created.id,
-              exerciseName: exercise.exerciseName,
-              orderIndex: exercise.orderIndex,
-              linkingRejected: exercise.linkingRejected ?? false,
-            })),
-          )
-          .returning();
+        const exerciseRows = originalExercises.map((exercise) => ({
+          user_id: ctx.user.id,
+          templateId: created.id,
+          exerciseName: exercise.exerciseName,
+          orderIndex: exercise.orderIndex,
+          linkingRejected: exercise.linkingRejected ?? false,
+        }));
+        const batchResults = await chunkedBatch(
+          ctx.db,
+          exerciseRows,
+          (chunk) =>
+            ctx.db.insert(templateExercises).values(chunk).returning(),
+        );
+        const inserted = (
+          batchResults as Array<typeof templateExercises.$inferSelect[]>
+        ).flat();
 
         for (const exercise of inserted) {
           await createAndLinkMasterExercise(

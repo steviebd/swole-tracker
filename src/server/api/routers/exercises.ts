@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
 import { logger } from "~/lib/logger";
+import { SQLITE_VARIABLE_LIMIT, whereInChunks } from "~/server/db/chunk-utils";
 
 type MasterExerciseWithLinkedCount = {
   id: number;
@@ -660,29 +661,95 @@ export const exercisesRouter = createTRPCRouter({
       }
 
       // Get the most recent session exercise from any linked template exercise
-      const latestPerformance = await ctx.db
-        .select({
-          weight: sessionExercises.weight,
-          reps: sessionExercises.reps,
-          sets: sessionExercises.sets,
-          unit: sessionExercises.unit,
-          workoutDate: workoutSessions.workoutDate,
-        })
-        .from(sessionExercises)
-        .innerJoin(
-          workoutSessions,
-          eq(workoutSessions.id, sessionExercises.sessionId),
-        )
-        .where(
-          and(
-            inArray(sessionExercises.templateExerciseId, templateExerciseIds),
-            eq(sessionExercises.user_id, ctx.user.id),
-          ),
-        )
-        .orderBy(desc(workoutSessions.workoutDate))
-        .limit(1);
+      type LatestPerformanceRow = {
+        weight: number | null;
+        reps: number | null;
+        sets: number | null;
+        unit: string | null;
+        workoutDate: Date;
+      };
 
-      return latestPerformance[0] ?? null;
+      let latestPerformance: LatestPerformanceRow | null = null;
+
+      await whereInChunks(
+        templateExerciseIds,
+        async (idChunk) => {
+        const chunkLatest = await ctx.db
+          .select({
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            unit: sessionExercises.unit,
+            workoutDate: workoutSessions.workoutDate,
+          })
+          .from(sessionExercises)
+          .innerJoin(
+            workoutSessions,
+            eq(workoutSessions.id, sessionExercises.sessionId),
+          )
+          .where(
+            and(
+              inArray(sessionExercises.templateExerciseId, idChunk),
+              eq(sessionExercises.user_id, ctx.user.id),
+            ),
+          )
+          .orderBy(desc(workoutSessions.workoutDate))
+          .limit(1);
+
+        let normalizedRow: LatestPerformanceRow | null = null;
+
+        if (chunkLatest[0]) {
+          const rawDate = chunkLatest[0].workoutDate;
+          const workoutDateCandidate =
+            rawDate instanceof Date
+              ? rawDate
+              : rawDate
+              ? new Date(rawDate as string | number)
+              : null;
+
+          const workoutDate =
+            workoutDateCandidate && !Number.isNaN(workoutDateCandidate.getTime())
+              ? workoutDateCandidate
+              : null;
+
+          if (workoutDate) {
+            normalizedRow = {
+              weight:
+                chunkLatest[0].weight == null
+                  ? null
+                  : Number(chunkLatest[0].weight),
+              reps:
+                chunkLatest[0].reps == null
+                  ? null
+                  : Number(chunkLatest[0].reps),
+              sets:
+                chunkLatest[0].sets == null
+                  ? null
+                  : Number(chunkLatest[0].sets),
+              unit:
+                typeof chunkLatest[0].unit === "string"
+                  ? chunkLatest[0].unit
+                  : null,
+              workoutDate,
+            };
+          }
+        }
+
+        if (!normalizedRow) {
+          return;
+        }
+
+        const currentDate = latestPerformance?.workoutDate ?? null;
+        const candidateDate = normalizedRow.workoutDate;
+
+        if (!currentDate || candidateDate > currentDate) {
+          latestPerformance = normalizedRow;
+        }
+        },
+        SQLITE_VARIABLE_LIMIT,
+      );
+
+      return latestPerformance satisfies LatestPerformanceRow | null;
     }),
 
   // Get exercise links for a template

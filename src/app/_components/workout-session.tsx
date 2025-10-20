@@ -20,6 +20,14 @@ import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 
 interface WorkoutSessionProps {
   sessionId: number;
+  children?: (
+    updateSet: (
+      exerciseIndex: number,
+      setIndex: number,
+      field: string,
+      value: any,
+    ) => void,
+  ) => React.ReactNode;
 }
 
 export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
@@ -345,26 +353,21 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         {[...(Array(3) as number[])].map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-lg p-3 sm:p-4"
-            style={{ backgroundColor: "var(--color-bg-surface)" }}
+            className="animate-pulse rounded-lg bg-[var(--color-bg-surface)] p-3 sm:p-4"
           >
             <div
-              className="mb-3 h-3 w-1/2 rounded sm:mb-4 sm:h-4"
-              style={{ backgroundColor: "var(--color-border)" }}
-            ></div>
+              className="mb-3 h-3 w-1/2 rounded bg-[var(--color-border)] sm:mb-4 sm:h-4"
+            />
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div
-                className="h-8 rounded sm:h-10"
-                style={{ backgroundColor: "var(--color-border)" }}
-              ></div>
+                className="h-8 rounded bg-[var(--color-border)] sm:h-10"
+              />
               <div
-                className="h-8 rounded sm:h-10"
-                style={{ backgroundColor: "var(--color-border)" }}
-              ></div>
+                className="h-8 rounded bg-[var(--color-border)] sm:h-10"
+              />
               <div
-                className="h-8 rounded sm:h-10"
-                style={{ backgroundColor: "var(--color-border)" }}
-              ></div>
+                className="h-8 rounded bg-[var(--color-border)] sm:h-10"
+              />
             </div>
           </div>
         ))}
@@ -685,8 +688,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             >
               <h3
                 id="delete-workout-title"
-                className="mb-3 text-lg font-bold sm:mb-4 sm:text-xl"
-                style={{ color: "var(--color-danger)" }}
+                className="mb-3 text-lg font-bold text-[var(--color-danger)] sm:mb-4 sm:text-xl"
               >
                 Delete Workout
               </h3>
@@ -696,7 +698,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
               >
                 Are you sure you want to delete this workout?
                 <br />
-                <strong style={{ color: "var(--color-danger)" }}>
+                <strong className="text-[var(--color-danger)]">
                   This action cannot be undone.
                 </strong>
               </p>
@@ -753,8 +755,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
             >
               <h3
                 id="complete-workout-title"
-                className="mb-1 text-lg font-bold sm:text-xl"
-                style={{ color: "var(--color-primary)" }}
+                className="mb-1 text-lg font-bold text-[var(--color-primary)] sm:text-xl"
               >
                 Complete Workout
               </h3>

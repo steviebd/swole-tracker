@@ -104,15 +104,12 @@ export function ManualWellnessModal({
   };
 
   return (
-    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <Card className="max-h-[90vh] w-full max-w-md overflow-y-auto">
         <div className="space-y-6 p-6">
           {/* Header with improved messaging for simplified system */}
           <div className="space-y-2 text-center">
-            <h2
-              className="text-xl font-bold"
-              style={{ color: "var(--color-text)" }}
-            >
+            <h2 className="text-xl font-bold text-[var(--color-text)]">
               Quick Wellness Check
             </h2>
             <p className="text-muted text-sm">
@@ -120,14 +117,7 @@ export function ManualWellnessModal({
             </p>
 
             {!hasWhoopIntegration && (
-              <div
-                className="rounded-lg p-3 text-left"
-                style={{
-                  backgroundColor:
-                    "color-mix(in oklab, var(--color-warning) 10%, var(--color-bg-surface))",
-                  borderColor: "var(--color-warning)",
-                }}
-              >
+              <div className="rounded-lg border border-[var(--color-warning)] bg-[color-mix(in_oklab,_var(--color-warning)_10%,_var(--color-bg-surface))] p-3 text-left">
                 <p className="text-secondary text-sm">
                   💡 Quick 30-second wellness check to get personalized workout
                   recommendations
@@ -146,14 +136,7 @@ export function ManualWellnessModal({
             )}
 
             {hasWhoopIntegration && !isWhoopConnected && (
-              <div
-                className="rounded-lg p-3 text-left"
-                style={{
-                  backgroundColor:
-                    "color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))",
-                  borderColor: "var(--color-danger)",
-                }}
-              >
+              <div className="rounded-lg border border-[var(--color-danger)] bg-[color-mix(in_oklab,_var(--color-danger)_10%,_var(--color-bg-surface))] p-3 text-left">
                 <p className="text-secondary text-sm">
                   ⚠️ WHOOP disconnected. Quick wellness check will be used for
                   recommendations.
@@ -172,14 +155,7 @@ export function ManualWellnessModal({
             )}
 
             {hasWhoopIntegration && isWhoopConnected && (
-              <div
-                className="rounded-lg p-3 text-left"
-                style={{
-                  backgroundColor:
-                    "color-mix(in oklab, var(--color-success) 10%, var(--color-bg-surface))",
-                  borderColor: "var(--color-success)",
-                }}
-              >
+              <div className="rounded-lg border border-[var(--color-success)] bg-[color-mix(in_oklab,_var(--color-success)_10%,_var(--color-bg-surface))] p-3 text-left">
                 <p className="text-secondary text-sm">
                   ✅ WHOOP connected! Your input will enhance the WHOOP data for
                   even better recommendations.
@@ -190,10 +166,7 @@ export function ManualWellnessModal({
 
           {/* Quick Presets for Mobile UX */}
           <div className="space-y-3">
-            <label
-              className="text-sm font-medium"
-              style={{ color: "var(--color-text)" }}
-            >
+            <label className="text-sm font-medium text-[var(--color-text)]">
               Quick Presets
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -201,12 +174,7 @@ export function ManualWellnessModal({
                 <button
                   key={preset.label}
                   onClick={() => handlePresetSelect(preset)}
-                  className="hover:bg-opacity-80 rounded-lg border p-3 text-center text-xs transition-colors"
-                  style={{
-                    borderColor: "var(--color-border)",
-                    backgroundColor:
-                      "color-mix(in oklab, var(--color-primary) 5%, var(--color-bg-surface))",
-                  }}
+                  className="rounded-lg border border-[var(--color-border)] bg-[color-mix(in_oklab,_var(--color-primary)_5%,_var(--color-bg-surface))] p-3 text-center text-xs transition-colors hover:bg-opacity-80"
                 >
                   <div className="mb-1 text-lg">
                     {preset.label.split(" ")[0]}
@@ -227,10 +195,7 @@ export function ManualWellnessModal({
             {/* Energy Level */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label
-                  className="text-sm font-medium"
-                  style={{ color: "var(--color-text)" }}
-                >
+                <label className="text-sm font-medium text-[var(--color-text)]">
                   How energetic do you feel?
                 </label>
                 <span className="text-muted text-sm">
@@ -246,8 +211,7 @@ export function ManualWellnessModal({
                   setEnergyLevel(Number(e.target.value));
                   setValidationError(null);
                 }}
-                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg"
-                style={{ backgroundColor: "var(--color-border)" }}
+                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
               />
               <div className="text-muted flex justify-between text-xs">
                 <span>Drained</span>
@@ -258,10 +222,7 @@ export function ManualWellnessModal({
             {/* Sleep Quality */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label
-                  className="text-sm font-medium"
-                  style={{ color: "var(--color-text)" }}
-                >
+                <label className="text-sm font-medium text-[var(--color-text)]">
                   How well did you sleep?
                 </label>
                 <span className="text-muted text-sm">
@@ -277,8 +238,7 @@ export function ManualWellnessModal({
                   setSleepQuality(Number(e.target.value));
                   setValidationError(null);
                 }}
-                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg"
-                style={{ backgroundColor: "var(--color-border)" }}
+                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
               />
               <div className="text-muted flex justify-between text-xs">
                 <span>Terrible</span>
@@ -288,10 +248,7 @@ export function ManualWellnessModal({
 
             {/* Optional Notes */}
             <div className="space-y-3">
-              <label
-                className="text-sm font-medium"
-                style={{ color: "var(--color-text)" }}
-              >
+              <label className="text-sm font-medium text-[var(--color-text)]">
                 Additional Notes (Optional)
               </label>
               <textarea
@@ -303,12 +260,7 @@ export function ManualWellnessModal({
                   }
                 }}
                 placeholder="Any other factors affecting your wellness today? (e.g., stress, illness, excitement)"
-                className="w-full resize-none rounded-lg border p-3 text-sm"
-                style={{
-                  borderColor: "var(--color-border)",
-                  backgroundColor: "var(--color-bg-surface)",
-                  color: "var(--color-text)",
-                }}
+                className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-3 text-sm text-[var(--color-text)]"
                 rows={3}
                 maxLength={500}
               />
@@ -320,14 +272,7 @@ export function ManualWellnessModal({
 
           {/* Error Messages */}
           {(validationError || submitError) && (
-            <div
-              className="rounded-lg p-3"
-              style={{
-                backgroundColor:
-                  "color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))",
-                borderColor: "var(--color-danger)",
-              }}
-            >
+            <div className="rounded-lg border border-[var(--color-danger)] bg-[color-mix(in_oklab,_var(--color-danger)_10%,_var(--color-bg-surface))] p-3">
               <p className="text-danger text-sm">
                 {validationError || submitError}
               </p>
@@ -356,10 +301,7 @@ export function ManualWellnessModal({
           </div>
 
           {/* Mobile-Optimized Disclaimer */}
-          <div
-            className="text-muted border-t pt-2 text-center text-xs"
-            style={{ borderColor: "var(--color-border)" }}
-          >
+          <div className="text-muted border-t border-[var(--color-border)] pt-2 text-center text-xs">
             <div className="space-y-1">
               <div>
                 💡 Quick wellness check for personalized recommendations

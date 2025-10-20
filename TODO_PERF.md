@@ -1,105 +1,70 @@
-# PDR: Stabilise Offline Sync, Session Persistence, and Dashboard Freshness
+# Database Performance Improvement Plan
 
-## Background
-- Users report stale UI after creating templates or finishing workouts; optimistic updates do not line up with the query keys that the list views and dashboards rely on.
-- Offline syncing succeeds eventually, but on-device state (cache, queue inspector) does not refresh, so people stay in limbo until a full reload.
-- WorkOS sessions abruptly expire in under an hour even though the cookie advertises 30 days. When someone steps away longer than that, every protected route bounces them back to login.
-- “Recent workouts” shows placeholders for sessions that were started and abandoned, and fresh completions take a long time to surface. Product guidance: drop abandoned sessions after 4 hours and require a re-login only if the user stays away for 72 hours.
+This document outlines findings from a performance review of the application's database interactions and proposes a set of tasks to improve performance, reduce latency, and enhance scalability.
 
-## Goals / Success Criteria
-- Session cookies remain valid for 72 hours of inactivity, while the WorkOS access token still rotates hourly behind the scenes.
-- Completing a template creation or workout immediately updates any view that displays it (`/templates`, dashboard recents) without waiting for network round-trips.
-- Offline queue UI reflects the latest queue contents, and the React Query cache scopes correctly per user (no leakage across accounts).
-- Recent-workout feeds exclude abandoned sessions, and the system reclaims stragglers ≥4 hours old.
-- Document additional hotspots so future work can extend the same fixes across other lagging screens.
+**Note on Cloudflare Free Tier**: All of the following recommendations are achievable within the Cloudflare free tier. Caching can be implemented using the Cloudflare Cache API, and all other suggestions involve code and schema changes that do not require paid features.
 
-## Non-Goals
-- No new UI/UX design work beyond keeping existing flows (e.g. `/templates/new` → `/templates`) but ensure data consistency there.
-- Do not re-architect the entire offline system or add background sync jobs beyond what is necessary for accuracy.
+## Key Findings
 
-## Proposal & Implementation Plan
-1. ✅ **Session Longevity Revamp**
-   - Extend `sessions` schema (if needed) or reuse existing columns to track two timestamps: `sessionExpiresAt` (≥72 hours) and `accessTokenExpiresAt` (~1 hour). Keep `expiresAt` for backwards compatibility but migrate usage.
-   - In `SessionCookie.create`, set `sessionExpiresAt` to `now + 72h` and `accessTokenExpiresAt` to the WorkOS token’s expiry. Update `SessionCookie.get` / `SessionCookie.isExpired` to check the longer window.
-   - Update middleware refresh path to bump both expiries on success: persist the refreshed access token and push `sessionExpiresAt` forward another 72 hours.
-   - Ensure `/api/auth/session` respects the longer window and returns 401 only when `sessionExpiresAt` has passed.
-   - QA: verify cookie persists across 72 h simulation (adjust timestamps in tests) and that forced refresh still happens hourly. Add Vitest coverage for the new expiry math.
+1.  **Complex tRPC Queries**: The `progressRouter` contains several tRPC procedures with highly complex queries. Procedures like `getExerciseStrengthProgression` and `getTopExercises` involve multiple joins, subqueries, and `CASE` statements that can be slow and resource-intensive, especially as the `sessionExercises` table grows.
 
-2. ✅ **Template List Instant Refresh**
-   - Align optimistic cache writes with the actual query key shape. Instead of `setData(undefined, …)`, call `queryClient.setQueriesData` targeting all active `templates.getAll` queries (iterate via `utils.templates.getAll.getQueryKey({ search, sort })`).
-   - After mutation success, keep redirect to `/templates`, but ensure the landing page can render from the already-updated cache. Only `invalidateQueries` if you need server confirmation.
-   - Validate offline scenario: creating while offline should enqueue mutation and add an optimistic entry scoped to the current user.
+2.  **Potential N+1 Query in `getLinkedExerciseNames`**: The `getLinkedExerciseNames` utility function appears to introduce a potential N+1 query. It first fetches a `masterExercise` and then issues separate queries to find all `templateExercises` linked to it, leading to a cascade of database calls.
 
-3. ✅ **Offline Queue Reactivity**
-   - Replace the static `useMemo` in `useOfflineSaveQueue` with state derived from storage events. Subscribe to queue changes (including `enqueue`, `writeQueue`) and update both `queueSize` and the item list.
-   - Consider exposing `useQueueItems()` hook or updating the existing hook to return a snapshot that re-renders when storage changes.
-   - Cover with unit tests (Vitest + jsdom) to confirm storage events propagate.
+3.  **Client-Side Data Aggregation**: Several procedures fetch raw data from the database and perform aggregations and calculations in the application layer (e.g., `calculateLocalOneRM`, `calculateVolumeLoad`). This increases data transfer and puts unnecessary computational load on the application server.
 
-4. ✅ **Per-User Cache Scoping**
-   - Call `setOfflineCacheUser(userId)` inside `TRPCReactProvider` before `setupOfflinePersistence(queryClient)`. When `userId` changes, clear the old cache namespace and hydrate a fresh persister.
-   - Audit logout/sign-out flows to ensure `clearAllOfflineData` wipes all scoped keys.
+4.  **Slow `COALESCE` Usage**: The `getTopExercises` and `getExerciseList` procedures use `COALESCE` to merge `masterExercises.name` and `sessionExercises.exerciseName`. On large tables, this operation can be a significant performance bottleneck.
 
-5. ✅ **Recent Workouts Hygiene**
-   - Update `workouts.getRecent` to filter out sessions lacking exercises (e.g. `EXISTS (SELECT 1 FROM session_exercise WHERE …)`).
-   - Implement cleanup in the router or a cron endpoint to delete or archive sessions older than 4 hours with zero exercises; perform this prune silently (no UI prompts) either on resume or via background job.
-   - Expand optimistic cache updates to cover all active limits (`setQueriesData` on `getRecent` with varying `limit`). Mirror the delete mutation logic accordingly.
-   - Verify the `/workout` dashboard, `/workouts`, and `RecentWorkoutsSection` reflect completed sessions instantly.
+5.  **Inefficient JSON Blob Storage**: Several tables, including `whoop_recovery`, `whoop_cycles`, and `whoop_sleep`, store important data in `raw_data` JSON blobs. Querying and filtering based on attributes within these blobs is inefficient and not scalable.
 
-6. ✅ **Audit & Report Additional Lag Hotspots**
-   - Build a comprehensive inventory of cached screens/components:
-     1. **Dashboard/Home (`DashboardContent`, `StatsCards`, `QuickActionCards`, `RecentWorkoutsSection`, `RecentAchievements`)**
-     2. **Progress analytics (`ProgressDashboard`, `WeeklyProgressSection`, strength/volume modals)**
-     3. **Whoop integration surfaces (`WhoopIntegrationSection`, recovery/sleep/body measurement panels, `/connect-whoop`)**
-     4. **AI & wellness features (`session-debrief-panel`, health advice components, wellness history, suggestions)**
-     5. **Workout history & detail views (`workout-history`, `/workouts`, `/workout/session/*`)**
-     6. **Template + exercise management beyond the primary flow (exercise manager, linking modals)**
-     7. **Offline/Sync indicators (`enhanced-sync-indicator`, `sync-indicator`, conflict resolution modal)**
-   - For each bucket:
-     - Enumerate the tRPC queries/mutations involved (query key shape, invalidation strategy, optimistic update hooks, offline queue interactions).
-     - Identify current stale behaviours (manual testing notes, known bugs) and map to required fixes (e.g., broaden `setQueriesData`, add targeted invalidations, trigger background refetch after offline flush).
-     - Document dependencies on React Query persistence so we can ensure cache scope applies uniformly once Step 4 lands.
-   - Summarise findings back in this file (new subsection per bucket) and spin out follow-up tasks or TODOs for any surfaces requiring code changes beyond the items already defined here. Implementation order can follow impact, but nothing should remain unreviewed.
+6.  **Lack of True Transactions**: The database layer uses a mock for transactions because Cloudflare D1 does not support them. While this is a known limitation of D1, it means that multi-statement operations are not atomic, which could lead to data inconsistency under load.
 
-## Task Breakdown
-1. Schema & session service refactor, with tests (`session-cookie.ts`, middleware, auth routes).
-2. Template mutation cache alignment (`template-form.tsx`, `templates-list.tsx`, related hooks).
-3. Offline queue hook reactivity over localStorage events (`use-offline-save-queue.ts` + tests).
-4. TRPC provider cache scoping adjustments (`trpc/react.tsx`, `offline-storage.ts`).
-5. Recent workout filtering, cleanup routine, and optimistic cache broadening (`workouts` router, `useWorkoutSessionState`, dashboard components).
-6. Complete cached-surface audit and log action items per bucket (append to this file or link out).
+7.  **Suboptimal Indexing**: Although the schema is generally well-indexed, there are opportunities for further optimization. The `TODO_NEW.md` file correctly identifies the need for a composite index on `user_id + createdAt` in the `sessionDebriefs` table. A broader review of query patterns would likely reveal other missing indexes.
 
-## Risks / Mitigations
-- **Session expiry migration**: changing semantics could log out users if applied incorrectly. Mitigate with migration path and dual-field fallback.
-- **Cache key fan-out**: updating all query keys risks stale references or memory bloat. Keep helper utilities to iterate keys safely.
-- **Offline queue churn**: more frequent state updates could increase re-render cost. Debounce storage listeners or batch updates if needed.
-- **Cleanup job edge cases**: deleting empty sessions must not touch in-progress workouts; use the 4 hour cutoff and confirm some heartbeat writes mark “active” sessions.
+## Recommended Actions
 
-## Cached-Surface Audit Findings ✅
-- ✅ Expanded cache invalidations, optimistic updates, and Whoop refresh cadence to keep cached surfaces in sync.
-- **Dashboard / Home**
-  - Queries: `progress.getWorkoutDates` (week/month variants with staggered `staleTime`) and `progress.getVolumeProgression` via `useSharedWorkoutData` (`src/hooks/use-shared-workout-data.ts:12`). Mutations: none; relies on `workouts.save` side effects.
-  - Gaps: workout saves (online/offline) never invalidate `progress.*` queries, so `StatsCards` (`src/app/_components/StatsCards.tsx:15`) and `RecentAchievements` (`src/app/_components/RecentAchievements.tsx:7`) show stale streak/volume data. Offline flush only touches `workouts.getRecent`/`templates.getAll`.
-  - Actions: expand post-save invalidations to cover `progress.getWorkoutDates`, `progress.getVolumeProgression`, `progress.getConsistencyStats`, and `progress.getPersonalRecords` for active time ranges; mirror that in offline queue flush. Consider `queryClient.setQueriesData` to update “this week” counts immediately.
+### 1. Query Optimization
 
-- ✅ **Progress Analytics**
-  - Added optimistic volume summaries via `applyOptimisticVolumeMetrics` and `calculateVolumeSummaryFromExercises` (`src/lib/workout-cache-helpers.ts:153`, `src/lib/workout-cache-helpers.ts:103`), wiring them into the workout save mutation (`src/hooks/useWorkoutSessionState.ts:356`) so dashboard cards refresh instantly.
-  - Existing helper invalidations already hit `progress.*`; no further gaps observed beyond potential modal data prewarming (tracked separately).
+- [x] **Task**: Refactor complex queries in `progressRouter`.
+  **Details**: Break down the queries in `getExerciseStrengthProgression` and `getTopExercises` into smaller, more manageable parts. Use `EXPLAIN QUERY PLAN` to analyze the query performance and identify bottlenecks.
+  **Priority**: High
+  **Status**: Completed – progression endpoints now query via `sessionExerciseMetricsView` with per-period fetches and reduced post-processing.
 
-- ✅ **Whoop Integration**
-  - Added visibility-aware polling on status and data queries (`src/app/_components/WhoopIntegrationSection.tsx:291`, `src/app/_components/whoop-workouts.tsx:81`) driven by a new shared hook (`src/hooks/use-document-visibility.ts:1`).
-  - Manual sync paths now fan out invalidations through `invalidateWhoopCaches` and workout refresh helpers (`src/lib/workout-cache-helpers.ts:269`, `src/app/_components/whoop-connection.tsx:112`, `src/app/_components/whoop-workouts.tsx:255`) so dashboards pick up imported workouts immediately.
+- [x] **Task**: Create database views to simplify complex queries.
+  **Details**: Implement database views to encapsulate the logic for complex joins and calculations. This will simplify the application-level queries and ensure that the logic is centralized and optimized in the database.
+  **Priority**: Medium
+  **Status**: Completed – added `view_session_exercise_metrics` for reuse across progress analytics.
 
-- ✅ **AI & Wellness (Session Debriefs, Health Advice, Wellness History)**
-  - Debrief panel now polls while regenerations are pending so new versions surface without manual refresh, and stops once a fresh version lands (`src/app/_components/session-debrief-panel.tsx:218`).
-  - Health advice saves invalidate session-scoped and historical caches (including wellness history/stats) to keep dashboards aligned with new recommendations (`src/hooks/useHealthAdvice.ts:31`).
+### 2. Eliminate N+1 Queries
 
-- ✅ **Workout History & Detail**
-  - `WorkoutHistory` now listens for offline queue flush completions and refetches the expanded `getRecent` dataset so pagination stays fresh after background syncs (`src/app/_components/workout-history.tsx:61`).
-  - Server-side `getRecent` already purges empty sessions older than four hours before returning data, keeping abandoned workouts out of all cache tiers (`src/server/api/routers/workouts.ts:55`).
+- [x] **Task**: Rewrite `getLinkedExerciseNames` to use a single, efficient query.
+  **Details**: Refactor the function to use a `JOIN` to fetch all linked `templateExercises` in a single database call, eliminating the N+1 pattern.
+  **Priority**: High
+  **Status**: Completed – helper now performs one scoped join and caches resolved names for inserts.
 
-- ✅ **Template / Exercise Management**
-  - Added cache helpers to fan template inserts/removals across all `templates.getAll` variants and wired them into duplicate/create/delete flows (`src/lib/template-cache-helpers.ts:8`, `src/app/_components/templates-list.tsx:171`).
-  - Exercise maintenance now invalidates master and template data together so linking/merge edits refresh dependent views (`src/app/_components/exercise-manager.tsx:47`).
+### 3. Optimize `COALESCE` Usage
 
-- ✅ **Offline / Sync Indicators**
-  - Sync indicator now tracks the last successful flush and surfaces “just synced” messaging once caches settle, providing clearer transitions after offline queues drain (`src/hooks/use-sync-indicator.ts:61`).
+- [x] **Task**: Denormalize `exerciseName` to avoid `COALESCE`.
+  **Details**: To eliminate the slow `COALESCE` operation, consider denormalizing the `exerciseName` from `masterExercises` into the `sessionExercises` table. This can be managed with a periodic batch job, as D1 does not support triggers.
+  **Priority**: Medium
+  **Status**: Completed – `resolvedExerciseName` is persisted and referenced by all high-traffic queries.
+
+### 4. Optimize JSON Blob Storage
+
+- [x] **Task**: Extract critical fields from JSON blobs.
+  **Details**: Identify the most frequently queried fields within the `raw_data` JSON blobs and extract them into separate, indexed columns. This will dramatically improve query performance on these tables.
+  **Priority**: Medium
+  **Status**: Completed – WHOOP recovery, cycle, and sleep ingestion now persists respiratory, strain, and sleep-need metrics as first-class columns.
+
+### 5. Implement a Caching Strategy
+
+- **Task**: Introduce a caching layer for expensive queries.
+- **Details**: Implement a caching solution using the Cloudflare Cache API to cache the results of expensive and frequently executed queries, particularly in the `progressRouter`. This will significantly reduce database load and improve response times.
+- **Priority**: High
+
+### 6. Indexing Review
+
+- [x] **Task**: Conduct a comprehensive review of database indexes.
+  **Details**: Analyze the query patterns across the application to identify and add any missing indexes. Re-iterate the importance of adding the composite index on `user_id + createdAt` in the `sessionDebriefs` table as noted in `TODO_NEW.md`.
+  **Priority**: Medium
+  **Status**: Completed – verified `session_debrief_user_created_idx` exists and added `session_exercise_user_resolved_name_idx` to optimize resolved exercise lookups introduced by denormalization.
+`

@@ -16,6 +16,7 @@ import {
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
+import { whereInChunks } from "~/server/db/chunk-utils";
 
 type RecoveryInsert = typeof whoopRecovery.$inferInsert;
 type CycleInsert = typeof whoopCycles.$inferInsert;
@@ -111,6 +112,8 @@ interface WhoopRecovery {
     hrv_rmssd_milli: number;
     spo2_percentage: number;
     skin_temp_celsius: number;
+    respiratory_rate?: number;
+    respiratory_rate_baseline?: number;
   };
 }
 
@@ -163,6 +166,8 @@ interface WhoopSleep {
       total_rem_sleep_time_milli: number;
       sleep_cycle_count: number;
       disturbance_count: number;
+      arousal_time_milli?: number;
+      sleep_latency_milli?: number;
     };
     sleep_needed: {
       baseline_milli: number;
@@ -350,24 +355,33 @@ async function syncRecovery(
     }
 
     // Recovery records in v2 API use sleep_id as identifier, not a top-level id
-    const sleepIds = recoveries.map((r) => r.sleep_id).filter(Boolean);
+    const sleepIds = recoveries
+      .map((r) => (r.sleep_id != null ? r.sleep_id.toString() : null))
+      .filter((id): id is string => Boolean(id));
 
-    const existingRecoveries = await db
-      .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
-      .from(whoopRecovery)
-      .where(
-        and(
-          eq(whoopRecovery.user_id, userId),
-          inArray(whoopRecovery.whoop_recovery_id, sleepIds),
-        ),
-      );
+    const existingRecoveries: Array<{ whoopRecoveryId: string | null }> = [];
+    await whereInChunks(sleepIds, async (idChunk) => {
+      const chunkRecoveries = await db
+        .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
+        .from(whoopRecovery)
+        .where(
+          and(
+            eq(whoopRecovery.user_id, userId),
+            inArray(whoopRecovery.whoop_recovery_id, idChunk),
+          ),
+        );
+      existingRecoveries.push(...chunkRecoveries);
+    });
 
     const existingIds = new Set(
-      existingRecoveries.map((r) => r.whoopRecoveryId),
+      existingRecoveries
+        .map((r) => r.whoopRecoveryId ?? undefined)
+        .filter(Boolean),
     );
-    const newRecoveries = recoveries.filter(
-      (r) => r.sleep_id && !existingIds.has(r.sleep_id),
-    );
+    const newRecoveries = recoveries.filter((r) => {
+      const id = r.sleep_id != null ? r.sleep_id.toString() : null;
+      return id !== null && !existingIds.has(id);
+    });
 
     if (newRecoveries.length === 0) {
       return 0;
@@ -409,6 +423,9 @@ async function syncRecovery(
           hrv_rmssd_baseline: null,
           resting_heart_rate: recovery.score?.resting_heart_rate ?? null,
           resting_heart_rate_baseline: null,
+          respiratory_rate: recovery.score?.respiratory_rate ?? null,
+          respiratory_rate_baseline:
+            recovery.score?.respiratory_rate_baseline ?? null,
           raw_data: JSON.stringify(recovery),
           timezone_offset: null,
         } satisfies RecoveryInsert;
@@ -458,21 +475,34 @@ async function syncCycles(
     // Fetched cycles from WHOOP API
     if (cycles.length === 0) return 0;
 
-    const existingCycles = await db
-      .select({ whoopCycleId: whoopCycles.whoop_cycle_id })
-      .from(whoopCycles)
-      .where(
-        and(
-          eq(whoopCycles.user_id, userId),
-          inArray(
-            whoopCycles.whoop_cycle_id,
-            cycles.map((c) => c.id),
-          ),
-        ),
-      );
+    const cycleIds = cycles
+      .map((c) => (c.id != null ? c.id.toString() : null))
+      .filter((id): id is string => Boolean(id));
 
-    const existingIds = new Set(existingCycles.map((c) => c.whoopCycleId));
-    const newCycles = cycles.filter((c) => !existingIds.has(c.id));
+    const existingCycles: Array<{ whoopCycleId: string | null }> = [];
+    await whereInChunks(
+      cycleIds,
+      async (idChunk) => {
+        const chunkCycles = await db
+          .select({ whoopCycleId: whoopCycles.whoop_cycle_id })
+          .from(whoopCycles)
+          .where(
+            and(
+              eq(whoopCycles.user_id, userId),
+              inArray(whoopCycles.whoop_cycle_id, idChunk),
+            ),
+          );
+        existingCycles.push(...chunkCycles);
+      },
+    );
+
+    const existingIds = new Set(
+      existingCycles.map((c) => c.whoopCycleId ?? undefined).filter(Boolean),
+    );
+    const newCycles = cycles.filter((c) => {
+      const id = c.id != null ? c.id.toString() : null;
+      return id !== null && !existingIds.has(id);
+    });
 
     if (newCycles.length === 0) {
       return 0;
@@ -507,6 +537,10 @@ async function syncCycles(
           average_heart_rate: cycle.score?.average_heart_rate ?? null,
           max_heart_rate: cycle.score?.max_heart_rate ?? null,
           kilojoule: cycle.score?.kilojoule ?? null,
+          percent_recorded: cycle.score?.percent_recorded ?? null,
+          distance_meter: cycle.score?.distance_meter ?? null,
+          altitude_gain_meter: cycle.score?.altitude_gain_meter ?? null,
+          altitude_change_meter: cycle.score?.altitude_change_meter ?? null,
           raw_data: JSON.stringify(cycle),
         } satisfies CycleInsert;
       })
@@ -555,21 +589,33 @@ async function syncSleep(
     // Fetched sleep records from WHOOP API
     if (sleeps.length === 0) return 0;
 
-    const existingSleeps = await db
-      .select({ whoopSleepId: whoopSleep.whoop_sleep_id })
-      .from(whoopSleep)
-      .where(
-        and(
-          eq(whoopSleep.user_id, userId),
-          inArray(
-            whoopSleep.whoop_sleep_id,
-            sleeps.map((s) => s.id),
-          ),
-        ),
-      );
+    const sleepIds = sleeps
+      .map((s) => (s.id != null ? s.id.toString() : null))
+      .filter((id): id is string => Boolean(id));
 
-    const existingIds = new Set(existingSleeps.map((s) => s.whoopSleepId));
-    const newSleeps = sleeps.filter((s) => !existingIds.has(s.id));
+    const existingSleeps: Array<{ whoopSleepId: string | null }> = [];
+    await whereInChunks(sleepIds, async (idChunk) => {
+      const chunkSleeps = await db
+        .select({ whoopSleepId: whoopSleep.whoop_sleep_id })
+        .from(whoopSleep)
+        .where(
+          and(
+            eq(whoopSleep.user_id, userId),
+            inArray(whoopSleep.whoop_sleep_id, idChunk),
+          ),
+        );
+      existingSleeps.push(...chunkSleeps);
+    });
+
+    const existingIds = new Set(
+      existingSleeps
+        .map((s) => s.whoopSleepId ?? undefined)
+        .filter(Boolean),
+    );
+    const newSleeps = sleeps.filter((s) => {
+      const id = s.id != null ? s.id.toString() : null;
+      return id !== null && !existingIds.has(id);
+    });
 
     if (newSleeps.length === 0) {
       return 0;
@@ -580,6 +626,10 @@ async function syncSleep(
         const start = safeParseDate(sleep.start);
         const end = safeParseDate(sleep.end);
         const whoopId = sleep.id?.toString();
+        const stageSummary = sleep.score?.stage_summary;
+        const sleepNeed = sleep.score?.sleep_needed;
+        const sleepConsistency =
+          sleep.score?.sleep_consistency_percentage ?? null;
 
         if (!whoopId) {
           console.warn("[Sleep Sync] Skipping sleep without identifier", sleep);
@@ -603,23 +653,27 @@ async function syncSleep(
           sleep_performance_percentage:
             sleep.score?.sleep_performance_percentage ?? null,
           total_sleep_time_milli:
-            sleep.score?.stage_summary?.total_in_bed_time_milli ?? null,
+            stageSummary?.total_in_bed_time_milli ?? null,
           sleep_efficiency_percentage:
             sleep.score?.sleep_efficiency_percentage ?? null,
           slow_wave_sleep_time_milli:
-            sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli ??
-            null,
+            stageSummary?.total_slow_wave_sleep_time_milli ?? null,
           rem_sleep_time_milli:
-            sleep.score?.stage_summary?.total_rem_sleep_time_milli ?? null,
+            stageSummary?.total_rem_sleep_time_milli ?? null,
           light_sleep_time_milli:
-            sleep.score?.stage_summary?.total_light_sleep_time_milli ?? null,
-          wake_time_milli:
-            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
-          arousal_time_milli:
-            sleep.score?.stage_summary?.total_awake_time_milli ?? null,
-          disturbance_count:
-            sleep.score?.stage_summary?.disturbance_count ?? null,
-          sleep_latency_milli: null,
+            stageSummary?.total_light_sleep_time_milli ?? null,
+          wake_time_milli: stageSummary?.total_awake_time_milli ?? null,
+          arousal_time_milli: stageSummary?.arousal_time_milli ?? null,
+          disturbance_count: stageSummary?.disturbance_count ?? null,
+          sleep_latency_milli: stageSummary?.sleep_latency_milli ?? null,
+          sleep_consistency_percentage: sleepConsistency,
+          sleep_need_baseline_milli: sleepNeed?.baseline_milli ?? null,
+          sleep_need_from_sleep_debt_milli:
+            sleepNeed?.need_from_sleep_debt_milli ?? null,
+          sleep_need_from_recent_strain_milli:
+            sleepNeed?.need_from_recent_strain_milli ?? null,
+          sleep_need_from_recent_nap_milli:
+            sleepNeed?.need_from_recent_nap_milli ?? null,
           raw_data: JSON.stringify(sleep),
         } satisfies SleepInsert;
       })

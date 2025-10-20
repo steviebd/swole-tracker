@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { env } from "~/env";
-import { healthAdviceRequestSchema } from "~/server/api/schemas/health-advice";
+import {
+  healthAdviceRequestSchema,
+  healthAdviceResponseSchema,
+} from "~/server/api/schemas/health-advice";
 import { enhancedHealthAdviceRequestSchema } from "~/server/api/schemas/wellness";
 import {
   calculateReadiness,
@@ -389,18 +392,7 @@ export async function POST(req: NextRequest) {
           exercise_id?: string;
           id?: string;
         }) => {
-          // Determine set count: use existing session data or default to 3
-          const existingExerciseSets =
-            currentSession?.exercises?.filter(
-              (ex: any) =>
-                ex.exerciseName === exercise.exerciseName ||
-                ex.exerciseName === exercise.exercise_id,
-            ) || [];
-
-          const setCount =
-            existingExerciseSets.length > 0 ? existingExerciseSets.length : 3;
-
-          // Find historical data and progression suggestions for this exercise
+          // Find historical data for this exercise
           const exerciseHist = exerciseHistory.find(
             (hist) =>
               hist.exerciseName === exercise.exerciseName ||
@@ -413,26 +405,29 @@ export async function POST(req: NextRequest) {
               prog.exerciseName === exercise.exercise_id,
           );
 
-          let baseWeight = 20; // Default starting weight
-          let baseReps = 8; // Default reps
-          let suggestedWeight = baseWeight;
-          let suggestedReps = baseReps;
+          // Find the highest weight set from all historical sessions
+          let highestWeightSet = null;
           let plateauDetected = false;
 
           if (exerciseHist && exerciseHist.sessions.length > 0) {
-            const recentSession = exerciseHist.sessions[0];
-            if (recentSession?.sets && recentSession.sets.length > 0) {
-              const bestSet = recentSession.sets.reduce(
-                (best: WorkoutSet, set: WorkoutSet) => {
-                  const setBest = best.weight || 0;
-                  const setWeight = set.weight || 0;
-                  return setWeight > setBest ? set : best;
-                },
-              );
-              baseWeight = bestSet.weight || baseWeight;
-              baseReps = bestSet.reps || baseReps;
+            for (const session of exerciseHist.sessions) {
+              if (session?.sets && session.sets.length > 0) {
+                for (const set of session.sets) {
+                  if (
+                    !highestWeightSet ||
+                    (set.weight || 0) > (highestWeightSet.weight || 0)
+                  ) {
+                    highestWeightSet = set;
+                  }
+                }
+              }
             }
           }
+
+          const baseWeight = highestWeightSet?.weight || 20; // Use highest weight or default
+          const baseReps = highestWeightSet?.reps || 8; // Use reps from highest weight set or default
+          let suggestedWeight = baseWeight;
+          let suggestedReps = baseReps;
 
           // Use enhanced progression suggestions if available
           if (
@@ -463,61 +458,41 @@ export async function POST(req: NextRequest) {
           // Calculate rest recommendations based on readiness and exercise type
           const restSeconds = rho > 0.7 ? 120 : rho > 0.5 ? 150 : 180; // 2-3 minutes based on readiness
 
-          const sets = Array.from({ length: setCount }, (_, index) => {
-            // Apply progressive fatigue adjustment for later sets
-            const fatigueMultiplier = index === 0 ? 1.0 : 1.0 - index * 0.05; // 5% reduction per set
-            const setWeight = roundToIncrement(
-              suggestedWeight * fatigueMultiplier,
-            );
-            const setReps = Math.max(
-              1,
-              Math.round(suggestedReps * fatigueMultiplier),
-            );
-            const setRestSeconds = restSeconds + index * 15; // Increase rest by 15s per set
-
-            // Enhanced rationale with progression type and plateau information
-            let rationale = `Set ${index + 1}: `;
-
+          // Create only one set suggestion for the highest weight
+          const rationale = (() => {
             if (
               progressionSuggestion &&
               progressionSuggestion.suggestions.length > 0
             ) {
               const primarySuggestion = progressionSuggestion.suggestions[0];
+              let rationaleText = `Highest weight set: `;
               if (primarySuggestion) {
-                rationale += primarySuggestion.rationale;
+                rationaleText += primarySuggestion.rationale;
               }
               if (plateauDetected) {
-                rationale += ` [Plateau Alert]`;
+                rationaleText += ` [Plateau Alert]`;
               }
-              if (index > 0) {
-                rationale += ` with ${Math.round((1 - fatigueMultiplier) * 100)}% fatigue adjustment`;
-              }
-              rationale += `. Rest ${Math.round(setRestSeconds / 60)} minutes.`;
+              rationaleText += `. Rest ${Math.round(restSeconds / 60)} minutes.`;
+              return rationaleText;
             } else if (
               exerciseHist?.sessions &&
               exerciseHist.sessions.length > 0
             ) {
-              rationale += `Based on last session performance (${baseWeight}kg x ${baseReps}) with ${rho > 0.7 ? "good" : rho > 0.5 ? "moderate" : "low"} readiness`;
-              if (index > 0) {
-                rationale += ` and ${Math.round((1 - fatigueMultiplier) * 100)}% fatigue adjustment`;
-              }
-              rationale += `. Rest ${Math.round(setRestSeconds / 60)} minutes.`;
+              return `Highest weight set based on last session performance (${baseWeight}kg x ${baseReps}) with ${rho > 0.7 ? "good" : rho > 0.5 ? "moderate" : "low"} readiness. Rest ${Math.round(restSeconds / 60)} minutes.`;
             } else {
-              rationale += `Conservative estimate with readiness adjustment`;
-              if (index > 0) {
-                rationale += ` and fatigue consideration`;
-              }
-              rationale += `. Rest ${Math.round(setRestSeconds / 60)} minutes.`;
+              return `Conservative estimate for highest weight set with readiness adjustment. Rest ${Math.round(restSeconds / 60)} minutes.`;
             }
+          })();
 
-            return {
-              set_id: `${exercise.id || exercise.exercise_id}_${index + 1}`,
-              suggested_weight_kg: setWeight,
-              suggested_reps: setReps,
-              suggested_rest_seconds: setRestSeconds,
+          const sets = [
+            {
+              set_id: `${exercise.id || exercise.exercise_id}_highest`,
+              suggested_weight_kg: suggestedWeight,
+              suggested_reps: suggestedReps,
+              suggested_rest_seconds: restSeconds,
               rationale,
-            };
-          });
+            },
+          ];
 
           const bestVolume =
             exerciseHist?.sessions[0]?.sets.reduce(
@@ -627,59 +602,79 @@ export async function POST(req: NextRequest) {
         manual_wellness: validatedInput.manual_wellness,
       }), // Include manual wellness if present
       workout_plan: {
-        exercises: templateExercises.map((ex: any) => {
-          const existingExerciseSets =
-            currentSession?.exercises?.filter(
-              (sessionEx: any) => sessionEx.exerciseName === ex.exerciseName,
-            ) || [];
+        exercises: templateExercises
+          .filter(
+            (ex: any, index: number, arr: any[]) =>
+              // Deduplicate by exercise name to avoid sending same exercise multiple times
+              arr.findIndex((e) => e.exerciseName === ex.exerciseName) ===
+              index,
+          )
+          .map((ex: any) => {
+            const existingExerciseSets =
+              currentSession?.exercises?.filter(
+                (sessionEx: any) => sessionEx.exerciseName === ex.exerciseName,
+              ) || [];
 
-          const setCount =
-            existingExerciseSets.length > 0 ? existingExerciseSets.length : 3;
+            const setCount =
+              existingExerciseSets.length > 0 ? existingExerciseSets.length : 3;
 
-          // Get historical data for this specific exercise
-          const exerciseHist = exerciseHistory.find(
-            (hist) => hist.exerciseName === ex.exerciseName,
-          );
+            // Get historical data for this specific exercise
+            const exerciseHist = exerciseHistory.find(
+              (hist) => hist.exerciseName === ex.exerciseName,
+            );
 
-          // Use actual historical data for targets if available
-          let targetWeight = null;
-          let targetReps = null;
+            // Find the highest weight set from historical data
+            let highestWeightSet = null;
 
-          if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
-            const lastSession = exerciseHist.sessions[0];
-            if (lastSession?.sets && lastSession.sets.length > 0) {
-              const bestSet = lastSession.sets.reduce(
-                (best: WorkoutSet, set: WorkoutSet) =>
-                  (set.weight || 0) > (best.weight || 0) ? set : best,
-              );
-              targetWeight = bestSet.weight;
-              targetReps = bestSet.reps;
+            if (exerciseHist?.sessions && exerciseHist.sessions.length > 0) {
+              // Find the set with the highest weight across all historical sessions
+              for (const session of exerciseHist.sessions) {
+                if (session?.sets && session.sets.length > 0) {
+                  for (const set of session.sets) {
+                    if (
+                      !highestWeightSet ||
+                      (set.weight || 0) > (highestWeightSet.weight || 0)
+                    ) {
+                      highestWeightSet = set;
+                    }
+                  }
+                }
+              }
             }
-          }
 
-          return {
-            exercise_id: ex.exerciseName.toLowerCase().replace(/\s+/g, "_"),
-            name: ex.exerciseName,
-            tags: ["strength"], // Default tag, could be enhanced later
-            sets: Array.from({ length: setCount }, (_, index) => ({
-              set_id: `${ex.id}_${index + 1}`, // Use consistent template exercise ID format
-              target_reps: targetReps || 8,
-              target_weight_kg: targetWeight || 20,
-            })),
-            // Include raw historical session data for AI analysis
-            historical_sessions:
-              exerciseHist?.sessions.map((session: any) => ({
-                workout_date: session.workoutDate,
-                sets: session.sets.map((set: any) => ({
-                  weight_kg: set.weight,
-                  reps: set.reps,
-                  volume_kg: set.volume,
-                  estimated_rpe: null, // Could be enhanced if available
-                  rest_seconds: null, // Could be enhanced if available
-                })),
-              })) || [],
-          };
-        }),
+            return {
+              exercise_id: ex.exerciseName.toLowerCase().replace(/\s+/g, "_"),
+              name: ex.exerciseName,
+              tags: ["strength"], // Default tag, could be enhanced later
+              sets: highestWeightSet
+                ? [
+                    {
+                      set_id: `${ex.id}_highest`, // Only one set - the highest weight
+                      target_reps: highestWeightSet.reps || 8,
+                      target_weight_kg: highestWeightSet.weight || 20,
+                    },
+                  ]
+                : [
+                    {
+                      set_id: `${ex.id}_default`,
+                      target_reps: 8,
+                      target_weight_kg: 20,
+                    },
+                  ],
+              // Include raw historical session data for AI analysis
+              historical_sessions:
+                exerciseHist?.sessions.map((session: any) => ({
+                  workout_date: session.workoutDate,
+                  sets: session.sets.map((set: any) => ({
+                    weight_kg: set.weight,
+                    reps: set.reps,
+                    volume_kg: set.volume,
+                    estimated_rpe: null, // Could be enhanced if available
+                    rest_seconds: null, // Could be enhanced if available
+                  })),
+                })) || [],
+            };
+          }),
       },
       // Include detailed exercise linking information with optimized batch queries
       exercise_linking: await (async () => {
@@ -816,15 +811,67 @@ export async function POST(req: NextRequest) {
     };
 
     // Dynamically import AI SDK (similar to jokes router pattern)
-    const { generateText } = await import("ai");
+    const { generateObject, zodSchema, TypeValidationError } = await import(
+      "ai"
+    );
 
-    const result = await generateText({
+    const promptText = JSON.stringify(enhancedInput);
+    logger.info("Sending prompt to AI", {
+      promptLength: promptText.length,
       model: modelId,
-      system: systemPrompt,
-      prompt: JSON.stringify(enhancedInput),
     });
 
-    const aiResponse = JSON.parse(result.text);
+    let aiResponse;
+    try {
+      const result = await generateObject({
+        model: modelId,
+        system: systemPrompt,
+        prompt: promptText,
+        schema: zodSchema(healthAdviceResponseSchema),
+      });
+
+      if (result.warnings?.length) {
+        logger.warn("AI generation warnings", {
+          warnings: result.warnings,
+        });
+      }
+
+      aiResponse = result.object;
+    } catch (error) {
+      const baseError =
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : { name: "UnknownError", message: String(error) };
+
+      const isTypeValidationError =
+        typeof TypeValidationError?.isInstance === "function" &&
+        TypeValidationError.isInstance(error);
+
+      logger.error("AI object generation failed", {
+        ...baseError,
+        isTypeValidationError,
+        value:
+          isTypeValidationError && error && typeof error === "object"
+            ? (() => {
+                try {
+                  return JSON.stringify((error as any).value);
+                } catch {
+                  return "[unserializable]";
+                }
+              })()
+            : undefined,
+        cause:
+          error instanceof Error && error.cause
+            ? String(error.cause)
+            : undefined,
+      });
+
+      throw new Error(
+        isTypeValidationError
+          ? "AI returned data that did not match the expected schema"
+          : baseError.message,
+      );
+    }
 
     // Server-side validation of AI response
     if (!aiResponse.session_id || !aiResponse.readiness) {

@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, lte, ne } from "drizzle-orm";
+import { whereInChunks } from "~/server/db/chunk-utils";
 
 import { calculateOneRM, calculateVolumeLoad, isPR } from "~/server/api/utils/exercise-calculations";
 import {
@@ -224,31 +225,53 @@ export async function gatherSessionDebriefContext({
 
   let historicalSets: Record<string, SessionDebriefExerciseSet[]> = {};
   if (exerciseNames.length > 0) {
-    const rawHistorical = await dbClient
-      .select({
-        exerciseName: sessionExercises.exerciseName,
-        weight: sessionExercises.weight,
-        reps: sessionExercises.reps,
-        sets: sessionExercises.sets,
-        unit: sessionExercises.unit,
-        setOrder: sessionExercises.setOrder,
-        sessionId: sessionExercises.sessionId,
-      })
-      .from(sessionExercises)
-      .innerJoin(
-        workoutSessions,
-        eq(sessionExercises.sessionId, workoutSessions.id),
-      )
-      .where(
-        and(
-          eq(sessionExercises.user_id, userId),
-          inArray(sessionExercises.exerciseName, exerciseNames),
-          ne(sessionExercises.sessionId, sessionId),
-          lte(workoutSessions.workoutDate, sessionDate),
-        ),
-      )
-      .orderBy(desc(workoutSessions.workoutDate))
-      .limit(200);
+    let rawHistorical: Array<{
+      exerciseName: string;
+      weight: unknown;
+      reps: number | null;
+      sets: number | null;
+      unit: unknown;
+      setOrder: number | null;
+      sessionId: number;
+    }> = [];
+
+    await whereInChunks(
+      exerciseNames,
+      async (nameChunk) => {
+        if (rawHistorical.length >= 200) return;
+
+        const chunkRows = await dbClient
+          .select({
+            exerciseName: sessionExercises.exerciseName,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            unit: sessionExercises.unit,
+            setOrder: sessionExercises.setOrder,
+            sessionId: sessionExercises.sessionId,
+          })
+          .from(sessionExercises)
+          .innerJoin(
+            workoutSessions,
+            eq(sessionExercises.sessionId, workoutSessions.id),
+          )
+          .where(
+            and(
+              eq(sessionExercises.user_id, userId),
+              inArray(sessionExercises.exerciseName, nameChunk),
+              ne(sessionExercises.sessionId, sessionId),
+              lte(workoutSessions.workoutDate, sessionDate),
+            ),
+          )
+          .orderBy(desc(workoutSessions.workoutDate))
+          .limit(200);
+
+        rawHistorical = rawHistorical.concat(chunkRows);
+        if (rawHistorical.length > 200) {
+          rawHistorical = rawHistorical.slice(0, 200);
+        }
+      },
+    );
 
     historicalSets = rawHistorical.reduce<Record<string, SessionDebriefExerciseSet[]>>(
       (acc, item) => {

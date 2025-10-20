@@ -34,6 +34,10 @@ interface WhoopCycleData {
     average_heart_rate?: number;
     max_heart_rate?: number;
     kilojoule?: number;
+    percent_recorded?: number;
+    distance_meter?: number;
+    altitude_gain_meter?: number;
+    altitude_change_meter?: number;
   };
 }
 
@@ -60,6 +64,10 @@ async function fetchCycleFromWhoop(
           average_heart_rate: 72,
           max_heart_rate: 185,
           kilojoule: 2450.8,
+          percent_recorded: 96.5,
+          distance_meter: 10000,
+          altitude_gain_meter: 120,
+          altitude_change_meter: 50,
         },
       };
     }
@@ -165,6 +173,10 @@ async function processCycleUpdate(
           average_heart_rate: cycleData.score?.average_heart_rate || null,
           max_heart_rate: cycleData.score?.max_heart_rate || null,
           kilojoule: cycleData.score?.kilojoule || null,
+          percent_recorded: cycleData.score?.percent_recorded || null,
+          distance_meter: cycleData.score?.distance_meter || null,
+          altitude_gain_meter: cycleData.score?.altitude_gain_meter || null,
+          altitude_change_meter: cycleData.score?.altitude_change_meter || null,
           raw_data: JSON.stringify(cycleData),
           updatedAt: new Date(),
         })
@@ -184,6 +196,10 @@ async function processCycleUpdate(
         average_heart_rate: cycleData.score?.average_heart_rate || null,
         max_heart_rate: cycleData.score?.max_heart_rate || null,
         kilojoule: cycleData.score?.kilojoule || null,
+        percent_recorded: cycleData.score?.percent_recorded || null,
+        distance_meter: cycleData.score?.distance_meter || null,
+        altitude_gain_meter: cycleData.score?.altitude_gain_meter || null,
+        altitude_change_meter: cycleData.score?.altitude_change_meter || null,
         raw_data: JSON.stringify(cycleData),
       });
     }

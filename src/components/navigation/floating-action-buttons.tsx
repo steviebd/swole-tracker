@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { History, ArrowUpRight, ArrowDownLeft, BarChart3 } from "lucide-react";
 import { useAuth } from "~/providers/AuthProvider";
 import { cn } from "~/lib/utils";
+import { analytics } from "~/lib/analytics";
 
 // Icon components
 const PlusIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
@@ -46,22 +48,28 @@ interface QuickAction {
 
 const quickActions: QuickAction[] = [
   {
-    label: "Start Workout",
-    href: "/workout/start",
-    icon: WorkoutIcon,
-    description: "Begin a new workout session",
-  },
-  {
-    label: "View Progress",
+    label: "Resume last session",
     href: "/workouts",
-    icon: ProgressIcon,
-    description: "Check workout history and stats",
+    icon: History,
+    description: "Jump back into your most recent lift.",
   },
   {
-    label: "Manage Templates",
-    href: "/templates",
-    icon: TemplatesIcon,
-    description: "Create and edit workout templates",
+    label: "Start upper",
+    href: "/workout/start?focus=upper",
+    icon: ArrowUpRight,
+    description: "Heavy presses and pull accessories.",
+  },
+  {
+    label: "Start lower",
+    href: "/workout/start?focus=lower",
+    icon: ArrowDownLeft,
+    description: "Squats, pulls, and posterior chain.",
+  },
+  {
+    label: "View progress",
+    href: "/progress",
+    icon: BarChart3,
+    description: "Track volume and readiness trends.",
   },
 ];
 
@@ -252,6 +260,11 @@ export function QuickActionsGrid({ className }: { className?: string }) {
               "quick-action-card touch-target",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             )}
+            onClick={() =>
+              analytics.event("mobile_quick_action_selected", {
+                action: action.label,
+              })
+            }
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">

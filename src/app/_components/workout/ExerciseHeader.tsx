@@ -35,14 +35,11 @@ export function ExerciseHeader({
   return (
     <div className="mb-2 flex items-center justify-between">
       <div className="flex min-w-0 flex-col">
-        <div
-          className="truncate text-base font-semibold"
-          style={{ color: "var(--color-text)" }}
-        >
+        <div className="truncate text-base font-semibold text-[var(--color-text)]">
           {name}
         </div>
         {previousBest && (
-          <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+          <div className="text-xs text-[var(--color-text-muted)]">
             Prev best:{" "}
             {previousBest.weight !== undefined
               ? `${previousBest.weight}${previousBest.unit}`
@@ -57,10 +54,7 @@ export function ExerciseHeader({
       <div className="ml-3 flex shrink-0 items-center gap-2">
         {/* Unit Controls */}
         {onBulkUnitChange && unit && (
-          <div
-            className="flex rounded border"
-            style={{ borderColor: "var(--color-border)" }}
-          >
+          <div className="flex rounded border border-[var(--color-border)]">
             <button
               type="button"
               className={`px-2 py-1 text-xs transition-colors ${
@@ -96,18 +90,7 @@ export function ExerciseHeader({
 
         <button
           type="button"
-          className="rounded border px-2 py-1 text-xs transition-colors"
-          style={{
-            borderColor: "var(--color-border)",
-            backgroundColor: "var(--color-bg-surface)",
-            color: "var(--color-text)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-border)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
-          }}
+          className="rounded border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-2 py-1 text-xs text-[var(--color-text)] transition-colors hover:bg-[var(--color-border)]"
           onClick={(e) => {
             e.stopPropagation();
             onToggleExpansion(exerciseIndex);

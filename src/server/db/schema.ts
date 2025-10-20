@@ -131,6 +131,7 @@ export const sessionExercises = createTable(
       onDelete: "set null",
     }),
     exerciseName: text().notNull(),
+    resolvedExerciseName: text().notNull().default(""),
     setOrder: integer().notNull().default(0),
     weight: real(),
     reps: integer(),
@@ -159,6 +160,10 @@ export const sessionExercises = createTable(
       t.user_id,
       t.exerciseName,
       t.sessionId,
+    ),
+    index("session_exercise_user_resolved_name_idx").on(
+      t.user_id,
+      t.resolvedExerciseName,
     ),
     index("session_exercise_user_template_idx").on(
       t.user_id,
@@ -503,6 +508,8 @@ export const whoopRecovery = createTable(
     hrv_rmssd_baseline: real(), // HRV baseline
     resting_heart_rate: integer(), // BPM
     resting_heart_rate_baseline: integer(), // BPM baseline
+    respiratory_rate: real(), // breaths per minute
+    respiratory_rate_baseline: real(), // baseline respiratory rate
 
     // Full recovery data
     raw_data: text(), // Complete recovery payload from WHOOP
@@ -548,6 +555,10 @@ export const whoopCycles = createTable(
     average_heart_rate: integer(), // BPM
     max_heart_rate: integer(), // BPM
     kilojoule: real(), // Energy expenditure
+    percent_recorded: real(),
+    distance_meter: integer(),
+    altitude_gain_meter: integer(),
+    altitude_change_meter: integer(),
 
     // Full cycle data
     raw_data: text(), // Complete cycle payload from WHOOP
@@ -594,6 +605,11 @@ export const whoopSleep = createTable(
     arousal_time_milli: integer(),
     disturbance_count: integer(),
     sleep_latency_milli: integer(),
+    sleep_consistency_percentage: real(),
+    sleep_need_baseline_milli: integer(),
+    sleep_need_from_sleep_debt_milli: integer(),
+    sleep_need_from_recent_strain_milli: integer(),
+    sleep_need_from_recent_nap_milli: integer(),
 
     // Full sleep data
     raw_data: text(), // Complete sleep payload from WHOOP

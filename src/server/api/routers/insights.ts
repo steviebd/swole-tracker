@@ -7,6 +7,9 @@ import {
   exerciseLinks,
 } from "~/server/db/schema";
 import { and, desc, eq, gte, inArray, ne } from "drizzle-orm";
+import { whereInChunks } from "~/server/db/chunk-utils";
+
+type SessionExercise = typeof sessionExercises.$inferSelect;
 
 function toNumber(n: string | number | null | undefined): number | undefined {
   if (n === null || n === undefined) return undefined;
@@ -157,33 +160,106 @@ export const insightsRouter = createTRPCRouter({
 
         // Fetch recent sessions for the user
         let recentSessions: any[] = [];
+        const sessionsById = new Map<number, any>();
 
         // Only proceed if we have exercises to search for
         if (
           exerciseNamesToSearch.length > 0 ||
           (templateExerciseIds && templateExerciseIds.length > 0)
         ) {
-          recentSessions = await ctx.db.query.workoutSessions.findMany({
-            where: and(...sessionWhere),
-            orderBy: [desc(workoutSessions.workoutDate)],
-            limit: input.limitSessions,
-            with: {
-              exercises: {
-                where:
-                  templateExerciseIds && templateExerciseIds.length > 0
-                    ? inArray(
+          if (templateExerciseIds && templateExerciseIds.length > 0) {
+            await whereInChunks<number>(templateExerciseIds, async (chunk) => {
+              const chunkSessions = await ctx.db.query.workoutSessions.findMany(
+                {
+                  where: and(...sessionWhere),
+                  orderBy: [desc(workoutSessions.workoutDate)],
+                  limit: input.limitSessions,
+                  with: {
+                    exercises: {
+                      where: inArray(
                         sessionExercises.templateExerciseId,
-                        templateExerciseIds,
-                      )
-                    : exerciseNamesToSearch.length > 0
-                      ? inArray(
-                          sessionExercises.exerciseName,
-                          exerciseNamesToSearch,
-                        )
-                      : undefined,
+                        chunk,
+                      ),
+                    },
+                  },
+                },
+              );
+
+              for (const session of chunkSessions) {
+                const existing = sessionsById.get(session.id);
+                if (!existing) {
+                  sessionsById.set(session.id, {
+                    ...session,
+                    exercises: [...(session.exercises ?? [])],
+                  });
+                  continue;
+                }
+
+                const seenExerciseIds = new Set<number>(
+                  (existing.exercises ?? []).map(
+                    (exercise: SessionExercise) => exercise.id,
+                  ),
+                );
+                for (const exercise of session.exercises ?? []) {
+                  if (!seenExerciseIds.has(exercise.id)) {
+                    existing.exercises.push(exercise);
+                    seenExerciseIds.add(exercise.id);
+                  }
+                }
+              }
+            });
+          } else if (exerciseNamesToSearch.length > 0) {
+            await whereInChunks<string>(
+              exerciseNamesToSearch,
+              async (chunk) => {
+                const chunkSessions =
+                  await ctx.db.query.workoutSessions.findMany({
+                    where: and(...sessionWhere),
+                    orderBy: [desc(workoutSessions.workoutDate)],
+                    limit: input.limitSessions,
+                    with: {
+                      exercises: {
+                        where: inArray(sessionExercises.exerciseName, chunk),
+                      },
+                    },
+                  });
+
+                for (const session of chunkSessions) {
+                  const existing = sessionsById.get(session.id);
+                  if (!existing) {
+                    sessionsById.set(session.id, {
+                      ...session,
+                      exercises: [...(session.exercises ?? [])],
+                    });
+                    continue;
+                  }
+
+                  const seenExerciseIds = new Set<number>(
+                    (existing.exercises ?? []).map(
+                      (exercise: typeof sessionExercises.$inferSelect) =>
+                        exercise.id,
+                    ),
+                  );
+                  for (const exercise of session.exercises ?? []) {
+                    if (!seenExerciseIds.has(exercise.id)) {
+                      existing.exercises.push(exercise);
+                      seenExerciseIds.add(exercise.id);
+                    }
+                  }
+                }
               },
-            },
-          });
+            );
+          }
+
+          recentSessions = Array.from(sessionsById.values()).sort(
+            (a, b) =>
+              new Date(b.workoutDate ?? 0).getTime() -
+              new Date(a.workoutDate ?? 0).getTime(),
+          );
+
+          if (recentSessions.length > input.limitSessions) {
+            recentSessions = recentSessions.slice(0, input.limitSessions);
+          }
         }
 
         // Flatten sets chronologically (per session order) and compute metrics

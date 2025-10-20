@@ -111,17 +111,18 @@ describe("progressRouter", () => {
   });
 
   describe("getExerciseStrengthProgression", () => {
-    it("should return default values when no data exists", async () => {
-      // Mock empty result
-      db.select.mockReturnValue({
-        from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue([]),
-            })),
-          })),
+    const makeSelectBuilder = (rows: unknown[]) => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn().mockResolvedValue(rows),
         })),
-      });
+      })),
+    });
+
+    it("should return default values when no data exists", async () => {
+      db.select
+        .mockImplementationOnce(() => makeSelectBuilder([]))
+        .mockImplementationOnce(() => makeSelectBuilder([]));
 
       const result = await caller.getExerciseStrengthProgression({
         exerciseName: "Bench Press",
@@ -142,67 +143,71 @@ describe("progressRouter", () => {
     });
 
     it("should calculate strength progression with data", async () => {
-      const mockData = [
+      const currentData = [
         {
           workoutDate: new Date("2024-01-01"),
           exerciseName: "Bench Press",
-          weight: "100",
+          weight: 100,
           reps: 5,
           sets: 3,
           unit: "kg",
           oneRMEstimate: 112.5,
           volumeLoad: 1500,
-          period: "current",
         },
         {
           workoutDate: new Date("2024-01-15"),
           exerciseName: "Bench Press",
-          weight: "105",
+          weight: 105,
           reps: 5,
           sets: 3,
           unit: "kg",
           oneRMEstimate: 118.125,
           volumeLoad: 1575,
-          period: "current",
+        },
+      ];
+      const previousData = [
+        {
+          workoutDate: new Date("2023-12-20"),
+          exerciseName: "Bench Press",
+          weight: 95,
+          reps: 5,
+          sets: 3,
+          unit: "kg",
+          oneRMEstimate: 107.125,
+          volumeLoad: 1425,
         },
       ];
 
-      // Mock the complex query chain
-      const mockQueryChain = {
-        from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue(mockData),
-            })),
-          })),
-        })),
-      };
-
-      db.select.mockReturnValue(mockQueryChain);
+      db.select
+        .mockImplementationOnce(() => makeSelectBuilder(currentData))
+        .mockImplementationOnce(() => makeSelectBuilder(previousData));
 
       const result = await caller.getExerciseStrengthProgression({
         exerciseName: "Bench Press",
         timeRange: "quarter",
       });
 
-      expect(result.currentOneRM).toBeGreaterThan(0);
+      expect(result.currentOneRM).toBeCloseTo(118.125, 5);
+      expect(result.oneRMChange).toBeGreaterThan(0);
       expect(result.sessionCount).toBe(2);
-      expect(result.recentPRs).toBeDefined();
-      expect(result.topSets).toBeDefined();
+      expect(Array.isArray(result.recentPRs)).toBe(true);
+      expect(result.topSets.length).toBeGreaterThan(0);
     });
   });
 
   describe("getExerciseVolumeProgression", () => {
-    it("should return default values when no data exists", async () => {
-      db.select.mockReturnValue({
-        from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue([]),
-            })),
-          })),
+    const makeSelectBuilder = (rows: unknown[]) => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn().mockResolvedValue(rows),
         })),
-      });
+      })),
+    });
+
+    it("should return default values when no data exists", async () => {
+      db.select
+        .mockImplementationOnce(() => makeSelectBuilder([]))
+        .mockImplementationOnce(() => makeSelectBuilder([]));
 
       const result = await caller.getExerciseVolumeProgression({
         exerciseName: "Bench Press",
@@ -221,38 +226,41 @@ describe("progressRouter", () => {
     });
 
     it("should calculate volume progression with data", async () => {
-      const mockData = [
+      const currentData = [
         {
           workoutDate: new Date("2024-01-01"),
-          weight: "100",
+          exerciseName: "Bench Press",
+          weight: 100,
           reps: 5,
           sets: 3,
           unit: "kg",
           volumeLoad: 1500,
-          period: "current",
         },
         {
-          workoutDate: new Date("2024-01-08"),
-          weight: "105",
+          workoutDate: new Date("2024-01-15"),
+          exerciseName: "Bench Press",
+          weight: 105,
           reps: 5,
           sets: 3,
           unit: "kg",
           volumeLoad: 1575,
-          period: "current",
+        },
+      ];
+      const previousData = [
+        {
+          workoutDate: new Date("2023-12-20"),
+          exerciseName: "Bench Press",
+          weight: 95,
+          reps: 5,
+          sets: 3,
+          unit: "kg",
+          volumeLoad: 1425,
         },
       ];
 
-      const mockQueryChain = {
-        from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue(mockData),
-            })),
-          })),
-        })),
-      };
-
-      db.select.mockReturnValue(mockQueryChain);
+      db.select
+        .mockImplementationOnce(() => makeSelectBuilder(currentData))
+        .mockImplementationOnce(() => makeSelectBuilder(previousData));
 
       const result = await caller.getExerciseVolumeProgression({
         exerciseName: "Bench Press",
@@ -261,9 +269,10 @@ describe("progressRouter", () => {
 
       expect(result.currentVolume).toBeGreaterThan(0);
       expect(result.sessionCount).toBe(2);
-      expect(result.volumeByWeek).toBeDefined();
+      expect(result.volumeChange).toBeGreaterThan(0);
     });
   });
+
 
   describe("getExerciseRecentPRs", () => {
     it("should return empty result when no data exists", async () => {
@@ -463,6 +472,91 @@ describe("progressRouter", () => {
         expect(result[0]).toHaveProperty("sessionCount");
         expect(result[0]).toHaveProperty("frequency");
       }
+    });
+  });
+
+  describe("getStrengthPulse", () => {
+    it("should return baseline metrics when no sessions exist", async () => {
+      db.select.mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              orderBy: vi.fn().mockResolvedValue([]),
+            })),
+          })),
+        })),
+      });
+
+      const result = await caller.getStrengthPulse({ timeRange: "week" });
+
+      expect(result).toEqual({
+        currentOneRm: 0,
+        previousOneRm: 0,
+        delta: 0,
+        trend: "flat",
+        heavySetCount: 0,
+        sessionCount: 0,
+        topLift: null,
+        lastLiftedAt: null,
+      });
+    });
+
+    it("should summarise strength sets for current and previous periods", async () => {
+      const currentRows = [
+        {
+          workoutDate: new Date("2024-03-05"),
+          exerciseName: "Back Squat",
+          weight: 160,
+          reps: 3,
+          oneRMEstimate: 176,
+        },
+        {
+          workoutDate: new Date("2024-03-03"),
+          exerciseName: "Bench Press",
+          weight: 140,
+          reps: 5,
+          oneRMEstimate: 163,
+        },
+      ];
+      const previousRows = [
+        {
+          workoutDate: new Date("2024-02-25"),
+          exerciseName: "Back Squat",
+          weight: 155,
+          reps: 3,
+          oneRMEstimate: 170,
+        },
+      ];
+
+      const mockOrderBy = vi
+        .fn()
+        .mockResolvedValueOnce(currentRows)
+        .mockResolvedValueOnce(previousRows);
+
+      db.select.mockReturnValue({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              orderBy: mockOrderBy,
+            })),
+          })),
+        })),
+      });
+
+      const result = await caller.getStrengthPulse({ timeRange: "week" });
+
+      expect(result.currentOneRm).toBeCloseTo(176);
+      expect(result.previousOneRm).toBeCloseTo(170);
+      expect(result.delta).toBeCloseTo(6);
+      expect(result.heavySetCount).toBeGreaterThanOrEqual(2);
+      expect(result.sessionCount).toBeGreaterThanOrEqual(2);
+      expect(result.topLift).toEqual(
+        expect.objectContaining({
+          exerciseName: "Back Squat",
+          oneRm: expect.any(Number),
+        }),
+      );
+      expect(result.lastLiftedAt).toBeInstanceOf(Date);
     });
   });
 

@@ -77,17 +77,17 @@ export function SubjectiveWellnessModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-6">
           {/* Header with WHOOP status message */}
-          <div className="text-center space-y-2">
-            <h2 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <div className="space-y-2 text-center">
+            <h2 className="text-xl font-bold text-[var(--color-text)]">
               Workout Intelligence
             </h2>
             
             {!hasWhoopIntegration && (
-              <div className="p-3 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-warning) 10%, var(--color-bg-surface))', borderColor: 'var(--color-warning)' }}>
+              <div className="rounded-lg border border-[var(--color-warning)] bg-[color-mix(in_oklab,_var(--color-warning)_10%,_var(--color-bg-surface))] p-3">
                 <p className="text-sm text-secondary">
                   💡 You don't have WHOOP connected, so we can't access your recovery metrics. 
                   Let us know how you're feeling today and we'll provide personalized workout recommendations.
@@ -106,7 +106,7 @@ export function SubjectiveWellnessModal({
             )}
 
             {hasWhoopIntegration && !isWhoopConnected && (
-              <div className="p-3 rounded-lg" style={{ backgroundColor: 'color-mix(in oklab, var(--color-danger) 10%, var(--color-bg-surface))', borderColor: 'var(--color-danger)' }}>
+              <div className="rounded-lg border border-[var(--color-danger)] bg-[color-mix(in_oklab,_var(--color-danger)_10%,_var(--color-bg-surface))] p-3">
                 <p className="text-sm text-secondary">
                   ⚠️ Your WHOOP connection appears to be disconnected. Please reconnect to get the most accurate recommendations, or provide your current wellness status below.
                 </p>
@@ -129,7 +129,7 @@ export function SubjectiveWellnessModal({
             {/* Energy Level */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                <label className="text-sm font-medium text-[var(--color-text)]">
                   Energy Level
                 </label>
                 <span className="text-sm text-muted">
@@ -142,8 +142,7 @@ export function SubjectiveWellnessModal({
                 max="10"
                 value={energyLevel}
                 onChange={(e) => setEnergyLevel(Number(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ backgroundColor: 'var(--color-border)' }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
               />
               <div className="flex justify-between text-xs text-muted">
                 <span>Very Low</span>
@@ -154,7 +153,7 @@ export function SubjectiveWellnessModal({
             {/* Sleep Quality */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                <label className="text-sm font-medium text-[var(--color-text)]">
                   Sleep Quality
                 </label>
                 <span className="text-sm text-muted">
@@ -167,8 +166,7 @@ export function SubjectiveWellnessModal({
                 max="10"
                 value={sleepQuality}
                 onChange={(e) => setSleepQuality(Number(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ backgroundColor: 'var(--color-border)' }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
               />
               <div className="flex justify-between text-xs text-muted">
                 <span>Very Poor</span>
@@ -179,7 +177,7 @@ export function SubjectiveWellnessModal({
             {/* Recovery Feeling */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                <label className="text-sm font-medium text-[var(--color-text)]">
                   Recovery Feeling
                 </label>
                 <span className="text-sm text-muted">
@@ -192,8 +190,7 @@ export function SubjectiveWellnessModal({
                 max="10"
                 value={recoveryFeeling}
                 onChange={(e) => setRecoveryFeeling(Number(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ backgroundColor: 'var(--color-border)' }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
               />
               <div className="flex justify-between text-xs text-muted">
                 <span>Very Poor</span>
@@ -204,7 +201,7 @@ export function SubjectiveWellnessModal({
             {/* Stress Level */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                <label className="text-sm font-medium text-[var(--color-text)]">
                   Stress Level
                 </label>
                 <span className="text-sm text-muted">
@@ -217,8 +214,7 @@ export function SubjectiveWellnessModal({
                 max="10"
                 value={stressLevel}
                 onChange={(e) => setStressLevel(Number(e.target.value))}
-                className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ backgroundColor: 'var(--color-border)' }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
               />
               <div className="flex justify-between text-xs text-muted">
                 <span>Very Low</span>
@@ -245,7 +241,7 @@ export function SubjectiveWellnessModal({
           </div>
 
           {/* Disclaimer */}
-          <div className="text-xs text-muted text-center pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="border-t border-[var(--color-border)] pt-2 text-center text-xs text-muted">
             💡 This assessment helps us provide personalized workout recommendations. 
             Not medical advice - always listen to your body.
           </div>

@@ -1,283 +1,496 @@
 "use client";
 
+import { memo, useMemo, useCallback } from "react";
+import { BarChart3, Target, Flame, Flag } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+
 import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
 import { Card } from "~/components/ui/card";
-import { TrendingUp, Clock, Flame, Calendar } from "lucide-react";
-import { calculateStreak, getStreakBadge, formatAchievementBadge, type Achievement } from "~/lib/achievements";
-import { m as motion } from "framer-motion";
 import { cn } from "~/lib/utils";
-import { memo, useMemo, useEffect, useState } from "react";
+import { analytics } from "~/lib/analytics";
+import {
+  calculateStreak,
+  getStreakBadge,
+  formatAchievementBadge,
+  type Achievement,
+} from "~/lib/achievements";
 
-interface StatsCard {
-  id: string;
+const weightCompactFormatter = new Intl.NumberFormat(undefined, {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+const kgFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 1,
+});
+
+const integerFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 0,
+});
+
+const percentFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 1,
+});
+
+type StrengthCardId = "volume" | "oneRm" | "streak" | "goal";
+
+const STRENGTH_BACKGROUNDS: Record<StrengthCardId, string> = {
+  volume:
+    "linear-gradient(135deg, var(--md-ref-palette-primary-40) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-40) 80%, black 10%) 100%)",
+  oneRm:
+    "linear-gradient(135deg, var(--md-ref-palette-secondary-30) 0%, color-mix(in oklab, var(--md-ref-palette-tertiary-40) 70%, black 5%) 100%)",
+  streak:
+    "linear-gradient(135deg, var(--md-ref-palette-tertiary-40) 0%, color-mix(in oklab, var(--md-ref-palette-primary-40) 85%, black 5%) 100%)",
+  goal:
+    "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-neutral-30) 80%, black 10%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-50) 65%, black 20%) 100%)",
+};
+
+const changeToneClass = {
+  positive: "text-emerald-200",
+  negative: "text-rose-200",
+  neutral: "text-white/80",
+} as const;
+
+interface StrengthStatCard {
+  id: StrengthCardId;
   title: string;
-  value: string | number;
-  unit: string;
   icon: React.ComponentType<{ className?: string }>;
-  gradient: string;
+  background: string;
+  value: string;
+  change?: {
+    label: string;
+    tone: keyof typeof changeToneClass;
+  };
+  footers?: string[];
   badge?: Achievement | null;
+  progress?: number;
+  progressLabel?: string;
+  accessibilityLabel?: string;
+}
+
+function formatWeeklyVolume(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0 kg";
+  }
+  return `${weightCompactFormatter.format(value)} kg`;
+}
+
+function formatKgValue(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "-- kg";
+  }
+  return `${kgFormatter.format(value)} kg`;
+}
+
+function formatCount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0";
+  }
+  return integerFormatter.format(Math.round(value));
+}
+
+function buildPercentChange(
+  percent: number | null,
+  fallback?: string,
+): StrengthStatCard["change"] | undefined {
+  if (percent == null || !Number.isFinite(percent)) {
+    if (fallback) {
+      return { label: fallback, tone: "neutral" };
+    }
+    return undefined;
+  }
+
+  if (Math.abs(percent) < 0.1) {
+    return { label: "On par with last week", tone: "neutral" };
+  }
+
+  const tone = percent > 0 ? "positive" : "negative";
+  const sign = percent > 0 ? "+" : "-";
+  return {
+    label: `${sign}${percentFormatter.format(Math.abs(percent))}% vs last week`,
+    tone,
+  };
+}
+
+function buildKgChange(
+  delta: number,
+  previous: number,
+): StrengthStatCard["change"] | undefined {
+  if (!Number.isFinite(delta)) {
+    return undefined;
+  }
+
+  if (previous <= 0) {
+    if (delta > 0) {
+      return { label: "First heavy single logged", tone: "neutral" };
+    }
+    return undefined;
+  }
+
+  if (Math.abs(delta) < 0.5) {
+    return { label: "Holding steady vs last week", tone: "neutral" };
+  }
+
+  const tone = delta > 0 ? "positive" : "negative";
+  const sign = delta > 0 ? "+" : "-";
+  return {
+    label: `${sign}${kgFormatter.format(Math.abs(delta))} kg vs last week`,
+    tone,
+  };
+}
+
+function formatRelativeTime(date: Date | null): string | null {
+  if (!date || Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return formatDistanceToNow(date, { addSuffix: true });
 }
 
 export const StatsCards = memo(function StatsCards() {
-  // Animation fallback state to ensure cards are visible
-  const [animationReady, setAnimationReady] = useState(false);
-
-  // Use shared workout data to avoid duplicate API calls
   const {
-    thisWeekWorkouts: workoutDates,
-    thisWeekVolume: volumeData,
+    thisWeekWorkouts,
+    thisWeekVolume,
     monthWorkouts,
+    lastWeekVolume,
+    strengthPulse,
     isLoading,
   } = useSharedWorkoutData();
 
-  // Ensure cards become visible after a short delay if animation fails
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimationReady(true);
-    }, 100); // 100ms fallback timer - more aggressive
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Memoize expensive calculations
   const stats = useMemo(() => {
-    const workoutsThisWeek = workoutDates.length || 0;
+    const workoutsThisWeek = thisWeekWorkouts.length ?? 0;
+    const totalVolume = thisWeekVolume.reduce(
+      (sum, session) => sum + session.totalVolume,
+      0,
+    );
+    const totalSets = thisWeekVolume.reduce(
+      (sum, session) => sum + session.totalSets,
+      0,
+    );
+    const totalReps = thisWeekVolume.reduce(
+      (sum, session) => sum + session.totalReps,
+      0,
+    );
+    const previousVolume = lastWeekVolume.reduce(
+      (sum, session) => sum + session.totalVolume,
+      0,
+    );
+    const volumePercent =
+      previousVolume > 0
+        ? ((totalVolume - previousVolume) / previousVolume) * 100
+        : null;
 
-    // Calculate average duration from volume data (estimate based on exercises and sets)
-    let avgDuration = "0 min";
-    if (volumeData && volumeData.length > 0) {
-      const avgSets =
-        volumeData.reduce((sum, session) => sum + session.totalSets, 0) /
-        volumeData.length;
-      // Estimate 3-4 minutes per set including rest
-      const estimatedMinutes = Math.round(avgSets * 3.5);
-      avgDuration = `${estimatedMinutes} min`;
-    }
-
-    // Calculate streak from workout dates
-    const streakInfo = calculateStreak(monthWorkouts.map(date => new Date(date)) || []);
+    const streakInfo = calculateStreak(
+      (monthWorkouts ?? []).map((date) => new Date(date)),
+    );
     const streakBadge = getStreakBadge(streakInfo);
 
-    // Weekly goal progress (target 3 workouts per week)
-    const weeklyGoal = {
-      current: workoutsThisWeek,
-      target: 3,
-    };
+    const weeklyGoalTarget = 4;
+    const goalProgress =
+      weeklyGoalTarget > 0
+        ? Math.min((workoutsThisWeek / weeklyGoalTarget) * 100, 200)
+        : 0;
 
     return {
       workoutsThisWeek,
-      avgDuration,
-      weeklyGoal,
+      totalVolume,
+      totalSets,
+      totalReps,
+      previousVolume,
+      volumePercent,
       streakInfo,
       streakBadge,
+      weeklyGoalTarget,
+      goalProgress,
     };
-  }, [workoutDates, volumeData, monthWorkouts]); // Only recalculate when data changes
+  }, [thisWeekWorkouts, thisWeekVolume, lastWeekVolume, monthWorkouts]);
 
-  // Memoize card definitions to prevent re-renders
-  const cards: StatsCard[] = useMemo(() => [
-    {
-      id: "workouts",
-      title: "This Week",
-      value: stats.workoutsThisWeek,
-      unit: "Workouts",
-      icon: TrendingUp,
-      gradient: "gradient-stats-orange",
-    },
-    {
-      id: "duration",
-      title: "Avg Duration",
-      value: stats.avgDuration,
-      unit: "",
-      icon: Clock,
-      gradient: "gradient-stats-red",
-    },
-    {
-      id: "streak",
-      title: "Current Streak",
-      value: stats.streakInfo.current,
-      unit: ` day${stats.streakInfo.current === 1 ? '' : 's'}`,
-      icon: Flame,
-      gradient: "gradient-stats-orange",
-      badge: stats.streakBadge,
-    },
-    {
-      id: "goal",
-      title: "Weekly Goal",
-      value: stats.weeklyGoal.current,
-      unit: `/${stats.weeklyGoal.target}`,
-      icon: Calendar,
-      gradient: "gradient-stats-amber",
-    },
-  ], [stats]); // Only recreate cards when stats change
+  const strengthSummary = useMemo(() => {
+    if (!strengthPulse) {
+      return {
+        currentOneRm: 0,
+        delta: 0,
+        previousOneRm: 0,
+        heavySetCount: 0,
+        topLift: null as null | {
+          exerciseName: string;
+          weight: number;
+          reps: number;
+        },
+        lastLiftedAt: null as Date | null,
+      };
+    }
 
-  console.log('StatsCards render - isLoading:', isLoading, 'workoutDates:', workoutDates, 'volumeData:', volumeData);
+    return {
+      currentOneRm: strengthPulse.currentOneRm ?? 0,
+      delta: strengthPulse.delta ?? 0,
+      previousOneRm: strengthPulse.previousOneRm ?? 0,
+      heavySetCount: strengthPulse.heavySetCount ?? 0,
+      topLift: strengthPulse.topLift
+        ? {
+            exerciseName: strengthPulse.topLift.exerciseName,
+            weight: strengthPulse.topLift.weight,
+            reps: strengthPulse.topLift.reps,
+          }
+        : null,
+      lastLiftedAt: strengthPulse.lastLiftedAt
+        ? new Date(strengthPulse.lastLiftedAt)
+        : null,
+    };
+  }, [strengthPulse]);
 
-  if (isLoading) {
-    const skeletonCards = [
-      { title: "Loading your progress...", gradient: "gradient-stats-orange", pulse: "animate-pulse" },
-      { title: "Getting workout data...", gradient: "gradient-stats-red", pulse: "animate-pulse [animation-delay:0.2s]" },
-      { title: "Calculating streaks...", gradient: "gradient-stats-orange", pulse: "animate-pulse [animation-delay:0.4s]" },
-      { title: "Preparing your stats...", gradient: "gradient-stats-amber", pulse: "animate-pulse [animation-delay:0.6s]" }
+  const cards = useMemo<StrengthStatCard[]>(() => {
+    const volumeFooters =
+      stats.totalSets > 0
+        ? [
+            `${formatCount(stats.totalSets)} sets • ${formatCount(stats.totalReps)} reps`,
+            `${formatCount(stats.workoutsThisWeek)} strength sessions logged`,
+          ]
+        : ["Log your first heavy session to see volume insights"];
+
+    const heavySetsLabel =
+      strengthSummary.heavySetCount > 0
+        ? `${formatCount(strengthSummary.heavySetCount)} heavy sets >=85%`
+        : "Push heavy sets >=85% to update your 1RM";
+
+    const topLiftLabel =
+      strengthSummary.topLift && strengthSummary.topLift.weight > 0
+        ? `${strengthSummary.topLift.exerciseName} • ${kgFormatter.format(
+            strengthSummary.topLift.weight,
+          )} kg x ${formatCount(strengthSummary.topLift.reps)}`
+        : "Log a top set to surface your max lift";
+
+    const lastHeavyLabel = formatRelativeTime(strengthSummary.lastLiftedAt);
+
+    const strengthFooters = [
+      heavySetsLabel,
+      topLiftLabel,
+      lastHeavyLabel ? `Last heavy set ${lastHeavyLabel}` : null,
+    ].filter((line): line is string => Boolean(line));
+
+    const lastWorkoutRelative = formatRelativeTime(
+      stats.streakInfo.lastWorkoutDate
+        ? new Date(stats.streakInfo.lastWorkoutDate)
+        : null,
+    );
+
+    const streakFooters = [
+      `Longest streak ${formatCount(stats.streakInfo.longest)} days`,
+      lastWorkoutRelative
+        ? `Last workout ${lastWorkoutRelative}`
+        : "No recent workouts logged",
     ];
 
+    const goalRemaining = Math.max(
+      stats.weeklyGoalTarget - stats.workoutsThisWeek,
+      0,
+    );
+    const goalFooters = [
+      `${formatCount(stats.workoutsThisWeek)} sessions this week`,
+      goalRemaining > 0
+        ? `${goalRemaining} sessions to hit target`
+        : "Target met — maintain heavy volume",
+    ];
+
+    const goalProgressLabel =
+      stats.goalProgress >= 100
+        ? "Target exceeded"
+        : `${Math.round(Math.min(stats.goalProgress, 100))}% complete`;
+
+    return [
+      {
+        id: "volume",
+        title: "Weekly Volume Lifted",
+        icon: BarChart3,
+        background: STRENGTH_BACKGROUNDS.volume,
+        value: formatWeeklyVolume(stats.totalVolume),
+        change: buildPercentChange(
+          stats.volumePercent,
+          stats.totalVolume > 0
+            ? "Baseline week — keep building volume"
+            : undefined,
+        ),
+        footers: volumeFooters,
+        accessibilityLabel: `Weekly volume lifted ${formatWeeklyVolume(stats.totalVolume)}`,
+      },
+      {
+        id: "oneRm",
+        title: "Top Estimated 1RM",
+        icon: Target,
+        background: STRENGTH_BACKGROUNDS.oneRm,
+        value: formatKgValue(strengthSummary.currentOneRm),
+        change: buildKgChange(
+          strengthSummary.delta,
+          strengthSummary.previousOneRm,
+        ),
+        footers: strengthFooters,
+        accessibilityLabel: `Top estimated one rep max ${formatKgValue(
+          strengthSummary.currentOneRm,
+        )}`,
+      },
+      {
+        id: "streak",
+        title: "Current Streak",
+        icon: Flame,
+        background: STRENGTH_BACKGROUNDS.streak,
+        value: `${formatCount(stats.streakInfo.current)} days`,
+        change:
+          stats.streakInfo.current > 0
+            ? {
+                label: "Stay locked in — streak active",
+                tone: "positive",
+              }
+            : {
+                label: "Kickstart a new streak this week",
+                tone: "neutral",
+              },
+        footers: streakFooters,
+        badge: stats.streakBadge ?? null,
+        accessibilityLabel: `Current streak ${formatCount(
+          stats.streakInfo.current,
+        )} days`,
+      },
+      {
+        id: "goal",
+        title: "Weekly Goal",
+        icon: Flag,
+        background: STRENGTH_BACKGROUNDS.goal,
+        value: `${formatCount(stats.workoutsThisWeek)}/${formatCount(
+          stats.weeklyGoalTarget,
+        )}`,
+        change:
+          goalRemaining > 0
+            ? {
+                label: `${goalRemaining} sessions remaining`,
+                tone: "neutral",
+              }
+            : {
+                label: "Goal smashed — great work",
+                tone: "positive",
+              },
+        footers: goalFooters,
+        progress: Math.min(stats.goalProgress, 130),
+        progressLabel: goalProgressLabel,
+        accessibilityLabel: `Weekly goal progress ${formatCount(
+          stats.workoutsThisWeek,
+        )} of ${formatCount(stats.weeklyGoalTarget)} sessions`,
+      },
+    ];
+  }, [stats, strengthSummary]);
+
+  const handleCardPress = useCallback((cardId: string) => {
+    analytics.event("dashboard_stat_card_tap", {
+      cardId,
+      persona: "strength",
+    });
+  }, []);
+
+  if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        {skeletonCards.map((skeleton, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: i * 0.05 }}
-          >
-            <Card 
-              surface="card" 
-              variant="default" 
-              padding="lg" 
-              className={cn(
-                "glass-surface relative overflow-hidden border-0",
-                "bg-card/70",
-                "backdrop-blur-xl backdrop-saturate-150",
-                skeleton.pulse
-              )}
-            >
-              {/* Energetic gradient overlay for loading personality */}
-              <div className={cn(
-                "absolute inset-0 opacity-5",
-                skeleton.gradient
-              )} />
-              
-              <div className="space-y-4 relative">
-                {/* Animated icon placeholder with shimmer */}
-                <div className={cn(
-                  "h-12 w-12 rounded-xl flex items-center justify-center",
-                  "bg-gradient-to-br from-orange-500/20 via-amber-500/20 to-red-500/20",
-                  "animate-shimmer bg-[length:400%_400%]"
-                )}>
-                  <div className="h-6 w-6 bg-gradient-to-br from-orange-500 to-amber-500 rounded opacity-40" />
-                </div>
-                
-                <div className="space-y-2">
-                  {/* Motivational loading text */}
-                  <div className="text-xs text-muted-foreground font-medium animate-fade-in">
-                    {skeleton.title}
-                  </div>
-                  {/* Animated number placeholder */}
-                  <div className="h-8 w-16 bg-gradient-to-r from-primary/10 via-primary/20 to-primary/10 rounded animate-shimmer bg-[length:400%_400%]" />
-                </div>
-              </div>
-            </Card>
-          </motion.div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((index) => (
+          <div
+            key={index}
+            className="h-[200px] rounded-2xl border border-border/40 bg-surface-secondary/60 animate-pulse"
+            aria-hidden
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <div 
-      className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4"
-      style={{
-        // Ensure container is visible regardless of animation state
-        opacity: 1,
-        transform: 'translateY(0px)',
-      }}
-    >
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => {
-        const IconComponent = card.icon;
-        
-
-        // Enhanced icon gradients using OKLCH color space for better visual consistency
-        const getIconGradient = (gradient: string) => {
-          switch (gradient) {
-            case "gradient-stats-orange":
-              return "bg-gradient-to-br from-orange-500 via-amber-500 to-red-500 shadow-orange-500/20";
-            case "gradient-stats-red":
-              return "bg-gradient-to-br from-red-500 via-pink-500 to-rose-500 shadow-red-500/20";
-            case "gradient-stats-amber":
-              return "bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500 shadow-amber-500/20";
-            default:
-              return "bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-500 shadow-blue-500/20";
-          }
-        };
+        const BadgeIcon = card.badge ? formatAchievementBadge(card.badge) : null;
 
         return (
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: cards.indexOf(card) * 0.05 }}
-            whileHover={{ 
-              y: -2,
-              transition: { duration: 0.2, ease: "easeOut" }
-            }}
-            whileTap={{ scale: 0.98 }}
-            style={{
-              // Fallback to ensure visibility if animation fails
-              opacity: animationReady ? '1 !important' : undefined,
-              transform: animationReady ? 'translateY(0px) !important' : undefined,
-            }}
-            className={animationReady ? '!opacity-100 !translate-y-0' : ''}
-          >
+          <div key={card.id} className="h-full">
             <Card
               surface="card"
-              variant="default"
+              variant="glass"
               padding="lg"
-              interactive={true}
+              interactive
               className={cn(
-                "glass-card glass-hairline relative flex h-full flex-col overflow-hidden border border-white/8",
-                "bg-card/85 hover:bg-card/90",
-                "backdrop-blur-xl backdrop-saturate-150",
-                "shadow-xl hover:shadow-2xl",
-                "transition-all duration-200 ease-out",
-                "hover:scale-[1.02]",
-                "group cursor-pointer",
-                "min-h-[180px]"
+                "relative flex h-full min-h-[200px] flex-col overflow-hidden text-white shadow-xl",
+                "focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black/20",
               )}
-              aria-label={`${card.title}: ${card.value}${card.unit}`}
-              role="button"
-              tabIndex={0}
+              style={{ background: card.background }}
+              onClick={() => handleCardPress(card.id)}
+              onActivate={() => handleCardPress(card.id)}
+              aria-label={card.accessibilityLabel ?? `${card.title} ${card.value}`}
             >
-              {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-transparent via-foreground/2 to-foreground/5 pointer-events-none" />
-              
-              {/* Icon with enhanced gradient background and proper spacing */}
-              <div className={cn(
-                "relative w-12 h-12 rounded-xl flex items-center justify-center mb-6 mt-2 shadow-md",
-                "transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3",
-                getIconGradient(card.gradient)
-              )}>
-                <IconComponent className="h-6 w-6 text-white drop-shadow-sm" />
-              </div>
-
-              {/* Stats content with enhanced typography */}
-              <div className="relative space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-muted-foreground/80 group-hover:text-muted-foreground transition-colors">
-                    {card.title}
-                  </p>
-                  {card.badge && (
-                    <motion.span
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className={cn(
-                        formatAchievementBadge(card.badge).className,
-                        "text-xs px-2 py-1 rounded-full shadow-sm backdrop-blur-sm"
-                      )}
-                    >
-                      {formatAchievementBadge(card.badge).icon}
-                    </motion.span>
-                  )}
-                </div>
-                <p className="text-2xl font-bold text-foreground font-display leading-none group-hover:text-primary transition-colors">
-                  {card.value}
-                  {card.unit && (
-                    <span className="ml-1 text-lg font-normal text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
-                      {card.unit}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/10 via-black/0 to-black/50" />
+              <div className="relative flex flex-1 flex-col">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="rounded-xl bg-white/12 p-2 shadow-sm backdrop-blur-sm">
+                    <card.icon className="h-6 w-6" aria-hidden />
+                  </div>
+                  {BadgeIcon && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-sm">
+                      {BadgeIcon.icon && <span aria-hidden>{BadgeIcon.icon}</span>}
+                      {BadgeIcon.text}
                     </span>
                   )}
-                </p>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                      {card.title}
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold leading-tight">
+                      {card.value}
+                    </p>
+                  </div>
+                  {card.change && (
+                    <p
+                      className={cn(
+                        "text-sm font-medium",
+                        changeToneClass[card.change.tone],
+                      )}
+                    >
+                      {card.change.label}
+                    </p>
+                  )}
+                </div>
+
+                {card.progress !== undefined && (
+                  <div className="mt-5 space-y-2">
+                    <div className="h-2 w-full rounded-full bg-white/20">
+                      <div
+                        className="h-2 rounded-full bg-white"
+                        style={{
+                          width: `${Math.min(card.progress, 120)}%`,
+                        }}
+                      />
+                    </div>
+                    {card.progressLabel && (
+                      <p className="text-xs font-semibold text-white/80">
+                        {card.progressLabel}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {card.footers?.length ? (
+                  <div className="mt-6 space-y-2 text-sm text-white/80">
+                    {card.footers.map((footer, footerIndex) => (
+                      <p
+                        key={`${card.id}-footer-${footerIndex}`}
+                        className="flex items-center gap-2 leading-tight"
+                      >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full bg-white/40"
+                          aria-hidden
+                        />
+                        <span>{footer}</span>
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </Card>
-          </motion.div>
+          </div>
         );
       })}
     </div>

@@ -9,6 +9,10 @@ import {
   exerciseLinks,
 } from "~/server/db/schema";
 import {
+  loadResolvedExerciseNameMap,
+  resolveExerciseNameWithLookup,
+} from "~/server/db/utils";
+import {
   eq,
   desc,
   and,
@@ -44,6 +48,13 @@ const exerciseInputSchema = z.object({
 
 import { logger } from "~/lib/logger";
 import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
+import {
+  chunkArray,
+  chunkedBatch,
+  getInsertChunkSize,
+  SQLITE_VARIABLE_LIMIT,
+  whereInChunks,
+} from "~/server/db/chunk-utils";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -52,19 +63,17 @@ export const workoutsRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       const staleThreshold = new Date(Date.now() - 4 * 60 * 60 * 1000);
 
-      await ctx.db
-        .delete(workoutSessions)
-        .where(
-          and(
-            eq(workoutSessions.user_id, ctx.user.id),
-            lt(workoutSessions.createdAt, staleThreshold),
-            sql`NOT EXISTS (
+      await ctx.db.delete(workoutSessions).where(
+        and(
+          eq(workoutSessions.user_id, ctx.user.id),
+          lt(workoutSessions.createdAt, staleThreshold),
+          sql`NOT EXISTS (
               SELECT 1 FROM session_exercise se
               WHERE se.sessionId = ${workoutSessions.id}
                 AND se.user_id = ${ctx.user.id}
             )`,
-          ),
-        );
+        ),
+      );
 
       logger.debug("Getting recent workouts", { limit: input.limit });
       const sessions = await ctx.db.query.workoutSessions.findMany({
@@ -349,6 +358,7 @@ export const workoutsRouter = createTRPCRouter({
       z.object({
         templateId: z.number().optional(),
         workoutDate: z.date().default(() => new Date()),
+        copyFromSessionId: z.number().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -427,6 +437,39 @@ export const workoutsRouter = createTRPCRouter({
           throw new Error("Failed to create workout session");
         }
 
+        // If copying from another session, copy the exercises
+        if (input.copyFromSessionId) {
+          const sourceExercises = await ctx.db.query.sessionExercises.findMany({
+            where: and(
+              eq(sessionExercises.sessionId, input.copyFromSessionId),
+              eq(sessionExercises.user_id, ctx.user.id),
+            ),
+          });
+
+          if (sourceExercises.length > 0) {
+            // Chunk the inserts to avoid D1 parameter limits
+            const exerciseRows = sourceExercises.map((ex) => ({
+              sessionId: session.id,
+              user_id: ctx.user.id,
+              exerciseName: ex.exerciseName,
+              weight: ex.weight,
+              reps: ex.reps,
+              sets: ex.sets,
+              unit: ex.unit,
+              setOrder: ex.setOrder,
+              templateExerciseId: ex.templateExerciseId,
+              one_rm_estimate: ex.one_rm_estimate,
+              volume_load: ex.volume_load,
+            }));
+            await chunkedBatch(
+              ctx.db,
+              exerciseRows,
+              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
+              { limit: 50 },
+            ); // Lower limit for D1 safety
+          }
+        }
+
         const result = {
           sessionId: session.id,
           template,
@@ -461,90 +504,191 @@ export const workoutsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      // Verify session ownership
-      const session = await ctx.db.query.workoutSessions.findFirst({
-        where: eq(workoutSessions.id, input.sessionId),
-      });
+      try {
+        // Verify session ownership
+        const session = await ctx.db.query.workoutSessions.findFirst({
+          where: eq(workoutSessions.id, input.sessionId),
+        });
 
-      if (!session || session.user_id !== ctx.user.id) {
-        throw new Error("Workout session not found");
-      }
+        if (!session || session.user_id !== ctx.user.id) {
+          throw new Error("Workout session not found");
+        }
 
-      // Delete existing exercises for this session
-      await ctx.db
-        .delete(sessionExercises)
-        .where(eq(sessionExercises.sessionId, input.sessionId));
+        // Delete existing exercises for this session
+        await ctx.db
+          .delete(sessionExercises)
+          .where(eq(sessionExercises.sessionId, input.sessionId));
 
-      // Flatten exercises into individual sets and filter out empty ones
-      const setsToInsert = input.exercises.flatMap((exercise) =>
-        exercise.sets
-          .filter(
-            (set) =>
-              set.weight !== undefined ||
-              set.reps !== undefined ||
-              set.sets !== undefined ||
-              set.rpe !== undefined ||
-              set.rest !== undefined,
-          )
-          .map((set, setIndex) => {
-            const weight = set.weight ?? 0;
-            const reps = set.reps ?? 1;
-            const sets = set.sets ?? 1;
-            return {
-              user_id: ctx.user.id,
-              sessionId: input.sessionId,
-              templateExerciseId: exercise.templateExerciseId,
-              exerciseName: exercise.exerciseName,
-              setOrder: setIndex,
-              weight: set.weight,
-              reps: set.reps,
-              sets: set.sets,
-              unit: set.unit,
-              // Phase 2 mappings
-              rpe: set.rpe, // maps to session_exercise.rpe
-              rest_seconds: set.rest, // maps to session_exercise.rest_seconds
-              is_estimate: set.isEstimate ?? false,
-              is_default_applied: set.isDefaultApplied ?? false,
-              // Computed columns
-              one_rm_estimate:
-                weight > 0 && reps > 0 ? weight * (1 + reps / 30) : null,
-              volume_load:
-                weight > 0 && reps > 0 && sets > 0
-                  ? sets * reps * weight
-                  : null,
-            };
-          }),
-      );
+        const templateExerciseIds = Array.from(
+          new Set(
+            input.exercises
+              .map((exercise) => exercise.templateExerciseId)
+              .filter((id): id is number => typeof id === "number"),
+          ),
+        );
 
-      if (setsToInsert.length > 0) {
-        await ctx.db.insert(sessionExercises).values(setsToInsert);
-      }
+        const resolvedNameLookup = await loadResolvedExerciseNameMap(
+          ctx.db,
+          templateExerciseIds,
+        );
 
-      if (setsToInsert.length > 0) {
-        const acceptLanguage = ctx.headers.get("accept-language") ?? undefined;
-        const locale = acceptLanguage?.split(",")[0];
+        // Flatten exercises into individual sets and filter out empty ones
+        const invalidTemplateExerciseIds = new Set<number>();
 
-        void (async () => {
+        const setsToInsert = input.exercises.flatMap((exercise) =>
+          exercise.sets
+            .filter(
+              (set) =>
+                set.weight !== undefined ||
+                set.reps !== undefined ||
+                set.rpe !== undefined ||
+                set.rest !== undefined,
+            )
+            .map((set, setIndex) => {
+              const templateExerciseId = exercise.templateExerciseId ?? null;
+              const hasValidTemplateExercise =
+                templateExerciseId !== null &&
+                resolvedNameLookup.has(templateExerciseId);
+
+              if (
+                templateExerciseId !== null &&
+                !hasValidTemplateExercise &&
+                !invalidTemplateExerciseIds.has(templateExerciseId)
+              ) {
+                invalidTemplateExerciseIds.add(templateExerciseId);
+                logger.warn("workouts.save.template_exercise_missing", {
+                  sessionId: input.sessionId,
+                  templateExerciseId,
+                  exerciseName: exercise.exerciseName,
+                  userId: ctx.user.id,
+                });
+              }
+
+              const resolvedTemplateExerciseId = hasValidTemplateExercise
+                ? templateExerciseId
+                : null;
+
+              const weight = typeof set.weight === "number" ? set.weight : null;
+              const reps = typeof set.reps === "number" ? set.reps : null;
+              const sets =
+                typeof set.sets === "number"
+                  ? set.sets
+                  : reps !== null || weight !== null
+                    ? 1
+                    : null;
+              const unit = set.unit ?? exercise.unit ?? "kg";
+
+              const { name: resolvedExerciseName } =
+                resolveExerciseNameWithLookup(
+                  templateExerciseId,
+                  exercise.exerciseName,
+                  resolvedNameLookup,
+                );
+
+              const numericWeight = weight ?? 0;
+              const numericReps = reps ?? 0;
+              const numericSets = sets ?? 0;
+
+              return {
+                user_id: ctx.user.id,
+                sessionId: input.sessionId,
+                templateExerciseId: resolvedTemplateExerciseId,
+                exerciseName: exercise.exerciseName,
+                resolvedExerciseName,
+                setOrder: setIndex,
+                weight,
+                reps,
+                sets,
+                unit,
+                // Phase 2 mappings
+                rpe: set.rpe ?? null, // maps to session_exercise.rpe
+                rest_seconds: set.rest ?? null, // maps to session_exercise.rest_seconds
+                is_estimate: set.isEstimate ?? false,
+                is_default_applied: set.isDefaultApplied ?? false,
+                // Computed columns
+                one_rm_estimate:
+                  numericWeight > 0 && numericReps > 0
+                    ? numericWeight * (1 + numericReps / 30)
+                    : null,
+                volume_load:
+                  numericWeight > 0 && numericReps > 0 && numericSets > 0
+                    ? numericSets * numericReps * numericWeight
+                    : null,
+              };
+            }),
+        );
+
+        if (setsToInsert.length > 0) {
+          const chunkSize = getInsertChunkSize(setsToInsert);
           try {
-            await generateAndPersistDebrief({
-              dbClient: ctx.db,
-              userId: ctx.user.id,
-              sessionId: input.sessionId,
-              locale,
-              trigger: "auto",
-              requestId: ctx.requestId,
-            });
+            await chunkedBatch(ctx.db, setsToInsert, (chunk) =>
+              ctx.db.insert(sessionExercises).values(chunk),
+            );
           } catch (error) {
-            logger.warn("session_debrief.auto_generation_failed", {
-              userId: ctx.user.id,
-              sessionId: input.sessionId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            logger.error(
+              "workouts.save.insert_failed",
+              error instanceof Error ? error : new Error(String(error)),
+              {
+                sessionId: input.sessionId,
+                userId: ctx.user.id,
+                setsCount: setsToInsert.length,
+                chunkSize,
+                invalidTemplateExerciseIds: Array.from(
+                  invalidTemplateExerciseIds,
+                ),
+                firstSet: setsToInsert[0],
+              },
+            );
+            throw error;
           }
-        })();
-      }
+        }
 
-      return { success: true };
+        if (setsToInsert.length > 0) {
+          const acceptLanguage =
+            ctx.headers.get("accept-language") ?? undefined;
+          const locale = acceptLanguage?.split(",")[0];
+
+          void (async () => {
+            try {
+              await generateAndPersistDebrief({
+                dbClient: ctx.db,
+                userId: ctx.user.id,
+                sessionId: input.sessionId,
+                locale,
+                trigger: "auto",
+                requestId: ctx.requestId,
+              });
+            } catch (error) {
+              logger.warn("session_debrief.auto_generation_failed", {
+                userId: ctx.user.id,
+                sessionId: input.sessionId,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+            }
+          })();
+        }
+
+        return { success: true };
+      } catch (err: any) {
+        const { TRPCError } = await import("@trpc/server");
+        const message = err?.message ?? "workouts.save failed";
+        const meta = {
+          name: err?.name,
+          cause: err?.cause,
+          stack: err?.stack,
+          err,
+        };
+        logger.error("workouts.save.error", new Error(message), {
+          sessionId: input.sessionId,
+          userId: ctx.user.id,
+          ...meta,
+        });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message,
+          cause: meta,
+        });
+      }
     }),
 
   // Update specific sets in a workout session (for accepting AI suggestions)
@@ -587,21 +731,36 @@ export const workoutsRouter = createTRPCRouter({
         return { success: true, updatedCount: 0 };
       }
 
-      const existingSets = await ctx.db
-        .select({
-          id: sessionExercises.id,
-          exerciseName: sessionExercises.exerciseName,
-          setOrder: sessionExercises.setOrder,
-        })
-        .from(sessionExercises)
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            eq(sessionExercises.sessionId, input.sessionId),
-            inArray(sessionExercises.exerciseName, exerciseNames),
-          ),
-        )
-        .orderBy(sessionExercises.setOrder);
+      let existingSets: Array<{
+        id: number;
+        exerciseName: string;
+        setOrder: number | null;
+      }> = [];
+
+      await whereInChunks(exerciseNames, async (nameChunk) => {
+        const exerciseCondition =
+          nameChunk.length === 1
+            ? eq(sessionExercises.exerciseName, nameChunk[0]!)
+            : inArray(sessionExercises.exerciseName, nameChunk);
+
+        const chunkSets = await ctx.db
+          .select({
+            id: sessionExercises.id,
+            exerciseName: sessionExercises.exerciseName,
+            setOrder: sessionExercises.setOrder,
+          })
+          .from(sessionExercises)
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.sessionId, input.sessionId),
+              exerciseCondition,
+            ),
+          )
+          .orderBy(sessionExercises.setOrder);
+
+        existingSets = existingSets.concat(chunkSets);
+      });
 
       const setsByExercise = new Map<
         string,
@@ -682,31 +841,40 @@ export const workoutsRouter = createTRPCRouter({
         return { success: true, updatedCount: 0 };
       }
 
-      const ids = Array.from(updatesMap.keys());
+      const updateEntries = Array.from(updatesMap.entries());
+      const perRowVariables = 3; // weight, reps, unit
+      const updateChunkSize = Math.max(
+        1,
+        Math.floor(SQLITE_VARIABLE_LIMIT / Math.max(perRowVariables, 1)),
+      );
 
-      const weightCases = Array.from(updatesMap.entries())
-        .map(([id, update]) => sql`WHEN ${id} THEN ${update.weight}`)
-        .join(" ");
-      const repsCases = Array.from(updatesMap.entries())
-        .map(([id, update]) => sql`WHEN ${id} THEN ${update.reps}`)
-        .join(" ");
-      const unitCases = Array.from(updatesMap.entries())
-        .map(([id, update]) => sql`WHEN ${id} THEN ${update.unit}`)
-        .join(" ");
+      for (const chunk of chunkArray(updateEntries, updateChunkSize)) {
+        const ids = chunk.map(([id]) => id);
 
-      await ctx.db
-        .update(sessionExercises)
-        .set({
-          weight: sql`CASE id ${weightCases} END`,
-          reps: sql`CASE id ${repsCases} END`,
-          unit: sql`CASE id ${unitCases} END`,
-        })
-        .where(
-          and(
-            inArray(sessionExercises.id, ids),
-            eq(sessionExercises.user_id, ctx.user.id),
-          ),
-        );
+        const weightCases = chunk
+          .map(([id, update]) => sql`WHEN ${id} THEN ${update.weight}`)
+          .join(" ");
+        const repsCases = chunk
+          .map(([id, update]) => sql`WHEN ${id} THEN ${update.reps}`)
+          .join(" ");
+        const unitCases = chunk
+          .map(([id, update]) => sql`WHEN ${id} THEN ${update.unit}`)
+          .join(" ");
+
+        await ctx.db
+          .update(sessionExercises)
+          .set({
+            weight: sql`CASE id ${weightCases} END`,
+            reps: sql`CASE id ${repsCases} END`,
+            unit: sql`CASE id ${unitCases} END`,
+          })
+          .where(
+            and(
+              inArray(sessionExercises.id, ids),
+              eq(sessionExercises.user_id, ctx.user.id),
+            ),
+          );
+      }
 
       return { success: true, updatedCount: updatesMap.size };
     }),
@@ -726,6 +894,23 @@ export const workoutsRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       const results = [];
+      const batchTemplateExerciseIds = new Set<number>();
+
+      for (const workout of input.workouts) {
+        for (const exercise of workout.exercises) {
+          if (
+            typeof exercise.templateExerciseId === "number" &&
+            Number.isInteger(exercise.templateExerciseId)
+          ) {
+            batchTemplateExerciseIds.add(exercise.templateExerciseId);
+          }
+        }
+      }
+
+      const batchResolvedNameLookup = await loadResolvedExerciseNameMap(
+        ctx.db,
+        Array.from(batchTemplateExerciseIds),
+      );
 
       for (const workout of input.workouts) {
         try {
@@ -763,11 +948,18 @@ export const workoutsRouter = createTRPCRouter({
                 const weight = set.weight ?? 0;
                 const reps = set.reps ?? 1;
                 const sets = set.sets ?? 1;
+                const { name: resolvedExerciseName } =
+                  resolveExerciseNameWithLookup(
+                    exercise.templateExerciseId ?? null,
+                    exercise.exerciseName,
+                    batchResolvedNameLookup,
+                  );
                 return {
                   user_id: ctx.user.id,
                   sessionId: workout.sessionId,
                   templateExerciseId: exercise.templateExerciseId,
                   exerciseName: exercise.exerciseName,
+                  resolvedExerciseName,
                   setOrder: setIndex,
                   weight: set.weight,
                   reps: set.reps,
@@ -790,7 +982,9 @@ export const workoutsRouter = createTRPCRouter({
           );
 
           if (setsToInsert.length > 0) {
-            await ctx.db.insert(sessionExercises).values(setsToInsert);
+            await chunkedBatch(ctx.db, setsToInsert, (chunk) =>
+              ctx.db.insert(sessionExercises).values(chunk),
+            );
           }
 
           // Generate debrief if there are sets

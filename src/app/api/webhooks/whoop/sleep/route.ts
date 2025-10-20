@@ -42,6 +42,13 @@ interface WhoopSleepData {
       sleep_latency_milli?: number;
     };
     sleep_performance_percentage?: number;
+    sleep_consistency_percentage?: number;
+    sleep_needed?: {
+      baseline_milli?: number;
+      need_from_sleep_debt_milli?: number;
+      need_from_recent_strain_milli?: number;
+      need_from_recent_nap_milli?: number;
+    };
   };
 }
 
@@ -65,6 +72,13 @@ async function fetchSleepFromWhoop(
         timezone_offset: "-08:00",
         score: {
           sleep_performance_percentage: 85,
+          sleep_consistency_percentage: 88,
+          sleep_needed: {
+            baseline_milli: 7 * 60 * 60 * 1000,
+            need_from_sleep_debt_milli: 15 * 60 * 1000,
+            need_from_recent_strain_milli: 20 * 60 * 1000,
+            need_from_recent_nap_milli: 5 * 60 * 1000,
+          },
           stage_summary: {
             total_sleep_time_milli: 7.5 * 60 * 60 * 1000, // 7.5 hours
             sleep_efficiency_percentage: 92.5,
@@ -167,6 +181,8 @@ async function processSleepUpdate(
       .where(eq(whoopSleep.whoop_sleep_id, sleepId));
 
     const stageSum = sleepData.score?.stage_summary;
+    const sleepNeed = sleepData.score?.sleep_needed;
+    const sleepConsistency = sleepData.score?.sleep_consistency_percentage;
 
     if (existingSleep) {
       // Update existing sleep
@@ -191,6 +207,15 @@ async function processSleepUpdate(
           wake_time_milli: stageSum?.wake_time_milli || null,
           arousal_time_milli: stageSum?.arousal_time_milli || null,
           disturbance_count: stageSum?.disturbance_count || null,
+          sleep_latency_milli: stageSum?.sleep_latency_milli || null,
+          sleep_consistency_percentage: sleepConsistency || null,
+          sleep_need_baseline_milli: sleepNeed?.baseline_milli || null,
+          sleep_need_from_sleep_debt_milli:
+            sleepNeed?.need_from_sleep_debt_milli || null,
+          sleep_need_from_recent_strain_milli:
+            sleepNeed?.need_from_recent_strain_milli || null,
+          sleep_need_from_recent_nap_milli:
+            sleepNeed?.need_from_recent_nap_milli || null,
           raw_data: JSON.stringify(sleepData),
           updatedAt: new Date(),
         })
@@ -220,6 +245,14 @@ async function processSleepUpdate(
           arousal_time_milli: stageSum?.arousal_time_milli || null,
           disturbance_count: stageSum?.disturbance_count || null,
           sleep_latency_milli: stageSum?.sleep_latency_milli || null,
+          sleep_consistency_percentage: sleepConsistency || null,
+          sleep_need_baseline_milli: sleepNeed?.baseline_milli || null,
+          sleep_need_from_sleep_debt_milli:
+            sleepNeed?.need_from_sleep_debt_milli || null,
+          sleep_need_from_recent_strain_milli:
+            sleepNeed?.need_from_recent_strain_milli || null,
+          sleep_need_from_recent_nap_milli:
+            sleepNeed?.need_from_recent_nap_milli || null,
           raw_data: JSON.stringify(sleepData),
         },
       ]);

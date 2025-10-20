@@ -82,6 +82,13 @@ This command:
 - `src/hooks/` - Custom React hooks
 - `apps/mobile/` - Mobile app (Android)
 
+### Cloudflare D1 Chunking
+
+- Cloudflare D1 enforces a low SQL variable limit, so bulk operations must stay under ~90 parameters.
+- Shared helpers (`chunkedBatch`, `whereInChunks` in `src/server/db/chunk-utils.ts`) automatically slice large inserts and `IN` predicates.
+- Workout saves, template mutations, analytics queries, and WHOOP sync flows rely on these helpers to avoid “too many SQL variables” errors.
+- The system issues multiple small statements instead of a single large one, adding only a few milliseconds while guaranteeing reliability.
+
 ## Theming & Design Tokens
 
 - **Material 3 palettes** power Light, Dark, Cool, Warm, and Neutral themes. Source data lives in `src/design-tokens/material3-palettes.generated.json` and compiles to CSS variables in `src/styles/material3-tokens.css`.
