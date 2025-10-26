@@ -38,7 +38,10 @@ export default defineConfig({
         minThreads: 1,
       },
     },
-    setupFiles: ["./src/__tests__/setup.common.ts"],
+    setupFiles: [
+      "./src/__tests__/setup.common.ts",
+      "./src/__tests__/setup.dom.ts",
+    ],
     environment: "jsdom",
     mockReset: true,
     restoreMocks: true,

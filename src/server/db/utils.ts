@@ -181,7 +181,7 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
       let sessions: Array<{ id: number }> = [];
       if (sessionsToInsert.length > 0) {
         const sessionResults = await chunkedBatch(
-          tx,
+          tx as unknown as DrizzleDb,
           sessionsToInsert,
           (chunk) =>
             tx
@@ -189,9 +189,7 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
               .values(chunk)
               .returning({ id: workoutSessions.id }),
         );
-        sessions = (
-          sessionResults as Array<Array<{ id: number }>>
-        ).flat();
+        sessions = (sessionResults as Array<Array<{ id: number }>>).flat();
 
         if (sessions.length !== workouts.length) {
           throw new Error("Mismatch between inserted sessions and payload");
@@ -239,10 +237,8 @@ export const batchInsertWorkouts = async (workouts: BatchWorkoutData[]) => {
 
       // Batch insert all exercises
       if (allExercises.length > 0) {
-        await chunkedBatch(
-          tx,
-          allExercises,
-          (chunk) => tx.insert(sessionExercises).values(chunk),
+        await chunkedBatch(tx as unknown as DrizzleDb, allExercises, (chunk) =>
+          tx.insert(sessionExercises).values(chunk),
         );
       }
 
@@ -426,10 +422,8 @@ export const batchCreateMasterExerciseLinks = async (
 
         // Batch insert links (ignore duplicates)
         try {
-          await chunkedBatch(
-            tx,
-            linksToCreate,
-            (chunk) => tx.insert(exerciseLinks).values(chunk),
+          await chunkedBatch(tx, linksToCreate, (chunk) =>
+            tx.insert(exerciseLinks).values(chunk),
           );
         } catch {
           // Handle duplicate key constraint - update existing links
@@ -443,8 +437,7 @@ export const batchCreateMasterExerciseLinks = async (
           }
         }
 
-        const resolvedName =
-          masterExercise.name ?? firstExercise.exerciseName;
+        const resolvedName = masterExercise.name ?? firstExercise.exerciseName;
 
         await whereInChunks(
           linksToCreate.map((link) => link.templateExerciseId),

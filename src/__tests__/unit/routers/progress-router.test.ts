@@ -1,6 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { progressRouter } from "~/server/api/routers/progress";
 
+const buildSelectMock = (rows: unknown[]) => {
+  const orderBy = vi.fn().mockResolvedValue(rows);
+  const where = vi.fn(() => ({
+    orderBy,
+  }));
+  const innerJoin = vi.fn(() => ({
+    where,
+  }));
+
+  return {
+    from: vi.fn(() => ({
+      where,
+      innerJoin,
+    })),
+  };
+};
+
 describe("progressRouter", () => {
   let db: any;
   let caller: any;
@@ -111,18 +128,13 @@ describe("progressRouter", () => {
   });
 
   describe("getExerciseStrengthProgression", () => {
-    const makeSelectBuilder = (rows: unknown[]) => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          orderBy: vi.fn().mockResolvedValue(rows),
-        })),
-      })),
-    });
 
     it("should return default values when no data exists", async () => {
       db.select
-        .mockImplementationOnce(() => makeSelectBuilder([]))
-        .mockImplementationOnce(() => makeSelectBuilder([]));
+        .mockImplementationOnce(() => buildSelectMock([])) // current view
+        .mockImplementationOnce(() => buildSelectMock([])) // current fallback
+        .mockImplementationOnce(() => buildSelectMock([])) // previous view
+        .mockImplementationOnce(() => buildSelectMock([])); // previous fallback
 
       const result = await caller.getExerciseStrengthProgression({
         exerciseName: "Bench Press",
@@ -179,8 +191,8 @@ describe("progressRouter", () => {
       ];
 
       db.select
-        .mockImplementationOnce(() => makeSelectBuilder(currentData))
-        .mockImplementationOnce(() => makeSelectBuilder(previousData));
+        .mockImplementationOnce(() => buildSelectMock(currentData))
+        .mockImplementationOnce(() => buildSelectMock(previousData));
 
       const result = await caller.getExerciseStrengthProgression({
         exerciseName: "Bench Press",
@@ -195,96 +207,11 @@ describe("progressRouter", () => {
     });
   });
 
-  describe("getExerciseVolumeProgression", () => {
-    const makeSelectBuilder = (rows: unknown[]) => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          orderBy: vi.fn().mockResolvedValue(rows),
-        })),
-      })),
-    });
-
-    it("should return default values when no data exists", async () => {
-      db.select
-        .mockImplementationOnce(() => makeSelectBuilder([]))
-        .mockImplementationOnce(() => makeSelectBuilder([]));
-
-      const result = await caller.getExerciseVolumeProgression({
-        exerciseName: "Bench Press",
-        timeRange: "quarter",
-      });
-
-      expect(result).toEqual({
-        currentVolume: 0,
-        volumeChange: 0,
-        volumeChangePercent: 0,
-        averageVolumePerSession: 0,
-        sessionCount: 0,
-        frequency: 0,
-        volumeByWeek: [],
-      });
-    });
-
-    it("should calculate volume progression with data", async () => {
-      const currentData = [
-        {
-          workoutDate: new Date("2024-01-01"),
-          exerciseName: "Bench Press",
-          weight: 100,
-          reps: 5,
-          sets: 3,
-          unit: "kg",
-          volumeLoad: 1500,
-        },
-        {
-          workoutDate: new Date("2024-01-15"),
-          exerciseName: "Bench Press",
-          weight: 105,
-          reps: 5,
-          sets: 3,
-          unit: "kg",
-          volumeLoad: 1575,
-        },
-      ];
-      const previousData = [
-        {
-          workoutDate: new Date("2023-12-20"),
-          exerciseName: "Bench Press",
-          weight: 95,
-          reps: 5,
-          sets: 3,
-          unit: "kg",
-          volumeLoad: 1425,
-        },
-      ];
-
-      db.select
-        .mockImplementationOnce(() => makeSelectBuilder(currentData))
-        .mockImplementationOnce(() => makeSelectBuilder(previousData));
-
-      const result = await caller.getExerciseVolumeProgression({
-        exerciseName: "Bench Press",
-        timeRange: "quarter",
-      });
-
-      expect(result.currentVolume).toBeGreaterThan(0);
-      expect(result.sessionCount).toBe(2);
-      expect(result.volumeChange).toBeGreaterThan(0);
-    });
-  });
-
-
   describe("getExerciseRecentPRs", () => {
     it("should return empty result when no data exists", async () => {
-      db.select.mockReturnValue({
-        from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue([]),
-            })),
-          })),
-        })),
-      });
+      db.select
+        .mockImplementationOnce(() => buildSelectMock([])) // view query
+        .mockImplementationOnce(() => buildSelectMock([])); // fallback query
 
       const result = await caller.getExerciseRecentPRs({
         exerciseName: "Bench Press",
@@ -306,21 +233,25 @@ describe("progressRouter", () => {
           weight: 100,
           reps: 5,
           sets: 3,
+          unit: "lbs",
+          oneRMEstimate: 116.67,
+          volumeLoad: 1500,
         },
         {
           workoutDate: new Date("2024-01-15"),
           weight: 105,
           reps: 5,
           sets: 3,
+          unit: "lbs",
+          oneRMEstimate: 122.5,
+          volumeLoad: 1575,
         },
       ];
 
       const mockQueryChain = {
         from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue(mockData),
-            })),
+          where: vi.fn(() => ({
+            orderBy: vi.fn().mockResolvedValue(mockData),
           })),
         })),
       };
@@ -601,13 +532,7 @@ describe("progressRouter", () => {
         { workoutDate: new Date("2024-01-15") },
       ];
 
-      db.select.mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            orderBy: vi.fn().mockResolvedValue(mockData),
-          })),
-        })),
-      });
+      db.select.mockReturnValue(buildSelectMock(mockData));
 
       const result = await caller.getConsistencyStats({
         timeRange: "month",

@@ -27,6 +27,7 @@ class WebhookProcessingError extends Error {
 interface WhoopRecoveryData {
   id: string;
   cycle_id?: string;
+  sleep_id?: string;
   score?: {
     recovery_score?: number;
     hrv_rmssd_milli?: number;
@@ -139,20 +140,23 @@ async function processRecoveryUpdate(
   console.log(`Processing recovery update webhook:`, payload);
 
   try {
-    const recoveryId = payload.id.toString();
-
     const recoveryData = await fetchRecoveryFromWhoop(
       db,
-      recoveryId,
+      payload.id.toString(),
       payload.user_id,
       dbUserId,
       isTestMode,
     );
     if (!recoveryData) {
       throw new WebhookProcessingError(
-        `Could not fetch recovery data for ${recoveryId}`,
+        `Could not fetch recovery data for ${payload.id}`,
       );
     }
+
+    const normalizedRecoveryId =
+      typeof recoveryData.sleep_id === "string"
+        ? recoveryData.sleep_id
+        : payload.id.toString();
 
     // Parse the date from the recovery data (ensure it's in YYYY-MM-DD format)
     const recoveryDateStr = recoveryData.date
@@ -163,12 +167,12 @@ async function processRecoveryUpdate(
     const [existingRecovery] = await db
       .select()
       .from(whoopRecovery)
-      .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
+      .where(eq(whoopRecovery.whoop_recovery_id, normalizedRecoveryId));
 
     if (existingRecovery) {
       // Update existing recovery
       console.log(
-        `Updating existing recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+        `Updating existing recovery ${normalizedRecoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
       await db
         .update(whoopRecovery)
@@ -188,15 +192,15 @@ async function processRecoveryUpdate(
           timezone_offset: recoveryData.timezone_offset || null,
           updatedAt: new Date(),
         })
-        .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
+        .where(eq(whoopRecovery.whoop_recovery_id, normalizedRecoveryId));
     } else {
       // Insert new recovery
       console.log(
-        `Inserting new recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+        `Inserting new recovery ${normalizedRecoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
       await db.insert(whoopRecovery).values({
         user_id: dbUserId,
-        whoop_recovery_id: recoveryId,
+        whoop_recovery_id: normalizedRecoveryId,
         cycle_id: recoveryData.cycle_id || null,
         date: new Date(recoveryDateStr),
         recovery_score: recoveryData.score?.recovery_score || null,
@@ -213,7 +217,9 @@ async function processRecoveryUpdate(
       });
     }
 
-    console.log(`Successfully processed recovery update for ${recoveryId}`);
+    console.log(
+      `Successfully processed recovery update for ${normalizedRecoveryId}`,
+    );
   } catch (error) {
     console.error(`Error processing recovery update:`, error);
     throw error;
@@ -338,8 +344,11 @@ export async function POST(request: NextRequest) {
 
     const dbUserId = mappedUserId ?? getTestModeUserId();
 
-    // Only process recovery.updated events
-    if (payload.type === "recovery.updated") {
+    // Only process recovery events we support
+    if (
+      payload.type === "recovery.updated" ||
+      payload.type === "recovery.created"
+    ) {
       await processRecoveryUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
@@ -355,11 +364,11 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(
-        `✅ Successfully processed recovery.updated webhook for user ${payload.user_id}`,
+        `✅ Successfully processed ${payload.type} webhook for user ${payload.user_id}`,
       );
       return NextResponse.json({
         success: true,
-        message: "Recovery updated successfully",
+        message: "Recovery event processed successfully",
       });
     } else {
       // Update webhook event status for ignored events

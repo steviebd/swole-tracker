@@ -1,11 +1,4 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-} from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   analytics,
   setPosthogClientForTesting,
@@ -19,7 +12,6 @@ const mockPosthog = {
 };
 
 describe("analytics", () => {
-
   beforeEach(() => {
     mockPosthog.capture.mockClear();
     mockPosthog.identify.mockClear();

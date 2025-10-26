@@ -29,7 +29,7 @@ export const sessionExerciseMetricsView = sqliteView(
     se.user_id AS userId,
     se.templateExerciseId AS templateExerciseId,
     se.exerciseName AS exerciseName,
-    se.resolvedExerciseName AS resolvedExerciseName,
+    COALESCE(NULLIF(se.resolvedExerciseName, ''), se.exerciseName) AS resolvedExerciseName,
     ws.workoutDate AS workoutDate,
     se.weight AS weight,
     se.reps AS reps,

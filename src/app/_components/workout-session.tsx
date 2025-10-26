@@ -16,7 +16,10 @@ import {
   snapshotMetricsBlob,
 } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
-import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
+import {
+  useWorkoutSessionState,
+  type WorkoutSessionState,
+} from "~/hooks/useWorkoutSessionState";
 
 interface WorkoutSessionProps {
   sessionId: number;
@@ -30,7 +33,15 @@ interface WorkoutSessionProps {
   ) => React.ReactNode;
 }
 
-export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
+interface WorkoutSessionWithStateProps {
+  sessionId: number;
+  state: WorkoutSessionState;
+}
+
+function WorkoutSessionContent({
+  sessionId,
+  state,
+}: WorkoutSessionWithStateProps) {
   const router = useRouter();
   const { invalidateWorkouts: _invalidateWorkouts } = useCacheInvalidation();
 
@@ -66,7 +77,8 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     preferences,
     // undo integration
     setLastAction,
-  } = useWorkoutSessionState({ sessionId });
+    clearDraft,
+  } = state;
 
   // Additional hooks that must be called before conditional returns
   const [scrollY, setScrollY] = useState(0);
@@ -255,12 +267,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         applyOptimisticWorkoutUpdateFromPayload(payload);
         enqueue(payload);
+        clearDraft();
         // No navigation here; let user remain on page
         return;
       }
 
       // Try online save
       await saveWorkout.mutateAsync(payload);
+      clearDraft();
     } catch (error) {
       console.error("Error saving workout:", error);
       analytics.error(error as Error, {
@@ -282,6 +296,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         const payload = buildSavePayload();
         applyOptimisticWorkoutUpdateFromPayload(payload);
         enqueue(payload);
+        clearDraft();
         return;
       }
 
@@ -332,6 +347,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       // Navigate to home after successful deletion
       setShowDeleteConfirm(false);
+      clearDraft();
       router.push("/");
     } catch (error) {
       // This should rarely happen now due to our error handling in the mutation
@@ -343,6 +359,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       // Even on error, close dialog and navigate away since the optimistic update already happened
       setShowDeleteConfirm(false);
+      clearDraft();
       router.push("/");
     }
   };
@@ -894,4 +911,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       )}
     </div>
   );
+}
+
+export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
+  const state = useWorkoutSessionState({ sessionId });
+  return <WorkoutSessionContent sessionId={sessionId} state={state} />;
+}
+
+export function WorkoutSessionWithState(
+  props: WorkoutSessionWithStateProps,
+) {
+  return <WorkoutSessionContent {...props} />;
 }

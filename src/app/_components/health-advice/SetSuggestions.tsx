@@ -15,7 +15,7 @@ interface SetSuggestionsProps {
   exercise: HealthAdviceResponse["per_exercise"][0] & { name?: string };
   onAcceptSuggestion: (
     setId: string,
-    suggestion: { weight?: number; reps?: number },
+    suggestion: { weight?: number; reps?: number; restSeconds?: number },
   ) => void;
   onOverrideSuggestion: (setId: string) => void;
   sessionId?: string; // For analytics tracking
@@ -42,7 +42,7 @@ export function SetSuggestions({
 
   const handleAcceptSet = (
     setId: string,
-    suggestion: { weight?: number; reps?: number },
+    suggestion: { weight?: number; reps?: number; restSeconds?: number },
     _progressionType: ProgressionPreference = "ai_recommended",
   ) => {
     setAcceptedSets((prev) => new Set(prev).add(setId));
@@ -211,6 +211,8 @@ export function SetSuggestions({
                               {
                                 weight: set.suggested_weight_kg || undefined,
                                 reps: set.suggested_reps || undefined,
+                                restSeconds:
+                                  (set as any).suggested_rest_seconds ?? undefined,
                               },
                               "ai_recommended",
                             )

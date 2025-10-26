@@ -329,8 +329,8 @@ export async function POST(request: NextRequest) {
 
     const dbUserId = mappedUserId ?? getTestModeUserId();
 
-    // Only process cycle.updated events
-    if (payload.type === "cycle.updated") {
+    // Only process supported cycle events
+    if (payload.type === "cycle.updated" || payload.type === "cycle.created") {
       await processCycleUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
@@ -346,11 +346,11 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(
-        `✅ Successfully processed cycle.updated webhook for user ${payload.user_id}`,
+        `✅ Successfully processed ${payload.type} webhook for user ${payload.user_id}`,
       );
       return NextResponse.json({
         success: true,
-        message: "Cycle updated successfully",
+        message: "Cycle event processed successfully",
       });
     } else {
       // Update webhook event status for ignored events

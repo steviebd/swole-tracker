@@ -311,8 +311,11 @@ export async function POST(request: NextRequest) {
 
     const dbUserId = mappedUserId ?? getTestModeUserId();
 
-    // Only process body_measurement.updated events
-    if (payload.type === "body_measurement.updated") {
+    // Only process supported body measurement events
+    if (
+      payload.type === "body_measurement.updated" ||
+      payload.type === "body_measurement.created"
+    ) {
       await processBodyMeasurementUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
@@ -328,11 +331,11 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(
-        `✅ Successfully processed body_measurement.updated webhook for user ${payload.user_id}`,
+        `✅ Successfully processed ${payload.type} webhook for user ${payload.user_id}`,
       );
       return NextResponse.json({
         success: true,
-        message: "Body measurement updated successfully",
+        message: "Body measurement event processed successfully",
       });
     } else {
       // Update webhook event status for ignored events

@@ -8,7 +8,9 @@ import React, {
   useState,
 } from "react";
 import { Button } from "~/components/ui/button";
-import { WorkoutSession } from "~/app/_components/workout-session";
+import {
+  WorkoutSessionWithState,
+} from "~/app/_components/workout-session";
 import { ReadinessIndicator } from "~/app/_components/health-advice/ReadinessIndicator";
 import { SetSuggestions } from "~/app/_components/health-advice/SetSuggestions";
 import { ProbabilityGauge } from "~/app/_components/health-advice/ProbabilityGauge";
@@ -29,7 +31,12 @@ import type {
   SubjectiveWellnessData,
   ManualWellnessData,
 } from "~/lib/subjective-wellness-mapper";
-import { useWorkoutSessionContext } from "~/contexts/WorkoutSessionContext";
+import {
+  useWorkoutSessionContext,
+  type AcceptSuggestionPayload,
+} from "~/contexts/WorkoutSessionContext";
+import type { ExerciseData } from "~/app/_components/exercise-card";
+import { findHighestWeightSetIndex } from "~/lib/workout/suggestion-helpers";
 
 interface WorkoutSessionWithHealthAdviceProps {
   sessionId: number;
@@ -50,11 +57,7 @@ interface WorkoutSessionWithHealthAdviceProps {
   };
   workoutPlan?: HealthAdviceRequest["workout_plan"];
   priorBests?: HealthAdviceRequest["prior_bests"];
-  onAcceptSuggestion?: (
-    exerciseName: string,
-    setIndex: number,
-    suggestion: { weight?: number; reps?: number },
-  ) => void;
+  onAcceptSuggestion?: (params: AcceptSuggestionPayload) => void;
 }
 
 type IntegrationState = "never_connected" | "disconnected" | "connected";
@@ -78,7 +81,41 @@ export function WorkoutSessionWithHealthAdvice({
   onAcceptSuggestion,
 }: WorkoutSessionWithHealthAdviceProps) {
   // Get the workout session context for UI state updates
-  const { updateSet, exercises } = useWorkoutSessionContext();
+  const { exercises, sessionState } = useWorkoutSessionContext();
+
+  const findExerciseState = useCallback(
+    (templateExerciseId: number, exerciseName: string) => {
+      if (!Array.isArray(exercises)) {
+        return { exercise: undefined as ExerciseData | undefined, index: -1 };
+      }
+
+      const byTemplateIndex = exercises.findIndex(
+        (exercise) => exercise.templateExerciseId === templateExerciseId,
+      );
+
+      if (byTemplateIndex !== -1) {
+        return {
+          exercise: exercises[byTemplateIndex] as ExerciseData,
+          index: byTemplateIndex,
+        };
+      }
+
+      const byNameIndex = exercises.findIndex(
+        (exercise) => exercise.exerciseName === exerciseName,
+      );
+
+      return {
+        exercise: byNameIndex !== -1 ? (exercises[byNameIndex] as ExerciseData) : undefined,
+        index: byNameIndex,
+      };
+    },
+    [exercises],
+  );
+
+  const getHighestWeightSetIndex = useCallback(
+    (exercise?: ExerciseData) => findHighestWeightSetIndex(exercise),
+    [],
+  );
 
   const [showHealthAdvice, setShowHealthAdvice] = useState(false);
   const [showWellnessModal, setShowWellnessModal] = useState(false);
@@ -109,8 +146,10 @@ export function WorkoutSessionWithHealthAdvice({
   } = useHealthAdvice(sessionId);
 
   // Fetch the actual workout session to get template exercises
-  const { data: workoutSession, refetch: refetchWorkoutSession } =
-    api.workouts.getById.useQuery({ id: sessionId }, { enabled: !!sessionId });
+  const { data: workoutSession } = api.workouts.getById.useQuery(
+    { id: sessionId },
+    { enabled: !!sessionId },
+  );
 
   // Calculate elapsed time (simplified - in a real app this would track actual session time)
   const elapsedTime = React.useMemo(() => {
@@ -441,17 +480,6 @@ export function WorkoutSessionWithHealthAdvice({
     window.open("/connect-whoop", "_blank");
   };
 
-  const updateSessionSets = api.workouts.updateSessionSets.useMutation({
-    onSuccess: async () => {
-      console.log("Successfully updated session sets");
-      // Refresh the workout session data to show updated values
-      await refetchWorkoutSession();
-    },
-    onError: (error) => {
-      console.error("Failed to update session sets:", error);
-    },
-  });
-
   const trackSuggestionInteraction =
     api.suggestions.trackInteraction.useMutation();
 
@@ -494,18 +522,6 @@ export function WorkoutSessionWithHealthAdvice({
         return null;
       }
 
-      if (isHighest) {
-        // For "highest" format, since we now only show one set (the AI recommendation),
-        // treat it as setIndex 0 (the first and only set)
-        setIndex = 0;
-      } else {
-        setIndex = Number.parseInt(match[2] ?? "", 10) - 1;
-        if (setIndex < 0) {
-          console.error("Invalid set index in setId:", setId);
-          return null;
-        }
-      }
-
       if (!templateExercises) {
         console.error(
           "Template exercises are unavailable when processing set:",
@@ -527,6 +543,28 @@ export function WorkoutSessionWithHealthAdvice({
       }
 
       const actualExerciseName = templateExercise.exerciseName;
+      const { exercise: matchingExercise } = findExerciseState(
+        templateExerciseId,
+        actualExerciseName,
+      );
+
+      if (isHighest) {
+        setIndex = getHighestWeightSetIndex(matchingExercise);
+      } else {
+        setIndex = Number.parseInt(match[2] ?? "", 10) - 1;
+        if (setIndex < 0) {
+          console.error("Invalid set index in setId:", setId);
+          return null;
+        }
+      }
+
+      if (matchingExercise?.sets?.length) {
+        const maxIndex = matchingExercise.sets.length - 1;
+        if (setIndex > maxIndex) {
+          setIndex = maxIndex;
+        }
+      }
+
       const exerciseAdvice = advice?.per_exercise.find(
         (ex) =>
           ex.exercise_id === templateExerciseId.toString() ||
@@ -551,39 +589,34 @@ export function WorkoutSessionWithHealthAdvice({
           : undefined,
       };
     },
-    [advice, templateExercises],
+    [advice, templateExercises, findExerciseState, getHighestWeightSetIndex],
   );
 
   const handleAcceptSuggestion = async (
     setId: string,
-    suggestion: { weight?: number; reps?: number },
+    suggestion: { weight?: number; reps?: number; restSeconds?: number },
   ) => {
     const context = resolveSetContext(setId);
     if (!context) return;
 
-    const { actualExerciseName, setAdvice } = context;
+    const { actualExerciseName, setAdvice, templateExerciseId } = context;
     const setIndex = context.setIndex;
     const interactionTimeMs = getInteractionTimeMs();
 
     try {
-      // Use the callback to update UI state if provided, otherwise fall back to database update
+      // Use the callback to update UI state if provided, otherwise warn for missing handler
       if (onAcceptSuggestion) {
-        onAcceptSuggestion(actualExerciseName, setIndex, suggestion);
-      } else {
-        // Fallback to database update for backward compatibility
-        await updateSessionSets.mutateAsync({
-          sessionId,
-          updates: [
-            {
-              setId,
-              exerciseName: actualExerciseName,
-              setIndex,
-              weight: suggestion.weight,
-              reps: suggestion.reps,
-              unit: "kg",
-            },
-          ],
+        onAcceptSuggestion({
+          exerciseName: actualExerciseName,
+          templateExerciseId,
+          setIndex,
+          suggestion,
         });
+      } else {
+        console.warn(
+          "No onAcceptSuggestion handler provided; suggestion not applied",
+        );
+        return;
       }
 
       if (setAdvice) {
@@ -750,7 +783,12 @@ export function WorkoutSessionWithHealthAdvice({
         readiness={advice?.readiness.rho}
       />
 
-      <WorkoutSession sessionId={sessionId} />
+      {sessionState ? (
+        <WorkoutSessionWithState
+          sessionId={sessionId}
+          state={sessionState}
+        />
+      ) : null}
     </div>
   );
 }

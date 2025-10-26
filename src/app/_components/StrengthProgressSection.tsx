@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "~/trpc/react";
 import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 
@@ -8,12 +8,19 @@ type TimeRange = "week" | "month" | "year";
 
 export function StrengthProgressSection() {
   const [selectedExercise, setSelectedExercise] = useState<string>("");
-  const [timeRange, setTimeRange] = useState<TimeRange>("month");
+  const [timeRange, setTimeRange] = useState<TimeRange>("year");
   const [showModal, setShowModal] = useState(false);
   
   // Get list of exercises
   const { data: exerciseList, isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
   
+  // Backfill the first exercise once list data arrives so charts populate automatically
+  useEffect(() => {
+    if (!selectedExercise && !exerciseListLoading && exerciseList?.length) {
+      setSelectedExercise(exerciseList[0]!.exerciseName);
+    }
+  }, [selectedExercise, exerciseList, exerciseListLoading]);
+
   // Get strength progression data for selected exercise
   const { data: strengthData, isLoading: strengthLoading } = api.progress.getStrengthProgression.useQuery(
     {
@@ -31,13 +38,34 @@ export function StrengthProgressSection() {
   const buttonClass = "btn-secondary";
   const selectClass = "px-3 py-2 text-sm rounded-lg border transition-colors bg-surface-secondary border-default text-content-primary focus:border-interactive-primary";
 
-  // Calculate max weight for chart scaling
-  const maxWeight = strengthData ? Math.max(...strengthData.map(d => d.weight)) : 0;
-  const minWeight = strengthData ? Math.min(...strengthData.map(d => d.weight)) : 0;
-  const range = maxWeight - minWeight || 1;
-  
-  // Reverse data for chart display (earliest to latest, left to right)
+  // Prepare numeric weights for chart scaling
+  const weightValues =
+    strengthData?.map((session) => Number(session.weight ?? 0)) ?? [];
+  const hasWeightData = weightValues.length > 0;
+  const maxWeight = hasWeightData ? Math.max(...weightValues) : 0;
+  const minWeight = hasWeightData ? Math.min(...weightValues) : 0;
+  const baseRange = maxWeight - minWeight;
+  const isFlatProgress = hasWeightData && baseRange < 0.5;
+  const padding = hasWeightData
+    ? Math.max(
+        isFlatProgress
+          ? Math.max(5, maxWeight * 0.1 || 5)
+          : Math.max(baseRange * 0.2, 2.5),
+        2.5,
+      )
+    : 5;
+  const chartMin = Math.max(0, (hasWeightData ? minWeight : 0) - padding);
+  const chartMax = (hasWeightData ? maxWeight : padding) + padding;
+  const chartRange = Math.max(chartMax - chartMin, 1);
+  const chartWidth = 360;
+  const chartOffset = 20;
   const chartData = strengthData ? [...strengthData].reverse() : [];
+  const clampWeight = (value?: number | null) => {
+    if (value == null || Number.isNaN(value)) {
+      return null;
+    }
+    return Math.min(chartMax, Math.max(chartMin, value));
+  };
 
   return (
     <div className={cardClass + " p-6"}>
@@ -110,18 +138,42 @@ export function StrengthProgressSection() {
                     
                     {/* Data points and line */}
                     {chartData.map((point, index) => {
-                      const x = (index / Math.max(1, chartData.length - 1)) * 360 + 20;
-                      const y = 180 - ((point.weight - minWeight) / range) * 160;
+                      const denominator = Math.max(1, chartData.length - 1);
+                      const numericWeight = Number(point.weight ?? 0);
+                      const normalizedWeight =
+                        clampWeight(numericWeight) ?? chartMin;
+                      const progress =
+                        (normalizedWeight - chartMin) / chartRange;
+                      const x = (index / denominator) * chartWidth + chartOffset;
+                      const y = 180 - progress * 160;
                       
+                      const nextPoint = chartData[index + 1];
+                      const nextNumericWeight =
+                        nextPoint !== undefined
+                          ? Number(nextPoint.weight ?? 0)
+                          : null;
+                      const nextNormalizedWeight =
+                        nextNumericWeight === null
+                          ? null
+                          : clampWeight(nextNumericWeight);
+                      const nextProgress =
+                        nextNormalizedWeight === null
+                          ? null
+                          : (nextNormalizedWeight - chartMin) / chartRange;
+                      const nextX =
+                        ((index + 1) / denominator) * chartWidth + chartOffset;
+                      const nextY =
+                        nextProgress === null ? null : 180 - nextProgress * 160;
+
                       return (
                         <g key={index}>
                           {/* Line to next point */}
-                          {index < chartData.length - 1 && (
+                          {nextY !== null && (
                             <line
                               x1={x}
                               y1={y}
-                              x2={(index + 1) / Math.max(1, chartData.length - 1) * 360 + 20}
-                              y2={180 - ((chartData[index + 1]!.weight - minWeight) / range) * 160}
+                              x2={nextX}
+                              y2={nextY}
                               stroke="var(--color-chart-1)"
                               strokeWidth="3"
                               opacity="0.8"
@@ -150,7 +202,7 @@ export function StrengthProgressSection() {
                             className="text-xs font-medium"
                             fill="var(--color-text)"
                           >
-                            {point.weight}kg
+                            {numericWeight}kg
                           </text>
                         </g>
                       );
@@ -165,6 +217,11 @@ export function StrengthProgressSection() {
                     </text>
                   </svg>
                 </div>
+                {isFlatProgress && (
+                  <p className="mt-2 text-xs text-muted-foreground text-right">
+                    Scale padded to highlight consistent sessions.
+                  </p>
+                )}
               </div>
 
               {/* Progress Summary Cards */}

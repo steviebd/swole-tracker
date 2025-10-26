@@ -3,14 +3,12 @@ import type { BatchItem, BatchResponse } from "drizzle-orm/batch";
 const DEFAULT_SQLITE_VARIABLE_LIMIT = 90;
 const DEFAULT_D1_BATCH_LIMIT = 50;
 
+import { type DrizzleDb } from "./index";
+
 export const SQLITE_VARIABLE_LIMIT = DEFAULT_SQLITE_VARIABLE_LIMIT;
 export const DEFAULT_SINGLE_COLUMN_CHUNK_SIZE = DEFAULT_SQLITE_VARIABLE_LIMIT;
 
-type BatchCapableClient = {
-  batch: <U extends BatchItem<"sqlite">, T extends Readonly<[U, ...U[]]>>(
-    queries: T,
-  ) => Promise<BatchResponse<T>>;
-};
+type BatchCapableDb = any;
 
 export type ChunkedBatchOptions = {
   limit?: number;
@@ -50,7 +48,7 @@ export function getInsertChunkSize<T>(
 }
 
 export async function chunkedBatch<T>(
-  db: BatchCapableClient | any,
+  db: BatchCapableDb,
   rows: readonly T[],
   createQuery: (chunk: T[]) => unknown,
   options: ChunkedBatchOptions = {},
@@ -71,7 +69,7 @@ export async function chunkedBatch<T>(
   );
 
   const results: unknown[] = [];
-  if (db.batch) {
+  if (typeof db.batch === "function") {
     const batchStatements = statements as BatchItem<"sqlite">[];
     for (const statementChunk of chunkArray(
       batchStatements,

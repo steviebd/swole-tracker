@@ -8,7 +8,7 @@ type TimeRange = "week" | "month" | "year";
 type RecordType = "weight" | "volume" | "both";
 
 export function PersonalRecordsSection() {
-  const [timeRange, setTimeRange] = useState<TimeRange>("month");
+  const [timeRange, setTimeRange] = useState<TimeRange>("year");
   const [recordType, setRecordType] = useState<RecordType>("both");
   const [showModal, setShowModal] = useState(false);
   
@@ -47,17 +47,17 @@ export function PersonalRecordsSection() {
 
   return (
     <div className={cardClass + " p-6"}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <h2 className={titleClass}>Personal Records</h2>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {/* Record Type Filter */}
-          <div className="flex space-x-1 bg-muted rounded-lg p-1">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 sm:w-auto">
             {(["both", "weight", "volume"] as RecordType[]).map((type) => (
               <button
                 key={type}
                 onClick={() => setRecordType(type)}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
+                className={`flex-1 px-2 py-1 text-xs font-medium rounded-md transition-all sm:flex-none ${
                   recordType === type
                     ? "bg-card text-foreground shadow-sm"
                     : "text-theme-secondary hover:text-theme-primary"
@@ -69,12 +69,12 @@ export function PersonalRecordsSection() {
           </div>
           
           {/* Time Range Selector */}
-          <div className="flex space-x-1 bg-muted rounded-lg p-1">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1 sm:w-auto">
             {(["week", "month", "year"] as TimeRange[]).map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
+                className={`flex-1 px-2 py-1 text-xs font-medium rounded-md transition-all sm:flex-none ${
                   timeRange === range
                     ? "bg-card text-foreground shadow-sm"
                     : "text-theme-secondary hover:text-theme-primary"

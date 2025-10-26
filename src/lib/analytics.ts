@@ -1,10 +1,33 @@
 "use client";
 
-import posthog from "posthog-js";
+type PosthogClient = {
+  capture: (event: string, properties?: Record<string, unknown>) => void;
+  identify: (id: string, props?: Record<string, unknown>) => void;
+  reset: () => void;
+};
 
-type PosthogClient = Pick<typeof posthog, "capture" | "identify" | "reset">;
+let posthogClient: PosthogClient;
 
-let posthogClient: PosthogClient = posthog;
+// Lazy load posthog to avoid initialization issues in tests
+const getPosthogClient = (): PosthogClient => {
+  if (!posthogClient) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const posthog = require("posthog-js");
+      posthogClient = posthog.default || posthog;
+    } catch {
+      // Fallback for tests - no-op implementation
+      /* eslint-disable @typescript-eslint/no-empty-function */
+      posthogClient = {
+        capture: () => {},
+        identify: () => {},
+        reset: () => {},
+      };
+      /* eslint-enable @typescript-eslint/no-empty-function */
+    }
+  }
+  return posthogClient;
+};
 
 /**
  * Allow tests to replace the client while keeping production usage untouched.
@@ -15,7 +38,7 @@ export function setPosthogClientForTesting(client: PosthogClient) {
 }
 
 export function resetPosthogClientForTesting() {
-  posthogClient = posthog;
+  posthogClient = getPosthogClient();
 }
 
 const safeOnline = () =>
@@ -23,7 +46,7 @@ const safeOnline = () =>
 const safeCapture = (event: string, props?: Record<string, unknown>) => {
   try {
     if (!safeOnline()) return;
-    posthogClient.capture?.(event, props ?? {});
+    getPosthogClient().capture?.(event, props ?? {});
   } catch {
     // swallow
   }

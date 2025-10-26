@@ -38,7 +38,8 @@ export const SESSION_DEBRIEF_SYSTEM_PROMPT = `You are an elite strength coach pr
 Always respond with STRICT JSON matching the output schema.
 No prose outside JSON. Keep tone constructive, motivational, and data-driven.
 Highlight personal records, adherence trends, and next priorities.
-If data is missing, acknowledge gracefully and rely on available metrics.`;
+If data is missing, acknowledge gracefully and rely on available metrics.
+Leverage complete historic set logs to infer realistic 1RM estimates and prescribe progressive overload knobs (weight vs reps) for upcoming sessions.`;
 
 export function buildSessionDebriefPrompt(payload: SessionDebriefGenerationPayload) {
   const { context, locale, timezone } = payload;
@@ -51,6 +52,10 @@ export function buildSessionDebriefPrompt(payload: SessionDebriefGenerationPaylo
         sets: exercise.sets.map((set) => ({
           ...set,
           // Remove undefined for cleaner prompt payloads
+          intensity: typeof set.intensity === "number" ? set.intensity : undefined,
+        })),
+        historicalSets: exercise.historicalSets?.map((set) => ({
+          ...set,
           intensity: typeof set.intensity === "number" ? set.intensity : undefined,
         })),
       })),
@@ -73,6 +78,8 @@ export function buildSessionDebriefPrompt(payload: SessionDebriefGenerationPaylo
     "- Provide summary under 120 words.",
     "- Reference at most 3 PR highlights; if none, explain status.",
     "- Give 2-3 focus areas with actionable guidance.",
+    "- Use historicalSets to compare current vs prior performance and mention estimated 1RM trajectories for key lifts.",
+    "- Recommend a concrete progressive overload move for the next session (either add load or add reps) and capture it in focus areas or overloadDigest.nextSteps.",
     "- If readiness data missing, skip overload recommendations.",
     "- Populate metadata with useful tags such as { \"confidence\": number } when relevant.",
   ];

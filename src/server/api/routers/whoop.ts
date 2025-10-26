@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { DrizzleDb } from "~/server/db";
 import {
@@ -52,6 +52,37 @@ const benignRotationErrors = new Set([
   "Integration not found",
   "No refresh token available",
 ]);
+
+function toDate(value: Date | string | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "string" && value.length > 0) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  return null;
+}
+
+function pickLatestDate(values: Array<Date | null>): Date | null {
+  return values.reduce<Date | null>((latest, current) => {
+    if (!current) {
+      return latest;
+    }
+
+    if (!latest || current.getTime() > latest.getTime()) {
+      return current;
+    }
+
+    return latest;
+  }, null);
+}
 
 async function refreshWhoopIntegrationIfNeeded(
   db: DrizzleDb,
@@ -109,16 +140,77 @@ export const whoopRouter = createTRPCRouter({
         ctx.user.id,
       );
 
-      // Get last sync time from most recent workout
-      const [lastWorkout] = await ctx.db
-        .select({
-          createdAt: externalWorkoutsWhoop.createdAt,
-          updatedAt: externalWorkoutsWhoop.updatedAt,
-        })
-        .from(externalWorkoutsWhoop)
-        .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
-        .orderBy(desc(externalWorkoutsWhoop.createdAt))
-        .limit(1);
+      const [
+        workoutLatest,
+        recoveryLatest,
+        sleepLatest,
+        cycleLatest,
+        bodyMeasurementLatest,
+      ] = await Promise.all([
+        ctx.db
+          .select({
+            latest: sql<string | null>`
+              max(
+                coalesce(${externalWorkoutsWhoop.updatedAt}, ${externalWorkoutsWhoop.createdAt})
+              )
+            `,
+          })
+          .from(externalWorkoutsWhoop)
+          .where(eq(externalWorkoutsWhoop.user_id, ctx.user.id))
+          .limit(1),
+        ctx.db
+          .select({
+            latest: sql<string | null>`
+              max(
+                coalesce(${whoopRecovery.updatedAt}, ${whoopRecovery.createdAt})
+              )
+            `,
+          })
+          .from(whoopRecovery)
+          .where(eq(whoopRecovery.user_id, ctx.user.id))
+          .limit(1),
+        ctx.db
+          .select({
+            latest: sql<string | null>`
+              max(
+                coalesce(${whoopSleep.updatedAt}, ${whoopSleep.createdAt})
+              )
+            `,
+          })
+          .from(whoopSleep)
+          .where(eq(whoopSleep.user_id, ctx.user.id))
+          .limit(1),
+        ctx.db
+          .select({
+            latest: sql<string | null>`
+              max(
+                coalesce(${whoopCycles.updatedAt}, ${whoopCycles.createdAt})
+              )
+            `,
+          })
+          .from(whoopCycles)
+          .where(eq(whoopCycles.user_id, ctx.user.id))
+          .limit(1),
+        ctx.db
+          .select({
+            latest: sql<string | null>`
+              max(
+                coalesce(${whoopBodyMeasurement.updatedAt}, ${whoopBodyMeasurement.createdAt})
+              )
+            `,
+          })
+          .from(whoopBodyMeasurement)
+          .where(eq(whoopBodyMeasurement.user_id, ctx.user.id))
+          .limit(1),
+      ]);
+
+      const lastSyncDate = pickLatestDate([
+        toDate(workoutLatest[0]?.latest ?? null),
+        toDate(recoveryLatest[0]?.latest ?? null),
+        toDate(sleepLatest[0]?.latest ?? null),
+        toDate(cycleLatest[0]?.latest ?? null),
+        toDate(bodyMeasurementLatest[0]?.latest ?? null),
+      ]);
 
       // Check if token is expired
       const now = new Date();
@@ -127,13 +219,13 @@ export const whoopRouter = createTRPCRouter({
         : false;
 
       return {
-        isConnected: !!integration?.isActive && !isExpired,
-        hasEverConnected: !!integration,
+        isConnected: Boolean(integration?.isActive) && !isExpired,
+        hasEverConnected: Boolean(integration),
         connectedAt: integration?.createdAt || null,
         expiresAt: integration?.expiresAt || null,
         isExpired,
         scope: integration?.scope || null,
-        lastSyncAt: lastWorkout?.createdAt || null,
+        lastSyncAt: lastSyncDate ? lastSyncDate.toISOString() : null,
       };
     } catch (error) {
       console.error("Failed to fetch WHOOP integration status:", error);
@@ -207,11 +299,17 @@ export const whoopRouter = createTRPCRouter({
       webhookUrl,
       isConfigured: !!process.env.WHOOP_WEBHOOK_SECRET,
       supportedEvents: [
+        "workout.created",
         "workout.updated",
+        "recovery.created",
         "recovery.updated",
+        "sleep.created",
         "sleep.updated",
+        "cycle.created",
         "cycle.updated",
+        "body_measurement.created",
         "body_measurement.updated",
+        "user_profile.created",
         "user_profile.updated",
       ],
       instructions: [
