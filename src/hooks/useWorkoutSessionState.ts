@@ -1397,3 +1397,5 @@ export function useWorkoutSessionState({
     undoLastAction,
   };
 }
+
+export type WorkoutSessionState = ReturnType<typeof useWorkoutSessionState>;

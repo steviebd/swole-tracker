@@ -10,7 +10,17 @@ import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 import {
   WorkoutSessionContext,
   useWorkoutSessionContext,
+  type AcceptSuggestionPayload,
 } from "~/contexts/WorkoutSessionContext";
+
+const KG_TO_LB = 2.2046226218;
+
+const convertKgToUnit = (value: number, unit: "kg" | "lbs") => {
+  if (unit === "lbs") {
+    return Number.parseFloat((value * KG_TO_LB).toFixed(2));
+  }
+  return value;
+};
 
 interface WorkoutSessionProviderProps {
   sessionId: number;
@@ -21,27 +31,77 @@ function WorkoutSessionProvider({
   sessionId,
   children,
 }: WorkoutSessionProviderProps) {
-  const { exercises, updateSet, loading } = useWorkoutSessionState({
+  const sessionState = useWorkoutSessionState({
     sessionId,
   });
+  const { exercises, updateSet, loading } = sessionState;
 
-  const handleAcceptSuggestion = (
+  const resolveExerciseIndex = (
     exerciseName: string,
-    setIndex: number,
-    suggestion: { weight?: number; reps?: number },
+    templateExerciseId?: number,
   ) => {
-    // Find the exercise index
-    const exerciseIndex = exercises.findIndex(
-      (ex) => ex.exerciseName === exerciseName,
-    );
-    if (exerciseIndex === -1) return;
-
-    // Update the set in the UI state
-    if (suggestion.weight !== undefined) {
-      updateSet(exerciseIndex, setIndex, "weight", suggestion.weight);
+    if (typeof templateExerciseId === "number") {
+      const byTemplateId = exercises.findIndex(
+        (ex) => ex.templateExerciseId === templateExerciseId,
+      );
+      if (byTemplateId !== -1) {
+        return byTemplateId;
+      }
     }
+
+    return exercises.findIndex((ex) => ex.exerciseName === exerciseName);
+  };
+
+  const handleAcceptSuggestion = ({
+    exerciseName,
+    templateExerciseId,
+    setIndex,
+    suggestion,
+  }: AcceptSuggestionPayload) => {
+    const exerciseIndex = resolveExerciseIndex(
+      exerciseName,
+      templateExerciseId,
+    );
+
+    if (exerciseIndex === -1) {
+      console.warn(
+        "Unable to locate exercise when applying AI suggestion",
+        exerciseName,
+        templateExerciseId,
+      );
+      return;
+    }
+
+    const targetExercise = exercises[exerciseIndex];
+    const targetSet = targetExercise?.sets?.[setIndex];
+
+    if (!targetSet) {
+      console.warn("Unable to locate set when applying AI suggestion", {
+        exerciseName,
+        templateExerciseId,
+        setIndex,
+      });
+      return;
+    }
+
+    if (suggestion.weight !== undefined) {
+      const unit = (targetSet.unit || targetExercise.unit || "kg") as
+        | "kg"
+        | "lbs";
+      updateSet(
+        exerciseIndex,
+        setIndex,
+        "weight",
+        convertKgToUnit(suggestion.weight, unit),
+      );
+    }
+
     if (suggestion.reps !== undefined) {
       updateSet(exerciseIndex, setIndex, "reps", suggestion.reps);
+    }
+
+    if (suggestion.restSeconds !== undefined) {
+      updateSet(exerciseIndex, setIndex, "rest", Math.round(suggestion.restSeconds));
     }
   };
 
@@ -55,7 +115,12 @@ function WorkoutSessionProvider({
 
   return (
     <WorkoutSessionContext.Provider
-      value={{ updateSet, exercises, handleAcceptSuggestion }}
+      value={{
+        updateSet,
+        exercises,
+        handleAcceptSuggestion,
+        sessionState,
+      }}
     >
       {children}
     </WorkoutSessionContext.Provider>

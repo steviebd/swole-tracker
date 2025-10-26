@@ -22,11 +22,27 @@ export type WorkoutDraftRecord = {
 };
 
 const STORAGE_KEY = "workoutDrafts.v1";
+export const WORKOUT_DRAFTS_STORAGE_KEY = STORAGE_KEY;
 const TRIM_TRIGGER_BYTES = 3_600_000;
 const TARGET_BYTES = 3_000_000;
+export const WORKOUT_DRAFTS_UPDATED_EVENT = "workout-drafts:updated";
 
 const isBrowser = () =>
   typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+
+const notifyDraftsUpdated = () => {
+  if (!isBrowser()) return;
+  if (typeof window.dispatchEvent !== "function") return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(WORKOUT_DRAFTS_UPDATED_EVENT, {
+        bubbles: false,
+      }),
+    );
+  } catch {
+    // Swallow errors to avoid breaking callers that lack CustomEvent support
+  }
+};
 
 function safeNumber(value: unknown): number | undefined {
   return typeof value === "number" && !Number.isNaN(value) ? value : undefined;
@@ -158,6 +174,7 @@ function writeDrafts(drafts: WorkoutDraftRecord[]) {
   if (!isBrowser()) return;
   if (drafts.length === 0) {
     window.localStorage.removeItem(STORAGE_KEY);
+    notifyDraftsUpdated();
     return;
   }
 
@@ -166,6 +183,7 @@ function writeDrafts(drafts: WorkoutDraftRecord[]) {
 
   try {
     window.localStorage.setItem(STORAGE_KEY, serialized);
+    notifyDraftsUpdated();
   } catch (error) {
     if (!isQuotaError(error)) {
       console.warn("Failed to persist workout drafts", error);
@@ -177,14 +195,17 @@ function writeDrafts(drafts: WorkoutDraftRecord[]) {
     );
     if (trimmed.length === 0) {
       window.localStorage.removeItem(STORAGE_KEY);
+      notifyDraftsUpdated();
       return;
     }
 
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+      notifyDraftsUpdated();
     } catch (err) {
       console.warn("Unable to persist workout drafts after trimming", err);
       window.localStorage.removeItem(STORAGE_KEY);
+      notifyDraftsUpdated();
     }
   }
 }
@@ -225,4 +246,15 @@ export function removeWorkoutDraft(sessionId: number) {
   const filtered = drafts.filter((draft) => draft.sessionId !== sessionId);
   if (filtered.length === drafts.length) return;
   writeDrafts(filtered);
+}
+
+export function getMostRecentWorkoutDraft(): WorkoutDraftRecord | null {
+  const drafts = readDrafts();
+  if (drafts.length === 0) {
+    return null;
+  }
+
+  return drafts.reduce((latest, current) =>
+    current.updatedAt > latest.updatedAt ? current : latest,
+  drafts[0]!);
 }

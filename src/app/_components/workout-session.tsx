@@ -16,7 +16,10 @@ import {
   snapshotMetricsBlob,
 } from "~/lib/client-telemetry";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
-import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
+import {
+  useWorkoutSessionState,
+  type WorkoutSessionState,
+} from "~/hooks/useWorkoutSessionState";
 
 interface WorkoutSessionProps {
   sessionId: number;
@@ -30,7 +33,15 @@ interface WorkoutSessionProps {
   ) => React.ReactNode;
 }
 
-export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
+interface WorkoutSessionWithStateProps {
+  sessionId: number;
+  state: WorkoutSessionState;
+}
+
+function WorkoutSessionContent({
+  sessionId,
+  state,
+}: WorkoutSessionWithStateProps) {
   const router = useRouter();
   const { invalidateWorkouts: _invalidateWorkouts } = useCacheInvalidation();
 
@@ -67,7 +78,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     // undo integration
     setLastAction,
     clearDraft,
-  } = useWorkoutSessionState({ sessionId });
+  } = state;
 
   // Additional hooks that must be called before conditional returns
   const [scrollY, setScrollY] = useState(0);
@@ -900,4 +911,15 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       )}
     </div>
   );
+}
+
+export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
+  const state = useWorkoutSessionState({ sessionId });
+  return <WorkoutSessionContent sessionId={sessionId} state={state} />;
+}
+
+export function WorkoutSessionWithState(
+  props: WorkoutSessionWithStateProps,
+) {
+  return <WorkoutSessionContent {...props} />;
 }
