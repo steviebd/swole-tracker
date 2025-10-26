@@ -21,37 +21,7 @@ process.env.AI_DEBRIEF_TEMPERATURE ??= "0.7";
 process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER ??= "3";
 process.env.VERCEL_AI_GATEWAY_API_KEY ??= "test-key";
 
-const ensureDomEnvironment = () => {
-  if (typeof window !== "undefined" && typeof document !== "undefined") {
-    return;
-  }
-
-  (globalThis as any).window = {
-    location: {
-      href: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    },
-    scrollTo: () => {},
-    requestAnimationFrame: (callback: FrameRequestCallback) =>
-      setTimeout(() => callback(Date.now()), 0),
-    cancelAnimationFrame: (handle: number) =>
-      clearTimeout(handle as unknown as NodeJS.Timeout),
-  };
-
-  (globalThis as any).document = {
-    documentElement: {
-      dataset: {},
-    },
-  };
-
-  (globalThis as any).navigator = {};
-  (globalThis as any).self = globalThis;
-  (globalThis as any).HTMLElement = class {};
-  (globalThis as any).CustomEvent = class {};
-  (globalThis as any).Event = class {};
-  (globalThis as any).Node = class {};
-};
-
-ensureDomEnvironment();
+// Removed ensureDomEnvironment since jsdom provides the DOM
 
 const ensureBase64Helpers = () => {
   if (typeof globalThis.atob !== "function") {
@@ -88,6 +58,6 @@ if (globalThis.crypto && !globalThis.crypto.randomUUID) {
   });
 }
 
-await import("./setup.dom");
+import "./setup.dom";
 
 export {};

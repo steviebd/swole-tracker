@@ -66,6 +66,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
     preferences,
     // undo integration
     setLastAction,
+    clearDraft,
   } = useWorkoutSessionState({ sessionId });
 
   // Additional hooks that must be called before conditional returns
@@ -255,12 +256,14 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         applyOptimisticWorkoutUpdateFromPayload(payload);
         enqueue(payload);
+        clearDraft();
         // No navigation here; let user remain on page
         return;
       }
 
       // Try online save
       await saveWorkout.mutateAsync(payload);
+      clearDraft();
     } catch (error) {
       console.error("Error saving workout:", error);
       analytics.error(error as Error, {
@@ -282,6 +285,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
         const payload = buildSavePayload();
         applyOptimisticWorkoutUpdateFromPayload(payload);
         enqueue(payload);
+        clearDraft();
         return;
       }
 
@@ -332,6 +336,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       // Navigate to home after successful deletion
       setShowDeleteConfirm(false);
+      clearDraft();
       router.push("/");
     } catch (error) {
       // This should rarely happen now due to our error handling in the mutation
@@ -343,6 +348,7 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
 
       // Even on error, close dialog and navigate away since the optimistic update already happened
       setShowDeleteConfirm(false);
+      clearDraft();
       router.push("/");
     }
   };

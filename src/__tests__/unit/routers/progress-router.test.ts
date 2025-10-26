@@ -273,15 +273,12 @@ describe("progressRouter", () => {
     });
   });
 
-
   describe("getExerciseRecentPRs", () => {
     it("should return empty result when no data exists", async () => {
       db.select.mockReturnValue({
         from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue([]),
-            })),
+          where: vi.fn(() => ({
+            orderBy: vi.fn().mockResolvedValue([]),
           })),
         })),
       });
@@ -306,21 +303,25 @@ describe("progressRouter", () => {
           weight: 100,
           reps: 5,
           sets: 3,
+          unit: "lbs",
+          oneRMEstimate: 116.67,
+          volumeLoad: 1500,
         },
         {
           workoutDate: new Date("2024-01-15"),
           weight: 105,
           reps: 5,
           sets: 3,
+          unit: "lbs",
+          oneRMEstimate: 122.5,
+          volumeLoad: 1575,
         },
       ];
 
       const mockQueryChain = {
         from: vi.fn(() => ({
-          innerJoin: vi.fn(() => ({
-            where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue(mockData),
-            })),
+          where: vi.fn(() => ({
+            orderBy: vi.fn().mockResolvedValue(mockData),
           })),
         })),
       };

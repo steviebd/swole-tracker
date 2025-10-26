@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
+import "~/styles/globals.css";
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import { setupServer } from "msw/node";
@@ -103,6 +104,14 @@ const ensureFramerMotion = () => {
 };
 
 beforeAll(() => {
+  console.log("setup.dom.ts running");
+  // Ensure document.body is properly set up for jsdom
+  if (typeof document !== "undefined") {
+    if (!document.body || typeof document.body.appendChild !== "function") {
+      document.body = document.createElement("body");
+    }
+  }
+
   ensureLocalStorage();
   ensureMatchMedia();
   ensurePosthog();

@@ -69,8 +69,8 @@ This command:
 - `bun build` - Build the application for production
 - `bun deploy` - Deploy the application to Cloudflare Workers
 - `bun check` - Run lint + typecheck
-- `bun test` - Run unit tests
-- `bun test:coverage` - Run tests with coverage report
+- `bun run test` - Run unit tests
+- `bun run coverage` - Run tests with coverage report
 - `bun run scripts/setup-tests.ts` - Set up test environment variables and mocks for coverage runs
 - `bun run update-wrangler-config [env]` - Regenerate `wrangler.toml` using Infisical secrets (defaults to `dev`; run via `infisical run --env <target> -- bun run update-wrangler-config <target>` before `wrangler` commands)
 

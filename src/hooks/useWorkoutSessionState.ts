@@ -14,6 +14,12 @@ import {
   calculateVolumeSummaryFromExercises,
   invalidateWorkoutDependentCaches,
 } from "~/lib/workout-cache-helpers";
+import {
+  getWorkoutDraft,
+  removeWorkoutDraft,
+  saveWorkoutDraft,
+  type StoredExercise,
+} from "~/lib/workout-drafts";
 
 interface PreviousBest {
   weight?: number;
@@ -39,6 +45,7 @@ export function useWorkoutSessionState({
   >(new Map());
   const [previousDataLoaded, setPreviousDataLoaded] = useState(false);
   const [collapsedIndexes, setCollapsedIndexes] = useState<number[]>([]);
+  const [draftHydrated, setDraftHydrated] = useState(false);
   // Track last reversible action for persistent Undo behavior
   type HistoryAction =
     | {
@@ -109,10 +116,7 @@ export function useWorkoutSessionState({
 
   const restoreRecentQueries = (snapshot: RecentQueriesSnapshot) => {
     for (const [key, data] of snapshot) {
-      queryClient.setQueryData<RecentWorkoutsList | undefined>(
-        key,
-        data,
-      );
+      queryClient.setQueryData<RecentWorkoutsList | undefined>(key, data);
     }
   };
 
@@ -127,8 +131,9 @@ export function useWorkoutSessionState({
     });
 
     for (const [key] of queries) {
-      const maybeOpts =
-        (key as QueryKey)[1] as { input?: { limit?: number } } | undefined;
+      const maybeOpts = (key as QueryKey)[1] as
+        | { input?: { limit?: number } }
+        | undefined;
       const input = maybeOpts?.input;
 
       queryClient.setQueryData<RecentWorkoutsList | undefined>(
@@ -213,6 +218,80 @@ export function useWorkoutSessionState({
     const counter = ++setIdCounterRef.current;
     return `set-${Date.now()}-${counter}-${Math.random().toString(36).substr(2, 9)}`;
   };
+
+  type StoredSet = StoredExercise["sets"][number];
+
+  const normalizeDraftSet = useCallback(
+    (set: StoredSet, fallbackUnit: "kg" | "lbs"): SetData => ({
+      id:
+        typeof set.id === "string"
+          ? set.id
+          : `restored-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`,
+      weight: typeof set.weight === "number" ? set.weight : undefined,
+      reps: typeof set.reps === "number" ? set.reps : undefined,
+      sets: typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
+      unit: (set.unit as "kg" | "lbs") ?? fallbackUnit,
+      rpe: typeof set.rpe === "number" ? set.rpe : undefined,
+      rest: typeof set.rest === "number" ? set.rest : undefined,
+    }),
+    [],
+  );
+
+  const mergeDraftExercises = useCallback(
+    (base: ExerciseData[], draftExercises: StoredExercise[]) => {
+      if (!draftExercises?.length) {
+        return base;
+      }
+
+      const keyFor = (exercise: {
+        templateExerciseId?: number;
+        exerciseName: string;
+      }) =>
+        typeof exercise.templateExerciseId === "number"
+          ? `id:${exercise.templateExerciseId}`
+          : `name:${exercise.exerciseName.toLowerCase()}`;
+
+      const draftMap = new Map(
+        draftExercises.map((exercise) => [keyFor(exercise), exercise]),
+      );
+
+      const merged = base.map((exercise) => {
+        const key = keyFor(exercise);
+        const draft = draftMap.get(key);
+        if (!draft) return exercise;
+
+        draftMap.delete(key);
+        const fallbackUnit =
+          (draft.unit as "kg" | "lbs") ??
+          exercise.unit ??
+          (preferences?.defaultWeightUnit as "kg" | "lbs") ??
+          "kg";
+        return {
+          ...exercise,
+          unit: fallbackUnit,
+          sets: draft.sets.map((set) => normalizeDraftSet(set, fallbackUnit)),
+        };
+      });
+
+      for (const draftExercise of draftMap.values()) {
+        const fallbackUnit =
+          (draftExercise.unit as "kg" | "lbs") ??
+          (preferences?.defaultWeightUnit as "kg" | "lbs") ??
+          "kg";
+        merged.push({
+          templateExerciseId: draftExercise.templateExerciseId,
+          exerciseName: draftExercise.exerciseName,
+          unit: fallbackUnit,
+          sets: draftExercise.sets.map((set) =>
+            normalizeDraftSet(set, fallbackUnit),
+          ),
+        });
+      }
+
+      return merged;
+    },
+    [normalizeDraftSet, preferences?.defaultWeightUnit],
+  );
 
   // swipe settings
   // Phase 3: allow asymmetric thresholds via preferences (future: per-direction)
@@ -325,7 +404,9 @@ export function useWorkoutSessionState({
     updateRecentQueries((current, input) => {
       const limit = input?.limit ?? 10;
       const list = current ? [...current] : [];
-      const existingIndex = list.findIndex((w) => w.id === optimisticWorkout.id);
+      const existingIndex = list.findIndex(
+        (w) => w.id === optimisticWorkout.id,
+      );
 
       if (existingIndex >= 0) {
         list[existingIndex] = optimisticWorkout;
@@ -370,9 +451,7 @@ export function useWorkoutSessionState({
       return { previousQueries } satisfies RecentMutationContext;
     },
     onError: (_err, _newWorkout, context) => {
-      const mutationContext = context as
-        | RecentMutationContext
-        | undefined;
+      const mutationContext = context as RecentMutationContext | undefined;
       if (mutationContext?.previousQueries) {
         restoreRecentQueries(mutationContext.previousQueries);
       }
@@ -412,9 +491,7 @@ export function useWorkoutSessionState({
       }
 
       // Only restore cache for actual server errors
-      const mutationContext = context as
-        | RecentMutationContext
-        | undefined;
+      const mutationContext = context as RecentMutationContext | undefined;
       if (mutationContext?.previousQueries) {
         restoreRecentQueries(mutationContext.previousQueries);
       }
@@ -459,6 +536,15 @@ export function useWorkoutSessionState({
     sessionId,
   ]);
 
+  useEffect(() => {
+    setDraftHydrated(false);
+    skipDraftSaveRef.current = false;
+    if (typeof window !== "undefined" && draftSaveTimeoutRef.current) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+      draftSaveTimeoutRef.current = null;
+    }
+  }, [sessionId]);
+
   // session init
   useEffect(() => {
     if (!templateExercises || !previousDataLoaded) return;
@@ -494,6 +580,8 @@ export function useWorkoutSessionState({
       setExercises(existingExercises);
       setIsReadOnly(true);
       setExpandedExercises(existingExercises.map((_, index) => index));
+      removeWorkoutDraft(sessionId);
+      setDraftHydrated(true);
     } else {
       const initialExercises: ExerciseData[] = templateExercises.map(
         (templateExercise) => {
@@ -534,8 +622,14 @@ export function useWorkoutSessionState({
         },
       );
 
-      setExercises(initialExercises);
+      const draft = getWorkoutDraft(sessionId);
+      const resolvedExercises = draft?.exercises?.length
+        ? mergeDraftExercises(initialExercises, draft.exercises)
+        : initialExercises;
+
+      setExercises(resolvedExercises);
       setIsReadOnly(false);
+      setDraftHydrated(true);
     }
 
     setLoading(false);
@@ -546,7 +640,35 @@ export function useWorkoutSessionState({
     previousExerciseData,
     previousDataLoaded,
     session,
+    mergeDraftExercises,
+    sessionId,
   ]);
+
+  useEffect(() => {
+    if (!draftHydrated || isReadOnly || loading) return;
+    if (typeof window === "undefined") return;
+
+    if (skipDraftSaveRef.current) {
+      skipDraftSaveRef.current = false;
+      return;
+    }
+
+    if (draftSaveTimeoutRef.current) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+    }
+
+    draftSaveTimeoutRef.current = window.setTimeout(() => {
+      saveWorkoutDraft(sessionId, exercises);
+      draftSaveTimeoutRef.current = null;
+    }, 400);
+
+    return () => {
+      if (draftSaveTimeoutRef.current) {
+        window.clearTimeout(draftSaveTimeoutRef.current);
+        draftSaveTimeoutRef.current = null;
+      }
+    };
+  }, [draftHydrated, isReadOnly, loading, sessionId, exercises]);
 
   // helpers exposed to component
 
@@ -682,6 +804,8 @@ export function useWorkoutSessionState({
   const reorderInProgressRef = useRef(false);
   const lastAddedSetIdRef = useRef<string | null>(null);
   const deleteOperationIdRef = useRef<string | null>(null);
+  const draftSaveTimeoutRef = useRef<number | null>(null);
+  const skipDraftSaveRef = useRef(false);
 
   const updateSet = (
     exerciseIndex: number,
@@ -1211,6 +1335,15 @@ export function useWorkoutSessionState({
     }
   };
 
+  const clearDraft = useCallback(() => {
+    skipDraftSaveRef.current = true;
+    if (typeof window !== "undefined" && draftSaveTimeoutRef.current) {
+      window.clearTimeout(draftSaveTimeoutRef.current);
+      draftSaveTimeoutRef.current = null;
+    }
+    removeWorkoutDraft(sessionId);
+  }, [sessionId]);
+
   return {
     // state
     exercises,
@@ -1234,6 +1367,7 @@ export function useWorkoutSessionState({
     enqueue,
     applyOptimisticWorkoutUpdate,
     applyOptimisticWorkoutUpdateFromPayload,
+    clearDraft,
 
     // interactions
     swipeSettings,
