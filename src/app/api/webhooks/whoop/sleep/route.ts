@@ -385,8 +385,8 @@ export async function POST(request: NextRequest) {
 
     const dbUserId = mappedUserId ?? getTestModeUserId();
 
-    // Only process sleep.updated events
-    if (payload.type === "sleep.updated") {
+    // Only process supported sleep events
+    if (payload.type === "sleep.updated" || payload.type === "sleep.created") {
       await processSleepUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
@@ -402,11 +402,11 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(
-        `✅ Successfully processed sleep.updated webhook for user ${payload.user_id}`,
+        `✅ Successfully processed ${payload.type} webhook for user ${payload.user_id}`,
       );
       return NextResponse.json({
         success: true,
-        message: "Sleep updated successfully",
+        message: "Sleep event processed successfully",
       });
     } else {
       // Update webhook event status for ignored events

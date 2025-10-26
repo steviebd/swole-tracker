@@ -58,6 +58,16 @@ function mockIntegrationQuery(result: unknown[]) {
   };
 }
 
+function mockLatestQuery(value: string | null = null) {
+  return {
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue(
+        withLimit([{ latest: value }] as Array<{ latest: string | null }>),
+      ),
+    }),
+  };
+}
+
 describe("whoopRouter.getIntegrationStatus", () => {
   it("returns connected status when integration is active and not expired", async () => {
     const integration = {
@@ -67,17 +77,14 @@ describe("whoopRouter.getIntegrationStatus", () => {
       scope: "read:profile read:recovery",
     };
 
+    const latestSync = "2024-02-01T00:00:00.000Z";
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))
-      .mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      });
+      .mockReturnValueOnce(mockLatestQuery(latestSync))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null));
 
     const caller = createCaller();
     const result = await caller.getIntegrationStatus();
@@ -89,7 +96,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
       expiresAt: integration.expiresAt,
       isExpired: false,
       scope: integration.scope,
-      lastSyncAt: null,
+      lastSyncAt: new Date(latestSync).toISOString(),
     });
   });
 
@@ -101,15 +108,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
         return mockIntegrationQuery([]);
       }
 
-      return {
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      };
+      return mockLatestQuery(null);
     });
 
     const caller = createCaller();
@@ -136,15 +135,11 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))
-      .mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      });
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null));
 
     const caller = createCaller();
     const result = await caller.getIntegrationStatus();
@@ -158,6 +153,29 @@ describe("whoopRouter.getIntegrationStatus", () => {
       scope: integration.scope,
       lastSyncAt: null,
     });
+  });
+
+  it("derives last sync timestamp from non-workout datasets", async () => {
+    const integration = {
+      isActive: true,
+      createdAt: new Date("2024-04-01"),
+      expiresAt: new Date("2025-01-01"),
+      scope: "read:recovery",
+    };
+    const recoveryTimestamp = "2024-04-05T12:34:56.000Z";
+
+    selectMock()
+      .mockReturnValueOnce(mockIntegrationQuery([integration]))
+      .mockReturnValueOnce(mockLatestQuery(null)) // workouts empty
+      .mockReturnValueOnce(mockLatestQuery(recoveryTimestamp))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null))
+      .mockReturnValueOnce(mockLatestQuery(null));
+
+    const caller = createCaller();
+    const result = await caller.getIntegrationStatus();
+
+    expect(result.lastSyncAt).toBe(recoveryTimestamp);
   });
 });
 
@@ -238,7 +256,9 @@ describe("whoopRouter.getWebhookInfo", () => {
       "https://my-app.vercel.app/api/webhooks/whoop",
     );
     expect(result.isConfigured).toBe(true);
-    expect(result.supportedEvents).toHaveLength(6);
+    expect(result.supportedEvents).toHaveLength(12);
+    expect(result.supportedEvents).toContain("workout.created");
+    expect(result.supportedEvents).toContain("recovery.created");
   });
 
   it("falls back to NEXTAUTH_URL when VERCEL_URL is missing", async () => {

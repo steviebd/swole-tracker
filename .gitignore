@@ -108,3 +108,4 @@ gha-creds-*.json
 eslint_output.txt
 lint.txt
 lint.json
+tsc-output.txt

@@ -18,6 +18,7 @@ export interface SessionDebriefExerciseSnapshot {
   bestWeight: number | null;
   bestReps: number | null;
   sets: SessionDebriefExerciseSet[];
+  historicalSets?: SessionDebriefExerciseSet[];
   prFlags: Array<"weight" | "volume" | "oneRM">;
   previousBest?: {
     volume?: number | null;

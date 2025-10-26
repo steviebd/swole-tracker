@@ -179,6 +179,7 @@ const computeExerciseSnapshot = (
     bestWeight: bestSet?.weight ?? null,
     bestReps: bestSet?.reps ?? null,
     sets: mappedSets.sort((a, b) => a.setOrder - b.setOrder),
+    historicalSets: historicalSets.length ? [...historicalSets] : undefined,
     prFlags,
     previousBest: {
       volume: historicalBestVolume,

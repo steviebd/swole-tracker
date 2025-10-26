@@ -1350,25 +1350,10 @@ export const progressRouter = createTRPCRouter({
         }
 
         if (exerciseNamesToSearch.length === 0) {
-          // Get PRs for all exercises
-          const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
-          const userIdColumn = sessionExerciseMetricsView.userId;
-
-          if (!resolvedNameColumn || !userIdColumn) {
-            throw new Error("sessionExerciseMetricsView columns are not defined");
-          }
-
-          const allExercises = await ctx.db
-            .select({
-              exerciseName: resolvedNameColumn!,
-            })
-            .from(sessionExerciseMetricsView)
-            .where(eq(userIdColumn!, ctx.user.id))
-            .groupBy(resolvedNameColumn!);
-
-          exerciseNamesToSearch = allExercises
-            .map((e) => e.exerciseName)
-            .filter((name): name is string => Boolean(name));
+          exerciseNamesToSearch = await getAllExerciseNames(
+            ctx.db,
+            ctx.user.id,
+          );
         }
 
         const personalRecords = await calculatePersonalRecords(
@@ -1567,22 +1552,61 @@ export const progressRouter = createTRPCRouter({
       const userIdCol = userIdColumn!;
       const workoutDateCol = workoutDateColumn!;
 
-      const exercises = await ctx.db
-        .select({
-          exerciseName: resolvedColumn,
-          lastUsed: sql<Date>`MAX(${workoutDateCol})`,
-          totalSets: sql<number>`COUNT(*)`,
-        })
-        .from(sessionExerciseMetricsView)
-        .where(eq(userIdCol, ctx.user.id))
-        .groupBy(resolvedColumn)
-        .orderBy(desc(sql`MAX(${workoutDateCol})`));
+      let exercises: Array<{
+        exerciseName: string | null;
+        lastUsed: Date | string | number | null;
+        totalSets: number | null;
+      }> = [];
+      let viewQueryFailed = false;
+      try {
+        exercises = await ctx.db
+          .select({
+            exerciseName: resolvedColumn,
+            lastUsed: sql<Date>`MAX(${workoutDateCol})`,
+            totalSets: sql<number>`COUNT(*)`,
+          })
+          .from(sessionExerciseMetricsView)
+          .where(eq(userIdCol, ctx.user.id))
+          .groupBy(resolvedColumn)
+          .orderBy(desc(sql`MAX(${workoutDateCol})`));
+      } catch (error) {
+        viewQueryFailed = true;
+        logger.warn("sessionExerciseMetricsView not available, falling back", {
+          error,
+        });
+      }
+
+      if (viewQueryFailed || exercises.length === 0) {
+        exercises = await ctx.db
+          .select({
+            exerciseName: sessionExercises.resolvedExerciseName,
+            fallbackExerciseName: sessionExercises.exerciseName,
+            lastUsed: sql<Date>`MAX(${workoutSessions.workoutDate})`,
+            totalSets: sql<number>`COUNT(*)`,
+          })
+          .from(sessionExercises)
+          .innerJoin(
+            workoutSessions,
+            eq(workoutSessions.id, sessionExercises.sessionId),
+          )
+          .where(eq(sessionExercises.user_id, ctx.user.id))
+          .groupBy(
+            sessionExercises.resolvedExerciseName,
+            sessionExercises.exerciseName,
+          )
+          .orderBy(desc(sql`MAX(${workoutSessions.workoutDate})`));
+      }
 
       const normalizedExercises = exercises.map((exercise) => {
-        const exerciseName =
-          typeof exercise.exerciseName === "string" && exercise.exerciseName.length > 0
-            ? exercise.exerciseName
-            : "Unknown Exercise";
+        const resolvedName =
+          typeof exercise.exerciseName === "string"
+            ? exercise.exerciseName.trim()
+            : "";
+        const fallbackName =
+          typeof (exercise as any).fallbackExerciseName === "string"
+            ? (exercise as any).fallbackExerciseName.trim()
+            : "";
+        const exerciseName = resolvedName || fallbackName || "Unknown Exercise";
 
         const lastUsed = (() => {
           if (exercise.lastUsed instanceof Date) {
@@ -1703,26 +1727,54 @@ async function fetchSessionMetricRows(
     throw new Error("sessionExerciseMetricsView columns are not defined");
   }
 
-  const rows = await database
-    .select({
-      workoutDate: workoutDateColumn!,
-      weight: weightColumn!,
-      reps: repsColumn!,
-      sets: setsColumn!,
-      unit: unitColumn!,
-      oneRMEstimate: oneRmColumn!,
-      volumeLoad: volumeLoadColumn!,
-    })
-    .from(sessionExerciseMetricsView)
-    .where(
-      and(
-        eq(userIdColumn!, userId),
-        eq(resolvedNameColumn!, exerciseName),
-        gte(workoutDateColumn!, startDate.toISOString()),
-        lte(workoutDateColumn!, endDate.toISOString()),
-      ),
-    )
-    .orderBy(desc(workoutDateColumn!));
+  let rows: Array<{
+    workoutDate: Date | string | number | null;
+    weight: number | string | null;
+    reps: number | string | null;
+    sets: number | string | null;
+    unit: string | null;
+    oneRMEstimate: number | string | null;
+    volumeLoad: number | string | null;
+  }> = [];
+  let viewQueryFailed = false;
+  try {
+    rows = await database
+      .select({
+        workoutDate: workoutDateColumn!,
+        weight: weightColumn!,
+        reps: repsColumn!,
+        sets: setsColumn!,
+        unit: unitColumn!,
+        oneRMEstimate: oneRmColumn!,
+        volumeLoad: volumeLoadColumn!,
+      })
+      .from(sessionExerciseMetricsView)
+      .where(
+        and(
+          eq(userIdColumn!, userId),
+          eq(resolvedNameColumn!, exerciseName),
+          gte(workoutDateColumn!, startDate.toISOString()),
+          lte(workoutDateColumn!, endDate.toISOString()),
+        ),
+      )
+      .orderBy(desc(workoutDateColumn!));
+  } catch (error) {
+    viewQueryFailed = true;
+    logger.warn("sessionExerciseMetricsView unavailable for metrics fetch", {
+      exerciseName,
+      error,
+    });
+  }
+
+  if (viewQueryFailed || rows.length === 0) {
+    return fetchSessionMetricRowsFromBaseTable(
+      database,
+      userId,
+      exerciseName,
+      startDate,
+      endDate,
+    );
+  }
 
   return rows.map((row) => {
     const rawWorkoutDate = row.workoutDate as unknown;
@@ -1764,6 +1816,138 @@ async function fetchSessionMetricRows(
           : Number(row.volumeLoad as unknown as number | string),
     } satisfies SessionMetricRow;
   });
+}
+
+async function fetchSessionMetricRowsFromBaseTable(
+  database: typeof db,
+  userId: string,
+  exerciseName: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<SessionMetricRow[]> {
+  const baseRows = await database
+    .select({
+      workoutDate: workoutSessions.workoutDate,
+      weight: sessionExercises.weight,
+      reps: sessionExercises.reps,
+      sets: sessionExercises.sets,
+      unit: sessionExercises.unit,
+      oneRMEstimate: sessionExercises.one_rm_estimate,
+      volumeLoad: sessionExercises.volume_load,
+    })
+    .from(sessionExercises)
+    .innerJoin(
+      workoutSessions,
+      eq(workoutSessions.id, sessionExercises.sessionId),
+    )
+    .where(
+      and(
+        eq(sessionExercises.user_id, userId),
+        or(
+          eq(sessionExercises.resolvedExerciseName, exerciseName),
+          eq(sessionExercises.exerciseName, exerciseName),
+        ),
+        gte(workoutSessions.workoutDate, startDate),
+        lte(workoutSessions.workoutDate, endDate),
+      ),
+    )
+    .orderBy(desc(workoutSessions.workoutDate));
+
+  return baseRows.map((row) => {
+    const rawWorkoutDate = row.workoutDate as unknown;
+    let workoutDate: Date;
+    if (rawWorkoutDate instanceof Date) {
+      workoutDate = rawWorkoutDate;
+    } else if (typeof rawWorkoutDate === "string" || typeof rawWorkoutDate === "number") {
+      const parsed = new Date(rawWorkoutDate);
+      workoutDate = Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    } else {
+      workoutDate = new Date(0);
+    }
+
+    return {
+      workoutDate,
+      weight:
+        row.weight == null
+          ? null
+          : Number(row.weight as unknown as number | string),
+      reps:
+        row.reps == null
+          ? null
+          : Number(row.reps as unknown as number | string),
+      sets:
+        row.sets == null
+          ? null
+          : Number(row.sets as unknown as number | string),
+      unit:
+        typeof row.unit === "string" && row.unit.length > 0
+          ? row.unit
+          : null,
+      oneRMEstimate:
+        row.oneRMEstimate == null
+          ? null
+          : Number(row.oneRMEstimate as unknown as number | string),
+      volumeLoad:
+        row.volumeLoad == null
+          ? null
+          : Number(row.volumeLoad as unknown as number | string),
+    } satisfies SessionMetricRow;
+  });
+}
+
+async function getAllExerciseNames(database: typeof db, userId: string) {
+  const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
+  const userIdColumn = sessionExerciseMetricsView.userId;
+
+  if (resolvedNameColumn && userIdColumn) {
+    try {
+      const rows = await database
+        .select({
+          exerciseName: resolvedNameColumn!,
+        })
+        .from(sessionExerciseMetricsView)
+        .where(eq(userIdColumn!, userId))
+        .groupBy(resolvedNameColumn!);
+
+      const names = rows
+        .map((row) =>
+          typeof row.exerciseName === "string" ? row.exerciseName.trim() : "",
+        )
+        .filter((name): name is string => Boolean(name));
+
+      if (names.length > 0) {
+        return names;
+      }
+    } catch (error) {
+      logger.warn("sessionExerciseMetricsView unavailable for name lookup", {
+        error,
+      });
+    }
+  }
+
+  const fallbackRows = await database
+    .select({
+      resolvedExerciseName: sessionExercises.resolvedExerciseName,
+      exerciseName: sessionExercises.exerciseName,
+    })
+    .from(sessionExercises)
+    .where(eq(sessionExercises.user_id, userId))
+    .groupBy(
+      sessionExercises.resolvedExerciseName,
+      sessionExercises.exerciseName,
+    );
+
+  return fallbackRows
+    .map((row) => {
+      const resolvedName =
+        typeof row.resolvedExerciseName === "string"
+          ? row.resolvedExerciseName.trim()
+          : "";
+      const fallbackName =
+        typeof row.exerciseName === "string" ? row.exerciseName.trim() : "";
+      return resolvedName || fallbackName;
+    })
+    .filter((name): name is string => Boolean(name));
 }
 
 export async function getLinkedExerciseNames(

@@ -12,11 +12,17 @@ export interface WhoopWebhookPayload {
 
 export type WhoopWebhookEventType =
   | "workout.updated"
+  | "workout.created"
   | "recovery.updated"
+  | "recovery.created"
   | "sleep.updated"
+  | "sleep.created"
   | "cycle.updated"
+  | "cycle.created"
   | "body_measurement.updated"
-  | "user_profile.updated";
+  | "body_measurement.created"
+  | "user_profile.updated"
+  | "user_profile.created";
 
 /**
  * Verifies that a webhook request is legitimate by validating the signature

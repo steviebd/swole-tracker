@@ -355,27 +355,28 @@ async function processRecoveryUpdate(
   console.log(`Processing recovery update webhook:`, payload);
 
   try {
-    const recoveryId = payload.id.toString();
-
     const recoveryData = await fetchWhoopData<WhoopRecoveryData>(
       db,
       "recovery",
-      recoveryId,
+      payload.id.toString(),
       payload.user_id,
       dbUserId,
       isTestMode,
     );
     if (!recoveryData) {
       throw new WebhookProcessingError(
-        `Could not fetch recovery data for ${recoveryId}`,
+        `Could not fetch recovery data for ${payload.id}`,
       );
     }
+
+    const normalizedRecoveryId =
+      recoveryData.sleep_id?.toString() ?? payload.id.toString();
 
     // Check if recovery already exists
     const [existingRecovery] = await db
       .select()
       .from(whoopRecovery)
-      .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
+      .where(eq(whoopRecovery.whoop_recovery_id, normalizedRecoveryId));
 
     const datePart =
       recoveryData.created_at.split("T")[0] ||
@@ -384,7 +385,7 @@ async function processRecoveryUpdate(
     if (existingRecovery) {
       // Update existing recovery
       console.log(
-        `Updating existing recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+        `Updating existing recovery ${normalizedRecoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
       await db
         .update(whoopRecovery)
@@ -403,16 +404,16 @@ async function processRecoveryUpdate(
           raw_data: JSON.stringify(recoveryData),
           updatedAt: new Date(),
         })
-        .where(eq(whoopRecovery.whoop_recovery_id, recoveryId));
+        .where(eq(whoopRecovery.whoop_recovery_id, normalizedRecoveryId));
     } else {
       // Insert new recovery
       console.log(
-        `Inserting new recovery ${recoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
+        `Inserting new recovery ${normalizedRecoveryId} for user ${dbUserId}${isTestMode ? " (TEST MODE)" : ""}`,
       );
       await db.insert(whoopRecovery).values([
         {
           user_id: dbUserId,
-          whoop_recovery_id: recoveryId,
+          whoop_recovery_id: normalizedRecoveryId,
           cycle_id: recoveryData.cycle_id || null,
           date: new Date(datePart),
           recovery_score: recoveryData.score?.recovery_score || null,
@@ -430,7 +431,9 @@ async function processRecoveryUpdate(
       ]);
     }
 
-    console.log(`Successfully processed recovery update for ${recoveryId}`);
+    console.log(
+      `Successfully processed recovery update for ${normalizedRecoveryId}`,
+    );
   } catch (error) {
     console.error(`Error processing recovery update:`, error);
     throw error;
@@ -846,26 +849,32 @@ export async function POST(request: NextRequest) {
 
     // Process different webhook event types
     switch (payload.type) {
+      case "workout.created":
       case "workout.updated":
         await processWorkoutUpdate(db, payload, dbUserId, isTestMode);
         break;
 
+      case "recovery.created":
       case "recovery.updated":
         await processRecoveryUpdate(db, payload, dbUserId, isTestMode);
         break;
 
+      case "sleep.created":
       case "sleep.updated":
         await processSleepUpdate(db, payload, dbUserId, isTestMode);
         break;
 
+      case "cycle.created":
       case "cycle.updated":
         await processCycleUpdate(db, payload, dbUserId, isTestMode);
         break;
 
+      case "body_measurement.created":
       case "body_measurement.updated":
         await processBodyMeasurementUpdate(db, payload, dbUserId, isTestMode);
         break;
 
+      case "user_profile.created":
       case "user_profile.updated":
         // Profile updates are handled by the dedicated profile webhook endpoint
         // but we can also handle them here for completeness

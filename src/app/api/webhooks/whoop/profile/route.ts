@@ -301,8 +301,11 @@ export async function POST(request: NextRequest) {
 
     const dbUserId = mappedUserId ?? getTestModeUserId();
 
-    // Only process user_profile.updated events
-    if (payload.type === "user_profile.updated") {
+    // Only process supported profile events
+    if (
+      payload.type === "user_profile.updated" ||
+      payload.type === "user_profile.created"
+    ) {
       await processProfileUpdate(db, payload, dbUserId, isTestMode);
 
       // Update webhook event status
@@ -318,11 +321,11 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(
-        `✅ Successfully processed profile.updated webhook for user ${payload.user_id}`,
+        `✅ Successfully processed ${payload.type} webhook for user ${payload.user_id}`,
       );
       return NextResponse.json({
         success: true,
-        message: "Profile updated successfully",
+        message: "Profile event processed successfully",
       });
     } else {
       // Update webhook event status for ignored events
