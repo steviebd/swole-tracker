@@ -29,6 +29,34 @@
       "when": 1761562752496,
       "tag": "0003_sticky_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1761604281399,
+      "tag": "0004_light_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1761605684237,
+      "tag": "0005_spicy_hellion",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1761605701269,
+      "tag": "0006_mushy_luke_cage",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1761607279609,
+      "tag": "0007_rainy_rick_jones",
+      "breakpoints": true
     }
   ]
 }

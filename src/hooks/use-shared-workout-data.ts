@@ -11,15 +11,18 @@ type StrengthPulse = RouterOutputs["progress"]["getStrengthPulse"];
  */
 export function useSharedWorkoutData() {
   // Priority 1: Critical data for immediate display
-  const { data: thisWeekWorkouts, isLoading: thisWeekLoading, error: thisWeekError } =
-    api.progress.getWorkoutDates.useQuery(
-      { timeRange: "week" },
-      {
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
-        refetchOnMount: false, // Don't refetch if data exists
-      }
-    );
+  const {
+    data: thisWeekWorkouts,
+    isLoading: thisWeekLoading,
+    error: thisWeekError,
+  } = api.progress.getWorkoutDates.useQuery(
+    { timeRange: "week" },
+    {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnMount: false, // Don't refetch if data exists
+    },
+  );
 
   // Priority 2: Load volume data only after we have basic workout data
   const { data: thisWeekVolume, isLoading: thisWeekVolumeLoading } =
@@ -30,7 +33,7 @@ export function useSharedWorkoutData() {
         staleTime: 10 * 60 * 1000, // Longer stale time for secondary data
         gcTime: 20 * 60 * 1000,
         refetchOnMount: false,
-      }
+      },
     );
 
   // Priority 3: Load consistency data after volume data
@@ -42,7 +45,7 @@ export function useSharedWorkoutData() {
         staleTime: 10 * 60 * 1000,
         gcTime: 20 * 60 * 1000,
         refetchOnMount: false,
-      }
+      },
     );
 
   const { data: strengthPulseData, isLoading: strengthPulseLoading } =
@@ -65,7 +68,7 @@ export function useSharedWorkoutData() {
         staleTime: 15 * 60 * 1000, // Longer cache for historical data
         gcTime: 30 * 60 * 1000,
         refetchOnMount: false,
-      }
+      },
     );
 
   // Last week data for comparisons
@@ -109,7 +112,7 @@ export function useSharedWorkoutData() {
         staleTime: 30 * 60 * 1000, // Very long cache for comparison data
         gcTime: 60 * 60 * 1000, // 1 hour
         refetchOnMount: false,
-      }
+      },
     );
 
   // Progressive loading states
@@ -126,28 +129,28 @@ export function useSharedWorkoutData() {
   return {
     // Current week data (always available first)
     thisWeekWorkouts: thisWeekWorkouts || [],
-    thisWeekVolume: thisWeekVolume || [],
+    thisWeekVolume: thisWeekVolume?.data || [],
     consistencyData: consistencyData,
     strengthPulse: (strengthPulseData ?? null) as StrengthPulse | null,
-    lastWeekVolume: lastWeekVolume || [],
+    lastWeekVolume: lastWeekVolume?.data || [],
 
     // Comparison data (loads progressively)
     lastWeekWorkouts: lastWeekWorkouts || [],
 
     // Extended period for streaks (loads last)
     monthWorkouts: monthWorkouts || [],
-    
+
     // Progressive loading states
     isLoading, // Only critical data blocks rendering
     isCriticalLoading,
     isSecondaryLoading,
     isExtendedLoading,
-    
+
     // Data availability flags
     hasCriticalData: !!thisWeekWorkouts,
     hasSecondaryData: !!thisWeekVolume || !!consistencyData,
     hasExtendedData: !!monthWorkouts || !!lastWeekWorkouts,
-    
+
     error,
   };
 }

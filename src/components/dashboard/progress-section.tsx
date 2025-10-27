@@ -63,8 +63,8 @@ const ProgressSection = React.forwardRef<HTMLDivElement, ProgressSectionProps>(
     const goals = React.useMemo((): Goal[] => {
       const workoutCount = workoutDates?.length || 0;
       const totalVolume =
-        volumeData?.reduce(
-          (sum, session) => sum + (session.totalVolume || 0),
+        volumeData?.data?.reduce(
+          (sum: number, session) => sum + (session.totalVolume || 0),
           0,
         ) || 0;
 

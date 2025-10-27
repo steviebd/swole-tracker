@@ -68,16 +68,16 @@ export function ConsistencySection() {
 
   const intensityAverage = useMemo(() => {
     if (
-      !intensityVolumeData ||
-      !Array.isArray(intensityVolumeData) ||
-      intensityVolumeData.length === 0
+      !intensityVolumeData?.data ||
+      !Array.isArray(intensityVolumeData.data) ||
+      intensityVolumeData.data.length === 0
     )
       return 0;
-    const total = intensityVolumeData.reduce(
+    const total = intensityVolumeData.data.reduce(
       (sum, entry) => sum + (entry.totalVolume ?? 0),
       0,
     );
-    return total / intensityVolumeData.length;
+    return total / intensityVolumeData.data.length;
   }, [intensityVolumeData]);
 
   const weeksInPeriod = getWeeksForRange(timeRange);

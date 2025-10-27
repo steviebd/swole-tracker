@@ -57,9 +57,7 @@ function createQueueItem(overrides: Partial<QueueItem> = {}): QueueItem {
         exercises: [
           {
             exerciseName: "Bench Press",
-            sets: [
-              { id: "set-1", weight: 80, reps: 8, unit: "kg" as const },
-            ],
+            sets: [{ id: "set-1", weight: 80, reps: 8, unit: "kg" as const }],
             unit: "kg" as const,
           },
         ],
@@ -138,14 +136,18 @@ describe("useOfflineSaveQueue", () => {
     (api as unknown as { useUtils: () => typeof utilsStub }).useUtils = vi
       .fn()
       .mockReturnValue(utilsStub);
-    (api.workouts.save as unknown as {
-      useMutation: () => { mutateAsync: ReturnType<typeof vi.fn> };
-    }).useMutation = vi.fn().mockReturnValue({
+    (
+      api.workouts.save as unknown as {
+        useMutation: () => { mutateAsync: ReturnType<typeof vi.fn> };
+      }
+    ).useMutation = vi.fn().mockReturnValue({
       mutateAsync: vi.fn(),
     });
-    (api.workouts.batchSave as unknown as {
-      useMutation: () => { mutateAsync: ReturnType<typeof vi.fn> };
-    }).useMutation = vi.fn().mockReturnValue({
+    (
+      api.workouts.batchSave as unknown as {
+        useMutation: () => { mutateAsync: ReturnType<typeof vi.fn> };
+      }
+    ).useMutation = vi.fn().mockReturnValue({
       mutateAsync: vi.fn(),
     });
   });
@@ -161,16 +163,20 @@ describe("useOfflineSaveQueue", () => {
       delete (api as Record<string, unknown>).useUtils;
     }
     if (originalSaveUseMutation) {
-      (api.workouts.save as unknown as {
-        useMutation: typeof originalSaveUseMutation;
-      }).useMutation = originalSaveUseMutation;
+      (
+        api.workouts.save as unknown as {
+          useMutation: typeof originalSaveUseMutation;
+        }
+      ).useMutation = originalSaveUseMutation;
     } else {
       delete (api.workouts.save as Record<string, unknown>).useMutation;
     }
     if (originalBatchSaveUseMutation) {
-      (api.workouts.batchSave as unknown as {
-        useMutation: typeof originalBatchSaveUseMutation;
-      }).useMutation = originalBatchSaveUseMutation;
+      (
+        api.workouts.batchSave as unknown as {
+          useMutation: typeof originalBatchSaveUseMutation;
+        }
+      ).useMutation = originalBatchSaveUseMutation;
     } else {
       delete (api.workouts.batchSave as Record<string, unknown>).useMutation;
     }
@@ -230,18 +236,11 @@ describe("useOfflineSaveQueue", () => {
     storage.set("offline.queue.v1", JSON.stringify([externalItem]));
 
     act(() => {
-      window.dispatchEvent(
-        new CustomEvent(QUEUE_UPDATED_EVENT, {
-          detail: { size: 1, items: [externalItem] },
-        }),
-      );
+      result.current.refreshCount();
     });
 
-    await waitFor(() => {
-      expect(result.current.queueSize).toBe(1);
-      expect(result.current.items).toHaveLength(1);
-    });
-
+    expect(result.current.queueSize).toBe(1);
+    expect(result.current.items).toHaveLength(1);
     expect(result.current.items[0]?.id).toBe("external-item");
     expect(result.current.items[0]?.payload.sessionId).toBe(321);
   });

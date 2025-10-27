@@ -120,14 +120,14 @@ export function ProgressHeroBar({ selectedExercise }: ProgressHeroBarProps) {
   }, [strengthMetrics?.timeline]);
 
   const intensityMetrics = useMemo(() => {
-    if (!volumeData || volumeData.length === 0) {
+    if (!volumeData?.data || volumeData.data.length === 0) {
       return {
         average: 0,
         delta: 0,
         sparkline: [] as Array<{ value: number; label: string }>,
       };
     }
-    const ordered = [...volumeData].sort(
+    const ordered = [...volumeData.data].sort(
       (a, b) =>
         new Date(a.workoutDate).getTime() - new Date(b.workoutDate).getTime(),
     );

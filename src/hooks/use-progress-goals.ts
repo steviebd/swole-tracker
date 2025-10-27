@@ -100,7 +100,7 @@ export function useProgressGoals({
     // Calculate current values
     const currentWorkouts = workoutDates?.length || 0;
     const currentVolume =
-      volumeData?.reduce(
+      volumeData?.data?.reduce(
         (sum, session) => sum + (session.totalVolume || 0),
         0,
       ) || 0;

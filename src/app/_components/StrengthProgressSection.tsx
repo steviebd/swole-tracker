@@ -70,6 +70,7 @@ export function StrengthProgressSection({
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
+  const [startTime] = useState(Date.now());
   const {
     range: timeRange,
     setRange: setStrengthRange,
@@ -147,7 +148,7 @@ export function StrengthProgressSection({
   }, [selectedExerciseName, selectedTemplateExerciseId, sortConfig, timeRange]);
 
   const {
-    data: topSetsData,
+    data: topSetsResponse,
     isLoading: topSetsLoading,
     isError: topSetsErrored,
   } = api.progress.getStrengthProgression.useQuery(
@@ -171,11 +172,15 @@ export function StrengthProgressSection({
 
   // Track performance when strength data loads
   useEffect(() => {
-    if (topSetsData && !topSetsLoading) {
-      const loadTime = performance.now();
-      analytics.progressSectionLoad("strength", loadTime, topSetsData.length);
+    if (topSetsResponse?.data && !topSetsLoading) {
+      const loadTime = Date.now() - startTime;
+      analytics.progressSectionLoad(
+        "strength",
+        loadTime,
+        topSetsResponse.data.length,
+      );
     }
-  }, [topSetsData, topSetsLoading]);
+  }, [topSetsResponse?.data, topSetsLoading, startTime]);
 
   const selectedOptionId = useMemo(() => {
     if (!deduplicatedExerciseList?.length) {
@@ -219,8 +224,8 @@ export function StrengthProgressSection({
   };
 
   const normalizedSets = useMemo(() => {
-    if (!topSetsData) return [];
-    return topSetsData.map((session) => {
+    if (!topSetsResponse?.data) return [];
+    return topSetsResponse.data.map((session) => {
       const weight = Number(session.weight ?? 0);
       const reps = Number(session.reps ?? 0);
       const sets = Number(session.sets ?? 1);
@@ -242,7 +247,7 @@ export function StrengthProgressSection({
         intensityPct,
       };
     });
-  }, [topSetsData, trendSummary?.currentOneRM]);
+  }, [topSetsResponse?.data, trendSummary?.currentOneRM]);
 
   const chartPoints = useMemo(() => {
     return normalizedSets

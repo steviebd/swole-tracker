@@ -11,7 +11,8 @@ type TrpcUtils = ReturnType<typeof api.useUtils>;
 const progressWorkoutDatesRoot = getQueryKey(api.progress.getWorkoutDates);
 const progressVolumeRoot = getQueryKey(api.progress.getVolumeProgression);
 
-type VolumeEntry = RouterOutputs["progress"]["getVolumeProgression"][number];
+type VolumeEntry =
+  RouterOutputs["progress"]["getVolumeProgression"]["data"][number];
 type VolumeSummary = Pick<
   VolumeEntry,
   "totalVolume" | "totalSets" | "totalReps" | "uniqueExercises"
@@ -180,41 +181,44 @@ export function applyOptimisticVolumeMetrics(
       continue;
     }
 
-    queryClient.setQueryData<VolumeEntry[] | undefined>(queryKey, (existing) => {
-      const next: VolumeEntry[] = Array.isArray(existing)
-        ? existing.map((entry) => ({
-            ...entry,
-            workoutDate: coerceDate(entry.workoutDate) ?? normalizedDate,
-          }))
-        : [];
+    queryClient.setQueryData<VolumeEntry[] | undefined>(
+      queryKey,
+      (existing) => {
+        const next: VolumeEntry[] = Array.isArray(existing)
+          ? existing.map((entry) => ({
+              ...entry,
+              workoutDate: coerceDate(entry.workoutDate) ?? normalizedDate,
+            }))
+          : [];
 
-      const normalizedEntry: VolumeEntry = {
-        workoutDate: normalizedDate,
-        totalVolume: summary.totalVolume,
-        totalSets: summary.totalSets,
-        totalReps: summary.totalReps,
-        uniqueExercises: summary.uniqueExercises,
-      };
+        const normalizedEntry: VolumeEntry = {
+          workoutDate: normalizedDate,
+          totalVolume: summary.totalVolume,
+          totalSets: summary.totalSets,
+          totalReps: summary.totalReps,
+          uniqueExercises: summary.uniqueExercises,
+        };
 
-      const existingIndex = next.findIndex((entry) => {
-        const entryDate = coerceDate(entry.workoutDate);
-        return entryDate ? toIsoDate(entryDate) === isoDate : false;
-      });
+        const existingIndex = next.findIndex((entry) => {
+          const entryDate = coerceDate(entry.workoutDate);
+          return entryDate ? toIsoDate(entryDate) === isoDate : false;
+        });
 
-      if (existingIndex >= 0) {
-        next[existingIndex] = normalizedEntry;
-      } else {
-        next.unshift(normalizedEntry);
-      }
+        if (existingIndex >= 0) {
+          next[existingIndex] = normalizedEntry;
+        } else {
+          next.unshift(normalizedEntry);
+        }
 
-      next.sort((a, b) => {
-        const dateA = coerceDate(a.workoutDate) ?? normalizedDate;
-        const dateB = coerceDate(b.workoutDate) ?? normalizedDate;
-        return dateB.getTime() - dateA.getTime();
-      });
+        next.sort((a, b) => {
+          const dateA = coerceDate(a.workoutDate) ?? normalizedDate;
+          const dateB = coerceDate(b.workoutDate) ?? normalizedDate;
+          return dateB.getTime() - dateA.getTime();
+        });
 
-      return next;
-    });
+        return next;
+      },
+    );
   }
 }
 
@@ -249,9 +253,7 @@ export async function invalidateWorkoutDependentCaches(
     invalidations.push(
       utils.healthAdvice.getBySessionId.invalidate({ sessionId }),
     );
-    invalidations.push(
-      utils.wellness.getBySessionId.invalidate({ sessionId }),
-    );
+    invalidations.push(utils.wellness.getBySessionId.invalidate({ sessionId }));
   }
 
   try {
@@ -266,9 +268,7 @@ export async function invalidateWorkoutDependentCaches(
 /**
  * Invalidate WHOOP related queries to force a data refresh after sync actions.
  */
-export async function invalidateWhoopCaches(
-  utils: TrpcUtils,
-): Promise<void> {
+export async function invalidateWhoopCaches(utils: TrpcUtils): Promise<void> {
   try {
     await Promise.all([
       utils.whoop.getIntegrationStatus.invalidate(),

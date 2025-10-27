@@ -7,9 +7,12 @@ import {
   templateExercises,
   userPreferences,
   masterExercises,
+  exerciseDailySummary,
+  exerciseWeeklySummary,
+  exerciseMonthlySummary,
 } from "~/server/db/schema";
 import { sessionExerciseMetricsView } from "~/server/db/views";
-import { eq, desc, and, gte, lte, sql, inArray, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, lt, sql, inArray, or } from "drizzle-orm";
 import { type db } from "~/server/db";
 import {
   exerciseProgressInputSchema,
@@ -1154,7 +1157,7 @@ export const progressRouter = createTRPCRouter({
 
   // Get strength progression data for top sets by exercise over time
   getStrengthProgression: protectedProcedure
-    .input(legacyExerciseProgressInputSchema)
+    .input(exerciseProgressInputSchema)
     .query(async ({ input, ctx }) => {
       try {
         const { startDate, endDate } = getDateRangeFromUtils(
@@ -1173,15 +1176,38 @@ export const progressRouter = createTRPCRouter({
           selection.names.length === 0 &&
           selection.templateExerciseIds.length === 0
         ) {
-          return [];
+          return {
+            data: [],
+            nextCursor: undefined,
+          };
         }
 
-        // Get all session exercises for the specified time range and exercises
+        // Try to use aggregated data for better performance
+        // Only use aggregated data if we have a single exercise name (not template IDs)
+        const useAggregatedData =
+          selection.names.length === 1 &&
+          selection.templateExerciseIds.length === 0;
+
+        // Parse cursor for pagination
+        let cursorDate: Date | undefined;
+        if (input.cursor) {
+          cursorDate = new Date(input.cursor);
+          if (Number.isNaN(cursorDate.getTime())) {
+            throw new Error("Invalid cursor format");
+          }
+        }
+
+        // Get session exercises for the specified time range and exercises with pagination
         const baseConditions = [
           eq(sessionExercises.user_id, ctx.user.id),
           gte(workoutSessions.workoutDate, startDate),
           lte(workoutSessions.workoutDate, endDate),
         ];
+
+        // Add cursor condition for pagination (get results after cursor date)
+        if (cursorDate) {
+          baseConditions.push(lt(workoutSessions.workoutDate, cursorDate));
+        }
 
         // Build match conditions for both templateExerciseIds and exercise names
         const matchClauses = [];
@@ -1225,6 +1251,7 @@ export const progressRouter = createTRPCRouter({
 
         const whereConditions = [...baseConditions, combinedMatch];
 
+        // Query with pagination - get one extra record to determine if there's a next page
         const progressData = await ctx.db
           .select({
             workoutDate: workoutSessions.workoutDate,
@@ -1243,7 +1270,8 @@ export const progressRouter = createTRPCRouter({
           .orderBy(
             desc(workoutSessions.workoutDate),
             desc(sessionExercises.weight),
-          );
+          )
+          .limit(input.limit + 1); // Get one extra to check for next page
 
         let progressRows: ProgressDataRow[] = progressData
           .map((item) => {
@@ -1297,13 +1325,33 @@ export const progressRouter = createTRPCRouter({
           return dateB - dateA;
         });
 
-        // Process data to get top set per workout per exercise
-        const topSets = processTopSets(progressRows);
+        // Check if there are more results
+        const hasNextPage = progressRows.length > input.limit;
+        const dataToProcess = hasNextPage
+          ? progressRows.slice(0, input.limit)
+          : progressRows;
 
-        return topSets;
+        // Process data to get top set per workout per exercise
+        const topSets = processTopSets(dataToProcess);
+
+        // Determine next cursor (earliest date in current results)
+        let nextCursor: string | undefined;
+        if (hasNextPage && dataToProcess.length > 0) {
+          const earliestDate =
+            dataToProcess[dataToProcess.length - 1]!.workoutDate;
+          nextCursor = earliestDate.toISOString();
+        }
+
+        return {
+          data: topSets,
+          nextCursor,
+        };
       } catch (error) {
         console.error("Error in getStrengthProgression:", error);
-        return [];
+        return {
+          data: [],
+          nextCursor: undefined,
+        };
       }
     }),
 
@@ -1404,7 +1452,12 @@ export const progressRouter = createTRPCRouter({
 
   // Get volume tracking data (total weight moved, sets, reps)
   getVolumeProgression: protectedProcedure
-    .input(timeRangeInputSchema)
+    .input(
+      timeRangeInputSchema.extend({
+        cursor: z.string().optional(),
+        limit: z.number().int().positive().max(100).default(50),
+      }),
+    )
     .query(async ({ input, ctx }) => {
       try {
         logger.debug("Getting volume progression", {
@@ -1417,6 +1470,26 @@ export const progressRouter = createTRPCRouter({
           input.endDate,
         );
         logger.debug("Volume progression date range", { startDate, endDate });
+
+        // Parse cursor for pagination
+        let cursorDate: Date | undefined;
+        if (input.cursor) {
+          cursorDate = new Date(input.cursor);
+          if (Number.isNaN(cursorDate.getTime())) {
+            throw new Error("Invalid cursor format");
+          }
+        }
+
+        // Build where conditions with pagination
+        const whereConditions = [
+          eq(sessionExercises.user_id, ctx.user.id),
+          gte(workoutSessions.workoutDate, startDate),
+          lte(workoutSessions.workoutDate, endDate),
+        ];
+
+        if (cursorDate) {
+          whereConditions.push(lt(workoutSessions.workoutDate, cursorDate));
+        }
 
         const volumeData = await ctx.db
           .select({
@@ -1432,14 +1505,9 @@ export const progressRouter = createTRPCRouter({
             workoutSessions,
             eq(workoutSessions.id, sessionExercises.sessionId),
           )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startDate),
-              lte(workoutSessions.workoutDate, endDate),
-            ),
-          )
-          .orderBy(desc(workoutSessions.workoutDate));
+          .where(and(...whereConditions))
+          .orderBy(desc(workoutSessions.workoutDate))
+          .limit(input.limit + 1); // Get one extra to check for next page
 
         // Transform data to match expected types
         const transformedData = volumeData.map((row) => ({
@@ -1452,14 +1520,35 @@ export const progressRouter = createTRPCRouter({
 
         // Calculate volume metrics by workout date
         const volumeByDate = calculateVolumeMetrics(transformedData);
+
+        // Check if there are more results
+        const hasNextPage = volumeByDate.length > input.limit;
+        const data = hasNextPage
+          ? volumeByDate.slice(0, input.limit)
+          : volumeByDate;
+
+        // Determine next cursor (earliest workout date in current results)
+        let nextCursor: string | undefined;
+        if (hasNextPage && data.length > 0) {
+          const earliestWorkout = data[data.length - 1]!;
+          nextCursor = earliestWorkout.workoutDate.toISOString();
+        }
+
         logger.debug("Volume progression result", {
-          count: volumeByDate.length,
+          count: data.length,
+          hasNextPage,
         });
 
-        return volumeByDate;
+        return {
+          data,
+          nextCursor,
+        };
       } catch (error) {
         console.error("Error in getVolumeProgression:", error);
-        return [];
+        return {
+          data: [],
+          nextCursor: undefined,
+        };
       }
     }),
 
