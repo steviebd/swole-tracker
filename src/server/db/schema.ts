@@ -193,6 +193,20 @@ export const sessionExercises = createTable(
       t.exerciseName,
       t.volume_load,
     ),
+    // Additional indexes for complex query patterns
+    index("session_exercise_user_date_exercise_idx").on(
+      t.user_id,
+      sql`date(${workoutSessions.workoutDate})`,
+      t.exerciseName,
+    ),
+    index("session_exercise_user_resolved_exercise_idx").on(
+      t.user_id,
+      t.resolvedExerciseName,
+    ),
+    index("session_exercise_user_template_exercise_idx").on(
+      t.user_id,
+      t.templateExerciseId,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -978,3 +992,10 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// Import views
+export {
+  sessionExerciseMetricsView,
+  exerciseNameResolutionView,
+  whoopMetricsView,
+} from "./views";

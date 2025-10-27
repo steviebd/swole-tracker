@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, sql, desc, ilike, inArray } from "drizzle-orm";
+import { eq, and, or, sql, desc, ilike, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
@@ -135,7 +135,7 @@ async function firstOrNull<T>(
 }
 
 export const exercisesRouter = createTRPCRouter({
-  // Deterministic, indexed search for master exercises (prefix/substring)
+  // Deterministic, indexed search for exercises (master exercises and template exercises for consistency)
   searchMaster: protectedProcedure
     .use(apiCallRateLimit)
     .input(
@@ -160,7 +160,7 @@ export const exercisesRouter = createTRPCRouter({
       const prefix = `${q}%`;
       const contains = `%${q}%`;
 
-      // First do prefix matches
+      // First do prefix matches on master exercises
       // Guard: some test doubles may not implement chaining; ensure we always have an array
       let prefixMatches: Array<{
         id: number;
@@ -184,13 +184,12 @@ export const exercisesRouter = createTRPCRouter({
             ),
           )
           .orderBy(masterExercises.normalizedName)
-          .limit(input.limit);
+          .limit(input.cursor + input.limit)
+          .offset(input.cursor);
         const prefixMatchesRaw = isThenable(prefixBuilder)
           ? await prefixBuilder
           : prefixBuilder;
-        prefixMatches = Array.isArray(prefixMatchesRaw)
-          ? prefixMatchesRaw.slice(input.cursor, input.cursor + input.limit)
-          : [];
+        prefixMatches = Array.isArray(prefixMatchesRaw) ? prefixMatchesRaw : [];
       } catch {
         // If the db stub doesn't support this chain, treat as no matches
         prefixMatches = [];
@@ -227,7 +226,7 @@ export const exercisesRouter = createTRPCRouter({
             ? await containsBuilder
             : containsBuilder;
           containsMatches = Array.isArray(containsMatchesRaw)
-            ? containsMatchesRaw.slice(input.cursor, input.cursor + remaining)
+            ? containsMatchesRaw
             : [];
           containsMatchesStringified = containsMatches.map((match) => ({
             id: (match as { id: number }).id,
@@ -248,10 +247,58 @@ export const exercisesRouter = createTRPCRouter({
             seen.add(row.id);
           }
         }
+
+        // If we still don't have enough results, also search template exercises
+        if (items.length < input.limit) {
+          const templateRemaining = input.limit - items.length;
+          let templateMatches: any[] = [];
+          try {
+            const templateBuilder = ctx.db
+              .select({
+                id: templateExercises.id,
+                name: templateExercises.exerciseName,
+                createdAt: templateExercises.createdAt,
+              })
+              .from(templateExercises)
+              .where(
+                and(
+                  eq(templateExercises.user_id, ctx.user.id),
+                  ilike(templateExercises.exerciseName, contains),
+                ),
+              )
+              .orderBy(templateExercises.exerciseName)
+              .limit(templateRemaining);
+            const templateMatchesRaw = isThenable(templateBuilder)
+              ? await templateBuilder
+              : templateBuilder;
+            templateMatches = Array.isArray(templateMatchesRaw)
+              ? templateMatchesRaw
+              : [];
+          } catch {
+            templateMatches = [];
+          }
+
+          // Add template exercises, normalizing the name and using negative IDs to distinguish from master exercises
+          const seenNames = new Set(
+            items.map((i) => normalizeExerciseName(i.name)),
+          );
+          for (const match of templateMatches) {
+            const normalizedName = normalizeExerciseName(match.name);
+            if (!seenNames.has(normalizedName)) {
+              items.push({
+                id: -match.id, // Negative ID to distinguish from master exercises
+                name: match.name,
+                normalizedName,
+                createdAt: match.createdAt.toISOString(),
+              });
+              seenNames.add(normalizedName);
+            }
+          }
+        }
       }
 
       const nextCursor =
-        items.length === input.limit ? input.cursor + input.limit : null;
+        items.length === input.limit ? input.cursor + items.length : null;
       return { items, nextCursor };
     }),
 
@@ -674,77 +721,78 @@ export const exercisesRouter = createTRPCRouter({
       await whereInChunks(
         templateExerciseIds,
         async (idChunk) => {
-        const chunkLatest = await ctx.db
-          .select({
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-            workoutDate: workoutSessions.workoutDate,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              inArray(sessionExercises.templateExerciseId, idChunk),
-              eq(sessionExercises.user_id, ctx.user.id),
-            ),
-          )
-          .orderBy(desc(workoutSessions.workoutDate))
-          .limit(1);
+          const chunkLatest = await ctx.db
+            .select({
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+              sets: sessionExercises.sets,
+              unit: sessionExercises.unit,
+              workoutDate: workoutSessions.workoutDate,
+            })
+            .from(sessionExercises)
+            .innerJoin(
+              workoutSessions,
+              eq(workoutSessions.id, sessionExercises.sessionId),
+            )
+            .where(
+              and(
+                inArray(sessionExercises.templateExerciseId, idChunk),
+                eq(sessionExercises.user_id, ctx.user.id),
+              ),
+            )
+            .orderBy(desc(workoutSessions.workoutDate))
+            .limit(1);
 
-        let normalizedRow: LatestPerformanceRow | null = null;
+          let normalizedRow: LatestPerformanceRow | null = null;
 
-        if (chunkLatest[0]) {
-          const rawDate = chunkLatest[0].workoutDate;
-          const workoutDateCandidate =
-            rawDate instanceof Date
-              ? rawDate
-              : rawDate
-              ? new Date(rawDate as string | number)
-              : null;
+          if (chunkLatest[0]) {
+            const rawDate = chunkLatest[0].workoutDate;
+            const workoutDateCandidate =
+              rawDate instanceof Date
+                ? rawDate
+                : rawDate
+                  ? new Date(rawDate as string | number)
+                  : null;
 
-          const workoutDate =
-            workoutDateCandidate && !Number.isNaN(workoutDateCandidate.getTime())
-              ? workoutDateCandidate
-              : null;
+            const workoutDate =
+              workoutDateCandidate &&
+              !Number.isNaN(workoutDateCandidate.getTime())
+                ? workoutDateCandidate
+                : null;
 
-          if (workoutDate) {
-            normalizedRow = {
-              weight:
-                chunkLatest[0].weight == null
-                  ? null
-                  : Number(chunkLatest[0].weight),
-              reps:
-                chunkLatest[0].reps == null
-                  ? null
-                  : Number(chunkLatest[0].reps),
-              sets:
-                chunkLatest[0].sets == null
-                  ? null
-                  : Number(chunkLatest[0].sets),
-              unit:
-                typeof chunkLatest[0].unit === "string"
-                  ? chunkLatest[0].unit
-                  : null,
-              workoutDate,
-            };
+            if (workoutDate) {
+              normalizedRow = {
+                weight:
+                  chunkLatest[0].weight == null
+                    ? null
+                    : Number(chunkLatest[0].weight),
+                reps:
+                  chunkLatest[0].reps == null
+                    ? null
+                    : Number(chunkLatest[0].reps),
+                sets:
+                  chunkLatest[0].sets == null
+                    ? null
+                    : Number(chunkLatest[0].sets),
+                unit:
+                  typeof chunkLatest[0].unit === "string"
+                    ? chunkLatest[0].unit
+                    : null,
+                workoutDate,
+              };
+            }
           }
-        }
 
-        if (!normalizedRow) {
-          return;
-        }
+          if (!normalizedRow) {
+            return;
+          }
 
-        const currentDate = latestPerformance?.workoutDate ?? null;
-        const candidateDate = normalizedRow.workoutDate;
+          const currentDate = latestPerformance?.workoutDate ?? null;
+          const candidateDate = normalizedRow.workoutDate;
 
-        if (!currentDate || candidateDate > currentDate) {
-          latestPerformance = normalizedRow;
-        }
+          if (!currentDate || candidateDate > currentDate) {
+            latestPerformance = normalizedRow;
+          }
         },
         SQLITE_VARIABLE_LIMIT,
       );

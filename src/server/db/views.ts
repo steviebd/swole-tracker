@@ -3,6 +3,11 @@ import { integer, real, sqliteView, text } from "drizzle-orm/sqlite-core";
 import {
   sessionExercises,
   workoutSessions,
+  templateExercises,
+  exerciseLinks,
+  masterExercises,
+  whoopRecovery,
+  whoopSleep,
 } from "~/server/db/schema";
 
 export const sessionExerciseMetricsView = sqliteView(
@@ -39,4 +44,49 @@ export const sessionExerciseMetricsView = sqliteView(
     se.volume_load AS volumeLoad
   FROM session_exercise se
   INNER JOIN workout_session ws ON ws.id = se.sessionId
+`);
+
+// Exercise name resolution view - pre-computes resolved exercise names
+export const exerciseNameResolutionView = sqliteView(
+  "view_exercise_name_resolution",
+  {
+    templateExerciseId: integer("templateExerciseId"),
+    exerciseName: text("exerciseName"),
+    resolvedName: text("resolvedName"),
+    masterExerciseId: integer("masterExerciseId"),
+  },
+).as(sql`
+  SELECT
+    te.id AS templateExerciseId,
+    te.exerciseName,
+    COALESCE(me.name, te.exerciseName) AS resolvedName,
+    el.masterExerciseId
+  FROM template_exercise te
+  LEFT JOIN exercise_link el ON el.templateExerciseId = te.id
+  LEFT JOIN master_exercise me ON me.id = el.masterExerciseId
+`);
+
+// WHOOP metrics aggregation view - combines recovery and sleep data
+export const whoopMetricsView = sqliteView("view_whoop_metrics", {
+  userId: text("userId"),
+  date: text("date"),
+  recoveryScore: real("recoveryScore"),
+  sleepPerformance: real("sleepPerformance"),
+  hrvNow: real("hrvNow"),
+  hrvBaseline: real("hrvBaseline"),
+  rhrNow: real("rhrNow"),
+  rhrBaseline: real("rhrBaseline"),
+}).as(sql`
+  SELECT
+    wr.user_id AS userId,
+    wr.date,
+    wr.recovery_score AS recoveryScore,
+    ws.sleep_performance_percentage AS sleepPerformance,
+    wr.hrv_rmssd_milli AS hrvNow,
+    wr.hrv_rmssd_baseline AS hrvBaseline,
+    wr.resting_heart_rate AS rhrNow,
+    wr.resting_heart_rate_baseline AS rhrBaseline
+  FROM whoop_recovery wr
+  LEFT JOIN whoop_sleep ws ON ws.user_id = wr.user_id
+    AND date(ws.start) = wr.date
 `);

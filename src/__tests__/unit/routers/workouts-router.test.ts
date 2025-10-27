@@ -22,7 +22,7 @@ const createQueryChain = <TData extends unknown[]>(
     groupBy: vi.fn(() => chain),
     orderBy: vi.fn(() => chain),
     select: vi.fn(() => chain),
-    limit: vi.fn(async () => chain.result),
+    limit: vi.fn(() => chain),
     offset: vi.fn(() => chain),
     values: vi.fn(() => chain),
     set: vi.fn(() => chain),
@@ -256,13 +256,17 @@ describe("workoutsRouter", () => {
 
   describe("getLastExerciseData", () => {
     it("should return last exercise data for simple exercise", async () => {
-      mockDb.all.mockResolvedValue([
+      // Mock the latest session query result
+      mockDb.queueSelectResult([{ sessionId: 1 }]);
+
+      // Mock the sets query result
+      mockDb.queueSelectResult([
         {
           weight: 80,
           reps: 8,
           sets: 3,
           unit: "kg",
-          set_order: 0,
+          setOrder: 0,
         },
       ]);
 
@@ -291,13 +295,20 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle exercise links for linked exercises", async () => {
-      mockDb.all.mockResolvedValue([
+      // Mock the exercise name resolution view query
+      mockDb.queueSelectResult([{ resolvedName: "Bench Press (Barbell)" }]);
+
+      // Mock the latest session query
+      mockDb.queueSelectResult([{ sessionId: 1 }]);
+
+      // Mock the sets query
+      mockDb.queueSelectResult([
         {
           weight: 75,
           reps: 10,
           sets: 4,
           unit: "kg",
-          set_order: 0,
+          setOrder: 0,
         },
       ]);
 
@@ -327,13 +338,17 @@ describe("workoutsRouter", () => {
     });
 
     it("should exclude specified session", async () => {
-      mockDb.all.mockResolvedValue([
+      // Mock the latest session query (no need for exercise name resolution since no templateExerciseId)
+      mockDb.queueSelectResult([{ sessionId: 1 }]);
+
+      // Mock the sets query
+      mockDb.queueSelectResult([
         {
           weight: 80,
           reps: 8,
           sets: 3,
           unit: "kg",
-          set_order: 0,
+          setOrder: 0,
         },
       ]);
 

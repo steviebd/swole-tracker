@@ -22,6 +22,13 @@
       "when": 1761551348368,
       "tag": "0002_spooky_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1761562752496,
+      "tag": "0003_sticky_callisto",
+      "breakpoints": true
     }
   ]
 }

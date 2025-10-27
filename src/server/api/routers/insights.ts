@@ -6,7 +6,7 @@ import {
   templateExercises,
   exerciseLinks,
 } from "~/server/db/schema";
-import { and, desc, eq, gte, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, ne, or } from "drizzle-orm";
 import { whereInChunks } from "~/server/db/chunk-utils";
 
 type SessionExercise = typeof sessionExercises.$inferSelect;
@@ -93,6 +93,7 @@ export const insightsRouter = createTRPCRouter({
         templateExerciseId: z.number().optional(),
         unit: z.enum(["kg", "lbs"]).default("kg"),
         limitSessions: z.number().int().positive().max(50).default(10),
+        offsetSessions: z.number().int().min(0).default(0),
         excludeSessionId: z.number().optional(),
       }),
     )
@@ -167,88 +168,57 @@ export const insightsRouter = createTRPCRouter({
           exerciseNamesToSearch.length > 0 ||
           (templateExerciseIds && templateExerciseIds.length > 0)
         ) {
-          if (templateExerciseIds && templateExerciseIds.length > 0) {
-            await whereInChunks<number>(templateExerciseIds, async (chunk) => {
-              const chunkSessions = await ctx.db.query.workoutSessions.findMany(
-                {
-                  where: and(...sessionWhere),
-                  orderBy: [desc(workoutSessions.workoutDate)],
-                  limit: input.limitSessions,
-                  with: {
-                    exercises: {
-                      where: inArray(
-                        sessionExercises.templateExerciseId,
-                        chunk,
-                      ),
-                    },
-                  },
-                },
-              );
-
-              for (const session of chunkSessions) {
-                const existing = sessionsById.get(session.id);
-                if (!existing) {
-                  sessionsById.set(session.id, {
-                    ...session,
-                    exercises: [...(session.exercises ?? [])],
-                  });
-                  continue;
-                }
-
-                const seenExerciseIds = new Set<number>(
-                  (existing.exercises ?? []).map(
-                    (exercise: SessionExercise) => exercise.id,
-                  ),
-                );
-                for (const exercise of session.exercises ?? []) {
-                  if (!seenExerciseIds.has(exercise.id)) {
-                    existing.exercises.push(exercise);
-                    seenExerciseIds.add(exercise.id);
-                  }
-                }
-              }
-            });
-          } else if (exerciseNamesToSearch.length > 0) {
-            await whereInChunks<string>(
-              exerciseNamesToSearch,
-              async (chunk) => {
-                const chunkSessions =
-                  await ctx.db.query.workoutSessions.findMany({
-                    where: and(...sessionWhere),
-                    orderBy: [desc(workoutSessions.workoutDate)],
-                    limit: input.limitSessions,
-                    with: {
-                      exercises: {
-                        where: inArray(sessionExercises.exerciseName, chunk),
-                      },
-                    },
-                  });
-
-                for (const session of chunkSessions) {
-                  const existing = sessionsById.get(session.id);
-                  if (!existing) {
-                    sessionsById.set(session.id, {
-                      ...session,
-                      exercises: [...(session.exercises ?? [])],
-                    });
-                    continue;
-                  }
-
-                  const seenExerciseIds = new Set<number>(
-                    (existing.exercises ?? []).map(
-                      (exercise: typeof sessionExercises.$inferSelect) =>
-                        exercise.id,
-                    ),
-                  );
-                  for (const exercise of session.exercises ?? []) {
-                    if (!seenExerciseIds.has(exercise.id)) {
-                      existing.exercises.push(exercise);
-                      seenExerciseIds.add(exercise.id);
-                    }
-                  }
-                }
-              },
+          // Build exercise filter conditions
+          const exerciseConditions = [];
+          if (exerciseNamesToSearch.length > 0) {
+            exerciseConditions.push(
+              inArray(sessionExercises.exerciseName, exerciseNamesToSearch),
             );
+          }
+          if (templateExerciseIds && templateExerciseIds.length > 0) {
+            exerciseConditions.push(
+              inArray(sessionExercises.templateExerciseId, templateExerciseIds),
+            );
+          }
+
+          // Single query to get all relevant sessions and exercises
+          const allSessions = await ctx.db.query.workoutSessions.findMany({
+            where: and(...sessionWhere),
+            orderBy: [desc(workoutSessions.workoutDate)],
+            limit: input.limitSessions,
+            offset: input.offsetSessions,
+            with: {
+              exercises: {
+                where:
+                  exerciseConditions.length > 0
+                    ? or(...exerciseConditions)
+                    : undefined,
+              },
+            },
+          });
+
+          // Group sessions by ID to handle potential duplicates
+          for (const session of allSessions) {
+            const existing = sessionsById.get(session.id);
+            if (!existing) {
+              sessionsById.set(session.id, {
+                ...session,
+                exercises: [...(session.exercises ?? [])],
+              });
+              continue;
+            }
+
+            const seenExerciseIds = new Set<number>(
+              (existing.exercises ?? []).map(
+                (exercise: SessionExercise) => exercise.id,
+              ),
+            );
+            for (const exercise of session.exercises ?? []) {
+              if (!seenExerciseIds.has(exercise.id)) {
+                existing.exercises.push(exercise);
+                seenExerciseIds.add(exercise.id);
+              }
+            }
           }
 
           recentSessions = Array.from(sessionsById.values()).sort(

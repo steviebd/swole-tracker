@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { preferencesRouter } from "~/server/api/routers/preferences";
+import { clearUserPreferencesCache } from "~/server/db/utils";
 
 describe("preferencesRouter", () => {
   let db: any;
   let caller: any;
 
   beforeEach(() => {
+    // Clear cache to ensure clean state
+    clearUserPreferencesCache("test-user-id");
+
     // Create a mock db that includes both the query interface and direct methods
     db = {
       query: {
