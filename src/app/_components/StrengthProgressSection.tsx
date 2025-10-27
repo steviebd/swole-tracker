@@ -100,8 +100,8 @@ export function StrengthProgressSection({
         // Merge template IDs and aliases
         existing.templateExerciseIds = [
           ...new Set([
-            ...existing.templateExerciseIds,
-            ...exercise.templateExerciseIds,
+            ...(existing.templateExerciseIds ?? []),
+            ...(exercise.templateExerciseIds ?? []),
           ]),
         ];
         existing.aliases = [
@@ -128,7 +128,7 @@ export function StrengthProgressSection({
       const first = deduplicatedExerciseList[0]!;
       onExerciseChange({
         name: first.exerciseName,
-        templateExerciseId: first.templateExerciseIds[0] ?? null,
+        templateExerciseId: (first.templateExerciseIds ?? [])[0] ?? null,
       });
     }
   }, [
@@ -180,7 +180,9 @@ export function StrengthProgressSection({
     }
     if (typeof selectedTemplateExerciseId === "number") {
       const match = deduplicatedExerciseList.find((exercise) =>
-        exercise.templateExerciseIds.includes(selectedTemplateExerciseId),
+        (exercise.templateExerciseIds ?? []).includes(
+          selectedTemplateExerciseId,
+        ),
       );
       if (match) {
         return match.id;
@@ -209,7 +211,7 @@ export function StrengthProgressSection({
     if (!option) return;
     onExerciseChange({
       name: option.exerciseName,
-      templateExerciseId: option.templateExerciseIds[0] ?? null,
+      templateExerciseId: (option.templateExerciseIds ?? [])[0] ?? null,
     });
   };
 

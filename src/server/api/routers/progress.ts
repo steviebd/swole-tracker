@@ -2325,7 +2325,7 @@ export const progressRouter = createTRPCRouter({
           aliases: Array.from(group.aliasSet).sort((a, b) =>
             a.localeCompare(b),
           ),
-          templateExerciseIds: Array.from(group.templateIds),
+          templateExerciseIds: Array.from(group.templateIds ?? []),
           masterExerciseId: group.masterExerciseId,
         }))
         .sort((a, b) => b.lastUsed.getTime() - a.lastUsed.getTime());

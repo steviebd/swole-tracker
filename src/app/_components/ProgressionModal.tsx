@@ -40,7 +40,9 @@ export function ProgressionModal({
     ) {
       const first = exerciseList[0]!;
       setSelectedExerciseName(first.exerciseName);
-      setSelectedTemplateExerciseId(first.templateExerciseIds[0] ?? null);
+      setSelectedTemplateExerciseId(
+        (first.templateExerciseIds ?? [])[0] ?? null,
+      );
     }
   }, [exerciseList, exerciseListLoading, open, selectedExerciseName]);
 
@@ -50,7 +52,9 @@ export function ProgressionModal({
     }
     if (typeof selectedTemplateExerciseId === "number") {
       const match = exerciseList.find((exercise) =>
-        exercise.templateExerciseIds.includes(selectedTemplateExerciseId),
+        (exercise.templateExerciseIds ?? []).includes(
+          selectedTemplateExerciseId,
+        ),
       );
       if (match) {
         return match.id;
@@ -72,7 +76,9 @@ export function ProgressionModal({
     const option = exerciseList.find((exercise) => exercise.id === optionId);
     if (!option) return;
     setSelectedExerciseName(option.exerciseName);
-    setSelectedTemplateExerciseId(option.templateExerciseIds[0] ?? null);
+    setSelectedTemplateExerciseId(
+      (option.templateExerciseIds ?? [])[0] ?? null,
+    );
   };
 
   // Get strength progression data for selected exercise
