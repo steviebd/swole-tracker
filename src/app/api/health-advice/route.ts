@@ -878,6 +878,36 @@ export async function POST(req: NextRequest) {
       throw new Error("Invalid AI response structure");
     }
 
+    // Post-process AI response to handle edge cases and ensure correct structure
+    const originalExerciseCount = aiResponse.per_exercise.length;
+    aiResponse.per_exercise = aiResponse.per_exercise
+      .filter(
+        (ex, index, arr) =>
+          arr.findIndex((e) => e.exercise_id === ex.exercise_id) === index,
+      )
+      .map((ex) => ({
+        ...ex,
+        sets: ex.sets.slice(0, 1), // Ensure exactly one set per exercise
+      }));
+
+    // Validate post-processed response
+    const expectedExerciseCount = templateExercises.length; // After deduplication
+    if (aiResponse.per_exercise.length !== expectedExerciseCount) {
+      logger.warn("AI response exercise count mismatch after post-processing", {
+        expected: expectedExerciseCount,
+        actual: aiResponse.per_exercise.length,
+        original: originalExerciseCount,
+        duplicatesRemoved:
+          originalExerciseCount - aiResponse.per_exercise.length,
+      });
+    }
+
+    logger.info("AI response processed successfully", {
+      inputExercises: templateExercises.length,
+      outputSuggestions: aiResponse.per_exercise.length,
+      duplicatesRemoved: originalExerciseCount - aiResponse.per_exercise.length,
+    });
+
     return NextResponse.json(aiResponse);
   } catch (error: any) {
     logger.error("Health advice API error", error);
