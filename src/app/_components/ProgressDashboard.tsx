@@ -55,6 +55,9 @@ function ProgressDashboardInner() {
   const [activeSection, setActiveSection] = useState<string>(
     PROGRESS_SECTIONS[0]!.id,
   );
+  const [loadedSections, setLoadedSections] = useState<Set<string>>(
+    new Set([PROGRESS_SECTIONS[0]!.id]), // Load first section by default
+  );
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -64,7 +67,10 @@ function ProgressDashboardInner() {
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
 
         if (visible.length > 0) {
-          setActiveSection(visible[0]!.target.id);
+          const visibleId = visible[0]!.target.id;
+          setActiveSection(visibleId);
+          // Load the section when it becomes visible
+          setLoadedSections((prev) => new Set([...prev, visibleId]));
           return;
         }
 
@@ -156,29 +162,95 @@ function ProgressDashboardInner() {
         <ProgressHighlightsSection />
       </section>
 
-      <section id="volume" data-progress-section>
-        <StrengthProgressSection
-          selectedExercise={focusedExercise}
-          onExerciseChange={(selection) =>
-            setFocusedExercise({
-              name: selection.name,
-              templateExerciseId: selection.templateExerciseId ?? null,
-            })
-          }
-        />
-      </section>
+      {!loadedSections.has("volume") && (
+        <section id="volume" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="bg-muted h-32 animate-pulse rounded-xl" />
+              <div className="bg-muted h-32 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </section>
+      )}
 
-      <section id="consistency" data-progress-section>
-        <ConsistencySection />
-      </section>
+      {loadedSections.has("volume") && (
+        <section id="volume" data-progress-section>
+          <StrengthProgressSection
+            selectedExercise={focusedExercise}
+            onExerciseChange={(selection) =>
+              setFocusedExercise({
+                name: selection.name,
+                templateExerciseId: selection.templateExerciseId ?? null,
+              })
+            }
+          />
+        </section>
+      )}
 
-      <section id="wellness" data-progress-section>
-        <WellnessHistorySection />
-      </section>
+      {!loadedSections.has("consistency") && (
+        <section id="consistency" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </section>
+      )}
 
-      <section id="whoop" data-progress-section>
-        <WhoopIntegrationSection />
-      </section>
+      {loadedSections.has("consistency") && (
+        <section id="consistency" data-progress-section>
+          <ConsistencySection />
+        </section>
+      )}
+
+      {!loadedSections.has("wellness") && (
+        <section id="wellness" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="bg-muted h-32 animate-pulse rounded-xl" />
+          </div>
+        </section>
+      )}
+
+      {loadedSections.has("wellness") && (
+        <section id="wellness" data-progress-section>
+          <WellnessHistorySection />
+        </section>
+      )}
+
+      {!loadedSections.has("whoop") && (
+        <section id="whoop" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {loadedSections.has("whoop") && (
+        <section id="whoop" data-progress-section>
+          <WhoopIntegrationSection />
+        </section>
+      )}
     </PageShell>
   );
 }

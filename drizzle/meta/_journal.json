@@ -15,6 +15,13 @@
       "when": 1760509983783,
       "tag": "0001_powerful_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1761551348368,
+      "tag": "0002_spooky_nova",
+      "breakpoints": true
     }
   ]
 }

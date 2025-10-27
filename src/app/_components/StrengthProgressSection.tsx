@@ -15,6 +15,7 @@ import { formatTimeRangeLabel } from "~/lib/time-range";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { useProgressRange } from "~/contexts/progress-range-context";
+import { analytics } from "~/lib/analytics";
 
 import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 
@@ -67,6 +68,8 @@ export function StrengthProgressSection({
     direction: "asc" | "desc";
   }>({ key: "date", direction: "desc" });
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
   const {
     range: timeRange,
     setRange: setStrengthRange,
@@ -135,6 +138,11 @@ export function StrengthProgressSection({
     onExerciseChange,
   ]);
 
+  // Reset pagination when exercise, sorting, or time range changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedExerciseName, selectedTemplateExerciseId, sortConfig, timeRange]);
+
   const {
     data: topSetsData,
     isLoading: topSetsLoading,
@@ -157,6 +165,14 @@ export function StrengthProgressSection({
       },
       { enabled: hasExerciseSelection },
     );
+
+  // Track performance when strength data loads
+  useEffect(() => {
+    if (topSetsData && !topSetsLoading) {
+      const loadTime = performance.now();
+      analytics.progressSectionLoad("strength", loadTime, topSetsData.length);
+    }
+  }, [topSetsData, topSetsLoading]);
 
   const selectedOptionId = useMemo(() => {
     if (!deduplicatedExerciseList?.length) {
@@ -361,6 +377,9 @@ export function StrengthProgressSection({
     !hasExerciseSelection;
   const hasError = topSetsErrored || exerciseListErrored;
 
+  const totalPages = Math.ceil(sortedRows.length / pageSize);
+  const hasMultiplePages = totalPages > 1;
+
   return (
     <section className="glass-surface border-border/70 space-y-6 rounded-2xl border p-6 shadow-sm">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -555,87 +574,128 @@ export function StrengthProgressSection({
                   </tr>
                 </thead>
                 <tbody className="divide-border/60 divide-y">
-                  {sortedRows.slice(0, 8).map((row) => (
-                    <tr key={row.workoutDate.toString()} className="text-sm">
-                      <td className="text-foreground px-3 py-3">
-                        {row.date.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </td>
-                      <td className="text-foreground px-3 py-3 font-semibold">
-                        {row.weight} kg
-                      </td>
-                      <td className="text-muted-foreground px-3 py-3">
-                        {row.sets} × {row.reps}
-                      </td>
-                      <td className="text-foreground px-3 py-3">
-                        {Math.round(row.oneRm)} kg
-                      </td>
-                      <td className="text-foreground px-3 py-3">
-                        {Math.round(row.volume).toLocaleString()} kg
-                      </td>
-                      <td className="px-3 py-3">
-                        <SessionTags
-                          intensityPct={row.intensityPct}
-                          oneRm={row.oneRm}
-                          currentMax={trendSummary?.currentOneRM ?? 0}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {sortedRows
+                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                    .map((row) => (
+                      <tr key={row.workoutDate.toString()} className="text-sm">
+                        <td className="text-foreground px-3 py-3">
+                          {row.date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                        <td className="text-foreground px-3 py-3 font-semibold">
+                          {row.weight} kg
+                        </td>
+                        <td className="text-muted-foreground px-3 py-3">
+                          {row.sets} × {row.reps}
+                        </td>
+                        <td className="text-foreground px-3 py-3">
+                          {Math.round(row.oneRm)} kg
+                        </td>
+                        <td className="text-foreground px-3 py-3">
+                          {Math.round(row.volume).toLocaleString()} kg
+                        </td>
+                        <td className="px-3 py-3">
+                          <SessionTags
+                            intensityPct={row.intensityPct}
+                            oneRm={row.oneRm}
+                            currentMax={trendSummary?.currentOneRM ?? 0}
+                          />
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
 
             <div className="space-y-3 lg:hidden">
-              {sortedRows.slice(0, 6).map((row) => (
-                <div
-                  key={`${row.workoutDate.toISOString()}-mobile`}
-                  className="border-border/60 bg-background/40 rounded-2xl border p-4 shadow-sm"
-                >
-                  <div className="flex items-center justify-between text-sm">
-                    <p className="text-foreground font-semibold">
-                      {row.date.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <SessionTags
-                      intensityPct={row.intensityPct}
-                      oneRm={row.oneRm}
-                      currentMax={trendSummary?.currentOneRM ?? 0}
-                    />
+              {sortedRows
+                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                .map((row) => (
+                  <div
+                    key={`${row.workoutDate.toISOString()}-mobile`}
+                    className="border-border/60 bg-background/40 rounded-2xl border p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <p className="text-foreground font-semibold">
+                        {row.date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                      <SessionTags
+                        intensityPct={row.intensityPct}
+                        oneRm={row.oneRm}
+                        currentMax={trendSummary?.currentOneRM ?? 0}
+                      />
+                    </div>
+                    <dl className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <dt>Weight</dt>
+                        <dd className="text-foreground font-semibold">
+                          {row.weight} kg
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Sets × Reps</dt>
+                        <dd className="text-foreground font-semibold">
+                          {row.sets} × {row.reps}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>e1RM</dt>
+                        <dd className="text-foreground font-semibold">
+                          {Math.round(row.oneRm)} kg
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Volume</dt>
+                        <dd className="text-foreground font-semibold">
+                          {Math.round(row.volume).toLocaleString()} kg
+                        </dd>
+                      </div>
+                    </dl>
                   </div>
-                  <dl className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <dt>Weight</dt>
-                      <dd className="text-foreground font-semibold">
-                        {row.weight} kg
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Sets × Reps</dt>
-                      <dd className="text-foreground font-semibold">
-                        {row.sets} × {row.reps}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>e1RM</dt>
-                      <dd className="text-foreground font-semibold">
-                        {Math.round(row.oneRm)} kg
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Volume</dt>
-                      <dd className="text-foreground font-semibold">
-                        {Math.round(row.volume).toLocaleString()} kg
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              ))}
+                ))}
             </div>
+
+            {hasMultiplePages && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-muted-foreground text-xs">
+                  Showing{" "}
+                  {Math.min(
+                    (currentPage - 1) * pageSize + 1,
+                    sortedRows.length,
+                  )}{" "}
+                  to {Math.min(currentPage * pageSize, sortedRows.length)} of{" "}
+                  {sortedRows.length} sessions
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-muted-foreground text-xs">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <StrengthAnalysisModal

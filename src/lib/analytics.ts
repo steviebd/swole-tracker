@@ -204,4 +204,50 @@ export const analytics = {
       timestamp: new Date().toISOString(),
     });
   },
+
+  // Performance tracking
+  progressPageLoad: (
+    loadTime: number,
+    queryCount: number,
+    dataPoints: number,
+    cacheHit: boolean,
+  ) => {
+    safeCapture("progress_page_load", {
+      loadTime,
+      queryCount,
+      dataPoints,
+      cacheHit,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  progressSectionLoad: (
+    section: string,
+    loadTime: number,
+    dataPoints: number,
+    error?: string,
+  ) => {
+    safeCapture("progress_section_load", {
+      section,
+      loadTime,
+      dataPoints,
+      error,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  databaseQueryPerformance: (
+    queryName: string,
+    duration: number,
+    rowCount: number,
+    userId: string,
+  ) => {
+    safeCapture("database_query_performance", {
+      queryName,
+      duration,
+      rowCount,
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+  },
 };

@@ -313,13 +313,23 @@ export function ConsistencySection() {
                   <div
                     className="h-3 rounded-full transition-all duration-500"
                     style={{
-                      width: `${targetProgress}%`,
-                      backgroundColor:
-                        targetProgress >= 100
-                          ? "var(--color-success)"
-                          : targetProgress >= 70
-                            ? "var(--color-warning)"
-                            : "var(--color-danger)",
+                      width: "100%",
+                      background:
+                        targetProgress > 100
+                          ? `linear-gradient(to right, ${
+                              targetProgress >= 100
+                                ? "var(--color-success)"
+                                : targetProgress >= 70
+                                  ? "var(--color-warning)"
+                                  : "var(--color-danger)"
+                            } ${(100 / targetProgress) * 100}%, var(--color-danger) ${
+                              (100 / targetProgress) * 100
+                            }%)`
+                          : targetProgress >= 100
+                            ? "var(--color-success)"
+                            : targetProgress >= 70
+                              ? "var(--color-warning)"
+                              : "var(--color-danger)",
                     }}
                   />
                 </div>

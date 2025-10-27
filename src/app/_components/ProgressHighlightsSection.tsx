@@ -14,6 +14,7 @@ import { formatTimeRangeLabel } from "~/lib/time-range";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { useProgressRange } from "~/contexts/progress-range-context";
+import { analytics } from "~/lib/analytics";
 
 type HighlightTab = "prs" | "milestones" | "streaks";
 
@@ -63,6 +64,18 @@ export function ProgressHighlightsSection() {
     tab: activeTab,
     timeRange,
   });
+
+  // Track performance when data loads
+  useEffect(() => {
+    if (data && !isLoading) {
+      const loadTime = performance.now();
+      analytics.progressSectionLoad(
+        "highlights",
+        loadTime,
+        data.cards?.length ?? 0,
+      );
+    }
+  }, [data, isLoading]);
 
   const cards = data?.cards ?? [];
   const timeRangeLabel = formatTimeRangeLabel(timeRange);
