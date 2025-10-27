@@ -45,6 +45,3 @@
 - [ ] Review TRPC progress endpoints to ensure batch-friendly responses (merge personal records + achievements query).  
 - [ ] Expose intensity/goal completion metrics via `/progress` router (consider chunking strategy limits).  
 - [ ] Add tests covering new merged highlights query + strength chart data transforms.
-
-## 8. AI Intelligence Suggestion
-- [ ] On workout/session/[id] when you select Accept AI for AI Intelligence, what it does is block out the values of the exercise (weight, rep etc for each set). This behiavour shouldn't happen as it's not a valid use case. You want to 1. When accept AI, it updates the value on the highest set. 2. Allow the user to then free edit the exercise and set/s values without blocking it.

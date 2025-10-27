@@ -182,9 +182,12 @@ export function SetSuggestions({
           (() => {
             const set = recommendationSet;
             const isAccepted = acceptedSets.has(set.set_id);
-            const suggestionVariantClasses = isAccepted
-              ? "border-[var(--color-success)] bg-[color-mix(in_oklab,_var(--color-success)_10%,_var(--color-bg-surface))]"
-              : "border-[var(--color-border)] bg-[var(--color-bg-surface)]";
+
+            // Don't render accepted suggestions to avoid visual blocking
+            if (isAccepted) return null;
+
+            const suggestionVariantClasses =
+              "border-[var(--color-border)] bg-[var(--color-bg-surface)]";
 
             return (
               <div
@@ -192,7 +195,6 @@ export function SetSuggestions({
                 className={cx(
                   "rounded-lg border p-3 transition-all",
                   suggestionVariantClasses,
-                  isAccepted ? "border-green-200 dark:border-green-700" : "",
                 )}
               >
                 <div className="mb-2 flex items-center justify-between">
@@ -212,7 +214,8 @@ export function SetSuggestions({
                                 weight: set.suggested_weight_kg || undefined,
                                 reps: set.suggested_reps || undefined,
                                 restSeconds:
-                                  (set as any).suggested_rest_seconds ?? undefined,
+                                  (set as any).suggested_rest_seconds ??
+                                  undefined,
                               },
                               "ai_recommended",
                             )

@@ -741,6 +741,26 @@ function TimeRangeSelector({
   );
 }
 
+export function calculateYAxisDomain(values: number[]): [number, number] {
+  if (values.length === 0) return [0, 100];
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+
+  // Calculate padding based on range to make gradient steeper for smaller ranges
+  let padding;
+  if (range <= 10) {
+    padding = range * 0.5; // For small ranges (e.g., 140-150kg), use 50% padding
+  } else if (range <= 50) {
+    padding = range * 0.3; // For medium ranges, use 30% padding
+  } else {
+    padding = range * 0.1; // For large ranges, use 10% padding
+  }
+
+  return [Math.max(0, min - padding), max + padding];
+}
+
 function StrengthTrendChart({
   data,
   color,
@@ -750,6 +770,9 @@ function StrengthTrendChart({
   color: string;
   unit: string;
 }) {
+  const values = data.map((d) => d.value);
+  const domain = calculateYAxisDomain(values);
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
@@ -768,6 +791,7 @@ function StrengthTrendChart({
           tickLine={false}
         />
         <YAxis
+          domain={domain}
           tick={{ fontSize: 12, fill: "var(--muted)" }}
           axisLine={false}
           tickLine={false}
