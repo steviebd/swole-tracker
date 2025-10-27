@@ -212,6 +212,7 @@ export const userPreferences = createTable(
     progression_type: text().notNull().default("adaptive"), // "linear" | "percentage" | "adaptive"
     linear_progression_kg: real().default(2.5), // Default 2.5kg increment
     percentage_progression: real().default(2.5), // Default 2.5% increment
+    targetWorkoutsPerWeek: real().notNull().default(3),
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),

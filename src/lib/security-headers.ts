@@ -25,7 +25,9 @@ type CryptoLike = {
 
 const globalCrypto = globalThis.crypto as CryptoLike | undefined;
 
-export function createNonce(cryptoImpl: CryptoLike | undefined = globalCrypto): string {
+export function createNonce(
+  cryptoImpl: CryptoLike | undefined = globalCrypto,
+): string {
   if (!cryptoImpl) {
     throw new Error("Crypto API is not available");
   }
@@ -44,7 +46,13 @@ export function createNonce(cryptoImpl: CryptoLike | undefined = globalCrypto): 
 }
 
 function encodeBase64(bytes: Uint8Array): string {
-  const maybeBuffer = (globalThis as { Buffer?: { from: (input: Uint8Array) => { toString(encoding: string): string } } }).Buffer;
+  const maybeBuffer = (
+    globalThis as {
+      Buffer?: {
+        from: (input: Uint8Array) => { toString(encoding: string): string };
+      };
+    }
+  ).Buffer;
   if (maybeBuffer) {
     return maybeBuffer.from(bytes).toString("base64");
   }
@@ -65,7 +73,7 @@ export function buildContentSecurityPolicy(nonce: string): string {
   const directives = [
     "default-src 'self'",
     `script-src 'self' ${POSTHOG_DOMAINS.join(" ")} ${nonceDirective}`,
-    `style-src 'self' ${nonceDirective} 'unsafe-hashes'`,
+    `style-src 'self' ${nonceDirective} 'unsafe-hashes' 'sha256-HGYbL7c7YTMNrtcUQBvASpkCpnhcLdlW/2pKHJ8sJ98='`,
     "img-src 'self' data: https: blob:",
     `connect-src 'self' ${WHOOP_API} ${POSTHOG_DOMAINS.join(" ")}`,
     "font-src 'self' data:",
@@ -110,10 +118,7 @@ export function applySecurityHeaders(
   return response;
 }
 
-export function withNonceHeader(
-  headers: Headers,
-  nonce: string,
-): Headers {
+export function withNonceHeader(headers: Headers, nonce: string): Headers {
   const updated = new Headers(headers);
   updated.set(NONCE_HEADER_KEY, nonce);
   return updated;

@@ -24,6 +24,7 @@ export const preferencesRouter = createTRPCRouter({
       progression_type: "adaptive",
       linear_progression_kg: "2.5",
       percentage_progression: "2.5",
+      targetWorkoutsPerWeek: 3,
     } as const;
   }),
 
@@ -44,6 +45,7 @@ export const preferencesRouter = createTRPCRouter({
               .optional(),
             linear_progression_kg: z.string().optional(),
             percentage_progression: z.string().optional(),
+            targetWorkoutsPerWeek: z.union([z.number(), z.string()]).optional(),
           }),
         ])
         .transform((input) => {
@@ -58,6 +60,7 @@ export const preferencesRouter = createTRPCRouter({
             progression_type: input.progression_type,
             linear_progression_kg: input.linear_progression_kg,
             percentage_progression: input.percentage_progression,
+            targetWorkoutsPerWeek: input.targetWorkoutsPerWeek,
           };
         }),
     )
@@ -75,6 +78,7 @@ export const preferencesRouter = createTRPCRouter({
         progression_type?: "linear" | "percentage" | "adaptive";
         linear_progression_kg?: number;
         percentage_progression?: number;
+        targetWorkoutsPerWeek?: number;
       } = {};
 
       if (typeof input.defaultWeightUnit !== "undefined") {
@@ -97,6 +101,15 @@ export const preferencesRouter = createTRPCRouter({
       }
       if (typeof input.percentage_progression !== "undefined") {
         patch.percentage_progression = parseFloat(input.percentage_progression);
+      }
+      if (typeof input.targetWorkoutsPerWeek !== "undefined") {
+        const parsed =
+          typeof input.targetWorkoutsPerWeek === "string"
+            ? parseFloat(input.targetWorkoutsPerWeek)
+            : input.targetWorkoutsPerWeek;
+        if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+          patch.targetWorkoutsPerWeek = Math.max(1, Math.min(14, parsed));
+        }
       }
 
       if (existing) {
@@ -123,6 +136,18 @@ export const preferencesRouter = createTRPCRouter({
           percentage_progression: input.percentage_progression
             ? parseFloat(input.percentage_progression)
             : 2.5,
+          targetWorkoutsPerWeek: (() => {
+            if (typeof input.targetWorkoutsPerWeek === "number") {
+              return Math.max(1, Math.min(14, input.targetWorkoutsPerWeek));
+            }
+            if (typeof input.targetWorkoutsPerWeek === "string") {
+              const parsed = parseFloat(input.targetWorkoutsPerWeek);
+              return Number.isFinite(parsed)
+                ? Math.max(1, Math.min(14, parsed))
+                : 3;
+            }
+            return 3;
+          })(),
         });
       }
 

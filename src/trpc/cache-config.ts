@@ -90,6 +90,7 @@ export function configureQueryCache(queryClient: QueryClient) {
     ["progress", "getExerciseList"],
     ["progress", "getPersonalRecords"],
     ["progress", "getStrengthProgression"],
+    ["progress", "getProgressHighlights"],
   ];
 
   progressQueries.forEach((key) => {

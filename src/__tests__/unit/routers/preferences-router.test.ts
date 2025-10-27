@@ -66,6 +66,7 @@ describe("preferencesRouter", () => {
         progression_type: "adaptive",
         linear_progression_kg: "2.5",
         percentage_progression: "2.5",
+        targetWorkoutsPerWeek: 3,
       });
     });
   });

@@ -85,7 +85,7 @@ describe("Security Implementation Tests", () => {
       const csp = buildContentSecurityPolicy(nonce);
 
       expect(csp).toContain(
-        `style-src 'self' 'nonce-${nonce}' 'unsafe-hashes'`,
+        `style-src 'self' 'nonce-${nonce}' 'unsafe-hashes' 'sha256-HGYbL7c7YTMNrtcUQBvASpkCpnhcLdlW/2pKHJ8sJ98='`,
       );
     });
   });
