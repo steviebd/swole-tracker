@@ -56,7 +56,7 @@ function ProgressDashboardInner() {
     PROGRESS_SECTIONS[0]!.id,
   );
   const [loadedSections, setLoadedSections] = useState<Set<string>>(
-    new Set([PROGRESS_SECTIONS[0]!.id]), // Load first section by default
+    new Set([PROGRESS_SECTIONS[0]!.id, "wellness", "whoop"]), // Load highlights, wellness, and whoop by default
   );
 
   useEffect(() => {
@@ -87,8 +87,8 @@ function ProgressDashboardInner() {
         }
       },
       {
-        rootMargin: "-40% 0px -45% 0px",
-        threshold: [0.2, 0.4, 0.6, 0.8],
+        rootMargin: "0px 0px -20% 0px",
+        threshold: [0.1, 0.2, 0.3, 0.4],
       },
     );
 

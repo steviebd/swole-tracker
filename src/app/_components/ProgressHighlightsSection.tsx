@@ -170,16 +170,41 @@ export function ProgressHighlightsSection() {
               {data.badges.map((badge) => (
                 <div
                   key={badge.id}
-                  className="border-border/60 bg-card/70 rounded-xl border p-4"
+                  className={cn(
+                    "rounded-xl border p-4",
+                    badge.tone === "gold"
+                      ? "border-yellow-500/50 bg-yellow-500/10"
+                      : badge.tone === "silver"
+                        ? "border-gray-400/50 bg-gray-400/10"
+                        : "border-orange-500/50 bg-orange-500/10",
+                  )}
                 >
                   <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
                     {badge.label}
                   </p>
-                  <p className="text-foreground mt-1 text-xl font-bold">
+                  <p
+                    className={cn(
+                      "mt-1 text-xl font-bold",
+                      badge.tone === "gold"
+                        ? "text-yellow-900 dark:text-yellow-100"
+                        : badge.tone === "silver"
+                          ? "text-gray-900 dark:text-gray-100"
+                          : "text-orange-900 dark:text-orange-100",
+                    )}
+                  >
                     {badge.value}
                   </p>
                   {badge.helper && (
-                    <p className="text-muted-foreground text-xs">
+                    <p
+                      className={cn(
+                        "text-xs",
+                        badge.tone === "gold"
+                          ? "text-yellow-800 dark:text-yellow-200"
+                          : badge.tone === "silver"
+                            ? "text-gray-800 dark:text-gray-200"
+                            : "text-orange-800 dark:text-orange-200",
+                      )}
+                    >
                       {badge.helper}
                     </p>
                   )}
