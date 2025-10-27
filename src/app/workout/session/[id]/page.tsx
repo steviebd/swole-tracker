@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -101,7 +102,12 @@ function WorkoutSessionProvider({
     }
 
     if (suggestion.restSeconds !== undefined) {
-      updateSet(exerciseIndex, setIndex, "rest", Math.round(suggestion.restSeconds));
+      updateSet(
+        exerciseIndex,
+        setIndex,
+        "rest",
+        Math.round(suggestion.restSeconds),
+      );
     }
   };
 

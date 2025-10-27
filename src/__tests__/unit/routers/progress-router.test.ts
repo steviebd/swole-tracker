@@ -605,4 +605,132 @@ describe("progressRouter", () => {
       expect(Array.isArray(result)).toBe(true);
     });
   });
+
+  describe("getStrengthProgression", () => {
+    it("should return strength progression data using resolveExerciseSelection", async () => {
+      const mockData = [
+        {
+          workoutDate: new Date("2024-01-01"),
+          exerciseName: "Bench Press",
+          weight: 100,
+          reps: 5,
+          sets: 3,
+          unit: "kg",
+          oneRMEstimate: 112.5,
+        },
+        {
+          workoutDate: new Date("2024-01-15"),
+          exerciseName: "Bench Press",
+          weight: 105,
+          reps: 5,
+          sets: 3,
+          unit: "kg",
+          oneRMEstimate: 118.125,
+        },
+      ];
+
+      // Mock all database calls - resolveExerciseSelection makes multiple calls
+      // followed by the main query
+      db.select
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            leftJoin: vi.fn(() => ({
+              leftJoin: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  limit: vi.fn().mockResolvedValue([
+                    {
+                      templateExerciseId: 1,
+                      templateName: "Bench Press",
+                      masterExerciseId: null,
+                      masterExerciseName: null,
+                    },
+                  ]),
+                })),
+              })),
+            })),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            innerJoin: vi.fn(() => ({
+              where: vi.fn(() => ({
+                orderBy: vi.fn().mockResolvedValue(mockData),
+              })),
+            })),
+          })),
+        }));
+
+      const result = await caller.getStrengthProgression({
+        exerciseName: "Bench Press",
+        templateExerciseId: 1,
+        timeRange: "quarter",
+      });
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(2);
+      // Results are sorted by date desc, then weight desc
+      expect(result[0]).toHaveProperty("workoutDate");
+      expect(result[0]).toHaveProperty("exerciseName", "Bench Press");
+      expect(result[0]).toHaveProperty("weight", 105); // Higher weight comes first
+      expect(result[0]).toHaveProperty("reps", 5);
+      expect(result[0]).toHaveProperty("sets", 3);
+      expect(result[0]).toHaveProperty("unit", "kg");
+      expect(result[0]).toHaveProperty("oneRMEstimate", 118.13); // Calculated using Brzycki formula
+    });
+
+    it("should handle exercise selection with both name and template ID parameters", async () => {
+      const mockData = [
+        {
+          workoutDate: new Date("2024-01-01"),
+          exerciseName: "Squat",
+          weight: 120,
+          reps: 3,
+          sets: 4,
+          unit: "kg",
+          oneRMEstimate: 140,
+        },
+      ];
+
+      // Mock database calls for resolveExerciseSelection and main query
+      db.select
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            leftJoin: vi.fn(() => ({
+              leftJoin: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  limit: vi.fn().mockResolvedValue([
+                    {
+                      templateExerciseId: 2,
+                      templateName: "Squat",
+                      masterExerciseId: null,
+                      masterExerciseName: null,
+                    },
+                  ]),
+                })),
+              })),
+            })),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          from: vi.fn(() => ({
+            innerJoin: vi.fn(() => ({
+              where: vi.fn(() => ({
+                orderBy: vi.fn().mockResolvedValue(mockData),
+              })),
+            })),
+          })),
+        }));
+
+      const result = await caller.getStrengthProgression({
+        exerciseName: "Squat",
+        templateExerciseId: 2,
+        timeRange: "month",
+      });
+
+      expect(result.length).toBe(1);
+      expect(result[0]!.exerciseName).toBe("Squat");
+      expect(result[0]!.weight).toBe(120);
+      expect(result[0]!.oneRMEstimate).toBe(127.06); // Calculated using Brzycki formula
+    });
+  });
 });
