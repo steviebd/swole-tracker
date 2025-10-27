@@ -173,8 +173,8 @@ export function ProgressionModal({
                         key={exercise.id}
                         value={exercise.id}
                         title={
-                          exercise.aliases.length > 0
-                            ? exercise.aliases.join(", ")
+                          (exercise.aliases ?? []).length > 0
+                            ? (exercise.aliases ?? []).join(", ")
                             : undefined
                         }
                       >

@@ -5,6 +5,8 @@ const POSTHOG_DOMAINS = [
   "https://us-assets.i.posthog.com",
 ];
 
+const CLOUDFLARE_INSIGHTS_DOMAIN = "https://static.cloudflareinsights.com";
+
 const WHOOP_API = "https://api.prod.whoop.com";
 
 const SECURITY_HEADER_VALUES: Record<string, string> = {
@@ -72,10 +74,10 @@ export function buildContentSecurityPolicy(nonce: string): string {
   const nonceDirective = `'nonce-${nonce}'`;
   const directives = [
     "default-src 'self'",
-    `script-src 'self' ${POSTHOG_DOMAINS.join(" ")} ${nonceDirective}`,
+    `script-src 'self' ${POSTHOG_DOMAINS.join(" ")} ${CLOUDFLARE_INSIGHTS_DOMAIN} ${nonceDirective}`,
     `style-src 'self' ${nonceDirective} 'unsafe-hashes' 'sha256-HGYbL7c7YTMNrtcUQBvASpkCpnhcLdlW/2pKHJ8sJ98='`,
     "img-src 'self' data: https: blob:",
-    `connect-src 'self' ${WHOOP_API} ${POSTHOG_DOMAINS.join(" ")}`,
+    `connect-src 'self' ${WHOOP_API} ${POSTHOG_DOMAINS.join(" ")} ${CLOUDFLARE_INSIGHTS_DOMAIN}`,
     "font-src 'self' data:",
     "object-src 'none'",
     "media-src 'self'",

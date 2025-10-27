@@ -49,7 +49,8 @@ export async function loadPosthogCtor(): Promise<
   try {
     const mod = await import("posthog-node");
     return mod.PostHog;
-  } catch {
+  } catch (error) {
+    console.warn("Failed to load posthog-node:", error);
     return null;
   }
 }
@@ -67,7 +68,13 @@ function getServerClient(): PosthogSurface {
   // Eagerly construct once so tests can assert constructor call and return a stable client.
   const rawClientPromise = (async () => {
     const PH = await loadPosthogCtor();
-    if (!PH) return null;
+    if (!PH) {
+      console.warn(
+        "PostHog constructor not available, analytics will be disabled",
+      );
+      return null;
+    }
+
     const ctorOrFactory: PHCtor | typeof PostHogNode = PH as unknown as
       | PHCtor
       | typeof PostHogNode;
@@ -84,17 +91,25 @@ function getServerClient(): PosthogSurface {
         flushAt: 1,
         flushInterval: 0,
       });
-    } catch {
-      // Fallback to factory signature
-      const factory = ctorOrFactory as (
-        key: string,
-        opts: { host?: string; flushAt?: number; flushInterval?: number },
-      ) => PostHogNode;
-      instance = factory(key, {
-        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        flushAt: 1,
-        flushInterval: 0,
-      });
+    } catch (constructError) {
+      try {
+        // Fallback to factory signature
+        const factory = ctorOrFactory as (
+          key: string,
+          opts: { host?: string; flushAt?: number; flushInterval?: number },
+        ) => PostHogNode;
+        instance = factory(key, {
+          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          flushAt: 1,
+          flushInterval: 0,
+        });
+      } catch (factoryError) {
+        console.error("Failed to create PostHog instance:", {
+          constructError,
+          factoryError,
+        });
+        return null;
+      }
     }
     return instance;
   })();
@@ -103,29 +118,53 @@ function getServerClient(): PosthogSurface {
     capture: (event: string, properties?: Record<string, unknown>) => {
       // Intentionally fire-and-forget; mark as ignored to satisfy no-floating-promises
       void (async () => {
-        const raw = (await rawClientPromise) as PostHogNode | null;
-        const distinctId = "server";
-        raw?.capture({ distinctId, event, properties });
+        try {
+          const raw = (await rawClientPromise) as PostHogNode | null;
+          if (raw) {
+            const distinctId = "server";
+            raw.capture({ distinctId, event, properties });
+          }
+        } catch (error) {
+          console.warn("Failed to capture PostHog event:", event, error);
+        }
       })();
     },
     identify: (id: string, props?: Record<string, unknown>) => {
       void (async () => {
-        const raw = (await rawClientPromise) as PostHogNode | null;
-        raw?.identify({ distinctId: id, properties: props });
+        try {
+          const raw = (await rawClientPromise) as PostHogNode | null;
+          if (raw) {
+            raw.identify({ distinctId: id, properties: props });
+          }
+        } catch (error) {
+          console.warn("Failed to identify PostHog user:", id, error);
+        }
       })();
     },
     shutdown: () => {
       void (async () => {
-        const raw = (await rawClientPromise) as PostHogNode | null;
-        raw?.shutdown?.();
-        // older versions
-        (raw as unknown as { close?: () => void })?.close?.();
+        try {
+          const raw = (await rawClientPromise) as PostHogNode | null;
+          if (raw) {
+            raw.shutdown?.();
+            // older versions
+            (raw as unknown as { close?: () => void })?.close?.();
+          }
+        } catch (error) {
+          console.warn("Failed to shutdown PostHog:", error);
+        }
       })();
     },
     flush: () => {
       void (async () => {
-        const raw = (await rawClientPromise) as PostHogNode | null;
-        raw?.flush?.();
+        try {
+          const raw = (await rawClientPromise) as PostHogNode | null;
+          if (raw) {
+            raw.flush?.();
+          }
+        } catch (error) {
+          console.warn("Failed to flush PostHog:", error);
+        }
       })();
     },
   };

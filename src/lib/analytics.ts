@@ -205,6 +205,133 @@ export const analytics = {
     });
   },
 
+  // Navigation events
+  navigationChanged: (from: string, to: string, source?: string) => {
+    safeCapture("navigation_changed", {
+      from,
+      to,
+      source,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Search and filter events
+  searchPerformed: (query: string, resultsCount: number, category?: string) => {
+    safeCapture("search_performed", {
+      query,
+      resultsCount,
+      category,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  filtersApplied: (filters: Record<string, unknown>, resultsCount: number) => {
+    safeCapture("filters_applied", {
+      filters,
+      resultsCount,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Social and sharing events
+  workoutShared: (workoutId: string, platform: string) => {
+    safeCapture("workout_shared", {
+      workoutId,
+      platform,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  progressShared: (timeRange: string, platform: string) => {
+    safeCapture("progress_shared", {
+      timeRange,
+      platform,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Goal and achievement events
+  goalSet: (goalType: string, target: number, unit: string) => {
+    safeCapture("goal_set", {
+      goalType,
+      target,
+      unit,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  goalAchieved: (
+    goalType: string,
+    actual: number,
+    target: number,
+    unit: string,
+  ) => {
+    safeCapture("goal_achieved", {
+      goalType,
+      actual,
+      target,
+      unit,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  personalRecord: (
+    exerciseId: string,
+    exerciseName: string,
+    previousBest: number,
+    newBest: number,
+    unit: string,
+  ) => {
+    safeCapture("personal_record", {
+      exerciseId,
+      exerciseName,
+      previousBest,
+      newBest,
+      unit,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Device and connectivity events
+  offlineModeEnabled: () => {
+    safeCapture("offline_mode_enabled", {
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  syncCompleted: (itemsSynced: number, timeTaken: number) => {
+    safeCapture("sync_completed", {
+      itemsSynced,
+      timeTaken,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // User engagement events
+  appInstalled: (source?: string) => {
+    safeCapture("app_installed", {
+      source,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  tutorialCompleted: (tutorialId: string, timeSpent: number) => {
+    safeCapture("tutorial_completed", {
+      tutorialId,
+      timeSpent,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  feedbackSubmitted: (rating: number, category: string, comments?: string) => {
+    safeCapture("feedback_submitted", {
+      rating,
+      category,
+      comments,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
   // Performance tracking
   progressPageLoad: (
     loadTime: number,
