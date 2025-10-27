@@ -3,13 +3,15 @@ import { userPreferences } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { unitPreferenceSchema } from "~/server/api/schemas/common";
 import { z } from "zod";
+import {
+  getCachedUserPreferences,
+  clearUserPreferencesCache,
+} from "~/server/db/utils";
 
 export const preferencesRouter = createTRPCRouter({
   // Get user preferences
   get: protectedProcedure.query(async ({ ctx }) => {
-    const prefs = await ctx.db.query.userPreferences.findFirst({
-      where: eq(userPreferences.user_id, ctx.user.id),
-    });
+    const prefs = await getCachedUserPreferences(ctx.db, ctx.user.id);
 
     // Return full preferences row when found to satisfy integration tests,
     // otherwise return default shape with all expected properties.
@@ -150,6 +152,9 @@ export const preferencesRouter = createTRPCRouter({
           })(),
         });
       }
+
+      // Clear cache after preferences update
+      clearUserPreferencesCache(ctx.user.id);
 
       return { success: true };
     }),

@@ -6,6 +6,7 @@ import {
   masterExercises,
   exerciseLinks,
   templateExercises,
+  userPreferences,
 } from "./schema";
 import { logger } from "~/lib/logger";
 import {
@@ -41,12 +42,26 @@ export type ResolvedExerciseNameMap = Map<
   }
 >;
 
+// Simple in-memory cache for exercise name mappings
+const exerciseNameCache = new Map<
+  string,
+  { data: ResolvedExerciseNameMap; expires: number }
+>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const loadResolvedExerciseNameMap = async (
   database: DrizzleDb,
   templateExerciseIds: number[],
 ): Promise<ResolvedExerciseNameMap> => {
   if (templateExerciseIds.length === 0) {
     return new Map();
+  }
+
+  // Create cache key from sorted template exercise IDs
+  const cacheKey = templateExerciseIds.sort().join(",");
+  const cached = exerciseNameCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
   }
 
   type Row = {
@@ -92,6 +107,12 @@ export const loadResolvedExerciseNameMap = async (
       masterExerciseId: row.masterExerciseId ?? null,
     });
   }
+
+  // Cache the result
+  exerciseNameCache.set(cacheKey, {
+    data: map,
+    expires: Date.now() + CACHE_TTL,
+  });
 
   return map;
 };
@@ -564,4 +585,46 @@ export const batchDeleteWorkouts = async (
     });
     throw error;
   }
+};
+
+// Simple in-memory cache for user preferences
+const userPreferencesCache = new Map<string, { data: any; expires: number }>();
+
+/**
+ * Cached user preferences fetcher
+ * User preferences change infrequently, so caching them improves performance
+ */
+export const getCachedUserPreferences = async (
+  database: DrizzleDb,
+  userId: string,
+): Promise<
+  ReturnType<typeof database.query.userPreferences.findFirst> | undefined
+> => {
+  const cacheKey = `user_prefs_${userId}`;
+  const cached = userPreferencesCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return cached.data;
+  }
+
+  const prefs = await database.query.userPreferences.findFirst({
+    where: eq(userPreferences.user_id, userId),
+  });
+
+  // Cache for 10 minutes (user preferences don't change often)
+  const CACHE_TTL = 10 * 60 * 1000;
+  userPreferencesCache.set(cacheKey, {
+    data: prefs,
+    expires: Date.now() + CACHE_TTL,
+  });
+
+  return prefs;
+};
+
+/**
+ * Clear user preferences cache (call when preferences are updated)
+ */
+export const clearUserPreferencesCache = (userId: string): void => {
+  const cacheKey = `user_prefs_${userId}`;
+  userPreferencesCache.delete(cacheKey);
 };

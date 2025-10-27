@@ -587,11 +587,11 @@ function ExerciseRow({
             {exercise.name}
           </div>
           <div className="text-muted-foreground text-sm sm:hidden">
-            Created {exercise.createdAt.toLocaleDateString()}
+            Created {new Date(exercise.createdAt).toLocaleDateString()}
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground hidden text-sm sm:table-cell">
-          {exercise.createdAt.toLocaleDateString()}
+          {new Date(exercise.createdAt).toLocaleDateString()}
         </TableCell>
         <TableCell>
           <div className="text-sm">

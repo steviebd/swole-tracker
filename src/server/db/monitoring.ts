@@ -11,6 +11,15 @@ export interface ConnectionMetrics {
   uptime: number;
 }
 
+export interface QueryMetrics {
+  queryName: string;
+  duration: number;
+  success: boolean;
+  rowCount?: number;
+  timestamp: number;
+  userId?: string;
+}
+
 export interface QueueMetrics {
   depth: number;
   processedCount: number;
@@ -66,8 +75,119 @@ class DatabaseMonitor {
   }
 }
 
-// Global database monitor instance
-export const dbMonitor = new DatabaseMonitor();
+class QueryPerformanceMonitor {
+  private queryMetrics: QueryMetrics[] = [];
+  private readonly maxMetrics = 1000;
+
+  public recordQuery(metrics: QueryMetrics) {
+    this.queryMetrics.push(metrics);
+    if (this.queryMetrics.length > this.maxMetrics) {
+      this.queryMetrics.shift();
+    }
+  }
+
+  public getSlowQueries(thresholdMs = 100): QueryMetrics[] {
+    return this.queryMetrics.filter((m) => m.duration > thresholdMs);
+  }
+
+  public getQueryStats(): {
+    totalQueries: number;
+    averageDuration: number;
+    slowestQueries: QueryMetrics[];
+    errorRate: number;
+  } {
+    const totalQueries = this.queryMetrics.length;
+    if (totalQueries === 0) {
+      return {
+        totalQueries: 0,
+        averageDuration: 0,
+        slowestQueries: [],
+        errorRate: 0,
+      };
+    }
+
+    const totalDuration = this.queryMetrics.reduce(
+      (sum, m) => sum + m.duration,
+      0,
+    );
+    const errors = this.queryMetrics.filter((m) => !m.success).length;
+    const slowestQueries = [...this.queryMetrics]
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 10);
+
+    return {
+      totalQueries,
+      averageDuration: totalDuration / totalQueries,
+      slowestQueries,
+      errorRate: errors / totalQueries,
+    };
+  }
+
+  public getMetricsByQueryName(): Record<
+    string,
+    {
+      count: number;
+      averageDuration: number;
+      maxDuration: number;
+      errorCount: number;
+    }
+  > {
+    const stats: Record<
+      string,
+      {
+        count: number;
+        totalDuration: number;
+        maxDuration: number;
+        errorCount: number;
+      }
+    > = {};
+
+    for (const metric of this.queryMetrics) {
+      if (!stats[metric.queryName]) {
+        stats[metric.queryName] = {
+          count: 0,
+          totalDuration: 0,
+          maxDuration: 0,
+          errorCount: 0,
+        };
+      }
+
+      const stat = stats[metric.queryName]!;
+      stat.count++;
+      stat.totalDuration += metric.duration;
+      stat.maxDuration = Math.max(stat.maxDuration, metric.duration);
+      if (!metric.success) {
+        stat.errorCount++;
+      }
+    }
+
+    // Convert to final format
+    const result: Record<
+      string,
+      {
+        count: number;
+        averageDuration: number;
+        maxDuration: number;
+        errorCount: number;
+      }
+    > = {};
+
+    for (const [queryName, stat] of Object.entries(stats)) {
+      result[queryName] = {
+        count: stat.count,
+        averageDuration: stat.totalDuration / stat.count,
+        maxDuration: stat.maxDuration,
+        errorCount: stat.errorCount,
+      };
+    }
+
+    return result;
+  }
+
+  public resetMetrics() {
+    this.queryMetrics = [];
+  }
+}
 
 class QueueMonitor {
   private metrics: QueueMetrics = {
@@ -101,6 +221,12 @@ class QueueMonitor {
     };
   }
 }
+
+// Global database monitor instance
+export const dbMonitor = new DatabaseMonitor();
+
+// Global query performance monitor instance
+export const queryPerformanceMonitor = new QueryPerformanceMonitor();
 
 // Global queue monitor instance
 export const queueMonitor = new QueueMonitor();
@@ -178,13 +304,24 @@ export async function checkDatabaseHealth(db: any): Promise<{
 export function monitoredDbQuery<T>(
   queryName: string,
   dbOperation: () => Promise<T>,
-  ctx?: { timings?: Map<string, number> },
+  ctx?: { timings?: Map<string, number>; userId?: string },
 ): Promise<T> {
   const startTime = Date.now();
 
   return monitorQuery(queryName, dbOperation)
     .then((result) => {
       const duration = Date.now() - startTime;
+
+      // Record detailed metrics
+      queryPerformanceMonitor.recordQuery({
+        queryName,
+        duration,
+        success: true,
+        rowCount: Array.isArray(result) ? result.length : undefined,
+        timestamp: startTime,
+        userId: ctx?.userId,
+      });
+
       // Record timing for Server-Timing header
       if (ctx?.timings) {
         ctx.timings.set(`db-${queryName.replace(/\./g, "-")}`, duration);
@@ -193,6 +330,16 @@ export function monitoredDbQuery<T>(
     })
     .catch((error) => {
       const duration = Date.now() - startTime;
+
+      // Record detailed metrics even on error
+      queryPerformanceMonitor.recordQuery({
+        queryName,
+        duration,
+        success: false,
+        timestamp: startTime,
+        userId: ctx?.userId,
+      });
+
       // Record timing even on error
       if (ctx?.timings) {
         ctx.timings.set(`db-${queryName.replace(/\./g, "-")}`, duration);
