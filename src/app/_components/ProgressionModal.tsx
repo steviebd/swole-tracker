@@ -225,7 +225,7 @@ export function ProgressionModal({
                       style={{ backgroundColor: "var(--color-border)" }}
                     ></div>
                   </div>
-                ) : strengthData && strengthData.length > 0 ? (
+                ) : strengthData?.data && strengthData.data.length > 0 ? (
                   <>
                     {/* Simple Chart Visualization */}
                     <div className="mb-6">
@@ -260,17 +260,18 @@ export function ProgressionModal({
                           <rect width="100%" height="100%" fill="url(#grid)" />
 
                           {/* Data points and line */}
-                          {strengthData.map((point, index) => {
+                          {strengthData.data.map((point, index) => {
                             const maxWeight = Math.max(
-                              ...strengthData.map((d) => d.weight),
+                              ...strengthData.data.map((d) => d.weight),
                             );
                             const minWeight = Math.min(
-                              ...strengthData.map((d) => d.weight),
+                              ...strengthData.data.map((d) => d.weight),
                             );
                             const range = maxWeight - minWeight || 1;
 
                             const x =
-                              (index / Math.max(1, strengthData.length - 1)) *
+                              (index /
+                                Math.max(1, strengthData.data.length - 1)) *
                                 360 +
                               20;
                             const y =
@@ -279,19 +280,22 @@ export function ProgressionModal({
                             return (
                               <g key={index}>
                                 {/* Line to next point */}
-                                {index < strengthData.length - 1 && (
+                                {index < strengthData.data.length - 1 && (
                                   <line
                                     x1={x}
                                     y1={y}
                                     x2={
                                       ((index + 1) /
-                                        Math.max(1, strengthData.length - 1)) *
+                                        Math.max(
+                                          1,
+                                          strengthData.data.length - 1,
+                                        )) *
                                         360 +
                                       20
                                     }
                                     y2={
                                       180 -
-                                      ((strengthData[index + 1]!.weight -
+                                      ((strengthData.data[index + 1]!.weight -
                                         minWeight) /
                                         range) *
                                         160
@@ -351,61 +355,70 @@ export function ProgressionModal({
                             <div>Volume</div>
                             <div>1RM Est.</div>
                           </div>
-                          {strengthData.slice(0, 10).map((session, index) => (
-                            <div
-                              key={index}
-                              className={`grid grid-cols-6 gap-2 px-2 py-3 text-xs sm:gap-4 sm:px-4 sm:text-sm ${
-                                index !== Math.min(9, strengthData.length - 1)
-                                  ? "glass-hairline border-b"
-                                  : ""
-                              }`}
-                            >
+                          {strengthData.data
+                            .slice(0, 10)
+                            .map((session, index) => (
                               <div
-                                style={{ color: "var(--color-text-secondary)" }}
+                                key={index}
+                                className={`grid grid-cols-6 gap-2 px-2 py-3 text-xs sm:gap-4 sm:px-4 sm:text-sm ${
+                                  index !==
+                                  Math.min(9, strengthData.data.length - 1)
+                                    ? "glass-hairline border-b"
+                                    : ""
+                                }`}
                               >
-                                {new Date(
-                                  session.workoutDate,
-                                ).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })}
+                                <div
+                                  style={{
+                                    color: "var(--color-text-secondary)",
+                                  }}
+                                >
+                                  {new Date(
+                                    session.workoutDate,
+                                  ).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </div>
+                                <div
+                                  className="font-medium"
+                                  style={{ color: "var(--color-text)" }}
+                                >
+                                  {session.weight}kg
+                                </div>
+                                <div
+                                  style={{
+                                    color: "var(--color-text-secondary)",
+                                  }}
+                                >
+                                  {session.reps}
+                                </div>
+                                <div
+                                  style={{
+                                    color: "var(--color-text-secondary)",
+                                  }}
+                                >
+                                  {session.sets}
+                                </div>
+                                <div
+                                  className="font-medium"
+                                  style={{ color: "var(--color-text)" }}
+                                >
+                                  {(
+                                    session.weight *
+                                    session.reps *
+                                    session.sets
+                                  ).toLocaleString()}
+                                  kg
+                                </div>
+                                <div
+                                  className="font-medium"
+                                  style={{ color: "var(--color-text)" }}
+                                >
+                                  {session.oneRMEstimate}kg
+                                </div>
                               </div>
-                              <div
-                                className="font-medium"
-                                style={{ color: "var(--color-text)" }}
-                              >
-                                {session.weight}kg
-                              </div>
-                              <div
-                                style={{ color: "var(--color-text-secondary)" }}
-                              >
-                                {session.reps}
-                              </div>
-                              <div
-                                style={{ color: "var(--color-text-secondary)" }}
-                              >
-                                {session.sets}
-                              </div>
-                              <div
-                                className="font-medium"
-                                style={{ color: "var(--color-text)" }}
-                              >
-                                {(
-                                  session.weight *
-                                  session.reps *
-                                  session.sets
-                                ).toLocaleString()}
-                                kg
-                              </div>
-                              <div
-                                className="font-medium"
-                                style={{ color: "var(--color-text)" }}
-                              >
-                                {session.oneRMEstimate}kg
-                              </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       </div>
                     </div>

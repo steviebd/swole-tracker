@@ -81,12 +81,10 @@ export const whoopMetricsView = sqliteView("view_whoop_metrics", {
     wr.user_id AS userId,
     wr.date,
     wr.recovery_score AS recoveryScore,
-    ws.sleep_performance_percentage AS sleepPerformance,
+    NULL AS sleepPerformance,
     wr.hrv_rmssd_milli AS hrvNow,
     wr.hrv_rmssd_baseline AS hrvBaseline,
     wr.resting_heart_rate AS rhrNow,
     wr.resting_heart_rate_baseline AS rhrBaseline
   FROM whoop_recovery wr
-  LEFT JOIN whoop_sleep ws ON ws.user_id = wr.user_id
-    AND date(ws.start) = wr.date
 `);

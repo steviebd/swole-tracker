@@ -35,7 +35,9 @@ export const updatePreferencesInput = z.object({
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInput>;
 
 // Exercise progression schemas for Phase 3
-export const timeRangeSchema = z.enum(["week", "month", "quarter", "year"]).default("quarter");
+export const timeRangeSchema = z
+  .enum(["week", "month", "quarter", "year"])
+  .default("quarter");
 
 export const exerciseProgressInputSchema = z
   .object({
@@ -44,6 +46,9 @@ export const exerciseProgressInputSchema = z
     timeRange: timeRangeSchema,
     startDate: z.coerce.date().optional(),
     endDate: z.coerce.date().optional(),
+    // Phase 2: Pagination support
+    cursor: z.string().optional(),
+    limit: z.number().int().positive().max(100).default(50),
   })
   .refine(
     (input) =>

@@ -2,19 +2,30 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { progressRouter } from "~/server/api/routers/progress";
 
 const buildSelectMock = (rows: unknown[]) => {
-  const orderBy = vi.fn().mockResolvedValue(rows);
-  const where = vi.fn(() => ({
-    orderBy,
-  }));
-  const innerJoin = vi.fn(() => ({
-    where,
-  }));
+  const limit = vi.fn(() => rows);
+  const orderByFn = vi.fn(() => rows);
+  const whereFn = vi.fn(() =>
+    Object.assign(rows, {
+      orderBy: orderByFn,
+      limit,
+    }),
+  );
+  const innerJoinFn = vi.fn(() =>
+    Object.assign(rows, {
+      where: whereFn,
+      limit,
+    }),
+  );
 
   return {
-    from: vi.fn(() => ({
-      where,
-      innerJoin,
-    })),
+    from: vi.fn(() =>
+      Object.assign(rows, {
+        where: whereFn,
+        innerJoin: innerJoinFn,
+        orderBy: orderByFn,
+        limit,
+      }),
+    ),
   };
 };
 
@@ -29,10 +40,10 @@ describe("progressRouter", () => {
         from: vi.fn(() => ({
           innerJoin: vi.fn(() => ({
             where: vi.fn(() => ({
-              orderBy: vi.fn(() => ({
-                limit: vi.fn().mockResolvedValue([]),
-                execute: vi.fn().mockResolvedValue([]),
-              })),
+              orderBy: Object.assign([], {
+                limit: vi.fn(() => []),
+                execute: vi.fn(() => []),
+              }),
               limit: vi.fn().mockResolvedValue([]),
               execute: vi.fn().mockResolvedValue([]),
             })),
@@ -44,40 +55,46 @@ describe("progressRouter", () => {
               leftJoin: vi.fn(() => ({
                 where: vi.fn(() => ({
                   groupBy: vi.fn(() => ({
-                    orderBy: vi.fn().mockResolvedValue([]),
+                    orderBy: Object.assign(vi.fn().mockResolvedValue([]), {
+                      limit: vi.fn().mockResolvedValue([]),
+                      execute: vi.fn().mockResolvedValue([]),
+                    }),
                   })),
-                  orderBy: vi.fn().mockResolvedValue([]),
+                  orderBy: Object.assign(vi.fn().mockResolvedValue([]), {
+                    limit: vi.fn().mockResolvedValue([]),
+                    execute: vi.fn().mockResolvedValue([]),
+                  }),
                 })),
               })),
             })),
           })),
           where: vi.fn(() => ({
-            orderBy: vi.fn(() => ({
+            orderBy: Object.assign(vi.fn().mockResolvedValue([]), {
               limit: vi.fn().mockResolvedValue([]),
               execute: vi.fn().mockResolvedValue([]),
-            })),
+            }),
             limit: vi.fn().mockResolvedValue([]),
             execute: vi.fn().mockResolvedValue([]),
           })),
-          orderBy: vi.fn(() => ({
+          orderBy: Object.assign(vi.fn().mockResolvedValue([]), {
             limit: vi.fn().mockResolvedValue([]),
             execute: vi.fn().mockResolvedValue([]),
-          })),
+          }),
           limit: vi.fn().mockResolvedValue([]),
           execute: vi.fn().mockResolvedValue([]),
         })),
         where: vi.fn(() => ({
-          orderBy: vi.fn(() => ({
+          orderBy: Object.assign(vi.fn().mockResolvedValue([]), {
             limit: vi.fn().mockResolvedValue([]),
             execute: vi.fn().mockResolvedValue([]),
-          })),
+          }),
           limit: vi.fn().mockResolvedValue([]),
           execute: vi.fn().mockResolvedValue([]),
         })),
-        orderBy: vi.fn(() => ({
+        orderBy: Object.assign(vi.fn().mockResolvedValue([]), {
           limit: vi.fn().mockResolvedValue([]),
           execute: vi.fn().mockResolvedValue([]),
-        })),
+        }),
         limit: vi.fn().mockResolvedValue([]),
         execute: vi.fn().mockResolvedValue([]),
       })),
@@ -520,7 +537,8 @@ describe("progressRouter", () => {
         timeRange: "month",
       });
 
-      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveProperty("data");
+      expect(Array.isArray(result.data)).toBe(true);
     });
   });
 
@@ -650,15 +668,7 @@ describe("progressRouter", () => {
             })),
           })),
         }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            innerJoin: vi.fn(() => ({
-              where: vi.fn(() => ({
-                orderBy: vi.fn().mockResolvedValue(mockData),
-              })),
-            })),
-          })),
-        }));
+        .mockImplementationOnce(() => buildSelectMock(mockData));
 
       const result = await caller.getStrengthProgression({
         exerciseName: "Bench Press",
@@ -666,16 +676,17 @@ describe("progressRouter", () => {
         timeRange: "quarter",
       });
 
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(2);
+      expect(result).toHaveProperty("data");
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data.length).toBe(2);
       // Results are sorted by date desc, then weight desc
-      expect(result[0]).toHaveProperty("workoutDate");
-      expect(result[0]).toHaveProperty("exerciseName", "Bench Press");
-      expect(result[0]).toHaveProperty("weight", 105); // Higher weight comes first
-      expect(result[0]).toHaveProperty("reps", 5);
-      expect(result[0]).toHaveProperty("sets", 3);
-      expect(result[0]).toHaveProperty("unit", "kg");
-      expect(result[0]).toHaveProperty("oneRMEstimate", 118.13); // Calculated using Brzycki formula
+      expect(result.data[0]).toHaveProperty("workoutDate");
+      expect(result.data[0]).toHaveProperty("exerciseName", "Bench Press");
+      expect(result.data[0]).toHaveProperty("weight", 105); // Higher weight comes first
+      expect(result.data[0]).toHaveProperty("reps", 5);
+      expect(result.data[0]).toHaveProperty("sets", 3);
+      expect(result.data[0]).toHaveProperty("unit", "kg");
+      expect(result.data[0]).toHaveProperty("oneRMEstimate", 118.13); // Calculated using Brzycki formula
     });
 
     it("should handle exercise selection with both name and template ID parameters", async () => {
@@ -711,15 +722,7 @@ describe("progressRouter", () => {
             })),
           })),
         }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            innerJoin: vi.fn(() => ({
-              where: vi.fn(() => ({
-                orderBy: vi.fn().mockResolvedValue(mockData),
-              })),
-            })),
-          })),
-        }));
+        .mockImplementationOnce(() => buildSelectMock(mockData));
 
       const result = await caller.getStrengthProgression({
         exerciseName: "Squat",
@@ -727,10 +730,10 @@ describe("progressRouter", () => {
         timeRange: "month",
       });
 
-      expect(result.length).toBe(1);
-      expect(result[0]!.exerciseName).toBe("Squat");
-      expect(result[0]!.weight).toBe(120);
-      expect(result[0]!.oneRMEstimate).toBe(127.06); // Calculated using Brzycki formula
+      expect(result.data.length).toBe(1);
+      expect(result.data[0]!.exerciseName).toBe("Squat");
+      expect(result.data[0]!.weight).toBe(120);
+      expect(result.data[0]!.oneRMEstimate).toBe(127.06); // Calculated using Brzycki formula
     });
   });
 });

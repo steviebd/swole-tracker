@@ -22,6 +22,7 @@ Swole Tracker is a modern fitness tracking application built with Next.js, React
 - **Analytics**: PostHog
 - **Package Manager**: Bun
 - **Deployment**: Cloudflare Workers
+- **Data Fetching**: TanStack Query (formerly React Query)
 
 ## Design Principles
 

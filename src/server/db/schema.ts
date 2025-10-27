@@ -207,6 +207,18 @@ export const sessionExercises = createTable(
       t.user_id,
       t.templateExerciseId,
     ),
+    // Phase 2: Additional indexes for query optimization and pagination
+    index("session_exercise_user_resolved_exercise_session_idx").on(
+      t.user_id,
+      t.resolvedExerciseName,
+      t.sessionId,
+    ),
+    index("session_exercise_user_session_volume_one_rm_idx").on(
+      t.user_id,
+      t.sessionId,
+      t.volume_load,
+      t.one_rm_estimate,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -993,9 +1005,105 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   }),
 }));
 
-// Import views
-export {
-  sessionExerciseMetricsView,
-  exerciseNameResolutionView,
-  whoopMetricsView,
-} from "./views";
+// Exercise Daily Summary - Pre-computed daily metrics for performance
+export const exerciseDailySummary = createTable(
+  "exercise_daily_summary",
+  {
+    user_id: text().notNull(),
+    exercise_name: text().notNull(),
+    date: date().notNull(),
+    total_volume: real(),
+    max_weight: real(),
+    max_one_rm: real(),
+    session_count: integer().notNull().default(0),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    uniqueIndex("exercise_daily_summary_pk").on(
+      t.user_id,
+      t.exercise_name,
+      t.date,
+    ),
+    index("exercise_daily_summary_user_exercise_idx").on(
+      t.user_id,
+      t.exercise_name,
+    ),
+    index("exercise_daily_summary_user_date_idx").on(t.user_id, t.date),
+    index("exercise_daily_summary_date_idx").on(t.date),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Exercise Weekly Summary - Weekly aggregates for trend analysis
+export const exerciseWeeklySummary = createTable(
+  "exercise_weekly_summary",
+  {
+    user_id: text().notNull(),
+    exercise_name: text().notNull(),
+    week_start: date().notNull(), // Monday of the week
+    avg_volume: real(),
+    max_one_rm: real(),
+    session_count: integer().notNull().default(0),
+    trend_slope: real(), // Linear regression slope for progression
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    uniqueIndex("exercise_weekly_summary_pk").on(
+      t.user_id,
+      t.exercise_name,
+      t.week_start,
+    ),
+    index("exercise_weekly_summary_user_exercise_idx").on(
+      t.user_id,
+      t.exercise_name,
+    ),
+    index("exercise_weekly_summary_user_week_idx").on(t.user_id, t.week_start),
+    index("exercise_weekly_summary_week_idx").on(t.week_start),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Exercise Monthly Summary - Monthly rollups for long-term trends
+export const exerciseMonthlySummary = createTable(
+  "exercise_monthly_summary",
+  {
+    user_id: text().notNull(),
+    exercise_name: text().notNull(),
+    month_start: date().notNull(), // First day of the month
+    total_volume: real(),
+    max_one_rm: real(),
+    session_count: integer().notNull().default(0),
+    consistency_score: real(), // 0-1 score based on workout frequency
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    uniqueIndex("exercise_monthly_summary_pk").on(
+      t.user_id,
+      t.exercise_name,
+      t.month_start,
+    ),
+    index("exercise_monthly_summary_user_exercise_idx").on(
+      t.user_id,
+      t.exercise_name,
+    ),
+    index("exercise_monthly_summary_user_month_idx").on(
+      t.user_id,
+      t.month_start,
+    ),
+    index("exercise_monthly_summary_month_idx").on(t.month_start),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Import views - commented out because views are managed via migrations
+// export {
+//   sessionExerciseMetricsView,
+//   exerciseNameResolutionView,
+//   whoopMetricsView,
+// } from "./views";
