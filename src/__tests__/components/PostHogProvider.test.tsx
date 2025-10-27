@@ -99,6 +99,9 @@ describe("PostHogProvider", () => {
     );
 
     expect(mockPosthog.init).not.toHaveBeenCalled();
+
+    // Reset the env for subsequent tests
+    vi.mocked(env).NEXT_PUBLIC_POSTHOG_KEY = "test-key";
   });
 
   it("should identify user when user is available", () => {
@@ -125,6 +128,7 @@ describe("PostHogProvider", () => {
     expect(mockPosthog.capture).toHaveBeenCalledWith("user_signed_in", {
       userId: "user-123",
       email: "test@example.com",
+      timestamp: expect.any(String),
     });
   });
 
