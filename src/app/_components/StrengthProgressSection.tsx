@@ -1,359 +1,941 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { formatTimeRangeLabel } from "~/lib/time-range";
+import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
+import { useProgressRange } from "~/contexts/progress-range-context";
+import { analytics } from "~/lib/analytics";
+
 import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 
 type TimeRange = "week" | "month" | "year";
+type ViewMode = "topSet" | "oneRm" | "intensity";
+type SortKey = "date" | "weight" | "oneRm" | "volume";
 
-export function StrengthProgressSection() {
-  const [selectedExercise, setSelectedExercise] = useState<string>("");
-  const [timeRange, setTimeRange] = useState<TimeRange>("year");
+const VIEW_CONFIG: Record<
+  ViewMode,
+  { label: string; description: string; unit: string; color: string }
+> = {
+  topSet: {
+    label: "Top Set",
+    description: "Heaviest weight lifted per session",
+    unit: "kg",
+    color: "var(--chart-1)",
+  },
+  oneRm: {
+    label: "1RM Estimate",
+    description: "Estimated e1RM for your heaviest set",
+    unit: "kg",
+    color: "var(--chart-4)",
+  },
+  intensity: {
+    label: "Session Intensity",
+    description: "Tonnage proxy (weight × reps × sets)",
+    unit: "kg",
+    color: "var(--chart-2)",
+  },
+};
+
+interface StrengthProgressSectionProps {
+  selectedExercise: {
+    name: string | null;
+    templateExerciseId: number | null;
+  };
+  onExerciseChange: (selection: {
+    name: string;
+    templateExerciseId?: number | null;
+  }) => void;
+}
+
+export function StrengthProgressSection({
+  selectedExercise,
+  onExerciseChange,
+}: StrengthProgressSectionProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>("topSet");
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortKey;
+    direction: "asc" | "desc";
+  }>({ key: "date", direction: "desc" });
   const [showModal, setShowModal] = useState(false);
-  
-  // Get list of exercises
-  const { data: exerciseList, isLoading: exerciseListLoading } = api.progress.getExerciseList.useQuery();
-  
-  // Backfill the first exercise once list data arrives so charts populate automatically
-  useEffect(() => {
-    if (!selectedExercise && !exerciseListLoading && exerciseList?.length) {
-      setSelectedExercise(exerciseList[0]!.exerciseName);
-    }
-  }, [selectedExercise, exerciseList, exerciseListLoading]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const {
+    range: timeRange,
+    setRange: setStrengthRange,
+    reset: resetStrengthRange,
+    defaultValue: defaultStrengthRange,
+  } = useProgressRange("strength");
+  const selectedExerciseName = selectedExercise.name;
+  const selectedTemplateExerciseId = selectedExercise.templateExerciseId;
+  const hasExerciseSelection =
+    Boolean(selectedExerciseName) ||
+    typeof selectedTemplateExerciseId === "number";
 
-  // Get strength progression data for selected exercise
-  const { data: strengthData, isLoading: strengthLoading } = api.progress.getStrengthProgression.useQuery(
+  const {
+    data: exerciseList,
+    isLoading: exerciseListLoading,
+    isError: exerciseListErrored,
+  } = api.progress.getExerciseList.useQuery();
+
+  const deduplicatedExerciseList = useMemo(() => {
+    if (!exerciseList) return [];
+    const map = new Map<string, (typeof exerciseList)[0]>();
+    for (const exercise of exerciseList) {
+      const key = exercise.exerciseName.toLowerCase().trim();
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...exercise });
+      } else {
+        // Merge template IDs and aliases
+        existing.templateExerciseIds = [
+          ...new Set([
+            ...(existing.templateExerciseIds ?? []),
+            ...(exercise.templateExerciseIds ?? []),
+          ]),
+        ];
+        existing.aliases = [
+          ...new Set([...existing.aliases, ...exercise.aliases]),
+        ];
+        existing.aliasCount = existing.aliases.length;
+        existing.totalSets += exercise.totalSets;
+        if (exercise.lastUsed > existing.lastUsed) {
+          existing.lastUsed = exercise.lastUsed;
+        }
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.lastUsed.getTime() - a.lastUsed.getTime(),
+    );
+  }, [exerciseList]);
+
+  useEffect(() => {
+    if (
+      (!selectedExerciseName || selectedExerciseName.length === 0) &&
+      !exerciseListLoading &&
+      deduplicatedExerciseList?.length
+    ) {
+      const first = deduplicatedExerciseList[0]!;
+      onExerciseChange({
+        name: first.exerciseName,
+        templateExerciseId: (first.templateExerciseIds ?? [])[0] ?? null,
+      });
+    }
+  }, [
+    selectedExerciseName,
+    exerciseListLoading,
+    deduplicatedExerciseList,
+    onExerciseChange,
+  ]);
+
+  // Reset pagination when exercise, sorting, or time range changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedExerciseName, selectedTemplateExerciseId, sortConfig, timeRange]);
+
+  const {
+    data: topSetsData,
+    isLoading: topSetsLoading,
+    isError: topSetsErrored,
+  } = api.progress.getStrengthProgression.useQuery(
     {
-      exerciseName: selectedExercise,
+      exerciseName: selectedExerciseName ?? undefined,
+      templateExerciseId: selectedTemplateExerciseId ?? undefined,
       timeRange,
     },
-    { 
-      enabled: !!selectedExercise 
-    }
+    { enabled: hasExerciseSelection },
   );
 
-  const cardClass = "transition-all duration-300 rounded-xl border shadow-sm glass-surface";
-  const titleClass = "text-xl font-bold mb-4 text-content-primary";
-  const subtitleClass = "text-sm font-medium mb-2 text-content-secondary";
-  const buttonClass = "btn-secondary";
-  const selectClass = "px-3 py-2 text-sm rounded-lg border transition-colors bg-surface-secondary border-default text-content-primary focus:border-interactive-primary";
+  const { data: trendSummary, isLoading: summaryLoading } =
+    api.progress.getExerciseStrengthProgression.useQuery(
+      {
+        exerciseName: selectedExerciseName ?? undefined,
+        templateExerciseId: selectedTemplateExerciseId ?? undefined,
+        timeRange,
+      },
+      { enabled: hasExerciseSelection },
+    );
 
-  // Prepare numeric weights for chart scaling
-  const weightValues =
-    strengthData?.map((session) => Number(session.weight ?? 0)) ?? [];
-  const hasWeightData = weightValues.length > 0;
-  const maxWeight = hasWeightData ? Math.max(...weightValues) : 0;
-  const minWeight = hasWeightData ? Math.min(...weightValues) : 0;
-  const baseRange = maxWeight - minWeight;
-  const isFlatProgress = hasWeightData && baseRange < 0.5;
-  const padding = hasWeightData
-    ? Math.max(
-        isFlatProgress
-          ? Math.max(5, maxWeight * 0.1 || 5)
-          : Math.max(baseRange * 0.2, 2.5),
-        2.5,
-      )
-    : 5;
-  const chartMin = Math.max(0, (hasWeightData ? minWeight : 0) - padding);
-  const chartMax = (hasWeightData ? maxWeight : padding) + padding;
-  const chartRange = Math.max(chartMax - chartMin, 1);
-  const chartWidth = 360;
-  const chartOffset = 20;
-  const chartData = strengthData ? [...strengthData].reverse() : [];
-  const clampWeight = (value?: number | null) => {
-    if (value == null || Number.isNaN(value)) {
-      return null;
+  // Track performance when strength data loads
+  useEffect(() => {
+    if (topSetsData && !topSetsLoading) {
+      const loadTime = performance.now();
+      analytics.progressSectionLoad("strength", loadTime, topSetsData.length);
     }
-    return Math.min(chartMax, Math.max(chartMin, value));
+  }, [topSetsData, topSetsLoading]);
+
+  const selectedOptionId = useMemo(() => {
+    if (!deduplicatedExerciseList?.length) {
+      return "";
+    }
+    if (typeof selectedTemplateExerciseId === "number") {
+      const match = deduplicatedExerciseList.find((exercise) =>
+        (exercise.templateExerciseIds ?? []).includes(
+          selectedTemplateExerciseId,
+        ),
+      );
+      if (match) {
+        return match.id;
+      }
+    }
+    if (selectedExerciseName) {
+      const match = deduplicatedExerciseList.find(
+        (exercise) => exercise.exerciseName === selectedExerciseName,
+      );
+      if (match) {
+        return match.id;
+      }
+    }
+    return "";
+  }, [
+    deduplicatedExerciseList,
+    selectedExerciseName,
+    selectedTemplateExerciseId,
+  ]);
+
+  const handleExerciseSelect = (optionId: string) => {
+    if (!deduplicatedExerciseList || optionId === selectedOptionId) return;
+    const option = deduplicatedExerciseList.find(
+      (exercise) => exercise.id === optionId,
+    );
+    if (!option) return;
+    onExerciseChange({
+      name: option.exerciseName,
+      templateExerciseId: (option.templateExerciseIds ?? [])[0] ?? null,
+    });
   };
 
-  return (
-    <div className={cardClass + " p-6"}>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className={titleClass}>Strength Progression</h2>
-        
-        {/* Time Range Selector */}
-        <div className="flex space-x-1 bg-surface-secondary rounded-lg p-1 border border-default">
-          {(["week", "month", "year"] as TimeRange[]).map((range) => (
-            <button
-              key={range}
-              onClick={() => setTimeRange(range)}
-              className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
-                timeRange === range
-                  ? "bg-[var(--color-primary)] text-background shadow-sm"
-                  : "text-content-muted hover:text-content-primary"
-              }`}
-            >
-              {range.charAt(0).toUpperCase() + range.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
+  const normalizedSets = useMemo(() => {
+    if (!topSetsData) return [];
+    return topSetsData.map((session) => {
+      const weight = Number(session.weight ?? 0);
+      const reps = Number(session.reps ?? 0);
+      const sets = Number(session.sets ?? 1);
+      const volume = weight * reps * sets;
+      const date = new Date(session.workoutDate);
+      const oneRm = Number(session.oneRMEstimate ?? 0);
+      const intensityPct =
+        trendSummary?.currentOneRM && trendSummary.currentOneRM > 0
+          ? Math.round((oneRm / trendSummary.currentOneRM) * 100)
+          : null;
+      return {
+        ...session,
+        weight,
+        reps,
+        sets,
+        volume,
+        oneRm,
+        date,
+        intensityPct,
+      };
+    });
+  }, [topSetsData, trendSummary?.currentOneRM]);
 
-      {/* Exercise Selector */}
-      <div className="mb-6">
-        <label htmlFor="exercise-select" className={subtitleClass}>
-          Select Exercise
+  const chartPoints = useMemo(() => {
+    return normalizedSets
+      .slice()
+      .reverse()
+      .map((session) => {
+        const dateLabel = new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "numeric",
+        }).format(session.date);
+
+        let value = session.weight;
+        if (viewMode === "oneRm") {
+          value = session.oneRm;
+        } else if (viewMode === "intensity") {
+          value = session.volume;
+        }
+
+        return {
+          date: dateLabel,
+          fullDate: session.date.toISOString(),
+          value,
+        };
+      });
+  }, [normalizedSets, viewMode]);
+
+  const rateOfChange = useMemo(() => {
+    const timeline = trendSummary?.timeline ?? [];
+    if (timeline.length < 2) return 0;
+    const first = timeline[0]!.oneRM || 0;
+    const last = timeline[timeline.length - 1]!.oneRM || 0;
+    if (first === 0) return 0;
+    return ((last - first) / first) * 100;
+  }, [trendSummary?.timeline]);
+
+  const bestWeek = useMemo(
+    () => calculateBestWeek(normalizedSets),
+    [normalizedSets],
+  );
+
+  const sessionQuality = useMemo(() => {
+    const values = normalizedSets
+      .map((set) => set.intensityPct)
+      .filter((value): value is number => value != null);
+    if (values.length === 0) {
+      return {
+        label: "Needs signal",
+        helper: "Log recent heavy sets to unlock quality tags.",
+      };
+    }
+    const average =
+      values.reduce((sum, value) => sum + value, 0) / values.length;
+    if (average >= 90) {
+      return {
+        label: "Peak load",
+        helper: "Very heavy singles anchored this block.",
+      };
+    }
+    if (average >= 75) {
+      return {
+        label: "High stimulus",
+        helper: "Plenty of quality work in the 75–85% zone.",
+      };
+    }
+    return {
+      label: "Foundation",
+      helper: "Focus on progressive loading to push intensity up.",
+    };
+  }, [normalizedSets]);
+
+  const summaryCards = [
+    {
+      id: "current-max",
+      label: "Current Max",
+      value: trendSummary ? `${Math.round(trendSummary.currentOneRM)} kg` : "—",
+      helper: trendSummary
+        ? `${trendSummary.oneRMChange >= 0 ? "+" : ""}${Math.round(trendSummary.oneRMChange)} kg vs start`
+        : "Awaiting data",
+    },
+    {
+      id: "trend",
+      label: "Trend",
+      value: `${rateOfChange >= 0 ? "+" : ""}${rateOfChange.toFixed(1)}%`,
+      helper: "e1RM change over this range",
+    },
+    {
+      id: "best-week",
+      label: "Best week",
+      value: bestWeek ? bestWeek.label : "—",
+      helper: bestWeek
+        ? `${bestWeek.sessions} quality lifts`
+        : "Track a full week",
+    },
+    {
+      id: "quality",
+      label: "Session quality",
+      value: sessionQuality.label,
+      helper: sessionQuality.helper,
+    },
+  ];
+
+  const sortedRows = useMemo(() => {
+    const rows = [...normalizedSets];
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      switch (sortConfig.key) {
+        case "weight":
+          return (a.weight - b.weight) * direction;
+        case "oneRm":
+          return (a.oneRm - b.oneRm) * direction;
+        case "volume":
+          return (a.volume - b.volume) * direction;
+        default:
+          return (a.date.getTime() - b.date.getTime()) * direction;
+      }
+    });
+    return rows;
+  }, [normalizedSets, sortConfig]);
+
+  const toggleSort = (key: SortKey) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return {
+          key,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "desc" };
+    });
+  };
+
+  const chartIsEmpty = chartPoints.length === 0;
+  const loading =
+    topSetsLoading ||
+    summaryLoading ||
+    exerciseListLoading ||
+    !hasExerciseSelection;
+  const hasError = topSetsErrored || exerciseListErrored;
+
+  const totalPages = Math.ceil(sortedRows.length / pageSize);
+  const hasMultiplePages = totalPages > 1;
+
+  return (
+    <section className="glass-surface border-border/70 space-y-6 rounded-2xl border p-6 shadow-sm">
+      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
+            Strength • {formatTimeRangeLabel(timeRange)}
+          </p>
+          <h2 className="text-foreground text-2xl font-semibold">
+            Strength Progression
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Focused on{" "}
+            <span className="text-foreground font-medium">
+              {selectedExerciseName ?? "choose an exercise"}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <TimeRangeSelector current={timeRange} onChange={setStrengthRange} />
+          <button
+            type="button"
+            onClick={() => resetStrengthRange()}
+            disabled={timeRange === defaultStrengthRange}
+            className={cn(
+              "rounded-full border px-3 py-1 text-[10px] font-semibold tracking-[0.3em] uppercase",
+              timeRange === defaultStrengthRange
+                ? "text-muted-foreground/60 border-transparent"
+                : "border-border/60 text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Reset
+          </button>
+        </div>
+      </header>
+
+      <div>
+        <label
+          htmlFor="strength-exercise-select"
+          className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+        >
+          Select exercise
         </label>
         {exerciseListLoading ? (
-          <div className="animate-pulse bg-surface-secondary h-10 rounded-lg"></div>
-        ) : (
+          <div className="bg-muted/40 mt-2 h-11 animate-pulse rounded-xl" />
+        ) : deduplicatedExerciseList && deduplicatedExerciseList.length > 0 ? (
           <select
-            id="exercise-select"
-            value={selectedExercise}
-            onChange={(e) => setSelectedExercise(e.target.value)}
-            className={selectClass + " w-full"}
+            id="strength-exercise-select"
+            value={selectedOptionId}
+            onChange={(event) => handleExerciseSelect(event.target.value)}
+            className="border-border/60 bg-background/80 text-foreground focus:border-primary mt-2 w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none"
           >
-            <option value="">Choose an exercise...</option>
-            {exerciseList?.map((exercise) => (
-              <option key={exercise.exerciseName} value={exercise.exerciseName}>
+            <option value="">Choose an exercise…</option>
+            {deduplicatedExerciseList.map((exercise) => (
+              <option
+                key={exercise.id}
+                value={exercise.id}
+                title={
+                  exercise.aliases.length > 0
+                    ? exercise.aliases.join(", ")
+                    : undefined
+                }
+              >
                 {exercise.exerciseName}
+                {exercise.aliasCount > 1
+                  ? ` (${exercise.aliasCount} linked)`
+                  : ""}
               </option>
             ))}
           </select>
+        ) : (
+          <p className="text-muted-foreground mt-2 text-sm">
+            Log a workout to populate your exercise list.
+          </p>
         )}
       </div>
 
-      {selectedExercise ? (
+      {!hasExerciseSelection ? (
+        <EmptyState />
+      ) : hasError ? (
+        <div className="border-border/60 text-muted-foreground rounded-2xl border border-dashed p-6 text-sm">
+          We couldn’t load your strength data. Refresh or try another exercise.
+        </div>
+      ) : loading ? (
+        <StrengthSkeleton />
+      ) : (
         <>
-          {strengthLoading ? (
-            <div className="space-y-4">
-              <div className="animate-pulse bg-surface-secondary h-64 rounded-lg"></div>
-              <div className="animate-pulse bg-surface-secondary h-32 rounded-lg"></div>
-            </div>
-          ) : strengthData && strengthData.length > 0 ? (
-            <>
-              {/* Simple Line Chart Visualization */}
-              <div className="mb-6">
-                <h3 className={subtitleClass}>Top Set Weight Progress</h3>
-                <div className="relative h-64 p-4 rounded-lg bg-surface-secondary border border-default">
-                  <svg className="w-full h-full" viewBox="0 0 400 200">
-                    {/* Grid lines */}
-                    <defs>
-                      <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 40 0 L 0 0 0 20" fill="none" stroke="var(--color-border)" strokeWidth="0.5"/>
-                      </pattern>
-                    </defs>
-                    <rect width="100%" height="100%" fill="url(#grid)" />
-                    
-                    {/* Data points and line */}
-                    {chartData.map((point, index) => {
-                      const denominator = Math.max(1, chartData.length - 1);
-                      const numericWeight = Number(point.weight ?? 0);
-                      const normalizedWeight =
-                        clampWeight(numericWeight) ?? chartMin;
-                      const progress =
-                        (normalizedWeight - chartMin) / chartRange;
-                      const x = (index / denominator) * chartWidth + chartOffset;
-                      const y = 180 - progress * 160;
-                      
-                      const nextPoint = chartData[index + 1];
-                      const nextNumericWeight =
-                        nextPoint !== undefined
-                          ? Number(nextPoint.weight ?? 0)
-                          : null;
-                      const nextNormalizedWeight =
-                        nextNumericWeight === null
-                          ? null
-                          : clampWeight(nextNumericWeight);
-                      const nextProgress =
-                        nextNormalizedWeight === null
-                          ? null
-                          : (nextNormalizedWeight - chartMin) / chartRange;
-                      const nextX =
-                        ((index + 1) / denominator) * chartWidth + chartOffset;
-                      const nextY =
-                        nextProgress === null ? null : 180 - nextProgress * 160;
-
-                      return (
-                        <g key={index}>
-                          {/* Line to next point */}
-                          {nextY !== null && (
-                            <line
-                              x1={x}
-                              y1={y}
-                              x2={nextX}
-                              y2={nextY}
-                              stroke="var(--color-chart-1)"
-                              strokeWidth="3"
-                              opacity="0.8"
-                            />
-                          )}
-                          
-                          {/* Data point */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="4"
-                            fill="var(--color-chart-1)"
-                            stroke="white"
-                            strokeWidth="2"
-                            className="hover:r-6 cursor-pointer transition-all"
-                            style={{
-                              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
-                            }}
-                          />
-                          
-                          {/* Weight label */}
-                          <text
-                            x={x}
-                            y={y - 10}
-                            textAnchor="middle"
-                            className="text-xs font-medium"
-                            fill="var(--color-text)"
-                          >
-                            {numericWeight}kg
-                          </text>
-                        </g>
-                      );
-                    })}
-                    
-                    {/* Y-axis labels */}
-                    <text x="10" y="20" className="text-xs font-medium" fill="var(--color-text-secondary)">
-                      {maxWeight}kg
-                    </text>
-                    <text x="10" y="190" className="text-xs font-medium" fill="var(--color-text-secondary)">
-                      {minWeight}kg
-                    </text>
-                  </svg>
-                </div>
-                {isFlatProgress && (
-                  <p className="mt-2 text-xs text-muted-foreground text-right">
-                    Scale padded to highlight consistent sessions.
-                  </p>
-                )}
-              </div>
-
-              {/* Progress Summary Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
-                  <p className={subtitleClass}>Current Max</p>
-                  <p className="text-xl font-bold text-[var(--color-primary)]">
-                    {Math.max(...strengthData.map(d => d.weight))}kg
-                  </p>
-                </div>
-                
-                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
-                  <p className={subtitleClass}>Best 1RM Est.</p>
-                  <p className="text-xl font-bold text-[var(--color-success)]">
-                    {Math.max(...strengthData.map(d => d.oneRMEstimate))}kg
-                  </p>
-                </div>
-                
-                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
-                  <p className={subtitleClass}>Sessions</p>
-                  <p className="text-xl font-bold text-[var(--color-info)]">
-                    {strengthData.length}
-                  </p>
-                </div>
-                
-                <div className="p-4 rounded-lg bg-surface-secondary border border-default">
-                  <p className={subtitleClass}>Progress</p>
-                  <p className={`text-xl font-bold ${
-                    strengthData.length >= 2 && strengthData[0]!.weight > strengthData[strengthData.length - 1]!.weight
-                      ? "text-[var(--color-success)]"
-                      : strengthData.length >= 2 && strengthData[0]!.weight < strengthData[strengthData.length - 1]!.weight
-                      ? "text-[var(--color-danger)]"
-                      : "text-content-muted"
-                  }`}>
-                    {strengthData.length >= 2 
-                      ? `${strengthData[0]!.weight > strengthData[strengthData.length - 1]!.weight ? '+' : ''}${(strengthData[0]!.weight - strengthData[strengthData.length - 1]!.weight).toFixed(1)}kg`
-                      : "N/A"
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Recent Sessions Table */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className={subtitleClass}>Recent Sessions</h3>
+          <div className="border-border/70 bg-card/70 rounded-2xl border p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(VIEW_CONFIG) as ViewMode[]).map((mode) => (
                   <button
-                    onClick={() => setShowModal(true)}
-                    className={buttonClass}
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition",
+                      viewMode === mode
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:text-foreground",
+                    )}
                   >
-                    View Details
+                    {VIEW_CONFIG[mode].label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {VIEW_CONFIG[viewMode].description}
+              </p>
+            </div>
+            <div className="mt-4 h-72 w-full">
+              {chartIsEmpty ? (
+                <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+                  Not enough sessions yet. Log a few workouts to unlock trend
+                  lines.
+                </div>
+              ) : (
+                <StrengthTrendChart
+                  data={chartPoints}
+                  color={VIEW_CONFIG[viewMode].color}
+                  unit={VIEW_CONFIG[viewMode].unit}
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {summaryCards.map((card) => (
+              <div
+                key={card.id}
+                className="border-border/70 bg-card/80 rounded-2xl border p-4 shadow-sm"
+              >
+                <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
+                  {card.label}
+                </p>
+                <p className="text-foreground mt-2 text-2xl font-semibold">
+                  {card.value}
+                </p>
+                <p className="text-muted-foreground text-xs">{card.helper}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-border/70 bg-card/80 rounded-2xl border p-4 shadow-sm">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-foreground text-sm font-semibold">
+                  Recent sessions
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Sort and review your heaviest sets
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary w-full sm:w-auto"
+                onClick={() => setShowModal(true)}
+              >
+                View detailed analysis
+              </button>
+            </div>
+
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead className="text-muted-foreground text-left text-xs tracking-wide uppercase">
+                  <tr>
+                    <SortableHeader
+                      label="Date"
+                      active={sortConfig.key === "date"}
+                      direction={sortConfig.direction}
+                      onClick={() => toggleSort("date")}
+                    />
+                    <SortableHeader
+                      label="Weight"
+                      active={sortConfig.key === "weight"}
+                      direction={sortConfig.direction}
+                      onClick={() => toggleSort("weight")}
+                    />
+                    <th className="px-3 py-2 font-normal">Sets × Reps</th>
+                    <SortableHeader
+                      label="e1RM"
+                      active={sortConfig.key === "oneRm"}
+                      direction={sortConfig.direction}
+                      onClick={() => toggleSort("oneRm")}
+                    />
+                    <SortableHeader
+                      label="Volume"
+                      active={sortConfig.key === "volume"}
+                      direction={sortConfig.direction}
+                      onClick={() => toggleSort("volume")}
+                    />
+                    <th className="px-3 py-2 font-normal">Tags</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-border/60 divide-y">
+                  {sortedRows
+                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                    .map((row) => (
+                      <tr key={row.workoutDate.toString()} className="text-sm">
+                        <td className="text-foreground px-3 py-3">
+                          {row.date.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                        <td className="text-foreground px-3 py-3 font-semibold">
+                          {row.weight} kg
+                        </td>
+                        <td className="text-muted-foreground px-3 py-3">
+                          {row.sets} × {row.reps}
+                        </td>
+                        <td className="text-foreground px-3 py-3">
+                          {Math.round(row.oneRm)} kg
+                        </td>
+                        <td className="text-foreground px-3 py-3">
+                          {Math.round(row.volume).toLocaleString()} kg
+                        </td>
+                        <td className="px-3 py-3">
+                          <SessionTags
+                            intensityPct={row.intensityPct}
+                            oneRm={row.oneRm}
+                            currentMax={trendSummary?.currentOneRM ?? 0}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 lg:hidden">
+              {sortedRows
+                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                .map((row) => (
+                  <div
+                    key={`${row.workoutDate.toISOString()}-mobile`}
+                    className="border-border/60 bg-background/40 rounded-2xl border p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <p className="text-foreground font-semibold">
+                        {row.date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                      <SessionTags
+                        intensityPct={row.intensityPct}
+                        oneRm={row.oneRm}
+                        currentMax={trendSummary?.currentOneRM ?? 0}
+                      />
+                    </div>
+                    <dl className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <dt>Weight</dt>
+                        <dd className="text-foreground font-semibold">
+                          {row.weight} kg
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Sets × Reps</dt>
+                        <dd className="text-foreground font-semibold">
+                          {row.sets} × {row.reps}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>e1RM</dt>
+                        <dd className="text-foreground font-semibold">
+                          {Math.round(row.oneRm)} kg
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Volume</dt>
+                        <dd className="text-foreground font-semibold">
+                          {Math.round(row.volume).toLocaleString()} kg
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+            </div>
+
+            {hasMultiplePages && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-muted-foreground text-xs">
+                  Showing{" "}
+                  {Math.min(
+                    (currentPage - 1) * pageSize + 1,
+                    sortedRows.length,
+                  )}{" "}
+                  to {Math.min(currentPage * pageSize, sortedRows.length)} of{" "}
+                  {sortedRows.length} sessions
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-muted-foreground text-xs">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next →
                   </button>
                 </div>
-                
-                <div className="rounded-lg border border-default overflow-hidden mobile-table-container">
-                  <div className="mobile-table">
-                    <div className="grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b border-default bg-surface-secondary text-content-muted">
-                    <div>Date</div>
-                    <div>Weight</div>
-                    <div>Reps</div>
-                    <div>Sets</div>
-                    <div>1RM Est.</div>
-                  </div>
-                  
-                  {strengthData.slice(0, 5).map((session, index) => (
-                    <div 
-                      key={index} 
-                      className={`grid grid-cols-5 gap-2 sm:gap-4 px-2 sm:px-4 py-3 text-xs sm:text-sm ${
-                        index !== Math.min(4, strengthData.length - 1)
-                          ? "border-b border-default"
-                          : ""
-                      }`}
-                    >
-                      <div className="text-content-secondary">
-                        {new Date(session.workoutDate).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </div>
-                      <div className="font-medium text-content-primary">
-                        {session.weight}kg
-                      </div>
-                      <div className="text-content-secondary">
-                        {session.reps}
-                      </div>
-                      <div className="text-content-secondary">
-                        {session.sets}
-                      </div>
-                      <div className="font-medium text-content-primary">
-                        {session.oneRMEstimate}kg
-                      </div>
-                    </div>
-                  ))}
-                  </div>
-                </div>
               </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <p className="text-lg font-medium mb-2 text-content-secondary">
-                No data found
-              </p>
-              <p className="text-sm text-content-muted">
-                Complete some workouts with this exercise to see your strength progression.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+
+          <StrengthAnalysisModal
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            exerciseName={selectedExerciseName ?? ""}
+            templateExerciseId={selectedTemplateExerciseId}
+            timeRange={timeRange}
+          />
         </>
-      ) : (
-        <div className="text-center py-12">
-          <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-          <p className="text-lg font-medium mb-2 text-content-secondary">
-            Select an Exercise
-          </p>
-          <p className="text-sm text-content-muted">
-            Choose an exercise from the dropdown to view your strength progression.
-          </p>
-        </div>
       )}
-      
-      {/* Detailed Analysis Modal */}
-      <StrengthAnalysisModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        exerciseName={selectedExercise}
-        timeRange={timeRange}
-      />
+    </section>
+  );
+}
+
+function TimeRangeSelector({
+  current,
+  onChange,
+}: {
+  current: TimeRange;
+  onChange: (range: TimeRange) => void;
+}) {
+  return (
+    <div className="border-border/70 bg-muted/30 flex gap-1 rounded-full border p-1">
+      {(["week", "month", "year"] as TimeRange[]).map((range) => (
+        <button
+          key={range}
+          type="button"
+          onClick={() => onChange(range)}
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase transition",
+            current === range
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {range}
+        </button>
+      ))}
     </div>
   );
+}
+
+function StrengthTrendChart({
+  data,
+  color,
+  unit,
+}: {
+  data: Array<{ date: string; fullDate: string; value: number }>;
+  color: string;
+  unit: string;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        data={data}
+        margin={{ top: 10, right: 24, left: 0, bottom: 0 }}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="var(--border)"
+          opacity={0.3}
+        />
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 12, fill: "var(--muted)" }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 12, fill: "var(--muted)" }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <Tooltip
+          content={({ active, payload }) => {
+            if (active && payload?.length) {
+              const entry = payload[0]!.payload as {
+                date: string;
+                fullDate: string;
+                value: number;
+              };
+              return (
+                <div className="border-border/60 bg-background/90 rounded-xl border px-3 py-2 text-xs shadow-md">
+                  <p className="text-foreground font-semibold">
+                    {new Date(entry.fullDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {entry.value.toLocaleString()} {unit}
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          }}
+        />
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          strokeWidth={3}
+          dot={{
+            r: 4,
+            fill: "var(--background)",
+            stroke: color,
+            strokeWidth: 2,
+          }}
+          activeDot={{
+            r: 6,
+            strokeWidth: 2,
+            stroke: "var(--background)",
+            fill: color,
+          }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function SessionTags({
+  intensityPct,
+  oneRm,
+  currentMax,
+}: {
+  intensityPct: number | null;
+  oneRm: number;
+  currentMax: number;
+}) {
+  const tags: Array<{ label: string; tone: "success" | "warning" | "info" }> =
+    [];
+  if (intensityPct != null && intensityPct >= 90) {
+    tags.push({ label: "Goal hit", tone: "success" });
+  } else if (intensityPct != null && intensityPct >= 80) {
+    tags.push({ label: "Heavy", tone: "info" });
+  }
+  if (currentMax > 0 && oneRm >= currentMax * 0.95) {
+    tags.push({ label: "Near max", tone: "warning" });
+  }
+  if (tags.length === 0) {
+    tags.push({ label: "Builder", tone: "info" });
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <span
+          key={tag.label}
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase",
+            tag.tone === "success"
+              ? "bg-emerald-500/15 text-emerald-600"
+              : tag.tone === "warning"
+                ? "bg-amber-500/15 text-amber-600"
+                : "bg-sky-500/15 text-sky-600",
+          )}
+        >
+          {tag.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function SortableHeader({
+  label,
+  active,
+  direction,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  direction: "asc" | "desc";
+  onClick: () => void;
+}) {
+  return (
+    <th className="px-3 py-2">
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "flex items-center gap-1 text-xs font-semibold tracking-wide uppercase",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {label}
+        {active && (direction === "asc" ? "↑" : "↓")}
+      </button>
+    </th>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="border-border/60 rounded-2xl border border-dashed p-6 text-center">
+      <p className="text-foreground text-lg font-semibold">
+        Select an exercise
+      </p>
+      <p className="text-muted-foreground text-sm">
+        Pick any lift to unlock personalized strength analytics.
+      </p>
+    </div>
+  );
+}
+
+function StrengthSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="bg-muted/40 h-80 animate-pulse rounded-2xl" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="bg-muted/40 h-32 animate-pulse rounded-2xl"
+          />
+        ))}
+      </div>
+      <div className="bg-muted/40 h-64 animate-pulse rounded-2xl" />
+    </div>
+  );
+}
+
+function calculateBestWeek(
+  sessions: Array<{ date: Date; weight: number }>,
+): { label: string; sessions: number } | null {
+  if (sessions.length === 0) return null;
+  const bucket = new Map<string, number>();
+  for (const session of sessions) {
+    const weekStart = new Date(session.date);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const key = weekStart.toISOString();
+    bucket.set(key, (bucket.get(key) ?? 0) + 1);
+  }
+  const best = [...bucket.entries()].sort((a, b) => b[1]! - a[1]!)[0];
+  if (!best) return null;
+  const label = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(best[0]!));
+  return { label, sessions: best[1]! };
 }

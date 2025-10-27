@@ -37,12 +37,23 @@ export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInput>;
 // Exercise progression schemas for Phase 3
 export const timeRangeSchema = z.enum(["week", "month", "quarter", "year"]).default("quarter");
 
-export const exerciseProgressInputSchema = z.object({
-  exerciseName: z.string().min(1, "Exercise name is required"),
-  timeRange: timeRangeSchema,
-  startDate: z.coerce.date().optional(),
-  endDate: z.coerce.date().optional(),
-});
+export const exerciseProgressInputSchema = z
+  .object({
+    exerciseName: z.string().min(1, "Exercise name is required").optional(),
+    templateExerciseId: z.number().int().positive().optional(),
+    timeRange: timeRangeSchema,
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
+  })
+  .refine(
+    (input) =>
+      typeof input.templateExerciseId === "number" ||
+      (typeof input.exerciseName === "string" && input.exerciseName.length > 0),
+    {
+      message: "Exercise selection is required",
+      path: ["exerciseName"],
+    },
+  );
 
 export const topExercisesInputSchema = z.object({
   timeRange: timeRangeSchema,

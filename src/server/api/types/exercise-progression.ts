@@ -43,6 +43,10 @@ export interface ExerciseStrengthProgression {
   topSets: TopSet[];
   progressionTrend: number; // linear regression slope
   consistencyScore: number; // 0-100 performance consistency
+  timeline: Array<{
+    date: string;
+    oneRM: number;
+  }>;
 }
 
 // Exercise volume progression response structure  
@@ -90,6 +94,10 @@ export interface TopExercise {
   averageOneRM: number;
   lastTrained: string; // ISO date string
   trend: "improving" | "stable" | "declining"; // based on recent progression
+  templateExerciseIds: number[];
+  masterExerciseId: number | null;
+  aliasCount: number;
+  aliases: string[];
 }
 
 // Database query result types with computed columns

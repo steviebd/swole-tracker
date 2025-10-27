@@ -128,7 +128,6 @@ describe("progressRouter", () => {
   });
 
   describe("getExerciseStrengthProgression", () => {
-
     it("should return default values when no data exists", async () => {
       db.select
         .mockImplementationOnce(() => buildSelectMock([])) // current view
@@ -151,6 +150,7 @@ describe("progressRouter", () => {
         topSets: [],
         progressionTrend: 0,
         consistencyScore: 0,
+        timeline: [],
       });
     });
 

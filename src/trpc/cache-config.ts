@@ -74,13 +74,13 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnWindowFocus: true, // Useful for exercise tracking
   });
 
-  // Progress data - always refresh when viewing the dashboard
-  const progressFreshDefaults = {
-    staleTime: 0, // Always mark stale so we refetch whenever the page mounts
+  // Progress data - cache for 5 minutes to improve performance
+  const progressDefaults = {
+    staleTime: 5 * 60 * 1000, // 5 minutes - balance freshness with performance
     gcTime: 60 * 60 * 1000, // Keep around for an hour for offline fallbacks
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchOnMount: "always" as const,
+    refetchOnMount: false, // Don't refetch on mount if data is fresh
   };
 
   const progressQueries: Array<[string, string]> = [
@@ -90,12 +90,13 @@ export function configureQueryCache(queryClient: QueryClient) {
     ["progress", "getExerciseList"],
     ["progress", "getPersonalRecords"],
     ["progress", "getStrengthProgression"],
+    ["progress", "getProgressHighlights"],
+    ["progress", "getProgressDashboardData"], // Add the new unified endpoint
   ];
 
   progressQueries.forEach((key) => {
-    queryClient.setQueryDefaults(key, progressFreshDefaults);
+    queryClient.setQueryDefaults(key, progressDefaults);
   });
-
 
   // WHOOP Integration Status - current data with moderate caching
   queryClient.setQueryDefaults(["whoop", "getIntegrationStatus"], {
@@ -107,7 +108,10 @@ export function configureQueryCache(queryClient: QueryClient) {
       // Don't retry on authentication errors
       if (error && typeof error === "object" && "data" in error) {
         const errorData = error.data as any;
-        if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+        if (
+          errorData?.code === "UNAUTHORIZED" ||
+          errorData?.code === "NOT_FOUND"
+        ) {
           return false;
         }
       }
@@ -126,7 +130,10 @@ export function configureQueryCache(queryClient: QueryClient) {
       // Don't retry on authentication errors
       if (error && typeof error === "object" && "data" in error) {
         const errorData = error.data as any;
-        if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+        if (
+          errorData?.code === "UNAUTHORIZED" ||
+          errorData?.code === "NOT_FOUND"
+        ) {
           return false;
         }
       }
@@ -135,9 +142,9 @@ export function configureQueryCache(queryClient: QueryClient) {
     retryDelay: 5000, // 5 second delay between retries
   });
 
-  // WHOOP Current/Live Data - moderate cache for real-time data  
+  // WHOOP Current/Live Data - moderate cache for real-time data
   const whoopLiveQueries = ["getLatestRecoveryData"];
-  whoopLiveQueries.forEach(queryType => {
+  whoopLiveQueries.forEach((queryType) => {
     queryClient.setQueryDefaults(["whoop", queryType], {
       staleTime: CACHE_TIMES.WHOOP_CURRENT.staleTime, // 1 hour for current data
       gcTime: CACHE_TIMES.WHOOP_CURRENT.gcTime,
@@ -146,7 +153,10 @@ export function configureQueryCache(queryClient: QueryClient) {
       retry: (failureCount, error) => {
         if (error && typeof error === "object" && "data" in error) {
           const errorData = error.data as any;
-          if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+          if (
+            errorData?.code === "UNAUTHORIZED" ||
+            errorData?.code === "NOT_FOUND"
+          ) {
             return false;
           }
         }
@@ -155,16 +165,16 @@ export function configureQueryCache(queryClient: QueryClient) {
       retryDelay: 5000,
     });
   });
-  
+
   // WHOOP Historical Data - cache for 7 days for data that doesn't change often
   const whoopHistoricalQueries = [
-    "getRecovery", 
+    "getRecovery",
     "getCycles",
     "getSleep",
     "getProfile",
-    "getBodyMeasurements"
+    "getBodyMeasurements",
   ];
-  whoopHistoricalQueries.forEach(queryType => {
+  whoopHistoricalQueries.forEach((queryType) => {
     queryClient.setQueryDefaults(["whoop", queryType], {
       staleTime: CACHE_TIMES.WHOOP_HISTORICAL.staleTime, // 7 days for historical data
       gcTime: CACHE_TIMES.WHOOP_HISTORICAL.gcTime, // 14 days
@@ -173,7 +183,10 @@ export function configureQueryCache(queryClient: QueryClient) {
       retry: (failureCount, error) => {
         if (error && typeof error === "object" && "data" in error) {
           const errorData = error.data as any;
-          if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "NOT_FOUND") {
+          if (
+            errorData?.code === "UNAUTHORIZED" ||
+            errorData?.code === "NOT_FOUND"
+          ) {
             return false;
           }
         }
@@ -202,7 +215,6 @@ export const invalidateQueries = {
   preferences: (queryClient: QueryClient) => {
     void queryClient.invalidateQueries({ queryKey: ["preferences"] });
   },
-
 
   // Invalidate WHOOP queries
   whoop: (queryClient: QueryClient) => {

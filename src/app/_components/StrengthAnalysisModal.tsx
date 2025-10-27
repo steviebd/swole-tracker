@@ -9,20 +9,29 @@ interface StrengthAnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
   exerciseName: string;
+  templateExerciseId?: number | null;
   timeRange: TimeRange;
 }
 
-export function StrengthAnalysisModal({ isOpen, onClose, exerciseName, timeRange }: StrengthAnalysisModalProps) {
+export function StrengthAnalysisModal({
+  isOpen,
+  onClose,
+  exerciseName,
+  templateExerciseId,
+  timeRange,
+}: StrengthAnalysisModalProps) {
   const { theme, resolvedTheme } = useTheme();
   const isDark = theme !== "system" || (theme === "system" && resolvedTheme === "dark");
 
   const { data: strengthData, isLoading } = api.progress.getStrengthProgression.useQuery(
     {
       exerciseName,
+      templateExerciseId: templateExerciseId ?? undefined,
       timeRange,
     },
     { 
-      enabled: !!exerciseName && isOpen
+      enabled:
+        isOpen && (exerciseName.length > 0 || typeof templateExerciseId === "number"),
     }
   );
 

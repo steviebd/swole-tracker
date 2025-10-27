@@ -1,72 +1,120 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PageShell } from "~/components/layout/page-shell";
-import { Badge } from "~/components/ui/badge";
 import { buttonVariants } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
-import { api } from "~/trpc/react";
-
-import { ConsistencySection } from "./ConsistencySection";
-import { PersonalRecordsSection } from "./PersonalRecordsSection";
-import { RecentAchievements } from "./RecentAchievements";
+import { ProgressHeroBar } from "./ProgressHeroBar";
+import { ProgressHighlightsSection } from "./ProgressHighlightsSection";
 import { StrengthProgressSection } from "./StrengthProgressSection";
+import { ConsistencySection } from "./ConsistencySection";
 import { WellnessHistorySection } from "./WellnessHistorySection";
 import { WhoopIntegrationSection } from "./WhoopIntegrationSection";
+import {
+  ProgressRangeProvider,
+  useProgressRange,
+} from "~/contexts/progress-range-context";
+import type { ProgressTimeRange } from "~/lib/time-range";
 
-type TimeRange = "week" | "month" | "year";
+const PROGRESS_SECTIONS = [
+  { id: "highlights", label: "Highlights" },
+  { id: "volume", label: "Strength" },
+  { id: "consistency", label: "Consistency" },
+  { id: "wellness", label: "Wellness" },
+  { id: "whoop", label: "Whoop" },
+] as const;
+
+const RANGE_DEFAULTS = {
+  overview: "month",
+  strength: "year",
+  consistency: "month",
+  readiness: "week",
+  wellness: "month",
+  whoop: "week",
+} as const;
 
 export function ProgressDashboard() {
-  const [timeRange, setTimeRange] = useState<TimeRange>("month");
+  return (
+    <ProgressRangeProvider defaults={RANGE_DEFAULTS}>
+      <ProgressDashboardInner />
+    </ProgressRangeProvider>
+  );
+}
 
-  // Fetch progress data using our new API endpoints
-  const { data: volumeData, isLoading: volumeLoading } =
-    api.progress.getVolumeProgression.useQuery({
-      timeRange,
-    });
+function ProgressDashboardInner() {
+  const [focusedExercise, setFocusedExercise] = useState<{
+    name: string | null;
+    templateExerciseId: number | null;
+  }>({
+    name: null,
+    templateExerciseId: null,
+  });
+  const { range: overviewRange, setRange: setOverviewRange } =
+    useProgressRange("overview");
+  const [activeSection, setActiveSection] = useState<string>(
+    PROGRESS_SECTIONS[0]!.id,
+  );
+  const [loadedSections, setLoadedSections] = useState<Set<string>>(
+    new Set([PROGRESS_SECTIONS[0]!.id, "wellness", "whoop"]), // Load highlights, wellness, and whoop by default
+  );
 
-  const { data: consistencyData, isLoading: consistencyLoading } =
-    api.progress.getConsistencyStats.useQuery({
-      timeRange,
-    });
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
 
-  const cardClass = `bg-card/90 border border-border rounded-lg shadow-sm transition-all duration-300 card-interactive hover:-translate-y-1 hover:shadow-xl`;
+        if (visible.length > 0) {
+          const visibleId = visible[0]!.target.id;
+          setActiveSection(visibleId);
+          // Load the section when it becomes visible
+          setLoadedSections((prev) => new Set([...prev, visibleId]));
+          return;
+        }
 
-  const totalVolume = useMemo(() => {
-    if (!volumeData) return 0;
-    return volumeData.reduce((sum, day) => sum + (day.totalVolume ?? 0), 0);
-  }, [volumeData]);
+        const closest = entries
+          .slice()
+          .sort(
+            (a, b) =>
+              Math.abs(a.boundingClientRect.top) -
+              Math.abs(b.boundingClientRect.top),
+          );
 
-  const volumeTrend = useMemo(() => {
-    if (!volumeData || volumeData.length < 2) return 0;
-    const first = volumeData[0]?.totalVolume ?? 0;
-    const last = volumeData[volumeData.length - 1]?.totalVolume ?? 0;
-    return last - first;
-  }, [volumeData]);
+        if (closest[0]) {
+          setActiveSection(closest[0]!.target.id);
+        }
+      },
+      {
+        rootMargin: "0px 0px -20% 0px",
+        threshold: [0.1, 0.2, 0.3, 0.4],
+      },
+    );
 
-  const targetFrequency = 3;
-  const frequencyDelta = (consistencyData?.frequency ?? 0) - targetFrequency;
+    const elements = PROGRESS_SECTIONS.map(({ id }) =>
+      document.getElementById(id),
+    ).filter((el): el is HTMLElement => Boolean(el));
 
-  const quickLinks = [
-    { href: "#achievements", label: "Achievements" },
-    { href: "#personal-records", label: "PRs" },
-    { href: "#consistency", label: "Consistency" },
-    { href: "#wellness", label: "Wellness" },
-    { href: "#whoop", label: "Whoop" },
-  ];
+    elements.forEach((el) => observer.observe(el));
+
+    return () => {
+      elements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
+    };
+  }, []);
 
   const timeRangeSelector = (
     <div className="bg-muted/40 flex items-center gap-2 rounded-full p-1">
-      {(["week", "month", "year"] as TimeRange[]).map((range) => (
+      {(["week", "month", "year"] as ProgressTimeRange[]).map((range) => (
         <button
           key={range}
           type="button"
-          onClick={() => setTimeRange(range)}
-          aria-pressed={timeRange === range}
+          onClick={() => setOverviewRange(range)}
+          aria-pressed={overviewRange === range}
           className={cn(
             "rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition-colors",
-            timeRange === range
+            overviewRange === range
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-primary/10",
           )}
@@ -86,141 +134,123 @@ export function ProgressDashboard() {
       actions={timeRangeSelector}
       contentClassName="space-y-10"
     >
-      <nav className="flex flex-wrap gap-2" aria-label="Progress sections">
-        {quickLinks.map((link) => (
+      <ProgressHeroBar selectedExercise={focusedExercise} />
+
+      <nav
+        className="border-border/60 bg-card/80 sticky top-4 z-20 flex flex-wrap gap-2 rounded-2xl border p-2 shadow-sm backdrop-blur"
+        aria-label="Progress sections"
+      >
+        {PROGRESS_SECTIONS.map((section) => (
           <a
-            key={link.href}
-            href={link.href}
+            key={section.id}
+            href={`#${section.id}`}
+            aria-current={activeSection === section.id ? "true" : undefined}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-primary rounded-full border text-xs tracking-wide uppercase",
+              "rounded-full border text-xs tracking-wide uppercase transition",
+              activeSection === section.id
+                ? "border-primary/60 text-primary"
+                : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-primary",
             )}
           >
-            {link.label}
+            {section.label}
           </a>
         ))}
       </nav>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Volume */}
-        <div className={cardClass + " p-6"}>
-          <h3 className="mb-2 text-sm font-medium text-[var(--color-card-heading)]">
-            Total Volume
-          </h3>
-          {volumeLoading ? (
-            <div className="bg-border h-8 w-20 animate-pulse rounded"></div>
-          ) : (
-            <>
-              <p className="text-foreground font-serif text-2xl font-black">
-                {totalVolume.toLocaleString()} kg
-              </p>
-              <p className="text-muted-foreground mt-2 text-xs">
-                {volumeTrend >= 0
-                  ? `+${Math.round(volumeTrend)} kg vs. start of ${timeRange}`
-                  : `${Math.round(volumeTrend)} kg vs. start of ${timeRange}`}
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Total Workouts */}
-        <div className={cardClass + " p-6"}>
-          <h3 className="mb-2 text-sm font-medium text-[var(--color-card-heading)]">
-            Workouts
-          </h3>
-          {consistencyLoading ? (
-            <div className="bg-border h-8 w-12 animate-pulse rounded"></div>
-          ) : (
-            <>
-              <p className="text-foreground font-serif text-2xl font-black">
-                {consistencyData?.totalWorkouts ?? 0}
-              </p>
-              <p className="text-muted-foreground mt-2 text-xs">
-                {`${timeRange === "week" ? "This week" : `Last ${timeRange}`} you logged ${
-                  consistencyData?.totalWorkouts ?? 0
-                } sessions.`}
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Workout Frequency */}
-        <div className={cardClass + " p-6"}>
-          <h3 className="mb-2 text-sm font-medium text-[var(--color-card-heading)]">
-            Weekly Frequency
-          </h3>
-          {consistencyLoading ? (
-            <div className="bg-border h-8 w-16 animate-pulse rounded"></div>
-          ) : (
-            <>
-              <p className="text-foreground font-serif text-2xl font-black">
-                {consistencyData?.frequency ?? 0}x
-              </p>
-              <p className="text-muted-foreground mt-2 text-xs">
-                {`${frequencyDelta >= 0 ? "+" : ""}${frequencyDelta.toFixed(1)} vs. target of ${targetFrequency}/week`}
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Current Streak */}
-        <div className={cardClass + " p-6"}>
-          <h3 className="mb-2 text-sm font-medium text-[var(--color-card-heading)]">
-            Current Streak
-          </h3>
-          {consistencyLoading ? (
-            <div className="bg-border h-8 w-12 animate-pulse rounded"></div>
-          ) : (
-            <>
-              <p className="text-foreground font-serif text-2xl font-black">
-                {consistencyData?.currentStreak ?? 0} days
-              </p>
-              <p className="text-muted-foreground mt-2 text-xs">
-                Longest streak: {consistencyData?.longestStreak ?? 0} days
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Recent Achievements Section */}
-      <section id="achievements" className="space-y-4">
-        <header className="flex items-center justify-between">
-          <h2 className="text-foreground text-lg font-semibold">
-            Recent achievements
-          </h2>
-          <Badge variant="secondary" className="bg-primary/10 text-primary">
-            Last {timeRange}
-          </Badge>
-        </header>
-        <RecentAchievements />
+      <section id="highlights" data-progress-section>
+        <ProgressHighlightsSection />
       </section>
 
-      {/* Personal Records Section */}
-      <section id="personal-records">
-        <PersonalRecordsSection />
-      </section>
+      {!loadedSections.has("volume") && (
+        <section id="volume" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="bg-muted h-32 animate-pulse rounded-xl" />
+              <div className="bg-muted h-32 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </section>
+      )}
 
-      {/* Strength Progression Section */}
-      <section id="volume">
-        <StrengthProgressSection />
-      </section>
+      {loadedSections.has("volume") && (
+        <section id="volume" data-progress-section>
+          <StrengthProgressSection
+            selectedExercise={focusedExercise}
+            onExerciseChange={(selection) =>
+              setFocusedExercise({
+                name: selection.name,
+                templateExerciseId: selection.templateExerciseId ?? null,
+              })
+            }
+          />
+        </section>
+      )}
 
-      {/* Consistency Section */}
-      <section id="consistency">
-        <ConsistencySection />
-      </section>
+      {!loadedSections.has("consistency") && (
+        <section id="consistency" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </section>
+      )}
 
-      {/* Wellness History Section */}
-      <section id="wellness">
-        <WellnessHistorySection timeRange={timeRange} />
-      </section>
+      {loadedSections.has("consistency") && (
+        <section id="consistency" data-progress-section>
+          <ConsistencySection />
+        </section>
+      )}
 
-      {/* WHOOP Integration Section */}
-      <section id="whoop">
-        <WhoopIntegrationSection />
-      </section>
+      {!loadedSections.has("wellness") && (
+        <section id="wellness" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="bg-muted h-32 animate-pulse rounded-xl" />
+          </div>
+        </section>
+      )}
+
+      {loadedSections.has("wellness") && (
+        <section id="wellness" data-progress-section>
+          <WellnessHistorySection />
+        </section>
+      )}
+
+      {!loadedSections.has("whoop") && (
+        <section id="whoop" data-progress-section>
+          <div className="glass-surface border-border/60 space-y-6 rounded-2xl border p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+              <div className="bg-muted h-4 w-48 animate-pulse rounded" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+              <div className="bg-muted h-24 animate-pulse rounded-xl" />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {loadedSections.has("whoop") && (
+        <section id="whoop" data-progress-section>
+          <WhoopIntegrationSection />
+        </section>
+      )}
     </PageShell>
   );
 }

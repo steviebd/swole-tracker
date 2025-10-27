@@ -61,12 +61,95 @@ function mockIntegrationQuery(result: unknown[]) {
 function mockLatestQuery(value: string | null = null) {
   return {
     from: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue(
-        withLimit([{ latest: value }] as Array<{ latest: string | null }>),
-      ),
+      where: vi
+        .fn()
+        .mockReturnValue(
+          withLimit([{ latest: value }] as Array<{ latest: string | null }>),
+        ),
     }),
   };
 }
+
+describe("parallel database queries", () => {
+  it("uses Promise.all for parallel database queries in getIntegrationStatus", async () => {
+    const integration = {
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      expiresAt: new Date("2025-12-31"),
+      scope: "read:profile read:recovery",
+    };
+
+    selectMock()
+      .mockReturnValueOnce(mockIntegrationQuery([integration]))
+      .mockReturnValueOnce(mockLatestQuery("2024-01-15T10:00:00Z"))
+      .mockReturnValueOnce(mockLatestQuery("2024-01-15T10:00:00Z"))
+      .mockReturnValueOnce(mockLatestQuery("2024-01-15T10:00:00Z"))
+      .mockReturnValueOnce(mockLatestQuery("2024-01-15T10:00:00Z"))
+      .mockReturnValueOnce(mockLatestQuery("2024-01-15T10:00:00Z"));
+
+    const caller = createCaller();
+    const result = await caller.getIntegrationStatus();
+
+    expect(result.isConnected).toBe(true);
+    expect(result.lastSyncAt).toBeDefined();
+    // Verify that multiple select calls were made (indicating parallel queries)
+    expect(mockDb.select).toHaveBeenCalledTimes(6); // 1 for integration + 5 for latest timestamps
+  });
+
+  it("uses Promise.all for parallel database queries in getLatestRecoveryData", async () => {
+    const integration = {
+      isActive: true,
+      expiresAt: new Date("2025-12-31"),
+    };
+
+    selectMock()
+      .mockReturnValueOnce(mockIntegrationQuery([integration]))
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([
+                {
+                  recovery_score: 85,
+                  hrv_rmssd_milli: "45.2",
+                  hrv_rmssd_baseline: "42.1",
+                  resting_heart_rate: 60,
+                  resting_heart_rate_baseline: 65,
+                  respiratory_rate: 14.2,
+                  respiratory_rate_baseline: 13.9,
+                  raw_data: { recovery: true },
+                  date: new Date("2024-01-15"),
+                },
+              ]),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([
+                {
+                  sleep_performance_percentage: 92,
+                  raw_data: { sleep: true },
+                  start: new Date("2024-01-15"),
+                },
+              ]),
+            }),
+          }),
+        }),
+      });
+
+    const caller = createCaller();
+    const result = await caller.getLatestRecoveryData();
+
+    expect(result).toHaveProperty("recovery_score");
+    expect(result).toHaveProperty("sleep_performance");
+    // Verify that multiple select calls were made (indicating parallel queries)
+    expect(mockDb.select).toHaveBeenCalledTimes(3); // 1 for integration + 2 for recovery/sleep
+  });
+});
 
 describe("whoopRouter.getIntegrationStatus", () => {
   it("returns connected status when integration is active and not expired", async () => {

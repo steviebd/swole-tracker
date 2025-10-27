@@ -114,7 +114,11 @@ export const templateExercises = createTable(
   (t) => [
     index("template_exercise_user_id_idx").on(t.user_id),
     index("template_exercise_template_id_idx").on(t.templateId),
-    index("template_exercise_order_idx").on(t.templateId, t.orderIndex),
+    index("template_exercise_user_template_name_idx").on(
+      t.user_id,
+      t.templateId,
+      t.exerciseName,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -212,6 +216,7 @@ export const userPreferences = createTable(
     progression_type: text().notNull().default("adaptive"), // "linear" | "percentage" | "adaptive"
     linear_progression_kg: real().default(2.5), // Default 2.5kg increment
     percentage_progression: real().default(2.5), // Default 2.5% increment
+    targetWorkoutsPerWeek: real().notNull().default(3),
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -219,7 +224,6 @@ export const userPreferences = createTable(
   },
   (t) => [index("user_preferences_user_id_idx").on(t.user_id)],
 ); // RLS disabled - using WorkOS auth with application-level security
-
 
 // User Integrations (OAuth tokens for external services)
 export const userIntegrations = createTable(
@@ -414,10 +418,14 @@ export const sessionDebriefs = createTable(
     updatedAt: date(),
   },
   (t) => [
-    index("session_debrief_user_idx").on(t.user_id),
-    index("session_debrief_session_idx").on(t.sessionId),
-    index("session_debrief_created_idx").on(t.createdAt),
-    index("session_debrief_user_created_idx").on(t.user_id, t.createdAt),
+    index("session_debrief_user_id_idx").on(t.user_id),
+    index("session_debrief_session_id_idx").on(t.sessionId),
+    index("session_debrief_parent_debrief_id_idx").on(t.parentDebriefId),
+    index("session_debrief_user_session_active_idx").on(
+      t.user_id,
+      t.sessionId,
+      t.isActive,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
