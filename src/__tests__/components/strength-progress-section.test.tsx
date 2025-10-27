@@ -23,7 +23,10 @@ vi.mock("~/trpc/react", () => ({
 }));
 
 // Import after mocking
-import { StrengthProgressSection } from "~/app/_components/StrengthProgressSection";
+import {
+  StrengthProgressSection,
+  calculateYAxisDomain,
+} from "~/app/_components/StrengthProgressSection";
 import { ProgressRangeProvider } from "~/contexts/progress-range-context";
 import { api } from "~/trpc/react";
 
@@ -197,6 +200,55 @@ describe("StrengthProgressSection", () => {
     expect(mockOnExerciseChange).toHaveBeenCalledWith({
       name: "Bench Press",
       templateExerciseId: null, // Should default to null when undefined
+    });
+  });
+
+  describe("calculateYAxisDomain", () => {
+    it("returns default domain for empty values", () => {
+      const result = calculateYAxisDomain([]);
+      expect(result).toEqual([0, 100]);
+    });
+
+    it("calculates domain with 50% padding for small ranges (≤10)", () => {
+      // Range of 10 (140-150), should use 50% padding = 5
+      // Domain: [140-5, 150+5] = [135, 155]
+      const result = calculateYAxisDomain([140, 145, 150]);
+      expect(result).toEqual([135, 155]);
+    });
+
+    it("calculates domain with 30% padding for medium ranges (≤50)", () => {
+      // Range of 30 (120-150), should use 30% padding = 9
+      // Domain: [120-9, 150+9] = [111, 159]
+      const result = calculateYAxisDomain([120, 135, 150]);
+      expect(result).toEqual([111, 159]);
+    });
+
+    it("calculates domain with 10% padding for large ranges (>50)", () => {
+      // Range of 60 (120-180), should use 10% padding = 6
+      // Domain: [120-6, 180+6] = [114, 186]
+      const result = calculateYAxisDomain([120, 150, 180]);
+      expect(result).toEqual([114, 186]);
+    });
+
+    it("does not go below 0 for minimum value", () => {
+      // Range of 5 (2-7), should use 50% padding = 2.5
+      // Domain: [max(0, 2-2.5), 7+2.5] = [0, 9.5]
+      const result = calculateYAxisDomain([2, 5, 7]);
+      expect(result).toEqual([0, 9.5]);
+    });
+
+    it("handles single value", () => {
+      // Range of 0 (single value), should use 50% padding = 0
+      // Domain: [max(0, 100-0), 100+0] = [100, 100]
+      const result = calculateYAxisDomain([100]);
+      expect(result).toEqual([100, 100]);
+    });
+
+    it("handles negative values by clamping to 0", () => {
+      // Range of 10 (-5 to 5), should use 50% padding = 5
+      // Domain: [max(0, -5-5), 5+5] = [0, 10]
+      const result = calculateYAxisDomain([-5, 0, 5]);
+      expect(result).toEqual([0, 10]);
     });
   });
 });
