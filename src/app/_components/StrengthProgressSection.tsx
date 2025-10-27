@@ -85,13 +85,44 @@ export function StrengthProgressSection({
     isError: exerciseListErrored,
   } = api.progress.getExerciseList.useQuery();
 
+  const deduplicatedExerciseList = useMemo(() => {
+    if (!exerciseList) return [];
+    const map = new Map<string, (typeof exerciseList)[0]>();
+    for (const exercise of exerciseList) {
+      const key = exercise.exerciseName.toLowerCase().trim();
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...exercise });
+      } else {
+        // Merge template IDs and aliases
+        existing.templateExerciseIds = [
+          ...new Set([
+            ...existing.templateExerciseIds,
+            ...exercise.templateExerciseIds,
+          ]),
+        ];
+        existing.aliases = [
+          ...new Set([...existing.aliases, ...exercise.aliases]),
+        ];
+        existing.aliasCount = existing.aliases.length;
+        existing.totalSets += exercise.totalSets;
+        if (exercise.lastUsed > existing.lastUsed) {
+          existing.lastUsed = exercise.lastUsed;
+        }
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.lastUsed.getTime() - a.lastUsed.getTime(),
+    );
+  }, [exerciseList]);
+
   useEffect(() => {
     if (
       (!selectedExerciseName || selectedExerciseName.length === 0) &&
       !exerciseListLoading &&
-      exerciseList?.length
+      deduplicatedExerciseList?.length
     ) {
-      const first = exerciseList[0]!;
+      const first = deduplicatedExerciseList[0]!;
       onExerciseChange({
         name: first.exerciseName,
         templateExerciseId: first.templateExerciseIds[0] ?? null,
@@ -100,7 +131,7 @@ export function StrengthProgressSection({
   }, [
     selectedExerciseName,
     exerciseListLoading,
-    exerciseList,
+    deduplicatedExerciseList,
     onExerciseChange,
   ]);
 
@@ -128,11 +159,11 @@ export function StrengthProgressSection({
     );
 
   const selectedOptionId = useMemo(() => {
-    if (!exerciseList || exerciseList.length === 0) {
+    if (!deduplicatedExerciseList?.length) {
       return "";
     }
     if (typeof selectedTemplateExerciseId === "number") {
-      const match = exerciseList.find((exercise) =>
+      const match = deduplicatedExerciseList.find((exercise) =>
         exercise.templateExerciseIds.includes(selectedTemplateExerciseId),
       );
       if (match) {
@@ -140,7 +171,7 @@ export function StrengthProgressSection({
       }
     }
     if (selectedExerciseName) {
-      const match = exerciseList.find(
+      const match = deduplicatedExerciseList.find(
         (exercise) => exercise.exerciseName === selectedExerciseName,
       );
       if (match) {
@@ -148,11 +179,17 @@ export function StrengthProgressSection({
       }
     }
     return "";
-  }, [exerciseList, selectedExerciseName, selectedTemplateExerciseId]);
+  }, [
+    deduplicatedExerciseList,
+    selectedExerciseName,
+    selectedTemplateExerciseId,
+  ]);
 
   const handleExerciseSelect = (optionId: string) => {
-    if (!exerciseList || optionId === selectedOptionId) return;
-    const option = exerciseList.find((exercise) => exercise.id === optionId);
+    if (!deduplicatedExerciseList || optionId === selectedOptionId) return;
+    const option = deduplicatedExerciseList.find(
+      (exercise) => exercise.id === optionId,
+    );
     if (!option) return;
     onExerciseChange({
       name: option.exerciseName,
@@ -368,7 +405,7 @@ export function StrengthProgressSection({
         </label>
         {exerciseListLoading ? (
           <div className="bg-muted/40 mt-2 h-11 animate-pulse rounded-xl" />
-        ) : exerciseList && exerciseList.length > 0 ? (
+        ) : deduplicatedExerciseList && deduplicatedExerciseList.length > 0 ? (
           <select
             id="strength-exercise-select"
             value={selectedOptionId}
@@ -376,7 +413,7 @@ export function StrengthProgressSection({
             className="border-border/60 bg-background/80 text-foreground focus:border-primary mt-2 w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none"
           >
             <option value="">Choose an exercise…</option>
-            {exerciseList.map((exercise) => (
+            {deduplicatedExerciseList.map((exercise) => (
               <option
                 key={exercise.id}
                 value={exercise.id}
