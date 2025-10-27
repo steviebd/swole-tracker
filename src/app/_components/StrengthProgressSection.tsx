@@ -105,7 +105,10 @@ export function StrengthProgressSection({
           ]),
         ];
         existing.aliases = [
-          ...new Set([...existing.aliases, ...exercise.aliases]),
+          ...new Set([
+            ...(existing.aliases ?? []),
+            ...(exercise.aliases ?? []),
+          ]),
         ];
         existing.aliasCount = existing.aliases.length;
         existing.totalSets += exercise.totalSets;
@@ -439,8 +442,8 @@ export function StrengthProgressSection({
                 key={exercise.id}
                 value={exercise.id}
                 title={
-                  exercise.aliases.length > 0
-                    ? exercise.aliases.join(", ")
+                  (exercise.aliases ?? []).length > 0
+                    ? (exercise.aliases ?? []).join(", ")
                     : undefined
                 }
               >

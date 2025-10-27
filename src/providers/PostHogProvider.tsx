@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect, useMemo, useRef } from "react";
@@ -49,21 +50,37 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
 
   useEffect(() => {
     if (!posthogConfig) {
-      posthog.reset();
+      try {
+        posthog.reset();
+      } catch (error) {
+        console.warn("Failed to reset PostHog:", error);
+      }
       return;
     }
 
-    posthog.init(posthogConfig.key, posthogConfig.options);
+    try {
+      posthog.init(posthogConfig.key, posthogConfig.options);
+    } catch (error) {
+      console.error("Failed to initialize PostHog:", error);
+    }
 
     return () => {
-      posthog.reset();
+      try {
+        posthog.reset();
+      } catch (error) {
+        console.warn("Failed to reset PostHog on cleanup:", error);
+      }
     };
   }, [posthogConfig]);
 
   useEffect(() => {
     if (!posthogConfig) {
       if (lastIdentifiedUser.current !== null) {
-        posthog.reset();
+        try {
+          posthog.reset();
+        } catch (error) {
+          console.warn("Failed to reset PostHog on config change:", error);
+        }
         lastIdentifiedUser.current = null;
       }
       return;
@@ -71,27 +88,40 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
 
     if (user) {
       if (lastIdentifiedUser.current !== user.id) {
-        posthog.identify(user.id, {
-          email: user.email,
-          name:
+        try {
+          const userName =
             user.user_metadata?.display_name ||
             (user.first_name || user.last_name
               ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
-              : user.email),
-          first_name: user.first_name,
-          last_name: user.last_name,
-        });
-        posthog.capture("user_signed_in", {
-          userId: user.id,
-          email: user.email,
-        });
-        lastIdentifiedUser.current = user.id;
+              : user.email);
+
+          posthog.identify(user.id, {
+            email: user.email,
+            name: userName,
+            first_name: user.first_name,
+            last_name: user.last_name,
+          });
+
+          posthog.capture("user_signed_in", {
+            userId: user.id,
+            email: user.email,
+            timestamp: new Date().toISOString(),
+          });
+
+          lastIdentifiedUser.current = user.id;
+        } catch (error) {
+          console.error("Failed to identify user in PostHog:", error);
+        }
       }
     } else {
       if (lastIdentifiedUser.current !== null) {
-        // Clear analytics session
-        posthog.reset();
-        lastIdentifiedUser.current = null;
+        try {
+          // Clear analytics session
+          posthog.reset();
+          lastIdentifiedUser.current = null;
+        } catch (error) {
+          console.warn("Failed to reset PostHog on user logout:", error);
+        }
       }
     }
   }, [posthogConfig, user]);

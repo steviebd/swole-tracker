@@ -132,6 +132,149 @@ describe("analytics", () => {
     });
   });
 
+  describe("AI debrief events", () => {
+    it("should call aiDebriefViewed function", () => {
+      expect(() => {
+        analytics.aiDebriefViewed("session-123", 1, 5);
+      }).not.toThrow();
+    });
+
+    it("should call aiDebriefRegenerated function with reason", () => {
+      expect(() => {
+        analytics.aiDebriefRegenerated("session-123", 2, "user_requested");
+      }).not.toThrow();
+    });
+
+    it("should call aiDebriefRegenerated function without reason", () => {
+      expect(() => {
+        analytics.aiDebriefRegenerated("session-123", 2);
+      }).not.toThrow();
+    });
+
+    it("should call aiDebriefDismissed function", () => {
+      expect(() => {
+        analytics.aiDebriefDismissed("session-123", 1, true);
+      }).not.toThrow();
+    });
+  });
+
+  describe("navigation events", () => {
+    it("should call navigationChanged function with source", () => {
+      expect(() => {
+        analytics.navigationChanged("dashboard", "workouts", "menu");
+      }).not.toThrow();
+    });
+
+    it("should call navigationChanged function without source", () => {
+      expect(() => {
+        analytics.navigationChanged("workouts", "exercise-detail");
+      }).not.toThrow();
+    });
+  });
+
+  describe("search and filter events", () => {
+    it("should call searchPerformed function with category", () => {
+      expect(() => {
+        analytics.searchPerformed("bench press", 5, "exercises");
+      }).not.toThrow();
+    });
+
+    it("should call searchPerformed function without category", () => {
+      expect(() => {
+        analytics.searchPerformed("push day", 2);
+      }).not.toThrow();
+    });
+
+    it("should call filtersApplied function", () => {
+      expect(() => {
+        analytics.filtersApplied(
+          { muscleGroup: "chest", difficulty: "intermediate" },
+          3,
+        );
+      }).not.toThrow();
+    });
+  });
+
+  describe("social and sharing events", () => {
+    it("should call workoutShared function", () => {
+      expect(() => {
+        analytics.workoutShared("workout-123", "twitter");
+      }).not.toThrow();
+    });
+
+    it("should call progressShared function", () => {
+      expect(() => {
+        analytics.progressShared("30d", "instagram");
+      }).not.toThrow();
+    });
+  });
+
+  describe("goal and achievement events", () => {
+    it("should call goalSet function", () => {
+      expect(() => {
+        analytics.goalSet("weight_loss", 5, "kg");
+      }).not.toThrow();
+    });
+
+    it("should call goalAchieved function", () => {
+      expect(() => {
+        analytics.goalAchieved("bench_press", 100, 95, "kg");
+      }).not.toThrow();
+    });
+
+    it("should call personalRecord function", () => {
+      expect(() => {
+        analytics.personalRecord("exercise-123", "Bench Press", 90, 100, "kg");
+      }).not.toThrow();
+    });
+  });
+
+  describe("device and connectivity events", () => {
+    it("should call offlineModeEnabled function", () => {
+      expect(() => {
+        analytics.offlineModeEnabled();
+      }).not.toThrow();
+    });
+
+    it("should call syncCompleted function", () => {
+      expect(() => {
+        analytics.syncCompleted(25, 1500);
+      }).not.toThrow();
+    });
+  });
+
+  describe("user engagement events", () => {
+    it("should call appInstalled function with source", () => {
+      expect(() => {
+        analytics.appInstalled("web_store");
+      }).not.toThrow();
+    });
+
+    it("should call appInstalled function without source", () => {
+      expect(() => {
+        analytics.appInstalled();
+      }).not.toThrow();
+    });
+
+    it("should call tutorialCompleted function", () => {
+      expect(() => {
+        analytics.tutorialCompleted("getting_started", 300);
+      }).not.toThrow();
+    });
+
+    it("should call feedbackSubmitted function with comments", () => {
+      expect(() => {
+        analytics.feedbackSubmitted(4, "usability", "Great app!");
+      }).not.toThrow();
+    });
+
+    it("should call feedbackSubmitted function without comments", () => {
+      expect(() => {
+        analytics.feedbackSubmitted(5, "performance");
+      }).not.toThrow();
+    });
+  });
+
   describe("error handling", () => {
     it("should call functions even when mocked", () => {
       expect(() => {
