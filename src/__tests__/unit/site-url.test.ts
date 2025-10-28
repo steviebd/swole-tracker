@@ -1,9 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   resolveSiteUrl,
   resolveWorkOSRedirectUri,
   resolveWhoopRedirectUri,
 } from "~/lib/site-url";
+
+// Mock the env module to ensure tests use localhost regardless of CI environment
+vi.mock("~/env", () => ({
+  env: {
+    NEXT_PUBLIC_SITE_URL: "http://localhost:3000", // Force use of localhost for tests
+    WHOOP_REDIRECT_URI: undefined, // Force fallback to default
+  },
+}));
 
 describe("site-url utilities", () => {
   describe("resolveSiteUrl", () => {
