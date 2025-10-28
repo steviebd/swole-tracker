@@ -100,9 +100,10 @@ export function configureQueryCache(queryClient: QueryClient) {
     });
   });
 
-  // Weekly summary queries (9 days stale time) - for future use
+  // Weekly summary queries (9 days stale time) - for trend analysis
   const weeklyAggregatedQueries: Array<[string, string]> = [
-    // Add queries that primarily use weekly/monthly summaries here
+    ["progress", "getExerciseStrengthProgression"], // Uses weekly summaries for trend analysis
+    ["progress", "getExerciseVolumeProgression"], // Uses weekly summaries for volume trends
   ];
 
   weeklyAggregatedQueries.forEach((key) => {
@@ -115,9 +116,10 @@ export function configureQueryCache(queryClient: QueryClient) {
     });
   });
 
-  // Monthly summary queries (45 days stale time) - for future use
+  // Monthly summary queries (45 days stale time) - for long-term analysis
   const monthlyAggregatedQueries: Array<[string, string]> = [
-    // Add queries that use monthly summaries here
+    // Add queries that use monthly summaries for long-term trends here
+    // Currently no queries use monthly summaries, but this is ready for future implementation
   ];
 
   monthlyAggregatedQueries.forEach((key) => {
@@ -266,6 +268,29 @@ export const invalidateQueries = {
   // Invalidate WHOOP queries
   whoop: (queryClient: QueryClient) => {
     void queryClient.invalidateQueries({ queryKey: ["whoop"] });
+  },
+
+  // Invalidate progress queries (when workout data changes)
+  progress: (queryClient: QueryClient) => {
+    void queryClient.invalidateQueries({ queryKey: ["progress"] });
+  },
+
+  // Invalidate aggregated progress data (when new sessions are added)
+  progressAggregated: (queryClient: QueryClient) => {
+    // Invalidate daily aggregated queries
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getExerciseStrengthProgression"],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getExerciseVolumeProgression"],
+    });
+    // Invalidate weekly aggregated queries (will trigger re-computation)
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getExerciseStrengthProgression"],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getExerciseVolumeProgression"],
+    });
   },
 
   // Invalidate all queries (for major data changes)

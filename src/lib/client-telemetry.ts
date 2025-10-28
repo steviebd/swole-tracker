@@ -1,4 +1,5 @@
 import { vibrate as navigatorVibrate } from "~/lib/navigator-api";
+import { analytics } from "~/lib/analytics";
 // Unused imports for potential future use
 // import { getDeviceType as detectDeviceType } from "~/lib/device-detection";
 // import { getThemePreference as detectThemePreference } from "~/lib/theme-detection";
@@ -203,7 +204,20 @@ export function snapshotMetricsBlob(): {
 
     const { tti, tbt } = collectTTI_TBT();
     const inputLatency = snapshotInputLatency();
-    
+
+    // Send performance metrics to PostHog
+    if (tti !== undefined || tbt !== undefined || inputLatency.avg !== undefined) {
+      analytics.event("performance.metrics_snapshot", {
+        tti,
+        tbt,
+        inputLatencyAvg: inputLatency.avg,
+        inputLatencyP95: inputLatency.p95,
+        deviceType: getDeviceType(),
+        theme: getThemeUsed(),
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return {
       tti,
       tbt,
@@ -230,11 +244,19 @@ export function startLongTaskObserver(): void {
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
         if (entry.entryType === "longtask") {
+          // Send long task events to PostHog
+          analytics.event("performance.long_task", {
+            duration: entry.duration,
+            startTime: entry.startTime,
+            deviceType: getDeviceType(),
+            theme: getThemeUsed(),
+            timestamp: new Date().toISOString(),
+          });
+
           // In test, log to console to satisfy coverage tests
           if (process.env.NODE_ENV === "test") {
             console.log("[Performance] Long task detected:", entry.duration);
           }
-          // Real implementation would track long tasks for TBT calculation
         }
       }
     });

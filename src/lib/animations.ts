@@ -1,6 +1,6 @@
 /**
  * Animation utilities and reusable motion variants for consistent animations
- * 
+ *
  * Features:
  * - Standard animation variants following design manifesto
  * - 60fps target with GPU acceleration preferences
@@ -311,13 +311,21 @@ export const shimmerVariants: Variants = {
  * Returns simplified variants when prefers-reduced-motion is set
  */
 export const createReducedMotionVariants = (variants: Variants): Variants => {
-  if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
     // Convert all variants to simple opacity changes
     const reducedVariants: Variants = {};
-    
+
     Object.keys(variants).forEach((key) => {
       const variant = variants[key];
-      if (typeof variant === "object" && variant !== null && typeof variant !== "function") {
+      if (
+        typeof variant === "object" &&
+        variant !== null &&
+        typeof variant !== "function"
+      ) {
         reducedVariants[key] = {
           opacity: key === "hidden" ? 0 : 1,
           transition: {
@@ -328,10 +336,10 @@ export const createReducedMotionVariants = (variants: Variants): Variants => {
         reducedVariants[key] = variant;
       }
     });
-    
+
     return reducedVariants;
   }
-  
+
   return variants;
 };
 
@@ -362,7 +370,4 @@ export const createStaggeredEntrance = (delay = 0.05) => ({
 /**
  * Export all animation utilities
  */
-export {
-  type Variants,
-  type Transition,
-};
+export { type Variants, type Transition };

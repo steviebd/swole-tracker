@@ -43,6 +43,13 @@ export function useCacheInvalidation({
     onWorkoutSave: () => {
       // Invalidate all workout-related queries
       invalidateHelpers.workouts(queryClient);
+      // Also invalidate aggregated progress data since new sessions affect progress calculations
+      invalidateHelpers.progressAggregated(queryClient);
+    },
+
+    // Invalidate aggregated progress data (for when new sessions are added)
+    invalidateProgressAggregated: () => {
+      invalidateHelpers.progressAggregated(queryClient);
     },
 
     // Optimistic updates for better UX

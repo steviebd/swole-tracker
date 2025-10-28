@@ -958,6 +958,15 @@ export const progressRouter = createTRPCRouter({
         const startIso = startDate.toISOString();
         const endIso = endDate.toISOString();
 
+        // Define column references for the view
+        const resolvedColumn = sessionExerciseMetricsView.resolvedExerciseName;
+        const workoutDateCol = sessionExerciseMetricsView.workoutDate;
+        const weightCol = sessionExerciseMetricsView.weight;
+        const repsCol = sessionExerciseMetricsView.reps;
+        const setsCol = sessionExerciseMetricsView.sets;
+        const oneRmCol = sessionExerciseMetricsView.oneRmEstimate;
+        const userIdCol = sessionExerciseMetricsView.userId;
+
         // Use direct join instead of view
         const aggregates = await ctx.db
           .select({
@@ -976,11 +985,13 @@ export const progressRouter = createTRPCRouter({
           .where(
             and(
               eq(sessionExercises.user_id, ctx.user.id),
-              gte(workoutSessions.workoutDate, startIso),
-              lte(workoutDateCol, endIso),
+              gte(workoutSessions.workoutDate, new Date(startIso)),
+              lte(workoutSessions.workoutDate, new Date(endIso)),
             ),
           )
-          .groupBy(resolvedColumn);
+          .groupBy(
+            sql`COALESCE(NULLIF(${sessionExercises.resolvedExerciseName}, ''), ${sessionExercises.exerciseName})`,
+          );
 
         const aggregateStats = aggregates
           .map((row) => {
@@ -1055,8 +1066,8 @@ export const progressRouter = createTRPCRouter({
             .where(
               and(
                 eq(userIdCol, ctx.user.id),
-                gte(workoutDateCol, startIso),
-                lte(workoutDateCol, endIso),
+                gte(workoutDateCol, new Date(startIso)),
+                lte(workoutDateCol, new Date(endIso)),
                 inArray(resolvedColumn, nameChunk),
               ),
             )
@@ -2331,7 +2342,9 @@ export const progressRouter = createTRPCRouter({
 
       const selectFields = {
         templateExerciseId: viewColumns.templateExerciseId!,
-        resolvedExerciseName: viewColumns.resolvedExerciseName!,
+        resolvedExerciseName: sql<
+          string | null
+        >`${viewColumns.resolvedExerciseName!}`,
         fallbackExerciseName: viewColumns.fallbackExerciseName!,
         lastUsed: sql<Date>`MAX(${viewColumns.workoutDate!})`,
         totalSets: sql<number>`COUNT(*)`,
@@ -2371,7 +2384,7 @@ export const progressRouter = createTRPCRouter({
           .where(eq(viewColumns.userId!, ctx.user.id))
           .groupBy(
             viewColumns.templateExerciseId!,
-            viewColumns.resolvedExerciseName!,
+            sql`${viewColumns.resolvedExerciseName!}`,
             viewColumns.fallbackExerciseName!,
             exerciseLinks.masterExerciseId,
             masterExercises.name,
@@ -2740,8 +2753,8 @@ async function fetchSessionMetricRows(
         and(
           eq(userIdColumn!, userId),
           combinedMatch,
-          gte(workoutDateColumn!, startDate.toISOString()),
-          lte(workoutDateColumn!, endDate.toISOString()),
+          gte(workoutDateColumn!, startDate),
+          lte(workoutDateColumn!, endDate),
         ),
       )
       .orderBy(desc(workoutDateColumn!));
@@ -2933,11 +2946,11 @@ async function getAllExerciseNames(database: typeof db, userId: string) {
     try {
       const rows = await database
         .select({
-          exerciseName: resolvedNameColumn!,
+          exerciseName: sql<string>`${resolvedNameColumn!}`,
         })
         .from(sessionExerciseMetricsView)
         .where(eq(userIdColumn!, userId))
-        .groupBy(resolvedNameColumn!);
+        .groupBy(sql`${resolvedNameColumn!}`);
 
       const names = rows
         .map((row) =>
@@ -3591,8 +3604,8 @@ export async function calculatePersonalRecords(
           and(
             eq(userIdColumn!, ctx.user.id),
             nameClause,
-            gte(workoutDateColumn!, startDate.toISOString()),
-            lte(workoutDateColumn!, endDate.toISOString()),
+            gte(workoutDateColumn!, startDate),
+            lte(workoutDateColumn!, endDate),
           ),
         )
         .orderBy(desc(workoutDateColumn!));
@@ -3614,7 +3627,11 @@ export async function calculatePersonalRecords(
             workoutDate = new Date(0);
           }
 
-          const exerciseName = row.exerciseName! || "Unknown Exercise";
+          const rawExerciseName = row.exerciseName as unknown;
+          const exerciseName =
+            typeof rawExerciseName === "string" && rawExerciseName.length > 0
+              ? rawExerciseName
+              : "Unknown Exercise";
 
           return {
             workoutDate,
@@ -3706,7 +3723,11 @@ export async function calculatePersonalRecords(
             workoutDate = new Date(0);
           }
 
-          const exerciseName = row.exerciseName! || "Unknown Exercise";
+          const rawExerciseName = row.exerciseName as unknown;
+          const exerciseName =
+            typeof rawExerciseName === "string" && rawExerciseName.length > 0
+              ? rawExerciseName
+              : "Unknown Exercise";
 
           return {
             workoutDate,

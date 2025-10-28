@@ -57,6 +57,7 @@ import {
   SQLITE_VARIABLE_LIMIT,
   whereInChunks,
 } from "~/server/db/chunk-utils";
+import { invalidateQueries } from "~/trpc/cache-config";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user

@@ -18,6 +18,11 @@ describe("analytics performance tracking", () => {
     mockPosthog.identify.mockClear();
     mockPosthog.reset.mockClear();
     setPosthogClientForTesting(mockPosthog);
+    // Mock navigator.onLine for analytics
+    Object.defineProperty(navigator, "onLine", {
+      value: true,
+      writable: true,
+    });
   });
 
   afterEach(() => {

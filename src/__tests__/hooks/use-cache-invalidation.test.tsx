@@ -26,6 +26,8 @@ const createInvalidateHelpersMock = () => ({
   templates: vi.fn(),
   preferences: vi.fn(),
   whoop: vi.fn(),
+  progress: vi.fn(),
+  progressAggregated: vi.fn(),
   all: vi.fn(),
 });
 
@@ -90,9 +92,7 @@ describe("useCacheInvalidation", () => {
 
     result.current.invalidateAll();
 
-    expect(invalidateHelpers.all).toHaveBeenCalledWith(
-      queryClientMocks.client,
-    );
+    expect(invalidateHelpers.all).toHaveBeenCalledWith(queryClientMocks.client);
   });
 
   it("invokes targeted invalidations when a workout starts", () => {
