@@ -14,6 +14,7 @@ import {
 import { formatTimeRangeLabel } from "~/lib/time-range";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
+import { VirtualList } from "~/components/virtual-list";
 import { useProgressRange } from "~/contexts/progress-range-context";
 import { analytics } from "~/lib/analytics";
 
@@ -22,6 +23,7 @@ import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 type TimeRange = "week" | "month" | "year";
 type ViewMode = "topSet" | "oneRm" | "intensity";
 type SortKey = "date" | "weight" | "oneRm" | "volume";
+type ChartResolution = "weekly" | "daily";
 
 const VIEW_CONFIG: Record<
   ViewMode,
@@ -47,6 +49,49 @@ const VIEW_CONFIG: Record<
   },
 };
 
+function ExportButton({
+  exerciseName,
+  templateExerciseId,
+  timeRange,
+}: {
+  exerciseName: string | null;
+  templateExerciseId: number | null;
+  timeRange: TimeRange;
+}) {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!exerciseName && !templateExerciseId) return;
+
+    setIsExporting(true);
+    try {
+      // This would typically call the export API and trigger a download
+      // For now, we'll just show a placeholder
+      console.log("Exporting data for", {
+        exerciseName,
+        templateExerciseId,
+        timeRange,
+      });
+      // In a real implementation, you'd fetch the CSV and create a download link
+    } catch (error) {
+      console.error("Export failed:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleExport}
+      disabled={isExporting || (!exerciseName && !templateExerciseId)}
+      className="btn-outline w-full disabled:opacity-50 sm:w-auto"
+    >
+      {isExporting ? "Exporting..." : "Export CSV"}
+    </button>
+  );
+}
+
 interface StrengthProgressSectionProps {
   selectedExercise: {
     name: string | null;
@@ -63,6 +108,8 @@ export function StrengthProgressSection({
   onExerciseChange,
 }: StrengthProgressSectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("topSet");
+  const [chartResolution, setChartResolution] =
+    useState<ChartResolution>("weekly");
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: "asc" | "desc";
@@ -170,6 +217,16 @@ export function StrengthProgressSection({
       { enabled: hasExerciseSelection },
     );
 
+  const { data: weeklyData, isLoading: weeklyLoading } =
+    api.progress.getWeeklyStrengthProgression.useQuery(
+      {
+        exerciseName: selectedExerciseName ?? undefined,
+        templateExerciseId: selectedTemplateExerciseId ?? undefined,
+        timeRange,
+      },
+      { enabled: hasExerciseSelection && chartResolution === "weekly" },
+    );
+
   // Track performance when strength data loads
   useEffect(() => {
     if (topSetsResponse?.data && !topSetsLoading) {
@@ -178,6 +235,49 @@ export function StrengthProgressSection({
         "strength",
         loadTime,
         topSetsResponse.data.length,
+      );
+    }
+
+    function ExportButton({
+      exerciseName,
+      templateExerciseId,
+      timeRange,
+    }: {
+      exerciseName: string | null;
+      templateExerciseId: number | null;
+      timeRange: TimeRange;
+    }) {
+      const [isExporting, setIsExporting] = useState(false);
+
+      const handleExport = async () => {
+        if (!exerciseName && !templateExerciseId) return;
+
+        setIsExporting(true);
+        try {
+          // This would typically call the export API and trigger a download
+          // For now, we'll just show a placeholder
+          console.log("Exporting data for", {
+            exerciseName,
+            templateExerciseId,
+            timeRange,
+          });
+          // In a real implementation, you'd fetch the CSV and create a download link
+        } catch (error) {
+          console.error("Export failed:", error);
+        } finally {
+          setIsExporting(false);
+        }
+      };
+
+      return (
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting || (!exerciseName && !templateExerciseId)}
+          className="btn-outline w-full disabled:opacity-50 sm:w-auto"
+        >
+          {isExporting ? "Exporting..." : "Export CSV"}
+        </button>
       );
     }
   }, [topSetsResponse?.data, topSetsLoading, startTime]);
@@ -250,6 +350,28 @@ export function StrengthProgressSection({
   }, [topSetsResponse?.data, trendSummary?.currentOneRM]);
 
   const chartPoints = useMemo(() => {
+    if (chartResolution === "weekly" && weeklyData?.data) {
+      return weeklyData.data.map((week) => {
+        const weekStart = new Date(week.weekStart);
+        const dateLabel = new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "numeric",
+        }).format(weekStart);
+
+        let value = week.maxOneRM;
+        if (viewMode === "intensity") {
+          value = week.avgVolume;
+        }
+
+        return {
+          date: dateLabel,
+          fullDate: week.weekStart,
+          value,
+        };
+      });
+    }
+
+    // Daily resolution (default)
     return normalizedSets
       .slice()
       .reverse()
@@ -272,7 +394,7 @@ export function StrengthProgressSection({
           value,
         };
       });
-  }, [normalizedSets, viewMode]);
+  }, [normalizedSets, weeklyData?.data, viewMode, chartResolution]);
 
   const rateOfChange = useMemo(() => {
     const timeline = trendSummary?.timeline ?? [];
@@ -383,6 +505,7 @@ export function StrengthProgressSection({
   const loading =
     topSetsLoading ||
     summaryLoading ||
+    weeklyLoading ||
     exerciseListLoading ||
     !hasExerciseSelection;
   const hasError = topSetsErrored || exerciseListErrored;
@@ -435,30 +558,38 @@ export function StrengthProgressSection({
         {exerciseListLoading ? (
           <div className="bg-muted/40 mt-2 h-11 animate-pulse rounded-xl" />
         ) : deduplicatedExerciseList && deduplicatedExerciseList.length > 0 ? (
-          <select
-            id="strength-exercise-select"
-            value={selectedOptionId}
-            onChange={(event) => handleExerciseSelect(event.target.value)}
-            className="border-border/60 bg-background/80 text-foreground focus:border-primary mt-2 w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none"
-          >
-            <option value="">Choose an exercise…</option>
-            {deduplicatedExerciseList.map((exercise) => (
-              <option
-                key={exercise.id}
-                value={exercise.id}
-                title={
-                  (exercise.aliases ?? []).length > 0
-                    ? (exercise.aliases ?? []).join(", ")
-                    : undefined
-                }
-              >
-                {exercise.exerciseName}
-                {exercise.aliasCount > 1
-                  ? ` (${exercise.aliasCount} linked)`
-                  : ""}
-              </option>
-            ))}
-          </select>
+          deduplicatedExerciseList.length > 20 ? (
+            <VirtualizedExerciseSelect
+              exercises={deduplicatedExerciseList}
+              selectedId={selectedOptionId}
+              onSelect={handleExerciseSelect}
+            />
+          ) : (
+            <select
+              id="strength-exercise-select"
+              value={selectedOptionId}
+              onChange={(event) => handleExerciseSelect(event.target.value)}
+              className="border-border/60 bg-background/80 text-foreground focus:border-primary mt-2 w-full rounded-xl border px-3 py-2 text-sm font-medium outline-none"
+            >
+              <option value="">Choose an exercise…</option>
+              {deduplicatedExerciseList.map((exercise) => (
+                <option
+                  key={exercise.id}
+                  value={exercise.id}
+                  title={
+                    (exercise.aliases ?? []).length > 0
+                      ? (exercise.aliases ?? []).join(", ")
+                      : undefined
+                  }
+                >
+                  {exercise.exerciseName}
+                  {exercise.aliasCount > 1
+                    ? ` (${exercise.aliasCount} linked)`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          )
         ) : (
           <p className="text-muted-foreground mt-2 text-sm">
             Log a workout to populate your exercise list.
@@ -506,11 +637,42 @@ export function StrengthProgressSection({
                   lines.
                 </div>
               ) : (
-                <StrengthTrendChart
-                  data={chartPoints}
-                  color={VIEW_CONFIG[viewMode].color}
-                  unit={VIEW_CONFIG[viewMode].unit}
-                />
+                <div className="relative">
+                  <StrengthTrendChart
+                    data={chartPoints}
+                    color={VIEW_CONFIG[viewMode].color}
+                    unit={VIEW_CONFIG[viewMode].unit}
+                    resolution={chartResolution}
+                    onZoomIn={() => setChartResolution("daily")}
+                    onZoomOut={() => setChartResolution("weekly")}
+                  />
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setChartResolution("weekly")}
+                      className={cn(
+                        "rounded px-2 py-1 text-xs font-semibold tracking-wide uppercase transition",
+                        chartResolution === "weekly"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/60 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      Weekly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChartResolution("daily")}
+                      className={cn(
+                        "rounded px-2 py-1 text-xs font-semibold tracking-wide uppercase transition",
+                        chartResolution === "daily"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/60 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      Daily
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -542,81 +704,140 @@ export function StrengthProgressSection({
                   Sort and review your heaviest sets
                 </p>
               </div>
-              <button
-                type="button"
-                className="btn-secondary w-full sm:w-auto"
-                onClick={() => setShowModal(true)}
-              >
-                View detailed analysis
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-secondary w-full sm:w-auto"
+                  onClick={() => setShowModal(true)}
+                >
+                  View detailed analysis
+                </button>
+                <ExportButton
+                  exerciseName={selectedExerciseName}
+                  templateExerciseId={selectedTemplateExerciseId}
+                  timeRange={timeRange}
+                />
+              </div>
             </div>
 
             <div className="hidden lg:block">
-              <table className="w-full text-sm">
-                <thead className="text-muted-foreground text-left text-xs tracking-wide uppercase">
-                  <tr>
-                    <SortableHeader
-                      label="Date"
-                      active={sortConfig.key === "date"}
-                      direction={sortConfig.direction}
-                      onClick={() => toggleSort("date")}
-                    />
-                    <SortableHeader
-                      label="Weight"
-                      active={sortConfig.key === "weight"}
-                      direction={sortConfig.direction}
-                      onClick={() => toggleSort("weight")}
-                    />
-                    <th className="px-3 py-2 font-normal">Sets × Reps</th>
-                    <SortableHeader
-                      label="e1RM"
-                      active={sortConfig.key === "oneRm"}
-                      direction={sortConfig.direction}
-                      onClick={() => toggleSort("oneRm")}
-                    />
-                    <SortableHeader
-                      label="Volume"
-                      active={sortConfig.key === "volume"}
-                      direction={sortConfig.direction}
-                      onClick={() => toggleSort("volume")}
-                    />
-                    <th className="px-3 py-2 font-normal">Tags</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-border/60 divide-y">
-                  {sortedRows
-                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-                    .map((row) => (
-                      <tr key={row.workoutDate.toString()} className="text-sm">
-                        <td className="text-foreground px-3 py-3">
+              {sortedRows.length > 50 ? (
+                <VirtualList
+                  items={sortedRows.slice(
+                    (currentPage - 1) * pageSize,
+                    currentPage * pageSize,
+                  )}
+                  itemHeight={48} // Approximate row height
+                  containerHeight={400}
+                  renderItem={(row: (typeof sortedRows)[0], index: number) => (
+                    <div
+                      key={row.workoutDate.toString()}
+                      className="border-border/60 border-b px-3 py-3 text-sm"
+                    >
+                      <div className="grid grid-cols-6 gap-3">
+                        <div className="text-foreground">
                           {row.date.toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
                           })}
-                        </td>
-                        <td className="text-foreground px-3 py-3 font-semibold">
+                        </div>
+                        <div className="text-foreground font-semibold">
                           {row.weight} kg
-                        </td>
-                        <td className="text-muted-foreground px-3 py-3">
+                        </div>
+                        <div className="text-muted-foreground">
                           {row.sets} × {row.reps}
-                        </td>
-                        <td className="text-foreground px-3 py-3">
+                        </div>
+                        <div className="text-foreground">
                           {Math.round(row.oneRm)} kg
-                        </td>
-                        <td className="text-foreground px-3 py-3">
+                        </div>
+                        <div className="text-foreground">
                           {Math.round(row.volume).toLocaleString()} kg
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                        <div>
                           <SessionTags
                             intensityPct={row.intensityPct}
                             oneRm={row.oneRm}
                             currentMax={trendSummary?.currentOneRM ?? 0}
                           />
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  className="border-border/60 rounded-lg border"
+                />
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="text-muted-foreground text-left text-xs tracking-wide uppercase">
+                    <tr>
+                      <SortableHeader
+                        label="Date"
+                        active={sortConfig.key === "date"}
+                        direction={sortConfig.direction}
+                        onClick={() => toggleSort("date")}
+                      />
+                      <SortableHeader
+                        label="Weight"
+                        active={sortConfig.key === "weight"}
+                        direction={sortConfig.direction}
+                        onClick={() => toggleSort("weight")}
+                      />
+                      <th className="px-3 py-2 font-normal">Sets × Reps</th>
+                      <SortableHeader
+                        label="e1RM"
+                        active={sortConfig.key === "oneRm"}
+                        direction={sortConfig.direction}
+                        onClick={() => toggleSort("oneRm")}
+                      />
+                      <SortableHeader
+                        label="Volume"
+                        active={sortConfig.key === "volume"}
+                        direction={sortConfig.direction}
+                        onClick={() => toggleSort("volume")}
+                      />
+                      <th className="px-3 py-2 font-normal">Tags</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-border/60 divide-y">
+                    {sortedRows
+                      .slice(
+                        (currentPage - 1) * pageSize,
+                        currentPage * pageSize,
+                      )
+                      .map((row) => (
+                        <tr
+                          key={row.workoutDate.toString()}
+                          className="text-sm"
+                        >
+                          <td className="text-foreground px-3 py-3">
+                            {row.date.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </td>
+                          <td className="text-foreground px-3 py-3 font-semibold">
+                            {row.weight} kg
+                          </td>
+                          <td className="text-muted-foreground px-3 py-3">
+                            {row.sets} × {row.reps}
+                          </td>
+                          <td className="text-foreground px-3 py-3">
+                            {Math.round(row.oneRm)} kg
+                          </td>
+                          <td className="text-foreground px-3 py-3">
+                            {Math.round(row.volume).toLocaleString()} kg
+                          </td>
+                          <td className="px-3 py-3">
+                            <SessionTags
+                              intensityPct={row.intensityPct}
+                              oneRm={row.oneRm}
+                              currentMax={trendSummary?.currentOneRM ?? 0}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             <div className="space-y-3 lg:hidden">
@@ -773,18 +994,35 @@ function StrengthTrendChart({
   data,
   color,
   unit,
+  resolution,
+  onZoomIn,
+  onZoomOut,
 }: {
   data: Array<{ date: string; fullDate: string; value: number }>;
   color: string;
   unit: string;
+  resolution?: ChartResolution;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
 }) {
-  const values = data.map((d) => d.value);
+  // Virtualize large datasets - only show every nth point for performance
+  const virtualizedData = useMemo(() => {
+    const MAX_POINTS = 100; // Limit to 100 visible points for performance
+    if (data.length <= MAX_POINTS) {
+      return data;
+    }
+
+    const step = Math.ceil(data.length / MAX_POINTS);
+    return data.filter((_, index) => index % step === 0);
+  }, [data]);
+
+  const values = virtualizedData.map((d) => d.value);
   const domain = calculateYAxisDomain(values);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart
-        data={data}
+        data={virtualizedData}
         margin={{ top: 10, right: 24, left: 0, bottom: 0 }}
       >
         <CartesianGrid
@@ -820,7 +1058,70 @@ function StrengthTrendChart({
                   <p className="text-muted-foreground">
                     {entry.value.toLocaleString()} {unit}
                   </p>
+                  {resolution === "weekly" && onZoomIn && (
+                    <button
+                      type="button"
+                      onClick={onZoomIn}
+                      className="text-primary mt-1 text-xs hover:underline"
+                    >
+                      Zoom to daily view
+                    </button>
+                  )}
+                  {resolution === "daily" && onZoomOut && (
+                    <button
+                      type="button"
+                      onClick={onZoomOut}
+                      className="text-primary mt-1 text-xs hover:underline"
+                    >
+                      Zoom to weekly view
+                    </button>
+                  )}
                 </div>
+              );
+            }
+
+            function ExportButton({
+              exerciseName,
+              templateExerciseId,
+              timeRange,
+            }: {
+              exerciseName: string | null;
+              templateExerciseId: number | null;
+              timeRange: TimeRange;
+            }) {
+              const [isExporting, setIsExporting] = useState(false);
+
+              const handleExport = async () => {
+                if (!exerciseName && !templateExerciseId) return;
+
+                setIsExporting(true);
+                try {
+                  // This would typically call the export API and trigger a download
+                  // For now, we'll just show a placeholder
+                  console.log("Exporting data for", {
+                    exerciseName,
+                    templateExerciseId,
+                    timeRange,
+                  });
+                  // In a real implementation, you'd fetch the CSV and create a download link
+                } catch (error) {
+                  console.error("Export failed:", error);
+                } finally {
+                  setIsExporting(false);
+                }
+              };
+
+              return (
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={
+                    isExporting || (!exerciseName && !templateExerciseId)
+                  }
+                  className="btn-outline w-full disabled:opacity-50 sm:w-auto"
+                >
+                  {isExporting ? "Exporting..." : "Export CSV"}
+                </button>
               );
             }
             return null;
@@ -970,4 +1271,86 @@ function calculateBestWeek(
     day: "numeric",
   }).format(new Date(best[0]!));
   return { label, sessions: best[1]! };
+}
+
+function VirtualizedExerciseSelect({
+  exercises,
+  selectedId,
+  onSelect,
+}: {
+  exercises: Array<{
+    id: string;
+    exerciseName: string;
+    aliasCount: number;
+    aliases?: string[];
+  }>;
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredExercises = useMemo(() => {
+    if (!searchTerm) return exercises;
+    return exercises.filter((exercise) =>
+      exercise.exerciseName.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [exercises, searchTerm]);
+
+  const selectedExercise = exercises.find((ex) => ex.id === selectedId);
+
+  return (
+    <div className="relative mt-2">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="border-border/60 bg-background/80 text-foreground focus:border-primary w-full rounded-xl border px-3 py-2 text-left text-sm font-medium outline-none"
+      >
+        {selectedExercise ? (
+          <>
+            {selectedExercise.exerciseName}
+            {selectedExercise.aliasCount > 1
+              ? ` (${selectedExercise.aliasCount} linked)`
+              : ""}
+          </>
+        ) : (
+          "Choose an exercise…"
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="border-border/60 bg-background/95 absolute top-full z-50 mt-1 max-h-60 w-full overflow-hidden rounded-xl border shadow-lg">
+          <input
+            type="text"
+            placeholder="Search exercises..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border-border/60 w-full border-b px-3 py-2 text-sm outline-none"
+          />
+          <VirtualList
+            items={filteredExercises}
+            itemHeight={40}
+            containerHeight={200}
+            renderItem={(exercise) => (
+              <button
+                key={exercise.id}
+                type="button"
+                onClick={() => {
+                  onSelect(exercise.id);
+                  setIsOpen(false);
+                  setSearchTerm("");
+                }}
+                className="hover:bg-muted/50 w-full px-3 py-2 text-left text-sm"
+              >
+                {exercise.exerciseName}
+                {exercise.aliasCount > 1
+                  ? ` (${exercise.aliasCount} linked)`
+                  : ""}
+              </button>
+            )}
+          />
+        </div>
+      )}
+    </div>
+  );
 }

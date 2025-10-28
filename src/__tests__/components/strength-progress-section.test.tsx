@@ -18,6 +18,9 @@ vi.mock("~/trpc/react", () => ({
       getExerciseStrengthProgression: {
         useQuery: vi.fn(),
       },
+      getWeeklyStrengthProgression: {
+        useQuery: vi.fn(),
+      },
     },
   },
 }));
@@ -35,6 +38,8 @@ const mockGetStrengthProgression = api.progress.getStrengthProgression
   .useQuery as any;
 const mockGetExerciseStrengthProgression = api.progress
   .getExerciseStrengthProgression.useQuery as any;
+const mockGetWeeklyStrengthProgression = api.progress
+  .getWeeklyStrengthProgression.useQuery as any;
 
 describe("StrengthProgressSection", () => {
   beforeEach(() => {
@@ -48,7 +53,30 @@ describe("StrengthProgressSection", () => {
     });
 
     mockGetStrengthProgression.mockReturnValue({
-      data: [],
+      data: { data: [], nextCursor: undefined },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockGetExerciseStrengthProgression.mockReturnValue({
+      data: {
+        currentOneRM: 100,
+        oneRMChange: 5,
+        volumeTrend: 10,
+        sessionCount: 5,
+        frequency: 2,
+        recentPRs: [],
+        topSets: [],
+        progressionTrend: 0.05,
+        consistencyScore: 85,
+        timeline: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockGetWeeklyStrengthProgression.mockReturnValue({
+      data: { data: [] },
       isLoading: false,
       isError: false,
     });
