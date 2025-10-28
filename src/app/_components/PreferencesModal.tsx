@@ -31,9 +31,13 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   const [predictiveEnabled, setPredictiveEnabled] = useState<boolean>(false);
   const [rightSwipeAction, setRightSwipeAction] =
     useState<RightSwipeAction>("collapse_expand");
-  const [defaultWeightUnit, setDefaultWeightUnit] = useState<"kg" | "lbs">("kg");
+  const [defaultWeightUnit, setDefaultWeightUnit] = useState<"kg" | "lbs">(
+    "kg",
+  );
   const [leftSwipeThreshold, setLeftSwipeThreshold] = useState<string>("120");
   const [rightSwipeThreshold, setRightSwipeThreshold] = useState<string>("120");
+  const [enableManualWellness, setEnableManualWellness] =
+    useState<boolean>(false);
   const [saving, setSaving] = useState(false);
 
   const updateMutation = api.preferences.update.useMutation({
@@ -65,24 +69,27 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
           : "collapse_expand";
       setRightSwipeAction(rightSwipe as RightSwipeAction);
 
-      const weightUnit = 
-        "defaultWeightUnit" in prefs
-          ? (prefs.defaultWeightUnit ?? "kg")
-          : "kg";
+      const weightUnit =
+        "defaultWeightUnit" in prefs ? (prefs.defaultWeightUnit ?? "kg") : "kg";
       setDefaultWeightUnit(weightUnit as "kg" | "lbs");
 
-      const leftThreshold = 
+      const leftThreshold =
         "leftSwipeThreshold" in prefs
           ? String(prefs.leftSwipeThreshold ?? 120)
           : "120";
       setLeftSwipeThreshold(leftThreshold);
 
-      const rightThreshold = 
+      const rightThreshold =
         "rightSwipeThreshold" in prefs
           ? String(prefs.rightSwipeThreshold ?? 120)
           : "120";
       setRightSwipeThreshold(rightThreshold);
 
+      const manualWellness =
+        "enable_manual_wellness" in prefs
+          ? Boolean(prefs.enable_manual_wellness ?? false)
+          : false;
+      setEnableManualWellness(manualWellness);
     }
   }, [isLoading, prefs]);
 
@@ -108,12 +115,14 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       defaultWeightUnit?: "kg" | "lbs";
       leftSwipeThreshold?: number;
       rightSwipeThreshold?: number;
+      enable_manual_wellness?: boolean;
     } = {
       predictive_defaults_enabled: predictiveEnabled,
       right_swipe_action: rightSwipeAction,
       defaultWeightUnit: defaultWeightUnit,
       leftSwipeThreshold: parseInt(leftSwipeThreshold, 10),
       rightSwipeThreshold: parseInt(rightSwipeThreshold, 10),
+      enable_manual_wellness: enableManualWellness,
     };
     updateMutation.mutate(payload);
   };
@@ -140,7 +149,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         className={cn(
           "fixed inset-0 z-[50000] flex min-h-screen items-center justify-center",
           "bg-background/95 backdrop-blur-md backdrop-saturate-150",
-          "p-4 md:p-6"
+          "p-4 md:p-6",
         )}
         onClick={() => {
           restoreFocus();
@@ -149,7 +158,10 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.2, ease: "easeOut" }}
+        transition={{
+          duration: prefersReducedMotion ? 0 : 0.2,
+          ease: "easeOut",
+        }}
       >
         <FocusTrap
           onEscape={() => {
@@ -160,35 +172,41 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
           preventScroll
         >
           <motion.div
-            className="w-full max-w-md max-h-[90vh] overflow-hidden"
+            className="max-h-[90vh] w-full max-w-md overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ 
-              duration: prefersReducedMotion ? 0 : 0.3, 
-              ease: [0.4, 0, 0.2, 1] 
+            transition={{
+              duration: prefersReducedMotion ? 0 : 0.3,
+              ease: [0.4, 0, 0.2, 1],
             }}
           >
-            <GlassSurface 
+            <GlassSurface
               className={cn(
-                "glass-hero shadow-2xl rounded-xl border",
+                "glass-hero rounded-xl border shadow-2xl",
                 "bg-card/95 backdrop-blur-xl backdrop-saturate-150",
-                "border-border/50 overflow-hidden"
+                "border-border/50 overflow-hidden",
               )}
               as="div"
             >
-              <div className="max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/30">
-                <div className="border-b border-border/50 px-6 py-5 bg-gradient-to-r from-card/50 to-card/80">
+              <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/30 max-h-[90vh] overflow-y-auto">
+                <div className="border-border/50 from-card/50 to-card/80 border-b bg-gradient-to-r px-6 py-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <div className="w-4 h-4 rounded-sm bg-primary/60" />
+                    <div className="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-lg">
+                      <div className="bg-primary/60 h-4 w-4 rounded-sm" />
                     </div>
                     <div>
-                      <h2 id="preferences-title" className="text-xl font-bold text-foreground leading-none">
+                      <h2
+                        id="preferences-title"
+                        className="text-foreground text-xl leading-none font-bold"
+                      >
                         Preferences
                       </h2>
-                      <p id="preferences-description" className="text-sm text-muted-foreground mt-1">
+                      <p
+                        id="preferences-description"
+                        className="text-muted-foreground mt-1 text-sm"
+                      >
                         Customise your workout tracking experience
                       </p>
                     </div>
@@ -199,12 +217,13 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   {/* Predictive defaults toggle */}
                   <section className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="space-y-1 flex-1">
-                        <div className="font-medium text-foreground leading-none">
+                      <div className="flex-1 space-y-1">
+                        <div className="text-foreground leading-none font-medium">
                           Predictive defaults
                         </div>
-                        <div className="text-sm text-muted-foreground leading-relaxed">
-                          Prefill new sets with your most recent values for each exercise
+                        <div className="text-muted-foreground text-sm leading-relaxed">
+                          Prefill new sets with your most recent values for each
+                          exercise
                         </div>
                       </div>
                       <motion.button
@@ -215,31 +234,34 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                         onClick={() => setPredictiveEnabled((v) => !v)}
                         className={cn(
                           "relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200",
-                          "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
-                          "hover:shadow-md touch-target",
-                          predictiveEnabled ? "bg-primary" : "bg-muted"
+                          "focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+                          "touch-target hover:shadow-md",
+                          predictiveEnabled ? "bg-primary" : "bg-muted",
                         )}
                         whileTap={{ scale: prefersReducedMotion ? 1 : 0.95 }}
                       >
                         <motion.span
-                          className="inline-block h-6 w-6 transform rounded-full bg-background shadow-sm"
+                          className="bg-background inline-block h-6 w-6 transform rounded-full shadow-sm"
                           animate={{
-                            x: predictiveEnabled ? 28 : 4
+                            x: predictiveEnabled ? 28 : 4,
                           }}
-                          transition={{ 
-                            type: "spring", 
-                            stiffness: 500, 
+                          transition={{
+                            type: "spring",
+                            stiffness: 500,
                             damping: 30,
-                            duration: prefersReducedMotion ? 0 : undefined
+                            duration: prefersReducedMotion ? 0 : undefined,
                           }}
                         />
                         <span className="sr-only">
-                          {predictiveEnabled ? "Disable" : "Enable"} predictive defaults
+                          {predictiveEnabled ? "Disable" : "Enable"} predictive
+                          defaults
                         </span>
                       </motion.button>
                     </div>
                     <div id="predictive-description" className="sr-only">
-                      When enabled, new exercise sets will be pre-filled with your most recent weight, reps, and other values for that exercise
+                      When enabled, new exercise sets will be pre-filled with
+                      your most recent weight, reps, and other values for that
+                      exercise
                     </div>
                   </section>
 
@@ -247,94 +269,148 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                   <ThemeSelector variant="grid" showDescription={true} />
 
                   {/* Weight Unit Preference */}
-                  <section className="space-y-3" role="radiogroup" aria-labelledby="weight-unit-label">
+                  <section
+                    className="space-y-3"
+                    role="radiogroup"
+                    aria-labelledby="weight-unit-label"
+                  >
                     <div className="space-y-1">
-                      <div id="weight-unit-label" className="font-medium text-foreground leading-none">
+                      <div
+                        id="weight-unit-label"
+                        className="text-foreground leading-none font-medium"
+                      >
                         Default Weight Unit
                       </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed">
-                        Choose your preferred unit for displaying exercise weights
+                      <div className="text-muted-foreground text-sm leading-relaxed">
+                        Choose your preferred unit for displaying exercise
+                        weights
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { value: "kg" as const, label: "Kilograms", short: "kg", icon: "⚖️" },
-                        { value: "lbs" as const, label: "Pounds", short: "lbs", icon: "🏋️" },
+                        {
+                          value: "kg" as const,
+                          label: "Kilograms",
+                          short: "kg",
+                          icon: "⚖️",
+                        },
+                        {
+                          value: "lbs" as const,
+                          label: "Pounds",
+                          short: "lbs",
+                          icon: "🏋️",
+                        },
                       ].map(({ value, label, short, icon }) => (
                         <Button
                           key={value}
-                          variant={defaultWeightUnit === value ? "default" : "outline"}
+                          variant={
+                            defaultWeightUnit === value ? "default" : "outline"
+                          }
                           size="sm"
                           onClick={() => setDefaultWeightUnit(value)}
                           className={cn(
-                            "flex flex-col gap-1 h-auto py-3 text-sm transition-all",
-                            "hover:shadow-md active:scale-95"
+                            "flex h-auto flex-col gap-1 py-3 text-sm transition-all",
+                            "hover:shadow-md active:scale-95",
                           )}
                           role="radio"
                           aria-checked={defaultWeightUnit === value}
                           haptic
                         >
                           <span className="text-lg leading-none">{icon}</span>
-                          <span className="font-medium leading-none">{label}</span>
-                          <span className="text-xs opacity-70 leading-none">({short})</span>
+                          <span className="leading-none font-medium">
+                            {label}
+                          </span>
+                          <span className="text-xs leading-none opacity-70">
+                            ({short})
+                          </span>
                         </Button>
                       ))}
                     </div>
                   </section>
 
                   {/* Right swipe action selector */}
-                  <section className="space-y-3" role="radiogroup" aria-labelledby="swipe-action-label">
+                  <section
+                    className="space-y-3"
+                    role="radiogroup"
+                    aria-labelledby="swipe-action-label"
+                  >
                     <div className="space-y-1">
-                      <div id="swipe-action-label" className="font-medium text-foreground leading-none">
+                      <div
+                        id="swipe-action-label"
+                        className="text-foreground leading-none font-medium"
+                      >
                         Right-swipe Action
                       </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed">
-                        Choose what happens when you right-swipe an exercise card
+                      <div className="text-muted-foreground text-sm leading-relaxed">
+                        Choose what happens when you right-swipe an exercise
+                        card
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      {([
-                        { value: "collapse_expand", label: "Collapse/Expand", icon: "📋", description: "Toggle exercise details" },
-                        { value: "none", label: "None", icon: "🚫", description: "No action" }
-                      ] as Array<{ value: RightSwipeAction; label: string; icon: string; description: string }>).map(
-                        ({ value, label, icon, description }) => (
-                          <Button
-                            key={value}
-                            variant={rightSwipeAction === value ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setRightSwipeAction(value)}
-                            className={cn(
-                              "flex flex-col gap-1 h-auto py-3 text-sm transition-all",
-                              "hover:shadow-md active:scale-95"
-                            )}
-                            role="radio"
-                            aria-checked={rightSwipeAction === value}
-                            haptic
-                          >
-                            <span className="text-lg leading-none">{icon}</span>
-                            <span className="font-medium leading-none">{label}</span>
-                            <span className="text-xs opacity-70 leading-none text-center">{description}</span>
-                          </Button>
-                        ),
-                      )}
+                      {(
+                        [
+                          {
+                            value: "collapse_expand",
+                            label: "Collapse/Expand",
+                            icon: "📋",
+                            description: "Toggle exercise details",
+                          },
+                          {
+                            value: "none",
+                            label: "None",
+                            icon: "🚫",
+                            description: "No action",
+                          },
+                        ] as Array<{
+                          value: RightSwipeAction;
+                          label: string;
+                          icon: string;
+                          description: string;
+                        }>
+                      ).map(({ value, label, icon, description }) => (
+                        <Button
+                          key={value}
+                          variant={
+                            rightSwipeAction === value ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => setRightSwipeAction(value)}
+                          className={cn(
+                            "flex h-auto flex-col gap-1 py-3 text-sm transition-all",
+                            "hover:shadow-md active:scale-95",
+                          )}
+                          role="radio"
+                          aria-checked={rightSwipeAction === value}
+                          haptic
+                        >
+                          <span className="text-lg leading-none">{icon}</span>
+                          <span className="leading-none font-medium">
+                            {label}
+                          </span>
+                          <span className="text-center text-xs leading-none opacity-70">
+                            {description}
+                          </span>
+                        </Button>
+                      ))}
                     </div>
                   </section>
 
                   {/* Asymmetric swipe thresholds */}
                   <section className="space-y-4">
                     <div className="space-y-1">
-                      <div className="font-medium text-foreground leading-none">
+                      <div className="text-foreground leading-none font-medium">
                         Swipe Sensitivity
                       </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed">
-                        Configure swipe distance thresholds for triggering actions
+                      <div className="text-muted-foreground text-sm leading-relaxed">
+                        Configure swipe distance thresholds for triggering
+                        actions
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label 
-                          htmlFor="left-swipe-threshold" 
-                          className="block text-sm font-medium text-foreground leading-none"
+                        <label
+                          htmlFor="left-swipe-threshold"
+                          className="text-foreground block text-sm leading-none font-medium"
                         >
                           Left swipe (px)
                         </label>
@@ -345,21 +421,23 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                           max="300"
                           step="10"
                           value={leftSwipeThreshold}
-                          onChange={(e) => setLeftSwipeThreshold(e.target.value)}
+                          onChange={(e) =>
+                            setLeftSwipeThreshold(e.target.value)
+                          }
                           className={cn(
-                            "w-full px-3 py-2.5 rounded-md border transition-all",
+                            "w-full rounded-md border px-3 py-2.5 transition-all",
                             "bg-input text-foreground border-border",
-                            "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
+                            "focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2",
                             "hover:border-border/80 focus-visible:border-ring",
-                            "touch-target"
+                            "touch-target",
                           )}
                           aria-describedby="swipe-threshold-help"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label 
-                          htmlFor="right-swipe-threshold" 
-                          className="block text-sm font-medium text-foreground leading-none"
+                        <label
+                          htmlFor="right-swipe-threshold"
+                          className="text-foreground block text-sm leading-none font-medium"
                         >
                           Right swipe (px)
                         </label>
@@ -370,50 +448,113 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                           max="300"
                           step="10"
                           value={rightSwipeThreshold}
-                          onChange={(e) => setRightSwipeThreshold(e.target.value)}
+                          onChange={(e) =>
+                            setRightSwipeThreshold(e.target.value)
+                          }
                           className={cn(
-                            "w-full px-3 py-2.5 rounded-md border transition-all",
+                            "w-full rounded-md border px-3 py-2.5 transition-all",
                             "bg-input text-foreground border-border",
-                            "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
+                            "focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2",
                             "hover:border-border/80 focus-visible:border-ring",
-                            "touch-target"
+                            "touch-target",
                           )}
                           aria-describedby="swipe-threshold-help"
                         />
                       </div>
                     </div>
-                    <div id="swipe-threshold-help" className="text-xs text-muted-foreground leading-relaxed bg-muted/30 rounded-lg px-3 py-2">
-                      💡 Default: 120px. Higher values require longer swipes to trigger actions.
+                    <div
+                      id="swipe-threshold-help"
+                      className="text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 text-xs leading-relaxed"
+                    >
+                      💡 Default: 120px. Higher values require longer swipes to
+                      trigger actions.
                     </div>
                   </section>
 
                   {/* Connect Whoop */}
                   <section className="space-y-3">
                     <div className="space-y-1">
-                      <div className="font-medium text-foreground leading-none flex items-center gap-2">
-                        <span className="w-6 h-6 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">W</span>
+                      <div className="text-foreground flex items-center gap-2 leading-none font-medium">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-600 text-xs font-bold text-white">
+                          W
+                        </span>
                         WHOOP Integration
                       </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed">
-                        Connect your WHOOP device to sync recovery and strain data
+                      <div className="text-muted-foreground text-sm leading-relaxed">
+                        Connect your WHOOP device to sync recovery and strain
+                        data
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      asChild 
-                      className="w-full justify-start hover:shadow-md transition-all"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="w-full justify-start transition-all hover:shadow-md"
                       haptic
                     >
-                      <a href="/connect-whoop" className="flex items-center gap-2">
+                      <a
+                        href="/connect-whoop"
+                        className="flex items-center gap-2"
+                      >
                         <span className="text-lg">🔗</span>
                         Connect WHOOP
                       </a>
                     </Button>
                   </section>
+
+                  {/* Manual Wellness toggle */}
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 space-y-1">
+                        <div className="text-foreground flex items-center gap-2 leading-none font-medium">
+                          <span className="text-lg">📝</span>
+                          Manual Wellness Tracking
+                        </div>
+                        <div className="text-muted-foreground text-sm leading-relaxed">
+                          Enable manual logging of energy levels and sleep
+                          quality
+                        </div>
+                      </div>
+                      <motion.button
+                        type="button"
+                        role="switch"
+                        aria-checked={enableManualWellness}
+                        aria-describedby="manual-wellness-description"
+                        onClick={() => setEnableManualWellness((v) => !v)}
+                        className={cn(
+                          "relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-200",
+                          "focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2",
+                          "touch-target hover:shadow-md",
+                          enableManualWellness ? "bg-primary" : "bg-muted",
+                        )}
+                        whileTap={{ scale: prefersReducedMotion ? 1 : 0.95 }}
+                      >
+                        <motion.span
+                          className="bg-background inline-block h-6 w-6 transform rounded-full shadow-sm"
+                          animate={{
+                            x: enableManualWellness ? 28 : 4,
+                          }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 500,
+                            damping: 30,
+                            duration: prefersReducedMotion ? 0 : undefined,
+                          }}
+                        />
+                        <span className="sr-only">
+                          {enableManualWellness ? "Disable" : "Enable"} manual
+                          wellness tracking
+                        </span>
+                      </motion.button>
+                    </div>
+                    <div id="manual-wellness-description" className="sr-only">
+                      When enabled, you can manually log your energy levels and
+                      sleep quality in the progress dashboard
+                    </div>
+                  </section>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-end gap-3 border-t border-border/50 px-6 py-5 bg-gradient-to-r from-card/30 to-card/50">
+                <div className="border-border/50 from-card/30 to-card/50 flex flex-col justify-end gap-3 border-t bg-gradient-to-r px-6 py-5 sm:flex-row">
                   <Button
                     ref={firstFocusRef}
                     variant="outline"
@@ -423,7 +564,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                       onClose();
                     }}
                     disabled={saving}
-                    className="sm:w-auto hover:shadow-md transition-all"
+                    className="transition-all hover:shadow-md sm:w-auto"
                   >
                     Cancel
                   </Button>
@@ -433,18 +574,18 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     onClick={() => void handleSave()}
                     disabled={saving || saveDisabled}
                     aria-busy={saving ? "true" : "false"}
-                    className="sm:w-auto hover:shadow-md transition-all"
+                    className="transition-all hover:shadow-md sm:w-auto"
                     haptic
                   >
                     {saving ? (
                       <>
                         <motion.div
-                          className="w-4 h-4 border-2 border-current border-t-transparent rounded-full"
+                          className="h-4 w-4 rounded-full border-2 border-current border-t-transparent"
                           animate={{ rotate: 360 }}
                           transition={{
                             duration: 1,
                             repeat: Infinity,
-                            ease: "linear"
+                            ease: "linear",
                           }}
                         />
                         Saving…

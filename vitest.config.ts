@@ -50,8 +50,8 @@ export default defineConfig({
     exclude: baseExclude,
     coverage: {
       provider: "v8",
-      // Keep full reporter stack for CI; use a lightweight summary locally.
-      reporter: isCI ? ["text", "lcov", "json", "html"] : ["text-summary"],
+      // Keep full reporter stack for CI; use detailed text output locally.
+      reporter: isCI ? ["text", "lcov", "json", "html"] : ["text"],
       all: isCI,
       include: [
         "src/app/**/*.{ts,tsx}",

@@ -1422,6 +1422,152 @@ export const progressRouter = createTRPCRouter({
       }
     }),
 
+  // Get weekly aggregated strength progression for multi-resolution charts
+  getWeeklyStrengthProgression: protectedProcedure
+    .input(exerciseProgressInputSchema)
+    .query(async ({ input, ctx }) => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(
+          input.timeRange,
+          input.startDate,
+          input.endDate,
+        );
+
+        const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
+          exerciseName: input.exerciseName,
+          templateExerciseId: input.templateExerciseId,
+        });
+
+        // Get weekly summaries for the time range
+        const weeklyData = await ctx.db
+          .select({
+            week_start: exerciseWeeklySummary.week_start,
+            avg_volume: exerciseWeeklySummary.avg_volume,
+            max_one_rm: exerciseWeeklySummary.max_one_rm,
+            session_count: exerciseWeeklySummary.session_count,
+          })
+          .from(exerciseWeeklySummary)
+          .where(
+            and(
+              eq(exerciseWeeklySummary.user_id, ctx.user.id),
+              eq(exerciseWeeklySummary.exercise_name, selection.displayName),
+              gte(exerciseWeeklySummary.week_start, startDate),
+              lte(exerciseWeeklySummary.week_start, endDate),
+            ),
+          )
+          .orderBy(asc(exerciseWeeklySummary.week_start));
+
+        return {
+          data: weeklyData.map((week) => ({
+            weekStart: week.week_start.toISOString(),
+            avgVolume: week.avg_volume || 0,
+            maxOneRM: week.max_one_rm || 0,
+            sessionCount: week.session_count,
+          })),
+        };
+      } catch (error) {
+        console.error("Error in getWeeklyStrengthProgression:", error);
+        return { data: [] };
+      }
+    }),
+
+  // Export strength progression data as CSV
+  exportStrengthProgression: protectedProcedure
+    .input(
+      z
+        .object({
+          exerciseName: z
+            .string()
+            .min(1, "Exercise name is required")
+            .optional(),
+          templateExerciseId: z.number().int().positive().optional(),
+          timeRange: z.enum(["week", "month", "year"]),
+          startDate: z.coerce.date().optional(),
+          endDate: z.coerce.date().optional(),
+          format: z.enum(["csv"]).default("csv"),
+        })
+        .refine(
+          (input) =>
+            typeof input.templateExerciseId === "number" ||
+            (typeof input.exerciseName === "string" &&
+              input.exerciseName.length > 0),
+          {
+            message: "Exercise selection is required",
+            path: ["exerciseName"],
+          },
+        ),
+    )
+    .query(async ({ input, ctx }) => {
+      try {
+        const { startDate, endDate } = getDateRangeFromUtils(
+          input.timeRange,
+          input.startDate,
+          input.endDate,
+        );
+
+        const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
+          exerciseName: input.exerciseName,
+          templateExerciseId: input.templateExerciseId,
+        });
+
+        // Get all sessions for the time range
+        const sessions = await ctx.db
+          .select({
+            workoutDate: workoutSessions.workoutDate,
+            weight: sessionExercises.weight,
+            reps: sessionExercises.reps,
+            sets: sessionExercises.sets,
+            oneRMEstimate: sessionExercises.one_rm_estimate,
+            volumeLoad: sessionExercises.volume_load,
+          })
+          .from(sessionExercises)
+          .innerJoin(
+            workoutSessions,
+            eq(workoutSessions.id, sessionExercises.sessionId),
+          )
+          .where(
+            and(
+              eq(sessionExercises.user_id, ctx.user.id),
+              eq(sessionExercises.resolvedExerciseName, selection.displayName),
+              gte(workoutSessions.workoutDate, startDate),
+              lte(workoutSessions.workoutDate, endDate),
+            ),
+          )
+          .orderBy(desc(workoutSessions.workoutDate));
+
+        // Convert to CSV format
+        const csvHeaders = [
+          "Date",
+          "Weight (kg)",
+          "Reps",
+          "Sets",
+          "Volume (kg)",
+          "e1RM (kg)",
+        ];
+        const csvRows = sessions.map((session) => [
+          session.workoutDate.toISOString().split("T")[0]!,
+          session.weight?.toString() ?? "",
+          session.reps?.toString() ?? "",
+          session.sets?.toString() ?? "",
+          session.volumeLoad?.toString() ?? "",
+          session.oneRMEstimate?.toString() ?? "",
+        ]);
+
+        const csvContent = [csvHeaders, ...csvRows]
+          .map((row) => row.map((cell) => `"${cell}"`).join(","))
+          .join("\n");
+
+        return {
+          filename: `${selection.displayName}_progress_${input.timeRange}.csv`,
+          content: csvContent,
+          mimeType: "text/csv",
+        };
+      } catch (error) {
+        console.error("Error in exportStrengthProgression:", error);
+        throw new Error("Failed to export data");
+      }
+    }),
+
   getStrengthPulse: protectedProcedure
     .input(timeRangeInputSchema)
     .query(async ({ input, ctx }) => {
