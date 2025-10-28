@@ -63,23 +63,23 @@ The `/progress/` page suffers from slow load times due to heavy historical data 
   - Track cursors for each data section
   - Handle infinite scroll for large datasets
 
-### Query Refactoring
+### Query Refactoring ✅ COMPLETED
 
-- [ ] Replace raw session queries with aggregated data queries
+- [x] Replace raw session queries with aggregated data queries
   - Use daily summaries for overview charts
   - Use weekly summaries for trend analysis
-- [ ] Implement query result caching at database level
+- [x] Implement query result caching at database level
   - Cache expensive calculations (trend analysis, consistency scores)
-- [ ] Add query result memoization for repeated requests
+- [x] Add query result memoization for repeated requests
 
 ## Phase 3: Caching Strategy Enhancement (Medium Priority)
 
 ### TanStack Query Configuration
 
 - [ ] Extend cache times for aggregated data queries
-  - Daily summaries: 24 hours stale time
-  - Weekly summaries: 7 days stale time
-  - Monthly summaries: 30 days stale time
+  - Daily summaries: 48 hours stale time
+  - Weekly summaries: 9 days stale time
+  - Monthly summaries: 45 days stale time
 - [ ] Implement smart cache invalidation
   - Invalidate aggregated data when new sessions are added
   - Partial cache updates for incremental changes

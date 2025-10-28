@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { progressRouter } from "~/server/api/routers/progress";
+import {
+  getCachedCalculation,
+  setCachedCalculation,
+} from "~/server/api/routers/progress";
 
 const buildSelectMock = (rows: unknown[]) => {
   const limit = vi.fn(() => rows);
@@ -145,12 +149,13 @@ describe("progressRouter", () => {
   });
 
   describe("getExerciseStrengthProgression", () => {
-    it("should return default values when no data exists", async () => {
+    it("should return default values when no aggregated data exists", async () => {
+      // Mock empty aggregated data queries
       db.select
-        .mockImplementationOnce(() => buildSelectMock([])) // current view
-        .mockImplementationOnce(() => buildSelectMock([])) // current fallback
-        .mockImplementationOnce(() => buildSelectMock([])) // previous view
-        .mockImplementationOnce(() => buildSelectMock([])); // previous fallback
+        .mockImplementationOnce(() => buildSelectMock([])) // daily current
+        .mockImplementationOnce(() => buildSelectMock([])) // daily previous
+        .mockImplementationOnce(() => buildSelectMock([])) // weekly data
+        .mockImplementationOnce(() => buildSelectMock([])); // recent sessions
 
       const result = await caller.getExerciseStrengthProgression({
         exerciseName: "Bench Press",
@@ -171,56 +176,177 @@ describe("progressRouter", () => {
       });
     });
 
-    it("should calculate strength progression with data", async () => {
-      const currentData = [
+    it("should calculate strength progression using aggregated data", async () => {
+      const dailyCurrentData = [
         {
-          workoutDate: new Date("2024-01-01"),
-          exerciseName: "Bench Press",
-          weight: 100,
-          reps: 5,
-          sets: 3,
-          unit: "kg",
-          oneRMEstimate: 112.5,
-          volumeLoad: 1500,
+          date: new Date("2024-01-01"),
+          max_one_rm: 112.5,
+          total_volume: 1500,
+          session_count: 1,
         },
         {
+          date: new Date("2024-01-15"),
+          max_one_rm: 118.125,
+          total_volume: 1575,
+          session_count: 1,
+        },
+      ];
+      const dailyPreviousData = [
+        {
+          date: new Date("2023-12-20"),
+          max_one_rm: 107.125,
+          total_volume: 1425,
+          session_count: 1,
+        },
+      ];
+      const weeklyData = [
+        {
+          week_start: new Date("2024-01-01"),
+          trend_slope: 0.5,
+        },
+        {
+          week_start: new Date("2024-01-08"),
+          trend_slope: 0.3,
+        },
+      ];
+      const recentSessions = [
+        {
           workoutDate: new Date("2024-01-15"),
-          exerciseName: "Bench Press",
           weight: 105,
           reps: 5,
           sets: 3,
-          unit: "kg",
           oneRMEstimate: 118.125,
           volumeLoad: 1575,
         },
       ];
-      const previousData = [
-        {
-          workoutDate: new Date("2023-12-20"),
-          exerciseName: "Bench Press",
-          weight: 95,
-          reps: 5,
-          sets: 3,
-          unit: "kg",
-          oneRMEstimate: 107.125,
-          volumeLoad: 1425,
-        },
-      ];
 
       db.select
-        .mockImplementationOnce(() => buildSelectMock(currentData))
-        .mockImplementationOnce(() => buildSelectMock(previousData));
+        .mockImplementationOnce(() => buildSelectMock(dailyCurrentData))
+        .mockImplementationOnce(() => buildSelectMock(dailyPreviousData))
+        .mockImplementationOnce(() => buildSelectMock(weeklyData))
+        .mockImplementationOnce(() => buildSelectMock(recentSessions));
 
       const result = await caller.getExerciseStrengthProgression({
         exerciseName: "Bench Press",
         timeRange: "quarter",
       });
 
-      expect(result.currentOneRM).toBeCloseTo(118.125, 5);
-      expect(result.oneRMChange).toBeGreaterThan(0);
+      expect(result.currentOneRM).toBe(118.125);
+      expect(result.oneRMChange).toBeCloseTo(11, 1); // 118.125 - 107.125
       expect(result.sessionCount).toBe(2);
+      expect(result.progressionTrend).toBeCloseTo(0.4, 1); // Average of trend slopes
       expect(Array.isArray(result.recentPRs)).toBe(true);
-      expect(result.topSets.length).toBeGreaterThan(0);
+      expect(result.timeline.length).toBe(2);
+    });
+
+    it("should use cached calculations for performance", async () => {
+      const dailyCurrentData = [
+        {
+          date: new Date("2024-01-01"),
+          max_one_rm: 100,
+          total_volume: 1000,
+          session_count: 1,
+        },
+      ];
+      const dailyPreviousData: any[] = [];
+      const weeklyData: any[] = [];
+      const recentSessions: any[] = [];
+
+      db.select
+        .mockImplementationOnce(() => buildSelectMock(dailyCurrentData))
+        .mockImplementationOnce(() => buildSelectMock(dailyPreviousData))
+        .mockImplementationOnce(() => buildSelectMock(weeklyData))
+        .mockImplementationOnce(() => buildSelectMock(recentSessions));
+
+      // First call should calculate and cache
+      await caller.getExerciseStrengthProgression({
+        exerciseName: "Bench Press",
+        timeRange: "quarter",
+      });
+
+      // Second call with same parameters should use cache
+      const result2 = await caller.getExerciseStrengthProgression({
+        exerciseName: "Bench Press",
+        timeRange: "quarter",
+      });
+
+      expect(result2.consistencyScore).toBeDefined();
+      expect(result2.progressionTrend).toBeDefined();
+    });
+  });
+
+  describe("getExerciseVolumeProgression", () => {
+    it("should return default values when no aggregated data exists", async () => {
+      // Mock empty aggregated data queries
+      db.select
+        .mockImplementationOnce(() => buildSelectMock([])) // daily current
+        .mockImplementationOnce(() => buildSelectMock([])) // daily previous
+        .mockImplementationOnce(() => buildSelectMock([])); // weekly data
+
+      const result = await caller.getExerciseVolumeProgression({
+        exerciseName: "Bench Press",
+        timeRange: "quarter",
+      });
+
+      expect(result).toEqual({
+        currentVolume: 0,
+        volumeChange: 0,
+        volumeChangePercent: 0,
+        averageVolumePerSession: 0,
+        sessionCount: 0,
+        frequency: 0,
+        volumeByWeek: [],
+      });
+    });
+
+    it("should calculate volume progression using aggregated data", async () => {
+      const dailyCurrentData = [
+        {
+          date: new Date("2024-01-01"),
+          total_volume: 1500,
+          session_count: 1,
+        },
+        {
+          date: new Date("2024-01-08"),
+          total_volume: 1575,
+          session_count: 1,
+        },
+      ];
+      const dailyPreviousData = [
+        {
+          date: new Date("2023-12-20"),
+          total_volume: 1425,
+          session_count: 1,
+        },
+      ];
+      const weeklyData = [
+        {
+          week_start: new Date("2024-01-01"),
+          avg_volume: 1500,
+          session_count: 1,
+        },
+        {
+          week_start: new Date("2024-01-08"),
+          avg_volume: 1575,
+          session_count: 1,
+        },
+      ];
+
+      db.select
+        .mockImplementationOnce(() => buildSelectMock(dailyCurrentData))
+        .mockImplementationOnce(() => buildSelectMock(dailyPreviousData))
+        .mockImplementationOnce(() => buildSelectMock(weeklyData));
+
+      const result = await caller.getExerciseVolumeProgression({
+        exerciseName: "Bench Press",
+        timeRange: "quarter",
+      });
+
+      expect(result.currentVolume).toBe(3075); // 1500 + 1575
+      expect(result.volumeChange).toBeCloseTo(1650, 1); // 3075 - 1425
+      expect(result.sessionCount).toBe(2);
+      expect(result.volumeByWeek.length).toBe(2);
+      expect(result.averageVolumePerSession).toBe(1537.5); // 3075 / 2
     });
   });
 
@@ -734,6 +860,65 @@ describe("progressRouter", () => {
       expect(result.data[0]!.exerciseName).toBe("Squat");
       expect(result.data[0]!.weight).toBe(120);
       expect(result.data[0]!.oneRMEstimate).toBe(127.06); // Calculated using Brzycki formula
+    });
+  });
+
+  describe("cache functions", () => {
+    beforeEach(() => {
+      // Clear cache before each test
+      vi.clearAllMocks();
+    });
+
+    it("should cache and retrieve calculation results", () => {
+      const testValue = { result: 42 };
+      const cacheKey = "test_key";
+
+      // Initially no cached value
+      const initialResult = getCachedCalculation(cacheKey);
+      expect(initialResult).toBeNull();
+
+      // Set cache value
+      setCachedCalculation(cacheKey, testValue);
+
+      // Retrieve cached value
+      const cachedResult = getCachedCalculation(cacheKey);
+      expect(cachedResult).toEqual(testValue);
+    });
+
+    it("should return null for expired cache entries", () => {
+      const testValue = { result: 42 };
+      const cacheKey = "test_key";
+
+      // Mock Date.now to simulate time passing
+      const originalNow = Date.now;
+      Date.now = vi.fn().mockReturnValue(0); // Set initial time
+
+      // Set cache value
+      setCachedCalculation(cacheKey, testValue);
+
+      // Advance time past TTL (1 hour = 3600000 ms)
+      Date.now = vi.fn().mockReturnValue(3600001);
+
+      // Should return null for expired entry
+      const expiredResult = getCachedCalculation(cacheKey);
+      expect(expiredResult).toBeNull();
+
+      // Restore original Date.now
+      Date.now = originalNow;
+    });
+
+    it("should handle different data types in cache", () => {
+      const stringValue = "test string";
+      const numberValue = 123;
+      const objectValue = { complex: "object", array: [1, 2, 3] };
+
+      setCachedCalculation("string_key", stringValue);
+      setCachedCalculation("number_key", numberValue);
+      setCachedCalculation("object_key", objectValue);
+
+      expect(getCachedCalculation("string_key")).toBe(stringValue);
+      expect(getCachedCalculation("number_key")).toBe(numberValue);
+      expect(getCachedCalculation("object_key")).toEqual(objectValue);
     });
   });
 });

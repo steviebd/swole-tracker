@@ -74,7 +74,7 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnWindowFocus: true, // Useful for exercise tracking
   });
 
-  // Progress data - cache for 5 minutes to improve performance
+  // Progress data - extended caching for aggregated data performance
   const progressDefaults = {
     staleTime: 5 * 60 * 1000, // 5 minutes - balance freshness with performance
     gcTime: 60 * 60 * 1000, // Keep around for an hour for offline fallbacks
@@ -82,6 +82,53 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnReconnect: true,
     refetchOnMount: false, // Don't refetch on mount if data is fresh
   };
+
+  // Aggregated data queries - extended cache times based on data granularity
+  // Daily summary queries (48 hours stale time)
+  const dailyAggregatedQueries = [
+    ["progress", "getExerciseStrengthProgression"], // Uses daily summaries + weekly trends
+    ["progress", "getExerciseVolumeProgression"], // Uses daily summaries + weekly data
+  ];
+
+  dailyAggregatedQueries.forEach((key) => {
+    queryClient.setQueryDefaults(key, {
+      staleTime: 48 * 60 * 60 * 1000, // 48 hours for daily aggregated data
+      gcTime: 7 * 24 * 60 * 60 * 1000, // 7 days garbage collection
+      refetchOnWindowFocus: false, // Don't refetch aggregated data on focus
+      refetchOnReconnect: true,
+      refetchOnMount: false,
+    });
+  });
+
+  // Weekly summary queries (9 days stale time) - for future use
+  const weeklyAggregatedQueries: Array<[string, string]> = [
+    // Add queries that primarily use weekly/monthly summaries here
+  ];
+
+  weeklyAggregatedQueries.forEach((key) => {
+    queryClient.setQueryDefaults(key, {
+      staleTime: 9 * 24 * 60 * 60 * 1000, // 9 days for weekly aggregated data
+      gcTime: 30 * 24 * 60 * 60 * 1000, // 30 days garbage collection
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchOnMount: false,
+    });
+  });
+
+  // Monthly summary queries (45 days stale time) - for future use
+  const monthlyAggregatedQueries: Array<[string, string]> = [
+    // Add queries that use monthly summaries here
+  ];
+
+  monthlyAggregatedQueries.forEach((key) => {
+    queryClient.setQueryDefaults(key, {
+      staleTime: 45 * 24 * 60 * 60 * 1000, // 45 days for monthly aggregated data
+      gcTime: 90 * 24 * 60 * 60 * 1000, // 90 days garbage collection
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchOnMount: false,
+    });
+  });
 
   const progressQueries: Array<[string, string]> = [
     ["progress", "getWorkoutDates"],
