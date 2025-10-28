@@ -132,19 +132,19 @@ export function SetSuggestions({
   );
   const chanceColorClass =
     exercise.predicted_chance_to_beat_best >= 0.7
-      ? "text-[var(--color-status-success-default)]"
+      ? "text-[var(--md-sys-color-tertiary)]"
       : exercise.predicted_chance_to_beat_best >= 0.5
-        ? "text-[var(--color-status-warning-default)]"
-        : "text-[var(--color-status-danger-default)]";
+        ? "text-[var(--md-sys-color-secondary)]"
+        : "text-[var(--md-sys-color-error)]";
 
   return (
     <Card className="space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-[var(--color-text)]">
+        <h3 className="text-lg font-semibold text-[var(--md-sys-color-on-surface)]">
           {exercise.name || exercise.exercise_id}
         </h3>
         <div className="text-right">
-          <div className="text-sm text-[var(--color-text-secondary)]">
+          <div className="text-sm text-[var(--md-sys-color-on-surface-variant)]">
             Beat Best Chance
           </div>
           <div className={cx("text-lg font-bold", chanceColorClass)}>
@@ -155,9 +155,11 @@ export function SetSuggestions({
 
       {/* Volume comparison */}
       {(exercise.planned_volume_kg || exercise.best_volume_kg) && (
-        <div className="grid grid-cols-2 gap-4 rounded-lg bg-[color-mix(in_oklab,_var(--color-bg-surface)_50%,_var(--color-bg-app)_50%)] p-3">
+        <div className="grid grid-cols-2 gap-4 rounded-lg bg-[color-mix(in_oklab,var(--md-sys-color-surface-variant)_50%,var(--md-sys-color-surface)_50%)] p-3">
           <div>
-            <div className="text-muted text-xs">Planned Volume</div>
+            <div className="text-xs text-[var(--md-sys-color-on-surface-variant)]">
+              Planned Volume
+            </div>
             <div className="font-semibold">
               {exercise.planned_volume_kg
                 ? `${exercise.planned_volume_kg}kg`
@@ -165,7 +167,9 @@ export function SetSuggestions({
             </div>
           </div>
           <div>
-            <div className="text-muted text-xs">Best Volume</div>
+            <div className="text-xs text-[var(--md-sys-color-on-surface-variant)]">
+              Best Volume
+            </div>
             <div className="font-semibold">
               {exercise.best_volume_kg ? `${exercise.best_volume_kg}kg` : "N/A"}
             </div>
@@ -175,7 +179,7 @@ export function SetSuggestions({
 
       {/* Set suggestions */}
       <div className="space-y-3">
-        <h4 className="text-md font-medium text-[var(--color-text)]">
+        <h4 className="text-md font-medium text-[var(--md-sys-color-on-surface)]">
           Set Suggestions
         </h4>
         {recommendationSet &&
@@ -187,7 +191,7 @@ export function SetSuggestions({
             if (isAccepted) return null;
 
             const suggestionVariantClasses =
-              "border-[var(--color-border)] bg-[var(--color-bg-surface)]";
+              "border-[var(--md-sys-color-outline)] bg-[var(--md-sys-color-surface)]";
 
             return (
               <div
@@ -240,7 +244,9 @@ export function SetSuggestions({
                 <div className="mb-2 grid grid-cols-2 gap-3">
                   {set.suggested_weight_kg && (
                     <div>
-                      <div className="text-muted text-xs">Suggested Weight</div>
+                      <div className="text-xs text-[var(--md-sys-color-on-surface-variant)]">
+                        Suggested Weight
+                      </div>
                       <div className="font-semibold">
                         {set.suggested_weight_kg}kg
                       </div>
@@ -248,7 +254,9 @@ export function SetSuggestions({
                   )}
                   {set.suggested_reps && (
                     <div>
-                      <div className="text-muted text-xs">Suggested Reps</div>
+                      <div className="text-xs text-[var(--md-sys-color-on-surface-variant)]">
+                        Suggested Reps
+                      </div>
                       <div className="font-semibold">{set.suggested_reps}</div>
                     </div>
                   )}
@@ -257,7 +265,9 @@ export function SetSuggestions({
                 {/* Rest period suggestion */}
                 {(set as any).suggested_rest_seconds && (
                   <div className="mb-2">
-                    <div className="text-muted text-xs">Suggested Rest</div>
+                    <div className="text-xs text-[var(--md-sys-color-on-surface-variant)]">
+                      Suggested Rest
+                    </div>
                     <div className="font-semibold">
                       {Math.round((set as any).suggested_rest_seconds / 60)}{" "}
                       minutes
@@ -266,8 +276,10 @@ export function SetSuggestions({
                 )}
 
                 {/* Rationale */}
-                <div className="rounded bg-[color-mix(in_oklab,_var(--color-bg-surface)_50%,_var(--color-bg-app)_50%)] p-2 text-sm text-[var(--color-text-secondary)]">
-                  <div className="text-muted mb-1 text-xs">AI Rationale</div>
+                <div className="rounded bg-[color-mix(in_oklab,var(--md-sys-color-surface-variant)_50%,var(--md-sys-color-surface)_50%)] p-2 text-sm text-[var(--md-sys-color-on-surface-variant)]">
+                  <div className="mb-1 text-xs text-[var(--md-sys-color-on-surface-variant)]">
+                    AI Rationale
+                  </div>
                   {set.rationale}
                 </div>
               </div>

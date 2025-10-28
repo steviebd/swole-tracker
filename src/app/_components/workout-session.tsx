@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Lightbulb } from "lucide-react";
 import { ExerciseCard, type ExerciseData } from "./exercise-card";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
 import { FocusTrap, useReturnFocus } from "./focus-trap";
@@ -372,19 +373,11 @@ function WorkoutSessionContent({
             key={i}
             className="animate-pulse rounded-lg bg-[var(--color-bg-surface)] p-3 sm:p-4"
           >
-            <div
-              className="mb-3 h-3 w-1/2 rounded bg-[var(--color-border)] sm:mb-4 sm:h-4"
-            />
+            <div className="mb-3 h-3 w-1/2 rounded bg-[var(--color-border)] sm:mb-4 sm:h-4" />
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div
-                className="h-8 rounded bg-[var(--color-border)] sm:h-10"
-              />
-              <div
-                className="h-8 rounded bg-[var(--color-border)] sm:h-10"
-              />
-              <div
-                className="h-8 rounded bg-[var(--color-border)] sm:h-10"
-              />
+              <div className="h-8 rounded bg-[var(--color-border)] sm:h-10" />
+              <div className="h-8 rounded bg-[var(--color-border)] sm:h-10" />
+              <div className="h-8 rounded bg-[var(--color-border)] sm:h-10" />
             </div>
           </div>
         ))}
@@ -396,9 +389,13 @@ function WorkoutSessionContent({
     <div className="space-y-3 sm:space-y-4">
       {/* Gesture Help (only show if not read-only and has exercises) */}
       {!isReadOnly && exercises.length > 0 && (
-        <div className="text-muted mb-2 px-2 text-center text-xs sm:text-sm">
-          💡 <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to
-          reorder & move between sections • Works on mobile & desktop
+        <div className="mb-2 flex items-center justify-center gap-1 px-2 text-center text-xs text-[var(--md-sys-color-on-surface-variant)] sm:text-sm">
+          <Lightbulb
+            size={14}
+            className="text-[var(--md-sys-color-on-surface-variant)]"
+          />
+          <strong>Tip:</strong> Swipe ← → to move to bottom • Drag ↕ to reorder
+          & move between sections • Works on mobile & desktop
         </div>
       )}
 
@@ -409,7 +406,7 @@ function WorkoutSessionContent({
             <summary className="cursor-pointer list-none">
               <div className="border-border bg-muted/50 flex items-center justify-between rounded-lg border p-3">
                 <span className="font-medium">Jump to Exercise</span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-sm text-[var(--md-sys-color-on-surface-variant)]">
                   {exercises.length} exercises
                 </span>
               </div>
@@ -798,11 +795,13 @@ function WorkoutSessionContent({
                     const weightBadgeStyle =
                       curr.bestWeight && prev
                         ? weightDelta > 0
-                          ? { color: "var(--color-success)" }
+                          ? { color: "var(--md-sys-color-tertiary)" }
                           : weightDelta < 0
-                            ? { color: "var(--color-danger)" }
-                            : { color: "var(--color-text-muted)" }
-                        : { color: "var(--color-text-muted)" };
+                            ? { color: "var(--md-sys-color-error)" }
+                            : {
+                                color: "var(--md-sys-color-on-surface-variant)",
+                              }
+                        : { color: "var(--md-sys-color-on-surface-variant)" };
 
                     const currVol = curr.bestVolume?.volume ?? 0;
                     const prevVol = (prev?.weight ?? 0) * (prev?.reps ?? 0);
@@ -810,11 +809,13 @@ function WorkoutSessionContent({
                     const volBadgeStyle =
                       currVol && prev
                         ? volDelta > 0
-                          ? { color: "var(--color-success)" }
+                          ? { color: "var(--md-sys-color-tertiary)" }
                           : volDelta < 0
-                            ? { color: "var(--color-danger)" }
-                            : { color: "var(--color-text-muted)" }
-                        : { color: "var(--color-text-muted)" };
+                            ? { color: "var(--md-sys-color-error)" }
+                            : {
+                                color: "var(--md-sys-color-on-surface-variant)",
+                              }
+                        : { color: "var(--md-sys-color-on-surface-variant)" };
 
                     const fmtSet = (
                       w?: number,
@@ -832,7 +833,7 @@ function WorkoutSessionContent({
                         </div>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <div className="text-muted mb-1 text-xs">
+                            <div className="mb-1 text-xs text-[var(--md-sys-color-on-surface-variant)]">
                               Previous Best
                             </div>
                             <div>
@@ -847,7 +848,7 @@ function WorkoutSessionContent({
                             </div>
                           </div>
                           <div>
-                            <div className="text-muted mb-1 text-xs">
+                            <div className="mb-1 text-xs text-[var(--md-sys-color-on-surface-variant)]">
                               Current Best
                             </div>
                             <div style={weightBadgeStyle}>
@@ -918,8 +919,6 @@ export function WorkoutSession({ sessionId }: WorkoutSessionProps) {
   return <WorkoutSessionContent sessionId={sessionId} state={state} />;
 }
 
-export function WorkoutSessionWithState(
-  props: WorkoutSessionWithStateProps,
-) {
+export function WorkoutSessionWithState(props: WorkoutSessionWithStateProps) {
   return <WorkoutSessionContent {...props} />;
 }
