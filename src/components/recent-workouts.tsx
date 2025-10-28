@@ -114,10 +114,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
       error,
     } = api.workouts.getRecent.useQuery({ limit: resolvedLimit });
 
-    const repeatWorkoutMutation = api.workouts.start.useMutation();
-    const [activeRepeatId, setActiveRepeatId] = React.useState<number | null>(
-      null,
-    );
     const [toastOpen, setToastOpen] = React.useState(false);
     const [toastProps, setToastProps] = React.useState<{
       type: ToastType;
@@ -142,45 +138,20 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
     );
 
     const handleRepeatWorkout = React.useCallback(
-      async (workout: RecentWorkout) => {
+      (workout: RecentWorkout) => {
         if (!workout?.templateId) {
           console.error("Cannot repeat workout without templateId", workout);
           return;
         }
 
-        if (repeatWorkoutMutation.isPending) {
-          return;
-        }
+        analytics.featureUsed("repeat_workout", {
+          templateId: workout.templateId,
+          workoutId: workout.id,
+        });
 
-        setActiveRepeatId(workout.id);
-
-        try {
-          const result = await repeatWorkoutMutation.mutateAsync({
-            templateId: workout.templateId,
-            workoutDate: new Date(),
-            copyFromSessionId: workout.id,
-          });
-
-          analytics.workoutStarted(
-            workout.templateId.toString(),
-            resolveTemplateName(workout, "Repeated Workout"),
-          );
-
-          analytics.featureUsed("repeat_workout", {
-            templateId: workout.templateId,
-            workoutId: workout.id,
-          });
-
-          void utils.workouts.getRecent.invalidate();
-          router.push(`/workout/session/${result.sessionId}`);
-        } catch (err) {
-          console.error("Failed to repeat workout", err);
-          showToast("error", "Couldn't start that workout. Please try again.");
-        } finally {
-          setActiveRepeatId(null);
-        }
+        router.push(`/workout/start?templateId=${workout.templateId}`);
       },
-      [repeatWorkoutMutation, router, utils, showToast],
+      [router],
     );
 
     const handleViewDetails = React.useCallback(
@@ -206,8 +177,8 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
             onRepeat={handleRepeatWorkout}
             onStartNewWorkout={handleStartNewWorkout}
             onViewDetails={handleViewDetails}
-            repeatPending={repeatWorkoutMutation.isPending}
-            repeatingWorkoutId={activeRepeatId}
+            repeatPending={false}
+            repeatingWorkoutId={null}
             workouts={recentWorkouts}
           />
           {toastComponent}
@@ -224,8 +195,8 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
           isLoading={isLoading}
           limit={resolvedLimit}
           onRepeat={handleRepeatWorkout}
-          repeatPending={repeatWorkoutMutation.isPending}
-          repeatingWorkoutId={activeRepeatId}
+          repeatPending={false}
+          repeatingWorkoutId={null}
           workouts={recentWorkouts}
         />
         {toastComponent}

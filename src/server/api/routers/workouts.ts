@@ -7,12 +7,13 @@ import {
   workoutTemplates,
   templateExercises,
   exerciseLinks,
+  masterExercises,
 } from "~/server/db/schema";
 import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
 } from "~/server/db/utils";
-import { exerciseNameResolutionView } from "~/server/db/views";
+// Note: exerciseNameResolutionView replaced with raw SQL queries
 import {
   eq,
   desc,
@@ -56,6 +57,7 @@ import {
   SQLITE_VARIABLE_LIMIT,
   whereInChunks,
 } from "~/server/db/chunk-utils";
+import { invalidateQueries } from "~/trpc/cache-config";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -202,14 +204,21 @@ export const workoutsRouter = createTRPCRouter({
       // If templateExerciseId is provided, also include linked exercise names
       if (input.templateExerciseId) {
         const linkedNames = await ctx.db
-          .select({ resolvedName: exerciseNameResolutionView.resolvedName })
-          .from(exerciseNameResolutionView)
-          .where(
-            eq(
-              exerciseNameResolutionView.templateExerciseId,
-              input.templateExerciseId,
-            ),
-          );
+          .select({
+            resolvedName: sql<string>`
+              COALESCE(${masterExercises.name}, ${templateExercises.exerciseName})
+            `,
+          })
+          .from(templateExercises)
+          .leftJoin(
+            exerciseLinks,
+            eq(exerciseLinks.templateExerciseId, templateExercises.id),
+          )
+          .leftJoin(
+            masterExercises,
+            eq(masterExercises.id, exerciseLinks.masterExerciseId),
+          )
+          .where(eq(templateExercises.id, input.templateExerciseId));
 
         for (const linked of linkedNames) {
           if (
@@ -317,14 +326,21 @@ export const workoutsRouter = createTRPCRouter({
     .query(async ({ input, ctx }) => {
       // Get resolved exercise names for this template exercise
       const resolvedNames = await ctx.db
-        .select({ resolvedName: exerciseNameResolutionView.resolvedName })
-        .from(exerciseNameResolutionView)
-        .where(
-          eq(
-            exerciseNameResolutionView.templateExerciseId,
-            input.templateExerciseId,
-          ),
-        );
+        .select({
+          resolvedName: sql<string>`
+            COALESCE(${masterExercises.name}, ${templateExercises.exerciseName})
+          `,
+        })
+        .from(templateExercises)
+        .leftJoin(
+          exerciseLinks,
+          eq(exerciseLinks.templateExerciseId, templateExercises.id),
+        )
+        .leftJoin(
+          masterExercises,
+          eq(masterExercises.id, exerciseLinks.masterExerciseId),
+        )
+        .where(eq(templateExercises.id, input.templateExerciseId));
 
       const exerciseNames = resolvedNames
         .map((r) => r.resolvedName)

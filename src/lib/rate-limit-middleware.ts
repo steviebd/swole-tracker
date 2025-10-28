@@ -58,12 +58,7 @@ export const rateLimitMiddleware = ({
           message: `Rate limit exceeded. Try again in ${result.retryAfter} seconds.`,
         });
       }
-      logger.debug(`Rate limit check passed for ${endpoint}`, {
-        userId: ctx.user.id,
-        endpoint,
-        remaining: result.remaining,
-        resetTime: result.resetTime,
-      });
+      // Rate limit check passed - no need to log success to avoid noise
       return next();
     } catch (error: unknown) {
       if (error instanceof TRPCError) {

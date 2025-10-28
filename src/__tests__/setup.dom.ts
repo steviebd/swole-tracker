@@ -51,7 +51,7 @@ const ensureLocalStorage = () => {
 const ensureMatchMedia = () => {
   if (typeof window === "undefined") return;
 
-  if ("matchMedia" in window) return;
+  if (typeof window.matchMedia === "function") return;
 
   Object.defineProperty(window, "matchMedia", {
     value: vi.fn(() => ({

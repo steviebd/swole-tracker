@@ -47,6 +47,12 @@ Ensure you have access to the Infisical workspace and that all required environm
 infisical run -- bun db:push
 ```
 
+**Note:** Database views are managed manually. After running `db:push` in staging/production environments, run the view creation script:
+
+```bash
+infisical run --env <environment> -- wrangler d1 execute <database-name> --file scripts/create-views.sql
+```
+
 4. Start the development server:
 
 ```bash

@@ -54,12 +54,7 @@ describe("springTransition", () => {
 
 describe("createReducedMotionVariants", () => {
   it("should return original variants when reduced motion is not preferred", () => {
-    // Mock window.matchMedia
-    Object.defineProperty(window, "matchMedia", {
-      value: vi.fn(() => ({ matches: false })),
-      writable: true,
-    });
-
+    // The setup already mocks matchMedia to return matches: false
     const originalVariants = {
       hidden: { opacity: 0, y: 20 },
       visible: { opacity: 1, y: 0 },
@@ -70,10 +65,22 @@ describe("createReducedMotionVariants", () => {
   });
 
   it("should return simplified variants when reduced motion is preferred", () => {
-    Object.defineProperty(window, "matchMedia", {
-      value: vi.fn(() => ({ matches: true })),
-      writable: true,
-    });
+    // Mock matchMedia to return matches: true
+    if (typeof window !== "undefined") {
+      window.matchMedia = vi.fn(
+        () =>
+          ({
+            matches: true,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+            media: "",
+            onchange: null,
+          }) as any,
+      );
+    }
 
     const originalVariants = {
       hidden: { opacity: 0, y: 20 },

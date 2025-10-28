@@ -1,5 +1,7 @@
 "use client";
 
+import posthog from "posthog-js";
+
 type PosthogClient = {
   capture: (event: string, properties?: Record<string, unknown>) => void;
   identify: (id: string, props?: Record<string, unknown>) => void;
@@ -12,9 +14,8 @@ let posthogClient: PosthogClient;
 const getPosthogClient = (): PosthogClient => {
   if (!posthogClient) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const posthog = require("posthog-js");
-      posthogClient = posthog.default || posthog;
+      // Use the initialized PostHog instance from the provider
+      posthogClient = posthog;
     } catch {
       // Fallback for tests - no-op implementation
       /* eslint-disable @typescript-eslint/no-empty-function */

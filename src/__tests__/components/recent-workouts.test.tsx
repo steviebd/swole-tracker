@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
@@ -64,14 +64,14 @@ async function renderRecentWorkouts(
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <api.Provider client={trpcClient} queryClient={queryClient}>
-        <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>
+        <AuthContext.Provider value={authValue}>
+          {children}
+        </AuthContext.Provider>
       </api.Provider>
     </QueryClientProvider>
   );
 
-  const { RecentWorkouts } = await import(
-    "~/app/_components/recent-workouts"
-  );
+  const { RecentWorkouts } = await import("~/app/_components/recent-workouts");
 
   return render(<RecentWorkouts />, { wrapper });
 }
@@ -112,9 +112,7 @@ describe("RecentWorkouts", () => {
     await renderRecentWorkouts(fetchImpl);
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Error loading workouts"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Error loading workouts")).toBeInTheDocument();
     });
   });
 

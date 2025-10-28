@@ -17,6 +17,7 @@ import {
   type TemplateFiltersState,
 } from "~/components/filters/template-filters";
 import { useSyncIndicator } from "~/hooks/use-sync-indicator";
+import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { Badge } from "~/components/ui/badge";
 
 interface WorkoutStarterProps {
@@ -55,6 +56,7 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   const { data: templates, isLoading: templatesLoading } =
     api.templates.getAll.useQuery({ search: "", sort: "recent" });
   const createWorkoutMutation = api.workouts.start.useMutation();
+  const { onWorkoutStart } = useCacheInvalidation();
   const {
     badgeText,
     description,
@@ -108,12 +110,18 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   );
 
   const [toastOpen, setToastOpen] = useState(false);
-  const [toastProps, setToastProps] = useState<{ type: ToastType; message: string } | null>(null);
+  const [toastProps, setToastProps] = useState<{
+    type: ToastType;
+    message: string;
+  } | null>(null);
 
-  const showToast = useCallback((toastType: ToastType, toastMessage: string) => {
-    setToastProps({ type: toastType, message: toastMessage });
-    setToastOpen(true);
-  }, []);
+  const showToast = useCallback(
+    (toastType: ToastType, toastMessage: string) => {
+      setToastProps({ type: toastType, message: toastMessage });
+      setToastOpen(true);
+    },
+    [],
+  );
 
   const toastComponent = (
     <Toast
@@ -147,6 +155,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
       const result = await createWorkoutMutation.mutateAsync({
         workoutDate: new Date(workoutDate),
       });
+
+      // Invalidate cached data since new session was created
+      onWorkoutStart();
 
       // Track analytics
       analytics.workoutStarted("freestyle", "Freestyle Workout");
@@ -246,6 +257,9 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
         workoutDate: new Date(workoutDate),
       });
 
+      // Invalidate cached data since new session was created
+      onWorkoutStart();
+
       // Track analytics
       const template = templates?.find((t) => t.id === selectedTemplateId);
       analytics.workoutStarted(
@@ -340,320 +354,333 @@ export function WorkoutStarter({ initialTemplateId }: WorkoutStarterProps) {
   return (
     <>
       <div className="space-y-4 sm:space-y-6">
-      {/* Template Selection */}
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Select Workout Template</h2>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {strengthSuggestions.map((suggestion) => {
-            const isActive = filters.search
-              .toLowerCase()
-              .includes(suggestion.searchTerm.toLowerCase());
-            return (
-              <button
-                key={suggestion.id}
-                type="button"
-                onClick={() => handleSuggestionSelect(suggestion)}
-                className={cn(
-                  "rounded-xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                  isActive
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border/60 bg-surface-secondary hover:border-primary/30 hover:bg-surface-secondary/80",
-                )}
-              >
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Recommended split
-                </p>
-                <p className="mt-1 text-sm font-semibold text-content-primary">
-                  {suggestion.title}
-                </p>
-                <p className="mt-1 text-xs text-content-secondary">
-                  {suggestion.description}
-                </p>
-                <span className="mt-3 inline-flex items-center text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  {isActive ? "Selected" : "Tap to focus"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <TemplateFilters
-          value={filters}
-          onChange={setFilters}
-          className="mb-4"
-        />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredTemplates.map((template) => {
-            const exercises = template.exercises ?? [];
-
-            return (
-              <Card
-                key={template.id}
-                className={`cursor-pointer transition-all hover:shadow-md ${
-                  selectedTemplateId === template.id
-                    ? "ring-primary shadow-md ring-2"
-                    : "hover:ring-muted-foreground/20 hover:ring-1"
-                }`}
-                onClick={() => setSelectedTemplateId(template.id)}
-              >
-                <CardContent className="p-4">
-                  <h3 className="mb-2 truncate text-sm font-semibold sm:text-base">
-                    {template.name}
-                  </h3>
-                  <p className="text-muted-foreground text-xs sm:text-sm">
-                    {exercises.length} exercise
-                    {exercises.length !== 1 ? "s" : ""}
-                  </p>
-                  {exercises.length > 0 && (
-                    <div className="text-muted-foreground mt-2 text-xs">
-                      {exercises
-                        .slice(0, 3)
-                        .map((ex) => ex.exerciseName)
-                        .join(", ")}
-                      {exercises.length > 3 && "..."}
-                    </div>
+        {/* Template Selection */}
+        <div>
+          <h2 className="mb-4 text-lg font-semibold">
+            Select Workout Template
+          </h2>
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {strengthSuggestions.map((suggestion) => {
+              const isActive = filters.search
+                .toLowerCase()
+                .includes(suggestion.searchTerm.toLowerCase());
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => handleSuggestionSelect(suggestion)}
+                  className={cn(
+                    "focus-visible:ring-primary/40 rounded-xl border px-3 py-3 text-left transition focus-visible:ring-2 focus-visible:outline-none",
+                    isActive
+                      ? "border-primary/60 bg-primary/10"
+                      : "border-border/60 bg-surface-secondary hover:border-primary/30 hover:bg-surface-secondary/80",
                   )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+                >
+                  <p className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
+                    Recommended split
+                  </p>
+                  <p className="text-content-primary mt-1 text-sm font-semibold">
+                    {suggestion.title}
+                  </p>
+                  <p className="text-content-secondary mt-1 text-xs">
+                    {suggestion.description}
+                  </p>
+                  <span className="text-primary mt-3 inline-flex items-center text-[11px] font-semibold tracking-wide uppercase">
+                    {isActive ? "Selected" : "Tap to focus"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <TemplateFilters
+            value={filters}
+            onChange={setFilters}
+            className="mb-4"
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredTemplates.map((template) => {
+              const exercises = template.exercises ?? [];
 
-      {/* Selected Template & Actions */}
-      {selectedTemplateId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg">
-              Selected:{" "}
+              return (
+                <Card
+                  key={template.id}
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    selectedTemplateId === template.id
+                      ? "ring-primary shadow-md ring-2"
+                      : "hover:ring-muted-foreground/20 hover:ring-1"
+                  }`}
+                  onClick={() => setSelectedTemplateId(template.id)}
+                >
+                  <CardContent className="p-4">
+                    <h3 className="mb-2 truncate text-sm font-semibold sm:text-base">
+                      {template.name}
+                    </h3>
+                    <p className="text-muted-foreground text-xs sm:text-sm">
+                      {exercises.length} exercise
+                      {exercises.length !== 1 ? "s" : ""}
+                    </p>
+                    {exercises.length > 0 && (
+                      <div className="text-muted-foreground mt-2 text-xs">
+                        {exercises
+                          .slice(0, 3)
+                          .map((ex) => ex.exerciseName)
+                          .join(", ")}
+                        {exercises.length > 3 && "..."}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Template & Actions */}
+        {selectedTemplateId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base sm:text-lg">
+                Selected:{" "}
+                {(() => {
+                  const template = filteredTemplates.find(
+                    (t) => t.id === selectedTemplateId,
+                  );
+                  return template?.name;
+                })()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {(() => {
                 const template = filteredTemplates.find(
                   (t) => t.id === selectedTemplateId,
                 );
-                return template?.name;
-              })()}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {(() => {
-              const template = filteredTemplates.find(
-                (t) => t.id === selectedTemplateId,
-              );
-              const exercises = template?.exercises ?? [];
-              return template ? (
-                <>
-                  <div>
-                    <div className="text-muted-foreground text-xs sm:text-sm">
-                      {exercises.length === 0 ? (
-                        "No exercises in this template"
-                      ) : (
-                        <div className="space-y-1">
-                          {(showFullExerciseList
-                            ? exercises
-                            : exercises.slice(0, 3)
-                          ).map((exercise, index) => (
-                            <div
-                              key={exercise.id}
-                              className="flex items-center"
-                            >
-                              <span className="bg-primary text-primary-foreground mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:h-6 sm:w-6">
-                                {index + 1}
-                              </span>
-                              <span className="text-xs sm:text-sm">
-                                {exercise.exerciseName}
-                              </span>
-                            </div>
-                          ))}
-                          {exercises.length > 3 && !showFullExerciseList && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="h-auto p-0 text-xs"
-                              onClick={() => setShowFullExerciseList(true)}
-                            >
-                              Show {exercises.length - 3} more exercises...
-                            </Button>
-                          )}
-                          {showFullExerciseList && exercises.length > 3 && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="h-auto p-0 text-xs"
-                              onClick={() => setShowFullExerciseList(false)}
-                            >
-                              Show less
-                            </Button>
-                          )}
-                        </div>
-                      )}
+                const exercises = template?.exercises ?? [];
+                return template ? (
+                  <>
+                    <div>
+                      <div className="text-muted-foreground text-xs sm:text-sm">
+                        {exercises.length === 0 ? (
+                          "No exercises in this template"
+                        ) : (
+                          <div className="space-y-1">
+                            {(showFullExerciseList
+                              ? exercises
+                              : exercises.slice(0, 3)
+                            ).map((exercise, index) => (
+                              <div
+                                key={exercise.id}
+                                className="flex items-center"
+                              >
+                                <span className="bg-primary text-primary-foreground mr-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:h-6 sm:w-6">
+                                  {index + 1}
+                                </span>
+                                <span className="text-xs sm:text-sm">
+                                  {exercise.exerciseName}
+                                </span>
+                              </div>
+                            ))}
+                            {exercises.length > 3 && !showFullExerciseList && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-xs"
+                                onClick={() => setShowFullExerciseList(true)}
+                              >
+                                Show {exercises.length - 3} more exercises...
+                              </Button>
+                            )}
+                            {showFullExerciseList && exercises.length > 3 && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-xs"
+                                onClick={() => setShowFullExerciseList(false)}
+                              >
+                                Show less
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Date/Time Selection */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="workoutDate"
-                      className="text-xs font-medium sm:text-sm"
-                    >
-                      Workout Date & Time
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => {
-                          const now = new Date();
-                          const year = now.getFullYear();
-                          const month = String(now.getMonth() + 1).padStart(
-                            2,
-                            "0",
-                          );
-                          const day = String(now.getDate()).padStart(2, "0");
-                          const hours = String(now.getHours()).padStart(2, "0");
-                          const minutes = String(now.getMinutes()).padStart(
-                            2,
-                            "0",
-                          );
-                          setWorkoutDate(
-                            `${year}-${month}-${day}T${hours}:${minutes}`,
-                          );
-                        }}
+                    {/* Date/Time Selection */}
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="workoutDate"
+                        className="text-xs font-medium sm:text-sm"
                       >
-                        Now
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => {
-                          const today = new Date();
-                          const year = today.getFullYear();
-                          const month = String(today.getMonth() + 1).padStart(
-                            2,
-                            "0",
-                          );
-                          const day = String(today.getDate()).padStart(2, "0");
-                          setWorkoutDate(`${year}-${month}-${day}T09:00`);
-                        }}
-                      >
-                        Today AM
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => {
-                          const today = new Date();
-                          const year = today.getFullYear();
-                          const month = String(today.getMonth() + 1).padStart(
-                            2,
-                            "0",
-                          );
-                          const day = String(today.getDate()).padStart(2, "0");
-                          setWorkoutDate(`${year}-${month}-${day}T18:00`);
-                        }}
-                      >
-                        Today PM
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => {
-                          const yesterday = new Date();
-                          yesterday.setDate(yesterday.getDate() - 1);
-                          const year = yesterday.getFullYear();
-                          const month = String(
-                            yesterday.getMonth() + 1,
-                          ).padStart(2, "0");
-                          const day = String(yesterday.getDate()).padStart(
-                            2,
-                            "0",
-                          );
-                          setWorkoutDate(`${year}-${month}-${day}T18:00`);
-                        }}
-                      >
-                        Yesterday
-                      </Button>
+                        Workout Date & Time
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const now = new Date();
+                            const year = now.getFullYear();
+                            const month = String(now.getMonth() + 1).padStart(
+                              2,
+                              "0",
+                            );
+                            const day = String(now.getDate()).padStart(2, "0");
+                            const hours = String(now.getHours()).padStart(
+                              2,
+                              "0",
+                            );
+                            const minutes = String(now.getMinutes()).padStart(
+                              2,
+                              "0",
+                            );
+                            setWorkoutDate(
+                              `${year}-${month}-${day}T${hours}:${minutes}`,
+                            );
+                          }}
+                        >
+                          Now
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const today = new Date();
+                            const year = today.getFullYear();
+                            const month = String(today.getMonth() + 1).padStart(
+                              2,
+                              "0",
+                            );
+                            const day = String(today.getDate()).padStart(
+                              2,
+                              "0",
+                            );
+                            setWorkoutDate(`${year}-${month}-${day}T09:00`);
+                          }}
+                        >
+                          Today AM
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const today = new Date();
+                            const year = today.getFullYear();
+                            const month = String(today.getMonth() + 1).padStart(
+                              2,
+                              "0",
+                            );
+                            const day = String(today.getDate()).padStart(
+                              2,
+                              "0",
+                            );
+                            setWorkoutDate(`${year}-${month}-${day}T18:00`);
+                          }}
+                        >
+                          Today PM
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            const yesterday = new Date();
+                            yesterday.setDate(yesterday.getDate() - 1);
+                            const year = yesterday.getFullYear();
+                            const month = String(
+                              yesterday.getMonth() + 1,
+                            ).padStart(2, "0");
+                            const day = String(yesterday.getDate()).padStart(
+                              2,
+                              "0",
+                            );
+                            setWorkoutDate(`${year}-${month}-${day}T18:00`);
+                          }}
+                        >
+                          Yesterday
+                        </Button>
+                      </div>
+                      <Input
+                        type="datetime-local"
+                        id="workoutDate"
+                        value={workoutDate}
+                        onChange={(e) => setWorkoutDate(e.target.value)}
+                        className="w-full"
+                        required
+                      />
                     </div>
-                    <Input
-                      type="datetime-local"
-                      id="workoutDate"
-                      value={workoutDate}
-                      onChange={(e) => setWorkoutDate(e.target.value)}
+
+                    {/* Sync Status */}
+                    {(!isOnline ||
+                      pendingOperations > 0 ||
+                      failedOperations > 0) && (
+                      <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-3 text-center shadow-sm backdrop-blur">
+                        <Badge variant="secondary" className="text-xs">
+                          {badgeText}
+                        </Badge>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {!isOnline
+                            ? description
+                            : pendingOperations > 0
+                              ? `${pendingOperations} change${pendingOperations === 1 ? "" : "s"} waiting to sync.`
+                              : `${failedOperations} item${failedOperations === 1 ? "" : "s"} need attention. Tap sync to retry now.`}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2 text-xs"
+                          onClick={() => {
+                            void manualSync();
+                          }}
+                          disabled={!isOnline || !canManualSync || syncBusy}
+                        >
+                          {syncBusy ? "Syncing…" : "Sync now"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Start Button */}
+                    <Button
+                      onClick={handleStart}
+                      disabled={isStarting || createWorkoutMutation.isPending}
                       className="w-full"
-                      required
-                    />
-                  </div>
+                      size="lg"
+                    >
+                      {isStarting || createWorkoutMutation.isPending
+                        ? "Starting..."
+                        : "Start Workout"}
+                    </Button>
+                  </>
+                ) : null;
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
-                  {/* Sync Status */}
-                  {(!isOnline || pendingOperations > 0 || failedOperations > 0) && (
-                    <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-3 text-center shadow-sm backdrop-blur">
-                      <Badge variant="secondary" className="text-xs">
-                        {badgeText}
-                      </Badge>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {!isOnline
-                          ? description
-                          : pendingOperations > 0
-                            ? `${pendingOperations} change${pendingOperations === 1 ? "" : "s"} waiting to sync.`
-                            : `${failedOperations} item${failedOperations === 1 ? "" : "s"} need attention. Tap sync to retry now.`}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 text-xs"
-                        onClick={() => {
-                          void manualSync();
-                        }}
-                        disabled={!isOnline || !canManualSync || syncBusy}
-                      >
-                        {syncBusy ? "Syncing…" : "Sync now"}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Start Button */}
-                  <Button
-                    onClick={handleStart}
-                    disabled={isStarting || createWorkoutMutation.isPending}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {isStarting || createWorkoutMutation.isPending
-                      ? "Starting..."
-                      : "Start Workout"}
-                  </Button>
-                </>
-              ) : null;
-            })()}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* No Selection State */}
-      {!selectedTemplateId && (
-        <div className="py-6 text-center sm:py-8">
-          <p className="text-muted-foreground mb-4 text-sm sm:text-base">
-            Select a workout template above or start freestyle
-          </p>
-          <Button
-            onClick={handleStartFreestyle}
-            disabled={isStarting || createWorkoutMutation.isPending}
-            variant="outline"
-            size="lg"
-          >
-            {isStarting || createWorkoutMutation.isPending
-              ? "Starting..."
-          : "Start Freestyle Workout"}
-        </Button>
-      </div>
-      )}
+        {/* No Selection State */}
+        {!selectedTemplateId && (
+          <div className="py-6 text-center sm:py-8">
+            <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+              Select a workout template above or start freestyle
+            </p>
+            <Button
+              onClick={handleStartFreestyle}
+              disabled={isStarting || createWorkoutMutation.isPending}
+              variant="outline"
+              size="lg"
+            >
+              {isStarting || createWorkoutMutation.isPending
+                ? "Starting..."
+                : "Start Freestyle Workout"}
+            </Button>
+          </div>
+        )}
       </div>
       {toastComponent}
     </>

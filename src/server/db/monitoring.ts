@@ -1,4 +1,5 @@
 import { logger } from "~/lib/logger";
+import { analytics } from "~/lib/analytics";
 
 /**
  * Simplified database monitoring for basic health checks
@@ -322,6 +323,14 @@ export function monitoredDbQuery<T>(
         userId: ctx?.userId,
       });
 
+      // Send performance metrics to PostHog
+      analytics.databaseQueryPerformance(
+        queryName,
+        duration,
+        Array.isArray(result) ? result.length : 0,
+        ctx?.userId || "unknown",
+      );
+
       // Record timing for Server-Timing header
       if (ctx?.timings) {
         ctx.timings.set(`db-${queryName.replace(/\./g, "-")}`, duration);
@@ -338,6 +347,15 @@ export function monitoredDbQuery<T>(
         success: false,
         timestamp: startTime,
         userId: ctx?.userId,
+      });
+
+      // Send error metrics to PostHog
+      analytics.event("database.query.error", {
+        queryName,
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+        userId: ctx?.userId,
+        timestamp: new Date().toISOString(),
       });
 
       // Record timing even on error

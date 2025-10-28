@@ -237,6 +237,11 @@ export async function invalidateWorkoutDependentCaches(
     utils.progress.getVolumeProgression.invalidate(),
     utils.progress.getConsistencyStats.invalidate(),
     utils.progress.getPersonalRecords.invalidate(),
+    utils.progress.getProgressHighlights.invalidate(),
+    utils.progress.getProgressDashboardData.invalidate(),
+    // Invalidate aggregated progress data when workouts change
+    utils.progress.getExerciseStrengthProgression.invalidate(),
+    utils.progress.getExerciseVolumeProgression.invalidate(),
     utils.insights.getExerciseInsights.invalidate(),
     utils.insights.getSessionInsights.invalidate(),
     utils.sessionDebriefs.listRecent.invalidate(),
@@ -283,6 +288,78 @@ export async function invalidateWhoopCaches(utils: TrpcUtils): Promise<void> {
   } catch (error) {
     logger.warn("Failed to invalidate WHOOP caches", {
       error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Cache warming service for frequently accessed progress data.
+ * Pre-loads user's most common exercises and dashboard data.
+ */
+export async function warmProgressCaches(
+  utils: TrpcUtils,
+  userId: string,
+): Promise<void> {
+  try {
+    // Get user's most common exercises for cache warming
+    const exerciseList = await utils.progress.getExerciseList.fetch();
+    if (exerciseList.length === 0) {
+      return; // No exercises to warm
+    }
+
+    // Take top 5 most frequently trained exercises
+    const topExercises = exerciseList.slice(0, 5);
+
+    // Warm dashboard data
+    await utils.progress.getProgressDashboardData.prefetch({
+      timeRange: "month",
+    });
+
+    // Warm aggregated data for top exercises
+    const warmingPromises: Array<Promise<unknown>> = [
+      // Warm progress highlights
+      utils.progress.getProgressHighlights.prefetch({
+        tab: "prs",
+        timeRange: "month",
+      }),
+    ];
+
+    // Warm aggregated data for top exercises
+    for (const exercise of topExercises) {
+      if (exercise.exerciseName) {
+        warmingPromises.push(
+          utils.progress.getExerciseStrengthProgression.prefetch({
+            exerciseName: exercise.exerciseName,
+            templateExerciseId: exercise.masterExerciseId ?? undefined,
+            timeRange: "quarter",
+          }),
+        );
+        warmingPromises.push(
+          utils.progress.getExerciseVolumeProgression.prefetch({
+            exerciseName: exercise.exerciseName,
+            templateExerciseId: exercise.masterExerciseId ?? undefined,
+            timeRange: "quarter",
+          }),
+        );
+      }
+    }
+
+    // Execute warming in background
+    void Promise.all(warmingPromises).catch((error) => {
+      logger.warn("Cache warming failed for some queries", {
+        error: error instanceof Error ? error.message : String(error),
+        userId,
+      });
+    });
+
+    logger.debug("Progress cache warming initiated", {
+      userId,
+      exercisesWarmed: topExercises.length,
+    });
+  } catch (error) {
+    logger.warn("Failed to warm progress caches", {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
     });
   }
 }

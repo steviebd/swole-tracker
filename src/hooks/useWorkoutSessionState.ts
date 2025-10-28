@@ -13,6 +13,7 @@ import {
   applyOptimisticVolumeMetrics,
   calculateVolumeSummaryFromExercises,
   invalidateWorkoutDependentCaches,
+  warmProgressCaches,
 } from "~/lib/workout-cache-helpers";
 import {
   getWorkoutDraft,
@@ -458,6 +459,14 @@ export function useWorkoutSessionState({
     },
     onSettled: () => {
       void invalidateWorkoutDependentCaches(utils, [sessionId]);
+      // Warm progress caches after successful save
+      if (session?.user_id) {
+        void import("~/lib/workout-cache-helpers").then(
+          ({ warmProgressCaches }) => {
+            void warmProgressCaches(utils, session.user_id);
+          },
+        );
+      }
     },
   });
 
@@ -498,6 +507,10 @@ export function useWorkoutSessionState({
     },
     onSettled: () => {
       void invalidateWorkoutDependentCaches(utils, [sessionId]);
+      // Warm progress caches after successful save
+      if (session?.user_id) {
+        void warmProgressCaches(utils, session.user_id);
+      }
     },
   });
 

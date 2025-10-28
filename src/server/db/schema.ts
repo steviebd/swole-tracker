@@ -1,8 +1,9 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql, eq } from "drizzle-orm";
 import {
   index,
   uniqueIndex,
   sqliteTable,
+  sqliteView,
   text,
   integer,
   real,
@@ -1101,9 +1102,72 @@ export const exerciseMonthlySummary = createTable(
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
-// Import views - commented out because views are managed via migrations
-// export {
-//   sessionExerciseMetricsView,
-//   exerciseNameResolutionView,
-//   whoopMetricsView,
-// } from "./views";
+// Database Views - Managed by Drizzle ORM
+
+export const viewExerciseNameResolution = sqliteView(
+  "view_exercise_name_resolution",
+).as((qb) =>
+  qb
+    .select({
+      templateExerciseId: templateExercises.id,
+      exerciseName: templateExercises.exerciseName,
+      resolvedName:
+        sql`COALESCE(${masterExercises.name}, ${templateExercises.exerciseName})`.as(
+          "resolvedName",
+        ),
+      masterExerciseId: exerciseLinks.masterExerciseId,
+    })
+    .from(templateExercises)
+    .leftJoin(
+      exerciseLinks,
+      eq(exerciseLinks.templateExerciseId, templateExercises.id),
+    )
+    .leftJoin(
+      masterExercises,
+      eq(masterExercises.id, exerciseLinks.masterExerciseId),
+    ),
+);
+
+export const viewSessionExerciseMetrics = sqliteView(
+  "view_session_exercise_metrics",
+).as((qb) =>
+  qb
+    .select({
+      sessionExerciseId: sessionExercises.id,
+      sessionId: sessionExercises.sessionId,
+      userId: sessionExercises.user_id,
+      templateExerciseId: sessionExercises.templateExerciseId,
+      exerciseName: sessionExercises.exerciseName,
+      resolvedExerciseName:
+        sql`COALESCE(NULLIF(${sessionExercises.resolvedExerciseName}, ''), ${sessionExercises.exerciseName})`.as(
+          "resolvedExerciseName",
+        ),
+      workoutDate: workoutSessions.workoutDate,
+      weight: sessionExercises.weight,
+      reps: sessionExercises.reps,
+      sets: sessionExercises.sets,
+      unit: sessionExercises.unit,
+      oneRmEstimate: sessionExercises.one_rm_estimate,
+      volumeLoad: sessionExercises.volume_load,
+    })
+    .from(sessionExercises)
+    .innerJoin(
+      workoutSessions,
+      eq(workoutSessions.id, sessionExercises.sessionId),
+    ),
+);
+
+export const viewWhoopMetrics = sqliteView("view_whoop_metrics").as((qb) =>
+  qb
+    .select({
+      userId: whoopRecovery.user_id,
+      date: whoopRecovery.date,
+      recoveryScore: whoopRecovery.recovery_score,
+      sleepPerformance: sql`NULL`.as("sleepPerformance"),
+      hrvNow: whoopRecovery.hrv_rmssd_milli,
+      hrvBaseline: whoopRecovery.hrv_rmssd_baseline,
+      rhrNow: whoopRecovery.resting_heart_rate,
+      rhrBaseline: whoopRecovery.resting_heart_rate_baseline,
+    })
+    .from(whoopRecovery),
+);
