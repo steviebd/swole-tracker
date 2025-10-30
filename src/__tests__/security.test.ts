@@ -77,16 +77,18 @@ describe("Security Implementation Tests", () => {
 
       expect(csp).toContain(`script-src 'self'`);
       expect(csp).toContain(`'nonce-${nonce}'`);
-      expect(csp).not.toContain("'unsafe-inline'");
+      expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
     });
 
-    it("should allow inline styles with unsafe-hashes for style attributes", () => {
+    it("should allow inline styles with unsafe-inline for React compatibility", () => {
       const nonce = "test-nonce";
       const csp = buildContentSecurityPolicy(nonce);
 
       expect(csp).toContain(
-        `style-src 'self' 'nonce-${nonce}' 'unsafe-hashes' 'sha256-HGYbL7c7YTMNrtcUQBvASpkCpnhcLdlW/2pKHJ8sJ98='`,
+        `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`,
       );
+      expect(csp).not.toContain("'unsafe-hashes'");
+      expect(csp).not.toContain("sha256-");
     });
   });
 });

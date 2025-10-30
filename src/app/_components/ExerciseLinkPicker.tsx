@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "~/trpc/react";
+import { useLocalStorage } from "~/hooks/use-local-storage";
+import { Skeleton } from "~/components/ui/skeleton";
 
 type Item = {
   id: number;
@@ -24,23 +26,20 @@ export function ExerciseLinkPicker({
   currentName,
 }: ExerciseLinkPickerProps) {
   const [q, setQ] = useState(currentName);
-  // Use a concrete number for query param; null is represented as 0 (first page)
-  // Cursor is always a number; never undefined
-  // Cursor can be nullable in tRPC input; keep local state as number but coerce when calling
-  // Keep cursor strictly a number
-  // Keep as number and never undefined
-  // Keep as number; never undefined
-  // Keep cursor strictly numeric
-  // Keep cursor strictly numeric (never undefined)
-  // Keep as number and never undefined
-  // Keep cursor as a concrete number and never undefined
-  // keep cursor always a concrete number; never undefined
-  const [cursor, setCursor] = useState<number>(0);
+  // Cursor is now a string for cursor-based pagination
+  const [cursor, setCursor] = useState<string | null>(null);
   // Ensure nextCursor is treated as a number; coerce undefined/null to 0
   const [items, setItems] = useState<Item[]>([]);
   const [isExactMatch, setIsExactMatch] = useState<Item | null>(null);
   const [pending, setPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // localStorage cache for recent searches
+  const [recentSearches, setRecentSearches] = useLocalStorage<string[]>(
+    "exercise-search-recent",
+    []
+  );
 
   const linkToMaster = api.exercises.linkToMaster.useMutation({
     onSuccess: () => {
@@ -60,37 +59,14 @@ export function ExerciseLinkPicker({
     },
   });
 
-  // Provide a concrete type for the query input so cursor is correctly typed
-  // tRPC type may infer cursor as number | undefined; coerce to number by defaulting to 0
-  // Use the generated RouterInputs type to ensure correct input shape
-  // Force the cursor to be a number literal to satisfy strict inference
-  // Ensure the query input is fully concrete to satisfy strict types
-  // Ensure cursor is always a number for the query input
-  // searchMaster expects a numeric cursor; ensure a concrete number
-  // Ensure the query input always passes a concrete number for cursor
-  // Pass a concrete number for cursor to satisfy strict types
-  // Pass a concrete number for cursor; avoid unnecessary assertions
-  // Ensure the query input always passes a concrete number for cursor
-  // Always pass a concrete number for cursor; coerce defensively
-  // Explicitly type the input object so cursor is a required number
-  // Force a concrete number for cursor to satisfy strict types
-  // Ensure cursor is always a number literal for the query input
-  // Ensure concrete number for cursor to satisfy zod schema (defaults to 0)
-  // Narrow the input type so cursor is required number even if the generated type made it optional due to .default()
-  // Avoid RouterInputs widening and enforce concrete number inline without extra casts
-  // Inline cast only on the cursor property to satisfy generated input type that may allow undefined due to zod default
-  // Ensure the input matches the generated hook signature exactly; avoid any widening to undefined
-  // Explicitly coerce cursor to a definite number to satisfy generated types
-  // Note: the query input type may allow cursor to be number | undefined due to zod defaults.
-  // We always pass a concrete number to satisfy strict typing.
-  // Compute a fully concrete, strictly typed cursor value and avoid widening in hook params
-  const cursorValue = Number.isFinite(cursor) ? cursor : 0;
-  // Define a concrete input shape to avoid any widening of 'cursor'
+  // searchMaster now uses cursor-based pagination with string cursors
   const search = api.exercises.searchMaster.useQuery(
-    { q, limit: 20, cursor: cursorValue ?? 0 },
+    { q, limit: 20, cursor: cursor || undefined },
     {
       enabled: open && q.trim().length > 0,
       staleTime: 10_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   );
 
@@ -99,30 +75,45 @@ export function ExerciseLinkPicker({
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 0);
       setQ(currentName);
-      setCursor(0);
+      setCursor(null);
       setItems([]);
       setIsExactMatch(null);
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     }
   }, [open, currentName]);
 
-  // Debounce q changes
+  // Debounce q changes (optimized to 150ms)
   useEffect(() => {
     if (!open) return;
     setPending(true);
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     const t = setTimeout(() => {
-      setCursor(0);
+      setCursor(null);
       void search.refetch().then(() => setPending(false));
-    }, 250);
-    return () => clearTimeout(t);
+    }, 150);
+    return () => {
+      clearTimeout(t);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  // Merge page results
+  // Merge page results and update recent searches
   useEffect(() => {
     if (!search.data) return;
     const page = search.data.items as Item[];
     const merged =
-      cursor === 0
+      cursor === null
         ? page
         : [...items, ...page.filter((p) => !items.some((i) => i.id === p.id))];
     setItems(merged);
@@ -131,6 +122,14 @@ export function ExerciseLinkPicker({
     const normalizedInput = normalize(q);
     const exact = merged.find((i) => normalize(i.name) === normalizedInput);
     setIsExactMatch(exact ?? null);
+
+    // Update recent searches cache
+    if (q.trim() && merged.length > 0) {
+      setRecentSearches((prev) => {
+        const filtered = prev.filter((s) => s !== q);
+        return [q, ...filtered].slice(0, 10); // Keep last 10 searches
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
 
@@ -141,10 +140,14 @@ export function ExerciseLinkPicker({
 
   function loadMore() {
     if (!canLoadMore) return;
-    const next = search.data?.nextCursor ?? 0;
-    const safe = Number.isFinite(next) ? next : 0;
-    setCursor(safe);
-    if (safe !== 0) {
+    const next = search.data?.nextCursor;
+    setCursor(next || null);
+    if (next) {
+      // Cancel previous request before loading more
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
       void search.refetch();
     }
   }
@@ -203,7 +206,14 @@ export function ExerciseLinkPicker({
 
           <div className="border-border mt-3 max-h-72 overflow-y-auto rounded border">
             {pending && items.length === 0 ? (
-              <div className="p-3 text-sm text-gray-400">Searching…</div>
+              <div className="space-y-2 p-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-6 w-12" />
+                  </div>
+                ))}
+              </div>
             ) : items.length === 0 ? (
               <div className="p-3 text-sm text-gray-400">No results</div>
             ) : (

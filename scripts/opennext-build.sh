@@ -2,6 +2,14 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+
+echo "Cleaning build directories"
+# Don't clean .open-next if config files exist (workaround for OpenNext bug)
+if [ -f "$ROOT_DIR/.open-next/.build/open-next.config.edge.mjs" ]; then
+  rm -rf "$ROOT_DIR/.next"
+else
+  rm -rf "$ROOT_DIR/.open-next" "$ROOT_DIR/.next"
+fi
 OUTPUT_FILE="$ROOT_DIR/.open-next/worker.js"
 NEXT_BIN="$ROOT_DIR/node_modules/.bin/next"
 
@@ -78,6 +86,10 @@ NODE
 
 run_open_next_packager() {
   echo "OpenNext — packaging Cloudflare worker"
+  # Workaround: Generate config files first
+  echo "OpenNext — generating config files"
+  env OPENNEXT_CHILD_BUILD=1 npx --yes @opennextjs/cloudflare build --skipBuild >/dev/null 2>&1 || true
+  # Then run the full build
   exec env OPENNEXT_CHILD_BUILD=1 npx --yes @opennextjs/cloudflare build
 }
 

@@ -309,7 +309,7 @@ export function SubjectiveWellnessModal({
               selector={(state) => [state.canSubmit, state.isSubmitting]}
               children={([canSubmit, isSubmitting]) => (
                 <Button
-                  onClick={form.handleSubmit}
+                  onClick={() => form.handleSubmit()}
                   className="btn-primary flex-1"
                   disabled={!canSubmit || isSubmitting}
                 >

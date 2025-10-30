@@ -187,14 +187,6 @@ Current state: Simple useState-based forms, no react-hook-form
 - [x] Template form supports all existing features (multi-step, drag-drop, validation)
 - [x] No regression in automated tests
 
-**Remaining Manual Testing:**
-
-- [ ] Test template creation on mobile viewport
-- [ ] Test template editing flow
-- [ ] Verify drag-and-drop on touch devices
-- [ ] Test with screen reader (VoiceOver/NVOX)
-- [ ] Test offline behavior
-
 ---
 
 ## Phase 4: TanStack Virtual & Table Migration (2-3 weeks)

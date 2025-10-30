@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "~/trpc/react";
 import { ExerciseLinkPicker } from "./ExerciseLinkPicker";
+import { useLocalStorage } from "~/hooks/use-local-storage";
+import { Skeleton } from "~/components/ui/skeleton";
 
 interface ExerciseInputProps {
   value: string;
@@ -76,10 +78,11 @@ export function ExerciseInputWithLinking({
             style={{
               backgroundColor: "var(--color-primary)",
               border: "1px solid var(--color-primary)",
-              color: "var(--btn-primary-fg)"
+              color: "var(--btn-primary-fg)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+              e.currentTarget.style.backgroundColor =
+                "var(--color-primary-hover)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = "var(--color-primary)";
@@ -92,7 +95,10 @@ export function ExerciseInputWithLinking({
       </div>
 
       {linkingRejected && (
-        <div className="mt-1 flex items-center gap-2 text-xs" style={{ color: "var(--color-warning)" }}>
+        <div
+          className="mt-1 flex items-center gap-2 text-xs"
+          style={{ color: "var(--color-warning)" }}
+        >
           <span>🔗</span>
           <span>Not linked - will create as new exercise</span>
         </div>
@@ -162,36 +168,101 @@ function InlineSearchFallback({
   onChooseName: (name: string) => void;
 }) {
   const [q, setQ] = useState(currentName);
-  const [cursor, setCursor] = useState<number | null>(0);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // localStorage cache for recent searches
+  const [recentSearches, setRecentSearches] = useLocalStorage<string[]>(
+    "exercise-search-recent",
+    []
+  );
+
   const search = api.exercises.searchMaster.useQuery(
-    { q, limit: 20, cursor: cursor ?? 0 },
-    { enabled: open && q.trim().length > 0, staleTime: 10_000 },
+    { q, limit: 20, cursor: cursor || undefined },
+    {
+      enabled: open && q.trim().length > 0,
+      staleTime: 10_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
   );
 
   useEffect(() => {
     if (open) {
       setQ(currentName);
-      setCursor(0);
+      setCursor(null);
+      if (currentName.trim()) {
+        setPending(true);
+      }
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     }
   }, [open, currentName]);
+
+  // Debounce search when q changes (optimized to 150ms)
+  useEffect(() => {
+    if (!open || !q.trim()) return;
+    setPending(true);
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    const timeoutId = setTimeout(() => {
+      void search.refetch().then(() => setPending(false));
+    }, 150);
+    return () => {
+      clearTimeout(timeoutId);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, open]);
 
   const items = search.data?.items ?? [];
   const canLoadMore = search.data?.nextCursor != null;
 
+  // Update recent searches cache
+  useEffect(() => {
+    if (q.trim() && items.length > 0) {
+      setRecentSearches((prev) => {
+        const filtered = prev.filter((s) => s !== q);
+        return [q, ...filtered].slice(0, 10); // Keep last 10 searches
+      });
+    }
+  }, [items, q, setRecentSearches]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4" style={{
-      backgroundColor: "hsl(var(--foreground) / 0.5)"
-    }}>
-      <div className="w-full max-w-lg rounded-lg shadow-xl" style={{
-        backgroundColor: "var(--color-bg-surface)",
-        border: "1px solid var(--color-border)"
-      }}>
-        <div className="flex items-center justify-between p-3" style={{
-          borderBottom: "1px solid var(--color-border)"
-        }}>
-          <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{
+        backgroundColor: "hsl(var(--foreground) / 0.5)",
+      }}
+    >
+      <div
+        className="w-full max-w-lg rounded-lg shadow-xl"
+        style={{
+          backgroundColor: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border)",
+        }}
+      >
+        <div
+          className="flex items-center justify-between p-3"
+          style={{
+            borderBottom: "1px solid var(--color-border)",
+          }}
+        >
+          <div
+            className="text-sm font-medium"
+            style={{ color: "var(--color-text)" }}
+          >
             Search exercises
           </div>
           <button
@@ -217,7 +288,7 @@ function InlineSearchFallback({
             style={{
               backgroundColor: "var(--color-bg-surface)",
               border: "1px solid var(--color-border)",
-              color: "var(--color-text)"
+              color: "var(--color-text)",
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = "var(--color-text-muted)";
@@ -226,32 +297,63 @@ function InlineSearchFallback({
               e.currentTarget.style.borderColor = "var(--color-border)";
             }}
           />
-          <div className="mt-3 max-h-72 overflow-y-auto rounded" style={{
-            border: "1px solid var(--color-border)"
-          }}>
-            {items.length === 0 ? (
-              <div className="p-3 text-sm" style={{ color: "var(--color-text-muted)" }}>No results</div>
+          <div
+            className="mt-3 max-h-72 overflow-y-auto rounded"
+            style={{
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            {pending || search.isLoading ? (
+              <div className="space-y-2 p-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-3">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                ))}
+              </div>
+            ) : search.isError ? (
+              <div
+                className="p-3 text-sm"
+                style={{ color: "var(--color-destructive)" }}
+              >
+                Search failed: {search.error?.message || "Unknown error"}
+              </div>
+            ) : items.length === 0 ? (
+              <div
+                className="p-3 text-sm"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                No results
+              </div>
             ) : (
               <ul>
-                {items.map((it) => (
+                {items.map((it: any) => (
                   <li
                     key={it.id}
                     className="flex items-center justify-between p-3 last:border-b-0"
                     style={{ borderBottom: "1px solid var(--color-border)" }}
                   >
-                    <span className="text-sm" style={{ color: "var(--color-text)" }}>{it.name}</span>
+                    <span
+                      className="text-sm"
+                      style={{ color: "var(--color-text)" }}
+                    >
+                      {it.name}
+                    </span>
                     <button
                       onClick={() => onChooseName(it.name)}
                       className="rounded px-2 py-1 text-xs transition-colors"
                       style={{
                         backgroundColor: "var(--color-primary)",
-                        color: "var(--btn-primary-fg)"
+                        color: "var(--btn-primary-fg)",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "var(--color-primary-hover)";
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-primary-hover)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "var(--color-primary)";
+                        e.currentTarget.style.backgroundColor =
+                          "var(--color-primary)";
                       }}
                     >
                       Use name
@@ -265,17 +367,25 @@ function InlineSearchFallback({
             <div className="mt-2">
               <button
                 onClick={() => {
-                  const next = search.data?.nextCursor ?? null;
-                  setCursor(next);
-                  if (next != null) void search.refetch();
+                  const next = search.data?.nextCursor;
+                  setCursor(next || null);
+                  if (next) {
+                    // Cancel previous request before loading more
+                    if (abortControllerRef.current) {
+                      abortControllerRef.current.abort();
+                    }
+                    abortControllerRef.current = new AbortController();
+                    void search.refetch();
+                  }
                 }}
                 className="w-full rounded px-3 py-2 text-sm transition-colors"
                 style={{
                   border: "1px solid var(--color-border)",
-                  color: "var(--color-text)"
+                  color: "var(--color-text)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-bg-surface)";
+                  e.currentTarget.style.backgroundColor =
+                    "var(--color-bg-surface)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = "transparent";

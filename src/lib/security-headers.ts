@@ -75,7 +75,7 @@ export function buildContentSecurityPolicy(nonce: string): string {
   const directives = [
     "default-src 'self'",
     `script-src 'self' ${POSTHOG_DOMAINS.join(" ")} ${CLOUDFLARE_INSIGHTS_DOMAIN} ${nonceDirective}`,
-    `style-src 'self' ${nonceDirective} 'unsafe-hashes' 'sha256-HGYbL7c7YTMNrtcUQBvASpkCpnhcLdlW/2pKHJ8sJ98='`,
+    `style-src 'self' 'unsafe-inline'`,
     "img-src 'self' data: https: blob:",
     `connect-src 'self' ${WHOOP_API} ${POSTHOG_DOMAINS.join(" ")} ${CLOUDFLARE_INSIGHTS_DOMAIN}`,
     "font-src 'self' data:",

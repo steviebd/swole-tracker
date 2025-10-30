@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Calendar, Filter, Download, RotateCcw } from "lucide-react";
-import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { api } from "~/trpc/react";
 import { useExportWorkoutsCSV } from "~/hooks/use-insights";
 import { useLocalStorage } from "~/hooks/use-local-storage";
@@ -32,7 +31,6 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Skeleton } from "~/components/ui/skeleton";
-import { DataTable } from "~/components/ui/data-table";
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 
 type ViewMode = "cards" | "table";
@@ -57,9 +55,8 @@ export function WorkoutHistory() {
     dateTo: "",
   });
 
-  // Removed manual pagination - TanStack Table handles this
-  // const [currentPage, setCurrentPage] = useState(1);
-  // const [pageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
 
   const { status: queueStatus, queueSize } = useOfflineSaveQueue();
   const previousQueueStatus = useRef(queueStatus);
@@ -138,10 +135,10 @@ export function WorkoutHistory() {
     });
   }, [workouts, filters]);
 
-  // Reset to first page when filters change - handled by TanStack Table
-  // useEffect(() => {
-  //   setCurrentPage(1);
-  // }, [filters]);
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   if (isLoading) {
     return (
@@ -415,7 +412,12 @@ export function WorkoutHistory() {
       {viewMode === "cards" ? (
         <WorkoutCardsView workouts={filteredWorkouts} />
       ) : (
-        <WorkoutTableView workouts={filteredWorkouts} />
+        <WorkoutTableView
+          workouts={filteredWorkouts}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );
@@ -579,140 +581,121 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
   );
 }
 
-// Type for workout data with computed metrics
-type WorkoutWithMetrics = any & {
-  metrics: ReturnType<typeof calculateWorkoutMetrics>;
-};
-
-// Column helper for type-safe column definitions
-const columnHelper = createColumnHelper<WorkoutWithMetrics>();
-
-// Table View Component - Now using TanStack Table
-function WorkoutTableView({ workouts }: { workouts: any[] }) {
-  // Enrich workouts with computed metrics for better performance
-  const workoutsWithMetrics = useMemo<WorkoutWithMetrics[]>(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return workouts.map((workout) => ({
-      ...workout,
-      metrics: calculateWorkoutMetrics(workout),
-    })) as WorkoutWithMetrics[];
-  }, [workouts]);
-
-  // Define columns with type safety
-  const columns = useMemo<ColumnDef<WorkoutWithMetrics>[]>(
-    () => [
-      columnHelper.accessor("template.name" as any, {
-        id: "workout",
-        header: "Workout",
-        cell: (info) => {
-          const name = info.getValue() as string | undefined;
-          return (
-            <div className="flex flex-col gap-1">
-              <span className="font-medium">{name ?? "Custom Workout"}</span>
-              {/* Show badges in mobile view */}
-              <div className="flex items-center gap-1 md:hidden">
-                {info.row.original.metrics.hasPersonalRecords && (
-                  <Badge variant="secondary" className="text-xs">
-                    🏆 PR
-                  </Badge>
-                )}
-                {info.row.original.metrics.isOffline && (
-                  <Badge variant="outline" className="text-xs">
-                    📱
-                  </Badge>
-                )}
-              </div>
-            </div>
-          );
-        },
-        enableSorting: true,
-      }),
-      columnHelper.accessor("workoutDate" as any, {
-        id: "date",
-        header: "Date",
-        cell: (info) => {
-          const date = new Date(info.getValue() as string);
-          return (
-            <time dateTime={date.toISOString()} className="whitespace-nowrap">
-              {date.toLocaleDateString()}
-            </time>
-          );
-        },
-        enableSorting: true,
-        sortingFn: "datetime",
-      }),
-      columnHelper.accessor("metrics.workoutTime" as any, {
-        id: "time",
-        header: "Time",
-        cell: (info) => (
-          <span className="text-muted-foreground">{String(info.getValue())}</span>
-        ),
-        enableSorting: false,
-      }),
-      columnHelper.accessor("metrics.duration" as any, {
-        id: "exercises",
-        header: "Exercises",
-        cell: (info) => (
-          <span className="text-muted-foreground">{String(info.getValue())}</span>
-        ),
-        enableSorting: true,
-        sortingFn: (rowA, rowB) => {
-          const a = rowA.original.metrics.totalSets;
-          const b = rowB.original.metrics.totalSets;
-          return a - b;
-        },
-      }),
-      columnHelper.accessor("metrics.bestMetric" as any, {
-        id: "bestLift",
-        header: "Best Lift",
-        cell: (info) => (
-          <span className="text-muted-foreground">{String(info.getValue())}</span>
-        ),
-        enableSorting: false,
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: () => <span className="text-right block">Actions</span>,
-        cell: (info) => {
-          const workout = info.row.original;
-          return (
-            <div className="flex items-center justify-end gap-2">
-              <Link href={`/workout/session/${workout.id}`}>
-                <Button variant="outline" size="sm">
-                  View
-                </Button>
-              </Link>
-              <Link href={`/workouts/${workout.id}`}>
-                <Button variant="secondary" size="sm" className="hidden sm:inline-flex">
-                  Debrief
-                </Button>
-              </Link>
-              <Link href={`/workout/start?templateId=${workout.templateId}`}>
-                <Button size="sm" className="gap-1">
-                  <RotateCcw className="h-3 w-3" />
-                  <span className="hidden sm:inline">Repeat</span>
-                </Button>
-              </Link>
-            </div>
-          );
-        },
-      }),
-    ],
-    [],
-  );
+// Table View Component
+function WorkoutTableView({
+  workouts,
+  currentPage,
+  pageSize,
+  onPageChange,
+}: {
+  workouts: any[];
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.ceil(workouts.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedWorkouts = workouts.slice(startIndex, startIndex + pageSize);
 
   return (
-    <DataTable
-      columns={columns}
-      data={workoutsWithMetrics}
-      enablePagination={true}
-      enableSorting={true}
-      enableFiltering={false} // Filtering handled by parent component
-      pageSize={10}
-      emptyMessage="No workouts found matching your filters"
-      ariaLabel="Workout history table"
-      responsive={true}
-      compact={false}
-    />
+    <div className="space-y-4">
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Workout</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Exercises</TableHead>
+              <TableHead>Best Lift</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedWorkouts.map((workout) => {
+              const { workoutTime, duration, bestMetric } =
+                calculateWorkoutMetrics(workout);
+
+              return (
+                <TableRow key={workout.id} className="hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    {workout.template?.name || "Custom Workout"}
+                  </TableCell>
+                  <TableCell>
+                    <time
+                      dateTime={new Date(workout.workoutDate).toISOString()}
+                    >
+                      {new Date(workout.workoutDate).toLocaleDateString()}
+                    </time>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {workoutTime}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {duration}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {bestMetric}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link href={`/workout/session/${workout.id}`}>
+                        <Button variant="outline" size="sm">
+                          View
+                        </Button>
+                      </Link>
+                      <Link href={`/workouts/${workout.id}`}>
+                        <Button variant="secondary" size="sm">
+                          Debrief
+                        </Button>
+                      </Link>
+                      <Link
+                        href={`/workout/start?templateId=${workout.templateId}`}
+                      >
+                        <Button size="sm" className="gap-1">
+                          <RotateCcw className="h-3 w-3" />
+                          Repeat
+                        </Button>
+                      </Link>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-muted-foreground text-sm">
+            Showing {startIndex + 1} to{" "}
+            {Math.min(startIndex + pageSize, workouts.length)} of{" "}
+            {workouts.length} workouts
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-muted-foreground text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

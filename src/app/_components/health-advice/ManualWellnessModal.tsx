@@ -337,7 +337,7 @@ export function ManualWellnessModal({
               selector={(state) => [state.canSubmit, state.isSubmitting]}
               children={([canSubmit, isSubmittingForm]) => (
                 <Button
-                  onClick={form.handleSubmit}
+                  onClick={() => form.handleSubmit()}
                   className="btn-primary flex-1"
                   disabled={!canSubmit || isSubmittingForm || isSubmitting}
                 >
