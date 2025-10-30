@@ -316,18 +316,8 @@ export function StrengthProgressSection({
 
   const normalizedSets = useMemo(() => {
     if (!topSetsResponse?.data) {
-      console.log("StrengthProgressSection: topSetsResponse.data is empty", {
-        topSetsResponse,
-        selectedExerciseName,
-        selectedTemplateExerciseId,
-        hasExerciseSelection,
-      });
       return [];
     }
-    console.log("StrengthProgressSection: topSetsResponse has data", {
-      dataLength: topSetsResponse.data.length,
-      firstFewItems: topSetsResponse.data.slice(0, 3),
-    });
     return topSetsResponse.data.map((session) => {
       const weight = Number(session.weight ?? 0);
       const reps = Number(session.reps ?? 0);
@@ -411,7 +401,10 @@ export function StrengthProgressSection({
         };
       });
 
-    console.log("chartPoints", { count: points.length, firstFew: points.slice(0, 3) });
+    console.log("chartPoints", {
+      count: points.length,
+      firstFew: points.slice(0, 3),
+    });
     return points;
   }, [normalizedSets, viewMode]);
 
@@ -1042,9 +1035,7 @@ function StrengthTrendChart({
 
               return (
                 <div className="border-border/60 bg-background/90 rounded-xl border px-3 py-2 text-xs shadow-md">
-                  <p className="text-foreground font-semibold">
-                    {entry.date}
-                  </p>
+                  <p className="text-foreground font-semibold">{entry.date}</p>
                   {entry.exerciseName && (
                     <p className="text-muted-foreground text-[10px]">
                       {entry.exerciseName}
@@ -1053,11 +1044,13 @@ function StrengthTrendChart({
                   <p className="text-muted-foreground mt-1">
                     {entry.value.toLocaleString()} {unit}
                   </p>
-                  <div className="text-muted-foreground/70 mt-1 text-[10px] space-y-0.5">
+                  <div className="text-muted-foreground/70 mt-1 space-y-0.5 text-[10px]">
                     <div>Weight: {entry.weight} kg</div>
                     <div>1RM: {entry.oneRm?.toFixed(1)} kg</div>
                     <div>Volume: {entry.volume} kg</div>
-                    <div>Sets×Reps: {entry.sets}×{entry.reps}</div>
+                    <div>
+                      Sets×Reps: {entry.sets}×{entry.reps}
+                    </div>
                   </div>
                 </div>
               );

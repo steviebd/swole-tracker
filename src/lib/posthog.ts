@@ -13,7 +13,7 @@
  * - Default export is a factory usable in Node (server) tests and server code.
  * - In the browser, it returns a no-op client.
  */
-import posthog from "posthog-js";
+import type posthog from "posthog-js";
 
 type PosthogSurface = {
   capture: (event: string, properties?: Record<string, unknown>) => void;

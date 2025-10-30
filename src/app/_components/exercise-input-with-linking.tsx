@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { api } from "~/trpc/react";
 import { ExerciseLinkPicker } from "./ExerciseLinkPicker";
 import { useLocalStorage } from "~/hooks/use-local-storage";
@@ -14,6 +14,11 @@ interface ExerciseInputProps {
   style?: React.CSSProperties;
   templateExerciseId?: number; // For existing template exercises
 }
+
+type SearchData = {
+  items: unknown[];
+  nextCursor: string | null;
+};
 
 export function ExerciseInputWithLinking({
   value,
@@ -175,7 +180,7 @@ function InlineSearchFallback({
   // localStorage cache for recent searches
   const [recentSearches, setRecentSearches] = useLocalStorage<string[]>(
     "exercise-search-recent",
-    []
+    [],
   );
 
   const search = api.exercises.searchMaster.useQuery(
@@ -224,8 +229,9 @@ function InlineSearchFallback({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, open]);
 
-  const items = search.data?.items ?? [];
-  const canLoadMore = search.data?.nextCursor != null;
+  const searchData = search.data as SearchData | undefined;
+  const items = useMemo(() => searchData?.items ?? [], [searchData]);
+  const canLoadMore = searchData?.nextCursor != null;
 
   // Update recent searches cache
   useEffect(() => {
@@ -306,7 +312,10 @@ function InlineSearchFallback({
             {pending || search.isLoading ? (
               <div className="space-y-2 p-3">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between p-3">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3"
+                  >
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="h-6 w-16" />
                   </div>
@@ -367,7 +376,7 @@ function InlineSearchFallback({
             <div className="mt-2">
               <button
                 onClick={() => {
-                  const next = search.data?.nextCursor;
+                  const next = searchData?.nextCursor;
                   setCursor(next || null);
                   if (next) {
                     // Cancel previous request before loading more

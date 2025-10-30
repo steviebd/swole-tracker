@@ -12,6 +12,11 @@ type Item = {
   createdAt: string;
 };
 
+type SearchData = {
+  items: Item[];
+  nextCursor: string | null;
+};
+
 interface ExerciseLinkPickerProps {
   open: boolean;
   onClose: () => void;
@@ -38,7 +43,7 @@ export function ExerciseLinkPicker({
   // localStorage cache for recent searches
   const [recentSearches, setRecentSearches] = useLocalStorage<string[]>(
     "exercise-search-recent",
-    []
+    [],
   );
 
   const linkToMaster = api.exercises.linkToMaster.useMutation({
@@ -111,7 +116,8 @@ export function ExerciseLinkPicker({
   // Merge page results and update recent searches
   useEffect(() => {
     if (!search.data) return;
-    const page = search.data.items as Item[];
+    const searchData = search.data as SearchData;
+    const page = searchData.items;
     const merged =
       cursor === null
         ? page
@@ -133,14 +139,15 @@ export function ExerciseLinkPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.data]);
 
+  const searchData = search.data as SearchData | undefined;
   const canLoadMore = useMemo(
-    () => typeof search.data?.nextCursor === "number",
-    [search.data?.nextCursor],
+    () => typeof searchData?.nextCursor === "number",
+    [searchData?.nextCursor],
   );
 
   function loadMore() {
     if (!canLoadMore) return;
-    const next = search.data?.nextCursor;
+    const next = searchData?.nextCursor;
     setCursor(next || null);
     if (next) {
       // Cancel previous request before loading more
@@ -208,7 +215,10 @@ export function ExerciseLinkPicker({
             {pending && items.length === 0 ? (
               <div className="space-y-2 p-3">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between p-3">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3"
+                  >
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="h-6 w-12" />
                   </div>

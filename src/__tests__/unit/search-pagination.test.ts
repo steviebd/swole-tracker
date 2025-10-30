@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { exercisesRouter } from "~/server/api/routers/exercises";
 
+type SearchResult = {
+  items: Array<{
+    id: number;
+    name: string;
+    normalizedName: string;
+    createdAt: string;
+  }>;
+  nextCursor: string | null;
+};
+
 describe("searchMaster pagination", () => {
   const mockUser = { id: "user-123" };
 
@@ -123,11 +133,11 @@ describe("searchMaster pagination", () => {
 
     const caller = exercisesRouter.createCaller(mockCtx);
 
-    const result = await caller.searchMaster({
+    const result = (await caller.searchMaster({
       q: "bench",
       limit: 10,
       cursor: undefined, // cursor is now optional string
-    });
+    })) as SearchResult;
 
     expect(result.items).toHaveLength(1);
     const firstItem = result.items[0]!;
@@ -179,16 +189,16 @@ describe("searchMaster pagination", () => {
     const caller = exercisesRouter.createCaller(mockCtx);
 
     // First call should hit the database
-    const result1 = await caller.searchMaster({
+    const result1 = (await caller.searchMaster({
       q: "bench",
       limit: 10,
-    });
+    })) as SearchResult;
 
     // Second call with same parameters should use cache
-    const result2 = await caller.searchMaster({
+    const result2 = (await caller.searchMaster({
       q: "bench",
       limit: 10,
-    });
+    })) as SearchResult;
 
     expect(callCount).toBe(1); // Database should only be called once
     expect(result1.items).toHaveLength(1);

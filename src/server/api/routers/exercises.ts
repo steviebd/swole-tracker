@@ -9,9 +9,9 @@ import { SQLITE_VARIABLE_LIMIT, whereInChunks } from "~/server/db/chunk-utils";
 
 // Simple in-memory cache with TTL for searchMaster API
 class SimpleCache {
-  private cache = new Map<string, { value: any; expires: number }>();
+  private cache = new Map<string, { value: unknown; expires: number }>();
 
-  get(key: string) {
+  get(key: string): unknown {
     const entry = this.cache.get(key);
     if (entry && Date.now() < entry.expires) {
       return entry.value;
@@ -20,7 +20,7 @@ class SimpleCache {
     return undefined;
   }
 
-  set(key: string, value: any, ttlMs: number) {
+  set(key: string, value: unknown, ttlMs: number) {
     this.cache.set(key, { value, expires: Date.now() + ttlMs });
   }
 
@@ -40,16 +40,33 @@ function getCacheMetrics() {
 }
 
 // Cursor encoding/decoding for pagination with fuzzy score support
-function encodeCursor(normalizedName: string, priority: number, id: number, fuzzyScore?: number): string {
+function encodeCursor(
+  normalizedName: string,
+  priority: number,
+  id: number,
+  fuzzyScore?: number,
+): string {
   const obj = { n: normalizedName, p: priority, i: id, s: fuzzyScore || 0 };
-  return Buffer.from(JSON.stringify(obj)).toString('base64');
+  return Buffer.from(JSON.stringify(obj)).toString("base64");
 }
 
-function decodeCursor(cursor: string): { n: string; p: number; i: number; s: number } | null {
+function decodeCursor(
+  cursor: string,
+): { n: string; p: number; i: number; s: number } | null {
   try {
-    const json = Buffer.from(cursor, 'base64').toString();
-    const obj = JSON.parse(json);
-    if (typeof obj.n === 'string' && typeof obj.p === 'number' && typeof obj.i === 'number' && typeof obj.s === 'number') {
+    const json = Buffer.from(cursor, "base64").toString();
+    const obj = JSON.parse(json) as {
+      n: string;
+      p: number;
+      i: number;
+      s: number;
+    };
+    if (
+      typeof obj.n === "string" &&
+      typeof obj.p === "number" &&
+      typeof obj.i === "number" &&
+      typeof obj.s === "number"
+    ) {
       return obj;
     }
     return null;
@@ -167,13 +184,17 @@ function levenshteinDistance(str1: string, str2: string): number {
 }
 
 // Generate fuzzy search conditions for word-based matching
-function generateFuzzyConditions(q: string): { conditions: string[]; words: string[] } {
-  const words = q.split(/\s+/).filter(word => word.length > 0);
+function generateFuzzyConditions(q: string): {
+  conditions: string[];
+  words: string[];
+} {
+  const words = q.split(/\s+/).filter((word) => word.length > 0);
   const conditions: string[] = [];
 
   // For each word, create a LIKE condition
   for (const word of words) {
-    if (word.length >= 2) { // Only match words with at least 2 characters
+    if (word.length >= 2) {
+      // Only match words with at least 2 characters
       conditions.push(`normalizedName LIKE '%${word}%'`);
     }
   }
@@ -230,7 +251,7 @@ export const exercisesRouter = createTRPCRouter({
       const q = normalized;
 
       // Generate cache key
-      const cacheKey = `search:${ctx.user.id}:${q}:${input.cursor || ''}:${input.limit}`;
+      const cacheKey = `search:${ctx.user.id}:${q}:${input.cursor || ""}:${input.limit}`;
 
       // Check cache first
       const cachedResult = searchCache.get(cacheKey);
@@ -250,7 +271,10 @@ export const exercisesRouter = createTRPCRouter({
 
       // Generate fuzzy matching conditions
       const { conditions: fuzzyConditions } = generateFuzzyConditions(q);
-      const fuzzyWhereClause = fuzzyConditions.length > 0 ? `(${fuzzyConditions.join(' OR ')})` : '1=1';
+      const fuzzyWhereClause =
+        fuzzyConditions.length > 0
+          ? `(${fuzzyConditions.join(" OR ")})`
+          : "1=1";
 
       // Execute UNION query using raw SQL for better control over deduplication
       const unionQuery = sql`
@@ -302,7 +326,7 @@ export const exercisesRouter = createTRPCRouter({
             END as fuzzy_score
           FROM ${templateExercises}
           WHERE ${templateExercises.user_id} = ${ctx.user.id}
-            AND (LOWER(TRIM(${templateExercises.exerciseName})) LIKE ${contains} OR ${sql.raw(fuzzyWhereClause.replace('normalizedName', 'LOWER(TRIM(exerciseName))'))})
+            AND (LOWER(TRIM(${templateExercises.exerciseName})) LIKE ${contains} OR ${sql.raw(fuzzyWhereClause.replace("normalizedName", "LOWER(TRIM(exerciseName))"))})
 
           UNION ALL
 
@@ -319,7 +343,7 @@ export const exercisesRouter = createTRPCRouter({
             END as fuzzy_score
           FROM ${sessionExercises}
           WHERE ${sessionExercises.user_id} = ${ctx.user.id}
-            AND (LOWER(TRIM(${sessionExercises.exerciseName})) LIKE ${contains} OR ${sql.raw(fuzzyWhereClause.replace('normalizedName', 'LOWER(TRIM(exerciseName))'))})
+            AND (LOWER(TRIM(${sessionExercises.exerciseName})) LIKE ${contains} OR ${sql.raw(fuzzyWhereClause.replace("normalizedName", "LOWER(TRIM(exerciseName))"))})
         ) combined
         WHERE ${decodedCursor ? sql`(fuzzy_score < ${decodedCursor.s} OR (fuzzy_score = ${decodedCursor.s} AND (normalizedName > ${decodedCursor.n} OR (normalizedName = ${decodedCursor.n} AND (CASE source WHEN 'master' THEN 1 WHEN 'template' THEN 2 WHEN 'session' THEN 3 END > ${decodedCursor.p} OR (CASE source WHEN 'master' THEN 1 WHEN 'template' THEN 2 WHEN 'session' THEN 3 END = ${decodedCursor.p} AND id > ${decodedCursor.i}))))))` : sql`1=1`}
         ORDER BY fuzzy_score DESC, normalizedName, priority_rank, id
@@ -359,9 +383,9 @@ export const exercisesRouter = createTRPCRouter({
                 createdAt: new Date("2024-01-01T12:00:00Z"),
               },
             ];
-            results = mockData.map(row => ({
+            results = mockData.map((row) => ({
               ...row,
-              source: 'master' as const,
+              source: "master" as const,
             }));
           }
 
@@ -439,69 +463,115 @@ export const exercisesRouter = createTRPCRouter({
 
           // Combine and deduplicate
           const allResults = [
-            ...(Array.isArray(masterPrefixMatches) ? masterPrefixMatches.map(row => ({ ...row, source: 'master' as const })) : []),
-            ...(Array.isArray(masterContainsMatchesFiltered) ? masterContainsMatchesFiltered.map(row => ({ ...row, source: 'master' as const })) : []),
-            ...(Array.isArray(templateMatches) ? templateMatches.map(row => ({ ...row, source: 'template' as const, normalizedName: normalizeExerciseName(row.name) })) : []),
-            ...(Array.isArray(sessionMatches) ? sessionMatches.map(row => ({ ...row, source: 'session' as const, normalizedName: normalizeExerciseName(row.name) })) : []),
+            ...(Array.isArray(masterPrefixMatches)
+              ? masterPrefixMatches.map((row) => ({
+                  ...row,
+                  source: "master" as const,
+                }))
+              : []),
+            ...(Array.isArray(masterContainsMatchesFiltered)
+              ? masterContainsMatchesFiltered.map((row) => ({
+                  ...row,
+                  source: "master" as const,
+                }))
+              : []),
+            ...(Array.isArray(templateMatches)
+              ? templateMatches.map((row) => ({
+                  ...row,
+                  source: "template" as const,
+                  normalizedName: normalizeExerciseName(row.name),
+                }))
+              : []),
+            ...(Array.isArray(sessionMatches)
+              ? sessionMatches.map((row) => ({
+                  ...row,
+                  source: "session" as const,
+                  normalizedName: normalizeExerciseName(row.name),
+                }))
+              : []),
           ];
 
           // Sort by normalizedName and deduplicate (prioritize master > template > session)
           allResults.sort((a, b) => {
-            const nameCompare = a.normalizedName.localeCompare(b.normalizedName);
+            const nameCompare = a.normalizedName.localeCompare(
+              b.normalizedName,
+            );
             if (nameCompare !== 0) return nameCompare;
             const priorityOrder = { master: 1, template: 2, session: 3 };
             return priorityOrder[a.source] - priorityOrder[b.source];
           });
           const seen = new Set<string>();
-          results = allResults.filter(row => {
-            if (seen.has(row.normalizedName)) return false;
-            seen.add(row.normalizedName);
-            return true;
-          }).slice(0, input.limit);
-
+          results = allResults
+            .filter((row) => {
+              if (seen.has(row.normalizedName)) return false;
+              seen.add(row.normalizedName);
+              return true;
+            })
+            .slice(0, input.limit);
         } else {
           // Production: Use UNION query
           const sqlString = unionQuery as unknown as string;
           const queryResult = await ctx.db.$client.prepare(sqlString).all();
-          results = Array.isArray(queryResult.results) ? queryResult.results : [];
+          results = Array.isArray(queryResult.results)
+            ? queryResult.results
+            : [];
         }
 
         // Apply fuzzy scoring for test environment results
         if (process.env.NODE_ENV === "test" && results.length > 0) {
-          results = results.map(row => {
+          results = results.map((row) => {
             let fuzzyScore = 0;
-            const normalizedName = row.normalizedName || normalizeExerciseName(row.name);
+            const normalizedName =
+              row.normalizedName || normalizeExerciseName(row.name);
 
             // Calculate fuzzy score based on match type
             if (normalizedName.startsWith(q)) {
-              fuzzyScore = row.source === 'master' ? 100 : 50;
+              fuzzyScore = row.source === "master" ? 100 : 50;
             } else if (normalizedName.includes(q)) {
-              fuzzyScore = row.source === 'master' ? 50 : row.source === 'template' ? 40 : 30;
+              fuzzyScore =
+                row.source === "master"
+                  ? 50
+                  : row.source === "template"
+                    ? 40
+                    : 30;
             } else {
               // Check for word-based fuzzy matching
-              const words = q.split(/\s+/).filter(word => word.length > 1);
-              const hasMatchingWords = words.some(word => normalizedName.includes(word));
+              const words = q.split(/\s+/).filter((word) => word.length > 1);
+              const hasMatchingWords = words.some((word) =>
+                normalizedName.includes(word),
+              );
               if (hasMatchingWords) {
-                fuzzyScore = row.source === 'master' ? 25 : row.source === 'template' ? 20 : 15;
+                fuzzyScore =
+                  row.source === "master"
+                    ? 25
+                    : row.source === "template"
+                      ? 20
+                      : 15;
               }
             }
 
-            return { ...row, fuzzy_score: fuzzyScore };
+            return { ...row, fuzzy_score: fuzzyScore } as unknown;
           });
 
           // Sort by fuzzy score for test environment
-          results.sort((a: any, b: any) => (b.fuzzy_score || 0) - (a.fuzzy_score || 0));
+          results.sort(
+            (a: any, b: any) => (b.fuzzy_score || 0) - (a.fuzzy_score || 0),
+          );
         }
 
         // For test environment, ensure we have results when expected
-        if (process.env.NODE_ENV === "test" && results.length === 0 && input.q === "bench") {
+        if (
+          process.env.NODE_ENV === "test" &&
+          results.length === 0 &&
+          input.q === "bench"
+        ) {
           results = [
             {
               id: 1,
               name: "Bench Press",
               normalizedName: "bench press",
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -516,7 +586,7 @@ export const exercisesRouter = createTRPCRouter({
                 name: "Bench Press",
                 normalizedName: "bench press",
                 createdAt: new Date("2024-01-01T12:00:00Z"),
-                source: 'master',
+                source: "master",
                 fuzzy_score: 100,
               },
               {
@@ -524,7 +594,7 @@ export const exercisesRouter = createTRPCRouter({
                 name: "Incline Bench Press",
                 normalizedName: "incline bench press",
                 createdAt: new Date("2024-01-02T12:00:00Z"),
-                source: 'master',
+                source: "master",
                 fuzzy_score: 50,
               },
               {
@@ -532,7 +602,7 @@ export const exercisesRouter = createTRPCRouter({
                 name: "Close Grip Bench Press",
                 normalizedName: "close grip bench press",
                 createdAt: new Date("2024-01-03T12:00:00Z"),
-                source: 'master',
+                source: "master",
                 fuzzy_score: 50,
               },
             ];
@@ -543,7 +613,7 @@ export const exercisesRouter = createTRPCRouter({
                 name: "Test Exercise",
                 normalizedName: normalizeExerciseName(input.q),
                 createdAt: new Date("2024-01-01T12:00:00Z"),
-                source: 'master',
+                source: "master",
                 fuzzy_score: 100,
               },
             ];
@@ -551,14 +621,18 @@ export const exercisesRouter = createTRPCRouter({
         }
 
         // For test environment, ensure we have results when expected for specific test cases
-        if (process.env.NODE_ENV === "test" && input.q === "bench" && results.length === 0) {
+        if (
+          process.env.NODE_ENV === "test" &&
+          input.q === "bench" &&
+          results.length === 0
+        ) {
           results = [
             {
               id: 1,
               name: "Bench Press",
               normalizedName: "bench press",
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -572,7 +646,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -586,7 +660,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -600,7 +674,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -614,7 +688,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -628,7 +702,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -642,7 +716,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -656,7 +730,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -670,7 +744,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -684,7 +758,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -698,7 +772,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -712,7 +786,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -726,7 +800,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -740,7 +814,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -754,7 +828,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -768,7 +842,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -782,7 +856,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -796,7 +870,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -810,7 +884,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -824,7 +898,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -838,7 +912,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -852,7 +926,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -866,7 +940,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -880,7 +954,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -894,7 +968,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -908,7 +982,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -922,7 +996,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -936,7 +1010,7 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
@@ -950,12 +1024,11 @@ export const exercisesRouter = createTRPCRouter({
               name: "Test Exercise",
               normalizedName: normalizeExerciseName(input.q),
               createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: 'master',
+              source: "master",
               fuzzy_score: 100,
             },
           ];
         }
-
       } catch (error) {
         console.log("searchMaster: query failed", error);
         results = [];
@@ -972,16 +1045,25 @@ export const exercisesRouter = createTRPCRouter({
           return row.priority_rank === 1; // Only keep the highest priority (rank 1)
         })
         .map((row) => ({
-          id: row.source === 'master' ? row.id : -row.id, // Negative IDs for non-master sources
+          id: row.source === "master" ? row.id : -row.id, // Negative IDs for non-master sources
           name: row.name,
           normalizedName: row.normalizedName,
-          createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt.toISOString(),
+          createdAt:
+            typeof row.createdAt === "string"
+              ? row.createdAt
+              : row.createdAt.toISOString(),
         }));
 
       // Calculate next cursor from the last item (now includes fuzzy score)
-      const nextCursor = items.length === input.limit && items.length > 0
-        ? encodeCursor(items[items.length - 1]!.normalizedName, 1, items[items.length - 1]!.id, (results[results.length - 1] as any)?.fuzzy_score || 0)
-        : null;
+      const nextCursor =
+        items.length === input.limit && items.length > 0
+          ? encodeCursor(
+              items[items.length - 1]!.normalizedName,
+              1,
+              items[items.length - 1]!.id,
+              (results[results.length - 1] as any)?.fuzzy_score || 0,
+            )
+          : null;
 
       const result = { items, nextCursor };
 
@@ -1859,10 +1941,9 @@ export const exercisesRouter = createTRPCRouter({
     }),
 
   // Get cache metrics for monitoring
-  getCacheMetrics: protectedProcedure
-    .query(() => {
-      return getCacheMetrics();
-    }),
+  getCacheMetrics: protectedProcedure.query(() => {
+    return getCacheMetrics();
+  }),
 
   createMasterExercise: protectedProcedure
     .use(apiCallRateLimit)

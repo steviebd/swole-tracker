@@ -308,10 +308,13 @@ export const progressRouter = createTRPCRouter({
         });
 
         if (prevRawData.length === 0) {
-          console.log("getExerciseStrengthProgression: no previous period data - trends will show as 0 or N/A", {
-            userId: ctx.user.id,
-            exerciseName: selection.displayName,
-          });
+          console.log(
+            "getExerciseStrengthProgression: no previous period data - trends will show as 0 or N/A",
+            {
+              userId: ctx.user.id,
+              exerciseName: selection.displayName,
+            },
+          );
         }
 
         if (rawData.length === 0) {
@@ -343,7 +346,10 @@ export const progressRouter = createTRPCRouter({
             dates: [],
           };
 
-          if (row.one_rm_estimate && row.one_rm_estimate > existing.max_one_rm) {
+          if (
+            row.one_rm_estimate &&
+            row.one_rm_estimate > existing.max_one_rm
+          ) {
             existing.max_one_rm = row.one_rm_estimate;
           }
           if (row.volume_load) {
@@ -375,7 +381,10 @@ export const progressRouter = createTRPCRouter({
             total_volume: 0,
           };
 
-          if (row.one_rm_estimate && row.one_rm_estimate > existing.max_one_rm) {
+          if (
+            row.one_rm_estimate &&
+            row.one_rm_estimate > existing.max_one_rm
+          ) {
             existing.max_one_rm = row.one_rm_estimate;
           }
           if (row.volume_load) {
@@ -420,7 +429,10 @@ export const progressRouter = createTRPCRouter({
           (sum, day) => sum + day.total_volume,
           0,
         );
-        const volumeTrend = calculatePercentageChange(currentVolume, prevVolume);
+        const volumeTrend = calculatePercentageChange(
+          currentVolume,
+          prevVolume,
+        );
 
         // Calculate progression trend (simple linear regression on 1RM over time)
         const progressionTrend =
@@ -438,10 +450,13 @@ export const progressRouter = createTRPCRouter({
           .sort((a, b) => (b.one_rm_estimate || 0) - (a.one_rm_estimate || 0))
           .slice(0, 5)
           .map((row) => ({
-            date: row.workoutDate.toISOString().split("T")[0]!,  // Convert to YYYY-MM-DD string
+            date: row.workoutDate.toISOString().split("T")[0]!, // Convert to YYYY-MM-DD string
             weight: row.weight!,
             reps: row.reps!,
-            oneRMPercentage: currentOneRM > 0 ? ((row.one_rm_estimate || 0) / currentOneRM) * 100 : 100,  // Match interface
+            oneRMPercentage:
+              currentOneRM > 0
+                ? ((row.one_rm_estimate || 0) / currentOneRM) * 100
+                : 100, // Match interface
           }));
 
         // Build timeline from aggregated data
@@ -449,7 +464,7 @@ export const progressRouter = createTRPCRouter({
           .sort((a, b) => a.date.getTime() - b.date.getTime())
           .map((day) => ({
             date: day.date.toISOString().split("T")[0]!, // Convert to YYYY-MM-DD string
-            oneRM: day.max_one_rm || 0,  // Match the interface property name
+            oneRM: day.max_one_rm || 0, // Match the interface property name
           }));
 
         console.log("getExerciseStrengthProgression: timeline data", {
@@ -462,19 +477,22 @@ export const progressRouter = createTRPCRouter({
         });
 
         if (timeline.length === 0) {
-          console.error("getExerciseStrengthProgression: TIMELINE IS EMPTY despite having rawData!", {
-            userId: ctx.user.id,
-            exerciseName: selection.displayName,
-            rawDataCount: rawData.length,
-            aggregatedDailyDataCount: aggregatedDailyData.length,
-          });
+          console.error(
+            "getExerciseStrengthProgression: TIMELINE IS EMPTY despite having rawData!",
+            {
+              userId: ctx.user.id,
+              exerciseName: selection.displayName,
+              rawDataCount: rawData.length,
+              aggregatedDailyDataCount: aggregatedDailyData.length,
+            },
+          );
         }
 
         // Find recent PRs by looking for improvements in 1RM, weight, or volume
         const recentPRs: PersonalRecord[] = [];
         let maxOneRM = 0;
-        let maxWeight = 0;
-        let maxVolume = 0;
+        const maxWeight = 0;
+        const maxVolume = 0;
 
         // Sort raw data by date ascending for PR detection
         const sortedData = [...rawData].sort(
@@ -489,10 +507,10 @@ export const progressRouter = createTRPCRouter({
           if (oneRM > maxOneRM && oneRM > 0) {
             maxOneRM = oneRM;
             recentPRs.push({
-              date: session.workoutDate.toISOString().split("T")[0]!,  // Convert to YYYY-MM-DD string
+              date: session.workoutDate.toISOString().split("T")[0]!, // Convert to YYYY-MM-DD string
               weight,
               reps: session.reps || 1,
-              type: "1RM",  // Required by interface
+              type: "1RM", // Required by interface
             });
           }
         }
@@ -1276,7 +1294,9 @@ export const progressRouter = createTRPCRouter({
           selection.names.length === 0 &&
           selection.templateExerciseIds.length === 0
         ) {
-          logger.debug("getStrengthProgression: no exercises to query", { selection });
+          logger.debug("getStrengthProgression: no exercises to query", {
+            selection,
+          });
           return {
             data: [],
             nextCursor: undefined,
@@ -1379,7 +1399,7 @@ export const progressRouter = createTRPCRouter({
           selection,
           whereConditionsCount: whereConditions.length,
           progressDataCount: progressData.length,
-          firstFewResults: progressData.slice(0, 3).map(row => ({
+          firstFewResults: progressData.slice(0, 3).map((row) => ({
             workoutDate: row.workoutDate,
             exerciseName: row.exerciseName,
             weight: row.weight,
@@ -2027,43 +2047,155 @@ export const progressRouter = createTRPCRouter({
           },
         ];
 
-        const limit = input.limit ?? 20;
-        const offset = input.offset ?? 0;
+        // Group PRs by master exercise for combined display
+        const prExerciseNames = [
+          ...new Set(personalRecords.map((pr) => pr.exerciseName)),
+        ];
+        const masterMap = new Map<
+          string,
+          { masterId: number | null; masterName: string | null }
+        >();
 
-        // Sort PRs by recency (most recent first) for better pagination UX
-        const sortedRecords = personalRecords.sort(
-          (a, b) => b.workoutDate.getTime() - a.workoutDate.getTime(),
+        // Batch query to get master info for all exercise names
+        const masterRows = await ctx.db
+          .select({
+            exerciseName: templateExercises.exerciseName,
+            masterId: exerciseLinks.masterExerciseId,
+            masterName: masterExercises.name,
+          })
+          .from(templateExercises)
+          .leftJoin(
+            exerciseLinks,
+            and(
+              eq(exerciseLinks.templateExerciseId, templateExercises.id),
+              eq(exerciseLinks.user_id, ctx.user.id),
+            ),
+          )
+          .leftJoin(
+            masterExercises,
+            eq(masterExercises.id, exerciseLinks.masterExerciseId),
+          )
+          .where(
+            and(
+              eq(templateExercises.user_id, ctx.user.id),
+              inArray(templateExercises.exerciseName, prExerciseNames),
+            ),
+          );
+
+        // Build master map
+        for (const name of prExerciseNames) {
+          const row = masterRows.find((r) => r.exerciseName === name);
+          masterMap.set(name, {
+            masterId: row?.masterId ?? null,
+            masterName: row?.masterName ?? null,
+          });
+        }
+
+        // Group PRs by masterId
+        const groupedPRs = new Map<number | null, typeof personalRecords>();
+        for (const pr of personalRecords) {
+          const master = masterMap.get(pr.exerciseName);
+          const key = master?.masterId ?? null;
+          if (!groupedPRs.has(key)) groupedPRs.set(key, []);
+          groupedPRs.get(key)!.push(pr);
+        }
+
+        // Create combined cards
+        type HighlightCard = {
+          id: string;
+          title: string;
+          subtitle: string;
+          detail: string;
+          meta?: string;
+          icon: string;
+          date: string;
+          tone: "success" | "info" | "warning";
+        };
+
+        const combinedCards: HighlightCard[] = [];
+        for (const [masterId, prs] of groupedPRs) {
+          if (masterId === null) {
+            // No master, show individual PRs
+            for (const pr of prs) {
+              combinedCards.push({
+                id: `${pr.exerciseName}-${pr.workoutDate.getTime()}-${Math.random()}`,
+                title: pr.exerciseName,
+                subtitle: `${pr.weight} kg × ${pr.reps}`,
+                detail: pr.recordType === "weight"
+                  ? `Weight PR${pr.oneRMEstimate ? ` • ~${Math.round(pr.oneRMEstimate)} kg 1RM` : ""}`
+                  : `Volume PR${pr.totalVolume ? ` • ${Math.round(pr.totalVolume)} kg total` : ""}`,
+                meta: pr.workoutDate.toISOString().split("T")[0]!,
+                icon: pr.recordType === "weight" ? "🏋️" : "📊",
+                date: pr.workoutDate.toISOString().split("T")[0]!,
+                tone: pr.recordType === "weight" ? "success" : "info",
+              });
+            }
+          } else {
+            // Has master, combine linked exercises
+            const masterName =
+              masterMap.get(prs[0]!.exerciseName)?.masterName ??
+              "Master Exercise";
+
+            // Find best weight PR and best volume PR
+            const weightPR = prs
+              .filter((p) => p.recordType === "weight")
+              .reduce(
+                (best, current) =>
+                  !best ||
+                  (current.oneRMEstimate ?? 0) > (best.oneRMEstimate ?? 0)
+                    ? current
+                    : best,
+                null as (typeof prs)[0] | null,
+              );
+
+            const volumePR = prs
+              .filter((p) => p.recordType === "volume")
+              .reduce(
+                (best, current) =>
+                  !best || (current.totalVolume ?? 0) > (best.totalVolume ?? 0)
+                    ? current
+                    : best,
+                null as (typeof prs)[0] | null,
+              );
+
+            if (weightPR) {
+              combinedCards.push({
+                id: `master-${masterId}-weight-${weightPR.workoutDate.getTime()}`,
+                title: masterName,
+                subtitle: `${weightPR.weight} kg × ${weightPR.reps}`,
+                detail: `Weight PR${weightPR.oneRMEstimate ? ` • ~${Math.round(weightPR.oneRMEstimate)} kg 1RM` : ""}`,
+                meta: weightPR.workoutDate.toISOString().split("T")[0]!,
+                icon: "🏋️",
+                date: weightPR.workoutDate.toISOString().split("T")[0]!,
+                tone: "success",
+              });
+            }
+
+            if (volumePR) {
+              combinedCards.push({
+                id: `master-${masterId}-volume-${volumePR.workoutDate.getTime()}`,
+                title: masterName,
+                subtitle: `${volumePR.weight} kg × ${volumePR.reps}`,
+                detail: `Volume PR${volumePR.totalVolume ? ` • ${Math.round(volumePR.totalVolume)} kg total` : ""}`,
+                meta: volumePR.workoutDate.toISOString().split("T")[0]!,
+                icon: "📊",
+                date: volumePR.workoutDate.toISOString().split("T")[0]!,
+                tone: "info",
+              });
+            }
+          }
+        }
+
+        // Sort combined cards by recency
+        combinedCards.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         );
 
-        const paginatedRecords = sortedRecords.slice(offset, offset + limit);
+        const limit = input.limit ?? 20;
+        const offset = input.offset ?? 0;
+        const paginatedCards = combinedCards.slice(offset, offset + limit);
 
-        const cards = paginatedRecords.map((record, index) => ({
-          id: `${record.exerciseName}-${record.workoutDate.getTime()}-${index}`,
-          title: record.exerciseName,
-          subtitle: `${record.weight} kg × ${record.reps}`,
-          detail:
-            record.recordType === "weight"
-              ? "Weight PR"
-              : record.recordType === "volume"
-                ? "Volume PR"
-                : "PR",
-          meta: record.oneRMEstimate
-            ? `~${Math.round(record.oneRMEstimate)} kg 1RM`
-            : undefined,
-          icon:
-            record.recordType === "weight"
-              ? "🏋️"
-              : record.recordType === "volume"
-                ? "📊"
-                : "🏆",
-          date: record.workoutDate.toISOString(),
-          tone:
-            record.recordType === "weight"
-              ? ("success" as const)
-              : record.recordType === "volume"
-                ? ("info" as const)
-                : ("warning" as const),
-        }));
+        const cards = paginatedCards;
 
         return {
           tab,
@@ -2196,7 +2328,7 @@ export const progressRouter = createTRPCRouter({
                 title: "Heaviest session",
                 subtitle: `${Math.round(heaviestDay.totalVolume).toLocaleString()} kg moved`,
                 detail: `${heaviestDay.totalSets} sets • ${heaviestDay.totalReps} reps`,
-                meta: heaviestDay.workoutDate.toISOString(),
+                meta: heaviestDay.workoutDate.toISOString().split("T")[0]!,
                 icon: "🚀",
                 tone: "success" as const,
               }
@@ -2335,7 +2467,7 @@ export const progressRouter = createTRPCRouter({
           detail: lastWorkout ? "Tap to review workout log" : undefined,
           icon: "💪",
           tone: "warning",
-          meta: lastWorkout ? lastWorkout.toISOString() : undefined,
+          meta: lastWorkout ? lastWorkout.toISOString().split("T")[0]! : undefined,
         },
       ];
 
@@ -2848,7 +2980,14 @@ async function resolveExerciseSelection(
       displayName,
       names,
       templateExerciseIds,
-      linkedSet: typeof params.templateExerciseId === "number" ? await getLinkedExerciseSet(database, params.templateExerciseId, userId) : null,
+      linkedSet:
+        typeof params.templateExerciseId === "number"
+          ? await getLinkedExerciseSet(
+              database,
+              params.templateExerciseId,
+              userId,
+            )
+          : null,
     },
   });
 
