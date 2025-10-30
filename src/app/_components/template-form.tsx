@@ -1,9 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+"use client";
+
+import { useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
+import { useStore } from "@tanstack/react-store";
+import { zodValidator } from "@tanstack/zod-form-adapter";
 import { z } from "zod";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { getQueryKey } from "@trpc/react-query";
@@ -12,16 +15,15 @@ import { analytics } from "~/lib/analytics";
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
+import { Card, CardContent } from "~/components/ui/card";
+import { Label } from "~/components/ui/label";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "~/components/ui/form";
+  TanStackFormField,
+  TanStackFormItem,
+  TanStackFormLabel,
+  TanStackFormControl,
+  TanStackFormMessage,
+} from "~/components/ui/tanstack-form";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
 
 // Zod schema for form validation
@@ -65,37 +67,21 @@ export function TemplateForm({ template }: TemplateFormProps) {
     dedupeKey: string;
   } | null>(null);
 
-  // Initialize form with default values
-  const form = useForm<TemplateFormData>({
-    resolver: zodResolver(templateFormSchema),
+  // Initialize TanStack Form
+  const form = useForm({
     defaultValues: {
       name: template?.name ?? "",
       exercises: template?.exercises.length
         ? template.exercises.map((ex) => ({ exerciseName: ex.exerciseName }))
         : [{ exerciseName: "" }],
     },
-  });
-
-  const { fields, append, remove, move } = useFieldArray({
-    control: form.control,
-    name: "exercises",
-  });
-
-  // Drag and drop for exercises
-  const [dragState, dragHandlers] = useUniversalDragReorder(
-    fields,
-    (newFields) => {
-      // Update the form with the new order
-      const currentValues = form.getValues("exercises");
-      const reorderedValues = newFields
-        .map((field) => {
-          const originalIndex = fields.findIndex((f) => f.id === field.id);
-          return currentValues[originalIndex];
-        })
-        .filter((item): item is { exerciseName: string } => item !== undefined);
-      form.setValue("exercises", reorderedValues);
+    validators: {
+      onChange: templateFormSchema,
     },
-  );
+    onSubmit: async ({ value }) => {
+      await handleSubmit(value);
+    },
+  });
 
   const utils = api.useUtils();
   const queryClient = useQueryClient();
@@ -159,8 +145,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         break;
       case "mostUsed":
         sorted.sort((a, b) => {
-          const diff =
-            (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
+          const diff = (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
           if (diff !== 0) {
             return diff;
           }
@@ -208,8 +193,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
     });
 
     for (const [key] of matching) {
-      const maybeOpts =
-        (key as QueryKey)[1] as { input?: TemplatesGetAllInput } | undefined;
+      const maybeOpts = (key as QueryKey)[1] as
+        | { input?: TemplatesGetAllInput }
+        | undefined;
       const input = maybeOpts?.input;
 
       queryClient.setQueryData<TemplateList | undefined>(
@@ -221,23 +207,15 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   const createTemplate = api.templates.create.useMutation({
     onMutate: async (_newTemplate) => {
-      // Cancel any outgoing refetches to prevent race conditions
       await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value for error rollback
       const previousQueries = snapshotTemplateQueries();
-
       return { previousQueries } satisfies TemplateMutationContext;
     },
     onError: (err, newTemplate, context) => {
-      const mutationContext = context as
-        | TemplateMutationContext
-        | undefined;
-      // Rollback on error
+      const mutationContext = context as TemplateMutationContext | undefined;
       if (mutationContext?.previousQueries) {
         restoreTemplateQueries(mutationContext.previousQueries);
       }
-      // Reset submission flag on error
       submitRef.current = false;
     },
     onSuccess: async (data) => {
@@ -247,12 +225,11 @@ export function TemplateForm({ template }: TemplateFormProps) {
         user_id: data.user_id,
         createdAt: data.createdAt,
       });
+      const exercises = form.getFieldValue("exercises");
       analytics.templateCreated(
         data.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim())
-          .length,
+        exercises.filter((ex) => ex.exerciseName.trim()).length,
       );
-      // Reset submission flag
       submitRef.current = false;
 
       const newTemplate = data as TemplateItem;
@@ -264,26 +241,19 @@ export function TemplateForm({ template }: TemplateFormProps) {
         return upsertTemplateIntoList(current, newTemplate, input?.sort);
       });
 
-      // Navigate immediately with updated cache
       router.push("/templates");
     },
     onSettled: () => {
-      // Ensure cache is invalidated
       void queryClient.invalidateQueries({ queryKey: templatesQueryKeyRoot });
     },
   });
 
   const updateTemplate = api.templates.update.useMutation({
     onMutate: async (updatedTemplate) => {
-      // Cancel any outgoing refetches
       await utils.templates.getAll.cancel();
-
-      // Snapshot the previous value
       const previousQueries = snapshotTemplateQueries();
-
       const updatedAt = new Date();
 
-      // Optimistically update the cache across all matching queries
       updateAllTemplateQueries((current, input) => {
         if (!current) {
           return current;
@@ -328,43 +298,29 @@ export function TemplateForm({ template }: TemplateFormProps) {
       return { previousQueries } satisfies TemplateMutationContext;
     },
     onError: (err, updatedTemplate, context) => {
-      const mutationContext = context as
-        | TemplateMutationContext
-        | undefined;
-      // Rollback on error
+      const mutationContext = context as TemplateMutationContext | undefined;
       if (mutationContext?.previousQueries) {
         restoreTemplateQueries(mutationContext.previousQueries);
       }
       submitRef.current = false;
     },
     onSuccess: () => {
+      const exercises = form.getFieldValue("exercises");
       analytics.templateEdited(
         template!.id.toString(),
-        form.getValues("exercises").filter((ex) => ex.exerciseName.trim())
-          .length,
+        exercises.filter((ex) => ex.exerciseName.trim()).length,
       );
-      // Reset submission flag
       submitRef.current = false;
       router.push("/templates");
     },
     onSettled: () => {
-      // Always refetch to ensure we have the latest data
       void queryClient.invalidateQueries({ queryKey: templatesQueryKeyRoot });
     },
   });
 
-  const addExercise = () => {
-    append({ exerciseName: "" });
-  };
-
-  const removeExercise = (index: number) => {
-    remove(index);
-  };
-
   const handleSubmit = async (data: TemplateFormData) => {
     console.log("handleSubmit called");
 
-    // Prevent double submission using both loading state and ref
     if (isLoading || submitRef.current) {
       console.log("Form already submitting, preventing double submission");
       return;
@@ -375,7 +331,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
-    // Set submission flag and record this attempt
     submitRef.current = true;
     const now = Date.now();
     try {
@@ -427,6 +382,62 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   const isLoading = createTemplate.isPending || updateTemplate.isPending;
 
+  // Field array management for exercises
+  const addExercise = () => {
+    const currentExercises = form.getFieldValue("exercises");
+    form.setFieldValue("exercises", [
+      ...currentExercises,
+      { exerciseName: "" },
+    ]);
+  };
+
+  const removeExercise = (index: number) => {
+    const currentExercises = form.getFieldValue("exercises");
+    if (currentExercises.length > 1) {
+      form.setFieldValue(
+        "exercises",
+        currentExercises.filter((_, i) => i !== index),
+      );
+    }
+  };
+
+  const duplicateExercise = (index: number) => {
+    const currentExercises = form.getFieldValue("exercises");
+    const exerciseToDuplicate = currentExercises[index];
+    if (exerciseToDuplicate) {
+      form.setFieldValue("exercises", [
+        ...currentExercises,
+        { exerciseName: exerciseToDuplicate.exerciseName },
+      ]);
+    }
+  };
+
+  const swapExercises = (index: number, targetIndex: number) => {
+    const currentExercises = form.getFieldValue("exercises");
+    const newExercises = [...currentExercises];
+    const temp = newExercises[index];
+    const target = newExercises[targetIndex];
+    if (temp && target) {
+      newExercises[index] = target;
+      newExercises[targetIndex] = temp;
+      form.setFieldValue("exercises", newExercises);
+    }
+  };
+
+  // Access form values reactively using useStore for reactive updates
+  const formValues = useStore(form.store, (state) => state.values);
+  const exercises = formValues.exercises || [];
+  const watchedName = formValues.name || "";
+  const watchedExercises = exercises;
+
+  // Drag and drop for exercises
+  const [dragState, dragHandlers] = useUniversalDragReorder(
+    exercises,
+    (newExercises) => {
+      form.setFieldValue("exercises", newExercises);
+    },
+  );
+
   const steps: { key: FormStep; label: string; description: string }[] = [
     { key: "basics", label: "Basics", description: "Name your template" },
     {
@@ -453,9 +464,6 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   };
 
-  const watchedName = form.watch("name");
-  const watchedExercises = form.watch("exercises");
-
   const canProceedToNext = () => {
     if (currentStep === "basics") {
       return watchedName.trim().length > 0;
@@ -466,48 +474,27 @@ export function TemplateForm({ template }: TemplateFormProps) {
     return true;
   };
 
-  const getCurrentStep = () => steps[currentStepIndex];
-
   const estimatedDuration = () => {
-    // Rough estimate: 3-5 minutes per exercise
-    const exerciseCount = form
-      .getValues("exercises")
-      .filter((ex) => ex.exerciseName.trim()).length;
+    const exerciseCount = watchedExercises.filter((ex) =>
+      ex.exerciseName.trim(),
+    ).length;
     const minMinutes = exerciseCount * 3;
     const maxMinutes = exerciseCount * 5;
     return exerciseCount > 0 ? `${minMinutes}-${maxMinutes} min` : "—";
   };
 
   const estimatedVolume = () => {
-    // This would be more complex in reality, but for now just show exercise count
-    const exerciseCount = form
-      .getValues("exercises")
-      .filter((ex) => ex.exerciseName.trim()).length;
+    const exerciseCount = watchedExercises.filter((ex) =>
+      ex.exerciseName.trim(),
+    ).length;
     return exerciseCount > 0 ? `${exerciseCount} exercises` : "—";
   };
 
   const getValidationSummary = () => {
-    const errors = form.formState.errors;
     const errorMessages: string[] = [];
 
-    if (errors.name) {
-      errorMessages.push("Template name is required");
-    }
-
-    if (errors.exercises) {
-      if (Array.isArray(errors.exercises)) {
-        errors.exercises.forEach((error, index) => {
-          if (error?.exerciseName) {
-            errorMessages.push(
-              `Exercise ${index + 1}: ${error.exerciseName.message}`,
-            );
-          }
-        });
-      } else if (errors.exercises.message) {
-        errorMessages.push(errors.exercises.message);
-      }
-    }
-
+    // TanStack Form stores errors differently - check field meta for errors
+    // For now, return empty array as we handle field-level errors inline
     return errorMessages;
   };
 
@@ -550,111 +537,170 @@ export function TemplateForm({ template }: TemplateFormProps) {
       {/* Form Content */}
       <Card padding="lg">
         <CardContent>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(handleSubmit)}
-              className="space-y-6"
-            >
-              {/* Step Content */}
-              {currentStep === "basics" && (
-                <div className="space-y-6">
-                  {/* Validation Summary */}
-                  {getValidationSummary().length > 0 && (
-                    <div className="bg-destructive/10 border-destructive/20 rounded-lg border p-3">
-                      <h4 className="text-destructive mb-2 text-sm font-medium">
-                        Please fix the following issues:
-                      </h4>
-                      <ul className="text-destructive space-y-1 text-sm">
-                        {getValidationSummary().map((error, index) => (
-                          <li key={index}>• {error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Template Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Push Day, Pull Day, Legs"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="text-muted-foreground text-sm">
-                    <p>
-                      Choose a descriptive name for your workout template. This
-                      will help you identify it quickly when starting workouts.
-                    </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void form.handleSubmit();
+            }}
+            className="space-y-6"
+          >
+            {/* Step Content */}
+            {currentStep === "basics" && (
+              <div className="space-y-6">
+                {/* Validation Summary */}
+                {getValidationSummary().length > 0 && (
+                  <div className="bg-destructive/10 border-destructive/20 rounded-lg border p-3">
+                    <h4 className="text-destructive mb-2 text-sm font-medium">
+                      Please fix the following issues:
+                    </h4>
+                    <ul className="text-destructive space-y-1 text-sm">
+                      {getValidationSummary().map((error, index) => (
+                        <li key={index}>• {error}</li>
+                      ))}
+                    </ul>
                   </div>
+                )}
+
+                <form.Field name="name">
+                  {(field) => {
+                    const error = field.state.meta.errors?.[0];
+                    const errorMessage =
+                      typeof error === "string" ? error : error?.message;
+                    return (
+                      <TanStackFormField name={field.name} error={errorMessage}>
+                        <TanStackFormItem>
+                          <TanStackFormLabel>Template Name</TanStackFormLabel>
+                          <TanStackFormControl>
+                            <Input
+                              placeholder="e.g., Push Day, Pull Day, Legs"
+                              value={field.state.value}
+                              onChange={(e) =>
+                                field.handleChange(e.target.value)
+                              }
+                              onBlur={field.handleBlur}
+                            />
+                          </TanStackFormControl>
+                          <TanStackFormMessage />
+                        </TanStackFormItem>
+                      </TanStackFormField>
+                    );
+                  }}
+                </form.Field>
+                <div className="text-muted-foreground text-sm">
+                  <p>
+                    Choose a descriptive name for your workout template. This
+                    will help you identify it quickly when starting workouts.
+                  </p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {currentStep === "exercises" && (
-                <div className="space-y-6">
-                  {/* Validation Summary */}
-                  {getValidationSummary().length > 0 && (
-                    <div className="bg-destructive/10 border-destructive/20 rounded-lg border p-3">
-                      <h4 className="text-destructive mb-2 text-sm font-medium">
-                        Please fix the following issues:
-                      </h4>
-                      <ul className="text-destructive space-y-1 text-sm">
-                        {getValidationSummary().map((error, index) => (
-                          <li key={index}>• {error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+            {currentStep === "exercises" && (
+              <div className="space-y-6">
+                {/* Validation Summary */}
+                {getValidationSummary().length > 0 && (
+                  <div className="bg-destructive/10 border-destructive/20 rounded-lg border p-3">
+                    <h4 className="text-destructive mb-2 text-sm font-medium">
+                      Please fix the following issues:
+                    </h4>
+                    <ul className="text-destructive space-y-1 text-sm">
+                      {getValidationSummary().map((error, index) => (
+                        <li key={index}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                  <div>
-                    <div className="mb-4 flex items-center justify-between">
-                      <FormLabel>Exercises</FormLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addExercise}
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <Label>Exercises</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addExercise}
+                    >
+                      + Add Exercise
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {exercises.map((exercise, index) => (
+                      <div
+                        key={index}
+                        ref={(el) => dragHandlers.setCardElement(index, el)}
+                        className={`flex items-center gap-3 rounded-lg border p-3 transition-all duration-200 ${
+                          dragState.isDragging &&
+                          dragState.draggedIndex === index
+                            ? "bg-primary/5 border-primary scale-105 shadow-lg"
+                            : dragState.dragOverIndex === index
+                              ? "border-primary bg-primary/10"
+                              : "border-border bg-card"
+                        }`}
                       >
-                        + Add Exercise
-                      </Button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {fields.map((field, index) => (
+                        {/* Drag Handle */}
                         <div
-                          key={field.id}
-                          ref={(el) => dragHandlers.setCardElement(index, el)}
-                          className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${
-                            dragState.isDragging &&
-                            dragState.draggedIndex === index
-                              ? "bg-primary/5 border-primary shadow-lg"
-                              : dragState.dragOverIndex === index
-                                ? "border-primary bg-primary/10"
-                                : "border-border bg-card"
-                          }`}
-                          style={{
-                            transform:
-                              dragState.isDragging &&
-                              dragState.draggedIndex === index
-                                ? `translateY(${dragState.dragOffset.y}px)`
-                                : undefined,
-                          }}
+                          className="hover:bg-muted cursor-grab rounded p-1 active:cursor-grabbing"
+                          data-drag-handle="true"
+                          onPointerDown={dragHandlers.onPointerDown(index)}
                         >
-                          {/* Drag Handle */}
-                          <div
-                            className="hover:bg-muted cursor-grab rounded p-1 active:cursor-grabbing"
-                            data-drag-handle="true"
-                            onPointerDown={dragHandlers.onPointerDown(index)}
+                          <svg
+                            className="text-muted-foreground h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 8h16M4 16h16"
+                            />
+                          </svg>
+                        </div>
+
+                        {/* Exercise Input */}
+                        <form.Field name={`exercises[${index}].exerciseName`}>
+                          {(field) => {
+                            const error = field.state.meta.errors?.[0];
+                            const errorMessage =
+                              typeof error === "string"
+                                ? error
+                                : error?.message;
+                            return (
+                              <TanStackFormField
+                                name={field.name}
+                                error={errorMessage}
+                              >
+                                <TanStackFormItem className="flex-1">
+                                  <TanStackFormControl>
+                                    <ExerciseInputWithLinking
+                                      value={field.state.value}
+                                      onChange={field.handleChange}
+                                      placeholder={`Exercise ${index + 1}`}
+                                      className="w-full"
+                                    />
+                                  </TanStackFormControl>
+                                  <TanStackFormMessage />
+                                </TanStackFormItem>
+                              </TanStackFormField>
+                            );
+                          }}
+                        </form.Field>
+
+                        {/* Quick Actions */}
+                        <div className="flex items-center gap-1">
+                          {/* Duplicate */}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => duplicateExercise(index)}
+                            title="Duplicate exercise"
                           >
                             <svg
-                              className="text-muted-foreground h-4 w-4"
+                              className="h-4 w-4"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -663,50 +709,19 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M4 8h16M4 16h16"
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                               />
                             </svg>
-                          </div>
+                          </Button>
 
-                          {/* Exercise Input */}
-                          <FormField
-                            control={form.control}
-                            name={`exercises.${index}.exerciseName`}
-                            render={({ field: exerciseField }) => (
-                              <FormItem className="flex-1">
-                                <FormControl>
-                                  <ExerciseInputWithLinking
-                                    value={exerciseField.value}
-                                    onChange={exerciseField.onChange}
-                                    placeholder={`Exercise ${index + 1}`}
-                                    className="w-full"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          {/* Quick Actions */}
-                          <div className="flex items-center gap-1">
-                            {/* Duplicate */}
+                          {/* Swap with next */}
+                          {index < exercises.length - 1 && (
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                const currentValues =
-                                  form.getValues("exercises");
-                                const exerciseToDuplicate =
-                                  currentValues[index];
-                                if (exerciseToDuplicate) {
-                                  append({
-                                    exerciseName:
-                                      exerciseToDuplicate.exerciseName,
-                                  });
-                                }
-                              }}
-                              title="Duplicate exercise"
+                              onClick={() => swapExercises(index, index + 1)}
+                              title="Swap with next"
                             >
                               <svg
                                 className="h-4 w-4"
@@ -718,207 +733,177 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
                                 />
                               </svg>
                             </Button>
+                          )}
 
-                            {/* Swap with next */}
-                            {index < fields.length - 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  move(index, index + 1);
-                                }}
-                                title="Swap with next"
+                          {/* Remove */}
+                          {exercises.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeExercise(index)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Remove exercise"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                               >
-                                <svg
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                                  />
-                                </svg>
-                              </Button>
-                            )}
-
-                            {/* Remove */}
-                            {fields.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeExercise(index)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Remove exercise"
-                              >
-                                <svg
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </Button>
-                            )}
-                          </div>
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </Button>
+                          )}
                         </div>
-                      ))}
-                    </div>
-
-                    {fields.length === 0 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addExercise}
-                        className="h-20 w-full border-dashed"
-                      >
-                        + Add your first exercise
-                      </Button>
-                    )}
-                  </div>
-                  <div className="text-muted-foreground space-y-2 text-sm">
-                    <p>
-                      Add exercises in the order you want to perform them. You
-                      can reorder them later by dragging the handle.
-                    </p>
-                    <div className="bg-muted/50 rounded-lg p-3">
-                      <p className="mb-1 text-xs font-medium tracking-wide uppercase">
-                        Recommendations:
-                      </p>
-                      <ul className="space-y-1 text-xs">
-                        <li>
-                          • <strong>Rep ranges:</strong> 8-12 for hypertrophy,
-                          3-6 for strength, 15+ for endurance
-                        </li>
-                        <li>
-                          • <strong>Rest periods:</strong> 60-90 seconds between
-                          sets for most exercises
-                        </li>
-                        <li>
-                          • <strong>Order:</strong> Compound movements first
-                          (squats, deadlifts, presses), isolation last
-                        </li>
-                        <li>
-                          • <strong>Balance:</strong> Include exercises for
-                          opposing muscle groups
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {currentStep === "preview" && (
-                <div className="space-y-6">
-                  <div className="rounded-lg border p-4">
-                    <h3 className="font-medium">
-                      {form.getValues("name") || "Untitled Template"}
-                    </h3>
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Exercises:
-                        </span>
-                        <span>
-                          {
-                            form
-                              .getValues("exercises")
-                              .filter((ex) => ex.exerciseName.trim()).length
-                          }
-                        </span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Est. Duration:
-                        </span>
-                        <span>{estimatedDuration()}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Volume:</span>
-                        <span>{estimatedVolume()}</span>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <h4 className="text-muted-foreground text-sm font-medium">
-                        Exercise List:
-                      </h4>
-                      <ul className="mt-2 space-y-1">
-                        {form
-                          .getValues("exercises")
-                          .filter((ex) => ex.exerciseName.trim())
-                          .map((ex, index) => (
-                            <li key={index} className="text-sm">
-                              {index + 1}. {ex.exerciseName}
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
+                    ))}
                   </div>
-                  <div className="text-muted-foreground text-sm">
-                    <p>
-                      Review your template details. You can go back to make
-                      changes or save to create the template.
-                    </p>
-                  </div>
-                </div>
-              )}
 
-              {/* Navigation */}
-              <div className="flex items-center justify-between pt-4">
-                <div>
-                  {currentStepIndex > 0 && (
-                    <Button type="button" variant="outline" onClick={prevStep}>
-                      Back
-                    </Button>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => router.back()}
-                  >
-                    Cancel
-                  </Button>
-                  {currentStepIndex < steps.length - 1 ? (
+                  {exercises.length === 0 && (
                     <Button
                       type="button"
-                      onClick={nextStep}
-                      disabled={!canProceedToNext()}
+                      variant="outline"
+                      onClick={addExercise}
+                      className="h-20 w-full border-dashed"
                     >
-                      Next
-                    </Button>
-                  ) : (
-                    <Button
-                      type="submit"
-                      disabled={isLoading || submitRef.current}
-                    >
-                      {isLoading || submitRef.current
-                        ? "Saving..."
-                        : template
-                          ? "Update Template"
-                          : "Create Template"}
+                      + Add your first exercise
                     </Button>
                   )}
                 </div>
+                <div className="text-muted-foreground space-y-2 text-sm">
+                  <p>
+                    Add exercises in the order you want to perform them. You can
+                    reorder them later by dragging the handle.
+                  </p>
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="mb-1 text-xs font-medium tracking-wide uppercase">
+                      Recommendations:
+                    </p>
+                    <ul className="space-y-1 text-xs">
+                      <li>
+                        • <strong>Rep ranges:</strong> 8-12 for hypertrophy, 3-6
+                        for strength, 15+ for endurance
+                      </li>
+                      <li>
+                        • <strong>Rest periods:</strong> 60-90 seconds between
+                        sets for most exercises
+                      </li>
+                      <li>
+                        • <strong>Order:</strong> Compound movements first
+                        (squats, deadlifts, presses), isolation last
+                      </li>
+                      <li>
+                        • <strong>Balance:</strong> Include exercises for
+                        opposing muscle groups
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-            </form>
-          </Form>
+            )}
+
+            {currentStep === "preview" && (
+              <div className="space-y-6">
+                <div className="rounded-lg border p-4">
+                  <h3 className="font-medium">
+                    {watchedName || "Untitled Template"}
+                  </h3>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Exercises:</span>
+                      <span>
+                        {
+                          watchedExercises.filter((ex) =>
+                            ex.exerciseName.trim(),
+                          ).length
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Est. Duration:
+                      </span>
+                      <span>{estimatedDuration()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Volume:</span>
+                      <span>{estimatedVolume()}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <h4 className="text-muted-foreground text-sm font-medium">
+                      Exercise List:
+                    </h4>
+                    <ul className="mt-2 space-y-1">
+                      {watchedExercises
+                        .filter((ex) => ex.exerciseName.trim())
+                        .map((ex, index) => (
+                          <li key={index} className="text-sm">
+                            {index + 1}. {ex.exerciseName}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                </div>
+                <div className="text-muted-foreground text-sm">
+                  <p>
+                    Review your template details. You can go back to make
+                    changes or save to create the template.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex items-center justify-between pt-4">
+              <div>
+                {currentStepIndex > 0 && (
+                  <Button type="button" variant="outline" onClick={prevStep}>
+                    Back
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => router.back()}
+                >
+                  Cancel
+                </Button>
+                {currentStepIndex < steps.length - 1 ? (
+                  <Button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceedToNext()}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={isLoading || submitRef.current}
+                  >
+                    {isLoading || submitRef.current
+                      ? "Saving..."
+                      : template
+                        ? "Update Template"
+                        : "Create Template"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>
