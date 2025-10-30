@@ -23,7 +23,6 @@ import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 type TimeRange = "week" | "month" | "year";
 type ViewMode = "topSet" | "oneRm" | "intensity";
 type SortKey = "date" | "weight" | "oneRm" | "volume";
-type ChartResolution = "weekly" | "daily";
 
 const VIEW_CONFIG: Record<
   ViewMode,
@@ -108,8 +107,6 @@ export function StrengthProgressSection({
   onExerciseChange,
 }: StrengthProgressSectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("topSet");
-  const [chartResolution, setChartResolution] =
-    useState<ChartResolution>("weekly");
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: "asc" | "desc";
@@ -217,15 +214,9 @@ export function StrengthProgressSection({
       { enabled: hasExerciseSelection },
     );
 
-  const { data: weeklyData, isLoading: weeklyLoading } =
-    api.progress.getWeeklyStrengthProgression.useQuery(
-      {
-        exerciseName: selectedExerciseName ?? undefined,
-        templateExerciseId: selectedTemplateExerciseId ?? undefined,
-        timeRange,
-      },
-      { enabled: hasExerciseSelection && chartResolution === "weekly" },
-    );
+  // Weekly data is now computed from normalizedSets instead of a separate query
+  // This ensures the chart shows data regardless of aggregation table state
+  // The weeklyData query is disabled since we'll compute weekly aggregation client-side
 
   // Track performance when strength data loads
   useEffect(() => {
@@ -324,7 +315,19 @@ export function StrengthProgressSection({
   };
 
   const normalizedSets = useMemo(() => {
-    if (!topSetsResponse?.data) return [];
+    if (!topSetsResponse?.data) {
+      console.log("StrengthProgressSection: topSetsResponse.data is empty", {
+        topSetsResponse,
+        selectedExerciseName,
+        selectedTemplateExerciseId,
+        hasExerciseSelection,
+      });
+      return [];
+    }
+    console.log("StrengthProgressSection: topSetsResponse has data", {
+      dataLength: topSetsResponse.data.length,
+      firstFewItems: topSetsResponse.data.slice(0, 3),
+    });
     return topSetsResponse.data.map((session) => {
       const weight = Number(session.weight ?? 0);
       const reps = Number(session.reps ?? 0);
@@ -350,35 +353,27 @@ export function StrengthProgressSection({
   }, [topSetsResponse?.data, trendSummary?.currentOneRM]);
 
   const chartPoints = useMemo(() => {
-    if (chartResolution === "weekly" && weeklyData?.data) {
-      return weeklyData.data.map((week) => {
-        const weekStart = new Date(week.weekStart);
-        const dateLabel = new Intl.DateTimeFormat("en-US", {
-          month: "short",
-          day: "numeric",
-        }).format(weekStart);
+    console.log("chartPoints calculation", {
+      normalizedSetsLength: normalizedSets.length,
+      viewMode,
+    });
 
-        let value = week.maxOneRM;
-        if (viewMode === "intensity") {
-          value = week.avgVolume;
-        }
-
-        return {
-          date: dateLabel,
-          fullDate: week.weekStart,
-          value,
-        };
-      });
+    if (normalizedSets.length === 0) {
+      return [];
     }
 
-    // Daily resolution (default)
-    return normalizedSets
+    // Simple chronological display of all sessions (already filtered by time range)
+    // Sort chronologically (oldest to newest for line chart)
+    const points = normalizedSets
       .slice()
       .reverse()
-      .map((session) => {
+      .map((session, index) => {
+        // Include time to make X-axis unique when multiple sessions on same day
         const dateLabel = new Intl.DateTimeFormat("en-US", {
           month: "short",
           day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         }).format(session.date);
 
         let value = session.weight;
@@ -388,13 +383,37 @@ export function StrengthProgressSection({
           value = session.volume;
         }
 
+        // Debug: log session details
+        if (index < 10) {
+          console.log(`chartPoint ${index}:`, {
+            date: dateLabel,
+            fullDate: session.date.toISOString(),
+            weight: session.weight,
+            oneRm: session.oneRm,
+            volume: session.volume,
+            viewMode,
+            selectedValue: value,
+            exerciseName: session.exerciseName,
+          });
+        }
+
         return {
           date: dateLabel,
           fullDate: session.date.toISOString(),
           value,
+          // Store original values for tooltip debugging
+          weight: session.weight,
+          oneRm: session.oneRm,
+          volume: session.volume,
+          reps: session.reps,
+          sets: session.sets,
+          exerciseName: session.exerciseName,
         };
       });
-  }, [normalizedSets, weeklyData?.data, viewMode, chartResolution]);
+
+    console.log("chartPoints", { count: points.length, firstFew: points.slice(0, 3) });
+    return points;
+  }, [normalizedSets, viewMode]);
 
   const rateOfChange = useMemo(() => {
     const timeline = trendSummary?.timeline ?? [];
@@ -505,7 +524,6 @@ export function StrengthProgressSection({
   const loading =
     topSetsLoading ||
     summaryLoading ||
-    weeklyLoading ||
     exerciseListLoading ||
     !hasExerciseSelection;
   const hasError = topSetsErrored || exerciseListErrored;
@@ -637,42 +655,11 @@ export function StrengthProgressSection({
                   lines.
                 </div>
               ) : (
-                <div className="relative">
-                  <StrengthTrendChart
-                    data={chartPoints}
-                    color={VIEW_CONFIG[viewMode].color}
-                    unit={VIEW_CONFIG[viewMode].unit}
-                    resolution={chartResolution}
-                    onZoomIn={() => setChartResolution("daily")}
-                    onZoomOut={() => setChartResolution("weekly")}
-                  />
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setChartResolution("weekly")}
-                      className={cn(
-                        "rounded px-2 py-1 text-xs font-semibold tracking-wide uppercase transition",
-                        chartResolution === "weekly"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      Weekly
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setChartResolution("daily")}
-                      className={cn(
-                        "rounded px-2 py-1 text-xs font-semibold tracking-wide uppercase transition",
-                        chartResolution === "daily"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      Daily
-                    </button>
-                  </div>
-                </div>
+                <StrengthTrendChart
+                  data={chartPoints}
+                  color={VIEW_CONFIG[viewMode].color}
+                  unit={VIEW_CONFIG[viewMode].unit}
+                />
               )}
             </div>
           </div>
@@ -994,16 +981,10 @@ function StrengthTrendChart({
   data,
   color,
   unit,
-  resolution,
-  onZoomIn,
-  onZoomOut,
 }: {
   data: Array<{ date: string; fullDate: string; value: number }>;
   color: string;
   unit: string;
-  resolution?: ChartResolution;
-  onZoomIn?: () => void;
-  onZoomOut?: () => void;
 }) {
   // Virtualize large datasets - only show every nth point for performance
   const virtualizedData = useMemo(() => {
@@ -1049,86 +1030,43 @@ function StrengthTrendChart({
                 date: string;
                 fullDate: string;
                 value: number;
+                weight?: number;
+                oneRm?: number;
+                volume?: number;
+                reps?: number;
+                sets?: number;
+                exerciseName?: string;
               };
+
+              console.log("Tooltip entry:", entry);
+
               return (
                 <div className="border-border/60 bg-background/90 rounded-xl border px-3 py-2 text-xs shadow-md">
                   <p className="text-foreground font-semibold">
-                    {new Date(entry.fullDate).toLocaleDateString()}
+                    {entry.date}
                   </p>
-                  <p className="text-muted-foreground">
+                  {entry.exerciseName && (
+                    <p className="text-muted-foreground text-[10px]">
+                      {entry.exerciseName}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground mt-1">
                     {entry.value.toLocaleString()} {unit}
                   </p>
-                  {resolution === "weekly" && onZoomIn && (
-                    <button
-                      type="button"
-                      onClick={onZoomIn}
-                      className="text-primary mt-1 text-xs hover:underline"
-                    >
-                      Zoom to daily view
-                    </button>
-                  )}
-                  {resolution === "daily" && onZoomOut && (
-                    <button
-                      type="button"
-                      onClick={onZoomOut}
-                      className="text-primary mt-1 text-xs hover:underline"
-                    >
-                      Zoom to weekly view
-                    </button>
-                  )}
+                  <div className="text-muted-foreground/70 mt-1 text-[10px] space-y-0.5">
+                    <div>Weight: {entry.weight} kg</div>
+                    <div>1RM: {entry.oneRm?.toFixed(1)} kg</div>
+                    <div>Volume: {entry.volume} kg</div>
+                    <div>Sets×Reps: {entry.sets}×{entry.reps}</div>
+                  </div>
                 </div>
-              );
-            }
-
-            function ExportButton({
-              exerciseName,
-              templateExerciseId,
-              timeRange,
-            }: {
-              exerciseName: string | null;
-              templateExerciseId: number | null;
-              timeRange: TimeRange;
-            }) {
-              const [isExporting, setIsExporting] = useState(false);
-
-              const handleExport = async () => {
-                if (!exerciseName && !templateExerciseId) return;
-
-                setIsExporting(true);
-                try {
-                  // This would typically call the export API and trigger a download
-                  // For now, we'll just show a placeholder
-                  console.log("Exporting data for", {
-                    exerciseName,
-                    templateExerciseId,
-                    timeRange,
-                  });
-                  // In a real implementation, you'd fetch the CSV and create a download link
-                } catch (error) {
-                  console.error("Export failed:", error);
-                } finally {
-                  setIsExporting(false);
-                }
-              };
-
-              return (
-                <button
-                  type="button"
-                  onClick={handleExport}
-                  disabled={
-                    isExporting || (!exerciseName && !templateExerciseId)
-                  }
-                  className="btn-outline w-full disabled:opacity-50 sm:w-auto"
-                >
-                  {isExporting ? "Exporting..." : "Export CSV"}
-                </button>
               );
             }
             return null;
           }}
         />
         <Line
-          type="monotone"
+          type="linear"
           dataKey="value"
           stroke={color}
           strokeWidth={3}

@@ -730,6 +730,20 @@ export const workoutsRouter = createTRPCRouter({
               });
             }
           })();
+
+          // Trigger aggregation for progress tracking
+          void (async () => {
+            try {
+              const { aggregationTrigger } = await import("~/server/db/aggregation");
+              await aggregationTrigger.onSessionChange(input.sessionId, ctx.user.id);
+            } catch (error) {
+              logger.warn("aggregation_trigger_failed", {
+                userId: ctx.user.id,
+                sessionId: input.sessionId,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+            }
+          })();
         }
 
         return { success: true };
