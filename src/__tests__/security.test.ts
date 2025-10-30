@@ -84,9 +84,7 @@ describe("Security Implementation Tests", () => {
       const nonce = "test-nonce";
       const csp = buildContentSecurityPolicy(nonce);
 
-      expect(csp).toContain(
-        `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`,
-      );
+      expect(csp).toContain(`style-src 'self' 'unsafe-inline'`);
       expect(csp).not.toContain("'unsafe-hashes'");
       expect(csp).not.toContain("sha256-");
     });

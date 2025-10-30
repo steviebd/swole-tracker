@@ -110,3 +110,4 @@ lint.txt
 lint.json
 tsc-output.txt
 dev.pid
+claude_code_zai_env.sh

@@ -2121,9 +2121,10 @@ export const progressRouter = createTRPCRouter({
                 id: `${pr.exerciseName}-${pr.workoutDate.getTime()}-${Math.random()}`,
                 title: pr.exerciseName,
                 subtitle: `${pr.weight} kg × ${pr.reps}`,
-                detail: pr.recordType === "weight"
-                  ? `Weight PR${pr.oneRMEstimate ? ` • ~${Math.round(pr.oneRMEstimate)} kg 1RM` : ""}`
-                  : `Volume PR${pr.totalVolume ? ` • ${Math.round(pr.totalVolume)} kg total` : ""}`,
+                detail:
+                  pr.recordType === "weight"
+                    ? `Weight PR${pr.oneRMEstimate ? ` • ~${Math.round(pr.oneRMEstimate)} kg 1RM` : ""}`
+                    : `Volume PR${pr.totalVolume ? ` • ${Math.round(pr.totalVolume)} kg total` : ""}`,
                 meta: pr.workoutDate.toISOString().split("T")[0]!,
                 icon: pr.recordType === "weight" ? "🏋️" : "📊",
                 date: pr.workoutDate.toISOString().split("T")[0]!,
@@ -2467,7 +2468,9 @@ export const progressRouter = createTRPCRouter({
           detail: lastWorkout ? "Tap to review workout log" : undefined,
           icon: "💪",
           tone: "warning",
-          meta: lastWorkout ? lastWorkout.toISOString().split("T")[0]! : undefined,
+          meta: lastWorkout
+            ? lastWorkout.toISOString().split("T")[0]!
+            : undefined,
         },
       ];
 

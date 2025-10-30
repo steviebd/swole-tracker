@@ -32,6 +32,11 @@ export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
 }
 
+// Test-only reset hook: allows unit tests to reset the cached client
+export function __resetTestPosthogClient() {
+  nodeClient = null;
+}
+
 export async function loadPosthogCtor(): Promise<
   typeof posthog | PHCtor | null
 > {
@@ -67,18 +72,16 @@ function getServerClient(): PosthogSurface {
       return null;
     }
 
-    const posthogLib = PH as typeof posthog;
-
     // Initialize PostHog
-    posthogLib.init(key, {
+    const ph = (PH as any)(key, {
       api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-      loaded: (ph) => {
+      loaded: (ph: any) => {
         // Set distinct id for server
         ph.register({ distinct_id: "server" });
       },
     });
 
-    return posthogLib;
+    return ph;
   })();
 
   const lazy: PosthogSurface = {

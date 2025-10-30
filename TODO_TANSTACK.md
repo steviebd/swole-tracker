@@ -189,6 +189,84 @@ Current state: Simple useState-based forms, no react-hook-form
 
 ---
 
+## Phase 3.1: TanStack Form Refactoring (1-2 weeks)
+
+### Phase 3A: Infrastructure Refinement
+
+- [ ] Refactor `src/lib/forms/tanstack-form-config.ts` for better reusability and maintainability
+- [ ] Optimize form validation performance by implementing lazy validation where appropriate
+- [ ] Implement improved form state management with better TypeScript inference
+- [ ] Create utility functions for common form patterns (field arrays, conditional fields)
+- [ ] Add form analytics tracking for usage patterns and error rates
+
+### Phase 3B: Component Optimization
+
+- [ ] Optimize `src/components/ui/tanstack-form.tsx` components for reduced bundle size
+- [ ] Implement virtual scrolling for large form field arrays (>50 items)
+- [ ] Add form field memoization to prevent unnecessary re-renders
+- [ ] Optimize form submission handling with better loading states
+- [ ] Implement form auto-save functionality for long forms
+
+### Phase 3C: Validation Enhancement
+
+- [ ] Enhance Zod schema integration with custom validation messages
+- [ ] Implement cross-field validation for complex form logic
+- [ ] Add async validation support for server-side checks
+- [ ] Create reusable validation rules library
+- [ ] Improve accessibility of form validation feedback
+
+### Phase 3D: Performance Tuning
+
+- [ ] Implement form debouncing for real-time validation
+- [ ] Optimize form re-renders using React.memo and useMemo strategically
+- [ ] Add form state persistence across page reloads
+- [ ] Implement progressive form loading for large forms
+- [ ] Add form performance monitoring and metrics
+
+### Phase 3E: Testing Expansion
+
+- [ ] Add comprehensive unit tests for all form components (target: 100% coverage)
+- [ ] Implement integration tests for complete form workflows
+- [ ] Add performance regression tests for form rendering
+- [ ] Test form accessibility with automated tools
+- [ ] Validate form behavior across different browsers and devices
+
+### Phase 3F: Documentation and Cleanup
+
+- [ ] Update component documentation with new TanStack Form patterns
+- [ ] Create developer guide for form best practices
+- [ ] Remove all legacy react-hook-form code and dependencies
+- [ ] Final bundle size optimization and tree shaking
+- [ ] Update migration documentation for future reference
+
+**Success Metrics:**
+
+- **Performance:** Form rendering time improved by ≥20%, bundle size reduced by ≥10%
+- **Developer Experience:** Form development velocity increased by ≥30%, TypeScript errors reduced by ≥50%
+- **User Experience:** Form submission success rate ≥99%, validation feedback time <100ms
+- **Maintainability:** Code duplication reduced by ≥40%, test coverage ≥95%
+- **Accessibility:** WCAG 2.2 AA compliance maintained, screen reader support improved
+
+**Rollback Plan:**
+
+- **Immediate Rollback:** Feature flag to revert all forms to react-hook-form implementation
+- **Partial Rollback:** Ability to rollback individual forms while keeping others on TanStack Form
+- **Data Preservation:** Ensure form data integrity during rollback operations
+- **Testing:** Maintain parallel test suites for both implementations during transition period
+- **Documentation:** Detailed rollback procedures documented and tested weekly
+
+**Quality Gates:**
+
+- [ ] Test coverage: ≥95% (including new form tests)
+- [ ] `bun check` passes without TypeScript errors
+- [ ] `bun build` completes successfully
+- [ ] Form performance benchmarks meet targets
+- [ ] All forms functional with improved TanStack Form implementation
+- [ ] Accessibility audit passes (WCAG 2.2 AA)
+- [ ] Bundle size optimization achieved
+
+---
+
 ## Phase 4: TanStack Virtual & Table Migration (2-3 weeks)
 
 ### TanStack Virtual Migration
