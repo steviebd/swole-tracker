@@ -14,6 +14,7 @@
  * - In the browser, it returns a no-op client.
  */
 import type posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 
 type PosthogSurface = {
   capture: (event: string, properties?: Record<string, unknown>) => void;
@@ -26,7 +27,7 @@ let nodeClient: PosthogSurface | null = null;
 
 // Test-only override hook: allows unit tests to inject a PostHog constructor
 // without importing server-only modules in jsdom. Not used in production.
-type PHCtor = (key: string, opts?: { host?: string }) => typeof posthog;
+type PHCtor = (key: string, opts?: { host?: string; api_host?: string; loaded?: (instance: PostHog) => void }) => PostHog;
 let __TEST_ONLY_PostHogCtor: PHCtor | null = null;
 export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
@@ -63,7 +64,7 @@ function getServerClient(): PosthogSurface {
   }
 
   // Eagerly construct once so tests can assert constructor call and return a stable client.
-  const rawClientPromise = (async () => {
+  const rawClientPromise: Promise<PostHog | null> = (async () => {
     const PH = await loadPosthogCtor();
     if (!PH) {
       console.warn(
@@ -72,14 +73,16 @@ function getServerClient(): PosthogSurface {
       return null;
     }
 
-    // Initialize PostHog
-    const ph = (PH as any)(key, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-      loaded: (ph: any) => {
-        // Set distinct id for server
-        ph.register({ distinct_id: "server" });
-      },
-    });
+    // Initialize PostHog - handle both constructor and instance cases
+    const ph: PostHog = typeof PH === "function"
+      ? (PH as PHCtor)(key, {
+          api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          loaded: (ph: PostHog) => {
+            // Set distinct id for server
+            ph.register({ distinct_id: "server" });
+          },
+        })
+      : PH as PostHog;
 
     return ph;
   })();
@@ -89,7 +92,7 @@ function getServerClient(): PosthogSurface {
       // Intentionally fire-and-forget; mark as ignored to satisfy no-floating-promises
       void (async () => {
         try {
-          const raw = (await rawClientPromise) as typeof posthog | null;
+          const raw = await rawClientPromise;
           if (raw) {
             raw.capture(event, properties);
           }
@@ -101,7 +104,7 @@ function getServerClient(): PosthogSurface {
     identify: (id: string, props?: Record<string, unknown>) => {
       void (async () => {
         try {
-          const raw = (await rawClientPromise) as typeof posthog | null;
+          const raw = await rawClientPromise;
           if (raw) {
             raw.identify(id, props);
           }

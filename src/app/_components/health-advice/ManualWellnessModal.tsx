@@ -10,6 +10,10 @@ import {
 } from "~/lib/subjective-wellness-mapper";
 import type { ManualWellnessData } from "~/lib/subjective-wellness-mapper";
 import { trackWellnessModalInteraction } from "~/lib/analytics/health-advice";
+import {
+  formAnalytics,
+  createFormOptions,
+} from "~/lib/forms/tanstack-form-config";
 import { manualWellnessDataSchema } from "~/server/api/schemas/wellness";
 import {
   TanStackFormField,
@@ -51,17 +55,12 @@ export function ManualWellnessModal({
       energyLevel: 5,
       sleepQuality: 5,
       notes: "",
+      deviceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     } as ManualWellnessData,
     validators: {
-      onChange: manualWellnessDataSchema,
+      onBlur: manualWellnessDataSchema,
     },
     onSubmit: async ({ value }) => {
-      // Add device timezone
-      const wellnessData: ManualWellnessData = {
-        ...value,
-        deviceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      };
-
       // Track submission
       trackWellnessModalInteraction({
         sessionId: sessionId?.toString() || "unknown",
@@ -71,7 +70,7 @@ export function ManualWellnessModal({
         finalValues: { energy: value.energyLevel, sleep: value.sleepQuality },
       });
 
-      onSubmit(wellnessData);
+      onSubmit(value);
     },
   });
 
@@ -200,7 +199,7 @@ export function ManualWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>
@@ -242,7 +241,7 @@ export function ManualWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>
@@ -284,7 +283,7 @@ export function ManualWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>

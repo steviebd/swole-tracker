@@ -6,10 +6,86 @@
  * These components provide a similar API to the existing shadcn/ui form
  * components but work with TanStack Form instead of react-hook-form.
  *
- * Usage:
- * - Use TanStackFormField to wrap form fields
- * - Use TanStackFormItem, TanStackFormLabel, TanStackFormControl for layout
- * - Use TanStackFormMessage to display validation errors
+ * ## Key Differences from react-hook-form:
+ * - Uses TanStack Form's field-based API instead of Controller
+ * - Validation is handled at the form level with Zod schemas
+ * - Better TypeScript inference and performance optimizations
+ * - Lazy validation by default for better UX
+ *
+ * ## Usage Patterns:
+ *
+ * ### Basic Field Usage:
+ * ```tsx
+ * import { useForm } from "@tanstack/react-form";
+ * import { zodValidator } from "@tanstack/zod-form-adapter";
+ * import { z } from "zod";
+ *
+ * const schema = z.object({ name: z.string().min(1) });
+ *
+ * function MyForm() {
+ *   const form = useForm({
+ *     defaultValues: { name: "" },
+ *     validators: { onBlur: schema }, // Lazy validation
+ *     onSubmit: ({ value }) => console.log(value),
+ *   });
+ *
+ *   return (
+ *     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit(); }}>
+ *       <form.Field name="name">
+ *         {(field) => (
+ *           <TanStackFormField
+ *             name={field.name}
+ *             error={field.state.meta.errors?.[0]?.message}
+ *           >
+ *             <TanStackFormItem>
+ *               <TanStackFormLabel>Name</TanStackFormLabel>
+ *               <TanStackFormControl>
+ *                 <Input
+ *                   value={field.state.value}
+ *                   onChange={(e) => field.handleChange(e.target.value)}
+ *                   onBlur={field.handleBlur}
+ *                 />
+ *               </TanStackFormControl>
+ *               <TanStackFormMessage />
+ *             </TanStackFormItem>
+ *           </TanStackFormField>
+ *         )}
+ *       </form.Field>
+ *     </form>
+ *   );
+ * }
+ * ```
+ *
+ * ### Field Arrays:
+ * ```tsx
+ * <form.Field name="items">
+ *   {(field) => (
+ *     <div>
+ *       {field.state.value.map((_, index) => (
+ *         <form.Field key={index} name={`items[${index}]`}>
+ *           {(itemField) => (
+ *             <TanStackFormField name={itemField.name}>
+ *               <TanStackFormItem>
+ *                 <TanStackFormControl>
+ *                   <Input
+ *                     value={itemField.state.value}
+ *                     onChange={(e) => itemField.handleChange(e.target.value)}
+ *                   />
+ *                 </TanStackFormControl>
+ *               </TanStackFormItem>
+ *             </TanStackFormField>
+ *           )}
+ *         </form.Field>
+ *       ))}
+ *     </div>
+ *   )}
+ * </form.Field>
+ * ```
+ *
+ * ## Performance Optimizations:
+ * - All components use React.memo to prevent unnecessary re-renders
+ * - Context values are memoized
+ * - ARIA attributes are computed efficiently
  */
 
 import * as React from "react";
@@ -46,13 +122,13 @@ export function useTanStackFormField() {
 
   if (!fieldContext) {
     throw new Error(
-      "useTanStackFormField must be used within <TanStackFormField>"
+      "useTanStackFormField must be used within <TanStackFormField>",
     );
   }
 
   if (!itemContext) {
     throw new Error(
-      "useTanStackFormField must be used within <TanStackFormItem>"
+      "useTanStackFormField must be used within <TanStackFormItem>",
     );
   }
 
@@ -77,7 +153,7 @@ export function useTanStackFormField() {
  * Unlike react-hook-form's FormField, this doesn't use Controller.
  * Instead, you use form.Field from TanStack Form and wrap it with this component.
  */
-export function TanStackFormField({
+export const TanStackFormField = React.memo(function TanStackFormField({
   name,
   error,
   isDirty,
@@ -90,26 +166,31 @@ export function TanStackFormField({
   isTouched?: boolean;
   children: React.ReactNode;
 }) {
+  const contextValue = React.useMemo(
+    () => ({ name, error, isDirty, isTouched }),
+    [name, error, isDirty, isTouched],
+  );
+
   return (
-    <TanStackFormFieldContext.Provider
-      value={{ name, error, isDirty, isTouched }}
-    >
+    <TanStackFormFieldContext.Provider value={contextValue}>
       {children}
     </TanStackFormFieldContext.Provider>
   );
-}
+});
 
 /**
  * TanStackFormItem - Container for form field layout
  */
-export function TanStackFormItem({
+export const TanStackFormItem = React.memo(function TanStackFormItem({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const id = React.useId();
 
+  const contextValue = React.useMemo(() => ({ id }), [id]);
+
   return (
-    <TanStackFormItemContext.Provider value={{ id }}>
+    <TanStackFormItemContext.Provider value={contextValue}>
       <div
         data-slot="form-item"
         className={cn("grid gap-2", className)}
@@ -117,12 +198,12 @@ export function TanStackFormItem({
       />
     </TanStackFormItemContext.Provider>
   );
-}
+});
 
 /**
  * TanStackFormLabel - Label with error styling
  */
-export function TanStackFormLabel({
+export const TanStackFormLabel = React.memo(function TanStackFormLabel({
   className,
   ...props
 }: React.ComponentProps<typeof LabelPrimitive.Root>) {
@@ -137,55 +218,59 @@ export function TanStackFormLabel({
       {...props}
     />
   );
-}
+});
 
 /**
  * TanStackFormControl - Wrapper for input elements with ARIA attributes
  */
-export function TanStackFormControl({
+export const TanStackFormControl = React.memo(function TanStackFormControl({
   ...props
 }: React.ComponentProps<typeof Slot>) {
   const { error, formItemId, formDescriptionId, formMessageId } =
     useTanStackFormField();
 
+  const ariaDescribedBy = React.useMemo(
+    () =>
+      !error ? formDescriptionId : `${formDescriptionId} ${formMessageId}`,
+    [error, formDescriptionId, formMessageId],
+  );
+
   return (
     <Slot
       data-slot="form-control"
       id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
+      aria-describedby={ariaDescribedBy}
       aria-invalid={!!error}
       {...props}
     />
   );
-}
+});
 
 /**
  * TanStackFormDescription - Helper text for form fields
  */
-export function TanStackFormDescription({
-  className,
-  ...props
-}: React.ComponentProps<"p">) {
-  const { formDescriptionId } = useTanStackFormField();
+export const TanStackFormDescription = React.memo(
+  function TanStackFormDescription({
+    className,
+    ...props
+  }: React.ComponentProps<"p">) {
+    const { formDescriptionId } = useTanStackFormField();
 
-  return (
-    <p
-      data-slot="form-description"
-      id={formDescriptionId}
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  );
-}
+    return (
+      <p
+        data-slot="form-description"
+        id={formDescriptionId}
+        className={cn("text-muted-foreground text-sm", className)}
+        {...props}
+      />
+    );
+  },
+);
 
 /**
  * TanStackFormMessage - Display validation error messages
  */
-export function TanStackFormMessage({
+export const TanStackFormMessage = React.memo(function TanStackFormMessage({
   className,
   children,
   ...props
@@ -207,4 +292,4 @@ export function TanStackFormMessage({
       {body}
     </p>
   );
-}
+});

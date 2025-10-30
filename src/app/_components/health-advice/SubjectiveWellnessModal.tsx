@@ -11,6 +11,10 @@ import {
   TanStackFormLabel,
   TanStackFormControl,
 } from "~/components/ui/tanstack-form";
+import {
+  formAnalytics,
+  createFormOptions,
+} from "~/lib/forms/tanstack-form-config";
 
 interface SubjectiveWellnessData {
   energyLevel: number; // 1-10
@@ -44,7 +48,7 @@ export function SubjectiveWellnessModal({
       stressLevel: 5,
     } as SubjectiveWellnessData,
     validators: {
-      onChange: subjectiveWellnessSchema,
+      onBlur: subjectiveWellnessSchema,
     },
     onSubmit: async ({ value }) => {
       onSubmit(value);
@@ -144,7 +148,7 @@ export function SubjectiveWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>
@@ -183,7 +187,7 @@ export function SubjectiveWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>
@@ -222,7 +226,7 @@ export function SubjectiveWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>
@@ -261,7 +265,7 @@ export function SubjectiveWellnessModal({
               children={(field) => {
                 const error = field.state.meta.errors?.[0];
                 const errorMessage =
-                  typeof error === "string" ? error : error?.message;
+                  typeof error === "string" ? error : (error as any)?.message;
                 return (
                   <TanStackFormField name={field.name} error={errorMessage}>
                     <TanStackFormItem>

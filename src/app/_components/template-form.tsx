@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
@@ -11,6 +9,7 @@ import { z } from "zod";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { getQueryKey } from "@trpc/react-query";
 import { api, type RouterInputs, type RouterOutputs } from "~/trpc/react";
+import { formAnalytics } from "~/lib/forms/tanstack-form-config";
 import { analytics } from "~/lib/analytics";
 import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
 import { Button } from "~/components/ui/button";
@@ -25,6 +24,58 @@ import {
   TanStackFormMessage,
 } from "~/components/ui/tanstack-form";
 import { useUniversalDragReorder } from "~/hooks/use-universal-drag-reorder";
+
+// Type definitions
+type TemplateList = RouterOutputs["templates"]["getAll"];
+type TemplateItem = TemplateList[number];
+type TemplatesGetAllInput = Exclude<
+  RouterInputs["templates"]["getAll"],
+  void | undefined
+>;
+type TemplatesQuerySnapshot = Array<[QueryKey, TemplateList | undefined]>;
+type TemplateMutationContext = {
+  previousQueries: TemplatesQuerySnapshot;
+};
+
+// Utility functions
+const templatesQueryKeyRoot = getQueryKey(api.templates.getAll);
+
+const sortTemplates = (
+  templates: TemplateItem[],
+  sort: TemplatesGetAllInput["sort"] | undefined,
+): TemplateItem[] => {
+  const order = (sort ?? "recent") as "recent" | "lastUsed" | "mostUsed" | "name";
+  const copy = [...templates];
+
+  switch (order) {
+    case "name":
+      copy.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case "lastUsed":
+      copy.sort(
+        (a, b) =>
+          (b.lastUsed ? new Date(b.lastUsed).getTime() : 0) -
+          (a.lastUsed ? new Date(a.lastUsed).getTime() : 0),
+      );
+      break;
+    case "mostUsed":
+      copy.sort(
+        (a, b) =>
+          (b.totalSessions ?? 0) - (a.totalSessions ?? 0) ||
+          (b.createdAt ? new Date(b.createdAt).getTime() : 0) -
+          (a.createdAt ? new Date(a.createdAt).getTime() : 0),
+      );
+      break;
+    default:
+      copy.sort(
+        (a, b) =>
+          (b.createdAt ? new Date(b.createdAt).getTime() : 0) -
+          (a.createdAt ? new Date(a.createdAt).getTime() : 0),
+      );
+  }
+
+  return copy;
+};
 
 // Zod schema for form validation
 const templateFormSchema = z.object({
@@ -58,6 +109,8 @@ type FormStep = "basics" | "exercises" | "preview";
 
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const utils = api.useUtils();
   const [currentStep, setCurrentStep] = useState<FormStep>("basics");
   const submitRef = useRef(false);
   const lastSubmitRef = useRef<{
@@ -67,7 +120,21 @@ export function TemplateForm({ template }: TemplateFormProps) {
     dedupeKey: string;
   } | null>(null);
 
-  // Initialize TanStack Form
+  // Utility functions for query management
+  const snapshotTemplateQueries = (): TemplatesQuerySnapshot => {
+    const matches = queryClient.getQueriesData<TemplateList>({
+      queryKey: templatesQueryKeyRoot,
+    });
+    return matches as TemplatesQuerySnapshot;
+  };
+
+  const restoreTemplateQueries = (snapshot: TemplatesQuerySnapshot) => {
+    for (const [key, data] of snapshot) {
+      queryClient.setQueryData(key, data);
+    }
+  };
+
+  // Initialize TanStack Form with lazy validation for better performance
   const form = useForm({
     defaultValues: {
       name: template?.name ?? "",
@@ -76,90 +143,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
         : [{ exerciseName: "" }],
     },
     validators: {
-      onChange: templateFormSchema,
+      onBlur: templateFormSchema, // Use lazy validation (onBlur) for better performance
     },
     onSubmit: async ({ value }) => {
       await handleSubmit(value);
     },
   });
-
-  const utils = api.useUtils();
-  const queryClient = useQueryClient();
-  const templatesQueryKeyRoot = getQueryKey(api.templates.getAll);
-
-  type TemplateList = RouterOutputs["templates"]["getAll"];
-  type TemplateItem = TemplateList[number];
-  type TemplatesGetAllInput = Exclude<
-    RouterInputs["templates"]["getAll"],
-    undefined | void
-  >;
-
-  type TemplatesQuerySnapshot = Array<[QueryKey, TemplateList | undefined]>;
-
-  type TemplateMutationContext = {
-    previousQueries: TemplatesQuerySnapshot;
-  };
-
-  const snapshotTemplateQueries = (): TemplatesQuerySnapshot => {
-    const matches = queryClient.getQueriesData<TemplateList>({
-      queryKey: templatesQueryKeyRoot,
-    });
-
-    const snapshot: TemplatesQuerySnapshot = [];
-    for (const [key, data] of matches) {
-      snapshot.push([key, data]);
-    }
-
-    return snapshot;
-  };
-
-  const restoreTemplateQueries = (snapshot: TemplatesQuerySnapshot) => {
-    for (const [key, data] of snapshot) {
-      queryClient.setQueryData<TemplateList | undefined>(key, data);
-    }
-  };
-
-  const toTimestamp = (value: Date | string | null | undefined): number => {
-    if (!value) return 0;
-    if (value instanceof Date) return value.getTime();
-    const parsed = new Date(value);
-    const time = parsed.getTime();
-    return Number.isFinite(time) ? time : 0;
-  };
-
-  const sortTemplates = (
-    list: TemplateList,
-    sort: TemplatesGetAllInput["sort"] | undefined,
-  ): TemplateList => {
-    const resolvedSort = sort ?? "recent";
-    const sorted = [...list];
-
-    switch (resolvedSort) {
-      case "name":
-        sorted.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case "lastUsed":
-        sorted.sort(
-          (a, b) => toTimestamp(b.lastUsed) - toTimestamp(a.lastUsed),
-        );
-        break;
-      case "mostUsed":
-        sorted.sort((a, b) => {
-          const diff = (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
-          if (diff !== 0) {
-            return diff;
-          }
-          return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
-        });
-        break;
-      default:
-        sorted.sort(
-          (a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
-        );
-    }
-
-    return sorted;
-  };
 
   const shouldIncludeInQuery = (
     templateRecord: TemplateItem,
@@ -226,10 +215,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
         createdAt: data.createdAt,
       });
       const exercises = form.getFieldValue("exercises");
-      analytics.templateCreated(
-        data.id.toString(),
-        exercises.filter((ex) => ex.exerciseName.trim()).length,
-      );
+      formAnalytics.formSubmissionCompleted("template_form", {
+        templateId: data.id.toString(),
+        exerciseCount: exercises.filter((ex) => ex.exerciseName.trim()).length,
+      });
       submitRef.current = false;
 
       const newTemplate = data as TemplateItem;
@@ -306,10 +295,11 @@ export function TemplateForm({ template }: TemplateFormProps) {
     },
     onSuccess: () => {
       const exercises = form.getFieldValue("exercises");
-      analytics.templateEdited(
-        template!.id.toString(),
-        exercises.filter((ex) => ex.exerciseName.trim()).length,
-      );
+      formAnalytics.formSubmissionCompleted("template_form", {
+        templateId: template!.id.toString(),
+        exerciseCount: exercises.filter((ex) => ex.exerciseName.trim()).length,
+        action: "update",
+      });
       submitRef.current = false;
       router.push("/templates");
     },
@@ -371,7 +361,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      analytics.error(error as Error, {
+      formAnalytics.formSubmissionError("template_form", {
+        error: error instanceof Error ? error.message : "Unknown error",
         context: template ? "template_edit" : "template_create",
         templateId: template?.id.toString(),
       });
