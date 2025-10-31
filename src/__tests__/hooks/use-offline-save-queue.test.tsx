@@ -81,6 +81,12 @@ describe("useOfflineSaveQueue", () => {
     ensureLocalStorage();
     clearQueue();
     queryClient = new QueryClient();
+
+    // Mock navigator.onLine to false to prevent automatic flush on mount
+    Object.defineProperty(navigator, "onLine", {
+      value: false,
+      configurable: true,
+    });
     const trpcClient = api.createClient({
       links: [
         () => {
@@ -183,8 +189,13 @@ describe("useOfflineSaveQueue", () => {
     vi.restoreAllMocks();
   });
 
-  it("refreshCount syncs queue state with persisted storage", () => {
+  it("refreshCount syncs queue state with persisted storage", async () => {
     const { result } = renderHook(() => useOfflineSaveQueue(), { wrapper });
+
+    // Wait for any initial effects to complete
+    await waitFor(() => {
+      expect(result.current.status).toBe("idle");
+    });
 
     expect(result.current.queueSize).toBe(0);
     expect(result.current.items).toHaveLength(0);

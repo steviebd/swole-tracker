@@ -26,10 +26,8 @@ vi.mock("~/trpc/react", () => ({
 }));
 
 // Import after mocking
-import {
-  StrengthProgressSection,
-  calculateYAxisDomain,
-} from "~/app/_components/StrengthProgressSection";
+import { StrengthProgressSection } from "~/app/_components/StrengthProgressSection";
+import { calculateYAxisDomain } from "~/app/_components/StrengthChartContainer";
 import { ProgressRangeProvider } from "~/contexts/progress-range-context";
 import { api } from "~/trpc/react";
 

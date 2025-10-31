@@ -38,6 +38,7 @@ describe("security headers", () => {
       expect(csp).toContain(`'nonce-${nonce}'`);
       expect(csp).toContain("default-src 'self'");
       expect(csp).toContain("script-src 'self'");
+      expect(csp).toContain("style-src 'self' 'unsafe-inline'");
       expect(csp).toContain("https://us.i.posthog.com");
       expect(csp).toContain("https://api.prod.whoop.com");
     });

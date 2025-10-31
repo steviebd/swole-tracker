@@ -1,31 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useEffect, useMemo, useState, useRef } from "react";
 
 import { formatTimeRangeLabel } from "~/lib/time-range";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { VirtualList } from "~/components/virtual-list";
 import { useProgressRange } from "~/contexts/progress-range-context";
 import { analytics } from "~/lib/analytics";
+import { VirtualizedSelect } from "~/components/ui/VirtualizedSelect";
 
 import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
+import { StrengthSummaryMetrics } from "./StrengthSummaryMetrics";
+import { StrengthChartContainer } from "./StrengthChartContainer";
+import { StrengthSessionList } from "./StrengthSessionList";
 
 type TimeRange = "week" | "month" | "year";
 type ViewMode = "topSet" | "oneRm" | "intensity";
 type SortKey = "date" | "weight" | "oneRm" | "volume";
-type ChartResolution = "weekly" | "daily";
 
-const VIEW_CONFIG: Record<
+export const VIEW_CONFIG: Record<
   ViewMode,
   { label: string; description: string; unit: string; color: string }
 > = {
@@ -108,8 +101,6 @@ export function StrengthProgressSection({
   onExerciseChange,
 }: StrengthProgressSectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("topSet");
-  const [chartResolution, setChartResolution] =
-    useState<ChartResolution>("weekly");
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: "asc" | "desc";
@@ -217,15 +208,9 @@ export function StrengthProgressSection({
       { enabled: hasExerciseSelection },
     );
 
-  const { data: weeklyData, isLoading: weeklyLoading } =
-    api.progress.getWeeklyStrengthProgression.useQuery(
-      {
-        exerciseName: selectedExerciseName ?? undefined,
-        templateExerciseId: selectedTemplateExerciseId ?? undefined,
-        timeRange,
-      },
-      { enabled: hasExerciseSelection && chartResolution === "weekly" },
-    );
+  // Weekly data is now computed from normalizedSets instead of a separate query
+  // This ensures the chart shows data regardless of aggregation table state
+  // The weeklyData query is disabled since we'll compute weekly aggregation client-side
 
   // Track performance when strength data loads
   useEffect(() => {
@@ -324,7 +309,9 @@ export function StrengthProgressSection({
   };
 
   const normalizedSets = useMemo(() => {
-    if (!topSetsResponse?.data) return [];
+    if (!topSetsResponse?.data) {
+      return [];
+    }
     return topSetsResponse.data.map((session) => {
       const weight = Number(session.weight ?? 0);
       const reps = Number(session.reps ?? 0);
@@ -350,35 +337,27 @@ export function StrengthProgressSection({
   }, [topSetsResponse?.data, trendSummary?.currentOneRM]);
 
   const chartPoints = useMemo(() => {
-    if (chartResolution === "weekly" && weeklyData?.data) {
-      return weeklyData.data.map((week) => {
-        const weekStart = new Date(week.weekStart);
-        const dateLabel = new Intl.DateTimeFormat("en-US", {
-          month: "short",
-          day: "numeric",
-        }).format(weekStart);
+    console.log("chartPoints calculation", {
+      normalizedSetsLength: normalizedSets.length,
+      viewMode,
+    });
 
-        let value = week.maxOneRM;
-        if (viewMode === "intensity") {
-          value = week.avgVolume;
-        }
-
-        return {
-          date: dateLabel,
-          fullDate: week.weekStart,
-          value,
-        };
-      });
+    if (normalizedSets.length === 0) {
+      return [];
     }
 
-    // Daily resolution (default)
-    return normalizedSets
+    // Simple chronological display of all sessions (already filtered by time range)
+    // Sort chronologically (oldest to newest for line chart)
+    const points = normalizedSets
       .slice()
       .reverse()
-      .map((session) => {
+      .map((session, index) => {
+        // Include time to make X-axis unique when multiple sessions on same day
         const dateLabel = new Intl.DateTimeFormat("en-US", {
           month: "short",
           day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         }).format(session.date);
 
         let value = session.weight;
@@ -388,13 +367,40 @@ export function StrengthProgressSection({
           value = session.volume;
         }
 
+        // Debug: log session details
+        if (index < 10) {
+          console.log(`chartPoint ${index}:`, {
+            date: dateLabel,
+            fullDate: session.date.toISOString(),
+            weight: session.weight,
+            oneRm: session.oneRm,
+            volume: session.volume,
+            viewMode,
+            selectedValue: value,
+            exerciseName: session.exerciseName,
+          });
+        }
+
         return {
           date: dateLabel,
           fullDate: session.date.toISOString(),
           value,
+          // Store original values for tooltip debugging
+          weight: session.weight,
+          oneRm: session.oneRm,
+          volume: session.volume,
+          reps: session.reps,
+          sets: session.sets,
+          exerciseName: session.exerciseName,
         };
       });
-  }, [normalizedSets, weeklyData?.data, viewMode, chartResolution]);
+
+    console.log("chartPoints", {
+      count: points.length,
+      firstFew: points.slice(0, 3),
+    });
+    return points;
+  }, [normalizedSets, viewMode]);
 
   const rateOfChange = useMemo(() => {
     const timeline = trendSummary?.timeline ?? [];
@@ -505,7 +511,6 @@ export function StrengthProgressSection({
   const loading =
     topSetsLoading ||
     summaryLoading ||
-    weeklyLoading ||
     exerciseListLoading ||
     !hasExerciseSelection;
   const hasError = topSetsErrored || exerciseListErrored;
@@ -559,10 +564,19 @@ export function StrengthProgressSection({
           <div className="bg-muted/40 mt-2 h-11 animate-pulse rounded-xl" />
         ) : deduplicatedExerciseList && deduplicatedExerciseList.length > 0 ? (
           deduplicatedExerciseList.length > 20 ? (
-            <VirtualizedExerciseSelect
-              exercises={deduplicatedExerciseList}
+            <VirtualizedSelect
+              items={deduplicatedExerciseList}
               selectedId={selectedOptionId}
               onSelect={handleExerciseSelect}
+              getItemId={(exercise) => exercise.id}
+              getItemLabel={(exercise) => exercise.exerciseName}
+              getItemSubtitle={(exercise) =>
+                exercise.aliasCount > 1
+                  ? ` (${exercise.aliasCount} linked)`
+                  : ""
+              }
+              placeholder="Choose an exercise…"
+              searchPlaceholder="Search exercises..."
             />
           ) : (
             <select
@@ -607,327 +621,30 @@ export function StrengthProgressSection({
         <StrengthSkeleton />
       ) : (
         <>
-          <div className="border-border/70 bg-card/70 rounded-2xl border p-4 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(VIEW_CONFIG) as ViewMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setViewMode(mode)}
-                    className={cn(
-                      "rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide uppercase transition",
-                      viewMode === mode
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {VIEW_CONFIG[mode].label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-muted-foreground text-xs">
-                {VIEW_CONFIG[viewMode].description}
-              </p>
-            </div>
-            <div className="mt-4 h-72 w-full">
-              {chartIsEmpty ? (
-                <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
-                  Not enough sessions yet. Log a few workouts to unlock trend
-                  lines.
-                </div>
-              ) : (
-                <div className="relative">
-                  <StrengthTrendChart
-                    data={chartPoints}
-                    color={VIEW_CONFIG[viewMode].color}
-                    unit={VIEW_CONFIG[viewMode].unit}
-                    resolution={chartResolution}
-                    onZoomIn={() => setChartResolution("daily")}
-                    onZoomOut={() => setChartResolution("weekly")}
-                  />
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setChartResolution("weekly")}
-                      className={cn(
-                        "rounded px-2 py-1 text-xs font-semibold tracking-wide uppercase transition",
-                        chartResolution === "weekly"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      Weekly
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setChartResolution("daily")}
-                      className={cn(
-                        "rounded px-2 py-1 text-xs font-semibold tracking-wide uppercase transition",
-                        chartResolution === "daily"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      Daily
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <StrengthChartContainer
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            chartIsEmpty={chartIsEmpty}
+            chartPoints={chartPoints}
+          />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {summaryCards.map((card) => (
-              <div
-                key={card.id}
-                className="border-border/70 bg-card/80 rounded-2xl border p-4 shadow-sm"
-              >
-                <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
-                  {card.label}
-                </p>
-                <p className="text-foreground mt-2 text-2xl font-semibold">
-                  {card.value}
-                </p>
-                <p className="text-muted-foreground text-xs">{card.helper}</p>
-              </div>
-            ))}
-          </div>
+          <StrengthSummaryMetrics summaryCards={summaryCards} />
 
-          <div className="border-border/70 bg-card/80 rounded-2xl border p-4 shadow-sm">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-foreground text-sm font-semibold">
-                  Recent sessions
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  Sort and review your heaviest sets
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary w-full sm:w-auto"
-                  onClick={() => setShowModal(true)}
-                >
-                  View detailed analysis
-                </button>
-                <ExportButton
-                  exerciseName={selectedExerciseName}
-                  templateExerciseId={selectedTemplateExerciseId}
-                  timeRange={timeRange}
-                />
-              </div>
-            </div>
-
-            <div className="hidden lg:block">
-              {sortedRows.length > 50 ? (
-                <VirtualList
-                  items={sortedRows.slice(
-                    (currentPage - 1) * pageSize,
-                    currentPage * pageSize,
-                  )}
-                  itemHeight={48} // Approximate row height
-                  containerHeight={400}
-                  renderItem={(row: (typeof sortedRows)[0], index: number) => (
-                    <div
-                      key={row.workoutDate.toString()}
-                      className="border-border/60 border-b px-3 py-3 text-sm"
-                    >
-                      <div className="grid grid-cols-6 gap-3">
-                        <div className="text-foreground">
-                          {row.date.toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </div>
-                        <div className="text-foreground font-semibold">
-                          {row.weight} kg
-                        </div>
-                        <div className="text-muted-foreground">
-                          {row.sets} × {row.reps}
-                        </div>
-                        <div className="text-foreground">
-                          {Math.round(row.oneRm)} kg
-                        </div>
-                        <div className="text-foreground">
-                          {Math.round(row.volume).toLocaleString()} kg
-                        </div>
-                        <div>
-                          <SessionTags
-                            intensityPct={row.intensityPct}
-                            oneRm={row.oneRm}
-                            currentMax={trendSummary?.currentOneRM ?? 0}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  className="border-border/60 rounded-lg border"
-                />
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="text-muted-foreground text-left text-xs tracking-wide uppercase">
-                    <tr>
-                      <SortableHeader
-                        label="Date"
-                        active={sortConfig.key === "date"}
-                        direction={sortConfig.direction}
-                        onClick={() => toggleSort("date")}
-                      />
-                      <SortableHeader
-                        label="Weight"
-                        active={sortConfig.key === "weight"}
-                        direction={sortConfig.direction}
-                        onClick={() => toggleSort("weight")}
-                      />
-                      <th className="px-3 py-2 font-normal">Sets × Reps</th>
-                      <SortableHeader
-                        label="e1RM"
-                        active={sortConfig.key === "oneRm"}
-                        direction={sortConfig.direction}
-                        onClick={() => toggleSort("oneRm")}
-                      />
-                      <SortableHeader
-                        label="Volume"
-                        active={sortConfig.key === "volume"}
-                        direction={sortConfig.direction}
-                        onClick={() => toggleSort("volume")}
-                      />
-                      <th className="px-3 py-2 font-normal">Tags</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-border/60 divide-y">
-                    {sortedRows
-                      .slice(
-                        (currentPage - 1) * pageSize,
-                        currentPage * pageSize,
-                      )
-                      .map((row) => (
-                        <tr
-                          key={row.workoutDate.toString()}
-                          className="text-sm"
-                        >
-                          <td className="text-foreground px-3 py-3">
-                            {row.date.toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </td>
-                          <td className="text-foreground px-3 py-3 font-semibold">
-                            {row.weight} kg
-                          </td>
-                          <td className="text-muted-foreground px-3 py-3">
-                            {row.sets} × {row.reps}
-                          </td>
-                          <td className="text-foreground px-3 py-3">
-                            {Math.round(row.oneRm)} kg
-                          </td>
-                          <td className="text-foreground px-3 py-3">
-                            {Math.round(row.volume).toLocaleString()} kg
-                          </td>
-                          <td className="px-3 py-3">
-                            <SessionTags
-                              intensityPct={row.intensityPct}
-                              oneRm={row.oneRm}
-                              currentMax={trendSummary?.currentOneRM ?? 0}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div className="space-y-3 lg:hidden">
-              {sortedRows
-                .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-                .map((row) => (
-                  <div
-                    key={`${row.workoutDate.toISOString()}-mobile`}
-                    className="border-border/60 bg-background/40 rounded-2xl border p-4 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <p className="text-foreground font-semibold">
-                        {row.date.toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                      <SessionTags
-                        intensityPct={row.intensityPct}
-                        oneRm={row.oneRm}
-                        currentMax={trendSummary?.currentOneRM ?? 0}
-                      />
-                    </div>
-                    <dl className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <dt>Weight</dt>
-                        <dd className="text-foreground font-semibold">
-                          {row.weight} kg
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Sets × Reps</dt>
-                        <dd className="text-foreground font-semibold">
-                          {row.sets} × {row.reps}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>e1RM</dt>
-                        <dd className="text-foreground font-semibold">
-                          {Math.round(row.oneRm)} kg
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Volume</dt>
-                        <dd className="text-foreground font-semibold">
-                          {Math.round(row.volume).toLocaleString()} kg
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-                ))}
-            </div>
-
-            {hasMultiplePages && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-muted-foreground text-xs">
-                  Showing{" "}
-                  {Math.min(
-                    (currentPage - 1) * pageSize + 1,
-                    sortedRows.length,
-                  )}{" "}
-                  to {Math.min(currentPage * pageSize, sortedRows.length)} of{" "}
-                  {sortedRows.length} sessions
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    ← Previous
-                  </button>
-                  <span className="text-muted-foreground text-xs">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCurrentPage(Math.min(totalPages, currentPage + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                    className="text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Next →
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <StrengthSessionList
+            sortedRows={sortedRows}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            sortConfig={sortConfig}
+            setSortConfig={setSortConfig}
+            trendSummary={trendSummary}
+            hasMultiplePages={hasMultiplePages}
+            totalPages={totalPages}
+            setCurrentPage={setCurrentPage}
+            selectedExerciseName={selectedExerciseName}
+            selectedTemplateExerciseId={selectedTemplateExerciseId}
+            timeRange={timeRange}
+            onViewAnalysis={() => setShowModal(true)}
+          />
 
           <StrengthAnalysisModal
             isOpen={showModal}
@@ -967,186 +684,6 @@ function TimeRangeSelector({
         </button>
       ))}
     </div>
-  );
-}
-
-export function calculateYAxisDomain(values: number[]): [number, number] {
-  if (values.length === 0) return [0, 100];
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min;
-
-  // Calculate padding based on range to make gradient steeper for smaller ranges
-  let padding;
-  if (range <= 10) {
-    padding = range * 0.5; // For small ranges (e.g., 140-150kg), use 50% padding
-  } else if (range <= 50) {
-    padding = range * 0.3; // For medium ranges, use 30% padding
-  } else {
-    padding = range * 0.1; // For large ranges, use 10% padding
-  }
-
-  return [Math.max(0, min - padding), max + padding];
-}
-
-function StrengthTrendChart({
-  data,
-  color,
-  unit,
-  resolution,
-  onZoomIn,
-  onZoomOut,
-}: {
-  data: Array<{ date: string; fullDate: string; value: number }>;
-  color: string;
-  unit: string;
-  resolution?: ChartResolution;
-  onZoomIn?: () => void;
-  onZoomOut?: () => void;
-}) {
-  // Virtualize large datasets - only show every nth point for performance
-  const virtualizedData = useMemo(() => {
-    const MAX_POINTS = 100; // Limit to 100 visible points for performance
-    if (data.length <= MAX_POINTS) {
-      return data;
-    }
-
-    const step = Math.ceil(data.length / MAX_POINTS);
-    return data.filter((_, index) => index % step === 0);
-  }, [data]);
-
-  const values = virtualizedData.map((d) => d.value);
-  const domain = calculateYAxisDomain(values);
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={virtualizedData}
-        margin={{ top: 10, right: 24, left: 0, bottom: 0 }}
-      >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="var(--border)"
-          opacity={0.3}
-        />
-        <XAxis
-          dataKey="date"
-          tick={{ fontSize: 12, fill: "var(--muted)" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          domain={domain}
-          tick={{ fontSize: 12, fill: "var(--muted)" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <Tooltip
-          content={({ active, payload }) => {
-            if (active && payload?.length) {
-              const entry = payload[0]!.payload as {
-                date: string;
-                fullDate: string;
-                value: number;
-              };
-              return (
-                <div className="border-border/60 bg-background/90 rounded-xl border px-3 py-2 text-xs shadow-md">
-                  <p className="text-foreground font-semibold">
-                    {new Date(entry.fullDate).toLocaleDateString()}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {entry.value.toLocaleString()} {unit}
-                  </p>
-                  {resolution === "weekly" && onZoomIn && (
-                    <button
-                      type="button"
-                      onClick={onZoomIn}
-                      className="text-primary mt-1 text-xs hover:underline"
-                    >
-                      Zoom to daily view
-                    </button>
-                  )}
-                  {resolution === "daily" && onZoomOut && (
-                    <button
-                      type="button"
-                      onClick={onZoomOut}
-                      className="text-primary mt-1 text-xs hover:underline"
-                    >
-                      Zoom to weekly view
-                    </button>
-                  )}
-                </div>
-              );
-            }
-
-            function ExportButton({
-              exerciseName,
-              templateExerciseId,
-              timeRange,
-            }: {
-              exerciseName: string | null;
-              templateExerciseId: number | null;
-              timeRange: TimeRange;
-            }) {
-              const [isExporting, setIsExporting] = useState(false);
-
-              const handleExport = async () => {
-                if (!exerciseName && !templateExerciseId) return;
-
-                setIsExporting(true);
-                try {
-                  // This would typically call the export API and trigger a download
-                  // For now, we'll just show a placeholder
-                  console.log("Exporting data for", {
-                    exerciseName,
-                    templateExerciseId,
-                    timeRange,
-                  });
-                  // In a real implementation, you'd fetch the CSV and create a download link
-                } catch (error) {
-                  console.error("Export failed:", error);
-                } finally {
-                  setIsExporting(false);
-                }
-              };
-
-              return (
-                <button
-                  type="button"
-                  onClick={handleExport}
-                  disabled={
-                    isExporting || (!exerciseName && !templateExerciseId)
-                  }
-                  className="btn-outline w-full disabled:opacity-50 sm:w-auto"
-                >
-                  {isExporting ? "Exporting..." : "Export CSV"}
-                </button>
-              );
-            }
-            return null;
-          }}
-        />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          strokeWidth={3}
-          dot={{
-            r: 4,
-            fill: "var(--background)",
-            stroke: color,
-            strokeWidth: 2,
-          }}
-          activeDot={{
-            r: 6,
-            strokeWidth: 2,
-            stroke: "var(--background)",
-            fill: color,
-          }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
   );
 }
 
@@ -1271,86 +808,4 @@ function calculateBestWeek(
     day: "numeric",
   }).format(new Date(best[0]!));
   return { label, sessions: best[1]! };
-}
-
-function VirtualizedExerciseSelect({
-  exercises,
-  selectedId,
-  onSelect,
-}: {
-  exercises: Array<{
-    id: string;
-    exerciseName: string;
-    aliasCount: number;
-    aliases?: string[];
-  }>;
-  selectedId: string;
-  onSelect: (id: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const filteredExercises = useMemo(() => {
-    if (!searchTerm) return exercises;
-    return exercises.filter((exercise) =>
-      exercise.exerciseName.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [exercises, searchTerm]);
-
-  const selectedExercise = exercises.find((ex) => ex.id === selectedId);
-
-  return (
-    <div className="relative mt-2">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="border-border/60 bg-background/80 text-foreground focus:border-primary w-full rounded-xl border px-3 py-2 text-left text-sm font-medium outline-none"
-      >
-        {selectedExercise ? (
-          <>
-            {selectedExercise.exerciseName}
-            {selectedExercise.aliasCount > 1
-              ? ` (${selectedExercise.aliasCount} linked)`
-              : ""}
-          </>
-        ) : (
-          "Choose an exercise…"
-        )}
-      </button>
-
-      {isOpen && (
-        <div className="border-border/60 bg-background/95 absolute top-full z-50 mt-1 max-h-60 w-full overflow-hidden rounded-xl border shadow-lg">
-          <input
-            type="text"
-            placeholder="Search exercises..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border-border/60 w-full border-b px-3 py-2 text-sm outline-none"
-          />
-          <VirtualList
-            items={filteredExercises}
-            itemHeight={40}
-            containerHeight={200}
-            renderItem={(exercise) => (
-              <button
-                key={exercise.id}
-                type="button"
-                onClick={() => {
-                  onSelect(exercise.id);
-                  setIsOpen(false);
-                  setSearchTerm("");
-                }}
-                className="hover:bg-muted/50 w-full px-3 py-2 text-left text-sm"
-              >
-                {exercise.exerciseName}
-                {exercise.aliasCount > 1
-                  ? ` (${exercise.aliasCount} linked)`
-                  : ""}
-              </button>
-            )}
-          />
-        </div>
-      )}
-    </div>
-  );
 }

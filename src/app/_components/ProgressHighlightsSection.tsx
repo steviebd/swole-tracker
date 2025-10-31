@@ -11,7 +11,7 @@ import {
 } from "~/components/ui/dialog";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatTimeRangeLabel } from "~/lib/time-range";
-import { cn } from "~/lib/utils";
+import { cn, formatDateWithOrdinal } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { useProgressRange } from "~/contexts/progress-range-context";
 import { analytics } from "~/lib/analytics";
@@ -299,7 +299,7 @@ function HighlightListItem({
       </div>
       {card.meta && (
         <p className="text-muted-foreground text-xs">
-          {new Date(card.meta).toLocaleDateString()}
+          {formatDateWithOrdinal(card.meta)}
         </p>
       )}
     </li>
@@ -360,7 +360,7 @@ function HighlightsModal({
                   </div>
                   {card.meta && (
                     <p className="text-muted-foreground text-xs">
-                      {new Date(card.meta).toLocaleDateString()}
+                      {formatDateWithOrdinal(card.meta)}
                     </p>
                   )}
                 </div>

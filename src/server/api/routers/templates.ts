@@ -702,22 +702,45 @@ export const templatesRouter = createTRPCRouter({
     .use(templateRateLimit)
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
+      debugLog("templates.delete: starting deletion", {
+        templateId: input.id,
+        userId: ctx.user.id,
+        requestId: ctx.requestId,
+      });
+
       // Verify ownership
       const existingTemplate = await ctx.db.query.workoutTemplates.findFirst({
         where: eq(workoutTemplates.id, input.id),
       });
 
+      debugLog("templates.delete: template lookup result", {
+        templateId: input.id,
+        found: !!existingTemplate,
+        userMatches: existingTemplate?.user_id === ctx.user.id,
+        requestId: ctx.requestId,
+      });
+
       if (!existingTemplate || existingTemplate.user_id !== ctx.user.id) {
-        debugLog("templates.delete: template already removed", {
+        debugLog("templates.delete: template already removed or not owned", {
           templateId: input.id,
           requestId: ctx.requestId,
         });
         return { success: true, alreadyDeleted: true };
       }
 
+      debugLog("templates.delete: proceeding with deletion", {
+        templateId: input.id,
+        requestId: ctx.requestId,
+      });
+
       await ctx.db
         .delete(workoutTemplates)
         .where(eq(workoutTemplates.id, input.id));
+
+      debugLog("templates.delete: deletion completed", {
+        templateId: input.id,
+        requestId: ctx.requestId,
+      });
 
       return { success: true };
     }),

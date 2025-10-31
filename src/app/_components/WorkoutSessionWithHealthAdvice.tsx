@@ -8,9 +8,9 @@ import React, {
   useState,
 } from "react";
 import { Button } from "~/components/ui/button";
-import {
-  WorkoutSessionWithState,
-} from "~/app/_components/workout-session";
+import { StatusBadge, getReadinessStatus } from "~/components/ui/status-badge";
+import { getStatusClasses } from "~/lib/theme-helpers";
+import { WorkoutSessionWithState } from "~/app/_components/workout-session";
 import { ReadinessIndicator } from "~/app/_components/health-advice/ReadinessIndicator";
 import { SetSuggestions } from "~/app/_components/health-advice/SetSuggestions";
 import { ProbabilityGauge } from "~/app/_components/health-advice/ProbabilityGauge";
@@ -105,7 +105,10 @@ export function WorkoutSessionWithHealthAdvice({
       );
 
       return {
-        exercise: byNameIndex !== -1 ? (exercises[byNameIndex] as ExerciseData) : undefined,
+        exercise:
+          byNameIndex !== -1
+            ? (exercises[byNameIndex] as ExerciseData)
+            : undefined,
         index: byNameIndex,
       };
     },
@@ -202,7 +205,9 @@ export function WorkoutSessionWithHealthAdvice({
     }
 
     if (integrationState === "disconnected") {
-      return "🔌 Reconnect WHOOP";
+      return isManualWellnessEnabled
+        ? "🎯 Quick Wellness Check"
+        : "🤖 Get Workout Intelligence";
     }
 
     return "🤖 Get Workout Intelligence";
@@ -346,11 +351,7 @@ export function WorkoutSessionWithHealthAdvice({
         );
         setShowManualWellnessModal(true);
       } else {
-        showToast(
-          "WHOOP connection requires attention. Reconnect to keep insights flowing.",
-          "info",
-        );
-        handleConnectWhoop();
+        setShowWellnessModal(true);
       }
       return;
     }
@@ -784,10 +785,7 @@ export function WorkoutSessionWithHealthAdvice({
       />
 
       {sessionState ? (
-        <WorkoutSessionWithState
-          sessionId={sessionId}
-          state={sessionState}
-        />
+        <WorkoutSessionWithState sessionId={sessionId} state={sessionState} />
       ) : null}
     </div>
   );
@@ -978,17 +976,9 @@ function WorkoutSessionStickyHeader({
               </p>
             </div>
             {typeof readiness === "number" && (
-              <div
-                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                  readiness > 0.7
-                    ? "bg-green-100 text-green-800"
-                    : readiness > 0.4
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-red-100 text-red-800"
-                }`}
-              >
+              <StatusBadge status={getReadinessStatus(readiness)}>
                 Readiness: {Math.round(readiness * 100)}%
-              </div>
+              </StatusBadge>
             )}
           </div>
           <Button variant="default" size="sm">
@@ -1001,10 +991,12 @@ function WorkoutSessionStickyHeader({
 }
 
 function ErrorNotice({ message }: { message: string }) {
+  const errorClasses = getStatusClasses("error");
+  
   return (
-    <div className="glass-surface rounded-lg border border-red-500/40 p-4 text-red-600">
-      <h3 className="font-semibold">Health Advice Error</h3>
-      <p className="mt-1 text-sm">{message}</p>
+    <div className={`glass-surface rounded-lg border ${errorClasses.border}/40 p-4 ${errorClasses.text}`}>
+      <h3 className="font-semibold text-content-primary">Health Advice Error</h3>
+      <p className="mt-1 text-sm text-content-primary">{message}</p>
     </div>
   );
 }

@@ -17,13 +17,13 @@ import {
 import { useAuth } from "~/providers/AuthProvider";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
-const getQueryClient = () => {
+const getQueryClient = (onAuthFailure?: () => void) => {
   if (typeof window === "undefined") {
     // Server: always make a new query client
-    return createQueryClient();
+    return createQueryClient(onAuthFailure);
   }
   // Browser: use singleton pattern to keep the same query client
-  clientQueryClientSingleton ??= createQueryClient();
+  clientQueryClientSingleton ??= createQueryClient(onAuthFailure);
 
   return clientQueryClientSingleton;
 };
@@ -45,8 +45,8 @@ export type RouterInputs = inferRouterInputs<AppRouter>;
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
-  const queryClient = getQueryClient();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, onAuthFailure } = useAuth();
+  const queryClient = getQueryClient(onAuthFailure);
   const previousUserIdRef = useRef<string | null>(null);
   const userId = user?.id ?? null;
 

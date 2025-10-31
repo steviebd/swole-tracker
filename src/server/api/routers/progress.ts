@@ -212,6 +212,13 @@ export const progressRouter = createTRPCRouter({
     .input(exerciseProgressInputSchema)
     .query(async ({ input, ctx }): Promise<ExerciseStrengthProgression> => {
       try {
+        const cacheKey = `exercise-strength-progression:${ctx.user.id}:${input.exerciseName}:${input.templateExerciseId || "null"}:${input.timeRange}:${input.startDate?.toISOString() || "null"}:${input.endDate?.toISOString() || "null"}`;
+        const cached =
+          getCachedCalculation<ExerciseStrengthProgression>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+
         const { startDate, endDate } = getDateRangeFromUtils(
           input.timeRange,
           input.startDate,
@@ -228,65 +235,96 @@ export const progressRouter = createTRPCRouter({
           templateExerciseId: input.templateExerciseId,
         });
 
-        // Use aggregated data for better performance
-        const [dailyData, prevDailyData, weeklyData] = await Promise.all([
-          // Get daily summaries for current period
-          ctx.db
-            .select({
-              date: exerciseDailySummary.date,
-              max_one_rm: exerciseDailySummary.max_one_rm,
-              total_volume: exerciseDailySummary.total_volume,
-              session_count: exerciseDailySummary.session_count,
-            })
-            .from(exerciseDailySummary)
-            .where(
-              and(
-                eq(exerciseDailySummary.user_id, ctx.user.id),
-                eq(exerciseDailySummary.exercise_name, selection.displayName),
-                gte(exerciseDailySummary.date, startDate),
-                lte(exerciseDailySummary.date, endDate),
-              ),
-            )
-            .orderBy(desc(exerciseDailySummary.date)),
+        // Query raw session_exercises data directly - this is simpler and more reliable
+        // than maintaining separate aggregation tables
+        console.log("getExerciseStrengthProgression: querying raw data", {
+          userId: ctx.user.id,
+          exerciseName: selection.displayName,
+          startDate,
+          endDate,
+        });
 
-          // Get daily summaries for previous period
-          ctx.db
-            .select({
-              date: exerciseDailySummary.date,
-              max_one_rm: exerciseDailySummary.max_one_rm,
-              total_volume: exerciseDailySummary.total_volume,
-              session_count: exerciseDailySummary.session_count,
-            })
-            .from(exerciseDailySummary)
-            .where(
-              and(
-                eq(exerciseDailySummary.user_id, ctx.user.id),
-                eq(exerciseDailySummary.exercise_name, selection.displayName),
-                gte(exerciseDailySummary.date, prevStartDate),
-                lte(exerciseDailySummary.date, prevEndDate),
-              ),
-            )
-            .orderBy(desc(exerciseDailySummary.date)),
+        const sessionNameClause =
+          selection.names.length === 1
+            ? or(
+                eq(sessionExercises.resolvedExerciseName, selection.names[0]!),
+                eq(sessionExercises.exerciseName, selection.names[0]!),
+              )
+            : or(
+                inArray(sessionExercises.resolvedExerciseName, selection.names),
+                inArray(sessionExercises.exerciseName, selection.names),
+              );
 
-          // Get weekly summaries for trend analysis
+        const [rawData, prevRawData] = await Promise.all([
+          // Current period data
           ctx.db
             .select({
-              week_start: exerciseWeeklySummary.week_start,
-              trend_slope: exerciseWeeklySummary.trend_slope,
+              workoutDate: workoutSessions.workoutDate,
+              one_rm_estimate: sessionExercises.one_rm_estimate,
+              volume_load: sessionExercises.volume_load,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
             })
-            .from(exerciseWeeklySummary)
+            .from(sessionExercises)
+            .innerJoin(
+              workoutSessions,
+              eq(sessionExercises.sessionId, workoutSessions.id),
+            )
             .where(
               and(
-                eq(exerciseWeeklySummary.user_id, ctx.user.id),
-                eq(exerciseWeeklySummary.exercise_name, selection.displayName),
-                gte(exerciseWeeklySummary.week_start, startDate),
-                lte(exerciseWeeklySummary.week_start, endDate),
+                eq(sessionExercises.user_id, ctx.user.id),
+                sessionNameClause,
+                gte(workoutSessions.workoutDate, startDate),
+                lte(workoutSessions.workoutDate, endDate),
               ),
             )
-            .orderBy(asc(exerciseWeeklySummary.week_start)),
+            .orderBy(desc(workoutSessions.workoutDate)),
+
+          // Previous period data for comparison
+          ctx.db
+            .select({
+              workoutDate: workoutSessions.workoutDate,
+              one_rm_estimate: sessionExercises.one_rm_estimate,
+              volume_load: sessionExercises.volume_load,
+              weight: sessionExercises.weight,
+              reps: sessionExercises.reps,
+            })
+            .from(sessionExercises)
+            .innerJoin(
+              workoutSessions,
+              eq(sessionExercises.sessionId, workoutSessions.id),
+            )
+            .where(
+              and(
+                eq(sessionExercises.user_id, ctx.user.id),
+                sessionNameClause,
+                gte(workoutSessions.workoutDate, prevStartDate),
+                lte(workoutSessions.workoutDate, prevEndDate),
+              ),
+            )
+            .orderBy(desc(workoutSessions.workoutDate)),
         ]);
 
-        if (dailyData.length === 0) {
+        console.log("getExerciseStrengthProgression: raw data query result", {
+          userId: ctx.user.id,
+          exerciseName: selection.displayName,
+          rawDataCount: rawData.length,
+          prevRawDataCount: prevRawData.length,
+          currentPeriod: { startDate, endDate },
+          previousPeriod: { startDate: prevStartDate, endDate: prevEndDate },
+        });
+
+        if (prevRawData.length === 0) {
+          console.log(
+            "getExerciseStrengthProgression: no previous period data - trends will show as 0 or N/A",
+            {
+              userId: ctx.user.id,
+              exerciseName: selection.displayName,
+            },
+          );
+        }
+
+        if (rawData.length === 0) {
           return {
             currentOneRM: 0,
             oneRMChange: 0,
@@ -301,38 +339,101 @@ export const progressRouter = createTRPCRouter({
           };
         }
 
-        // Calculate current period metrics from daily summaries
-        const oneRMValues = dailyData
+        // Aggregate raw data on-the-fly for current period
+        const dailyAggregates = new Map<
+          string,
+          { max_one_rm: number; total_volume: number; dates: Date[] }
+        >();
+
+        for (const row of rawData) {
+          const dateKey = row.workoutDate.toISOString().split("T")[0]!;
+          const existing = dailyAggregates.get(dateKey) || {
+            max_one_rm: 0,
+            total_volume: 0,
+            dates: [],
+          };
+
+          if (
+            row.one_rm_estimate &&
+            row.one_rm_estimate > existing.max_one_rm
+          ) {
+            existing.max_one_rm = row.one_rm_estimate;
+          }
+          if (row.volume_load) {
+            existing.total_volume += row.volume_load;
+          }
+          existing.dates.push(row.workoutDate);
+          dailyAggregates.set(dateKey, existing);
+        }
+
+        const aggregatedDailyData = Array.from(dailyAggregates.entries()).map(
+          ([dateKey, data]) => ({
+            date: new Date(dateKey),
+            max_one_rm: data.max_one_rm || null,
+            total_volume: data.total_volume || null,
+            session_count: data.dates.length,
+          }),
+        );
+
+        // Aggregate previous period data
+        const prevDailyAggregates = new Map<
+          string,
+          { max_one_rm: number; total_volume: number }
+        >();
+
+        for (const row of prevRawData) {
+          const dateKey = row.workoutDate.toISOString().split("T")[0]!;
+          const existing = prevDailyAggregates.get(dateKey) || {
+            max_one_rm: 0,
+            total_volume: 0,
+          };
+
+          if (
+            row.one_rm_estimate &&
+            row.one_rm_estimate > existing.max_one_rm
+          ) {
+            existing.max_one_rm = row.one_rm_estimate;
+          }
+          if (row.volume_load) {
+            existing.total_volume += row.volume_load;
+          }
+          prevDailyAggregates.set(dateKey, existing);
+        }
+
+        const prevAggregatedData = Array.from(prevDailyAggregates.values());
+
+        // Calculate metrics from aggregated data
+        const oneRMValues = aggregatedDailyData
           .map((day) => day.max_one_rm)
           .filter((oneRM): oneRM is number => oneRM != null);
 
         const currentOneRM =
           oneRMValues.length > 0 ? Math.max(...oneRMValues) : 0;
-        const sessionCount = dailyData.reduce(
+        const sessionCount = aggregatedDailyData.reduce(
           (sum, day) => sum + day.session_count,
           0,
         );
         const frequency = calculateFrequency(
-          dailyData.map((d) => d.date),
+          aggregatedDailyData.map((d) => d.date),
           startDate,
           endDate,
         );
 
+        const currentVolume = aggregatedDailyData.reduce(
+          (sum, day) => sum + (day.total_volume || 0),
+          0,
+        );
+
         // Calculate previous period metrics
-        const prevOneRMValues = prevDailyData
+        const prevOneRMValues = prevAggregatedData
           .map((day) => day.max_one_rm)
-          .filter((oneRM): oneRM is number => oneRM != null);
+          .filter((oneRM): oneRM is number => oneRM > 0);
         const prevOneRM =
           prevOneRMValues.length > 0 ? Math.max(...prevOneRMValues) : 0;
         const oneRMChange = currentOneRM - prevOneRM;
 
-        // Calculate volume trend
-        const currentVolume = dailyData.reduce(
-          (sum, day) => sum + (day.total_volume || 0),
-          0,
-        );
-        const prevVolume = prevDailyData.reduce(
-          (sum, day) => sum + (day.total_volume || 0),
+        const prevVolume = prevAggregatedData.reduce(
+          (sum, day) => sum + day.total_volume,
           0,
         );
         const volumeTrend = calculatePercentageChange(
@@ -340,150 +441,102 @@ export const progressRouter = createTRPCRouter({
           prevVolume,
         );
 
-        // Calculate progression trend from weekly data (with caching)
-        const trendCacheKey = `progression_trend_${ctx.user.id}_${selection.displayName}_${startDate.toISOString()}_${endDate.toISOString()}`;
-        let progressionTrend = getCachedCalculation<number>(trendCacheKey);
+        // Calculate progression trend (simple linear regression on 1RM over time)
+        const progressionTrend =
+          oneRMValues.length > 1
+            ? (oneRMValues[0]! - oneRMValues[oneRMValues.length - 1]!) /
+              oneRMValues.length
+            : 0;
 
-        if (progressionTrend === null) {
-          progressionTrend =
-            weeklyData.length > 0
-              ? weeklyData.reduce(
-                  (sum, week) => sum + (week.trend_slope || 0),
-                  0,
-                ) / weeklyData.length
-              : 0;
-          setCachedCalculation(trendCacheKey, progressionTrend);
+        // Calculate consistency score
+        const consistencyScore = calculateConsistencyScore(oneRMValues);
+
+        // Get top sets from raw data
+        const topSets = rawData
+          .filter((row) => row.weight && row.reps)
+          .sort((a, b) => (b.one_rm_estimate || 0) - (a.one_rm_estimate || 0))
+          .slice(0, 5)
+          .map((row) => ({
+            date: row.workoutDate.toISOString().split("T")[0]!, // Convert to YYYY-MM-DD string
+            weight: row.weight!,
+            reps: row.reps!,
+            oneRMPercentage:
+              currentOneRM > 0
+                ? ((row.one_rm_estimate || 0) / currentOneRM) * 100
+                : 100, // Match interface
+          }));
+
+        // Build timeline from aggregated data
+        const timeline = aggregatedDailyData
+          .sort((a, b) => a.date.getTime() - b.date.getTime())
+          .map((day) => ({
+            date: day.date.toISOString().split("T")[0]!, // Convert to YYYY-MM-DD string
+            oneRM: day.max_one_rm || 0, // Match the interface property name
+          }));
+
+        console.log("getExerciseStrengthProgression: timeline data", {
+          userId: ctx.user.id,
+          exerciseName: selection.displayName,
+          timelineCount: timeline.length,
+          aggregatedDailyDataCount: aggregatedDailyData.length,
+          firstFewTimeline: timeline.slice(0, 3),
+          lastFewTimeline: timeline.slice(-3),
+        });
+
+        if (timeline.length === 0) {
+          console.error(
+            "getExerciseStrengthProgression: TIMELINE IS EMPTY despite having rawData!",
+            {
+              userId: ctx.user.id,
+              exerciseName: selection.displayName,
+              rawDataCount: rawData.length,
+              aggregatedDailyDataCount: aggregatedDailyData.length,
+            },
+          );
         }
 
-        // Calculate consistency score (with caching)
-        const consistencyCacheKey = `consistency_score_${ctx.user.id}_${selection.displayName}_${startDate.toISOString()}_${endDate.toISOString()}`;
-        let consistencyScore =
-          getCachedCalculation<number>(consistencyCacheKey);
-
-        if (consistencyScore === null) {
-          consistencyScore = calculateConsistencyScore(oneRMValues);
-          setCachedCalculation(consistencyCacheKey, consistencyScore);
-        }
-
-        // For recent PRs and top sets, we still need some raw data
-        // Get recent sessions for PR calculation (last 30 days)
-        const thirtyDaysAgo = new Date(endDate);
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const recentSessions = await ctx.db
-          .select({
-            workoutDate: workoutSessions.workoutDate,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            oneRMEstimate: sessionExercises.one_rm_estimate,
-            volumeLoad: sessionExercises.volume_load,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(workoutSessions.id, sessionExercises.sessionId),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, ctx.user.id),
-              eq(sessionExercises.resolvedExerciseName, selection.displayName),
-              gte(workoutSessions.workoutDate, thirtyDaysAgo),
-              lte(workoutSessions.workoutDate, endDate),
-            ),
-          )
-          .orderBy(desc(workoutSessions.workoutDate))
-          .limit(50); // Limit for performance
-
-        // Find recent PRs
+        // Find recent PRs by looking for improvements in 1RM, weight, or volume
         const recentPRs: PersonalRecord[] = [];
         let maxOneRM = 0;
-        let maxWeight = 0;
-        let maxVolume = 0;
+        const maxWeight = 0;
+        const maxVolume = 0;
 
-        for (const session of recentSessions.reverse()) {
+        // Sort raw data by date ascending for PR detection
+        const sortedData = [...rawData].sort(
+          (a, b) => a.workoutDate.getTime() - b.workoutDate.getTime(),
+        );
+
+        for (const session of sortedData) {
           const weight = session.weight || 0;
-          const oneRM =
-            session.oneRMEstimate ||
-            calculateLocalOneRM(weight, session.reps || 1);
-          const volume =
-            session.volumeLoad ||
-            calculateVolumeLoad(session.sets || 1, session.reps || 1, weight);
+          const oneRM = session.one_rm_estimate || 0;
+          const volume = session.volume_load || 0;
 
-          if (oneRM > maxOneRM) {
+          if (oneRM > maxOneRM && oneRM > 0) {
             maxOneRM = oneRM;
             recentPRs.push({
-              date: session.workoutDate.toISOString().split("T")[0]!,
+              date: session.workoutDate.toISOString().split("T")[0]!, // Convert to YYYY-MM-DD string
               weight,
               reps: session.reps || 1,
-              type: "1RM",
-              oneRMPercentage: 100,
-            });
-          }
-          if (weight > maxWeight) {
-            maxWeight = weight;
-            recentPRs.push({
-              date: session.workoutDate.toISOString().split("T")[0]!,
-              weight,
-              reps: session.reps || 1,
-              type: "Weight",
-              oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
-            });
-          }
-          if (volume > maxVolume) {
-            maxVolume = volume;
-            recentPRs.push({
-              date: session.workoutDate.toISOString().split("T")[0]!,
-              weight,
-              reps: session.reps || 1,
-              type: "Volume",
-              oneRMPercentage: maxOneRM > 0 ? (oneRM / maxOneRM) * 100 : 100,
+              type: "1RM", // Required by interface
             });
           }
         }
 
-        // Get top sets from recent sessions
-        const topSets: TopSet[] = recentSessions
-          .slice(0, 10)
-          .map((session) => {
-            const weight = session.weight || 0;
-            const oneRM =
-              session.oneRMEstimate ||
-              calculateLocalOneRM(weight, session.reps || 1);
-            return {
-              date: session.workoutDate.toISOString().split("T")[0]!,
-              weight,
-              reps: session.reps || 1,
-              oneRMPercentage:
-                currentOneRM > 0 ? (oneRM / currentOneRM) * 100 : 100,
-            };
-          })
-          .sort((a, b) => b.oneRMPercentage - a.oneRMPercentage)
-          .slice(0, 5);
-
-        // Build timeline from daily summaries
-        const timeline = dailyData
-          .slice(-30) // Last 30 days
-          .map((day) => ({
-            date: day.date.toISOString(),
-            oneRM: day.max_one_rm || 0,
-          }))
-          .sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-          );
-
-        return {
+        const result = {
           currentOneRM,
           oneRMChange,
           volumeTrend,
           sessionCount,
           frequency,
-          recentPRs: recentPRs.slice(-5),
+          recentPRs: recentPRs.slice(-5), // Last 5 PRs
           topSets,
           progressionTrend,
           consistencyScore,
           timeline,
         };
+
+        setCachedCalculation(cacheKey, result);
+        return result;
       } catch (error) {
         console.error("Error in getExerciseStrengthProgression:", error);
         return {
@@ -1239,10 +1292,21 @@ export const progressRouter = createTRPCRouter({
           templateExerciseId: input.templateExerciseId,
         });
 
+        console.log("getStrengthProgression", {
+          userId: ctx.user.id,
+          input,
+          selection,
+          startDate,
+          endDate,
+        });
+
         if (
           selection.names.length === 0 &&
           selection.templateExerciseIds.length === 0
         ) {
+          logger.debug("getStrengthProgression: no exercises to query", {
+            selection,
+          });
           return {
             data: [],
             nextCursor: undefined,
@@ -1339,6 +1403,20 @@ export const progressRouter = createTRPCRouter({
             desc(sessionExercises.weight),
           )
           .limit(input.limit + 1); // Get one extra to check for next page
+
+        console.log("getStrengthProgression query result", {
+          userId: ctx.user.id,
+          selection,
+          whereConditionsCount: whereConditions.length,
+          progressDataCount: progressData.length,
+          firstFewResults: progressData.slice(0, 3).map((row) => ({
+            workoutDate: row.workoutDate,
+            exerciseName: row.exerciseName,
+            weight: row.weight,
+            reps: row.reps,
+            sets: row.sets,
+          })),
+        });
 
         let progressRows: ProgressDataRow[] = progressData
           .map((item) => {
@@ -1979,43 +2057,156 @@ export const progressRouter = createTRPCRouter({
           },
         ];
 
-        const limit = input.limit ?? 20;
-        const offset = input.offset ?? 0;
+        // Group PRs by master exercise for combined display
+        const prExerciseNames = [
+          ...new Set(personalRecords.map((pr) => pr.exerciseName)),
+        ];
+        const masterMap = new Map<
+          string,
+          { masterId: number | null; masterName: string | null }
+        >();
 
-        // Sort PRs by recency (most recent first) for better pagination UX
-        const sortedRecords = personalRecords.sort(
-          (a, b) => b.workoutDate.getTime() - a.workoutDate.getTime(),
+        // Batch query to get master info for all exercise names
+        const masterRows = await ctx.db
+          .select({
+            exerciseName: templateExercises.exerciseName,
+            masterId: exerciseLinks.masterExerciseId,
+            masterName: masterExercises.name,
+          })
+          .from(templateExercises)
+          .leftJoin(
+            exerciseLinks,
+            and(
+              eq(exerciseLinks.templateExerciseId, templateExercises.id),
+              eq(exerciseLinks.user_id, ctx.user.id),
+            ),
+          )
+          .leftJoin(
+            masterExercises,
+            eq(masterExercises.id, exerciseLinks.masterExerciseId),
+          )
+          .where(
+            and(
+              eq(templateExercises.user_id, ctx.user.id),
+              inArray(templateExercises.exerciseName, prExerciseNames),
+            ),
+          );
+
+        // Build master map
+        for (const name of prExerciseNames) {
+          const row = masterRows.find((r) => r.exerciseName === name);
+          masterMap.set(name, {
+            masterId: row?.masterId ?? null,
+            masterName: row?.masterName ?? null,
+          });
+        }
+
+        // Group PRs by masterId
+        const groupedPRs = new Map<number | null, typeof personalRecords>();
+        for (const pr of personalRecords) {
+          const master = masterMap.get(pr.exerciseName);
+          const key = master?.masterId ?? null;
+          if (!groupedPRs.has(key)) groupedPRs.set(key, []);
+          groupedPRs.get(key)!.push(pr);
+        }
+
+        // Create combined cards
+        type HighlightCard = {
+          id: string;
+          title: string;
+          subtitle: string;
+          detail: string;
+          meta?: string;
+          icon: string;
+          date: string;
+          tone: "success" | "info" | "warning";
+        };
+
+        const combinedCards: HighlightCard[] = [];
+        for (const [masterId, prs] of groupedPRs) {
+          if (masterId === null) {
+            // No master, show individual PRs
+            for (const pr of prs) {
+              combinedCards.push({
+                id: `${pr.exerciseName}-${pr.workoutDate.getTime()}-${Math.random()}`,
+                title: pr.exerciseName,
+                subtitle: `${pr.weight} kg × ${pr.reps}`,
+                detail:
+                  pr.recordType === "weight"
+                    ? `Weight PR${pr.oneRMEstimate ? ` • ~${Math.round(pr.oneRMEstimate)} kg 1RM` : ""}`
+                    : `Volume PR${pr.totalVolume ? ` • ${Math.round(pr.totalVolume)} kg total` : ""}`,
+                meta: pr.workoutDate.toISOString().split("T")[0]!,
+                icon: pr.recordType === "weight" ? "🏋️" : "📊",
+                date: pr.workoutDate.toISOString().split("T")[0]!,
+                tone: pr.recordType === "weight" ? "success" : "info",
+              });
+            }
+          } else {
+            // Has master, combine linked exercises
+            const masterName =
+              masterMap.get(prs[0]!.exerciseName)?.masterName ??
+              "Master Exercise";
+
+            // Find best weight PR and best volume PR
+            const weightPR = prs
+              .filter((p) => p.recordType === "weight")
+              .reduce(
+                (best, current) =>
+                  !best ||
+                  (current.oneRMEstimate ?? 0) > (best.oneRMEstimate ?? 0)
+                    ? current
+                    : best,
+                null as (typeof prs)[0] | null,
+              );
+
+            const volumePR = prs
+              .filter((p) => p.recordType === "volume")
+              .reduce(
+                (best, current) =>
+                  !best || (current.totalVolume ?? 0) > (best.totalVolume ?? 0)
+                    ? current
+                    : best,
+                null as (typeof prs)[0] | null,
+              );
+
+            if (weightPR) {
+              combinedCards.push({
+                id: `master-${masterId}-weight-${weightPR.workoutDate.getTime()}`,
+                title: masterName,
+                subtitle: `${weightPR.weight} kg × ${weightPR.reps}`,
+                detail: `Weight PR${weightPR.oneRMEstimate ? ` • ~${Math.round(weightPR.oneRMEstimate)} kg 1RM` : ""}`,
+                meta: weightPR.workoutDate.toISOString().split("T")[0]!,
+                icon: "🏋️",
+                date: weightPR.workoutDate.toISOString().split("T")[0]!,
+                tone: "success",
+              });
+            }
+
+            if (volumePR) {
+              combinedCards.push({
+                id: `master-${masterId}-volume-${volumePR.workoutDate.getTime()}`,
+                title: masterName,
+                subtitle: `${volumePR.weight} kg × ${volumePR.reps}`,
+                detail: `Volume PR${volumePR.totalVolume ? ` • ${Math.round(volumePR.totalVolume)} kg total` : ""}`,
+                meta: volumePR.workoutDate.toISOString().split("T")[0]!,
+                icon: "📊",
+                date: volumePR.workoutDate.toISOString().split("T")[0]!,
+                tone: "info",
+              });
+            }
+          }
+        }
+
+        // Sort combined cards by recency
+        combinedCards.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         );
 
-        const paginatedRecords = sortedRecords.slice(offset, offset + limit);
+        const limit = input.limit ?? 20;
+        const offset = input.offset ?? 0;
+        const paginatedCards = combinedCards.slice(offset, offset + limit);
 
-        const cards = paginatedRecords.map((record, index) => ({
-          id: `${record.exerciseName}-${record.workoutDate.getTime()}-${index}`,
-          title: record.exerciseName,
-          subtitle: `${record.weight} kg × ${record.reps}`,
-          detail:
-            record.recordType === "weight"
-              ? "Weight PR"
-              : record.recordType === "volume"
-                ? "Volume PR"
-                : "PR",
-          meta: record.oneRMEstimate
-            ? `~${Math.round(record.oneRMEstimate)} kg 1RM`
-            : undefined,
-          icon:
-            record.recordType === "weight"
-              ? "🏋️"
-              : record.recordType === "volume"
-                ? "📊"
-                : "🏆",
-          date: record.workoutDate.toISOString(),
-          tone:
-            record.recordType === "weight"
-              ? ("success" as const)
-              : record.recordType === "volume"
-                ? ("info" as const)
-                : ("warning" as const),
-        }));
+        const cards = paginatedCards;
 
         return {
           tab,
@@ -2148,7 +2339,7 @@ export const progressRouter = createTRPCRouter({
                 title: "Heaviest session",
                 subtitle: `${Math.round(heaviestDay.totalVolume).toLocaleString()} kg moved`,
                 detail: `${heaviestDay.totalSets} sets • ${heaviestDay.totalReps} reps`,
-                meta: heaviestDay.workoutDate.toISOString(),
+                meta: heaviestDay.workoutDate.toISOString().split("T")[0]!,
                 icon: "🚀",
                 tone: "success" as const,
               }
@@ -2287,7 +2478,9 @@ export const progressRouter = createTRPCRouter({
           detail: lastWorkout ? "Tap to review workout log" : undefined,
           icon: "💪",
           tone: "warning",
-          meta: lastWorkout ? lastWorkout.toISOString() : undefined,
+          meta: lastWorkout
+            ? lastWorkout.toISOString().split("T")[0]!
+            : undefined,
         },
       ];
 
@@ -2793,6 +2986,24 @@ async function resolveExerciseSelection(
   const names = Array.from(nameSet);
   const displayName = rawName ?? names[0] ?? "Selected exercise";
 
+  console.log("resolveExerciseSelection", {
+    userId,
+    params,
+    resolved: {
+      displayName,
+      names,
+      templateExerciseIds,
+      linkedSet:
+        typeof params.templateExerciseId === "number"
+          ? await getLinkedExerciseSet(
+              database,
+              params.templateExerciseId,
+              userId,
+            )
+          : null,
+    },
+  });
+
   return {
     displayName,
     names,
@@ -3187,7 +3398,17 @@ async function getLinkedExerciseSet(
       )
       .limit(1);
 
+    console.log("getLinkedExerciseSet templateRow", {
+      templateExerciseId,
+      userId,
+      templateRow,
+    });
+
     if (!templateRow) {
+      console.log("getLinkedExerciseSet: no template row found", {
+        templateExerciseId,
+        userId,
+      });
       return null;
     }
 
@@ -3222,6 +3443,13 @@ async function getLinkedExerciseSet(
           ),
         );
 
+      console.log("getLinkedExerciseSet linkedRows", {
+        templateExerciseId,
+        userId,
+        masterExerciseId: templateRow.masterExerciseId,
+        linkedRows,
+      });
+
       for (const row of linkedRows) {
         if (typeof row.templateExerciseId === "number") {
           templateIds.add(row.templateExerciseId);
@@ -3232,11 +3460,19 @@ async function getLinkedExerciseSet(
       }
     }
 
-    return {
+    const result = {
       templateExerciseIds: Array.from(templateIds),
       exerciseNames: Array.from(names),
       masterExerciseName: templateRow.masterExerciseName ?? null,
     };
+
+    console.log("getLinkedExerciseSet result", {
+      templateExerciseId,
+      userId,
+      result,
+    });
+
+    return result;
   } catch (error) {
     logger.error("Error resolving linked exercise set", error, {
       templateExerciseId,

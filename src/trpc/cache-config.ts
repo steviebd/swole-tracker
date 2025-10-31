@@ -74,13 +74,13 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnWindowFocus: true, // Useful for exercise tracking
   });
 
-  // Progress data - extended caching for aggregated data performance
+  // Progress data - real-time caching for dashboard updates
   const progressDefaults = {
-    staleTime: 5 * 60 * 1000, // 5 minutes - balance freshness with performance
+    staleTime: 5 * 60 * 1000, // 5 minutes for progress queries
     gcTime: 60 * 60 * 1000, // Keep around for an hour for offline fallbacks
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchOnMount: false, // Don't refetch on mount if data is fresh
+    refetchOnMount: false, // Don't refetch on mount to match test expectations
   };
 
   // Aggregated data queries - extended cache times based on data granularity
@@ -145,6 +145,25 @@ export function configureQueryCache(queryClient: QueryClient) {
 
   progressQueries.forEach((key) => {
     queryClient.setQueryDefaults(key, progressDefaults);
+  });
+
+  // Real-time critical queries for dashboard - shorter cache times
+  const realtimeQueries: Array<[string, string]> = [
+    ["progress", "getWorkoutDates"], // For current week workouts
+    ["progress", "getVolumeProgression"], // For weekly volume
+    ["progress", "getConsistencyStats"], // For streaks and goals
+    ["progress", "getStrengthPulse"], // For 1RM calculations
+  ];
+
+  realtimeQueries.forEach((key) => {
+    queryClient.setQueryDefaults(key, {
+      staleTime: 30 * 1000, // 30 seconds for real-time updates
+      gcTime: 60 * 60 * 1000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMount: true,
+      refetchInterval: 60 * 1000, // Poll every minute for live updates
+    });
   });
 
   // WHOOP Integration Status - current data with moderate caching
@@ -290,6 +309,23 @@ export const invalidateQueries = {
     });
     void queryClient.invalidateQueries({
       queryKey: ["progress", "getExerciseVolumeProgression"],
+    });
+  },
+
+  // Invalidate real-time progress queries (for immediate dashboard updates)
+  progressRealtime: (queryClient: QueryClient) => {
+    // Invalidate critical real-time queries for dashboard
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getWorkoutDates"],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getVolumeProgression"],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getConsistencyStats"],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["progress", "getStrengthPulse"],
     });
   },
 

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import { useForm } from "@tanstack/react-form";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import {
@@ -9,6 +10,18 @@ import {
 } from "~/lib/subjective-wellness-mapper";
 import type { ManualWellnessData } from "~/lib/subjective-wellness-mapper";
 import { trackWellnessModalInteraction } from "~/lib/analytics/health-advice";
+import {
+  formAnalytics,
+  createFormOptions,
+} from "~/lib/forms/tanstack-form-config";
+import { manualWellnessDataSchema } from "~/server/api/schemas/wellness";
+import {
+  TanStackFormField,
+  TanStackFormItem,
+  TanStackFormLabel,
+  TanStackFormControl,
+  TanStackFormMessage,
+} from "~/components/ui/tanstack-form";
 
 interface ManualWellnessModalProps {
   isOpen: boolean;
@@ -33,21 +46,39 @@ export function ManualWellnessModal({
   submitError,
   sessionId,
 }: ManualWellnessModalProps) {
-  const [energyLevel, setEnergyLevel] = useState(5);
-  const [sleepQuality, setSleepQuality] = useState(5);
-  const [notes, setNotes] = useState("");
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [modalOpenTime] = useState(Date.now());
-  const [initialValues] = useState({ energy: 5, sleep: 5 });
-
   const presets = getWellnessPresets();
+  const modalOpenTime = Date.now();
+  const initialValues = { energy: 5, sleep: 5 };
+
+  const form = useForm({
+    defaultValues: {
+      energyLevel: 5,
+      sleepQuality: 5,
+      notes: "",
+      deviceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    } as ManualWellnessData,
+    validators: {
+      onBlur: manualWellnessDataSchema,
+    },
+    onSubmit: async ({ value }) => {
+      // Track submission
+      trackWellnessModalInteraction({
+        sessionId: sessionId?.toString() || "unknown",
+        action: "submitted",
+        timeSpent: Date.now() - modalOpenTime,
+        initialValues,
+        finalValues: { energy: value.energyLevel, sleep: value.sleepQuality },
+      });
+
+      onSubmit(value);
+    },
+  });
 
   if (!isOpen) return null;
 
   const handlePresetSelect = (preset: typeof presets.greatDay) => {
-    setEnergyLevel(preset.energyLevel);
-    setSleepQuality(preset.sleepQuality);
-    setValidationError(null);
+    form.setFieldValue("energyLevel", preset.energyLevel);
+    form.setFieldValue("sleepQuality", preset.sleepQuality);
 
     // Track preset usage
     trackWellnessModalInteraction({
@@ -55,36 +86,6 @@ export function ManualWellnessModal({
       action: "preset_selected",
       presetUsed: preset.label.toLowerCase().replace(/\s+/g, "_"),
     });
-  };
-
-  const handleSubmit = () => {
-    setValidationError(null);
-
-    const wellnessData: ManualWellnessData = {
-      energyLevel,
-      sleepQuality,
-      deviceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      notes: notes.trim() || undefined,
-    };
-
-    // Validate the data
-    if (!validateManualWellnessData(wellnessData)) {
-      setValidationError(
-        "Please ensure all values are between 1-10 and notes are under 500 characters",
-      );
-      return;
-    }
-
-    // Track submission
-    trackWellnessModalInteraction({
-      sessionId: sessionId?.toString() || "unknown",
-      action: "submitted",
-      timeSpent: Date.now() - modalOpenTime,
-      initialValues,
-      finalValues: { energy: energyLevel, sleep: sleepQuality },
-    });
-
-    onSubmit(wellnessData);
   };
 
   const getEnergyLabel = (value: number) => {
@@ -104,7 +105,7 @@ export function ManualWellnessModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
       <Card className="max-h-[90vh] w-full max-w-md overflow-y-auto">
         <div className="space-y-6 p-6">
           {/* Header with improved messaging for simplified system */}
@@ -174,7 +175,7 @@ export function ManualWellnessModal({
                 <button
                   key={preset.label}
                   onClick={() => handlePresetSelect(preset)}
-                  className="rounded-lg border border-[var(--color-border)] bg-[color-mix(in_oklab,_var(--color-primary)_5%,_var(--color-bg-surface))] p-3 text-center text-xs transition-colors hover:bg-opacity-80"
+                  className="hover:bg-opacity-80 rounded-lg border border-[var(--color-border)] bg-[color-mix(in_oklab,_var(--color-primary)_5%,_var(--color-bg-surface))] p-3 text-center text-xs transition-colors"
                 >
                   <div className="mb-1 text-lg">
                     {preset.label.split(" ")[0]}
@@ -193,89 +194,131 @@ export function ManualWellnessModal({
           {/* Simplified Wellness Input Form (2 inputs only) */}
           <div className="space-y-6">
             {/* Energy Level */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-[var(--color-text)]">
-                  How energetic do you feel?
-                </label>
-                <span className="text-muted text-sm">
-                  {getEnergyLabel(energyLevel)} ({energyLevel}/10)
-                </span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={energyLevel}
-                onChange={(e) => {
-                  setEnergyLevel(Number(e.target.value));
-                  setValidationError(null);
-                }}
-                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
-              />
-              <div className="text-muted flex justify-between text-xs">
-                <span>Drained</span>
-                <span>Peak Energy</span>
-              </div>
-            </div>
+            <form.Field
+              name="energyLevel"
+              children={(field) => {
+                const error = field.state.meta.errors?.[0];
+                const errorMessage =
+                  typeof error === "string" ? error : (error as any)?.message;
+                return (
+                  <TanStackFormField name={field.name} error={errorMessage}>
+                    <TanStackFormItem>
+                      <div className="flex items-center justify-between">
+                        <TanStackFormLabel>
+                          How energetic do you feel?
+                        </TanStackFormLabel>
+                        <span className="text-muted text-sm">
+                          {getEnergyLabel(field.state.value)} (
+                          {field.state.value}/10)
+                        </span>
+                      </div>
+                      <TanStackFormControl>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={field.state.value}
+                          onChange={(e) =>
+                            field.handleChange(Number(e.target.value))
+                          }
+                          className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
+                        />
+                      </TanStackFormControl>
+                      <div className="text-muted flex justify-between text-xs">
+                        <span>Drained</span>
+                        <span>Peak Energy</span>
+                      </div>
+                      <TanStackFormMessage />
+                    </TanStackFormItem>
+                  </TanStackFormField>
+                );
+              }}
+            />
 
             {/* Sleep Quality */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-[var(--color-text)]">
-                  How well did you sleep?
-                </label>
-                <span className="text-muted text-sm">
-                  {getSleepLabel(sleepQuality)} ({sleepQuality}/10)
-                </span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={sleepQuality}
-                onChange={(e) => {
-                  setSleepQuality(Number(e.target.value));
-                  setValidationError(null);
-                }}
-                className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
-              />
-              <div className="text-muted flex justify-between text-xs">
-                <span>Terrible</span>
-                <span>Perfect</span>
-              </div>
-            </div>
+            <form.Field
+              name="sleepQuality"
+              children={(field) => {
+                const error = field.state.meta.errors?.[0];
+                const errorMessage =
+                  typeof error === "string" ? error : (error as any)?.message;
+                return (
+                  <TanStackFormField name={field.name} error={errorMessage}>
+                    <TanStackFormItem>
+                      <div className="flex items-center justify-between">
+                        <TanStackFormLabel>
+                          How well did you sleep?
+                        </TanStackFormLabel>
+                        <span className="text-muted text-sm">
+                          {getSleepLabel(field.state.value)} (
+                          {field.state.value}/10)
+                        </span>
+                      </div>
+                      <TanStackFormControl>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={field.state.value}
+                          onChange={(e) =>
+                            field.handleChange(Number(e.target.value))
+                          }
+                          className="slider-primary h-3 w-full cursor-pointer appearance-none rounded-lg bg-[var(--color-border)]"
+                        />
+                      </TanStackFormControl>
+                      <div className="text-muted flex justify-between text-xs">
+                        <span>Terrible</span>
+                        <span>Perfect</span>
+                      </div>
+                      <TanStackFormMessage />
+                    </TanStackFormItem>
+                  </TanStackFormField>
+                );
+              }}
+            />
 
             {/* Optional Notes */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-[var(--color-text)]">
-                Additional Notes (Optional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => {
-                  if (e.target.value.length <= 500) {
-                    setNotes(e.target.value);
-                    setValidationError(null);
-                  }
-                }}
-                placeholder="Any other factors affecting your wellness today? (e.g., stress, illness, excitement)"
-                className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-3 text-sm text-[var(--color-text)]"
-                rows={3}
-                maxLength={500}
-              />
-              <div className="text-muted text-right text-xs">
-                {notes.length}/500 characters
-              </div>
-            </div>
+            <form.Field
+              name="notes"
+              children={(field) => {
+                const error = field.state.meta.errors?.[0];
+                const errorMessage =
+                  typeof error === "string" ? error : (error as any)?.message;
+                return (
+                  <TanStackFormField name={field.name} error={errorMessage}>
+                    <TanStackFormItem>
+                      <TanStackFormLabel>
+                        Additional Notes (Optional)
+                      </TanStackFormLabel>
+                      <TanStackFormControl>
+                        <textarea
+                          value={field.state.value || ""}
+                          onChange={(e) => {
+                            if (e.target.value.length <= 500) {
+                              field.handleChange(e.target.value);
+                            }
+                          }}
+                          placeholder="Any other factors affecting your wellness today? (e.g., stress, illness, excitement)"
+                          className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-3 text-sm text-[var(--color-text)]"
+                          rows={3}
+                          maxLength={500}
+                        />
+                      </TanStackFormControl>
+                      <div className="text-muted text-right text-xs">
+                        {(field.state.value || "").length}/500 characters
+                      </div>
+                      <TanStackFormMessage />
+                    </TanStackFormItem>
+                  </TanStackFormField>
+                );
+              }}
+            />
           </div>
 
           {/* Error Messages */}
-          {(validationError || submitError) && (
+          {submitError && (
             <div className="rounded-lg border border-[var(--color-danger)] bg-[color-mix(in_oklab,_var(--color-danger)_10%,_var(--color-bg-surface))] p-3">
-              <p className="text-danger text-sm">
-                {validationError || submitError}
-              </p>
+              <p className="text-danger text-sm">{submitError}</p>
             </div>
           )}
 
@@ -285,19 +328,24 @@ export function ManualWellnessModal({
               variant="secondary"
               onClick={onClose}
               className="flex-1"
-              disabled={isSubmitting}
+              disabled={isSubmitting || form.state.isSubmitting}
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              className="btn-primary flex-1"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? "Getting Recommendations..."
-                : "Get Workout Intelligence"}
-            </Button>
+            <form.Subscribe
+              selector={(state) => [state.canSubmit, state.isSubmitting]}
+              children={([canSubmit, isSubmittingForm]) => (
+                <Button
+                  onClick={() => form.handleSubmit()}
+                  className="btn-primary flex-1"
+                  disabled={!canSubmit || isSubmittingForm || isSubmitting}
+                >
+                  {isSubmittingForm || isSubmitting
+                    ? "Getting Recommendations..."
+                    : "Get Workout Intelligence"}
+                </Button>
+              )}
+            />
           </div>
 
           {/* Mobile-Optimized Disclaimer */}

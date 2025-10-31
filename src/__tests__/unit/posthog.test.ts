@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import getPosthog, {
   getServerPosthog,
   __setTestPosthogCtor,
+  __resetTestPosthogClient,
 } from "~/lib/posthog";
 
 describe("posthog", () => {
   beforeEach(() => {
     __setTestPosthogCtor(null);
+    __resetTestPosthogClient();
     // Reset environment
     delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
     delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -99,9 +101,40 @@ describe("posthog", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mockPostHog).toHaveBeenCalledWith("test-key", {
-        host: "test-host",
-        flushAt: 1,
-        flushInterval: 0,
+        api_host: "test-host",
+        loaded: expect.any(Function),
+      });
+
+      global.window = originalWindow;
+    });
+
+    it("initializes PostHog client when capture is called", async () => {
+      const mockPostHog = vi.fn().mockReturnValue({
+        capture: vi.fn(),
+        identify: vi.fn(),
+        shutdown: vi.fn(),
+        flush: vi.fn(),
+      });
+
+      __setTestPosthogCtor(mockPostHog);
+      process.env.NEXT_PUBLIC_POSTHOG_KEY = "test-key";
+      process.env.NEXT_PUBLIC_POSTHOG_HOST = "test-host";
+
+      const originalWindow = global.window;
+      delete (global as any).window;
+
+      const client = getPosthog();
+
+      // Trigger initialization by calling capture
+      client.capture("test-event");
+
+      // Wait for async initialization
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mockPostHog).toHaveBeenCalledTimes(1);
+      expect(mockPostHog).toHaveBeenCalledWith("test-key", {
+        api_host: "test-host",
+        loaded: expect.any(Function),
       });
 
       global.window = originalWindow;

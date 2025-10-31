@@ -1,6 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  getExpandedRowModel,
+  createColumnHelper,
+  flexRender,
+  type ExpandedState,
+  type SortingState,
+  type ColumnSizingState,
+  type ColumnOrderState,
+  type RowSelectionState,
+  type VisibilityState,
+  type ColumnFiltersState,
+} from "@tanstack/react-table";
 import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -40,6 +56,8 @@ interface MasterExercise {
   linkedCount: number;
 }
 
+const columnHelper = createColumnHelper<MasterExercise>();
+
 export function ExerciseManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -55,6 +73,13 @@ export function ExerciseManager() {
     [],
   );
   const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const utils = api.useUtils();
   const invalidateExerciseDependents = () => {
@@ -134,34 +159,42 @@ export function ExerciseManager() {
     },
   });
 
-  const filteredExercises =
-    (exercises as MasterExercise[] | undefined)?.filter((exercise) => {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        exercise.name.toLowerCase().includes(searchLower) ||
-        exercise.tags?.toLowerCase().includes(searchLower) ||
-        exercise.muscleGroup?.toLowerCase().includes(searchLower)
-      );
-    }) ?? [];
+  const filteredExercises = useMemo(() => {
+    return (
+      (exercises as MasterExercise[] | undefined)?.filter((exercise) => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          exercise.name.toLowerCase().includes(searchLower) ||
+          exercise.tags?.toLowerCase().includes(searchLower) ||
+          exercise.muscleGroup?.toLowerCase().includes(searchLower)
+        );
+      }) ?? []
+    );
+  }, [exercises, searchTerm]);
 
-  const handleEditExercise = (exercise: MasterExercise) => {
+  const handleEditExercise = useCallback((exercise: MasterExercise) => {
     setEditingExercise(exercise);
     setExerciseName(exercise.name);
     setExerciseTags(exercise.tags || "");
     setExerciseMuscleGroup(exercise.muscleGroup || "");
-  };
+  }, []);
 
-  const handleMergeSelection = (exercise: MasterExercise) => {
-    if (selectedForMerge.find((e) => e.id === exercise.id)) {
-      // Deselect
-      setSelectedForMerge(selectedForMerge.filter((e) => e.id !== exercise.id));
-    } else {
-      // Select (max 2)
-      if (selectedForMerge.length < 2) {
-        setSelectedForMerge([...selectedForMerge, exercise]);
+  const handleMergeSelection = useCallback(
+    (exercise: MasterExercise) => {
+      if (selectedForMerge.find((e) => e.id === exercise.id)) {
+        // Deselect
+        setSelectedForMerge(
+          selectedForMerge.filter((e) => e.id !== exercise.id),
+        );
+      } else {
+        // Select (max 2)
+        if (selectedForMerge.length < 2) {
+          setSelectedForMerge([...selectedForMerge, exercise]);
+        }
       }
-    }
-  };
+    },
+    [selectedForMerge],
+  );
 
   const handleMergeExercises = () => {
     if (selectedForMerge.length === 2) {
@@ -188,6 +221,256 @@ export function ExerciseManager() {
     setMergeMode(false);
     setSelectedForMerge([]);
   };
+
+  // Define columns
+  const columns = useMemo(
+    () => [
+      columnHelper.display({
+        id: "select",
+        header: ({ table }) => (
+          <input
+            type="checkbox"
+            checked={table.getIsAllRowsSelected()}
+            onChange={table.getToggleAllRowsSelectedHandler()}
+            aria-label="Select all rows"
+          />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={row.getIsSelected()}
+            onChange={row.getToggleSelectedHandler()}
+            aria-label={`Select row ${row.original.name}`}
+          />
+        ),
+        size: 50,
+        enableResizing: false,
+      }),
+      columnHelper.accessor("name", {
+        header: "Exercise Name",
+        cell: (info) => {
+          const exercise = info.row.original;
+          const isSelectedForMerge = selectedForMerge.some(
+            (e) => e.id === exercise.id,
+          );
+          return (
+            <div>
+              <div className="font-medium">
+                {isSelectedForMerge && "✓ "}
+                {info.getValue()}
+              </div>
+              <div className="text-muted-foreground text-sm sm:hidden">
+                Created {new Date(exercise.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+          );
+        },
+        enableSorting: true,
+        size: 200,
+      }),
+      columnHelper.accessor("createdAt", {
+        header: "Created",
+        cell: (info) => (
+          <span className="text-muted-foreground text-sm">
+            {new Date(info.getValue()).toLocaleDateString()}
+          </span>
+        ),
+        enableSorting: true,
+        size: 120,
+        meta: {
+          className: "hidden sm:table-cell",
+        },
+      }),
+      columnHelper.accessor("linkedCount", {
+        id: "linkedTemplates",
+        header: "Linked Templates",
+        cell: (info) => {
+          const count = info.getValue();
+          return (
+            <div className="text-sm">
+              {count} template{count !== 1 ? "s" : ""}
+            </div>
+          );
+        },
+        enableSorting: true,
+        size: 140,
+      }),
+      columnHelper.accessor("tags", {
+        header: "Tags",
+        cell: (info) => (
+          <span className="text-sm">
+            {info.getValue() || "—"}
+          </span>
+        ),
+        enableSorting: true,
+        enableColumnFilter: true,
+        filterFn: "includesString",
+        size: 150,
+      }),
+      columnHelper.accessor("muscleGroup", {
+        header: "Muscle Group",
+        cell: (info) => (
+          <span className="text-sm">
+            {info.getValue() || "—"}
+          </span>
+        ),
+        enableSorting: true,
+        enableColumnFilter: true,
+        filterFn: "includesString",
+        size: 130,
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: (info) => {
+          const exercise = info.row.original;
+          const isSelectedForMerge = selectedForMerge.some(
+            (e) => e.id === exercise.id,
+          );
+          return (
+            <div className="flex items-center justify-end gap-1">
+              {mergeMode ? (
+                <Button
+                  variant={isSelectedForMerge ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleMergeSelection(exercise)}
+                  aria-label={`${isSelectedForMerge ? "Deselect" : "Select"} ${exercise.name} for merge`}
+                >
+                  {isSelectedForMerge ? "Selected" : "Select"}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => info.row.toggleExpanded()}
+                    aria-expanded={info.row.getIsExpanded()}
+                    aria-label={`${info.row.getIsExpanded() ? "Hide" : "Show"} details for ${exercise.name}`}
+                    aria-controls={`exercise-details-${exercise.id}`}
+                  >
+                    {info.row.getIsExpanded() ? "Hide" : "Details"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditExercise(exercise)}
+                    aria-label={`Edit ${exercise.name}`}
+                  >
+                    ✏️
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleMergeSelection(exercise)}
+                    aria-label={`Merge ${exercise.name}`}
+                  >
+                    🔗
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      // TODO: Implement favorite functionality
+                      alert("Favorite functionality coming soon");
+                    }}
+                    aria-label={`Mark ${exercise.name} as favorite`}
+                  >
+                    ⭐
+                  </Button>
+                </>
+              )}
+            </div>
+          );
+        },
+        size: 200,
+        enableResizing: false,
+      }),
+    ],
+    [selectedForMerge, mergeMode, handleEditExercise, handleMergeSelection],
+  );
+
+  // Add bulk delete functionality (placeholder - API endpoint needs to be created)
+  const handleBulkDelete = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) return;
+
+    const exerciseNames = selectedRows.map(row => row.original.name);
+    if (confirm(`Are you sure you want to delete ${selectedRows.length} exercises?\n\n${exerciseNames.join('\n')}\n\nThis action cannot be undone.`)) {
+      // TODO: Implement bulk delete API call
+      alert("Bulk delete functionality coming soon - API endpoint needs to be implemented");
+      setRowSelection({});
+    }
+  };
+
+  // Table state persistence
+  const TABLE_STATE_KEY = 'exercise-manager-table-state';
+
+  const saveTableState = useCallback(() => {
+    const state = {
+      columnSizing,
+      columnOrder,
+      columnVisibility,
+      sorting,
+    };
+    localStorage.setItem(TABLE_STATE_KEY, JSON.stringify(state));
+  }, [columnSizing, columnOrder, columnVisibility, sorting]);
+
+  const loadTableState = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(TABLE_STATE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.columnSizing) setColumnSizing(state.columnSizing);
+        if (state.columnOrder) setColumnOrder(state.columnOrder);
+        if (state.columnVisibility) setColumnVisibility(state.columnVisibility);
+        if (state.sorting) setSorting(state.sorting);
+      }
+    } catch (error) {
+      console.warn('Failed to load table state:', error);
+    }
+  }, []);
+
+  // Load state on mount
+  useEffect(() => {
+    loadTableState();
+  }, [loadTableState]);
+
+  // Save state when it changes
+  useEffect(() => {
+    saveTableState();
+  }, [saveTableState]);
+
+  // Create table instance
+  const table = useReactTable({
+    data: filteredExercises,
+    columns,
+    state: {
+      expanded,
+      sorting,
+      globalFilter: searchTerm,
+      columnSizing,
+      columnOrder,
+      rowSelection,
+      columnVisibility,
+      columnFilters,
+    },
+    onExpandedChange: setExpanded,
+    onSortingChange: setSorting,
+    onColumnSizingChange: setColumnSizing,
+    onColumnOrderChange: setColumnOrder,
+    onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: () => true,
+    enableColumnResizing: true,
+    enableRowSelection: true,
+    enableHiding: true,
+    enableColumnFilters: true,
+  });
 
   // Show loading state during SSR and initial client render
   if (!isClient || isLoading) {
@@ -260,6 +543,32 @@ export function ExerciseManager() {
             size="sm"
           >
             {mergeMode ? "Cancel Merge" : "Merge Exercises"}
+          </Button>
+          {Object.keys(rowSelection).length > 0 && (
+            <Button
+              onClick={handleBulkDelete}
+              variant="destructive"
+              size="sm"
+            >
+              Delete Selected ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              // Reset table state
+              setColumnSizing({});
+              setColumnOrder([]);
+              setColumnVisibility({});
+              setSorting([]);
+              setRowSelection({});
+              setColumnFilters([]);
+              localStorage.removeItem(TABLE_STATE_KEY);
+            }}
+            variant="outline"
+            size="sm"
+            title="Reset table to default state"
+          >
+            Reset Table
           </Button>
         </div>
 
@@ -345,42 +654,161 @@ export function ExerciseManager() {
 
       {/* Exercise List */}
       <div className="space-y-4">
-        <div className="text-muted-foreground text-sm">
-          {filteredExercises.length} exercise
-          {filteredExercises.length !== 1 ? "s" : ""} found
+        <div className="flex items-center justify-between">
+          <div className="text-muted-foreground text-sm">
+            {filteredExercises.length} exercise
+            {filteredExercises.length !== 1 ? "s" : ""} found
+            {Object.keys(rowSelection).length > 0 && (
+              <span className="ml-2 text-primary">
+                • {Object.keys(rowSelection).length} selected
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Column visibility toggle */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground mr-2">Columns:</span>
+              {table.getAllLeafColumns().map((column) => {
+                if (!column.getCanHide()) return null;
+                return (
+                  <label key={column.id} className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={column.getIsVisible()}
+                      onChange={column.getToggleVisibilityHandler()}
+                      className="h-3 w-3"
+                    />
+                    {column.columnDef.header as string}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="rounded-md border">
           <Table role="table" aria-label="Exercise management table">
             <TableHeader>
-              <TableRow>
-                <TableHead>Exercise Name</TableHead>
-                <TableHead className="hidden sm:table-cell">Created</TableHead>
-                <TableHead>Linked Templates</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta as
+                      | { className?: string }
+                      | undefined;
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={meta?.className}
+                        onClick={
+                          header.column.getCanSort()
+                            ? header.column.getToggleSortingHandler()
+                            : undefined
+                        }
+                        style={{
+                          cursor: header.column.getCanSort()
+                            ? "pointer"
+                            : "default",
+                          width: header.getSize(),
+                          position: "relative",
+                        }}
+                        aria-sort={
+                          header.column.getIsSorted()
+                            ? header.column.getIsSorted() === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div className="flex items-center gap-2">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                            {header.column.getCanSort() && (
+                              <span className="text-muted-foreground">
+                                {header.column.getIsSorted() === "asc"
+                                  ? "↑"
+                                  : header.column.getIsSorted() === "desc"
+                                    ? "↓"
+                                    : "↕"}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {header.column.getCanResize() && (
+                          <div
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-border hover:bg-primary"
+                          />
+                        )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
             </TableHeader>
             <TableBody>
-              {filteredExercises.map((exercise) => (
-                <ExerciseRow
-                  key={exercise.id}
-                  exercise={exercise}
-                  onUpdate={() => {
-                    void refetch();
-                    invalidateExerciseDependents();
-                  }}
-                  onEdit={handleEditExercise}
-                  mergeMode={mergeMode}
-                  isSelectedForMerge={selectedForMerge.some(
+              {table.getRowModel().rows.length > 0 ? (
+                table.getRowModel().rows.map((row) => {
+                  const exercise = row.original;
+                  const isSelectedForMerge = selectedForMerge.some(
                     (e) => e.id === exercise.id,
-                  )}
-                  onMergeSelection={handleMergeSelection}
-                />
-              ))}
-              {filteredExercises.length === 0 && (
+                  );
+                  return (
+                    <Fragment key={row.id}>
+                      <TableRow
+                        className={
+                          isSelectedForMerge
+                            ? "bg-blue-50 dark:bg-blue-950/50"
+                            : row.getIsSelected()
+                              ? "bg-muted/50"
+                              : ""
+                        }
+                      >
+                        {row.getVisibleCells().map((cell) => {
+                          const meta = cell.column.columnDef.meta as
+                            | { className?: string }
+                            | undefined;
+                          return (
+                            <TableCell key={cell.id} className={meta?.className}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                      {row.getIsExpanded() && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={table.getVisibleLeafColumns().length}
+                            className="p-0"
+                            id={`exercise-details-${exercise.id}`}
+                          >
+                            <div className="bg-muted/50 border-t p-4">
+                              <ExerciseDetails
+                                masterExerciseId={exercise.id}
+                                masterExerciseName={exercise.name}
+                                normalizedName={exercise.normalizedName}
+                                onUpdate={() => {
+                                  void refetch();
+                                  invalidateExerciseDependents();
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })
+              ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={table.getVisibleLeafColumns().length}
                     className="text-muted-foreground py-8 text-center"
                   >
                     No exercises found
@@ -554,120 +982,6 @@ export function ExerciseManager() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-interface ExerciseRowProps {
-  exercise: MasterExercise;
-  onUpdate: () => void;
-  onEdit: (exercise: MasterExercise) => void;
-  mergeMode?: boolean;
-  isSelectedForMerge?: boolean;
-  onMergeSelection?: (exercise: MasterExercise) => void;
-}
-
-function ExerciseRow({
-  exercise,
-  onUpdate,
-  onEdit,
-  mergeMode = false,
-  isSelectedForMerge = false,
-  onMergeSelection,
-}: ExerciseRowProps) {
-  const [showDetails, setShowDetails] = useState(false);
-
-  return (
-    <>
-      <TableRow
-        className={isSelectedForMerge ? "bg-blue-50 dark:bg-blue-950/50" : ""}
-      >
-        <TableCell>
-          <div className="font-medium">
-            {isSelectedForMerge && "✓ "}
-            {exercise.name}
-          </div>
-          <div className="text-muted-foreground text-sm sm:hidden">
-            Created {new Date(exercise.createdAt).toLocaleDateString()}
-          </div>
-        </TableCell>
-        <TableCell className="text-muted-foreground hidden text-sm sm:table-cell">
-          {new Date(exercise.createdAt).toLocaleDateString()}
-        </TableCell>
-        <TableCell>
-          <div className="text-sm">
-            {exercise.linkedCount} template
-            {exercise.linkedCount !== 1 ? "s" : ""}
-          </div>
-        </TableCell>
-        <TableCell className="text-right">
-          <div className="flex items-center gap-1">
-            {mergeMode ? (
-              <Button
-                variant={isSelectedForMerge ? "default" : "outline"}
-                size="sm"
-                onClick={() => onMergeSelection?.(exercise)}
-                aria-label={`${isSelectedForMerge ? "Deselect" : "Select"} ${exercise.name} for merge`}
-              >
-                {isSelectedForMerge ? "Selected" : "Select"}
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDetails(!showDetails)}
-                  aria-expanded={showDetails}
-                  aria-label={`${showDetails ? "Hide" : "Show"} details for ${exercise.name}`}
-                >
-                  {showDetails ? "Hide" : "Details"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEdit(exercise)}
-                  aria-label={`Edit ${exercise.name}`}
-                >
-                  ✏️
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onMergeSelection?.(exercise)}
-                  aria-label={`Merge ${exercise.name}`}
-                >
-                  🔗
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    // TODO: Implement favorite functionality
-                    alert("Favorite functionality coming soon");
-                  }}
-                  aria-label={`Mark ${exercise.name} as favorite`}
-                >
-                  ⭐
-                </Button>
-              </>
-            )}
-          </div>
-        </TableCell>
-      </TableRow>
-      {showDetails && (
-        <TableRow>
-          <TableCell colSpan={4} className="p-0">
-            <div className="bg-muted/50 border-t p-4">
-              <ExerciseDetails
-                masterExerciseId={exercise.id}
-                masterExerciseName={exercise.name}
-                normalizedName={exercise.normalizedName}
-                onUpdate={onUpdate}
-              />
-            </div>
-          </TableCell>
-        </TableRow>
-      )}
-    </>
   );
 }
 

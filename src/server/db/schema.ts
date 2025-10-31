@@ -120,6 +120,7 @@ export const templateExercises = createTable(
       t.templateId,
       t.exerciseName,
     ),
+    index("template_exercise_user_exercise_name_idx").on(t.user_id, t.exerciseName),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 

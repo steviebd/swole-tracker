@@ -4,7 +4,7 @@
  * IMPORTANT:
  * - Never import "posthog-node" in client/browser code. It depends on node:fs and will break Turbopack.
  * - For client-side analytics use "posthog-js".
- * - For server-side events use "posthog-node", but only in server-only modules.
+ * - For server-side events use "posthog-js" (compatible with Edge Runtime).
  */
 /**
  * Isomorphic PostHog facade.
@@ -13,7 +13,8 @@
  * - Default export is a factory usable in Node (server) tests and server code.
  * - In the browser, it returns a no-op client.
  */
-import { type PostHog as PostHogNode } from "posthog-node";
+import type posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 
 type PosthogSurface = {
   capture: (event: string, properties?: Record<string, unknown>) => void;
@@ -26,37 +27,34 @@ let nodeClient: PosthogSurface | null = null;
 
 // Test-only override hook: allows unit tests to inject a PostHog constructor
 // without importing server-only modules in jsdom. Not used in production.
-type PHCtor =
-  | (new (
-      key: string,
-      opts: { host?: string; flushAt?: number; flushInterval?: number },
-    ) => PostHogNode)
-  | ((
-      key: string,
-      opts: { host?: string; flushAt?: number; flushInterval?: number },
-    ) => PostHogNode);
+type PHCtor = (key: string, opts?: { host?: string; api_host?: string; loaded?: (instance: PostHog) => void }) => PostHog;
 let __TEST_ONLY_PostHogCtor: PHCtor | null = null;
 export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
 }
 
+// Test-only reset hook: allows unit tests to reset the cached client
+export function __resetTestPosthogClient() {
+  nodeClient = null;
+}
+
 export async function loadPosthogCtor(): Promise<
-  typeof PostHogNode | PHCtor | null
+  typeof posthog | PHCtor | null
 > {
   // Guard to prevent accidental client-side import
   if (typeof window !== "undefined") return null;
   if (__TEST_ONLY_PostHogCtor) return __TEST_ONLY_PostHogCtor;
   try {
-    const mod = await import("posthog-node");
-    return mod.PostHog;
+    const mod = await import("posthog-js");
+    return mod.default;
   } catch (error) {
-    console.warn("Failed to load posthog-node:", error);
+    console.warn("Failed to load posthog-js:", error);
     return null;
   }
 }
 
 function getServerClient(): PosthogSurface {
-  // If we've already wrapped a node client, return it
+  // If we've already wrapped a client, return it
   if (nodeClient) return nodeClient;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -66,7 +64,7 @@ function getServerClient(): PosthogSurface {
   }
 
   // Eagerly construct once so tests can assert constructor call and return a stable client.
-  const rawClientPromise = (async () => {
+  const rawClientPromise: Promise<PostHog | null> = (async () => {
     const PH = await loadPosthogCtor();
     if (!PH) {
       console.warn(
@@ -75,43 +73,18 @@ function getServerClient(): PosthogSurface {
       return null;
     }
 
-    const ctorOrFactory: PHCtor | typeof PostHogNode = PH as unknown as
-      | PHCtor
-      | typeof PostHogNode;
+    // Initialize PostHog - handle both constructor and instance cases
+    const ph: PostHog = typeof PH === "function"
+      ? (PH as PHCtor)(key, {
+          api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          loaded: (ph: PostHog) => {
+            // Set distinct id for server
+            ph.register({ distinct_id: "server" });
+          },
+        })
+      : PH as PostHog;
 
-    // Always call once so tests can assert it was invoked with key+host.
-    let instance: PostHogNode | null = null;
-    try {
-      // Try construct signature
-      instance = new (ctorOrFactory as new (
-        key: string,
-        opts: { host?: string; flushAt?: number; flushInterval?: number },
-      ) => PostHogNode)(key, {
-        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-        flushAt: 1,
-        flushInterval: 0,
-      });
-    } catch (constructError) {
-      try {
-        // Fallback to factory signature
-        const factory = ctorOrFactory as (
-          key: string,
-          opts: { host?: string; flushAt?: number; flushInterval?: number },
-        ) => PostHogNode;
-        instance = factory(key, {
-          host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-          flushAt: 1,
-          flushInterval: 0,
-        });
-      } catch (factoryError) {
-        console.error("Failed to create PostHog instance:", {
-          constructError,
-          factoryError,
-        });
-        return null;
-      }
-    }
-    return instance;
+    return ph;
   })();
 
   const lazy: PosthogSurface = {
@@ -119,10 +92,9 @@ function getServerClient(): PosthogSurface {
       // Intentionally fire-and-forget; mark as ignored to satisfy no-floating-promises
       void (async () => {
         try {
-          const raw = (await rawClientPromise) as PostHogNode | null;
+          const raw = await rawClientPromise;
           if (raw) {
-            const distinctId = "server";
-            raw.capture({ distinctId, event, properties });
+            raw.capture(event, properties);
           }
         } catch (error) {
           console.warn("Failed to capture PostHog event:", event, error);
@@ -132,9 +104,9 @@ function getServerClient(): PosthogSurface {
     identify: (id: string, props?: Record<string, unknown>) => {
       void (async () => {
         try {
-          const raw = (await rawClientPromise) as PostHogNode | null;
+          const raw = await rawClientPromise;
           if (raw) {
-            raw.identify({ distinctId: id, properties: props });
+            raw.identify(id, props);
           }
         } catch (error) {
           console.warn("Failed to identify PostHog user:", id, error);
@@ -142,30 +114,10 @@ function getServerClient(): PosthogSurface {
       })();
     },
     shutdown: () => {
-      void (async () => {
-        try {
-          const raw = (await rawClientPromise) as PostHogNode | null;
-          if (raw) {
-            raw.shutdown?.();
-            // older versions
-            (raw as unknown as { close?: () => void })?.close?.();
-          }
-        } catch (error) {
-          console.warn("Failed to shutdown PostHog:", error);
-        }
-      })();
+      // PostHog JS doesn't have shutdown, no-op
     },
     flush: () => {
-      void (async () => {
-        try {
-          const raw = (await rawClientPromise) as PostHogNode | null;
-          if (raw) {
-            raw.flush?.();
-          }
-        } catch (error) {
-          console.warn("Failed to flush PostHog:", error);
-        }
-      })();
+      // PostHog JS doesn't have flush, no-op
     },
   };
 

@@ -170,26 +170,26 @@ export function WorkoutDetailOverlay({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/40 p-4 backdrop-blur-sm"
+      className={`bg-background/40 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm ${
+        isOpen ? "animate-[fadeIn_0.3s_ease-out]" : ""
+      }`}
       onClick={handleBackdropClick}
-      style={{ animation: isOpen ? "fadeIn 0.3s ease-out" : "" }}
     >
       <div
         ref={contentRef}
-        className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl shadow-2xl"
+        className={`card max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl shadow-2xl ${
+          isOpen ? "animate-[scaleIn_0.3s_ease-out]" : ""
+        }`}
+        style={animationOrigin}
         onDoubleClick={handleDoubleClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        style={{
-          animation: isOpen ? "scaleIn 0.3s ease-out" : "",
-          ...animationOrigin,
-        }}
       >
         {/* Header */}
-        <div className="sticky top-0 rounded-t-xl border-b border-border bg-background p-6">
+        <div className="border-border bg-background sticky top-0 rounded-t-xl border-b p-6">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="mb-1 text-2xl font-bold text-foreground">
+              <h2 className="text-foreground mb-1 text-2xl font-bold">
                 {workout.sport_name ?? "Unknown Sport"}
               </h2>
               <p className="text-secondary text-sm">
@@ -198,7 +198,7 @@ export function WorkoutDetailOverlay({
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-secondary transition-colors hover:text-foreground"
+              className="text-secondary hover:text-foreground p-2 transition-colors"
             >
               ✕
             </button>
@@ -213,7 +213,7 @@ export function WorkoutDetailOverlay({
               <h4 className="text-secondary mb-2 text-sm font-semibold">
                 Duration
               </h4>
-              <p className="text-xl font-bold text-foreground">
+              <p className="text-foreground text-xl font-bold">
                 {formatDuration(new Date(workout.start), new Date(workout.end))}
               </p>
             </div>
@@ -221,7 +221,7 @@ export function WorkoutDetailOverlay({
               <h4 className="text-secondary mb-2 text-sm font-semibold">
                 Score
               </h4>
-              <p className="text-xl font-bold text-foreground">
+              <p className="text-foreground text-xl font-bold">
                 {formatScore(workout.score, workout.score_state)}
               </p>
             </div>
@@ -273,34 +273,12 @@ export function WorkoutDetailOverlay({
         </div>
 
         {/* Footer Help Text */}
-        <div className="rounded-b-xl border-t border-border bg-background p-4">
+        <div className="border-border bg-background rounded-b-xl border-t p-4">
           <p className="text-muted text-center text-xs">
             Double-click, swipe any direction, or click outside to close
           </p>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.7);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
 }

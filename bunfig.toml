@@ -1,6 +1,50 @@
+# Bun configuration for Swole Tracker
+# Performance optimizations and development enhancements
+
 [serve.static]
 env = "BUN_PUBLIC_*"
 
 [test]
 preload = ["./src/__tests__/setup.common.ts"]
 dom = true
+
+# Performance optimizations
+[install]
+# Use faster registry for dependencies
+registry = "https://registry.npmjs.org/"
+# Enable lockfile deduplication for faster installs
+dedupe = true
+# Cache packages for faster subsequent installs
+cache = true
+
+# Development server optimizations
+[dev]
+# Enable hot reloading for faster development
+hot = true
+# Watch for file changes with optimized polling
+watch = true
+
+# Build optimizations
+[build]
+# Enable source maps for debugging
+sourcemap = true
+# Minify code for production builds
+minify = true
+# Target modern JavaScript for better performance
+target = "bun"
+
+# Runtime optimizations
+[runtime]
+# Enable JIT compilation for better performance
+jit = true
+# Optimize for server-side rendering
+ssr = true
+
+# Bundle optimizations
+[bundle]
+# Enable tree shaking to reduce bundle size
+treeShaking = true
+# Split chunks for better caching
+splitting = true
+# Externalize dependencies that shouldn't be bundled
+external = ["@opennextjs/cloudflare", "wrangler"]

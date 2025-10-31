@@ -45,6 +45,8 @@ export function useCacheInvalidation({
       invalidateHelpers.workouts(queryClient);
       // Also invalidate aggregated progress data since new sessions affect progress calculations
       invalidateHelpers.progressAggregated(queryClient);
+      // Invalidate real-time progress queries for immediate dashboard updates
+      invalidateHelpers.progressRealtime(queryClient);
     },
 
     // Invalidate aggregated progress data (for when new sessions are added)
@@ -52,13 +54,71 @@ export function useCacheInvalidation({
       invalidateHelpers.progressAggregated(queryClient);
     },
 
+    // Invalidate real-time progress data (for immediate dashboard updates)
+    invalidateProgressRealtime: () => {
+      invalidateHelpers.progressRealtime(queryClient);
+    },
+
     // Optimistic updates for better UX
-    optimisticWorkoutUpdate: (_sessionId: number, _exercises: unknown[]) => {
+    optimisticWorkoutUpdate: (sessionId: number, exercises: any[]) => {
       queryClient.setQueryData(["workouts", "getRecent"], (old: unknown) => {
         // Update the cache optimistically
-        // The actual implementation would depend on your data structure
-        return old;
+        if (!old || !Array.isArray(old)) return old;
+
+        // Add the new workout to the beginning of the recent workouts list
+        const newWorkout = {
+          id: sessionId,
+          exercises,
+          createdAt: new Date().toISOString(),
+          // Add other necessary fields based on your data structure
+        };
+
+        return [newWorkout, ...old.slice(0, 9)] as unknown[]; // Keep only top 10
       });
+    },
+
+    // Optimistic updates for progress data
+    optimisticProgressUpdate: (
+      type: "volume" | "workout" | "streak",
+      data: any,
+    ) => {
+      switch (type) {
+        case "volume":
+          queryClient.setQueryData(
+            ["progress", "getVolumeProgression"],
+            (old: unknown) => {
+              if (!old || typeof old !== 'object' || !('data' in old)) return old;
+              const oldObj = old as { data: unknown[] };
+              return {
+                ...oldObj,
+                data: [...oldObj.data, data],
+              };
+            },
+          );
+          break;
+        case "workout":
+          queryClient.setQueryData(
+            ["progress", "getWorkoutDates"],
+            (old: unknown) => {
+              if (!old || !Array.isArray(old)) return old;
+              return [...(old as unknown[]), new Date().toISOString()];
+            },
+          );
+          break;
+        case "streak":
+          queryClient.setQueryData(
+            ["progress", "getConsistencyStats"],
+            (old: unknown) => {
+              if (!old || typeof old !== 'object') return old;
+              return {
+                ...old as Record<string, unknown>,
+                currentStreak: data.currentStreak,
+                lastWorkoutDate: data.lastWorkoutDate,
+              };
+            },
+          );
+          break;
+      }
     },
   };
 }

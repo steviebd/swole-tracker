@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import {
+  createColumnHelper,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 
 import {
   TemplateFilters,
@@ -65,6 +73,7 @@ type TemplateRecord = RouterOutputs["templates"]["getAll"][number];
 type TemplateWithMeta = TemplateRecord & {
   tags: string[];
   lastUsedDisplay: string | null;
+  primaryTag: string; // For grouping
 };
 
 function deriveTags(exerciseNames: string[]): string[] {
@@ -84,7 +93,11 @@ function deriveTags(exerciseNames: string[]): string[] {
   return Array.from(found);
 }
 
+// Column helper for type-safe column definitions
+const columnHelper = createColumnHelper<TemplateWithMeta>();
+
 export function TemplatesList() {
+  console.log("TemplatesList render");
   const [filters, setFilters] = useState<TemplateFiltersState>({
     search: "",
     sort: "recent",
@@ -94,7 +107,7 @@ export function TemplatesList() {
 
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
-    template?: { id: number; name: string };
+    template?: TemplateWithMeta;
   }>({ open: false });
 
   const [deleteToast, setDeleteToast] = useState<{
@@ -110,6 +123,7 @@ export function TemplatesList() {
   const { data: templatesRaw, isLoading } =
     api.templates.getAll.useQuery(queryInput);
 
+  // Enrich templates with metadata
   const templates = useMemo<TemplateWithMeta[] | undefined>(() => {
     if (!templatesRaw) return undefined;
     return templatesRaw
@@ -121,9 +135,11 @@ export function TemplatesList() {
         const exerciseNames =
           template.exercises?.map((ex) => ex.exerciseName) ?? [];
         const tags = deriveTags(exerciseNames);
+        const primaryTag = tags.find((tag) => tag !== "General") ?? "General";
         return {
           ...template,
           tags,
+          primaryTag,
           lastUsedDisplay: template.lastUsed
             ? formatDistanceToNow(new Date(template.lastUsed), {
                 addSuffix: true,
@@ -146,16 +162,35 @@ export function TemplatesList() {
     return Array.from(tagSet).sort((a, b) => a.localeCompare(b));
   }, [templates]);
 
+  // Filter and sort templates
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
-    if (!filters.tag) return templates;
-    return templates.filter((template) => template.tags.includes(filters.tag!));
-  }, [templates, filters.tag]);
+    let filtered = templates;
+    // Apply search filter
+    if (filters.search) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter((t) => t.name.toLowerCase().includes(search));
+    }
+    // Apply sort
+    filtered = [...filtered].sort((a, b) => {
+      if (filters.sort === "recent") {
+        return (b.lastUsed?.getTime() ?? 0) - (a.lastUsed?.getTime() ?? 0);
+      } else {
+        return a.name.localeCompare(b.name);
+      }
+    });
+    // Apply tag filter
+    if (filters.tag) {
+      filtered = filtered.filter((t) => t.tags.includes(filters.tag!));
+    }
+    return filtered;
+  }, [templates, filters]);
 
+  // Group templates by primary tag
   const groupedTemplates = useMemo(() => {
     const groups = new Map<string, TemplateWithMeta[]>();
     for (const template of filteredTemplates) {
-      const key = template.tags.find((tag) => tag !== "General") ?? "General";
+      const key = template.primaryTag;
       const list = groups.get(key);
       if (list) {
         list.push(template);
@@ -171,17 +206,6 @@ export function TemplatesList() {
   const utils = api.useUtils();
 
   const deleteTemplate = api.templates.delete.useMutation({
-    onMutate: async (deletedTemplate) => {
-      await utils.templates.getAll.cancel();
-      const snapshot = snapshotTemplateCaches(queryClient);
-      removeTemplateFromCaches(queryClient, deletedTemplate.id);
-      return { snapshot } satisfies { snapshot: TemplateCacheSnapshot };
-    },
-    onError: (_error, _deletedTemplate, context) => {
-      if (context?.snapshot) {
-        restoreTemplateCaches(queryClient, context.snapshot);
-      }
-    },
     onSettled: () => {
       void utils.templates.getAll.invalidate();
     },
@@ -205,32 +229,48 @@ export function TemplatesList() {
     },
   });
 
-  const handleDelete = (id: number, name: string) => {
-    setDeleteDialog({ open: true, template: { id, name } });
-  };
+  const handleDelete = useCallback((template: TemplateWithMeta) => {
+    setDeleteDialog({ open: true, template });
+  }, []);
 
   const confirmDelete = async () => {
-    if (!deleteDialog.template) return;
-    const { id, name } = deleteDialog.template;
+    console.log("1. Starting confirmDelete");
+    if (!deleteDialog.template) {
+      console.log("1a. No deleteDialog.template");
+      return;
+    }
+    const templateToDelete = deleteDialog.template;
+    const { id, name } = templateToDelete;
+    console.log("1b. Template from dialog", { id, name });
     setDeleteDialog({ open: false });
+    console.log("2. Dialog closed");
 
-    // Find the template data for undo
-    const templateToDelete = templates?.find((t) => t.id === id);
-    if (!templateToDelete) return;
+    console.log("3. Template found");
 
     try {
-      await deleteTemplate.mutateAsync({ id });
-      analytics.templateDeleted(id.toString());
-      setDeleteToast({
-        open: true,
-        template: { id, name, data: templateToDelete },
-      });
+      console.log("4. Calling mutation");
+      // Don't await to prevent blocking the UI
+      deleteTemplate
+        .mutateAsync({ id })
+        .then((result) => {
+          console.log("5. Mutation completed", result);
+          removeTemplateFromCaches(queryClient, id);
+          analytics.templateDeleted(id.toString());
+          setDeleteToast({
+            open: true,
+            template: { id, name, data: templateToDelete },
+          });
+          console.log("6. Toast set");
+        })
+        .catch((error) => {
+          console.error("DEBUG: Error deleting template:", error);
+          analytics.error(error as Error, {
+            context: "template_delete",
+            templateId: id.toString(),
+          });
+        });
     } catch (error) {
-      console.error("Error deleting template:", error);
-      analytics.error(error as Error, {
-        context: "template_delete",
-        templateId: id.toString(),
-      });
+      console.error("DEBUG: Error starting mutation:", error);
     }
   };
 
@@ -307,7 +347,7 @@ export function TemplatesList() {
         />
         <EmptyState
           icon={
-            <span aria-hidden className="text-5xl">
+            <span aria-hidden className="templates-list-icon">
               📋
             </span>
           }
@@ -329,7 +369,7 @@ export function TemplatesList() {
         />
         <EmptyState
           icon={
-            <span aria-hidden className="text-5xl">
+            <span aria-hidden className="templates-list-icon">
               🧭
             </span>
           }
@@ -355,9 +395,17 @@ export function TemplatesList() {
       />
 
       {groupedTemplates.map(([groupName, groupTemplates]) => (
-        <section key={groupName} className="space-y-4">
+        <section
+          key={groupName}
+          className="space-y-4"
+          role="region"
+          aria-labelledby={`group-${groupName}`}
+        >
           <header className="flex items-center gap-2">
-            <h3 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+            <h3
+              id={`group-${groupName}`}
+              className="text-muted-foreground text-sm font-semibold tracking-wide uppercase"
+            >
               {groupName}
             </h3>
             {groupName !== "General" && (
@@ -417,22 +465,25 @@ export function TemplatesList() {
                         size="sm"
                         onClick={() => void handleDuplicate(template.id)}
                         disabled={duplicateTemplate.isPending}
+                        aria-label={`Duplicate ${template.name}`}
                       >
                         Duplicate
                       </Button>
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/templates/${template.id}/edit`}>
+                        <Link
+                          href={`/templates/${template.id}/edit`}
+                          aria-label={`Edit ${template.name}`}
+                        >
                           Edit
                         </Link>
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          void handleDelete(template.id, template.name)
-                        }
+                        onClick={() => void handleDelete(template)}
                         disabled={deleteTemplate.isPending}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        aria-label={`Delete ${template.name}`}
                       >
                         Delete
                       </Button>
@@ -458,19 +509,30 @@ export function TemplatesList() {
                     <span>
                       Exercises planned: {template.exercises?.length ?? 0}
                     </span>
-                    <span className="hidden sm:inline">•</span>
+                    <span
+                      className="templates-list-separator"
+                      aria-hidden="true"
+                    >
+                      •
+                    </span>
                     <span>Avg session: —</span>
                   </div>
                 </CardContent>
 
                 <CardFooter className="flex flex-wrap gap-2 pt-0">
                   <Button size="sm" asChild>
-                    <Link href={`/workout/start?templateId=${template.id}`}>
+                    <Link
+                      href={`/workout/start?templateId=${template.id}`}
+                      aria-label={`Start workout with ${template.name}`}
+                    >
                       Start workout
                     </Link>
                   </Button>
                   <Button size="sm" variant="outline" asChild>
-                    <Link href={`/templates/${template.id}/edit`}>
+                    <Link
+                      href={`/templates/${template.id}/edit`}
+                      aria-label={`Customize ${template.name}`}
+                    >
                       Customize
                     </Link>
                   </Button>
@@ -482,10 +544,7 @@ export function TemplatesList() {
       ))}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ open })}
-      >
+      <Dialog open={deleteDialog.open}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Template</DialogTitle>
@@ -501,7 +560,11 @@ export function TemplatesList() {
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteTemplate.isPending}
+            >
               Delete
             </Button>
           </DialogFooter>

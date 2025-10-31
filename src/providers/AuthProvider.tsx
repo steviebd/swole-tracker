@@ -25,10 +25,11 @@ interface WorkOSUser {
   };
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   user: WorkOSUser | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  onAuthFailure: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -91,13 +92,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [router]);
 
+  const onAuthFailure = useCallback(() => {
+    logger.warn(
+      "Authentication failure detected, clearing client-side auth state",
+    );
+    setUser(null);
+    // Don't automatically redirect - let the user decide when to re-authenticate
+    // The UI will update to show login prompts when user state becomes null
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
       isLoading,
       signOut,
+      onAuthFailure,
     }),
-    [user, isLoading, signOut],
+    [user, isLoading, signOut, onAuthFailure],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -5,7 +5,7 @@ import {
 import SuperJSON from "superjson";
 import { configureQueryCache } from "./cache-config";
 
-export const createQueryClient = () => {
+export const createQueryClient = (onAuthFailure?: () => void) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -20,7 +20,14 @@ export const createQueryClient = () => {
           if (error && typeof error === "object" && "data" in error) {
             const errorData = error.data as any;
             // Don't retry on authentication or authorization errors
-            if (errorData?.code === "UNAUTHORIZED" || errorData?.code === "FORBIDDEN") {
+            if (
+              errorData?.code === "UNAUTHORIZED" ||
+              errorData?.code === "FORBIDDEN"
+            ) {
+              // Trigger auth failure callback to clear client-side auth state
+              if (onAuthFailure) {
+                onAuthFailure();
+              }
               return false;
             }
           }
@@ -38,6 +45,10 @@ export const createQueryClient = () => {
           // Don't retry on 4xx errors (client errors)
           if (error && "status" in error && typeof error.status === "number") {
             if (error.status >= 400 && error.status < 500) {
+              // Specifically handle 401 Unauthorized
+              if (error.status === 401 && onAuthFailure) {
+                onAuthFailure();
+              }
               return false;
             }
           }
