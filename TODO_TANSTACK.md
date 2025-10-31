@@ -247,49 +247,105 @@ Current state: Simple useState-based forms, no react-hook-form
 
 ---
 
-## Phase 4: TanStack Virtual & Table Migration (2-3 weeks)
+## Phase 4: TanStack Virtual & Table Migration (3-4 weeks)
 
-### TanStack Virtual Migration
+### High Priority Components (Week 1-2)
 
-- [ ] Replace custom `VirtualList` component with TanStack Virtual
-- [ ] Migrate workout history virtual lists
-- [ ] Migrate exercise management virtual lists
-- [ ] Implement dynamic height measurement
-- [ ] Test performance with large datasets (1000+ items)
-- [ ] Validate accessibility and keyboard navigation
+#### Core Virtual List Migration
+- [ ] **Replace custom `VirtualList` component** (`src/components/virtual-list.tsx`) with TanStack Virtual
+  - Migrate `VirtualList` and `useVirtualList` hooks to TanStack Virtual equivalents
+  - Update all imports across the codebase (currently used in `StrengthProgressSection.tsx`)
+  - Preserve existing API compatibility during transition
+  - Implement dynamic height measurement for variable content
 
-### TanStack Table Migration
+#### Strength Progress Section Virtual Lists
+- [ ] **Migrate exercise selector virtual list** (`StrengthProgressSection.tsx:573-577`)
+  - Replace `VirtualizedExerciseSelect` component's VirtualList usage
+  - Maintain search functionality and keyboard navigation
+  - Ensure mobile touch interactions work properly
+- [ ] **Migrate session data virtual list** (`StrengthProgressSection.tsx:704-747`)
+  - Replace large dataset rendering (>50 items) with TanStack Virtual
+  - Preserve sorting, pagination, and responsive design
+  - Optimize for performance with 1000+ session records
 
-- [ ] Replace custom table implementations with TanStack Table
-- [ ] Migrate exercise management table (`src/app/_components/exercise-manager.tsx`)
-- [ ] Migrate workout history table (`src/app/_components/workout-history.tsx`)
-- [ ] Implement sorting, filtering, and pagination
-- [ ] Add column resizing and reordering
-- [ ] Test table performance with large datasets
+#### Table Enhancements - Exercise Manager
+- [ ] **Add advanced table features** to existing TanStack Table implementation (`exercise-manager.tsx`)
+  - Implement column resizing and reordering
+  - Add row selection and bulk actions (merge, delete operations)
+  - Create expandable rows for detailed exercise information
+  - Implement table state persistence (column order, visibility)
+  - Add advanced filtering and search capabilities
 
-### Table Feature Implementation
+### Medium Priority Components (Week 2-3)
 
-- [ ] Implement row selection and bulk actions
-- [ ] Add expandable rows for detailed views
-- [ ] Create custom table cell renderers
-- [ ] Implement table state persistence
-- [ ] Add table export functionality
+#### Workout History Table Enhancements
+- [ ] **Enhance workout history table** (`workout-history.tsx`) with advanced features
+  - Add column resizing and reordering capabilities
+  - Implement bulk selection for multiple workout operations
+  - Add expandable rows for detailed workout information
+  - Implement advanced filtering (date ranges, template types)
+  - Add table export functionality (CSV/JSON)
+  - Optimize table virtualization for large workout datasets
 
-### Performance Optimization
+#### Additional Virtual List Migrations
+- [ ] **Audit and migrate remaining virtual list usage**
+  - Check for any other custom virtual implementations
+  - Migrate dashboard components using large lists
+  - Ensure consistent virtual scrolling behavior across app
 
-- [ ] Optimize virtual scrolling for mobile devices
-- [ ] Implement table virtualization for large datasets
-- [ ] Test memory usage with virtual components
-- [ ] Validate smooth scrolling performance
-- [ ] Benchmark against previous implementations
+#### Table Feature Standardization
+- [ ] **Create reusable table components** and patterns
+  - Standardize table configurations across components
+  - Implement consistent sorting, filtering, and pagination
+  - Create shared table cell renderers and formatters
+  - Add table accessibility helpers and ARIA labels
 
-### Accessibility & UX
+### Lower Priority Components (Week 3-4)
 
-- [ ] Implement proper ARIA labels for virtual lists
-- [ ] Add keyboard navigation for tables
-- [ ] Test screen reader compatibility
-- [ ] Validate touch interactions on mobile
-- [ ] Ensure proper focus management
+#### Performance Optimization
+- [ ] **Optimize virtual scrolling performance**
+  - Implement virtual scrolling for mobile devices with touch optimization
+  - Test memory usage patterns with large virtual lists
+  - Benchmark scrolling performance against previous implementations
+  - Add performance monitoring for virtual components
+
+#### Advanced Table Features
+- [ ] **Implement advanced table interactions**
+  - Add drag-and-drop row reordering where applicable
+  - Implement infinite scrolling for very large datasets
+  - Add table state synchronization with URL parameters
+  - Create custom table themes and styling variants
+
+#### Accessibility & UX Polish
+- [ ] **Enhance accessibility for virtual components**
+  - Implement proper ARIA labels and roles for virtual lists
+  - Add comprehensive keyboard navigation for tables
+  - Test screen reader compatibility with virtual content
+  - Validate touch interactions and focus management
+  - Ensure WCAG 2.2 AA compliance for all table interactions
+
+### Migration Strategy & Testing
+
+#### Component-by-Component Migration
+- [ ] **Phase 4A: Virtual List Foundation** (Week 1)
+  - Create TanStack Virtual wrapper components
+  - Migrate core VirtualList usage in StrengthProgressSection
+  - Comprehensive testing of virtual scrolling behavior
+- [ ] **Phase 4B: Table Enhancements** (Week 2)
+  - Enhance Exercise Manager with advanced features
+  - Upgrade Workout History table capabilities
+  - Test table interactions and performance
+- [ ] **Phase 4C: Optimization & Polish** (Week 3-4)
+  - Performance optimization and accessibility improvements
+  - Cross-platform testing and mobile optimization
+  - Final integration testing and documentation
+
+#### Testing Requirements
+- [ ] **Virtual List Testing:** Test with datasets of 1000+ items, validate smooth scrolling
+- [ ] **Table Testing:** Test sorting, filtering, pagination with large datasets
+- [ ] **Performance Testing:** Benchmark against previous implementations
+- [ ] **Accessibility Testing:** Screen reader compatibility, keyboard navigation
+- [ ] **Mobile Testing:** Touch interactions, responsive behavior
 
 **Quality Gates:**
 
@@ -297,6 +353,9 @@ Current state: Simple useState-based forms, no react-hook-form
 - [ ] `bun check` passes without TypeScript errors
 - [ ] `bun build` completes successfully
 - [ ] Virtual lists and tables functional with TanStack solutions
+- [ ] Performance benchmarks meet or exceed previous implementations
+- [ ] All virtual scrolling components handle 1000+ items smoothly
+- [ ] Table features (sorting, filtering, pagination) work across all implementations
 
 ---
 
@@ -393,6 +452,6 @@ Current state: Simple useState-based forms, no react-hook-form
 
 ---
 
-_Last Updated: 2025-10-27_
-_Total Estimated Duration: 11-14 weeks_
+_Last Updated: 2025-10-31_
+_Total Estimated Duration: 12-15 weeks_
 _Risk Level: Medium (phased approach minimizes risk)_
