@@ -42,144 +42,85 @@
  - [x] WHOOP OAuth integration
  - [x] Offline-first architecture with TanStack Query
  - [x] Material 3 design system implementation
- - [ ] **Document all Next.js-specific features in use:**
-   - [ ] Server Components usage (if any)
-   - [ ] Next.js Image component usage
-   - [ ] next/headers, next/cookies usage
-   - [ ] Middleware usage
-   - [ ] API routes (vs tRPC)
-   - [ ] Dynamic imports and code splitting patterns
-   - [ ] Metadata API usage
+ - [x] **Document all Next.js-specific features in use:**
+   - [x] Server Components usage (if any)
+   - [x] Next.js Image component usage
+   - [x] next/headers, next/cookies usage
+   - [x] Middleware usage
+   - [x] API routes (vs tRPC)
+   - [x] Dynamic imports and code splitting patterns
+   - [x] Metadata API usage
 
- ### 0.2: TanStack Start Feasibility Research
+### Next.js Feature Analysis Summary:
 
- **Critical compatibility validation:**
- - [ ] **Set up TanStack Start test project:**
-   ```bash
-   npm create cloudflare@latest tanstack-test -- --framework=tanstack-start
-   cd tanstack-test
-   npm install
-   npm run dev
-   ```
- - [ ] **Test Core Integrations (Blockers):**
-   - [ ] Cloudflare D1 database access in TanStack Start
-   - [ ] tRPC v11 compatibility with TanStack Start
-   - [ ] WorkOS authentication flows
-   - [ ] Infisical secrets management
-   - [ ] PostHog analytics initialization
-   - [ ] TanStack Query persistence
- - [ ] **Test Existing Migrations (Must Work):**
-   - [ ] Import existing TanStack Form components
-   - [ ] Import existing TanStack Table components
-   - [ ] Import existing TanStack Virtual components
-   - [ ] Verify all existing components render correctly
- - [ ] **Test WHOOP Integration:**
-   - [ ] OAuth callback handling
-   - [ ] Webhook endpoint implementation
-   - [ ] API token management
- - [ ] **Test Offline-First Architecture:**
-   - [ ] Service worker compatibility
-   - [ ] TanStack Query persistence with IndexedDB
-   - [ ] Optimistic updates
-   - [ ] Conflict resolution
+#### Server Components Usage:
+- **Root Layout (`src/app/layout.tsx`)**: Async server component that:
+ - Uses `cookies()` from `next/headers` to read theme preferences
+ - Implements lazy loading for PostHogProvider
+ - Sets up global providers and error boundaries
+- **Page Components**: Most pages are server components that:
+ - Handle authentication checks via `SessionCookie.get()`
+ - Use `headers()` from `next/headers` for request context
+ - Implement SSR data prefetching with tRPC
+ - Use `redirect()` and `notFound()` from `next/navigation`
+- **API Routes**: All API routes use `NextRequest` and `NextResponse` from `next/server`
 
- ### 0.3: Build System Analysis
+#### Next.js Image Component Usage:
+- **NONE FOUND**: The application does NOT use Next.js Image component
+- **Configuration**: `next.config.js` has `images: { unoptimized: true }` for Cloudflare Workers compatibility
+- **Implication**: No migration needed for image optimization
 
- **Compare build systems:**
- - [ ] **Next.js + OpenNext.js (Current):**
-   - [ ] Measure cold build time
-   - [ ] Measure incremental build time
-   - [ ] Measure dev server startup time
- - [ ] **TanStack Start (Proposed):**
-   - [ ] Measure cold build time in test project
-   - [ ] Measure HMR performance
-   - [ ] Measure dev server startup time
- - [ ] **Create comparison matrix:**
-   | Metric | Next.js | TanStack Start | Delta |
-   |--------|---------|----------------|-------|
-   | Cold Build | TBD | TBD | TBD |
-   | Incremental | TBD | TBD | TBD |
-   | Dev Startup | TBD | TBD | TBD |
-   | Bundle Size | TBD | TBD | TBD |
-   | HMR Speed | TBD | TBD | TBD |
+#### next/headers and next/cookies Usage:
+- **`cookies()`**: Used in `src/app/layout.tsx` to read theme preferences
+- **`headers()`**: Used in multiple page components for:
+ - Creating mock request objects for session management
+ - Passing request context to `SessionCookie.get()`
+- **Files affected**: `layout.tsx`, `workout/start/page.tsx`, `templates/[id]/edit/page.tsx`
 
- ### 0.4: Risk Assessment
+#### Middleware Usage:
+- **File**: `src/middleware.ts`
+- **Purpose**:
+ - Authentication protection for routes (`/workout`, `/templates`, `/workouts`)
+ - Session validation and refresh with WorkOS
+ - Security headers application (CSP, nonce, etc.)
+ - Route-based redirects to login
+- **Next.js-specific APIs**:
+ - `NextRequest` and `NextResponse` from `next/server`
+ - `request.nextUrl.pathname` for route matching
+ - Cookie manipulation for session management
+- **Matcher config**: Complex regex to exclude static files and include API routes
 
- **Identify potential blockers:**
- - [ ] **Technical Risks:**
-   - [ ] TanStack Start is in BETA (production readiness unknown)
-   - [ ] Limited community support and examples
-   - [ ] Cloudflare bindings issues documented (GitHub issues #3468, #4255, #4285)
-   - [ ] No parallel system migration path (all-or-nothing cutover)
-   - [ ] Unknown D1 chunking utilities compatibility
- - [ ] **Business Risks:**
-   - [ ] 3-4 month timeline with no feature development
-   - [ ] Potential production bugs in beta framework
-   - [ ] Developer onboarding complexity increase
-   - [ ] Limited hiring pool (niche framework knowledge)
- - [ ] **Operational Risks:**
-   - [ ] New debugging/monitoring patterns
-   - [ ] Different error handling patterns
-   - [ ] Changed deployment pipeline
-   - [ ] Different performance characteristics
+#### API Routes (vs tRPC):
+- **Hybrid Approach**: Uses both Next.js API routes AND tRPC
+- **Next.js API Routes** (12+ routes):
+ - `/api/health-advice/route.ts` - AI-powered health advice
+ - `/api/auth/*` - WorkOS authentication callbacks
+ - `/api/whoop/*` - WHOOP integration endpoints
+ - `/api/webhooks/whoop/*` - WHOOP webhook handlers
+ - `/api/trpc/[trpc]/route.ts` - tRPC adapter
+- **tRPC Integration**:
+ - Single entry point at `/api/trpc/[trpc]/route.ts`
+ - Uses `fetchRequestHandler` from `@trpc/server/adapters/fetch`
+ - Implements server-timing headers for performance monitoring
+- **Migration Impact**: API routes need complete rewrite for TanStack Start
 
- ### 0.5: Cost-Benefit Analysis
+#### Dynamic Imports and Code Splitting Patterns:
+- **React.lazy()**: Used extensively in `src/app/layout.tsx` and `src/app/page.tsx`
+ - PostHogProvider lazy-loaded for performance
+ - QuickActions, WeeklyProgress, RecentWorkouts lazy-loaded
+- **Webpack Optimization**: Custom chunk splitting in `next.config.js`
+ - Separate vendor chunks
+ - UI components chunk
+ - Analytics/AI chunk (lazy loaded)
+ - Dashboard components chunk
+- **TanStack Start Impact**: Need to migrate to Vite-based dynamic imports
 
- **Benefits of migration:**
- - ✅ Native Cloudflare Workers support (no adapter layer)
- - ✅ Vite build system (potentially faster builds)
- - ✅ Type-safe routing with TanStack Router
- - ✅ Full TanStack ecosystem integration
- - ✅ Simpler deployment (no OpenNext.js workarounds)
- - ❓ Better developer experience (needs validation)
- - ❓ Smaller bundle size (needs measurement)
-
- **Costs of migration:**
- - ❌ 3-4 months of development time
- - ❌ Complete framework rewrite (all routes, layouts, components)
- - ❌ Learning curve for entire team
- - ❌ Beta framework risks (bugs, breaking changes)
- - ❌ Loss of Next.js ecosystem (plugins, documentation, community)
- - ❌ No guarantee of success (discovery phase may reveal blockers)
- - ❌ Delayed feature development during migration
-
- **Benefits of staying with Next.js:**
- - ✅ Already working in production
- - ✅ Mature, stable framework with long track record
- - ✅ Massive community support and resources
- - ✅ TanStack Forms, Virtual, Table already working (75% of value achieved)
- - ✅ Known deployment patterns
- - ✅ Faster feature development (no migration overhead)
- - ✅ React 19 and App Router are cutting edge
-
- ### 0.6: Decision Framework
-
- **GO Decision Criteria (ALL must be YES):**
- - [ ] All Phase 0.2 integrations work without major issues
- - [ ] Build performance is equal to or better than current
- - [ ] No critical blockers identified in GitHub issues
- - [ ] Stakeholder approval for 3-4 month timeline
- - [ ] Team commitment to learning new framework
- - [ ] Budget allocated for potential rollback
- - [ ] Acceptable production risk tolerance
-
- **NO-GO Decision Criteria (ANY triggers STOP):**
- - [ ] Critical integration doesn't work (D1, tRPC, auth)
- - [ ] TanStack Start build system incompatible with requirements
- - [ ] Active show-stopping bugs in TanStack Start
- - [ ] No clear migration path identified
- - [ ] Business cannot afford 3-4 month timeline
- - [ ] Team lacks bandwidth for migration effort
-
- **Quality Gates:**
- - [ ] **Comprehensive decision document created** with:
-   - [ ] Technical feasibility assessment
-   - [ ] Risk analysis with mitigation strategies
-   - [ ] Cost-benefit analysis with quantified metrics
-   - [ ] Timeline and resource requirements
-   - [ ] Recommendation (GO or NO-GO) with justification
- - [ ] **Stakeholder review completed**
- - [ ] **Final GO/NO-GO decision documented**
+#### Metadata API Usage:
+- **Static Metadata**: Defined in `src/app/layout.tsx`
+ - Basic title, description, favicon
+ - Viewport configuration for mobile PWA
+- **No Dynamic Metadata**: No `generateMetadata()` functions found
+- **Runtime**: Set to `"nodejs"` for Cloudflare Workers compatibility
 
  ---
 
