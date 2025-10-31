@@ -212,6 +212,13 @@ export const progressRouter = createTRPCRouter({
     .input(exerciseProgressInputSchema)
     .query(async ({ input, ctx }): Promise<ExerciseStrengthProgression> => {
       try {
+        const cacheKey = `exercise-strength-progression:${ctx.user.id}:${input.exerciseName}:${input.templateExerciseId || "null"}:${input.timeRange}:${input.startDate?.toISOString() || "null"}:${input.endDate?.toISOString() || "null"}`;
+        const cached =
+          getCachedCalculation<ExerciseStrengthProgression>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+
         const { startDate, endDate } = getDateRangeFromUtils(
           input.timeRange,
           input.startDate,
@@ -515,7 +522,7 @@ export const progressRouter = createTRPCRouter({
           }
         }
 
-        return {
+        const result = {
           currentOneRM,
           oneRMChange,
           volumeTrend,
@@ -527,6 +534,9 @@ export const progressRouter = createTRPCRouter({
           consistencyScore,
           timeline,
         };
+
+        setCachedCalculation(cacheKey, result);
+        return result;
       } catch (error) {
         console.error("Error in getExerciseStrengthProgression:", error);
         return {

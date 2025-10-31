@@ -2,7 +2,15 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { Search, Calendar, Filter, Download, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Calendar,
+  Filter,
+  Download,
+  RotateCcw,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { api } from "~/trpc/react";
 import { useExportWorkoutsCSV } from "~/hooks/use-insights";
@@ -70,13 +78,20 @@ export function WorkoutHistory() {
   const { status: queueStatus, queueSize } = useOfflineSaveQueue();
   const previousQueueStatus = useRef(queueStatus);
 
-  const { data: workouts, isLoading, refetch } = api.workouts.getRecent.useQuery({
+  const {
+    data: workouts,
+    isLoading,
+    refetch,
+  } = api.workouts.getRecent.useQuery({
     limit: 100, // Increase limit for filtering
   });
 
   useEffect(() => {
     const prev = previousQueueStatus.current;
-    if (prev === "flushing" && (queueStatus === "done" || (queueStatus === "idle" && queueSize === 0))) {
+    if (
+      prev === "flushing" &&
+      (queueStatus === "done" || (queueStatus === "idle" && queueSize === 0))
+    ) {
       void refetch();
     }
     previousQueueStatus.current = queueStatus;
@@ -131,13 +146,15 @@ export function WorkoutHistory() {
       // Template type filter
       if (filters.templateType) {
         if (filters.templateType === "custom" && workout.template) return false;
-        if (filters.templateType === "template" && !workout.template) return false;
+        if (filters.templateType === "template" && !workout.template)
+          return false;
       }
 
       // Personal records filter
       if (filters.hasPersonalRecords !== null) {
         const metrics = calculateWorkoutMetrics(workout);
-        if (metrics.hasPersonalRecords !== filters.hasPersonalRecords) return false;
+        if (metrics.hasPersonalRecords !== filters.hasPersonalRecords)
+          return false;
       }
 
       // Offline filter
@@ -365,8 +382,8 @@ export function WorkoutHistory() {
               filters.hasPersonalRecords === null
                 ? "all"
                 : filters.hasPersonalRecords
-                ? "pr"
-                : "no-pr"
+                  ? "pr"
+                  : "no-pr"
             }
             onValueChange={(value) =>
               setFilters((prev) => ({
@@ -392,8 +409,8 @@ export function WorkoutHistory() {
               filters.isOffline === null
                 ? "all"
                 : filters.isOffline
-                ? "offline"
-                : "online"
+                  ? "offline"
+                  : "online"
             }
             onValueChange={(value) =>
               setFilters((prev) => ({
@@ -520,7 +537,7 @@ export function WorkoutHistory() {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `workouts_export_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `workouts_export_${new Date().toISOString().split("T")[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -714,7 +731,6 @@ const columnHelper = createColumnHelper<WorkoutWithMetrics>();
 // Table View Component - Now using TanStack Table with advanced features
 function WorkoutTableView({ workouts }: { workouts: any[] }) {
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
   // Enrich workouts with computed metrics for better performance
   const workoutsWithMetrics = useMemo<WorkoutWithMetrics[]>(() => {
@@ -726,84 +742,38 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
   }, [workouts]);
 
   // Bulk actions for selected workouts
-  const bulkActions = useMemo(() => [
-    {
-      label: "Export Selected",
-      action: (selectedWorkouts: any[]) => {
-        const jsonData = JSON.stringify(selectedWorkouts, null, 2);
-        const blob = new Blob([jsonData], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `selected_workouts_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+  const bulkActions = useMemo(
+    () => [
+      {
+        label: "Export Selected",
+        action: (selectedWorkouts: any[]) => {
+          const jsonData = JSON.stringify(selectedWorkouts, null, 2);
+          const blob = new Blob([jsonData], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `selected_workouts_${new Date().toISOString().split("T")[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        },
       },
-    },
-    {
-      label: "Repeat Selected",
-      action: (selectedWorkouts: any[]) => {
-        // Could implement bulk repeat functionality
-        console.log("Repeat workouts:", selectedWorkouts);
+      {
+        label: "Repeat Selected",
+        action: (selectedWorkouts: any[]) => {
+          // Could implement bulk repeat functionality
+          console.log("Repeat workouts:", selectedWorkouts);
+        },
+        variant: "secondary" as const,
       },
-      variant: "secondary" as const,
-    },
-  ], []);
+    ],
+    [],
+  );
 
   // Define columns with type safety and advanced features
   const columns = useMemo<ColumnDef<WorkoutWithMetrics>[]>(
     () => [
-      // Selection column
-      columnHelper.display({
-        id: "select",
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-            aria-label="Select all workouts"
-            className="rounded border-gray-300"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            aria-label={`Select workout ${row.original.template?.name || 'Custom'}`}
-            className="rounded border-gray-300"
-          />
-        ),
-        size: 50,
-        enableResizing: false,
-      }),
-      // Expand column
-      columnHelper.display({
-        id: "expand",
-        header: "",
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpandedRows(prev => ({
-              ...prev,
-              [row.id]: !prev[row.id]
-            }))}
-            className="h-6 w-6 p-0"
-            aria-label={expandedRows[row.id] ? "Collapse workout details" : "Expand workout details"}
-          >
-            {expandedRows[row.id] ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-        ),
-        size: 40,
-        enableResizing: false,
-      }),
       columnHelper.accessor("template.name" as any, {
         id: "workout",
         header: "Workout",
@@ -850,7 +820,9 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
         id: "time",
         header: "Time",
         cell: (info) => (
-          <span className="text-muted-foreground">{String(info.getValue())}</span>
+          <span className="text-muted-foreground">
+            {String(info.getValue())}
+          </span>
         ),
         enableSorting: false,
         size: 80,
@@ -859,7 +831,9 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
         id: "exercises",
         header: "Exercises",
         cell: (info) => (
-          <span className="text-muted-foreground">{String(info.getValue())}</span>
+          <span className="text-muted-foreground">
+            {String(info.getValue())}
+          </span>
         ),
         enableSorting: true,
         sortingFn: (rowA, rowB) => {
@@ -873,14 +847,16 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
         id: "bestLift",
         header: "Best Lift",
         cell: (info) => (
-          <span className="text-muted-foreground">{String(info.getValue())}</span>
+          <span className="text-muted-foreground">
+            {String(info.getValue())}
+          </span>
         ),
         enableSorting: false,
         size: 150,
       }),
       columnHelper.display({
         id: "actions",
-        header: () => <span className="text-right block">Actions</span>,
+        header: () => <span className="block text-right">Actions</span>,
         cell: (info) => {
           const workout = info.row.original;
           return (
@@ -891,7 +867,11 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
                 </Button>
               </Link>
               <Link href={`/workouts/${workout.id}`}>
-                <Button variant="secondary" size="sm" className="hidden sm:inline-flex">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                >
                   Debrief
                 </Button>
               </Link>
@@ -908,59 +888,8 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
         enableResizing: false,
       }),
     ],
-    [expandedRows],
+    [],
   );
-
-  // Render expanded row content
-  const renderExpandedRow = useCallback((workout: WorkoutWithMetrics) => (
-    <div className="p-4 space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div>
-          <h4 className="font-medium mb-2">Workout Details</h4>
-          <div className="space-y-1 text-sm">
-            <div>Template: {workout.template?.name || "Custom"}</div>
-            <div>Duration: {workout.metrics.duration}</div>
-            <div>Total Sets: {workout.metrics.totalSets}</div>
-            <div>Best Lift: {workout.metrics.bestMetric}</div>
-          </div>
-        </div>
-        <div>
-          <h4 className="font-medium mb-2">Exercises</h4>
-          <div className="space-y-1 text-sm max-h-32 overflow-y-auto">
-            {workout.exercises?.map((exercise: any, index: number) => (
-              <div key={index} className="flex justify-between">
-                <span>{exercise.exerciseName}</span>
-                <span className="text-muted-foreground">
-                  {exercise.weight ? `${exercise.weight}${exercise.unit ?? 'lbs'}` : 'Bodyweight'}
-                </span>
-              </div>
-            )) || <div>No exercises logged</div>}
-          </div>
-        </div>
-        <div>
-          <h4 className="font-medium mb-2">Quick Actions</h4>
-          <div className="flex gap-2">
-            <Link href={`/workout/session/${workout.id}`}>
-              <Button variant="outline" size="sm">
-                View Session
-              </Button>
-            </Link>
-            <Link href={`/workouts/${workout.id}`}>
-              <Button variant="secondary" size="sm">
-                Debrief
-              </Button>
-            </Link>
-            <Link href={`/workout/start?templateId=${workout.templateId}`}>
-              <Button size="sm" className="gap-1">
-                <RotateCcw className="h-3 w-3" />
-                Repeat
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  ), []);
 
   return (
     <DataTable
@@ -971,7 +900,6 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
       enableFiltering={false} // Filtering handled by parent component
       enableRowSelection={true}
       enableColumnResizing={true}
-      enableExpandableRows={true}
       enableVirtualization={workoutsWithMetrics.length > 50}
       pageSize={10}
       emptyMessage="No workouts found matching your filters"
@@ -981,7 +909,6 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
       rowSelection={rowSelection}
       onRowSelectionChange={setRowSelection}
       bulkActions={bulkActions}
-      renderExpandedRow={(workout) => expandedRows[workout.id] ? renderExpandedRow(workout) : null}
       virtualHeight={600}
       estimatedRowHeight={60}
     />

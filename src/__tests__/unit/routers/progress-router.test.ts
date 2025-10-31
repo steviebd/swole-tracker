@@ -207,25 +207,15 @@ describe("progressRouter", () => {
       ];
       const prevRawData: any[] = [];
 
-      db.select
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            innerJoin: vi.fn(() => ({
-              where: vi.fn(() => ({
-                orderBy: vi.fn(() => Promise.resolve(rawData)),
-              })),
+      db.select.mockImplementation(() => ({
+        from: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              orderBy: vi.fn(() => Promise.resolve(rawData)),
             })),
           })),
-        }))
-        .mockImplementationOnce(() => ({
-          from: vi.fn(() => ({
-            innerJoin: vi.fn(() => ({
-              where: vi.fn(() => ({
-                orderBy: vi.fn(() => Promise.resolve(prevRawData)),
-              })),
-            })),
-          })),
-        }));
+        })),
+      }));
 
       // First call should calculate and cache
       await caller.getExerciseStrengthProgression({
@@ -620,7 +610,9 @@ describe("progressRouter", () => {
         from: vi.fn(() => ({
           innerJoin: vi.fn(() => ({
             where: vi.fn(() => ({
-              orderBy: vi.fn().mockResolvedValue(mockData),
+              orderBy: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue(mockData),
+              })),
             })),
           })),
         })),
@@ -725,7 +717,58 @@ describe("progressRouter", () => {
     });
 
     it("should return strength progression data using resolveExerciseSelection", async () => {
-      // This test is complex to mock, so we'll just check if it runs without error
+      // Mock the database calls
+      const mockResolveResult = [
+        {
+          templateExerciseId: 1,
+          templateName: "Bench Press",
+          masterExerciseId: null,
+          masterExerciseName: null,
+        },
+      ];
+      const mockData = [
+        {
+          workoutDate: new Date("2024-01-01"),
+          exerciseName: "Bench Press",
+          weight: 100,
+          reps: 5,
+          sets: 3,
+          unit: "kg",
+        },
+      ];
+
+      let callCount = 0;
+      db.select = vi.fn(() => {
+        callCount++;
+        if (callCount === 1) {
+          // resolveExerciseSelection
+          return {
+            from: vi.fn(() => ({
+              leftJoin: vi.fn(() => ({
+                leftJoin: vi.fn(() => ({
+                  where: vi.fn(() => ({
+                    limit: vi.fn().mockResolvedValue(mockResolveResult),
+                  })),
+                })),
+              })),
+            })),
+          };
+        } else {
+          // getStrengthProgression data query
+          return {
+            from: vi.fn(() => ({
+              innerJoin: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  orderBy: vi.fn(() => ({
+                    limit: vi.fn().mockResolvedValue(mockData),
+                  })),
+                })),
+              })),
+            })),
+          };
+        }
+      });
+
       const result = await caller.getStrengthProgression({
         exerciseName: "Bench Press",
         templateExerciseId: 1,
