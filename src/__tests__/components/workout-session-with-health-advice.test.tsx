@@ -8,6 +8,7 @@ import SuperJSON from "superjson";
 import { api } from "~/trpc/react";
 import { WorkoutSessionContext } from "~/contexts/WorkoutSessionContext";
 import { AuthContext } from "~/providers/AuthProvider";
+import type { AuthContextType } from "~/providers/AuthProvider";
 import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
 
 type FetchHandler = (
@@ -23,16 +24,11 @@ interface WorkOSUser {
   profile_picture_url?: string;
 }
 
-type AuthContextType = {
-  user: WorkOSUser | null;
-  isLoading: boolean;
-  signOut: () => Promise<void>;
-};
-
 const defaultUser = {
   user: { id: "test-user", email: "test@example.com" },
   isLoading: false,
   signOut: async () => {},
+  onAuthFailure: () => {},
 };
 
 const createResponse = (payload: unknown, status = 200) =>
@@ -329,145 +325,202 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       ).toBeInTheDocument();
     });
 
-  it("shows '🎯 Quick Wellness Check' for never_connected state with manual wellness enabled", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: false, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: true };
+    it("shows '🎯 Quick Wellness Check' for never_connected state with manual wellness enabled", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: false,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: true };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    expect(screen.getByText("🎯 Quick Wellness Check")).toBeInTheDocument();
+      expect(screen.getByText("🎯 Quick Wellness Check")).toBeInTheDocument();
+    });
+
+    it("shows '🤖 Get Workout Intelligence' for never_connected state with manual wellness disabled", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: false,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
+
+      const fetchImpl: FetchHandler = async () => createResponse({});
+
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+
+      expect(
+        screen.getByText("🤖 Get Workout Intelligence"),
+      ).toBeInTheDocument();
+    });
+
+    it("shows '🎯 Quick Wellness Check' for disconnected state with manual wellness enabled", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: true };
+
+      const fetchImpl: FetchHandler = async () => createResponse({});
+
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+
+      expect(screen.getByText("🎯 Quick Wellness Check")).toBeInTheDocument();
+    });
+
+    it("shows '🤖 Get Workout Intelligence' for disconnected state with manual wellness disabled", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
+
+      const fetchImpl: FetchHandler = async () => createResponse({});
+
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+
+      expect(
+        screen.getByText("🤖 Get Workout Intelligence"),
+      ).toBeInTheDocument();
+    });
+
+    it("shows '🤖 Get Workout Intelligence' for connected state", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: true,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
+
+      const fetchImpl: FetchHandler = async () => createResponse({});
+
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+
+      expect(
+        screen.getByText("🤖 Get Workout Intelligence"),
+      ).toBeInTheDocument();
+    });
   });
-
-  it("shows '🤖 Get Workout Intelligence' for never_connected state with manual wellness disabled", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: false, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
-
-    const fetchImpl: FetchHandler = async () => createResponse({});
-
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
-
-    expect(screen.getByText("🤖 Get Workout Intelligence")).toBeInTheDocument();
-  });
-
-  it("shows '🎯 Quick Wellness Check' for disconnected state with manual wellness enabled", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: true };
-
-    const fetchImpl: FetchHandler = async () => createResponse({});
-
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
-
-    expect(screen.getByText("🎯 Quick Wellness Check")).toBeInTheDocument();
-  });
-
-  it("shows '🤖 Get Workout Intelligence' for disconnected state with manual wellness disabled", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
-
-    const fetchImpl: FetchHandler = async () => createResponse({});
-
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
-
-    expect(screen.getByText("🤖 Get Workout Intelligence")).toBeInTheDocument();
-  });
-
-  it("shows '🤖 Get Workout Intelligence' for connected state", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: true };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
-
-    const fetchImpl: FetchHandler = async () => createResponse({});
-
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
-
-    expect(screen.getByText("🤖 Get Workout Intelligence")).toBeInTheDocument();
-   });
-});
 
   describe("Integration Status Notice", () => {
-  it("does not show notice when WHOOP is connected", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: true };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
+    it("does not show notice when WHOOP is connected", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: true,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    expect(screen.queryByText(/No WHOOP data yet/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/WHOOP connection looks inactive/)).not.toBeInTheDocument();
-  });
+      expect(screen.queryByText(/No WHOOP data yet/)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/WHOOP connection looks inactive/),
+      ).not.toBeInTheDocument();
+    });
 
-  it("shows notice for never_connected state with manual wellness enabled", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: false, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: true };
+    it("shows notice for never_connected state with manual wellness enabled", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: false,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: true };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    expect(screen.getByText("No WHOOP data yet. Use a quick wellness check to get AI guidance.")).toBeInTheDocument();
-  });
+      expect(
+        screen.getByText(
+          "No WHOOP data yet. Use a quick wellness check to get AI guidance.",
+        ),
+      ).toBeInTheDocument();
+    });
 
-  it("shows notice for never_connected state with manual wellness disabled", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: false, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
+    it("shows notice for never_connected state with manual wellness disabled", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: false,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    expect(screen.getByText("Connect WHOOP or add a quick wellness check to unlock AI guidance.")).toBeInTheDocument();
-  });
+      expect(
+        screen.getByText(
+          "Connect WHOOP or add a quick wellness check to unlock AI guidance.",
+        ),
+      ).toBeInTheDocument();
+    });
 
-  it("shows notice for disconnected state with manual fallback available", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: true };
+    it("shows notice for disconnected state with manual fallback available", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: true };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    expect(screen.getByText("WHOOP connection looks inactive. We'll prompt for a quick wellness check until you reconnect.")).toBeInTheDocument();
-  });
+      expect(
+        screen.getByText(
+          "WHOOP connection looks inactive. We'll prompt for a quick wellness check until you reconnect.",
+        ),
+      ).toBeInTheDocument();
+    });
 
-  it("shows notice for disconnected state without manual fallback", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: false };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
+    it("shows notice for disconnected state without manual fallback", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: false,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    expect(screen.getByText("WHOOP connection looks inactive. Reconnect to keep automated insights flowing.")).toBeInTheDocument();
-  });
+      expect(
+        screen.getByText(
+          "WHOOP connection looks inactive. Reconnect to keep automated insights flowing.",
+        ),
+      ).toBeInTheDocument();
+    });
   });
 
   describe("Button Click Behavior", () => {
-  it("fetches WHOOP advice when connected", async () => {
-    mockUseHealthAdvice.whoopStatus = { hasIntegration: true, isConnected: true };
-    mockPreferencesQuery.data = { enable_manual_wellness: false };
+    it("fetches WHOOP advice when connected", async () => {
+      mockUseHealthAdvice.whoopStatus = {
+        hasIntegration: true,
+        isConnected: true,
+      };
+      mockPreferencesQuery.data = { enable_manual_wellness: false };
 
-    const fetchImpl: FetchHandler = async () => createResponse({});
+      const fetchImpl: FetchHandler = async () => createResponse({});
 
-    await renderWorkoutSessionWithHealthAdvice(fetchImpl);
+      await renderWorkoutSessionWithHealthAdvice(fetchImpl);
 
-    const button = screen.getByText("🤖 Get Workout Intelligence");
-    fireEvent.click(button);
+      const button = screen.getByText("🤖 Get Workout Intelligence");
+      fireEvent.click(button);
 
-    await waitFor(() => {
-      expect(mockUseHealthAdvice.fetchAdvice).toHaveBeenCalledWith({
-        session_id: "101",
-        user_profile: {
-          experience_level: "intermediate",
-          min_increment_kg: 2.5,
-          preferred_rpe: 8,
-        },
-        whoop: undefined,
-        workout_plan: { exercises: [] },
-        prior_bests: { by_exercise_id: {} },
+      await waitFor(() => {
+        expect(mockUseHealthAdvice.fetchAdvice).toHaveBeenCalledWith({
+          session_id: "101",
+          user_profile: {
+            experience_level: "intermediate",
+            min_increment_kg: 2.5,
+            preferred_rpe: 8,
+          },
+          whoop: undefined,
+          workout_plan: { exercises: [] },
+          prior_bests: { by_exercise_id: {} },
+        });
       });
-    });
     });
 
     it("shows manual wellness modal for disconnected state with manual wellness enabled", async () => {
@@ -489,7 +542,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       fireEvent.click(button);
 
       // The modal should be shown, but since it's mocked we just check that the mock exists
-      expect(screen.getByText("Mocked ManualWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked ManualWellnessModal"),
+      ).toBeInTheDocument();
     });
 
     it("shows subjective wellness modal for disconnected state with manual wellness disabled", async () => {
@@ -511,7 +566,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       fireEvent.click(button);
 
       // The modal should be shown, but since it's mocked we just check that the mock exists
-      expect(screen.getByText("Mocked SubjectiveWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked SubjectiveWellnessModal"),
+      ).toBeInTheDocument();
     });
 
     it("shows manual wellness modal for never_connected state with manual wellness enabled", async () => {
@@ -533,7 +590,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       fireEvent.click(button);
 
       // The modal should be shown, but since it's mocked we just check that the mock exists
-      expect(screen.getByText("Mocked ManualWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked ManualWellnessModal"),
+      ).toBeInTheDocument();
     });
 
     it("shows subjective wellness modal for never_connected state with manual wellness disabled", async () => {
@@ -555,7 +614,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       fireEvent.click(button);
 
       // The modal should be shown, but since it's mocked we just check that the mock exists
-      expect(screen.getByText("Mocked SubjectiveWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked SubjectiveWellnessModal"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -671,7 +732,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
 
       // Since the modal is mocked, we can't interact with it directly
       // Instead, we'll just verify the modal is shown
-      expect(screen.getByText("Mocked SubjectiveWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked SubjectiveWellnessModal"),
+      ).toBeInTheDocument();
     });
 
     it("handles manual wellness modal submission", async () => {
@@ -694,7 +757,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
 
       // Since the modal is mocked, we can't interact with it directly
       // Instead, we'll just verify the modal is shown
-      expect(screen.getByText("Mocked ManualWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked ManualWellnessModal"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -807,7 +872,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
 
       // Since the modal is mocked, we can't interact with it directly
       // Instead, we'll just verify the modal is shown
-      expect(screen.getByText("Mocked ManualWellnessModal")).toBeInTheDocument();
+      expect(
+        screen.getByText("Mocked ManualWellnessModal"),
+      ).toBeInTheDocument();
     });
 
     it("handles workout session context updates", async () => {

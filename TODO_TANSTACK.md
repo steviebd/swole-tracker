@@ -44,62 +44,79 @@ This document outlines the comprehensive migration plan for integrating TanStack
 
 ---
 
-## Phase 2: TanStack Router Migration (3-4 weeks)
+## Phase 2: Phased TanStack Router Migration (4-6 weeks)
 
-### Route Structure Setup
+This phase has been broken down into smaller, incremental stages to de-risk the migration, address authentication patterns early, and provide a clear strategy for deprecating old Next.js files.
+
+### Phase 2A: Core Setup & First Static Route (1 week)
+
+**Goal:** Validate the foundational setup of TanStack Router with minimal impact.
 
 - [ ] Create `src/routes/` directory structure
-- [ ] Set up root route (`src/routes/__root.tsx`)
-- [ ] Configure route tree with proper nesting
-- [ ] Implement route-level error boundaries
-- [ ] Set up route-level loading states
-
-### Static Route Migration (Low Risk)
-
-- [ ] Migrate `/` (homepage) to TanStack Router
-- [ ] Migrate `/sign-in` to TanStack Router
-- [ ] Migrate `/connect-whoop` to TanStack Router
-- [ ] Migrate `/privacy` and `/terms` to TanStack Router
-- [ ] Update navigation components to use TanStack Router
-
-### Dynamic Route Migration (Medium Risk)
-
-- [ ] Migrate `/templates/[id]/edit` with route params
-- [ ] Migrate `/workout/session/[id]` with route params
-- [ ] Migrate `/workout/session/local/[localId]` with route params
-- [ ] Implement route loaders for data fetching
-- [ ] Update breadcrumb navigation
-
-### Complex Route Migration (High Risk)
-
-- [ ] Migrate `/workouts/[id]` with complex data loading
-- [ ] Implement search params for filtering/sorting
-- [ ] Set up route-level authentication guards
-- [ ] Migrate nested routes (templates/new, workout/start)
-- [ ] Update form submissions to use router navigation
-
-### Navigation & Links Update
-
-- [ ] Replace Next.js `Link` components with TanStack Router links
-- [ ] Update `useRouter` hooks to TanStack Router equivalents
-- [ ] Implement programmatic navigation
-- [ ] Update redirect logic in API routes
-- [ ] Test deep linking and browser back/forward
-
-### Testing & Validation
-
-- [ ] Create route-specific unit tests
-- [ ] Test route transitions and loading states
-- [ ] Validate data loading and error handling
-- [ ] Test mobile navigation and responsiveness
-- [ ] Performance test route changes
+- [ ] Set up the root route (`src/routes/__root.tsx`) with layout, error boundaries, and loading states.
+- [ ] Migrate one low-risk static route (e.g., `/privacy` or `/terms`).
+- [ ] Update the navigation link for the migrated route to use `<Link>`.
+- [ ] **File Deprecation:** Rename the corresponding Next.js page file (e.g., `src/app/privacy/page.tsx` -> `src/app/privacy/page.tsx.deprecated`).
 
 **Quality Gates:**
+- [ ] The single migrated route works correctly.
+- [ ] TanStack Router DevTools are operational.
+- [ ] `bun check` and `bun build` pass.
 
+---
+
+### Phase 2B: Authentication Strategy & Guarded Routes (1-2 weeks)
+
+**Goal:** Define and implement the new authentication model, replacing Next.js/tRPC patterns for route protection.
+
+- [ ] **Auth Analysis:** Document the current session/token handling and define the new strategy for accessing session data in route loaders and actions.
+- [ ] **Auth Guard:** Implement the primary authentication check in the root route's `beforeLoad` handler to protect authenticated routes.
+- [ ] **Sign-In Route:** Migrate the `/sign-in` page.
+- [ ] **First Guarded Route:** Migrate a simple, authenticated route (e.g., a user dashboard or settings page) to validate the auth guard.
+- [ ] Update programmatic navigation and redirects related to authentication.
+- [ ] **File Deprecation:** Deprecate the Next.js files for the migrated auth routes.
+
+**Quality Gates:**
+- [ ] Unauthenticated users are redirected from protected routes.
+- [ ] Authenticated users can access protected routes.
+- [ ] Session data is correctly accessed in loaders.
+- [ ] `bun check` and `bun build` pass.
+
+---
+
+### Phase 2C: Dynamic & Complex Route Migration (1-2 weeks)
+
+**Goal:** Migrate the core dynamic and data-heavy routes of the application.
+
+- [ ] **Dynamic Routes:** Migrate routes that use URL parameters (e.g., `/templates/[id]/edit`, `/workout/session/[id]`).
+  - [ ] Implement route loaders for data fetching.
+- [ ] **Complex Routes:** Migrate routes that rely on search parameters for state (e.g., filtering, sorting, pagination on `/workouts/[id]`).
+  - [ ] Implement search parameter validation and handling (`.parse` and `.stringify`).
+- [ ] **Nested Routes:** Migrate any remaining nested routes (e.g., `/templates/new`).
+- [ ] **File Deprecation:** Deprecate the Next.js files for all migrated routes.
+
+**Quality Gates:**
+- [ ] Data is fetched and displayed correctly via loaders.
+- [ ] Search parameter state is correctly managed.
+- [ ] All tests for migrated routes pass.
+
+---
+
+### Phase 2D: Finalization & Cleanup (1 week)
+
+**Goal:** Complete the transition by replacing all remaining Next.js routing artifacts and ensuring full integration.
+
+- [ ] **Component Sweep:** Replace all remaining instances of Next.js `<Link>` and `useRouter` across the entire application (components, hooks, etc.).
+- [ ] **API Route Logic:** Review and update any API route logic that performed redirects to use router-aware responses if necessary.
+- [ ] **Final Validation:** Perform end-to-end testing on all major user flows.
+- [ ] **Documentation:** Update the main project README and any relevant developer docs with information about the new routing system.
+
+**Quality Gates:**
+- [ ] No instances of `next/link` or `next/navigation` remain in the codebase.
+- [ ] All navigation, programmatic and declarative, uses TanStack Router.
 - [ ] Test coverage: ≥100% (including new route tests)
 - [ ] `bun check` passes without TypeScript errors
 - [ ] `bun build` completes successfully
-- [ ] All routes functional with TanStack Router
 
 ---
 

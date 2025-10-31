@@ -7,6 +7,7 @@ import SuperJSON from "superjson";
 
 import { api } from "~/trpc/react";
 import { AuthContext } from "~/providers/AuthProvider";
+import type { AuthContextType } from "~/providers/AuthProvider";
 
 type FetchHandler = (
   input: RequestInfo | URL,
@@ -21,16 +22,11 @@ interface WorkOSUser {
   profile_picture_url?: string;
 }
 
-type AuthContextType = {
-  user: WorkOSUser | null;
-  isLoading: boolean;
-  signOut: () => Promise<void>;
-};
-
 const defaultUser = {
   user: { id: "test-user", email: "test@example.com" },
   isLoading: false,
   signOut: async () => {},
+  onAuthFailure: () => {},
 };
 
 const createResponse = (payload: unknown, status = 200) =>
@@ -186,6 +182,7 @@ describe("RecentWorkouts", () => {
       user: null,
       isLoading: false,
       signOut: async () => {},
+      onAuthFailure: () => {},
     });
 
     expect(fetchImpl).not.toHaveBeenCalled();

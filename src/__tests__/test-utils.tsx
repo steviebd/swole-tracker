@@ -20,6 +20,7 @@ const MockAuthProvider = ({ children }: { children: React.ReactNode }) => {
     user: mockUser,
     isLoading: false,
     signOut: vi.fn(),
+    onAuthFailure: vi.fn(),
   };
 
   return React.createElement(
