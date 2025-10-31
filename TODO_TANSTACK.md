@@ -245,16 +245,6 @@ Current state: Simple useState-based forms, no react-hook-form
 - **Maintainability:** Code duplication reduced by ≥40%, test coverage ≥95%
 - **Accessibility:** WCAG 2.2 AA compliance maintained, screen reader support improved
 
-**Quality Gates:**
-
-- [ ] Test coverage: ≥95% (including new form tests)
-- [ ] `bun check` passes without TypeScript errors
-- [ ] `bun build` completes successfully
-- [ ] Form performance benchmarks meet targets
-- [ ] All forms functional with improved TanStack Form implementation
-- [ ] Accessibility audit passes (WCAG 2.2 AA)
-- [ ] Bundle size optimization achieved
-
 ---
 
 ## Phase 4: TanStack Virtual & Table Migration (2-3 weeks)
