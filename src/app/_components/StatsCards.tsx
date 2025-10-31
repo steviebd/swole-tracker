@@ -5,6 +5,7 @@ import { BarChart3, Target, Flame, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
+import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { Card } from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 import { analytics } from "~/lib/analytics";
@@ -41,8 +42,7 @@ const STRENGTH_BACKGROUNDS: Record<StrengthCardId, string> = {
     "linear-gradient(135deg, var(--md-ref-palette-secondary-30) 0%, color-mix(in oklab, var(--md-ref-palette-tertiary-40) 70%, black 5%) 100%)",
   streak:
     "linear-gradient(135deg, var(--md-ref-palette-tertiary-40) 0%, color-mix(in oklab, var(--md-ref-palette-primary-40) 85%, black 5%) 100%)",
-  goal:
-    "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-neutral-30) 80%, black 10%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-50) 65%, black 20%) 100%)",
+  goal: "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-neutral-30) 80%, black 10%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-50) 65%, black 20%) 100%)",
 };
 
 const changeToneClass = {
@@ -154,7 +154,10 @@ export const StatsCards = memo(function StatsCards() {
     lastWeekVolume,
     strengthPulse,
     isLoading,
+    isSecondaryLoading,
   } = useSharedWorkoutData();
+
+  const { invalidateProgressRealtime } = useCacheInvalidation();
 
   const stats = useMemo(() => {
     const workoutsThisWeek = thisWeekWorkouts.length ?? 0;
@@ -377,12 +380,18 @@ export const StatsCards = memo(function StatsCards() {
     ];
   }, [stats, strengthSummary]);
 
-  const handleCardPress = useCallback((cardId: string) => {
-    analytics.event("dashboard_stat_card_tap", {
-      cardId,
-      persona: "strength",
-    });
-  }, []);
+  const handleCardPress = useCallback(
+    (cardId: string) => {
+      analytics.event("dashboard_stat_card_tap", {
+        cardId,
+        persona: "strength",
+      });
+
+      // Trigger real-time refresh when user interacts with cards
+      invalidateProgressRealtime();
+    },
+    [invalidateProgressRealtime],
+  );
 
   if (isLoading) {
     return (
@@ -390,7 +399,7 @@ export const StatsCards = memo(function StatsCards() {
         {[0, 1, 2, 3].map((index) => (
           <div
             key={index}
-            className="h-[200px] rounded-2xl border border-border/40 bg-surface-secondary/60 animate-pulse"
+            className="border-border/40 bg-surface-secondary/60 h-[200px] animate-pulse rounded-2xl border"
             aria-hidden
           />
         ))}
@@ -401,7 +410,10 @@ export const StatsCards = memo(function StatsCards() {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => {
-        const BadgeIcon = card.badge ? formatAchievementBadge(card.badge) : null;
+        const BadgeIcon = card.badge
+          ? formatAchievementBadge(card.badge)
+          : null;
+        const isUpdating = isSecondaryLoading && !isLoading;
 
         return (
           <div key={card.id} className="h-full">
@@ -411,13 +423,16 @@ export const StatsCards = memo(function StatsCards() {
               padding="lg"
               interactive
               className={cn(
-                "relative flex h-full min-h-[200px] flex-col overflow-hidden text-white shadow-xl",
+                "relative flex h-full min-h-[200px] flex-col overflow-hidden text-white shadow-xl transition-all duration-300",
                 "focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black/20",
+                isUpdating && "animate-pulse opacity-90",
               )}
               style={{ background: card.background }}
               onClick={() => handleCardPress(card.id)}
               onActivate={() => handleCardPress(card.id)}
-              aria-label={card.accessibilityLabel ?? `${card.title} ${card.value}`}
+              aria-label={
+                card.accessibilityLabel ?? `${card.title} ${card.value}`
+              }
             >
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/10 via-black/0 to-black/50" />
               <div className="relative flex flex-1 flex-col">
@@ -427,7 +442,9 @@ export const StatsCards = memo(function StatsCards() {
                   </div>
                   {BadgeIcon && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-sm">
-                      {BadgeIcon.icon && <span aria-hidden>{BadgeIcon.icon}</span>}
+                      {BadgeIcon.icon && (
+                        <span aria-hidden>{BadgeIcon.icon}</span>
+                      )}
                       {BadgeIcon.text}
                     </span>
                   )}
@@ -435,10 +452,10 @@ export const StatsCards = memo(function StatsCards() {
 
                 <div className="mt-6 space-y-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                    <p className="text-xs font-semibold tracking-wider text-white/70 uppercase">
                       {card.title}
                     </p>
-                    <p className="mt-2 text-3xl font-semibold leading-tight">
+                    <p className="mt-2 text-3xl leading-tight font-semibold">
                       {card.value}
                     </p>
                   </div>
@@ -486,6 +503,19 @@ export const StatsCards = memo(function StatsCards() {
                         <span>{footer}</span>
                       </p>
                     ))}
+                    {isUpdating && (
+                      <p className="flex items-center gap-2 text-xs text-white/60">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
+                        <span>Updating...</span>
+                      </p>
+                    )}
+                  </div>
+                ) : isUpdating ? (
+                  <div className="mt-6 text-xs text-white/60">
+                    <p className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
+                      <span>Updating...</span>
+                    </p>
                   </div>
                 ) : null}
               </div>

@@ -11,6 +11,11 @@ import {
   flexRender,
   type ExpandedState,
   type SortingState,
+  type ColumnSizingState,
+  type ColumnOrderState,
+  type RowSelectionState,
+  type VisibilityState,
+  type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
@@ -70,6 +75,11 @@ export function ExerciseManager() {
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const utils = api.useUtils();
   const invalidateExerciseDependents = () => {
@@ -215,6 +225,27 @@ export function ExerciseManager() {
   // Define columns
   const columns = useMemo(
     () => [
+      columnHelper.display({
+        id: "select",
+        header: ({ table }) => (
+          <input
+            type="checkbox"
+            checked={table.getIsAllRowsSelected()}
+            onChange={table.getToggleAllRowsSelectedHandler()}
+            aria-label="Select all rows"
+          />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={row.getIsSelected()}
+            onChange={row.getToggleSelectedHandler()}
+            aria-label={`Select row ${row.original.name}`}
+          />
+        ),
+        size: 50,
+        enableResizing: false,
+      }),
       columnHelper.accessor("name", {
         header: "Exercise Name",
         cell: (info) => {
@@ -235,6 +266,7 @@ export function ExerciseManager() {
           );
         },
         enableSorting: true,
+        size: 200,
       }),
       columnHelper.accessor("createdAt", {
         header: "Created",
@@ -244,6 +276,7 @@ export function ExerciseManager() {
           </span>
         ),
         enableSorting: true,
+        size: 120,
         meta: {
           className: "hidden sm:table-cell",
         },
@@ -260,6 +293,31 @@ export function ExerciseManager() {
           );
         },
         enableSorting: true,
+        size: 140,
+      }),
+      columnHelper.accessor("tags", {
+        header: "Tags",
+        cell: (info) => (
+          <span className="text-sm">
+            {info.getValue() || "—"}
+          </span>
+        ),
+        enableSorting: true,
+        enableColumnFilter: true,
+        filterFn: "includesString",
+        size: 150,
+      }),
+      columnHelper.accessor("muscleGroup", {
+        header: "Muscle Group",
+        cell: (info) => (
+          <span className="text-sm">
+            {info.getValue() || "—"}
+          </span>
+        ),
+        enableSorting: true,
+        enableColumnFilter: true,
+        filterFn: "includesString",
+        size: 130,
       }),
       columnHelper.display({
         id: "actions",
@@ -324,10 +382,63 @@ export function ExerciseManager() {
             </div>
           );
         },
+        size: 200,
+        enableResizing: false,
       }),
     ],
     [selectedForMerge, mergeMode, handleEditExercise, handleMergeSelection],
   );
+
+  // Add bulk delete functionality (placeholder - API endpoint needs to be created)
+  const handleBulkDelete = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    if (selectedRows.length === 0) return;
+
+    const exerciseNames = selectedRows.map(row => row.original.name);
+    if (confirm(`Are you sure you want to delete ${selectedRows.length} exercises?\n\n${exerciseNames.join('\n')}\n\nThis action cannot be undone.`)) {
+      // TODO: Implement bulk delete API call
+      alert("Bulk delete functionality coming soon - API endpoint needs to be implemented");
+      setRowSelection({});
+    }
+  };
+
+  // Table state persistence
+  const TABLE_STATE_KEY = 'exercise-manager-table-state';
+
+  const saveTableState = useCallback(() => {
+    const state = {
+      columnSizing,
+      columnOrder,
+      columnVisibility,
+      sorting,
+    };
+    localStorage.setItem(TABLE_STATE_KEY, JSON.stringify(state));
+  }, [columnSizing, columnOrder, columnVisibility, sorting]);
+
+  const loadTableState = useCallback(() => {
+    try {
+      const saved = localStorage.getItem(TABLE_STATE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.columnSizing) setColumnSizing(state.columnSizing);
+        if (state.columnOrder) setColumnOrder(state.columnOrder);
+        if (state.columnVisibility) setColumnVisibility(state.columnVisibility);
+        if (state.sorting) setSorting(state.sorting);
+      }
+    } catch (error) {
+      console.warn('Failed to load table state:', error);
+    }
+  }, []);
+
+  // Load state on mount
+  useEffect(() => {
+    loadTableState();
+  }, [loadTableState]);
+
+  // Save state when it changes
+  useEffect(() => {
+    saveTableState();
+  }, [saveTableState]);
 
   // Create table instance
   const table = useReactTable({
@@ -337,14 +448,28 @@ export function ExerciseManager() {
       expanded,
       sorting,
       globalFilter: searchTerm,
+      columnSizing,
+      columnOrder,
+      rowSelection,
+      columnVisibility,
+      columnFilters,
     },
     onExpandedChange: setExpanded,
     onSortingChange: setSorting,
+    onColumnSizingChange: setColumnSizing,
+    onColumnOrderChange: setColumnOrder,
+    onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getRowCanExpand: () => true,
+    enableColumnResizing: true,
+    enableRowSelection: true,
+    enableHiding: true,
+    enableColumnFilters: true,
   });
 
   // Show loading state during SSR and initial client render
@@ -418,6 +543,32 @@ export function ExerciseManager() {
             size="sm"
           >
             {mergeMode ? "Cancel Merge" : "Merge Exercises"}
+          </Button>
+          {Object.keys(rowSelection).length > 0 && (
+            <Button
+              onClick={handleBulkDelete}
+              variant="destructive"
+              size="sm"
+            >
+              Delete Selected ({Object.keys(rowSelection).length})
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              // Reset table state
+              setColumnSizing({});
+              setColumnOrder([]);
+              setColumnVisibility({});
+              setSorting([]);
+              setRowSelection({});
+              setColumnFilters([]);
+              localStorage.removeItem(TABLE_STATE_KEY);
+            }}
+            variant="outline"
+            size="sm"
+            title="Reset table to default state"
+          >
+            Reset Table
           </Button>
         </div>
 
@@ -503,9 +654,36 @@ export function ExerciseManager() {
 
       {/* Exercise List */}
       <div className="space-y-4">
-        <div className="text-muted-foreground text-sm">
-          {filteredExercises.length} exercise
-          {filteredExercises.length !== 1 ? "s" : ""} found
+        <div className="flex items-center justify-between">
+          <div className="text-muted-foreground text-sm">
+            {filteredExercises.length} exercise
+            {filteredExercises.length !== 1 ? "s" : ""} found
+            {Object.keys(rowSelection).length > 0 && (
+              <span className="ml-2 text-primary">
+                • {Object.keys(rowSelection).length} selected
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Column visibility toggle */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground mr-2">Columns:</span>
+              {table.getAllLeafColumns().map((column) => {
+                if (!column.getCanHide()) return null;
+                return (
+                  <label key={column.id} className="flex items-center gap-1 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={column.getIsVisible()}
+                      onChange={column.getToggleVisibilityHandler()}
+                      className="h-3 w-3"
+                    />
+                    {column.columnDef.header as string}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="rounded-md border">
@@ -530,6 +708,8 @@ export function ExerciseManager() {
                           cursor: header.column.getCanSort()
                             ? "pointer"
                             : "default",
+                          width: header.getSize(),
+                          position: "relative",
                         }}
                         aria-sort={
                           header.column.getIsSorted()
@@ -556,6 +736,13 @@ export function ExerciseManager() {
                             )}
                           </div>
                         )}
+                        {header.column.getCanResize() && (
+                          <div
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-border hover:bg-primary"
+                          />
+                        )}
                       </TableHead>
                     );
                   })}
@@ -575,7 +762,9 @@ export function ExerciseManager() {
                         className={
                           isSelectedForMerge
                             ? "bg-blue-50 dark:bg-blue-950/50"
-                            : ""
+                            : row.getIsSelected()
+                              ? "bg-muted/50"
+                              : ""
                         }
                       >
                         {row.getVisibleCells().map((cell) => {
@@ -595,7 +784,7 @@ export function ExerciseManager() {
                       {row.getIsExpanded() && (
                         <TableRow>
                           <TableCell
-                            colSpan={columns.length}
+                            colSpan={table.getVisibleLeafColumns().length}
                             className="p-0"
                             id={`exercise-details-${exercise.id}`}
                           >
@@ -619,7 +808,7 @@ export function ExerciseManager() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length}
+                    colSpan={table.getVisibleLeafColumns().length}
                     className="text-muted-foreground py-8 text-center"
                   >
                     No exercises found

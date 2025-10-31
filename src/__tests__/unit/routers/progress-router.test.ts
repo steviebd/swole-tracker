@@ -212,7 +212,7 @@ describe("progressRouter", () => {
           from: vi.fn(() => ({
             innerJoin: vi.fn(() => ({
               where: vi.fn(() => ({
-                orderBy: vi.fn(() => rawData),
+                orderBy: vi.fn(() => Promise.resolve(rawData)),
               })),
             })),
           })),
@@ -221,7 +221,7 @@ describe("progressRouter", () => {
           from: vi.fn(() => ({
             innerJoin: vi.fn(() => ({
               where: vi.fn(() => ({
-                orderBy: vi.fn(() => prevRawData),
+                orderBy: vi.fn(() => Promise.resolve(prevRawData)),
               })),
             })),
           })),

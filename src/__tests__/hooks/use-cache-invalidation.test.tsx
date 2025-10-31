@@ -28,6 +28,7 @@ const createInvalidateHelpersMock = () => ({
   whoop: vi.fn(),
   progress: vi.fn(),
   progressAggregated: vi.fn(),
+  progressRealtime: vi.fn(),
   all: vi.fn(),
 });
 

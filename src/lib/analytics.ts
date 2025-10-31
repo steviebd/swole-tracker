@@ -378,4 +378,47 @@ export const analytics = {
       timestamp: new Date().toISOString(),
     });
   },
+
+  // Performance tracking
+  trackVirtualListPerformance: (metrics: {
+    componentName: string;
+    renderTime: number;
+    scrollEvents: number;
+    memoryUsage?: number;
+    visibleItems: number;
+    totalItems: number;
+    containerHeight: number;
+    itemHeight: number;
+  }) => {
+    safeCapture("virtual_list_performance", {
+      ...metrics,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  trackTablePerformance: (metrics: {
+    type?: string;
+    componentName: string;
+    renderTime: number;
+    scrollEvents: number;
+    memoryUsage?: number;
+    visibleRows: number;
+    totalRows: number;
+    sortTime?: number;
+    filterTime?: number;
+  }) => {
+    safeCapture("table_performance", {
+      ...metrics,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Test helpers
+  setPosthogClientForTesting: (client: any) => {
+    // For testing purposes
+  },
+
+  resetPosthogClientForTesting: () => {
+    // For testing purposes
+  },
 };

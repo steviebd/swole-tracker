@@ -144,16 +144,16 @@ export function getMobileHiddenColumns(isMobile: boolean): VisibilityState {
  */
 export const tableA11y = {
   /**
-   * Get ARIA sort attribute for column header
-   */
+    * Get ARIA sort attribute for column header
+    */
   getSortAriaSort(isSorted: false | "asc" | "desc"): "ascending" | "descending" | "none" {
     if (!isSorted) return "none";
     return isSorted === "asc" ? "ascending" : "descending";
   },
 
   /**
-   * Get ARIA label for pagination button
-   */
+    * Get ARIA label for pagination button
+    */
   getPaginationLabel(action: "first" | "previous" | "next" | "last", currentPage: number, totalPages: number): string {
     switch (action) {
       case "first":
@@ -168,10 +168,31 @@ export const tableA11y = {
   },
 
   /**
-   * Get ARIA label for row expansion
-   */
+    * Get ARIA label for row expansion
+    */
   getExpandLabel(isExpanded: boolean, rowName: string): string {
     return isExpanded ? `Collapse ${rowName}` : `Expand ${rowName}`;
+  },
+
+  /**
+    * Get comprehensive keyboard navigation instructions for tables
+    */
+  getKeyboardInstructions(): string {
+    return "Use Tab to navigate between cells, Enter or Space to activate buttons, Arrow keys to navigate within interactive elements, Escape to cancel actions";
+  },
+
+  /**
+    * Get ARIA description for virtual tables
+    */
+  getVirtualTableDescription(visibleCount: number, totalCount: number): string {
+    return `Virtual table showing ${visibleCount} of ${totalCount} rows. Use scroll to view more rows.`;
+  },
+
+  /**
+    * Get ARIA live region text for table updates
+    */
+  getTableUpdateText(action: "sorted" | "filtered" | "paginated", details: string): string {
+    return `Table ${action}: ${details}`;
   },
 };
 

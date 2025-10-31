@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   CartesianGrid,
   Line,
@@ -14,7 +14,7 @@ import {
 import { formatTimeRangeLabel } from "~/lib/time-range";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
-import { VirtualList } from "~/components/virtual-list";
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useProgressRange } from "~/contexts/progress-range-context";
 import { analytics } from "~/lib/analytics";
 
@@ -702,48 +702,13 @@ export function StrengthProgressSection({
 
             <div className="hidden lg:block">
               {sortedRows.length > 50 ? (
-                <VirtualList
+                <VirtualizedSessionTable
                   items={sortedRows.slice(
                     (currentPage - 1) * pageSize,
                     currentPage * pageSize,
                   )}
-                  itemHeight={48} // Approximate row height
                   containerHeight={400}
-                  renderItem={(row: (typeof sortedRows)[0], index: number) => (
-                    <div
-                      key={row.workoutDate.toString()}
-                      className="border-border/60 border-b px-3 py-3 text-sm"
-                    >
-                      <div className="grid grid-cols-6 gap-3">
-                        <div className="text-foreground">
-                          {row.date.toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </div>
-                        <div className="text-foreground font-semibold">
-                          {row.weight} kg
-                        </div>
-                        <div className="text-muted-foreground">
-                          {row.sets} × {row.reps}
-                        </div>
-                        <div className="text-foreground">
-                          {Math.round(row.oneRm)} kg
-                        </div>
-                        <div className="text-foreground">
-                          {Math.round(row.volume).toLocaleString()} kg
-                        </div>
-                        <div>
-                          <SessionTags
-                            intensityPct={row.intensityPct}
-                            oneRm={row.oneRm}
-                            currentMax={trendSummary?.currentOneRM ?? 0}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  className="border-border/60 rounded-lg border"
+                  trendSummary={trendSummary}
                 />
               ) : (
                 <table className="w-full text-sm">
@@ -1258,19 +1223,71 @@ function VirtualizedExerciseSelect({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="border-border/60 w-full border-b px-3 py-2 text-sm outline-none"
           />
-          <VirtualList
-            items={filteredExercises}
-            itemHeight={40}
-            containerHeight={200}
-            renderItem={(exercise) => (
+          <VirtualizedExerciseList
+            exercises={filteredExercises}
+            onSelect={(id) => {
+              onSelect(id);
+              setIsOpen(false);
+              setSearchTerm("");
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VirtualizedExerciseList({
+  exercises,
+  onSelect,
+}: {
+  exercises: Array<{
+    id: string;
+    exerciseName: string;
+    aliasCount: number;
+    aliases?: string[];
+  }>;
+  onSelect: (id: string) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: exercises.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40,
+    overscan: 5,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="overflow-auto"
+      style={{ height: 200 }}
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const exercise = exercises[virtualItem.index]!;
+          return (
+            <div
+              key={virtualItem.key}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
               <button
-                key={exercise.id}
                 type="button"
-                onClick={() => {
-                  onSelect(exercise.id);
-                  setIsOpen(false);
-                  setSearchTerm("");
-                }}
+                onClick={() => onSelect(exercise.id)}
                 className="hover:bg-muted/50 w-full px-3 py-2 text-left text-sm"
               >
                 {exercise.exerciseName}
@@ -1278,10 +1295,103 @@ function VirtualizedExerciseSelect({
                   ? ` (${exercise.aliasCount} linked)`
                   : ""}
               </button>
-            )}
-          />
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function VirtualizedSessionTable({
+  items,
+  containerHeight,
+  trendSummary,
+}: {
+  items: Array<{
+    workoutDate: Date;
+    date: Date;
+    weight: number;
+    sets: number;
+    reps: number;
+    oneRm: number;
+    volume: number;
+    intensityPct: number | null;
+  }>;
+  containerHeight: number;
+  trendSummary?: {
+    currentOneRM: number;
+  } | null;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 48,
+    overscan: 5,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="border-border/60 rounded-lg border overflow-auto"
+      style={{ height: containerHeight }}
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const row = items[virtualItem.index]!;
+          return (
+            <div
+              key={virtualItem.key}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              <div className="border-border/60 border-b px-3 py-3 text-sm">
+                <div className="grid grid-cols-6 gap-3">
+                  <div className="text-foreground">
+                    {row.date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </div>
+                  <div className="text-foreground font-semibold">
+                    {row.weight} kg
+                  </div>
+                  <div className="text-muted-foreground">
+                    {row.sets} × {row.reps}
+                  </div>
+                  <div className="text-foreground">
+                    {Math.round(row.oneRm)} kg
+                  </div>
+                  <div className="text-foreground">
+                    {Math.round(row.volume).toLocaleString()} kg
+                  </div>
+                  <div>
+                    <SessionTags
+                      intensityPct={row.intensityPct}
+                      oneRm={row.oneRm}
+                      currentMax={trendSummary?.currentOneRM ?? 0}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

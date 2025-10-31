@@ -18,9 +18,11 @@ export function useSharedWorkoutData() {
   } = api.progress.getWorkoutDates.useQuery(
     { timeRange: "week" },
     {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 30 * 1000, // 30 seconds for real-time updates
       gcTime: 10 * 60 * 1000, // 10 minutes
-      refetchOnMount: false, // Don't refetch if data exists
+      refetchOnMount: true, // Always refetch on mount for fresh data
+      refetchOnWindowFocus: true, // Refetch when user returns to tab
+      refetchInterval: 60 * 1000, // Poll every minute for live updates
     },
   );
 
@@ -30,9 +32,11 @@ export function useSharedWorkoutData() {
       { timeRange: "week" },
       {
         enabled: !!thisWeekWorkouts, // Only load after first query completes
-        staleTime: 10 * 60 * 1000, // Longer stale time for secondary data
+        staleTime: 45 * 1000, // 45 seconds for near real-time volume updates
         gcTime: 20 * 60 * 1000,
-        refetchOnMount: false,
+        refetchOnMount: true, // Refetch for fresh volume data
+        refetchOnWindowFocus: true,
+        refetchInterval: 90 * 1000, // Poll every 90 seconds
       },
     );
 
@@ -42,9 +46,11 @@ export function useSharedWorkoutData() {
       { timeRange: "week" },
       {
         enabled: !!thisWeekWorkouts, // Only load after basic data
-        staleTime: 10 * 60 * 1000,
+        staleTime: 60 * 1000, // 1 minute for consistency updates
         gcTime: 20 * 60 * 1000,
-        refetchOnMount: false,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        refetchInterval: 120 * 1000, // Poll every 2 minutes
       },
     );
 
@@ -53,9 +59,11 @@ export function useSharedWorkoutData() {
       { timeRange: "week" },
       {
         enabled: !!thisWeekWorkouts,
-        staleTime: 10 * 60 * 1000,
+        staleTime: 45 * 1000, // 45 seconds for strength pulse updates
         gcTime: 20 * 60 * 1000,
-        refetchOnMount: false,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        refetchInterval: 90 * 1000, // Poll every 90 seconds
       },
     );
 
@@ -65,9 +73,11 @@ export function useSharedWorkoutData() {
       { timeRange: "month" },
       {
         enabled: !!thisWeekWorkouts, // Only load after critical data
-        staleTime: 15 * 60 * 1000, // Longer cache for historical data
+        staleTime: 5 * 60 * 1000, // 5 minutes for streak data (historical but affects current streak)
         gcTime: 30 * 60 * 1000,
-        refetchOnMount: false,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        refetchInterval: 5 * 60 * 1000, // Poll every 5 minutes for streak updates
       },
     );
 
@@ -94,9 +104,11 @@ export function useSharedWorkoutData() {
       },
       {
         enabled: !!thisWeekWorkouts && !!thisWeekVolume,
-        staleTime: 30 * 60 * 1000,
+        staleTime: 10 * 60 * 1000, // 10 minutes for comparison data
         gcTime: 60 * 60 * 1000,
-        refetchOnMount: false,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
       },
     );
 
@@ -109,9 +121,11 @@ export function useSharedWorkoutData() {
       },
       {
         enabled: !!thisWeekWorkouts && !!thisWeekVolume, // Load after primary data
-        staleTime: 30 * 60 * 1000, // Very long cache for comparison data
+        staleTime: 10 * 60 * 1000, // 10 minutes for comparison data
         gcTime: 60 * 60 * 1000, // 1 hour
-        refetchOnMount: false,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
       },
     );
 
