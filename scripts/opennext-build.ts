@@ -22,10 +22,20 @@ function runNextBuild() {
     console.error(`Next.js CLI not found at ${NEXT_BIN}`);
     process.exit(1);
   }
-  console.log("OpenNext — running Next.js build");
+
+  // Always use production NODE_ENV for Next.js build, but pass a flag for development mode
+  const isDev = process.env.NODE_ENV === "development";
+  console.log(
+    `OpenNext — running Next.js build in ${isDev ? "development" : "production"} mode`,
+  );
+
   const proc = spawn(NEXT_BIN, ["build"], {
     stdio: "inherit",
-    env: { ...process.env, NODE_ENV: "production" },
+    env: {
+      ...process.env,
+      NODE_ENV: "production", // Next.js requires this for builds
+      DEVELOPMENT_MODE: isDev ? "true" : "false", // Custom flag for our config
+    },
   });
   return new Promise<void>((resolve, reject) => {
     proc.on("close", (code) => {
@@ -41,7 +51,14 @@ if (process.env.OPENNEXT_CHILD_BUILD === "1") {
 }
 
 function getLatestSource(root: string): number {
-  const inputs = ["src", "public", "next.config.js", "open-next.config.ts", "package.json", "tsconfig.json"];
+  const inputs = [
+    "src",
+    "public",
+    "next.config.js",
+    "open-next.config.ts",
+    "package.json",
+    "tsconfig.json",
+  ];
   let latest = 0;
   const ignoreDirs = new Set([
     join(root, ".open-next"),
@@ -53,7 +70,11 @@ function getLatestSource(root: string): number {
     if (!existsSync(target)) return;
     const stats = statSync(target);
     if (stats.isDirectory()) {
-      if ([...ignoreDirs].some((ignored) => target === ignored || target.startsWith(ignored + sep))) {
+      if (
+        [...ignoreDirs].some(
+          (ignored) => target === ignored || target.startsWith(ignored + sep),
+        )
+      ) {
         return;
       }
       for (const entry of readdirSync(target, { withFileTypes: true })) {
@@ -90,10 +111,14 @@ async function runOpenNextPackager() {
   console.log("OpenNext — generating config files");
   try {
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn(join(ROOT_DIR, "node_modules/.bin/opennextjs-cloudflare"), ["build", "--skipBuild"], {
-        stdio: "ignore",
-        env: { ...process.env, OPENNEXT_CHILD_BUILD: "1" },
-      });
+      const proc = spawn(
+        join(ROOT_DIR, "node_modules/.bin/opennextjs-cloudflare"),
+        ["build", "--skipBuild"],
+        {
+          stdio: "ignore",
+          env: { ...process.env, OPENNEXT_CHILD_BUILD: "1" },
+        },
+      );
       proc.on("close", (code) => {
         if (code === 0 || code === null) resolve();
         else reject(new Error(`Config generation failed with code ${code}`));
@@ -103,10 +128,14 @@ async function runOpenNextPackager() {
     // Ignore errors as per original
   }
   // Then run the full build
-  const proc = spawn(join(ROOT_DIR, "node_modules/.bin/opennextjs-cloudflare"), ["build"], {
-    stdio: "inherit",
-    env: { ...process.env, OPENNEXT_CHILD_BUILD: "1" },
-  });
+  const proc = spawn(
+    join(ROOT_DIR, "node_modules/.bin/opennextjs-cloudflare"),
+    ["build"],
+    {
+      stdio: "inherit",
+      env: { ...process.env, OPENNEXT_CHILD_BUILD: "1" },
+    },
+  );
   return new Promise<void>((resolve, reject) => {
     proc.on("close", (code) => {
       if (code === 0) resolve();

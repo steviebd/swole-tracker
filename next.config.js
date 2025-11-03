@@ -31,8 +31,20 @@ const baseConfig = {
       "node:https": "https-browserify",
     };
 
+    // Check if we're in development mode (using custom flag since NODE_ENV is always production for builds)
+    const isDevelopmentMode = process.env.DEVELOPMENT_MODE === "true" || dev;
+
+    // Disable minification in development for faster builds and easier debugging
+    if (isDevelopmentMode) {
+      config.optimization = {
+        ...config.optimization,
+        minimize: false,
+        minimizer: [],
+      };
+    }
+
     // Optimize bundle size in production
-    if (!dev && !isServer) {
+    if (!isDevelopmentMode && !isServer) {
       // Split chunks more aggressively for better caching
       config.optimization.splitChunks = {
         ...config.optimization.splitChunks,

@@ -28,8 +28,8 @@ watch = true
 [build]
 # Enable source maps for debugging
 sourcemap = true
-# Minify code for production builds
-minify = true
+# Minify code for production builds only (disabled in development)
+minify = { if = "${NODE_ENV} != development", then = true, else = false }
 # Target modern JavaScript for better performance
 target = "bun"
 
