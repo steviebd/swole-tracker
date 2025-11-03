@@ -16,6 +16,9 @@ export function getWorkOS(): WorkOS {
       if (!env.WORKOS_CLIENT_ID) {
         throw new Error("WORKOS_CLIENT_ID is required but not provided");
       }
+      if (!env.WORKOS_CLIENT_SECRET) {
+        throw new Error("WORKOS_CLIENT_SECRET is required but not provided");
+      }
       workos = new WorkOS(env.WORKOS_API_KEY);
     }
   }
