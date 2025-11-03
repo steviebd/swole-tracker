@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "tokens:build": "bun scripts/generate-theme-tokens.ts && bun scripts/build-material3-css.ts",
     "update-wrangler-config": "bun scripts/update-wrangler-config.ts",
+    "secrets": "bun scripts/update-secrets-cache.ts",
     "setup-d1-databases": "bun scripts/setup-d1-databases.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -36,7 +37,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@opennextjs/cloudflare": "^1.11.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.1",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -83,6 +83,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.11.0",
     "@ai-sdk/provider": "2.0.0",
     "@ai-sdk/provider-utils": "3.0.12",
     "@cloudflare/workers-types": "^4.20251011.0",

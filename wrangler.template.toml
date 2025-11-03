@@ -9,7 +9,7 @@ enabled = true
 head_sampling_rate = 1
 
 [build]
-command = "bash scripts/opennext-build.sh"
+command = "bun scripts/opennext-build.ts"
 
 [assets]
 binding = "ASSETS"

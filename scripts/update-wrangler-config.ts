@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { spawn } from "child_process";
-import { readFileSync, writeFileSync, copyFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from "fs";
+import { join } from "path";
 
 async function main() {
   const TARGET_ENV = process.argv[2] || "dev";
+  const isCI = process.env.CI === 'true';
 
   const validEnvs = ["dev", "staging", "production", "preview"];
   if (!validEnvs.includes(TARGET_ENV)) {
@@ -30,33 +32,72 @@ async function main() {
   }
 
   console.log(
-    `🔄 Updating ${CONFIG_FILE} for env '${TARGET_ENV}' with Infisical secrets…`,
+    `🔄 Updating ${CONFIG_FILE} for env '${TARGET_ENV}'${isCI ? ' (CI mode)' : ' with Infisical secrets'}…`,
   );
 
-  // Prefer an already-provided D1 ID – avoids launching a nested Infisical process.
   let DB_ID = process.env.D1_DB_ID || "";
 
-  if (!DB_ID) {
-    DB_ID = await new Promise<string>((resolve) => {
-      const proc = spawn(
-        "infisical",
-        ["run", "--env", TARGET_ENV, "--command", "echo $D1_DB_ID"],
-        {
-          stdio: ["pipe", "pipe", "pipe"],
-        },
+  if (isCI) {
+    if (!DB_ID) {
+      console.error(
+        `❌ Error: D1_DB_ID environment variable is required in CI but not set`,
       );
-      let output = "";
-      proc.stdout.on("data", (data) => (output += data.toString()));
-      proc.on("close", (code) => {
-        resolve(code === 0 ? output.trim() : "");
+      process.exit(1);
+    }
+    console.log(`🔧 Using D1_DB_ID from environment variable (CI mode)`);
+  } else {
+    // Check for cached D1_DB_ID first
+    const CACHE_DIR = join(process.cwd(), ".wrangler", "tmp");
+    const CACHE_FILE = join(CACHE_DIR, `d1_db_id_${TARGET_ENV}`);
+
+    if (!DB_ID && existsSync(CACHE_FILE)) {
+      try {
+        DB_ID = readFileSync(CACHE_FILE, "utf-8").trim();
+        console.log(`📋 Using cached D1_DB_ID for ${TARGET_ENV}`);
+      } catch {
+        // Ignore cache read errors
+      }
+    }
+
+    if (!DB_ID) {
+      DB_ID = await new Promise<string>((resolve) => {
+        const proc = spawn(
+          "infisical",
+          ["run", "--env", TARGET_ENV, "--command", "echo $D1_DB_ID"],
+          {
+            stdio: ["pipe", "pipe", "pipe"],
+          },
+        );
+        let output = "";
+        proc.stdout.on("data", (data) => (output += data.toString()));
+        proc.on("close", (code) => {
+          resolve(code === 0 ? output.trim() : "");
+        });
       });
-    });
+
+      // Cache the retrieved DB_ID
+      if (DB_ID) {
+        try {
+          mkdirSync(CACHE_DIR, { recursive: true });
+          writeFileSync(CACHE_FILE, DB_ID);
+          console.log(`💾 Cached D1_DB_ID for ${TARGET_ENV}`);
+        } catch {
+          // Ignore cache write errors
+        }
+      }
+    }
   }
 
   if (!DB_ID) {
-    console.error(
-      `❌ Error: Could not retrieve D1_DB_ID from Infisical for '${TARGET_ENV}'`,
-    );
+    if (isCI) {
+      console.error(
+        `❌ Error: D1_DB_ID environment variable is required in CI but not set`,
+      );
+    } else {
+      console.error(
+        `❌ Error: Could not retrieve D1_DB_ID from Infisical for '${TARGET_ENV}'`,
+      );
+    }
     process.exit(1);
   }
 
@@ -83,6 +124,18 @@ async function main() {
       /\{\{\s*CLOUDFLARE_ACCOUNT_ID\s*\}\}/g,
       accountId,
     );
+  }
+
+  // Ensure the build command is set to use the TypeScript script
+  const buildCommandPattern = /\[build\]\s*\n\s*command\s*=\s*"[^"]*"/;
+  if (buildCommandPattern.test(content)) {
+    content = content.replace(buildCommandPattern, '[build]\ncommand = "bun scripts/opennext-build.ts"');
+  } else {
+    // If no build command section exists, add it after the compatibility_flags line
+    const compatFlagsPattern = /(compatibility_flags\s*=\s*\[.*?\])/;
+    if (compatFlagsPattern.test(content)) {
+      content = content.replace(compatFlagsPattern, '$1\n\n[build]\ncommand = "bun scripts/opennext-build.ts"');
+    }
   }
 
   const varNames = [
@@ -150,7 +203,7 @@ async function main() {
   }
 
   console.log(`✅ env.${TARGET_ENV}.database_id -> ${DB_ID}`);
-  if (TARGET_ENV === "dev") {
+  if (TARGET_ENV === "dev" && !isCI) {
     console.log("✅ env.dev.vars refreshed from current Infisical session");
   }
   console.log(`   Backup saved as ${BACKUP_FILE}`);

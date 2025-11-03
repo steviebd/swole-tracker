@@ -90,7 +90,7 @@ async function runOpenNextPackager() {
   console.log("OpenNext — generating config files");
   try {
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn("npx", ["--yes", "@opennextjs/cloudflare", "build", "--skipBuild"], {
+      const proc = spawn(join(ROOT_DIR, "node_modules/.bin/opennextjs-cloudflare"), ["build", "--skipBuild"], {
         stdio: "ignore",
         env: { ...process.env, OPENNEXT_CHILD_BUILD: "1" },
       });
@@ -103,7 +103,7 @@ async function runOpenNextPackager() {
     // Ignore errors as per original
   }
   // Then run the full build
-  const proc = spawn("npx", ["--yes", "@opennextjs/cloudflare", "build"], {
+  const proc = spawn(join(ROOT_DIR, "node_modules/.bin/opennextjs-cloudflare"), ["build"], {
     stdio: "inherit",
     env: { ...process.env, OPENNEXT_CHILD_BUILD: "1" },
   });
