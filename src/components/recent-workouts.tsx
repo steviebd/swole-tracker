@@ -498,6 +498,10 @@ const DashboardRecentWorkoutsView = ({
                     metrics={summary.metrics}
                     isRecent={isRecent}
                     onRepeat={handleRepeat}
+                    onDebrief={() => {
+                      console.log("Dashboard Debrief button clicked for workout:", workout.id);
+                      onViewDetails(workout.id);
+                    }}
                     onViewDetails={() => onViewDetails(workout.id)}
                   />
                 </motion.div>
@@ -520,6 +524,7 @@ const CardRecentWorkoutsView = ({
   repeatingWorkoutId,
   workouts,
 }: BaseViewProps) => {
+  console.log("CardRecentWorkoutsView: Using custom card implementation without Debrief button");
   if (isLoading) {
     return (
       <div ref={forwardedRef} className={cn(className)}>
@@ -593,24 +598,10 @@ const CardRecentWorkoutsView = ({
           {workouts.map((workout) => {
             const summary = buildWorkoutSummary(workout);
             const workoutDate = workout.workoutDate ?? workout.createdAt;
-            const relativeDate = formatRelativeWorkoutDate(workoutDate);
-            const durationLabel = formatDurationLabel(
-              summary.durationMinutes,
-              summary.estimatedDurationMinutes,
+            const isoDate = toIsoString(workoutDate);
+            const isRecent = isWorkoutWithinHours(
+              workout.createdAt ?? workout.workoutDate,
             );
-            const statsParts = [
-              `${summary.exerciseCount} exercise${
-                summary.exerciseCount === 1 ? "" : "s"
-              }`,
-              `${summary.totalSets} set${summary.totalSets === 1 ? "" : "s"}`,
-            ];
-            const volumeMetric = summary.metrics.find(
-              (metric) => metric.label === "Volume",
-            );
-            if (volumeMetric) {
-              statsParts.push(volumeMetric.value);
-            }
-
             const isRepeating =
               repeatPending && repeatingWorkoutId === workout.id;
 
@@ -619,60 +610,31 @@ const CardRecentWorkoutsView = ({
               void onRepeat(workout);
             };
 
+            const handleViewDetails = () => {
+              // Navigate to workout details page
+              window.location.href = `/workouts/${workout.id}`;
+            };
+
+            const handleDebrief = () => {
+              console.log("Card Debrief button clicked for workout:", workout.id);
+              // Navigate to debrief page
+              window.location.href = `/workout/session/${workout.id}`;
+            };
+
             return (
-              <div
+              <WorkoutCard
                 key={workout.id}
-                className="bg-muted/30 hover:bg-muted/50 flex items-center justify-between rounded-xl p-4 transition-colors"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h4 className="text-foreground font-semibold">
-                      {resolveTemplateName(workout, "Workout")}
-                    </h4>
-                    <Badge
-                      variant="secondary"
-                      className="from-chart-1 to-chart-3 text-primary-foreground bg-gradient-to-r"
-                    >
-                      completed
-                    </Badge>
-                  </div>
-                  <div className="text-muted-foreground flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      {relativeDate}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {durationLabel}
-                    </div>
-                  </div>
-                  <div className="text-muted-foreground text-sm">
-                    {statsParts.join(" • ")}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={`/workout/session/${workout.id}`}>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRepeat}
-                    disabled={isRepeating}
-                  >
-                    {isRepeating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Repeating
-                      </>
-                    ) : (
-                      "Repeat"
-                    )}
-                  </Button>
-                </div>
-              </div>
+                workoutName={resolveTemplateName(
+                  workout,
+                  "Unnamed Workout",
+                )}
+                date={isoDate}
+                metrics={summary.metrics}
+                isRecent={isRecent}
+                onRepeat={handleRepeat}
+                onDebrief={handleDebrief}
+                onViewDetails={handleViewDetails}
+              />
             );
           })}
         </CardContent>

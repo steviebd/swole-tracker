@@ -111,6 +111,7 @@ async function main() {
   }
 
   copyFileSync(CONFIG_FILE, BACKUP_FILE);
+  console.log(`DEBUG: Backed up ${CONFIG_FILE} to ${BACKUP_FILE}`);
 
   let content = readFileSync(CONFIG_FILE, "utf-8");
 
@@ -194,6 +195,15 @@ async function main() {
   }
 
   writeFileSync(CONFIG_FILE, content);
+  console.log(`DEBUG: Updated ${CONFIG_FILE} with new configuration`);
+  
+  // Only update if content actually changed to avoid triggering unnecessary rebuilds
+  const originalContent = readFileSync(BACKUP_FILE, "utf-8");
+  if (originalContent === content) {
+    console.log(`DEBUG: No changes detected in ${CONFIG_FILE}, restoring backup to avoid triggering rebuild`);
+    copyFileSync(BACKUP_FILE, CONFIG_FILE);
+  }
+  console.log(`DEBUG: Updated ${CONFIG_FILE} with new configuration`);
 
   if (missingEnvVars.length > 0) {
     const unresolved = missingEnvVars.sort().join(", ");

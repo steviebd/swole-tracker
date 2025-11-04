@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Repeat, Eye, Sparkles } from "lucide-react";
+import { Repeat, Eye, Sparkles, FileText } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { GlassSurface } from "./glass-surface";
+import { Button } from "./button";
 
 /**
  * Workout card component for displaying recent workout information
@@ -36,6 +37,8 @@ export interface WorkoutCardProps {
   onRepeat: () => void;
   /** Handler for view workout details action */
   onViewDetails: () => void;
+  /** Handler for view workout debrief action */
+  onDebrief: () => void;
   /** Whether this workout is recent (within 24 hours) */
   isRecent?: boolean;
   /** Additional CSS classes */
@@ -43,15 +46,16 @@ export interface WorkoutCardProps {
 }
 
 const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
-  ({ 
-    workoutName, 
-    date, 
-    metrics, 
-    onRepeat, 
-    onViewDetails, 
+  ({
+    workoutName,
+    date,
+    metrics,
+    onRepeat,
+    onViewDetails,
+    onDebrief,
     isRecent = false,
-    className, 
-    ...props 
+    className,
+    ...props
   }, ref) => {
     const formatDate = (dateString: string) => {
       try {
@@ -151,12 +155,12 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
             </div>
             
             {/* Action buttons */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-2">
               {/* Repeat workout button */}
               <motion.button
                 onClick={onRepeat}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg",
+                  "flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-lg",
                   "text-sm font-medium transition-all duration-200",
                   "border border-default bg-surface-secondary text-content-primary",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -169,14 +173,33 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 aria-label={`Repeat ${workoutName} workout`}
               >
                 <Repeat className="w-4 h-4" />
-                Repeat
+                <span className="hidden sm:inline">Repeat</span>
               </motion.button>
-              
+
+              {/* Debrief button */}
+              <motion.div
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.1 }}
+                className="flex-1"
+              >
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onDebrief}
+                  className="w-full min-h-[44px] gap-2"
+                  aria-label={`View debrief for ${workoutName} workout`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Debrief</span>
+                </Button>
+              </motion.div>
+
               {/* View details button - redesigned to be more subtle and match design aesthetic */}
               <motion.button
                 onClick={onViewDetails}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg",
+                  "flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-lg",
                   "text-sm font-medium transition-all duration-200",
                   "border border-[color:color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent 72%)]",
                   "bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 16%, transparent 84%)] text-interactive-primary",
@@ -190,7 +213,7 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 aria-label={`View details for ${workoutName} workout`}
               >
                 <Eye className="w-4 h-4" />
-                Details
+                <span className="hidden sm:inline">Details</span>
               </motion.button>
             </div>
           </div>

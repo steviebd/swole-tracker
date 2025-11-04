@@ -146,13 +146,26 @@ async function runOpenNextPackager() {
 
 if (!existsSync(OUTPUT_FILE)) {
   console.log("OpenNext — initial build");
+  console.log(`DEBUG: Output file ${OUTPUT_FILE} does not exist`);
   await runOpenNextPackager();
 }
 
 if (LATEST_SOURCE <= BUILD_TIMESTAMP) {
   console.log("OpenNext — skipping rebuild (artifacts are up to date)");
-  process.exit(0);
+  console.log(`DEBUG: Latest source time: ${LATEST_SOURCE}, Build timestamp: ${BUILD_TIMESTAMP}`);
+  console.log(`DEBUG: Source time <= Build time: ${LATEST_SOURCE <= BUILD_TIMESTAMP}`);
+  
+  // Add a small buffer to avoid race conditions
+  const BUFFER_MS = 1000; // 1 second buffer
+  if (BUILD_TIMESTAMP - LATEST_SOURCE > BUFFER_MS) {
+    console.log(`DEBUG: Build artifact is significantly newer than source, skipping rebuild`);
+    process.exit(0);
+  } else {
+    console.log(`DEBUG: Build artifact is only slightly newer than source, proceeding with rebuild`);
+  }
 }
 
 console.log("OpenNext — rebuilding Next.js app");
+console.log(`DEBUG: Latest source time: ${LATEST_SOURCE}, Build timestamp: ${BUILD_TIMESTAMP}`);
+console.log(`DEBUG: Source files newer than build artifact, triggering rebuild`);
 await runOpenNextPackager();
