@@ -734,8 +734,13 @@ export const workoutsRouter = createTRPCRouter({
           // Trigger aggregation for progress tracking
           void (async () => {
             try {
-              const { aggregationTrigger } = await import("~/server/db/aggregation");
-              await aggregationTrigger.onSessionChange(input.sessionId, ctx.user.id);
+              const { aggregationTrigger } = await import(
+                "~/server/db/aggregation"
+              );
+              await aggregationTrigger.onSessionChange(
+                input.sessionId,
+                ctx.user.id,
+              );
             } catch (error) {
               logger.warn("aggregation_trigger_failed", {
                 userId: ctx.user.id,
@@ -1096,10 +1101,20 @@ export const workoutsRouter = createTRPCRouter({
             success: true,
           });
         } catch (error) {
+          let errorMessage = "Unknown error";
+          if (error instanceof Error) {
+            try {
+              errorMessage = error.message;
+            } catch {
+              errorMessage = "Error serialization failed";
+            }
+          } else if (typeof error === "string") {
+            errorMessage = error;
+          }
           results.push({
             sessionId: workout.sessionId,
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: errorMessage,
           });
         }
       }
