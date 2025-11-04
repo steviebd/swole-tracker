@@ -46,7 +46,7 @@ export function ExerciseManager() {
   const { data: migrationStatus } = api.exercises.getMigrationStatus.useQuery();
 
   // Custom hooks
-  const exercisesArray: MasterExercise[] = exercises || [];
+  const exercisesArray: MasterExercise[] = (exercises as MasterExercise[]) || [];
   const { filters, setFilters, filteredExercises } =
     useExerciseFilters(exercisesArray);
 

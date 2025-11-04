@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "bun scripts/opennext-build.ts",
-    "check": "bun run lint && bun run typecheck && bun run test",
+    "check": "bun run scripts/high-performance-check.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push --force",
