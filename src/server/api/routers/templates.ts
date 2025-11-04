@@ -119,7 +119,7 @@ async function createAndLinkMasterExercise(
 
   // Some drivers/mocks may not support onConflict; call only if available
   if (
-    typeof (insertLink as unknown as { onConflictDoNothing?: Function })
+    typeof (insertLink as unknown as { onConflictDoNothing?: () => unknown })
       .onConflictDoNothing === "function"
   ) {
     await (
@@ -474,14 +474,11 @@ export const templatesRouter = createTRPCRouter({
           linkingRejected: false,
         }));
 
-        const batchResults = await chunkedBatch(
-          ctx.db,
-          exerciseRows,
-          (chunk) =>
-            ctx.db.insert(templateExercises).values(chunk).returning(),
+        const batchResults = await chunkedBatch(ctx.db, exerciseRows, (chunk) =>
+          ctx.db.insert(templateExercises).values(chunk).returning(),
         );
         const insertedExercises = (
-          batchResults as Array<typeof templateExercises.$inferSelect[]>
+          batchResults as Array<(typeof templateExercises.$inferSelect)[]>
         ).flat();
 
         for (const templateExercise of insertedExercises) {
@@ -553,14 +550,11 @@ export const templatesRouter = createTRPCRouter({
           linkingRejected: false,
         }));
 
-        const batchResults = await chunkedBatch(
-          ctx.db,
-          exerciseRows,
-          (chunk) =>
-            ctx.db.insert(templateExercises).values(chunk).returning(),
+        const batchResults = await chunkedBatch(ctx.db, exerciseRows, (chunk) =>
+          ctx.db.insert(templateExercises).values(chunk).returning(),
         );
         const insertedExercises = (
-          batchResults as Array<typeof templateExercises.$inferSelect[]>
+          batchResults as Array<(typeof templateExercises.$inferSelect)[]>
         ).flat();
 
         // Create master exercises and links for each template exercise
@@ -647,14 +641,11 @@ export const templatesRouter = createTRPCRouter({
           orderIndex: exercise.orderIndex,
           linkingRejected: exercise.linkingRejected ?? false,
         }));
-        const batchResults = await chunkedBatch(
-          ctx.db,
-          exerciseRows,
-          (chunk) =>
-            ctx.db.insert(templateExercises).values(chunk).returning(),
+        const batchResults = await chunkedBatch(ctx.db, exerciseRows, (chunk) =>
+          ctx.db.insert(templateExercises).values(chunk).returning(),
         );
         const inserted = (
-          batchResults as Array<typeof templateExercises.$inferSelect[]>
+          batchResults as Array<(typeof templateExercises.$inferSelect)[]>
         ).flat();
 
         for (const exercise of inserted) {

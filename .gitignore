@@ -114,3 +114,4 @@ claude_code_zai_env.sh
 .cache/git-ref
 .cache/high-performance-check/cache.json
 .cache/eslint
+.cache/

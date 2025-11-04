@@ -29,13 +29,14 @@ export default defineConfig({
       threads: {
         maxThreads: isCI ? cpuCount : maxLocalThreads,
         minThreads: 1,
-        // Use fewer threads on M1 to reduce heat
-        isolate: false, // Share memory between threads
       },
     },
 
     // Minimal setup for performance
-    setupFiles: ["./src/__tests__/setup.common.ts"],
+    setupFiles: [
+      "./src/__tests__/setup.common.ts",
+      "./src/__tests__/setup.dom.ts",
+    ],
 
     environment: "jsdom",
 
@@ -70,8 +71,7 @@ export default defineConfig({
     slowTestThreshold: 1000, // Mark tests slower than 1s as slow
 
     // Optimize file handling
-    pool: "threads", // Use threads instead of processes for better performance
-    isolate: false, // Share memory between tests
+    pool: "forks", // Use forks for better isolation
 
     // Cache test results
     cache: {

@@ -40,6 +40,21 @@ interface Task {
   dependencies?: string[];
 }
 
+// Test failure information
+interface TestFailure {
+  testName: string;
+  filePath: string;
+  errorMessage: string;
+  stackTrace?: string;
+}
+
+interface TestResult {
+  passed: number;
+  failed: number;
+  total: number;
+  failures: TestFailure[];
+}
+
 const TASKS: Record<string, Task> = {
   lint: {
     name: "lint",
@@ -288,13 +303,145 @@ class ChangeDetector {
   }
 }
 
+// Test result parser
+class TestResultParser {
+  parseVitestOutput(output: string): TestResult | null {
+    try {
+      // Try to parse JSON output first (if Vitest is configured to output JSON)
+      const jsonMatch = output.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const jsonData = JSON.parse(jsonMatch[0]);
+        return this.parseJsonResult(jsonData);
+      }
+
+      // Fall back to parsing text output
+      return this.parseTextOutput(output);
+    } catch {
+      return this.parseTextOutput(output);
+    }
+  }
+
+  private parseJsonResult(data: any): TestResult {
+    const failures: TestFailure[] = [];
+
+    if (data.testResults) {
+      for (const testResult of data.testResults) {
+        if (testResult.status === 'failed' && testResult.assertionResults) {
+          for (const assertion of testResult.assertionResults) {
+            if (assertion.status === 'failed') {
+              failures.push({
+                testName: assertion.title,
+                filePath: testResult.testFilePath,
+                errorMessage: assertion.failureMessages?.join('\n') || 'Unknown error',
+                stackTrace: assertion.failureMessages?.join('\n') || undefined,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      passed: data.numPassedTests || 0,
+      failed: data.numFailedTests || 0,
+      total: data.numTotalTests || 0,
+      failures,
+    };
+  }
+
+  private parseTextOutput(output: string): TestResult {
+    const failures: TestFailure[] = [];
+    const lines = output.split('\n');
+
+    let currentTest: Partial<TestFailure> | null = null;
+    let collectingStack = false;
+    let stackLines: string[] = [];
+
+    for (const line of lines) {
+      // Look for test failure patterns
+      const failMatch = line.match(/FAIL\s+(.+?)\s*$/);
+      if (failMatch) {
+        // Save previous test if exists
+        if (currentTest && currentTest.testName) {
+          failures.push(currentTest as TestFailure);
+        }
+
+        currentTest = {
+          filePath: failMatch[1],
+          testName: '',
+          errorMessage: '',
+        };
+        collectingStack = false;
+        stackLines = [];
+        continue;
+      }
+
+      // Look for test name
+      const testMatch = line.match(/^\s*×\s+(.+?)\s*$/);
+      if (testMatch && currentTest) {
+        currentTest.testName = testMatch[1];
+        continue;
+      }
+
+      // Look for error message start
+      if (line.includes('Error:') || line.includes('AssertionError') || line.includes('Expected')) {
+        if (currentTest) {
+          currentTest.errorMessage = line.trim();
+          collectingStack = true;
+          stackLines = [line.trim()];
+        }
+        continue;
+      }
+
+      // Collect stack trace lines
+      if (collectingStack && currentTest && (line.includes('at ') || line.trim().startsWith('at'))) {
+        stackLines.push(line.trim());
+        continue;
+      }
+
+      // End of error block (empty line or next test)
+      if (collectingStack && line.trim() === '' && stackLines.length > 0) {
+        if (currentTest) {
+          currentTest.stackTrace = stackLines.join('\n');
+          collectingStack = false;
+        }
+      }
+    }
+
+    // Save the last test
+    if (currentTest && currentTest.testName) {
+      if (collectingStack && stackLines.length > 0) {
+        currentTest.stackTrace = stackLines.join('\n');
+      }
+      failures.push(currentTest as TestFailure);
+    }
+
+    // Extract summary information
+    const summaryMatch = output.match(/Tests?:\s*(\d+)\s*(?:passed|failed|total)/i);
+    const passedMatch = output.match(/(\d+)\s*passed/i);
+    const failedMatch = output.match(/(\d+)\s*failed/i);
+
+    const passed = passedMatch ? parseInt(passedMatch[1]) : 0;
+    const failed = failedMatch ? parseInt(failedMatch[1]) : failures.length;
+    const total = passed + failed;
+
+    return {
+      passed,
+      failed,
+      total,
+      failures,
+    };
+  }
+}
+
 // Task executor
 class TaskExecutor {
   private runningTasks: Map<string, Promise<any>> = new Map();
   private results: Map<
     string,
-    { success: boolean; output: string; duration: number }
+    { success: boolean; output: string; duration: number; testResult?: TestResult }
   > = new Map();
+  private testParser = new TestResultParser();
 
   async executeTasks(
     tasks: Task[],
@@ -336,12 +483,23 @@ class TaskExecutor {
           this.results.set(task.name, cachedResult);
           monitor.endTask(task.name, cachedResult.success, "CACHED");
           console.log(`✅ ${task.name} (cached)`);
+
+          // Display cached test failures if any
+          if (cachedResult.testResult && cachedResult.testResult.failures.length > 0) {
+            this.displayTestFailures(cachedResult.testResult);
+          }
           return;
         }
       }
 
       // Execute task
       const result = await this.runCommand(task);
+
+      // Parse test results if this is a test task and it failed
+      if (task.name === 'test' && !result.success) {
+        result.testResult = this.testParser.parseVitestOutput(result.output);
+      }
+
       this.results.set(task.name, result);
 
       // Cache result if successful and cacheable
@@ -357,6 +515,11 @@ class TaskExecutor {
       console.log(
         `${result.success ? "✅" : "❌"} ${task.name} (${result.duration}ms)`,
       );
+
+      // Display test failures if any
+      if (result.testResult && result.testResult.failures.length > 0) {
+        this.displayTestFailures(result.testResult);
+      }
     } catch (error) {
       const result = { success: false, output: error.message, duration: 0 };
       this.results.set(task.name, result);
@@ -367,7 +530,7 @@ class TaskExecutor {
 
   private async runCommand(
     task: Task,
-  ): Promise<{ success: boolean; output: string; duration: number }> {
+  ): Promise<{ success: boolean; output: string; duration: number; testResult?: TestResult }> {
     return new Promise((resolve) => {
       const startTime = Date.now();
       const child = spawn(task.command[0], task.command.slice(1), {
@@ -399,6 +562,37 @@ class TaskExecutor {
         resolve({ success: false, output: error.message, duration });
       });
     });
+  }
+
+  private displayTestFailures(testResult: TestResult): void {
+    console.log(`\n❌ Test Failures (${testResult.failed}/${testResult.total}):`);
+    console.log("─".repeat(60));
+
+    for (const failure of testResult.failures) {
+      console.log(`\n🔴 ${failure.testName}`);
+      console.log(`   📁 ${failure.filePath}`);
+
+      if (failure.errorMessage) {
+        console.log(`   💥 Error: ${failure.errorMessage}`);
+      }
+
+      if (failure.stackTrace) {
+        console.log(`   📋 Stack Trace:`);
+        const stackLines = failure.stackTrace.split('\n');
+        for (const line of stackLines.slice(0, 10)) { // Limit stack trace lines
+          if (line.trim()) {
+            console.log(`      ${line}`);
+          }
+        }
+        if (stackLines.length > 10) {
+          console.log(`      ... (${stackLines.length - 10} more lines)`);
+        }
+      }
+
+      console.log("─".repeat(40));
+    }
+
+    console.log(`\n📊 Summary: ${testResult.passed} passed, ${testResult.failed} failed\n`);
   }
 
   getResults() {
@@ -452,6 +646,13 @@ async function main() {
     for (const [taskName, taskMetrics] of Object.entries(metrics.tasks)) {
       const status = taskMetrics.success ? "✅" : "❌";
       console.log(`   ${status} ${taskName}: ${taskMetrics.duration}ms`);
+
+      // Show test failure summary if applicable
+      const taskResult = taskExecutor.getResults().get(taskName);
+      if (taskResult?.testResult && taskResult.testResult.failures.length > 0) {
+        const testResult = taskResult.testResult;
+        console.log(`      📊 Tests: ${testResult.passed} passed, ${testResult.failed} failed`);
+      }
     }
 
     return success ? 0 : 1;
