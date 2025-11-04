@@ -15,19 +15,13 @@
     // Reduce memory usage
     "maxNodeModuleJsDepth": 0,
 
-    // Faster compilation with fewer checks
-    "strict": false,
-    "noImplicitAny": false,
-    "noImplicitReturns": false,
-    "noImplicitThis": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-
-    // Keep essential strict checks
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
+    // Keep strict checks but skip expensive ones for performance
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": false, // Skip for performance
+    "noUnusedParameters": false, // Skip for performance
 
     // Optimize for development
     "removeComments": false,
@@ -35,18 +29,13 @@
     "downlevelIteration": false,
     "sourceMap": false,
 
-    // Project references for better incremental compilation
-    "composite": true,
+    // Disable declarations for faster compilation
     "declaration": false,
     "declarationMap": false
   },
 
   // Include only source files for faster compilation
-  "include": [
-    "src/**/*",
-    "next-env.d.ts",
-    ".next/types/**/*.ts"
-  ],
+  "include": ["src/**/*", "next-env.d.ts", ".next/types/**/*.ts"],
 
   // Exclude test files and build outputs
   "exclude": [
@@ -62,12 +51,5 @@
     "**/*.test.tsx",
     "**/*.spec.ts",
     "**/*.spec.tsx"
-  ],
-
-  // Project references for incremental compilation
-  "references": [
-    {
-      "path": "./tsconfig.src.json"
-    }
   ]
 }

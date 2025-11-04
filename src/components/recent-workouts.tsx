@@ -4,15 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowRight,
-  Calendar,
-  CheckCircle2,
-  Circle,
-  Clock,
-  Loader2,
-  Plus,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 
 import { api } from "~/trpc/react";
 import { analytics } from "~/lib/analytics";
@@ -20,18 +12,13 @@ import { cn } from "~/lib/utils";
 import ClientPreferencesTrigger from "~/app/preferences-trigger";
 import {
   buildWorkoutSummary,
-  formatDurationLabel,
-  formatRelativeWorkoutDate,
   isWorkoutWithinHours,
   type RecentWorkout,
 } from "~/lib/workout-metrics";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
 import { WorkoutCard } from "~/components/ui/workout-card";
-import { EmptyState } from "~/components/ui/async-state";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Toast, type ToastType } from "~/components/ui/toast";
 
 const DEFAULT_LIMIT = {
   card: 3,
@@ -105,7 +92,6 @@ const resolveTemplateName = (
 const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
   ({ className, limit, variant = "card" }, ref) => {
     const router = useRouter();
-    const utils = api.useUtils();
     const resolvedLimit = limit ?? DEFAULT_LIMIT[variant];
 
     const {
@@ -113,29 +99,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
       isLoading,
       error,
     } = api.workouts.getRecent.useQuery({ limit: resolvedLimit });
-
-    const [toastOpen, setToastOpen] = React.useState(false);
-    const [toastProps, setToastProps] = React.useState<{
-      type: ToastType;
-      message: string;
-    } | null>(null);
-
-    const showToast = React.useCallback(
-      (toastType: ToastType, toastMessage: string) => {
-        setToastProps({ type: toastType, message: toastMessage });
-        setToastOpen(true);
-      },
-      [],
-    );
-
-    const toastComponent = (
-      <Toast
-        open={toastOpen}
-        type={toastProps?.type ?? "info"}
-        message={toastProps?.message ?? ""}
-        onClose={() => setToastOpen(false)}
-      />
-    );
 
     const handleRepeatWorkout = React.useCallback(
       (workout: RecentWorkout) => {
@@ -181,7 +144,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
             repeatingWorkoutId={null}
             workouts={recentWorkouts}
           />
-          {toastComponent}
         </>
       );
     }
@@ -199,7 +161,6 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
           repeatingWorkoutId={null}
           workouts={recentWorkouts}
         />
-        {toastComponent}
       </>
     );
   },
@@ -218,7 +179,7 @@ const DashboardRecentWorkoutsView = ({
   forwardedRef,
   isLoading,
   limit,
-  onStartNewWorkout,
+  onStartNewWorkout: _onStartNewWorkout,
   onRepeat,
   onViewDetails,
   repeatPending,
@@ -499,7 +460,10 @@ const DashboardRecentWorkoutsView = ({
                     isRecent={isRecent}
                     onRepeat={handleRepeat}
                     onDebrief={() => {
-                      console.log("Dashboard Debrief button clicked for workout:", workout.id);
+                      console.log(
+                        "Dashboard Debrief button clicked for workout:",
+                        workout.id,
+                      );
                       onViewDetails(workout.id);
                     }}
                     onViewDetails={() => onViewDetails(workout.id)}
@@ -524,7 +488,9 @@ const CardRecentWorkoutsView = ({
   repeatingWorkoutId,
   workouts,
 }: BaseViewProps) => {
-  console.log("CardRecentWorkoutsView: Using custom card implementation without Debrief button");
+  console.log(
+    "CardRecentWorkoutsView: Using custom card implementation without Debrief button",
+  );
   if (isLoading) {
     return (
       <div ref={forwardedRef} className={cn(className)}>
@@ -616,7 +582,10 @@ const CardRecentWorkoutsView = ({
             };
 
             const handleDebrief = () => {
-              console.log("Card Debrief button clicked for workout:", workout.id);
+              console.log(
+                "Card Debrief button clicked for workout:",
+                workout.id,
+              );
               // Navigate to debrief page
               window.location.href = `/workout/session/${workout.id}`;
             };
@@ -624,10 +593,7 @@ const CardRecentWorkoutsView = ({
             return (
               <WorkoutCard
                 key={workout.id}
-                workoutName={resolveTemplateName(
-                  workout,
-                  "Unnamed Workout",
-                )}
+                workoutName={resolveTemplateName(workout, "Unnamed Workout")}
                 date={isoDate}
                 metrics={summary.metrics}
                 isRecent={isRecent}

@@ -5,9 +5,7 @@ import {
   enqueueWorkoutSave,
   getQueue,
   getQueueLength,
-  dequeue,
   requeueFront,
-  updateItem,
   removeItem,
   pruneExhausted,
   readQueue,
@@ -20,15 +18,6 @@ import { api } from "~/trpc/react";
 import { invalidateWorkoutDependentCaches } from "~/lib/workout-cache-helpers";
 
 type FlushStatus = "idle" | "flushing" | "error" | "done";
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-function backoff(attempt: number) {
-  // 500ms * 2^attempt, capped at 8s
-  return Math.min(500 * Math.pow(2, attempt), 8000);
-}
 
 /**
  * Clean up obsolete localStorage keys from the removed offline system
@@ -64,7 +53,6 @@ export function useOfflineSaveQueue() {
   );
 
   const utils = api.useUtils();
-  const saveWorkout = api.workouts.save.useMutation();
   const batchSaveWorkouts = api.workouts.batchSave.useMutation();
 
   const refreshCount = useCallback(() => {
@@ -89,7 +77,6 @@ export function useOfflineSaveQueue() {
     setLastError(null);
 
     let processedCount = 0;
-    let errorCount = 0;
 
     try {
       pruneExhausted();
@@ -162,7 +149,6 @@ export function useOfflineSaveQueue() {
               setLastError(
                 `Failed to sync workout after ${attempts} attempts: ${message}`,
               );
-              errorCount++;
             } else {
               // Update attempts and requeue at front for retry
               const updatedItem = { ...item, attempts, lastError: message };
@@ -191,7 +177,7 @@ export function useOfflineSaveQueue() {
               timestamp: new Date().toISOString(),
             });
           }
-        } catch (e) {
+        } catch (_e) {
           // Ignore analytics errors
         }
       }
@@ -204,7 +190,6 @@ export function useOfflineSaveQueue() {
           : "Unexpected error while flushing queue";
       setStatus("error");
       setLastError(message);
-      errorCount++;
 
       // Log error
       console.warn("Queue flush failed:", message);
@@ -217,7 +202,7 @@ export function useOfflineSaveQueue() {
             timestamp: new Date().toISOString(),
           });
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore analytics errors
       }
     } finally {

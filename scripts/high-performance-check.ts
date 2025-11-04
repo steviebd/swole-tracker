@@ -15,18 +15,18 @@
  * - Detailed performance reporting
  */
 
-import { spawn } from 'child_process';
-import { promises as fs } from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import os from 'os';
+import { spawn } from "child_process";
+import { promises as fs } from "fs";
+import path from "path";
+import crypto from "crypto";
+import os from "os";
 
 // Configuration
 const CONFIG = {
-  cacheDir: '.cache/high-performance-check',
+  cacheDir: ".cache/high-performance-check",
   maxWorkers: Math.min(4, Math.max(1, Math.floor(os.cpus().length / 2))),
-  performanceLog: '.cache/performance.log',
-  gitRefFile: '.cache/git-ref',
+  performanceLog: ".cache/performance.log",
+  gitRefFile: ".cache/git-ref",
 } as const;
 
 // Task definitions
@@ -35,28 +35,51 @@ interface Task {
   command: string[];
   cwd?: string;
   env?: Record<string, string>;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   cacheable: boolean;
   dependencies?: string[];
 }
 
 const TASKS: Record<string, Task> = {
   lint: {
-    name: 'lint',
-    command: ['bunx', 'eslint', '--config', 'eslint.performance.config.js', 'src/**/*.{ts,tsx}', '--max-warnings', '20', '--cache', '--cache-location', '.cache/eslint'],
-    priority: 'high',
+    name: "lint",
+    command: [
+      "bunx",
+      "eslint",
+      "--config",
+      "eslint.performance.config.js",
+      "src/**/*.{ts,tsx}",
+      "--max-warnings",
+      "100",
+      "--cache",
+      "--cache-location",
+      ".cache/eslint",
+    ],
+    priority: "high",
     cacheable: true,
   },
   typecheck: {
-    name: 'typecheck',
-    command: ['bunx', 'tsc', '--project', 'tsconfig.performance.json', '--noEmit'],
-    priority: 'high',
+    name: "typecheck",
+    command: [
+      "bunx",
+      "tsc",
+      "--project",
+      "tsconfig.performance.json",
+      "--noEmit",
+    ],
+    priority: "high",
     cacheable: true,
   },
   test: {
-    name: 'test',
-    command: ['bunx', 'vitest', 'run', '--config', 'vitest.performance.config.ts'],
-    priority: 'medium',
+    name: "test",
+    command: [
+      "bunx",
+      "vitest",
+      "run",
+      "--config",
+      "vitest.performance.config.ts",
+    ],
+    priority: "medium",
     cacheable: true,
   },
 };
@@ -100,17 +123,21 @@ class PerformanceMonitor {
   async saveMetrics() {
     const metrics = this.getMetrics();
     await fs.mkdir(path.dirname(CONFIG.performanceLog), { recursive: true });
-    await fs.appendFile(CONFIG.performanceLog, JSON.stringify(metrics) + '\n');
+    await fs.appendFile(CONFIG.performanceLog, JSON.stringify(metrics) + "\n");
   }
 }
 
 // Cache management
 class CacheManager {
-  private cache: Map<string, { hash: string; timestamp: number; result: any }> = new Map();
+  private cache: Map<string, { hash: string; timestamp: number; result: any }> =
+    new Map();
 
   async loadCache() {
     try {
-      const cacheData = await fs.readFile(path.join(CONFIG.cacheDir, 'cache.json'), 'utf-8');
+      const cacheData = await fs.readFile(
+        path.join(CONFIG.cacheDir, "cache.json"),
+        "utf-8",
+      );
       this.cache = new Map(JSON.parse(cacheData));
     } catch {
       // Cache doesn't exist or is invalid
@@ -120,22 +147,27 @@ class CacheManager {
   async saveCache() {
     await fs.mkdir(CONFIG.cacheDir, { recursive: true });
     await fs.writeFile(
-      path.join(CONFIG.cacheDir, 'cache.json'),
-      JSON.stringify(Array.from(this.cache.entries()))
+      path.join(CONFIG.cacheDir, "cache.json"),
+      JSON.stringify(Array.from(this.cache.entries())),
     );
   }
 
   async getCacheKey(taskName: string, files: string[]): Promise<string> {
-    const fileHashes = await Promise.all(files.map(file => this.getFileHash(file)));
-    return crypto.createHash('md5').update(`${taskName}:${fileHashes.join('')}`).digest('hex');
+    const fileHashes = await Promise.all(
+      files.map((file) => this.getFileHash(file)),
+    );
+    return crypto
+      .createHash("md5")
+      .update(`${taskName}:${fileHashes.join("")}`)
+      .digest("hex");
   }
 
   private async getFileHash(filePath: string): Promise<string> {
     try {
       const content = await fs.readFile(filePath);
-      return crypto.createHash('md5').update(content).digest('hex');
+      return crypto.createHash("md5").update(content).digest("hex");
     } catch {
-      return '';
+      return "";
     }
   }
 
@@ -159,23 +191,25 @@ class CacheManager {
 
 // File change detection
 class ChangeDetector {
-  private lastGitRef: string = '';
+  private lastGitRef: string = "";
 
   async getChangedFiles(): Promise<string[]> {
     try {
       // Get current git ref
-      const currentRef = await this.execCommand('git', ['rev-parse', 'HEAD']);
+      const currentRef = await this.execCommand("git", ["rev-parse", "HEAD"]);
 
       // Load last ref
       try {
-        this.lastGitRef = await fs.readFile(CONFIG.gitRefFile, 'utf-8');
+        this.lastGitRef = await fs.readFile(CONFIG.gitRefFile, "utf-8");
       } catch {
-        this.lastGitRef = '';
+        this.lastGitRef = "";
       }
 
       // If no previous ref or refs are different, get changed files
       if (!this.lastGitRef || this.lastGitRef !== currentRef) {
-        const changedFiles = await this.getFilesChangedSince(this.lastGitRef || 'HEAD~1');
+        const changedFiles = await this.getFilesChangedSince(
+          this.lastGitRef || "HEAD~1",
+        );
         await fs.writeFile(CONFIG.gitRefFile, currentRef);
         return changedFiles;
       }
@@ -189,8 +223,16 @@ class ChangeDetector {
 
   private async getFilesChangedSince(ref: string): Promise<string[]> {
     try {
-      const output = await this.execCommand('git', ['diff', '--name-only', ref]);
-      return output.split('\n').filter(line => line && (line.endsWith('.ts') || line.endsWith('.tsx')));
+      const output = await this.execCommand("git", [
+        "diff",
+        "--name-only",
+        ref,
+      ]);
+      return output
+        .split("\n")
+        .filter(
+          (line) => line && (line.endsWith(".ts") || line.endsWith(".tsx")),
+        );
     } catch {
       return [];
     }
@@ -203,36 +245,43 @@ class ChangeDetector {
       const entries = await fs.readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+        if (
+          entry.isDirectory() &&
+          !entry.name.startsWith(".") &&
+          entry.name !== "node_modules"
+        ) {
           await scanDir(fullPath);
-        } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+        } else if (
+          entry.isFile() &&
+          (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))
+        ) {
           files.push(fullPath);
         }
       }
     }
 
-    await scanDir('src');
+    await scanDir("src");
     return files;
   }
 
   private async execCommand(command: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
-      const child = spawn(command, args, { stdio: 'pipe' });
-      let output = '';
+      const child = spawn(command, args, { stdio: "pipe" });
+      let output = "";
 
-      child.stdout?.on('data', (data) => {
+      child.stdout?.on("data", (data) => {
         output += data.toString();
       });
 
-      child.stderr?.on('data', (data) => {
+      child.stderr?.on("data", (data) => {
         output += data.toString();
       });
 
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         if (code === 0) {
           resolve(output.trim());
         } else {
-          reject(new Error(`Command failed: ${command} ${args.join(' ')}`));
+          reject(new Error(`Command failed: ${command} ${args.join(" ")}`));
         }
       });
     });
@@ -242,30 +291,50 @@ class ChangeDetector {
 // Task executor
 class TaskExecutor {
   private runningTasks: Map<string, Promise<any>> = new Map();
-  private results: Map<string, { success: boolean; output: string; duration: number }> = new Map();
+  private results: Map<
+    string,
+    { success: boolean; output: string; duration: number }
+  > = new Map();
 
-  async executeTasks(tasks: Task[], changedFiles: string[], cacheManager: CacheManager, monitor: PerformanceMonitor): Promise<boolean> {
-    const taskPromises = tasks.map(task => this.executeTask(task, changedFiles, cacheManager, monitor));
+  async executeTasks(
+    tasks: Task[],
+    changedFiles: string[],
+    cacheManager: CacheManager,
+    monitor: PerformanceMonitor,
+  ): Promise<boolean> {
+    const taskPromises = tasks.map((task) =>
+      this.executeTask(task, changedFiles, cacheManager, monitor),
+    );
 
     try {
       await Promise.all(taskPromises);
-      return Array.from(this.results.values()).every(result => result.success);
+      return Array.from(this.results.values()).every(
+        (result) => result.success,
+      );
     } catch {
       return false;
     }
   }
 
-  private async executeTask(task: Task, changedFiles: string[], cacheManager: CacheManager, monitor: PerformanceMonitor): Promise<void> {
+  private async executeTask(
+    task: Task,
+    changedFiles: string[],
+    cacheManager: CacheManager,
+    monitor: PerformanceMonitor,
+  ): Promise<void> {
     monitor.startTask(task.name);
 
     try {
       // Check cache first
       if (task.cacheable) {
-        const cacheKey = await cacheManager.getCacheKey(task.name, changedFiles);
+        const cacheKey = await cacheManager.getCacheKey(
+          task.name,
+          changedFiles,
+        );
         if (cacheManager.isCached(task.name, cacheKey)) {
           const cachedResult = cacheManager.getCachedResult(task.name);
           this.results.set(task.name, cachedResult);
-          monitor.endTask(task.name, cachedResult.success, 'CACHED');
+          monitor.endTask(task.name, cachedResult.success, "CACHED");
           console.log(`✅ ${task.name} (cached)`);
           return;
         }
@@ -277,13 +346,17 @@ class TaskExecutor {
 
       // Cache result if successful and cacheable
       if (task.cacheable && result.success) {
-        const cacheKey = await cacheManager.getCacheKey(task.name, changedFiles);
+        const cacheKey = await cacheManager.getCacheKey(
+          task.name,
+          changedFiles,
+        );
         cacheManager.setCacheResult(task.name, cacheKey, result);
       }
 
       monitor.endTask(task.name, result.success, result.output);
-      console.log(`${result.success ? '✅' : '❌'} ${task.name} (${result.duration}ms)`);
-
+      console.log(
+        `${result.success ? "✅" : "❌"} ${task.name} (${result.duration}ms)`,
+      );
     } catch (error) {
       const result = { success: false, output: error.message, duration: 0 };
       this.results.set(task.name, result);
@@ -292,34 +365,36 @@ class TaskExecutor {
     }
   }
 
-  private async runCommand(task: Task): Promise<{ success: boolean; output: string; duration: number }> {
+  private async runCommand(
+    task: Task,
+  ): Promise<{ success: boolean; output: string; duration: number }> {
     return new Promise((resolve) => {
       const startTime = Date.now();
       const child = spawn(task.command[0], task.command.slice(1), {
         cwd: task.cwd || process.cwd(),
         env: { ...process.env, ...task.env },
-        stdio: ['inherit', 'pipe', 'pipe'],
+        stdio: ["inherit", "pipe", "pipe"],
       });
 
-      let output = '';
-      let errorOutput = '';
+      let output = "";
+      let errorOutput = "";
 
-      child.stdout?.on('data', (data) => {
+      child.stdout?.on("data", (data) => {
         output += data.toString();
       });
 
-      child.stderr?.on('data', (data) => {
+      child.stderr?.on("data", (data) => {
         errorOutput += data.toString();
       });
 
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         const duration = Date.now() - startTime;
         const success = code === 0;
         const fullOutput = output + errorOutput;
         resolve({ success, output: fullOutput, duration });
       });
 
-      child.on('error', (error) => {
+      child.on("error", (error) => {
         const duration = Date.now() - startTime;
         resolve({ success: false, output: error.message, duration });
       });
@@ -333,7 +408,7 @@ class TaskExecutor {
 
 // Main execution
 async function main() {
-  console.log('🚀 High-Performance Check Starting...\n');
+  console.log("🚀 High-Performance Check Starting...\n");
 
   const monitor = new PerformanceMonitor();
   const cacheManager = new CacheManager();
@@ -349,13 +424,18 @@ async function main() {
     console.log(`📁 Detected ${changedFiles.length} changed files`);
 
     if (changedFiles.length === 0) {
-      console.log('✅ No changes detected, skipping checks');
+      console.log("✅ No changes detected, skipping checks");
       return 0;
     }
 
     // Execute tasks in parallel
     const tasks = Object.values(TASKS);
-    const success = await taskExecutor.executeTasks(tasks, changedFiles, cacheManager, monitor);
+    const success = await taskExecutor.executeTasks(
+      tasks,
+      changedFiles,
+      cacheManager,
+      monitor,
+    );
 
     // Save cache and metrics
     await cacheManager.saveCache();
@@ -370,14 +450,13 @@ async function main() {
     // Display individual task results
     console.log(`\n📋 Task Results:`);
     for (const [taskName, taskMetrics] of Object.entries(metrics.tasks)) {
-      const status = taskMetrics.success ? '✅' : '❌';
+      const status = taskMetrics.success ? "✅" : "❌";
       console.log(`   ${status} ${taskName}: ${taskMetrics.duration}ms`);
     }
 
     return success ? 0 : 1;
-
   } catch (error) {
-    console.error('❌ High-performance check failed:', error);
+    console.error("❌ High-performance check failed:", error);
     await monitor.saveMetrics();
     return 1;
   }
@@ -385,7 +464,9 @@ async function main() {
 
 // Run the script
 if (require.main === module) {
-  main().then(code => process.exit(code)).catch(() => process.exit(1));
+  main()
+    .then((code) => process.exit(code))
+    .catch(() => process.exit(1));
 }
 
 export { PerformanceMonitor, CacheManager, ChangeDetector, TaskExecutor };

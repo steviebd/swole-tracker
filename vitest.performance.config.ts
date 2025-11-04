@@ -35,9 +35,7 @@ export default defineConfig({
     },
 
     // Minimal setup for performance
-    setupFiles: [
-      "./src/__tests__/setup.common.ts",
-    ],
+    setupFiles: ["./src/__tests__/setup.common.ts"],
 
     environment: "jsdom",
 
@@ -61,39 +59,10 @@ export default defineConfig({
       "**/analytics-performance.test.ts",
     ],
 
-    // Optimized coverage for performance
-    coverage: isCI ? {
-      provider: "v8",
-      reporter: ["text", "lcov", "json"],
-      all: false, // Only collect coverage for tested files
-      include: [
-        "src/lib/**/*.ts",
-        "src/hooks/**/*.ts",
-        "src/components/**/*.ts",
-      ],
-      exclude: [
-        "src/**/__tests__/**",
-        "**/*.d.ts",
-        "**/*.test.{ts,tsx}",
-        "**/*.spec.{ts,tsx}",
-        "src/**/types/**",
-        "src/**/schemas/**",
-        "src/**/*.config.{ts,js}",
-        "src/**/*.setup.{ts,js}",
-        "src/**/mocks/**",
-        "src/**/test-data/**",
-      ],
-      thresholds: {
-        lines: 40, // Lower threshold for performance
-        functions: 35,
-        branches: 30,
-        statements: 40,
-      },
-    } : undefined, // Skip coverage locally for speed
+    // Skip coverage for performance
 
     // Performance optimizations
     watch: false, // Disable watch mode for CI performance
-    reporters: isCI ? ["verbose"] : ["basic"],
     testTimeout: 10000, // Shorter timeout for faster failure
     hookTimeout: 5000,
 

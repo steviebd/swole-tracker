@@ -20,13 +20,6 @@ interface SyncSnapshot {
   nextRetry?: number;
 }
 
-const initialSnapshot: SyncSnapshot = {
-  pendingOperations: 0,
-  failedOperations: 0,
-  lastSync: undefined,
-  nextRetry: undefined,
-};
-
 export interface SyncIndicatorState extends SyncSnapshot {
   status: SyncStatusKind;
   isActive: boolean;
@@ -62,7 +55,13 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const isOnline = useOnlineStatus();
-  const { queueSize, status: queueStatus, lastError, flush, isFlushing } = useOfflineSaveQueue();
+  const {
+    queueSize,
+    status: queueStatus,
+    lastError,
+    flush,
+    isFlushing,
+  } = useOfflineSaveQueue();
   const [lastSyncAt, setLastSyncAt] = useState<number | undefined>(undefined);
   const previousQueueStatus = useRef(queueStatus);
 
@@ -113,7 +112,9 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
 
   const canManualSync = useMemo(() => {
     if (!isOnline) return false;
-    return !["syncing", "saving"].includes(computedStatus.status) && queueSize > 0;
+    return (
+      !["syncing", "saving"].includes(computedStatus.status) && queueSize > 0
+    );
   }, [computedStatus.status, isOnline, queueSize]);
 
   useEffect(() => {

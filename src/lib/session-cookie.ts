@@ -95,50 +95,6 @@ async function verify(data: string, signature: string): Promise<boolean> {
   );
 }
 
-// Serialize session to string
-function serializeSession(session: WorkOSSession): string {
-  return JSON.stringify(session);
-}
-
-// Deserialize session from string
-function deserializeSession(data: string): WorkOSSession {
-  try {
-    const session = JSON.parse(data) as WorkOSSession;
-    // Validate required fields
-    const accessTokenExpiresAt =
-      typeof session.accessTokenExpiresAt === "number"
-        ? session.accessTokenExpiresAt
-        : typeof session.expiresAt === "number"
-          ? session.expiresAt
-          : null;
-    const sessionExpiresAt =
-      typeof session.sessionExpiresAt === "number"
-        ? session.sessionExpiresAt
-        : accessTokenExpiresAt;
-
-    if (
-      !session.userId ||
-      !session.accessToken ||
-      accessTokenExpiresAt === null ||
-      sessionExpiresAt === null
-    ) {
-      throw new Error("Invalid session data");
-    }
-    const refreshToken =
-      typeof session.refreshToken === "undefined" ? null : session.refreshToken;
-
-    return {
-      ...session,
-      refreshToken,
-      accessTokenExpiresAt,
-      sessionExpiresAt,
-      expiresAt: accessTokenExpiresAt,
-    };
-  } catch (error) {
-    throw new Error("Invalid session data format");
-  }
-}
-
 export class SessionCookie {
   static async create(session: WorkOSSession): Promise<string> {
     // Generate opaque session ID
@@ -146,8 +102,7 @@ export class SessionCookie {
 
     const accessTokenExpiresAt =
       session.accessTokenExpiresAt ?? session.expiresAt;
-    const sessionExpiresAt =
-      session.sessionExpiresAt ?? accessTokenExpiresAt;
+    const sessionExpiresAt = session.sessionExpiresAt ?? accessTokenExpiresAt;
 
     if (
       typeof accessTokenExpiresAt !== "number" ||
@@ -219,19 +174,19 @@ export class SessionCookie {
 
       if (!sessionData) return null;
 
-       const nowSeconds = Math.floor(Date.now() / 1000);
-       const sessionExpiresAt =
-         sessionData.sessionExpiresAt ?? sessionData.expiresAt;
-       const accessTokenExpiresAt =
-         sessionData.accessTokenExpiresAt ?? sessionData.expiresAt;
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const sessionExpiresAt =
+        sessionData.sessionExpiresAt ?? sessionData.expiresAt;
+      const accessTokenExpiresAt =
+        sessionData.accessTokenExpiresAt ?? sessionData.expiresAt;
 
-       if (
-         typeof sessionExpiresAt !== "number" ||
-         typeof accessTokenExpiresAt !== "number" ||
-         sessionExpiresAt <= nowSeconds
-       ) {
-         return null;
-       }
+      if (
+        typeof sessionExpiresAt !== "number" ||
+        typeof accessTokenExpiresAt !== "number" ||
+        sessionExpiresAt <= nowSeconds
+      ) {
+        return null;
+      }
 
       return {
         userId: sessionData.userId,
@@ -242,7 +197,7 @@ export class SessionCookie {
         sessionExpiresAt,
         expiresAt: accessTokenExpiresAt,
       };
-    } catch (error) {
+    } catch (_error) {
       // Invalid cookie format or database error
       return null;
     }
@@ -270,12 +225,14 @@ export class SessionCookie {
 
             if (await verify(sessionId, signature)) {
               // Delete session from database
-              await sessionDb.delete(sessions).where(eq(sessions.id, sessionId));
+              await sessionDb
+                .delete(sessions)
+                .where(eq(sessions.id, sessionId));
             }
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignore cleanup errors
     }
 
@@ -340,8 +297,7 @@ export class SessionCookie {
 
       const accessTokenExpiresAt =
         session.accessTokenExpiresAt ?? session.expiresAt;
-      const sessionExpiresAt =
-        session.sessionExpiresAt ?? accessTokenExpiresAt;
+      const sessionExpiresAt = session.sessionExpiresAt ?? accessTokenExpiresAt;
 
       // Update session data in database
       await sessionDb
@@ -355,7 +311,7 @@ export class SessionCookie {
           updatedAt: new Date(),
         })
         .where(eq(sessions.id, sessionId));
-    } catch (error) {
+    } catch (_error) {
       // Ignore update errors
     }
   }

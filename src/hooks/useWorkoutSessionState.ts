@@ -7,7 +7,7 @@ import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
-import { type RecentWorkout } from "~/lib/workout-metrics";
+
 import {
   applyOptimisticWorkoutDate,
   applyOptimisticVolumeMetrics,

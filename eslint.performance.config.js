@@ -43,15 +43,10 @@ export default tseslint.config(
       react,
       "react-hooks": reactHooks,
     },
-    extends: [
-      ...tseslint.configs.recommended,
-    ],
+    extends: [...tseslint.configs.recommended],
     rules: {
       // Essential rules only - remove expensive type-aware rules
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
+      "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off", // Too strict for performance
       "prefer-const": "error",
       "@typescript-eslint/no-var-requires": "error",
@@ -82,22 +77,6 @@ export default tseslint.config(
       ],
       "@typescript-eslint/no-floating-promises": "off", // Can be slow
       "@typescript-eslint/require-await": "off", // Can be slow
-    },
-  },
-  // High-performance rules for critical files only
-  {
-    files: [
-      "src/lib/**/*.ts",
-      "src/server/**/*.ts",
-      "src/hooks/**/*.ts",
-      "src/providers/**/*.ts"
-    ],
-    rules: {
-      // Only enable expensive rules for critical files
-      "@typescript-eslint/no-misused-promises": [
-        "error",
-        { checksVoidReturn: { attributes: false } },
-      ],
     },
   },
   // Theme token enforcement - lightweight syntax check

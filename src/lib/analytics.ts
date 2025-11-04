@@ -414,7 +414,7 @@ export const analytics = {
   },
 
   // Test helpers
-  setPosthogClientForTesting: (client: any) => {
+  setPosthogClientForTesting: (_client: any) => {
     // For testing purposes
   },
 

@@ -8,17 +8,6 @@ interface LoadingBoundaryProps {
   name?: string;
 }
 
-const DefaultFallback = ({ name }: { name?: string }) => (
-  <div className="flex items-center justify-center p-8">
-    <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-    {name && (
-      <span className="text-muted-foreground ml-3 text-sm">
-        Loading {name}...
-      </span>
-    )}
-  </div>
-);
-
 const SkeletonFallback = ({ name }: { name?: string }) => (
   <div className="space-y-4 p-4">
     <div className="bg-muted/50 h-4 w-3/4 animate-pulse rounded"></div>
