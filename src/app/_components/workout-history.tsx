@@ -42,6 +42,8 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { DataTable } from "~/components/ui/data-table";
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
+import { motion } from "framer-motion";
+import { useReducedMotion } from "~/hooks/use-reduced-motion";
 
 type ViewMode = "cards" | "table";
 
@@ -56,6 +58,8 @@ interface WorkoutFilters {
 }
 
 export function WorkoutHistory() {
+  const prefersReducedMotion = useReducedMotion();
+
   const [viewMode, setViewMode] = useLocalStorage<ViewMode>(
     "workout-history-view-mode",
     "cards",
@@ -198,7 +202,11 @@ export function WorkoutHistory() {
         {viewMode === "cards" ? (
           <div className="space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i} className="animate-pulse">
+              <Card
+                key={i}
+                variant="glass"
+                className="animate-shimmer"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <Skeleton className="h-6 w-1/3" />
@@ -218,7 +226,7 @@ export function WorkoutHistory() {
             ))}
           </div>
         ) : (
-          <Card>
+          <Card variant="glass" className="animate-shimmer">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -272,21 +280,44 @@ export function WorkoutHistory() {
 
   if (!workouts?.length) {
     return (
-      <div className="py-12 text-center">
-        <div className="mb-4 text-6xl">🏋️</div>
-        <h3 className="text-foreground mb-2 text-xl font-semibold">
+      <motion.div
+        className="py-12 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
+        <motion.div
+          className="mb-4 text-6xl"
+          animate={{
+            scale: [1, 1.1, 1],
+            rotate: [0, 5, -5, 0]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          🏋️
+        </motion.div>
+        <h3 className="text-content-primary mb-2 text-xl font-semibold">
           No completed workouts yet
         </h3>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-content-secondary mb-6">
           Start your first workout and log some exercises to see your history
           here
         </p>
         <Link href="/workout/start">
-          <Button size="lg" className="gap-2">
+          <Button
+            size="lg"
+            className="gap-2 gradient-primary"
+            haptic
+            ripple
+          >
             🚀 Start First Workout
           </Button>
         </Link>
-      </div>
+      </motion.div>
     );
   }
 
@@ -297,32 +328,65 @@ export function WorkoutHistory() {
 
   if (!hasCompletedWorkouts) {
     return (
-      <div className="py-12 text-center">
-        <div className="mb-4 text-6xl">📝</div>
-        <h3 className="text-foreground mb-2 text-xl font-semibold">
+      <motion.div
+        className="py-12 text-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
+        <motion.div
+          className="mb-4 text-6xl"
+          animate={{
+            scale: [1, 1.1, 1],
+            rotate: [0, -5, 5, 0]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          📝
+        </motion.div>
+        <h3 className="text-content-primary mb-2 text-xl font-semibold">
           No completed workouts yet
         </h3>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-content-secondary mb-6">
           You have started workouts but haven't logged any exercises yet.
           Complete a workout to see your history here.
         </p>
         <Link href="/workout/start">
-          <Button size="lg" className="gap-2">
+          <Button
+            size="lg"
+            className="gap-2 gradient-primary"
+            haptic
+            ripple
+          >
             🚀 Continue Workout
           </Button>
         </Link>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      className="space-y-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {/* Filters */}
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Search */}
           <div className="relative flex-1 sm:max-w-sm">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Search className="text-content-secondary pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               value={filters.search}
               onChange={(e) =>
@@ -432,7 +496,7 @@ export function WorkoutHistory() {
 
           {/* Date From */}
           <div className="flex items-center gap-2">
-            <Calendar className="text-muted-foreground h-4 w-4" />
+            <Calendar className="text-content-secondary h-4 w-4" />
             <Input
               type="date"
               value={filters.dateFrom}
@@ -445,7 +509,7 @@ export function WorkoutHistory() {
 
           {/* Date To */}
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground text-sm">to</span>
+            <span className="text-content-secondary text-sm">to</span>
             <Input
               type="date"
               value={filters.dateTo}
@@ -456,22 +520,28 @@ export function WorkoutHistory() {
             />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Controls Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <motion.div
+        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+      >
         {/* View Toggle */}
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm font-medium">
+          <span className="text-content-secondary text-sm font-medium">
             View:
           </span>
-          <div className="border-border bg-muted/30 flex items-center rounded-lg border p-1">
+          <div className="bg-surface-secondary flex items-center rounded-lg border border-border p-1">
             <Button
               size="sm"
               variant={viewMode === "cards" ? "default" : "ghost"}
               onClick={() => setViewMode("cards")}
               className="h-8 px-3 text-xs"
               aria-label="Card view"
+              haptic
             >
               Cards
             </Button>
@@ -481,6 +551,7 @@ export function WorkoutHistory() {
               onClick={() => setViewMode("table")}
               className="h-8 px-3 text-xs"
               aria-label="Table view"
+              haptic
             >
               Table
             </Button>
@@ -489,7 +560,7 @@ export function WorkoutHistory() {
 
         {/* Export Dropdown */}
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Export:</span>
+          <span className="text-content-secondary text-sm">Export:</span>
           <div className="flex gap-1">
             <Button
               variant="outline"
@@ -515,6 +586,8 @@ export function WorkoutHistory() {
               }}
               disabled={isExporting}
               className="gap-2"
+              haptic
+              ripple
             >
               {isExporting ? (
                 <>
@@ -544,21 +617,31 @@ export function WorkoutHistory() {
                 URL.revokeObjectURL(url);
               }}
               className="gap-2"
+              haptic
+              ripple
             >
               <Download className="h-4 w-4" />
               JSON
             </Button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Workout Data Views */}
-      {viewMode === "cards" ? (
-        <WorkoutCardsView workouts={filteredWorkouts} />
-      ) : (
-        <WorkoutTableView workouts={filteredWorkouts} />
-      )}
-    </div>
+      <motion.div
+        key={viewMode}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+      >
+        {viewMode === "cards" ? (
+          <WorkoutCardsView workouts={filteredWorkouts} />
+        ) : (
+          <WorkoutTableView workouts={filteredWorkouts} />
+        )}
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -640,7 +723,7 @@ function calculateWorkoutMetrics(workout: any): {
 function WorkoutCardsView({ workouts }: { workouts: any[] }) {
   return (
     <div className="space-y-4">
-      {workouts.map((workout) => {
+      {workouts.map((workout, index) => {
         const {
           workoutTime,
           duration,
@@ -651,69 +734,102 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
         } = calculateWorkoutMetrics(workout);
 
         return (
-          <Card key={workout.id} className="transition-shadow hover:shadow-md">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-foreground line-clamp-1 font-semibold">
-                    {workout.template?.name || "Custom Workout"}
-                  </h3>
-                  <div className="mt-1 flex items-center gap-2">
-                    {hasPersonalRecords && (
-                      <Badge variant="secondary" className="text-xs">
-                        🏆 PR
-                      </Badge>
-                    )}
-                    {isOffline && (
+          <motion.div
+            key={workout.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.3,
+              delay: index * 0.05,
+              ease: "easeOut"
+            }}
+          >
+            <Card
+              variant="glass"
+              interactive
+              className="animate-hover-lift"
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-content-primary line-clamp-1 font-semibold">
+                      {workout.template?.name || "Custom Workout"}
+                    </h3>
+                    <div className="mt-1 flex items-center gap-2">
+                      {hasPersonalRecords && (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs gradient-success"
+                        >
+                          🏆 PR
+                        </Badge>
+                      )}
+                      {isOffline && (
+                        <Badge variant="outline" className="text-xs">
+                          📱 Offline
+                        </Badge>
+                      )}
                       <Badge variant="outline" className="text-xs">
-                        📱 Offline
+                        {totalSets} sets
                       </Badge>
-                    )}
-                    <Badge variant="outline" className="text-xs">
-                      {totalSets} sets
-                    </Badge>
+                    </div>
                   </div>
+                  <time
+                    className="text-content-secondary shrink-0 text-sm"
+                    dateTime={new Date(workout.workoutDate).toISOString()}
+                  >
+                    {new Date(workout.workoutDate).toLocaleDateString()}
+                  </time>
                 </div>
-                <time
-                  className="text-muted-foreground shrink-0 text-sm"
-                  dateTime={new Date(workout.workoutDate).toISOString()}
-                >
-                  {new Date(workout.workoutDate).toLocaleDateString()}
-                </time>
-              </div>
-            </CardHeader>
+              </CardHeader>
 
-            <CardContent className="py-3">
-              <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                <span>{workoutTime}</span>
-                <span>•</span>
-                <span>{duration}</span>
-                <span>•</span>
-                <span>{bestMetric}</span>
-              </div>
-            </CardContent>
+              <CardContent className="py-3">
+                <div className="text-content-secondary flex items-center gap-2 text-sm">
+                  <span>{workoutTime}</span>
+                  <span>•</span>
+                  <span>{duration}</span>
+                  <span>•</span>
+                  <span>{bestMetric}</span>
+                </div>
+              </CardContent>
 
-            <CardFooter className="pt-3">
-              <div className="flex items-center gap-3">
-                <Link href={`/workout/session/${workout.id}`}>
-                  <Button variant="outline" size="sm">
-                    View
-                  </Button>
-                </Link>
-                <Link href={`/workouts/${workout.id}`}>
-                  <Button variant="secondary" size="sm">
-                    Debrief
-                  </Button>
-                </Link>
-                <Link href={`/workout/start?templateId=${workout.templateId}`}>
-                  <Button size="sm" className="gap-1">
-                    <RotateCcw className="h-3 w-3" />
-                    Repeat
-                  </Button>
-                </Link>
-              </div>
-            </CardFooter>
-          </Card>
+              <CardFooter className="pt-3">
+                <div className="flex items-center gap-3">
+                  <Link href={`/workout/session/${workout.id}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      haptic
+                      ripple
+                    >
+                      View
+                    </Button>
+                  </Link>
+                  <Link href={`/workouts/${workout.id}`}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      haptic
+                      ripple
+                    >
+                      Debrief
+                    </Button>
+                  </Link>
+                  <Link href={`/workout/start?templateId=${workout.templateId}`}>
+                    <Button
+                      size="sm"
+                      className="gap-1 gradient-primary"
+                      haptic
+                      ripple
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Repeat
+                    </Button>
+                  </Link>
+                </div>
+              </CardFooter>
+            </Card>
+          </motion.div>
         );
       })}
     </div>
@@ -892,25 +1008,76 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={workoutsWithMetrics}
-      enablePagination={true}
-      enableSorting={true}
-      enableFiltering={false} // Filtering handled by parent component
-      enableRowSelection={true}
-      enableColumnResizing={true}
-      enableVirtualization={workoutsWithMetrics.length > 50}
-      pageSize={10}
-      emptyMessage="No workouts found matching your filters"
-      ariaLabel="Workout history table"
-      responsive={true}
-      compact={false}
-      rowSelection={rowSelection}
-      onRowSelectionChange={setRowSelection}
-      bulkActions={bulkActions}
-      virtualHeight={600}
-      estimatedRowHeight={60}
-    />
+    <Card variant="glass" className="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Workout</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Time</TableHead>
+            <TableHead>Exercises</TableHead>
+            <TableHead>Best Lift</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {workoutsWithMetrics.map((workout) => (
+            <TableRow key={workout.id}>
+              <TableCell>
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">{workout.template?.name ?? "Custom Workout"}</span>
+                  <div className="flex items-center gap-1 md:hidden">
+                    {workout.metrics.hasPersonalRecords && (
+                      <Badge variant="secondary" className="text-xs gradient-success">
+                        🏆 PR
+                      </Badge>
+                    )}
+                    {workout.metrics.isOffline && (
+                      <Badge variant="outline" className="text-xs">
+                        📱
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <time dateTime={new Date(workout.workoutDate).toISOString()}>
+                  {new Date(workout.workoutDate).toLocaleDateString()}
+                </time>
+              </TableCell>
+              <TableCell className="text-content-secondary">
+                {workout.metrics.workoutTime}
+              </TableCell>
+              <TableCell className="text-content-secondary">
+                {workout.metrics.duration}
+              </TableCell>
+              <TableCell className="text-content-secondary">
+                {workout.metrics.bestMetric}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center justify-end gap-2">
+                  <Link href={`/workout/session/${workout.id}`}>
+                    <Button variant="outline" size="sm" haptic ripple>
+                      View
+                    </Button>
+                  </Link>
+                  <Link href={`/workouts/${workout.id}`}>
+                    <Button variant="secondary" size="sm" className="hidden sm:inline-flex" haptic ripple>
+                      Debrief
+                    </Button>
+                  </Link>
+                  <Link href={`/workout/start?templateId=${workout.templateId}`}>
+                    <Button size="sm" className="gap-1 gradient-primary" haptic ripple>
+                      <RotateCcw className="h-3 w-3" />
+                      <span className="hidden sm:inline">Repeat</span>
+                    </Button>
+                  </Link>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

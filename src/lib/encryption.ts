@@ -56,6 +56,12 @@ function getMasterKey(): string {
       "ENCRYPTION_MASTER_KEY must be at least 32 characters long",
     );
   }
+  // Validate consistency by checking length and basic format (no logging of actual key)
+  if (masterKey.length !== masterKey.trim().length) {
+    throw new Error(
+      "ENCRYPTION_MASTER_KEY must not contain leading or trailing whitespace",
+    );
+  }
   return masterKey;
 }
 
@@ -112,38 +118,115 @@ export async function encryptToken(plaintext: string): Promise<string> {
  */
 export async function decryptToken(encryptedData: string): Promise<string> {
   try {
+    // Validate token format before attempting decryption
+    if (!encryptedData || typeof encryptedData !== 'string') {
+      throw new Error("Invalid token format: token must be a non-empty string");
+    }
+
+    // Check if it looks like base64
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encryptedData)) {
+      throw new Error("Invalid token format: token must be base64 encoded");
+    }
+
+    console.log("Token decryption: Starting decryption process", {
+      tokenLength: encryptedData.length,
+      isBase64: true,
+    });
+
     const masterKey = getMasterKey();
-    const combined = new Uint8Array(
-      atob(encryptedData)
-        .split("")
-        .map((c) => c.charCodeAt(0)),
-    );
+
+    let combined: Uint8Array;
+    try {
+      combined = new Uint8Array(
+        atob(encryptedData)
+          .split("")
+          .map((c) => c.charCodeAt(0)),
+      );
+    } catch (decodeError) {
+      console.error("Token decryption: Base64 decode failed", {
+        error: decodeError instanceof Error ? decodeError.message : "Unknown decode error",
+        tokenLength: encryptedData.length,
+      });
+      throw new Error("Invalid token format: failed to decode base64");
+    }
+
+    console.log("Token decryption: Base64 decoded successfully", {
+      decodedLength: combined.length,
+      expectedMinLength: SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1,
+    });
+
+    // Validate minimum length for our format
+    if (combined.length < SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1) {
+      throw new Error(`Invalid token format: decoded data too short (${combined.length} bytes, minimum ${SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1} bytes)`);
+    }
 
     // Extract components
     const salt = combined.subarray(0, SALT_LENGTH);
-    const iv = combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+    const iv = new Uint8Array(combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH));
     const tag = combined.subarray(
       SALT_LENGTH + IV_LENGTH,
       SALT_LENGTH + IV_LENGTH + TAG_LENGTH,
     );
     const ciphertext = combined.subarray(SALT_LENGTH + IV_LENGTH + TAG_LENGTH);
 
-    const key = await deriveKey(masterKey, salt);
+    console.log("Token decryption: Components extracted", {
+      saltLength: salt.length,
+      ivLength: iv.length,
+      tagLength: tag.length,
+      ciphertextLength: ciphertext.length,
+    });
+
+    let key: CryptoKey;
+    try {
+      key = await deriveKey(masterKey, salt);
+      console.log("Token decryption: Key derivation successful");
+    } catch (keyError) {
+      console.error("Token decryption: Key derivation failed", {
+        error: keyError instanceof Error ? keyError.message : "Unknown key derivation error",
+        saltLength: salt.length,
+      });
+      throw new Error("Key derivation failed during decryption");
+    }
 
     // Combine ciphertext and tag for decryption
     const encrypted = new Uint8Array([...ciphertext, ...tag]);
 
-    const decrypted = await crypto.subtle.decrypt(
-      {
-        name: ALGORITHM,
-        iv: iv,
-      },
-      key,
-      encrypted,
-    );
+    console.log("Token decryption: Attempting decryption", {
+      encryptedLength: encrypted.length,
+      algorithm: ALGORITHM,
+      ivLength: iv.length,
+    });
+
+    let decrypted: ArrayBuffer;
+    try {
+      decrypted = await crypto.subtle.decrypt(
+        {
+          name: ALGORITHM,
+          iv: iv,
+        },
+        key,
+        encrypted,
+      );
+      console.log("Token decryption: Decryption successful");
+    } catch (decryptError) {
+      console.error("Token decryption: Crypto decryption failed", {
+        error: decryptError instanceof Error ? decryptError.message : "Unknown decryption error",
+        encryptedLength: encrypted.length,
+        ivLength: iv.length,
+        tagLength: tag.length,
+        ciphertextLength: ciphertext.length,
+      });
+      throw new Error("Cryptographic decryption failed - possible key mismatch or corrupted data");
+    }
 
     const decoder = new TextDecoder();
-    return decoder.decode(decrypted);
+    const result = decoder.decode(decrypted);
+
+    console.log("Token decryption: Process completed successfully", {
+      resultLength: result.length,
+    });
+
+    return result;
   } catch (error) {
     console.error("Token decryption failed:", error);
     // Re-throw specific errors without wrapping

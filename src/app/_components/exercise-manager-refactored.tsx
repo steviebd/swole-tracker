@@ -25,9 +25,13 @@ interface MasterExercise {
 export function ExerciseManager() {
   const [isClient, setIsClient] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingExercise, setEditingExercise] = useState<MasterExercise | null>(null);
+  const [editingExercise, setEditingExercise] = useState<MasterExercise | null>(
+    null,
+  );
   const [mergeMode, setMergeMode] = useState(false);
-  const [selectedForMerge, setSelectedForMerge] = useState<MasterExercise[]>([]);
+  const [selectedForMerge, setSelectedForMerge] = useState<MasterExercise[]>(
+    [],
+  );
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -42,11 +46,14 @@ export function ExerciseManager() {
   const { data: migrationStatus } = api.exercises.getMigrationStatus.useQuery();
 
   // Custom hooks
-  const { filters, setFilters, filteredExercises } = useExerciseFilters(exercises || []);
+  const exercisesArray: MasterExercise[] = exercises || [];
+  const { filters, setFilters, filteredExercises } =
+    useExerciseFilters(exercisesArray);
 
-  const { selectedExercises, handleBulkDelete, clearSelection } = useBulkOperations(() => {
-    void refetch();
-  });
+  const { selectedExercises, handleBulkDelete, clearSelection } =
+    useBulkOperations(() => {
+      void refetch();
+    });
 
   const {
     createMasterExercise,
@@ -91,7 +98,10 @@ export function ExerciseManager() {
 
   const confirmMerge = () => {
     if (selectedForMerge.length === 2) {
-      const [source, target] = selectedForMerge;
+      const [source, target] = selectedForMerge as [
+        MasterExercise,
+        MasterExercise,
+      ];
       if (source.id === target.id) {
         alert("Cannot merge an exercise with itself");
         return;
@@ -108,7 +118,11 @@ export function ExerciseManager() {
     setSelectedForMerge([]);
   };
 
-  const handleCreateExercise = (data: { name: string; tags: string; muscleGroup: string }) => {
+  const handleCreateExercise = (data: {
+    name: string;
+    tags: string;
+    muscleGroup: string;
+  }) => {
     createMasterExercise.mutate({
       name: data.name,
       tags: data.tags || undefined,
@@ -116,7 +130,11 @@ export function ExerciseManager() {
     });
   };
 
-  const handleUpdateExercise = (data: { name: string; tags: string; muscleGroup: string }) => {
+  const handleUpdateExercise = (data: {
+    name: string;
+    tags: string;
+    muscleGroup: string;
+  }) => {
     if (editingExercise) {
       updateMasterExercise.mutate({
         id: editingExercise.id,
@@ -258,7 +276,7 @@ export function ExerciseManager() {
             {filteredExercises.length} exercise
             {filteredExercises.length !== 1 ? "s" : ""} found
             {selectedExercises.length > 0 && (
-              <span className="ml-2 text-primary">
+              <span className="text-primary ml-2">
                 • {selectedExercises.length} selected
               </span>
             )}
@@ -287,7 +305,9 @@ export function ExerciseManager() {
         }}
         editingExercise={editingExercise}
         onSubmit={editingExercise ? handleUpdateExercise : handleCreateExercise}
-        isSubmitting={createMasterExercise.isPending || updateMasterExercise.isPending}
+        isSubmitting={
+          createMasterExercise.isPending || updateMasterExercise.isPending
+        }
       />
 
       {/* Merge Confirmation Dialog */}
