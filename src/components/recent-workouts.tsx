@@ -54,7 +54,10 @@ interface DashboardViewProps extends BaseViewProps {
 
 const toIsoString = (value: Date | string | null | undefined): string => {
   if (!value) {
-    return new Date().toISOString();
+    // Use a consistent value for SSR to avoid hydration mismatches
+    return typeof window !== "undefined"
+      ? new Date().toISOString()
+      : new Date(0).toISOString();
   }
 
   if (value instanceof Date) {
@@ -63,7 +66,10 @@ const toIsoString = (value: Date | string | null | undefined): string => {
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return new Date().toISOString();
+    // Use a consistent value for SSR to avoid hydration mismatches
+    return typeof window !== "undefined"
+      ? new Date().toISOString()
+      : new Date(0).toISOString();
   }
 
   return parsed.toISOString();

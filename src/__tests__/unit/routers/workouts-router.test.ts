@@ -5,6 +5,8 @@ import { workoutTemplates, workoutSessions } from "~/server/db/schema";
 // Import after mocking
 import { workoutsRouter } from "~/server/api/routers/workouts";
 import * as sessionDebrief from "~/server/api/services/session-debrief";
+import { createMockUser, createMockWorkoutSession, createMockWorkoutTemplate, createMockSessionExercise } from "~/__tests__/mocks/test-data";
+import { getMockData } from "~/__tests__/mocks/mock-sets";
 
 type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 
@@ -84,7 +86,7 @@ const createMockDb = () => {
 };
 
 describe("workoutsRouter", () => {
-  const mockUser = { id: "user-123" };
+  const mockUser = createMockUser({ id: "user-123" });
 
   let mockDb: ReturnType<typeof createMockDb>;
   let mockCtx: {
@@ -108,41 +110,20 @@ describe("workoutsRouter", () => {
 
   describe("getRecent", () => {
     it("should return recent workouts for user", async () => {
-      const mockWorkouts: Array<{
-        id: number;
-        user_id: string;
-        templateId: number;
-        workoutDate: string;
-        createdAt: Date;
-        updatedAt: Date | null;
-        template: {
-          id: number;
-          name: string;
-          exercises: Array<{
-            id: number;
-            exerciseName: string;
-            orderIndex: number;
-          }>;
-        };
-        exercises: Array<{
-          id: number;
-          exerciseName: string;
-          weight: number;
-          reps: number;
-          sets: number;
-          unit: string;
-        }>;
-      }> = [
+      const mockWorkouts = [
         {
-          id: 1,
-          user_id: "user-123",
-          templateId: 1,
-          workoutDate: "2024-01-01",
-          createdAt: new Date(),
-          updatedAt: null,
-          template: {
+          ...createMockWorkoutSession({
             id: 1,
-            name: "Push Day",
+            user_id: "user-123",
+            templateId: 1,
+            workoutDate: new Date("2024-01-01"),
+          }),
+          template: {
+            ...createMockWorkoutTemplate({
+              id: 1,
+              name: "Push Day",
+              user_id: "user-123",
+            }),
             exercises: [],
           },
           exercises: [],
@@ -163,31 +144,7 @@ describe("workoutsRouter", () => {
     });
 
     it("should use default limit of 10", async () => {
-      const mockWorkouts: Array<{
-        id: number;
-        user_id: string;
-        templateId: number;
-        workoutDate: string;
-        createdAt: Date;
-        updatedAt: Date | null;
-        template: {
-          id: number;
-          name: string;
-          exercises: Array<{
-            id: number;
-            exerciseName: string;
-            orderIndex: number;
-          }>;
-        };
-        exercises: Array<{
-          id: number;
-          exerciseName: string;
-          weight: number;
-          reps: number;
-          sets: number;
-          unit: string;
-        }>;
-      }> = [];
+      const mockWorkouts: Array<any> = [];
       mockDb.query.workoutSessions.findMany.mockResolvedValue(mockWorkouts);
 
       const caller = workoutsRouter.createCaller(mockCtx);
@@ -202,15 +159,18 @@ describe("workoutsRouter", () => {
   describe("getById", () => {
     it("should return workout by id for owner", async () => {
       const mockWorkout = {
-        id: 1,
-        user_id: "user-123",
-        templateId: 1,
-        workoutDate: "2024-01-01",
-        createdAt: new Date(),
-        updatedAt: null,
-        template: {
+        ...createMockWorkoutSession({
           id: 1,
-          name: "Push Day",
+          user_id: "user-123",
+          templateId: 1,
+          workoutDate: new Date("2024-01-01"),
+        }),
+        template: {
+          ...createMockWorkoutTemplate({
+            id: 1,
+            name: "Push Day",
+            user_id: "user-123",
+          }),
           exercises: [],
         },
         exercises: [],
@@ -235,14 +195,12 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if workout belongs to different user", async () => {
-      const mockWorkout = {
+      const mockWorkout = createMockWorkoutSession({
         id: 1,
         user_id: "different-user",
         templateId: 1,
-        workoutDate: "2024-01-01",
-        createdAt: new Date(),
-        updatedAt: null,
-      };
+        workoutDate: new Date("2024-01-01"),
+      });
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockWorkout);
 
@@ -392,29 +350,32 @@ describe("workoutsRouter", () => {
   describe("start", () => {
     it("should start a new workout session", async () => {
       const mockTemplate = {
-        id: 1,
-        user_id: "user-123",
-        name: "Push Day",
+        ...createMockWorkoutTemplate({
+          id: 1,
+          user_id: "user-123",
+          name: "Push Day",
+        }),
         exercises: [
           {
-            id: 1,
-            exerciseName: "Bench Press",
-            sets: 3,
-            reps: 8,
-            weight: 80,
-            unit: "kg",
+            ...createMockSessionExercise({
+              id: 1,
+              user_id: "user-123",
+              exerciseName: "Bench Press",
+              sets: 3,
+              reps: 8,
+              weight: 80,
+              unit: "kg",
+            }),
           },
         ],
       };
 
-      const mockSession = {
+      const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
         templateId: 1,
-        workoutDate: "2024-01-01",
-        createdAt: new Date(),
-        updatedAt: null,
-      };
+        workoutDate: new Date("2024-01-01"),
+      });
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValueOnce(null);
       mockDb.query.workoutTemplates.findFirst.mockResolvedValue(mockTemplate);
@@ -457,14 +418,12 @@ describe("workoutsRouter", () => {
 
   describe("save", () => {
     it("should save workout session with exercises", async () => {
-      const mockSession = {
+      const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
         templateId: 1,
-        workoutDate: "2024-01-01",
-        createdAt: new Date(),
-        updatedAt: null,
-      };
+        workoutDate: new Date("2024-01-01"),
+      });
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
 
@@ -506,14 +465,12 @@ describe("workoutsRouter", () => {
     });
 
     it("should trigger generateAndPersistDebrief when saving exercises", async () => {
-      const mockSession = {
+      const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
         templateId: 1,
-        workoutDate: "2024-01-01",
-        createdAt: new Date(),
-        updatedAt: null,
-      };
+        workoutDate: new Date("2024-01-01"),
+      });
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
 
@@ -552,18 +509,21 @@ describe("workoutsRouter", () => {
   describe("updateSessionSets", () => {
     it("should update session sets", async () => {
       const mockSession = {
-        id: 1,
-        user_id: "user-123",
+        ...createMockWorkoutSession({
+          id: 1,
+          user_id: "user-123",
+        }),
         exercises: [
-          {
+          createMockSessionExercise({
             id: 1,
+            user_id: "user-123",
             exerciseName: "Bench Press",
             setOrder: 0,
             weight: 80,
             reps: 8,
             sets: 3,
             unit: "kg",
-          },
+          }),
         ],
       };
 
@@ -608,14 +568,12 @@ describe("workoutsRouter", () => {
 
   describe("delete", () => {
     it("should delete workout session", async () => {
-      const mockSession = {
+      const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
         templateId: 1,
-        workoutDate: "2024-01-01",
-        createdAt: new Date(),
-        updatedAt: null,
-      };
+        workoutDate: new Date("2024-01-01"),
+      });
 
       mockDb.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
 

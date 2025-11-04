@@ -65,22 +65,25 @@ describe("createReducedMotionVariants", () => {
   });
 
   it("should return simplified variants when reduced motion is preferred", () => {
-    // Mock matchMedia to return matches: true
-    if (typeof window !== "undefined") {
-      window.matchMedia = vi.fn(
-        () =>
-          ({
-            matches: true,
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            dispatchEvent: vi.fn(),
-            media: "",
-            onchange: null,
-          }) as any,
-      );
-    }
+    // Ensure window is defined and mock matchMedia to return matches: true
+    Object.defineProperty(global, "window", {
+      value: {
+        matchMedia: vi.fn(
+          () =>
+            ({
+              matches: true,
+              addEventListener: vi.fn(),
+              removeEventListener: vi.fn(),
+              addListener: vi.fn(),
+              removeListener: vi.fn(),
+              dispatchEvent: vi.fn(),
+              media: "",
+              onchange: null,
+            }) as any,
+        ),
+      },
+      writable: true,
+    });
 
     const originalVariants = {
       hidden: { opacity: 0, y: 20 },

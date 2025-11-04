@@ -10,7 +10,10 @@ import { workosAuthHandlers } from "./mocks/workos-auth";
 const server = setupServer(...workosAuthHandlers);
 
 const ensureLocalStorage = () => {
-  if (typeof window === "undefined") return;
+  // Ensure window is defined first
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
 
   const storageMock = {
     getItem: vi.fn(() => null),
@@ -49,7 +52,10 @@ const ensureLocalStorage = () => {
 };
 
 const ensureMatchMedia = () => {
-  if (typeof window === "undefined") return;
+  // Ensure window is defined first
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
 
   if (typeof window.matchMedia === "function") return;
 
@@ -68,7 +74,10 @@ const ensureMatchMedia = () => {
 };
 
 const ensurePosthog = () => {
-  if (typeof window === "undefined") return;
+  // Ensure window is defined first
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
 
   Object.defineProperty(window, "posthog", {
     value: {
@@ -82,7 +91,10 @@ const ensurePosthog = () => {
 };
 
 const ensureImage = () => {
-  if (typeof window === "undefined") return;
+  // Ensure window is defined first
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
 
   // Mock Image constructor for drag operations
   globalThis.Image = vi.fn().mockImplementation(() => ({
@@ -95,7 +107,10 @@ const ensureImage = () => {
 };
 
 const ensureFramerMotion = () => {
-  if (typeof window === "undefined") return;
+  // Ensure window is defined first
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
 
   // Define Element to avoid motion-dom errors
   if (typeof globalThis.Element === "undefined") {
@@ -105,11 +120,33 @@ const ensureFramerMotion = () => {
 
 beforeAll(() => {
   console.log("setup.dom.ts running");
+
+  // Ensure document is defined for jsdom environment
+  if (typeof document === "undefined") {
+    // Basic document mock for jsdom environment
+    (global as any).document = {
+      createElement: vi.fn(() => ({
+        style: {},
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        appendChild: vi.fn(),
+        removeChild: vi.fn(),
+      })),
+      body: {
+        appendChild: vi.fn(),
+        removeChild: vi.fn(),
+      },
+    };
+  }
+
+  // Ensure window is defined
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
+
   // Ensure document.body is properly set up for jsdom
-  if (typeof document !== "undefined") {
-    if (!document.body || typeof document.body.appendChild !== "function") {
-      document.body = document.createElement("body");
-    }
+  if (!document.body || typeof document.body.appendChild !== "function") {
+    document.body = document.createElement("body");
   }
 
   ensureLocalStorage();

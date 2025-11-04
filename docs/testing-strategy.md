@@ -50,16 +50,61 @@ function shouldMock(complexity: number, testValue: number): boolean {
 
 ### Phase 2: Factory-Based Mocking
 
+#### Enhanced Mock Data System
+
+The project now implements a comprehensive centralized mock data generation system with three key components:
+
+1. **Enhanced Mock Factories** (`src/__tests__/mocks/test-data.ts`)
+   - Type-safe factories using Drizzle schema inference
+   - Comprehensive factories for all major entities (users, workouts, exercises, etc.)
+   - Override pattern for custom test scenarios
+
+2. **Centralized Mock Sets** (`src/__tests__/mocks/mock-sets.ts`)
+   - Pre-defined realistic data scenarios
+   - Deep copy utility to prevent test pollution
+   - Reusable mock data sets for common test cases
+
+3. **Specialized Factories** (`src/__tests__/generated-mocks/test-data.ts`)
+   - Domain-specific factories for WHOOP, Health Advice, and other features
+   - Bulk creation utilities for multiple records
+
 #### Database Mock Factory
 ```typescript
-// src/__tests__/test-utils/mock-factories.ts
-export function createDrizzleMock() {
+// src/__tests__/generated-mocks/database-mocks.ts
+export function createDatabaseMock() {
   return {
     select: vi.fn(() => createQueryChain()),
     insert: vi.fn(() => createQueryChain()),
-    // ... all database operations
+    update: vi.fn(() => createQueryChain()),
+    delete: vi.fn(() => createQueryChain()),
+    query: {
+      workoutSessions: { findMany: vi.fn(), findFirst: vi.fn() },
+      users: { findMany: vi.fn(), findFirst: vi.fn() },
+      // ... all database operations
+    },
   };
 }
+```
+
+#### Mock Data Usage Pattern
+```typescript
+// Import centralized mock data
+import { getMockData } from '~/../__tests__/mocks/mock-sets';
+import { createMockUser, createMockWorkoutSession } from '~/../__tests__/mocks/test-data';
+
+// In tests
+describe('Router Tests', () => {
+  let mockData;
+  
+  beforeEach(() => {
+    mockData = getMockData(); // Fresh copy for each test
+  });
+  
+  it('should handle user data', () => {
+    const user = createMockUser({ id: 'test-user' });
+    // Test with type-safe mock data
+  });
+});
 ```
 
 #### Browser API Mock Factory
@@ -202,18 +247,27 @@ const hookMock = createReactHookMock(defaultData);
 hookMock.setValue(customData);
 ```
 
-### Example 3: Progressive Strategy
+### Example 3: Progressive Strategy with Centralized Mocks
 ```typescript
 describe('useWorkoutStats', () => {
+  let mockData;
+  
+  beforeEach(() => {
+    mockData = getMockData(); // Fresh mock data for each test
+  });
+
   // Level 1: Test pure logic
   test('calculates streak', () => {
     expect(calculateStreak(dates)).toBe(3);
   });
 
-  // Level 2: Test with mocks
-  test.skip('integrates with data source', () => {
-    // Skip: Mocking complexity too high
-    // Covered by integration tests
+  // Level 2: Test with centralized mocks
+  test('integrates with data source', () => {
+    const dbMock = createDatabaseMock();
+    dbMock.query.workoutSessions.findMany.mockResolvedValue([mockData.workoutWithExercises.workout]);
+    
+    // Test with type-safe mock data
+    expect(useWorkoutStats()).toBeDefined();
   });
 
   // Level 3: Integration test

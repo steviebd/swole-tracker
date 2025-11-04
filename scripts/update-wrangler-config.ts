@@ -1,11 +1,17 @@
 #!/usr/bin/env bun
 import { spawn } from "child_process";
-import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from "fs";
+import {
+  readFileSync,
+  writeFileSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+} from "fs";
 import { join } from "path";
 
 async function main() {
   const TARGET_ENV = process.argv[2] || "dev";
-  const isCI = process.env.CI === 'true';
+  const isCI = process.env.CI === "true";
 
   const validEnvs = ["dev", "staging", "production", "preview"];
   if (!validEnvs.includes(TARGET_ENV)) {
@@ -32,7 +38,7 @@ async function main() {
   }
 
   console.log(
-    `🔄 Updating ${CONFIG_FILE} for env '${TARGET_ENV}'${isCI ? ' (CI mode)' : ' with Infisical secrets'}…`,
+    `🔄 Updating ${CONFIG_FILE} for env '${TARGET_ENV}'${isCI ? " (CI mode)" : " with Infisical secrets"}…`,
   );
 
   let DB_ID = process.env.D1_DB_ID || "";
@@ -130,12 +136,18 @@ async function main() {
   // Ensure the build command is set to use the TypeScript script
   const buildCommandPattern = /\[build\]\s*\n\s*command\s*=\s*"[^"]*"/;
   if (buildCommandPattern.test(content)) {
-    content = content.replace(buildCommandPattern, '[build]\ncommand = "bun scripts/opennext-build.ts"');
+    content = content.replace(
+      buildCommandPattern,
+      '[build]\ncommand = "bun scripts/opennext-build.ts"',
+    );
   } else {
     // If no build command section exists, add it after the compatibility_flags line
     const compatFlagsPattern = /(compatibility_flags\s*=\s*\[.*?\])/;
     if (compatFlagsPattern.test(content)) {
-      content = content.replace(compatFlagsPattern, '$1\n\n[build]\ncommand = "bun scripts/opennext-build.ts"');
+      content = content.replace(
+        compatFlagsPattern,
+        '$1\n\n[build]\ncommand = "bun scripts/opennext-build.ts"',
+      );
     }
   }
 
@@ -196,11 +208,13 @@ async function main() {
 
   writeFileSync(CONFIG_FILE, content);
   console.log(`DEBUG: Updated ${CONFIG_FILE} with new configuration`);
-  
+
   // Only update if content actually changed to avoid triggering unnecessary rebuilds
   const originalContent = readFileSync(BACKUP_FILE, "utf-8");
   if (originalContent === content) {
-    console.log(`DEBUG: No changes detected in ${CONFIG_FILE}, restoring backup to avoid triggering rebuild`);
+    console.log(
+      `DEBUG: No changes detected in ${CONFIG_FILE}, restoring backup to avoid triggering rebuild`,
+    );
     copyFileSync(BACKUP_FILE, CONFIG_FILE);
   }
   console.log(`DEBUG: Updated ${CONFIG_FILE} with new configuration`);

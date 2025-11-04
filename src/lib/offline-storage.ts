@@ -196,7 +196,7 @@ class CacheManager {
       if (typeof window !== "undefined" && (window as any).posthog) {
         (window as any).posthog.capture(`cache_${event}`, {
           ...properties,
-          timestamp: Date.now(),
+          timestamp: typeof window !== "undefined" ? Date.now() : 0,
           cacheVersion: this.cacheKey,
         });
       }

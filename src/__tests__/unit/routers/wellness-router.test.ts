@@ -1,29 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
+import { createMockUser } from "~/__tests__/mocks/test-data";
+
+// Import after mocking
 import { wellnessRouter } from "~/server/api/routers/wellness";
 
-// Mock the database
-const mockDb = {
-  insert: vi.fn(),
-  select: vi.fn(),
-  delete: vi.fn(),
-};
-
-const mockUser = { id: "test-user-id" };
-
 describe("wellnessRouter", () => {
+  const mockUser = createMockUser({ id: "test-user-id" });
+
+  let mockDb: any;
   let caller: ReturnType<(typeof wellnessRouter)["createCaller"]>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Reset mock implementations
-    mockDb.insert.mockReset();
-    mockDb.select.mockReset();
-    mockDb.delete.mockReset();
+    // Create a simple mock database that works with the router
+    mockDb = {
+      select: vi.fn(),
+      insert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+        callback(mockDb),
+      ),
+    };
 
     const ctx = {
-      db: mockDb as any,
+      db: mockDb,
       user: mockUser,
       requestId: "test-request",
       headers: new Headers(),
@@ -34,21 +37,23 @@ describe("wellnessRouter", () => {
 
   describe("save", () => {
     it("should save wellness data successfully", async () => {
-      // Mock session validation query chain
-      const sessionValidationChain = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([{ id: 1 }]),
-      };
-      mockDb.select.mockReturnValue(sessionValidationChain);
+      // Mock session validation - the select chain should return a session
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([{ id: 1 }]),
+          }),
+        }),
+      });
 
       // Mock insert operation
-      const insertChain = {
-        values: vi.fn().mockReturnThis(),
-        onConflictDoUpdate: vi.fn().mockReturnThis(),
-        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-      };
-      mockDb.insert.mockReturnValue(insertChain);
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+          }),
+        }),
+      });
 
       const input = {
         sessionId: 1,
@@ -65,14 +70,39 @@ describe("wellnessRouter", () => {
       expect(mockDb.insert).toHaveBeenCalled();
     });
 
-    it("should handle session validation failure", async () => {
-      // Mock session validation query chain - no session
-      const sessionValidationChain = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([]),
+    it("should save wellness data without sessionId", async () => {
+      // Mock insert operation
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+          }),
+        }),
+      });
+
+      const input = {
+        energyLevel: 8,
+        sleepQuality: 7,
+        deviceTimezone: "America/New_York",
+        notes: "Feeling good",
+        hasWhoopData: false,
       };
-      mockDb.select.mockReturnValue(sessionValidationChain);
+
+      const result = await caller.save(input);
+
+      expect(result).toEqual({ id: 1 });
+      expect(mockDb.insert).toHaveBeenCalled();
+    });
+
+    it("should handle session validation failure", async () => {
+      // Mock session validation - no session found
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
 
       const input = {
         sessionId: 999,
@@ -89,8 +119,12 @@ describe("wellnessRouter", () => {
 
     it("should handle database errors", async () => {
       // Mock insert to throw error
-      mockDb.insert.mockImplementation(() => {
-        throw new Error("Database error");
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            returning: vi.fn().mockRejectedValue(new Error("Database error")),
+          }),
+        }),
       });
 
       const input = {
@@ -104,6 +138,31 @@ describe("wellnessRouter", () => {
         "Failed to save wellness data",
       );
     });
+
+    it("should handle TRPCError from database", async () => {
+      // Mock insert to throw TRPCError
+      mockDb.insert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            returning: vi.fn().mockRejectedValue(
+              new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Custom error",
+              }),
+            ),
+          }),
+        }),
+      });
+
+      const input = {
+        energyLevel: 8,
+        sleepQuality: 7,
+        deviceTimezone: "America/New_York",
+        hasWhoopData: false,
+      };
+
+      await expect(caller.save(input)).rejects.toThrow("Custom error");
+    });
   });
 
   describe("getBySessionId", () => {
@@ -115,13 +174,15 @@ describe("wellnessRouter", () => {
       };
 
       // Mock the select query chain with innerJoin
-      const selectChain = {
-        from: vi.fn().mockReturnThis(),
-        innerJoin: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([{ wellness_data: mockData }]),
-      };
-      mockDb.select.mockReturnValue(selectChain);
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ wellness_data: mockData }]),
+            }),
+          }),
+        }),
+      });
 
       const result = await caller.getBySessionId({ sessionId: 1 });
 
@@ -130,13 +191,15 @@ describe("wellnessRouter", () => {
 
     it("should return null when no data found", async () => {
       // Mock empty result
-      const selectChain = {
-        from: vi.fn().mockReturnThis(),
-        innerJoin: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([]),
-      };
-      mockDb.select.mockReturnValue(selectChain);
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+        }),
+      });
 
       const result = await caller.getBySessionId({ sessionId: 1 });
 
@@ -151,14 +214,17 @@ describe("wellnessRouter", () => {
         { id: 2, date: new Date(), energy_level: 7 },
       ];
 
-      const selectChain = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        offset: vi.fn().mockResolvedValue(mockHistory),
-      };
-      mockDb.select.mockReturnValue(selectChain);
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                offset: vi.fn().mockResolvedValue(mockHistory),
+              }),
+            }),
+          }),
+        }),
+      });
 
       const result = await caller.getHistory({
         limit: 10,
@@ -168,6 +234,24 @@ describe("wellnessRouter", () => {
       });
 
       expect(result).toEqual(mockHistory);
+    });
+
+    it("should handle database errors", async () => {
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                offset: vi.fn().mockRejectedValue(new Error("Database error")),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      await expect(caller.getHistory({ limit: 10, offset: 0 })).rejects.toThrow(
+        "Failed to retrieve wellness history",
+      );
     });
   });
 
@@ -180,18 +264,17 @@ describe("wellnessRouter", () => {
         { avgEnergyLevel: 8.0, avgSleepQuality: 7.0, totalEntries: 5 },
       ];
 
-      const selectChain1 = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(mockStats),
-      };
-      const selectChain2 = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockResolvedValue(mockRecentStats),
-      };
-
       mockDb.select
-        .mockReturnValueOnce(selectChain1)
-        .mockReturnValueOnce(selectChain2);
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(mockStats),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(mockRecentStats),
+          }),
+        });
 
       const result = await caller.getStats({ days: 30 });
 
@@ -210,15 +293,28 @@ describe("wellnessRouter", () => {
         },
       });
     });
+
+    it("should handle database errors", async () => {
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockRejectedValue(new Error("Database error")),
+        }),
+      });
+
+      await expect(caller.getStats({ days: 30 })).rejects.toThrow(
+        "Failed to retrieve wellness statistics",
+      );
+    });
   });
 
   describe("delete", () => {
     it("should delete wellness data", async () => {
-      mockDb.delete.mockReturnValue({
+      const mockDeleteBuilder = {
         where: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([{ id: 1 }]),
         }),
-      });
+      };
+      mockDb.delete.mockReturnValue(mockDeleteBuilder);
 
       const result = await caller.delete({ sessionId: 1 });
 
@@ -227,26 +323,43 @@ describe("wellnessRouter", () => {
     });
 
     it("should throw error when data not found", async () => {
-      mockDb.delete.mockReturnValue({
+      const mockDeleteBuilder = {
         where: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([]),
+          returning: vi.fn().mockReturnValue({
+            execute: vi.fn().mockResolvedValue([]),
+          }),
         }),
-      });
+      };
+      mockDb.delete.mockReturnValue(mockDeleteBuilder);
 
       await expect(caller.delete({ sessionId: 1 })).rejects.toThrow(
         "Wellness data not found or access denied",
+      );
+    });
+
+    it("should handle database errors", async () => {
+      const mockDeleteBuilder = {
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockRejectedValue(new Error("Database error")),
+        }),
+      };
+      mockDb.delete.mockReturnValue(mockDeleteBuilder);
+
+      await expect(caller.delete({ sessionId: 1 })).rejects.toThrow(
+        "Failed to delete wellness data",
       );
     });
   });
 
   describe("checkExists", () => {
     it("should return true when data exists", async () => {
-      const selectChain = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([{ id: 1 }]),
-      };
-      mockDb.select.mockReturnValue(selectChain);
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([{ id: 1 }]),
+          }),
+        }),
+      });
 
       const result = await caller.checkExists({ sessionId: 1 });
 
@@ -254,12 +367,29 @@ describe("wellnessRouter", () => {
     });
 
     it("should return false when data does not exist", async () => {
-      const selectChain = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([]),
-      };
-      mockDb.select.mockReturnValue(selectChain);
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
+      const result = await caller.checkExists({ sessionId: 1 });
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false on database errors", async () => {
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockImplementation(() => {
+              throw new Error("Database error");
+            }),
+          }),
+        }),
+      });
 
       const result = await caller.checkExists({ sessionId: 1 });
 

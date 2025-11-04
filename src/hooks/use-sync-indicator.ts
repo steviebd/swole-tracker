@@ -91,7 +91,10 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
     switch (status) {
       case "idle": {
         if (lastSyncAt) {
-          const secondsAgo = Math.round((Date.now() - lastSyncAt) / 1000);
+          const secondsAgo = Math.round(
+            ((typeof window !== "undefined" ? Date.now() : 0) - lastSyncAt) /
+              1000,
+          );
           if (secondsAgo < 5) return "Just synced";
           if (secondsAgo < 60) return `Synced ${secondsAgo}s ago`;
         }

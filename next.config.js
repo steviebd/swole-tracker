@@ -31,6 +31,21 @@ const baseConfig = {
       "node:https": "https-browserify",
     };
 
+    // Ignore test files during development to prevent unnecessary rebuilds
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          "**/__tests__/**",
+          "**/*.test.{ts,tsx,js,jsx}",
+          "**/*.spec.{ts,tsx,js,jsx}",
+          "**/test-utils/**",
+          "**/mocks/**",
+          "**/test-data/**",
+        ],
+      };
+    }
+
     // Check if we're in development mode (using custom flag since NODE_ENV is always production for builds)
     const isDevelopmentMode = process.env.DEVELOPMENT_MODE === "true" || dev;
 

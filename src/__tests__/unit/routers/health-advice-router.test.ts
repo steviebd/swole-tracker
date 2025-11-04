@@ -1,175 +1,150 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  createMockUser,
+  createMockHealthAdvice,
+} from "~/__tests__/mocks/test-data";
 
 // Import after mocking
 import { healthAdviceRouter } from "~/server/api/routers/health-advice";
 
-describe("healthAdviceRouter", () => {
-  const mockUser = { id: "user-123" };
+type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 
-  // Create a proper mock db that supports Drizzle fluent API
+const createQueryChain = <TData extends unknown[]>(
+  queue: Array<ChainResult<TData>>,
+) => {
+  const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
+
+  const chain: any = {
+    result,
+    from: vi.fn(() => chain),
+    innerJoin: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    where: vi.fn(() => chain),
+    groupBy: vi.fn(() => chain),
+    orderBy: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    offset: vi.fn(() => chain),
+    values: vi.fn(() => chain),
+    set: vi.fn(() => chain),
+    returning: vi.fn(async () => chain.result),
+    onConflictDoUpdate: vi.fn(() => chain),
+    execute: vi.fn(async () => chain.result),
+    all: vi.fn(async () => chain.result),
+    then: (
+      resolve: (value: TData) => void,
+      reject?: (reason: unknown) => void,
+    ) => Promise.resolve(chain.result as TData).then(resolve, reject),
+    catch: (reject: (reason: unknown) => void) =>
+      Promise.resolve(chain.result as TData).catch(reject),
+    finally: (cb: () => void) =>
+      Promise.resolve(chain.result as TData).finally(cb),
+  };
+
+  return chain;
+};
+
+const createMockDb = () => {
+  const selectQueue: unknown[][] = [];
+  const insertQueue: unknown[][] = [];
+  const updateQueue: unknown[][] = [];
+  const deleteQueue: unknown[][] = [];
+
   const mockDb = {
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        onConflictDoUpdate: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([]),
-        }),
-        returning: vi.fn().mockResolvedValue([]),
-      }),
-    }),
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      }),
-    }),
-    update: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockResolvedValue(undefined),
-      }),
-    }),
-    delete: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([]),
-      }),
-    }),
+    query: {},
+    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
+    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
+    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
+    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    select: vi.fn(() => createQueryChain(selectQueue)),
+    insert: vi.fn(() => createQueryChain(insertQueue)),
+    update: vi.fn(() => createQueryChain(updateQueue)),
+    delete: vi.fn(() => createQueryChain(deleteQueue)),
+    transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+      callback(mockDb),
+    ),
+    all: vi.fn(async () => []),
   } as any;
 
-  const mockCtx = {
-    db: mockDb,
-    user: mockUser,
-    requestId: "test-request",
-    headers: new Headers(),
-  } as any;
+  return mockDb;
+};
 
-  const mockHealthAdviceRequest = {
-    session_id: "session-123",
-    user_profile: {
-      experience_level: "intermediate" as const,
-      min_increment_kg: 2.5,
-      preferred_rpe: 7,
-    },
-    whoop: {
-      recovery_score: 85,
-      sleep_performance: 90,
-      hrv_now_ms: 45,
-      hrv_baseline_ms: 42,
-      rhr_now_bpm: 60,
-      rhr_baseline_bpm: 65,
-      yesterday_strain: 15,
-    },
-    workout_plan: {
-      exercises: [
-        {
-          exercise_id: "bench-press-1",
-          name: "Bench Press",
-          tags: ["strength" as const],
-          sets: [
-            {
-              set_id: "set-1",
-              target_reps: 8,
-              target_weight_kg: 80,
-              target_rpe: 7,
-            },
-            {
-              set_id: "set-2",
-              target_reps: 6,
-              target_weight_kg: 80,
-              target_rpe: 8,
-            },
-          ],
-        },
-      ],
-    },
-    prior_bests: {
-      by_exercise_id: {
-        "bench-press-1": {
-          best_total_volume_kg: 640,
-          best_e1rm_kg: 95,
-        },
-      },
-    },
-  };
+describe("healthAdviceRouter", () => {
+  const mockUser = createMockUser({ id: "user-123" });
 
-  const mockHealthAdviceResponse = {
-    session_id: "session-123",
-    readiness: {
-      rho: 0.85,
-      overload_multiplier: 1.1,
-      flags: ["good_recovery"],
-    },
-    session_predicted_chance: 0.75,
-    per_exercise: [
-      {
-        exercise_id: "bench-press-1",
-        name: "Bench Press",
-        predicted_chance_to_beat_best: 0.7,
-        planned_volume_kg: 640,
-        best_volume_kg: 640,
-        sets: [
-          {
-            set_id: "set-1",
-            suggested_weight_kg: 82.5,
-            suggested_reps: 8,
-            suggested_rest_seconds: 180,
-            rationale: "Linear progression",
-          },
-        ],
-      },
-    ],
-    summary: "Good recovery state, moderate progression recommended",
-    warnings: [],
-    recovery_recommendations: {
-      recommended_rest_between_sets: "2-3 minutes",
-      recommended_rest_between_sessions: "48 hours",
-      session_duration_estimate: "45 minutes",
-      additional_recovery_notes: ["Maintain current sleep schedule"],
-    },
-  };
+  let mockDb: ReturnType<typeof createMockDb>;
+  let caller: ReturnType<(typeof healthAdviceRouter)["createCaller"]>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDb = createMockDb();
+
+    const ctx = {
+      db: mockDb,
+      user: mockUser,
+      requestId: "test-request",
+      headers: new Headers(),
+    } as any;
+
+    caller = healthAdviceRouter.createCaller(ctx);
   });
 
   describe("save", () => {
     it("should save health advice to database", async () => {
       const mockResult = [
-        {
-          id: 1,
-          user_id: "user-123",
+        createMockHealthAdvice({
+          user_id: mockUser.id,
           sessionId: 1,
-          request: mockHealthAdviceRequest,
-          response: mockHealthAdviceResponse,
-          readiness_rho: "0.85",
-          overload_multiplier: "1.1",
-          session_predicted_chance: "0.75",
-          user_accepted_suggestions: 0,
           total_suggestions: 1,
-          response_time_ms: 1500,
-          model_used: "gpt-4o-mini",
-          createdAt: new Date(),
-          updatedAt: null,
-        },
+        }),
       ];
 
-      // Mock the database operations
-      const mockInsertBuilder = {
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue(mockResult),
-          }),
-        }),
+      mockDb.queueInsertResult(mockResult);
+
+      const mockRequest = {
+        session_id: "session-1",
+        user_profile: {
+          experience_level: "intermediate" as const,
+        },
+        workout_plan: {
+          exercises: [],
+        },
+        prior_bests: {
+          by_exercise_id: {},
+        },
       };
 
-      mockDb.insert.mockReturnValue(mockInsertBuilder);
+      const mockResponse = {
+        session_id: "session-1",
+        readiness: {
+          rho: 0.8,
+          overload_multiplier: 1.0,
+          flags: [],
+        },
+        per_exercise: [
+          {
+            exercise_id: "ex-1",
+            predicted_chance_to_beat_best: 0.8,
+            sets: [
+              {
+                set_id: "set-1",
+                suggested_weight_kg: 100,
+                suggested_reps: 8,
+                suggested_rest_seconds: 180,
+                rationale: "Progressive overload",
+              },
+            ],
+          },
+        ],
+        session_predicted_chance: 0.9,
+        summary: "Good session",
+        warnings: [],
+      };
 
-      const caller = healthAdviceRouter.createCaller(mockCtx);
       const result = await caller.save({
         sessionId: 1,
-        request: mockHealthAdviceRequest,
-        response: mockHealthAdviceResponse,
+        request: mockRequest,
+        response: mockResponse,
       });
 
       expect(result.total_suggestions).toBe(1);
@@ -178,52 +153,53 @@ describe("healthAdviceRouter", () => {
 
   describe("saveWithWellness", () => {
     it("should save health advice with wellness data", async () => {
-      const mockWellnessData = [{ id: 1, user_id: "user-123" }];
-
+      const mockWellnessData = [{ id: 1, user_id: mockUser.id }];
       const mockResult = [
-        {
-          id: 1,
-          user_id: "user-123",
+        createMockHealthAdvice({
+          user_id: mockUser.id,
           sessionId: 1,
-          request: mockHealthAdviceRequest,
-          response: mockHealthAdviceResponse,
-          readiness_rho: "0.85",
-          overload_multiplier: "1.1",
-          session_predicted_chance: "0.75",
-          user_accepted_suggestions: 0,
-          total_suggestions: 1,
           response_time_ms: 1200,
-          model_used: "gpt-4o-mini",
-          createdAt: new Date(),
-          updatedAt: null,
-        },
+        }),
       ];
 
-      // Mock wellness data verification
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue(mockWellnessData),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult(mockWellnessData);
+      mockDb.queueInsertResult(mockResult);
 
-      // Mock insert operation
-      const mockInsertBuilder = {
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue(mockResult),
-          }),
-        }),
+      const mockRequest = {
+        session_id: "session-1",
+        user_profile: {
+          experience_level: "intermediate" as const,
+        },
+        workout_plan: {
+          exercises: [],
+        },
+        prior_bests: {
+          by_exercise_id: {},
+        },
+        manual_wellness: {
+          has_whoop_data: false,
+          energy_level: 8,
+          sleep_quality: 7,
+        },
       };
 
-      mockDb.insert.mockReturnValue(mockInsertBuilder);
+      const mockResponse = {
+        session_id: "session-1",
+        readiness: {
+          rho: 0.8,
+          overload_multiplier: 1.0,
+          flags: [],
+        },
+        per_exercise: [],
+        session_predicted_chance: 0.9,
+        summary: "Good session",
+        warnings: [],
+      };
 
-      const caller = healthAdviceRouter.createCaller(mockCtx);
       const result = await caller.saveWithWellness({
         sessionId: 1,
-        request: mockHealthAdviceRequest,
-        response: mockHealthAdviceResponse,
+        request: mockRequest,
+        response: mockResponse,
         responseTimeMs: 1200,
         modelUsed: "gpt-4o-mini",
         wellnessDataId: 1,
@@ -234,13 +210,8 @@ describe("healthAdviceRouter", () => {
     });
 
     it("should return null when no advice found", async () => {
-      mockDb.delete.mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([]),
-        }),
-      });
+      mockDb.queueDeleteResult([]);
 
-      const caller = healthAdviceRouter.createCaller(mockCtx);
       const result = await caller.delete({ sessionId: 999 });
 
       expect(result).toBeNull();
@@ -249,16 +220,12 @@ describe("healthAdviceRouter", () => {
 
   describe("input validation", () => {
     it("should validate sessionId is positive number", async () => {
-      const caller = healthAdviceRouter.createCaller(mockCtx);
-
       await expect(caller.getBySessionId({ sessionId: -1 })).rejects.toThrow();
 
       await expect(caller.getBySessionId({ sessionId: 0 })).rejects.toThrow();
     });
 
     it("should validate history pagination parameters", async () => {
-      const caller = healthAdviceRouter.createCaller(mockCtx);
-
       await expect(caller.getHistory({ limit: 0 })).rejects.toThrow();
 
       await expect(caller.getHistory({ limit: 101 })).rejects.toThrow();
@@ -267,8 +234,6 @@ describe("healthAdviceRouter", () => {
     });
 
     it("should validate accepted suggestions count", async () => {
-      const caller = healthAdviceRouter.createCaller(mockCtx);
-
       await expect(
         caller.updateAcceptedSuggestions({
           sessionId: 1,
