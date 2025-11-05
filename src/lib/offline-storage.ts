@@ -11,7 +11,6 @@ import { type QueryClient } from "@tanstack/react-query";
 const CACHE_VERSION_PREFIX = "swole-tracker-cache-v3";
 const LEGACY_CACHE_KEY = "swole-tracker-cache";
 const DEFAULT_CACHE_SCOPE = "guest";
-const BACKGROUND_SYNC_INTERVAL = 30000; // 30 seconds
 
 const sanitizeCacheScope = (value: string | null | undefined): string => {
   if (!value) return DEFAULT_CACHE_SCOPE;
@@ -197,7 +196,7 @@ class CacheManager {
       if (typeof window !== "undefined" && (window as any).posthog) {
         (window as any).posthog.capture(`cache_${event}`, {
           ...properties,
-          timestamp: Date.now(),
+          timestamp: typeof window !== "undefined" ? Date.now() : 0,
           cacheVersion: this.cacheKey,
         });
       }

@@ -91,10 +91,20 @@ export default function LiveRegionProvider({
   return (
     <>
       {/* Invisible live regions */}
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="live-region-polite"
+      >
         {polite}
       </div>
-      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+      <div
+        aria-live="assertive"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="live-region-assertive"
+      >
         {assertive}
       </div>
       {/* Context bridge: place function on window for hooks to attach in absence of React Context to keep it tiny */}

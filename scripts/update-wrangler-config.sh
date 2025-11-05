@@ -31,7 +31,7 @@ fi
 
 echo "🔄 Updating $CONFIG_FILE for env '$TARGET_ENV' with Infisical secrets…"
 
-# Prefer an already-provided D1 ID – avoids launching a nested Infisical process.
+# Prefer GitHub Actions environment variables over Infisical
 DB_ID="${D1_DB_ID:-}"
 
 if [ -z "$DB_ID" ]; then
@@ -113,7 +113,22 @@ vars_header = f"  [env.{target_env}.vars]"
 missing_env_vars = []
 block_lines = [vars_header]
 for name in var_names:
+    # First try environment variables (GitHub Actions), then Infisical
     value = os.environ.get(name)
+    if value in (None, ""):
+        # Try Infisical as fallback
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["infisical", "run", "--env", target_env, "--command", f"echo ${name}"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            value = result.stdout.strip() if result.returncode == 0 else ""
+        except:
+            value = ""
+    
     if value in (None, ""):
         missing_env_vars.append(name)
         value = ""

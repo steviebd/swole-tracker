@@ -8,14 +8,13 @@ import {
   whoopRecovery,
   whoopSleep,
 } from "~/server/db/schema";
-import { createDrizzleMock } from "~/__tests__/test-utils/mock-factories";
-
-const mockUser = { id: "user-123" };
-
-let mockDb: ReturnType<typeof createDrizzleMock>;
-let rotateOAuthTokensSpy: MockInstance<
-  typeof tokenRotationModule.rotateOAuthTokens
->;
+import {
+  createMockUser,
+  createMockUserIntegration,
+  createMockWhoopRecovery,
+  createMockWhoopSleep,
+  createMockExternalWorkoutWhoop,
+} from "~/__tests__/mocks/test-data";
 
 const createCaller = () =>
   whoopRouter.createCaller({
@@ -25,9 +24,89 @@ const createCaller = () =>
     headers: new Headers(),
   } as any);
 
+type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
+
+const createQueryChain = <TData extends unknown[]>(
+  queue: Array<ChainResult<TData>>,
+) => {
+  const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
+
+  const chain: any = {
+    result,
+    from: vi.fn(() => chain),
+    innerJoin: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    where: vi.fn(() => chain),
+    groupBy: vi.fn(() => chain),
+    orderBy: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    offset: vi.fn(() => chain),
+    values: vi.fn(() => chain),
+    set: vi.fn(() => chain),
+    returning: vi.fn(async () => chain.result),
+    onConflictDoUpdate: vi.fn(() => chain),
+    execute: vi.fn(async () => chain.result),
+    all: vi.fn(async () => chain.result),
+    then: (
+      resolve: (value: TData) => void,
+      reject?: (reason: unknown) => void,
+    ) => Promise.resolve(chain.result as TData).then(resolve, reject),
+    catch: (reject: (reason: unknown) => void) =>
+      Promise.resolve(chain.result as TData).catch(reject),
+    finally: (cb: () => void) =>
+      Promise.resolve(chain.result as TData).finally(cb),
+  };
+
+  return chain;
+};
+
+const createMockDb = () => {
+  const selectQueue: unknown[][] = [];
+  const insertQueue: unknown[][] = [];
+  const updateQueue: unknown[][] = [];
+  const deleteQueue: unknown[][] = [];
+
+  const mockDb = {
+    query: {},
+    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
+    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
+    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
+    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    select: vi.fn(() => createQueryChain(selectQueue)),
+    insert: vi.fn(() => createQueryChain(insertQueue)),
+    update: vi.fn(() => createQueryChain(updateQueue)),
+    delete: vi.fn(() => createQueryChain(deleteQueue)),
+    transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+      callback(mockDb),
+    ),
+    all: vi.fn(async () => []),
+  } as any;
+
+  return mockDb;
+};
+
+const mockUser = createMockUser({ id: "user-123" });
+
+let mockDb: ReturnType<typeof createMockDb>;
+let caller: ReturnType<(typeof whoopRouter)["createCaller"]>;
+let rotateOAuthTokensSpy: MockInstance<
+  typeof tokenRotationModule.rotateOAuthTokens
+>;
+
 beforeEach(() => {
-  mockDb = createDrizzleMock();
+  mockDb = createMockDb();
   vi.clearAllMocks();
+
+  const ctx = {
+    db: mockDb,
+    user: mockUser,
+    requestId: "test-request",
+    headers: new Headers(),
+  } as any;
+
+  caller = whoopRouter.createCaller(ctx);
+
   rotateOAuthTokensSpy = vi
     .spyOn(tokenRotationModule, "rotateOAuthTokens")
     .mockResolvedValue({
@@ -72,12 +151,11 @@ function mockLatestQuery(value: string | null = null) {
 
 describe("parallel database queries", () => {
   it("uses Promise.all for parallel database queries in getIntegrationStatus", async () => {
-    const integration = {
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      expiresAt: new Date("2025-12-31"),
-      scope: "read:profile read:recovery",
-    };
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2025-12-31T00:00:00.000Z"), // Future date
+    });
 
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))
@@ -97,10 +175,13 @@ describe("parallel database queries", () => {
   });
 
   it("uses Promise.all for parallel database queries in getLatestRecoveryData", async () => {
-    const integration = {
-      isActive: true,
-      expiresAt: new Date("2025-12-31"),
-    };
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2025-12-31T00:00:00.000Z"), // Future date
+    });
+    const recovery = createMockWhoopRecovery({ user_id: mockUser.id });
+    const sleep = createMockWhoopSleep({ user_id: mockUser.id });
 
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))
@@ -108,19 +189,7 @@ describe("parallel database queries", () => {
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([
-                {
-                  recovery_score: 85,
-                  hrv_rmssd_milli: "45.2",
-                  hrv_rmssd_baseline: "42.1",
-                  resting_heart_rate: 60,
-                  resting_heart_rate_baseline: 65,
-                  respiratory_rate: 14.2,
-                  respiratory_rate_baseline: 13.9,
-                  raw_data: { recovery: true },
-                  date: new Date("2024-01-15"),
-                },
-              ]),
+              limit: vi.fn().mockResolvedValue([recovery]),
             }),
           }),
         }),
@@ -129,13 +198,7 @@ describe("parallel database queries", () => {
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([
-                {
-                  sleep_performance_percentage: 92,
-                  raw_data: { sleep: true },
-                  start: new Date("2024-01-15"),
-                },
-              ]),
+              limit: vi.fn().mockResolvedValue([sleep]),
             }),
           }),
         }),
@@ -153,14 +216,13 @@ describe("parallel database queries", () => {
 
 describe("whoopRouter.getIntegrationStatus", () => {
   it("returns connected status when integration is active and not expired", async () => {
-    const integration = {
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      expiresAt: new Date("2025-12-31"),
-      scope: "read:profile read:recovery",
-    };
-
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2025-12-31T00:00:00.000Z"), // Future date
+    });
     const latestSync = "2024-02-01T00:00:00.000Z";
+
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))
       .mockReturnValueOnce(mockLatestQuery(latestSync))
@@ -209,12 +271,12 @@ describe("whoopRouter.getIntegrationStatus", () => {
   });
 
   it("returns expired status when token is expired", async () => {
-    const integration = {
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      expiresAt: new Date("2024-06-01"),
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2024-06-01T00:00:00.000Z"),
       scope: "read:profile",
-    };
+    });
 
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))
@@ -239,12 +301,12 @@ describe("whoopRouter.getIntegrationStatus", () => {
   });
 
   it("derives last sync timestamp from non-workout datasets", async () => {
-    const integration = {
-      isActive: true,
-      createdAt: new Date("2024-04-01"),
-      expiresAt: new Date("2025-01-01"),
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      createdAt: new Date("2024-04-01T00:00:00.000Z"),
       scope: "read:recovery",
-    };
+    });
     const recoveryTimestamp = "2024-04-05T12:34:56.000Z";
 
     selectMock()
@@ -264,20 +326,7 @@ describe("whoopRouter.getIntegrationStatus", () => {
 
 describe("whoopRouter.getWorkouts", () => {
   it("returns workouts ordered by start time", async () => {
-    const workouts = [
-      {
-        id: 1,
-        whoopWorkoutId: "workout-123",
-        start: new Date("2024-01-01T10:00:00Z"),
-        end: new Date("2024-01-01T11:00:00Z"),
-        sport_name: "Running",
-        score_state: "SCORED",
-        score: 15.5,
-        during: { heart_rate: 150 },
-        zone_duration: { zone_one_duration: 1800 },
-        createdAt: new Date(),
-      },
-    ];
+    const workouts = [createMockExternalWorkoutWhoop({ user_id: mockUser.id })];
 
     selectMock().mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -357,26 +406,13 @@ describe("whoopRouter.getWebhookInfo", () => {
 
 describe("whoopRouter.getLatestRecoveryData", () => {
   it("returns latest recovery data when integration active", async () => {
-    const integration = {
-      isActive: true,
-      expiresAt: new Date("2025-12-31"),
-    };
-    const recovery = {
-      recovery_score: 85,
-      hrv_rmssd_milli: "45.2",
-      hrv_rmssd_baseline: "42.1",
-      resting_heart_rate: 60,
-      resting_heart_rate_baseline: 65,
-      respiratory_rate: 14.2,
-      respiratory_rate_baseline: 13.9,
-      raw_data: { recovery: true },
-      date: new Date(),
-    };
-    const sleep = {
-      sleep_performance_percentage: 92,
-      raw_data: { sleep: true },
-      start: new Date(),
-    };
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2025-12-31T00:00:00.000Z"), // Future date
+    });
+    const recovery = createMockWhoopRecovery({ user_id: mockUser.id });
+    const sleep = createMockWhoopSleep({ user_id: mockUser.id });
 
     selectMock().mockImplementation(() => ({
       from: vi.fn().mockImplementation((table) => {
@@ -418,14 +454,14 @@ describe("whoopRouter.getLatestRecoveryData", () => {
     const result = await caller.getLatestRecoveryData();
 
     expect(result).toEqual({
-      recovery_score: 85,
-      sleep_performance: 92,
-      hrv_now_ms: "45.2",
-      hrv_baseline_ms: "42.1",
-      rhr_now_bpm: 60,
-      rhr_baseline_bpm: 65,
-      respiratory_rate: 14.2,
-      respiratory_rate_baseline: 13.9,
+      recovery_score: recovery.recovery_score,
+      sleep_performance: sleep.sleep_performance_percentage,
+      hrv_now_ms: recovery.hrv_rmssd_milli,
+      hrv_baseline_ms: recovery.hrv_rmssd_baseline,
+      rhr_now_bpm: recovery.resting_heart_rate,
+      rhr_baseline_bpm: recovery.resting_heart_rate_baseline,
+      respiratory_rate: recovery.respiratory_rate,
+      respiratory_rate_baseline: recovery.respiratory_rate_baseline,
       yesterday_strain: null,
       raw_data: {
         recovery: recovery.raw_data,
@@ -445,10 +481,11 @@ describe("whoopRouter.getLatestRecoveryData", () => {
   });
 
   it("throws when integration token expired", async () => {
-    const integration = {
-      isActive: true,
-      expiresAt: new Date("2024-01-01"),
-    };
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2024-01-01T00:00:00.000Z"),
+    });
 
     selectMock().mockReturnValue(mockIntegrationQuery([integration]));
 
@@ -460,10 +497,11 @@ describe("whoopRouter.getLatestRecoveryData", () => {
   });
 
   it("throws when no recovery data is stored", async () => {
-    const integration = {
-      isActive: true,
-      expiresAt: new Date("2025-12-31"),
-    };
+    const integration = createMockUserIntegration({
+      user_id: mockUser.id,
+      provider: "whoop",
+      expiresAt: new Date("2025-12-31T00:00:00.000Z"), // Future date
+    });
 
     selectMock()
       .mockReturnValueOnce(mockIntegrationQuery([integration]))

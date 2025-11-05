@@ -10,8 +10,22 @@ interface WorkoutWithTemplate {
   templateId: number;
   workoutDate: string;
   createdAt: string;
-  template_name: string | null;
-  exercise_count: number;
+  template: {
+    id: number;
+    name: string;
+  } | null;
+  exercises: Array<{
+    id: number;
+    exerciseName: string;
+    weight: number | null;
+    reps: number | null;
+    sets: number;
+    unit: "kg" | "lbs";
+    setOrder: number;
+    templateExerciseId: number | null;
+    one_rm_estimate: number | null;
+    volume_load: number | null;
+  }>;
 }
 
 export function RecentWorkouts() {
@@ -22,7 +36,16 @@ export function RecentWorkouts() {
     data: recentWorkouts,
     isLoading,
     error,
-  } = api.workouts.getRecent.useQuery({ limit: 3 }, { enabled: !!user?.id });
+    refetch,
+  } = api.workouts.getRecent.useQuery({ limit: 3 }, {
+    enabled: !!user?.id,
+    onSuccess: (data) => {
+      console.info(`[RECENT_WORKOUTS] Fetched ${data?.length || 0} workouts at ${new Date().toISOString()}`, data);
+    },
+    onSettled: (data, error) => {
+      console.info(`[RECENT_WORKOUTS] Query settled at ${new Date().toISOString()}`, { dataCount: data?.length || 0, hasError: !!error });
+    }
+  });
 
   if (isLoading) {
     return (

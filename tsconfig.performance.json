@@ -1,0 +1,55 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Performance optimizations
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsconfig.tsbuildinfo",
+
+    // Skip expensive checks for performance
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+
+    // Optimize compilation
+    "assumeChangesOnlyAffectDirectDependencies": true,
+
+    // Reduce memory usage
+    "maxNodeModuleJsDepth": 0,
+
+    // Keep strict checks but skip expensive ones for performance
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": false, // Skip for performance
+    "noUnusedParameters": false, // Skip for performance
+
+    // Optimize for development
+    "removeComments": false,
+    "importHelpers": false,
+    "downlevelIteration": false,
+    "sourceMap": false,
+
+    // Disable declarations for faster compilation
+    "declaration": false,
+    "declarationMap": false
+  },
+
+  // Include only source files for faster compilation
+  "include": ["src/**/*", "next-env.d.ts", ".next/types/**/*.ts"],
+
+  // Exclude test files and build outputs
+  "exclude": [
+    "node_modules",
+    "public",
+    ".next",
+    "coverage",
+    "apps",
+    "scripts",
+    "src/__e2e__",
+    "src/__tests__",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
+}

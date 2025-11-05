@@ -9,6 +9,13 @@ let cacheManager: any;
 let localStorageMock: any;
 
 beforeEach(() => {
+  // Ensure window is defined for cache manager
+  (global as any).window = {
+    posthog: {
+      capture: vi.fn(),
+    },
+  };
+
   cacheManager = getCacheManager();
   localStorageMock = {
     getItem: vi.fn(),
@@ -17,6 +24,7 @@ beforeEach(() => {
   };
   // Mock global localStorage
   (global as any).localStorage = localStorageMock;
+  (global as any).window.localStorage = localStorageMock;
 });
 
 describe("CacheManager", () => {

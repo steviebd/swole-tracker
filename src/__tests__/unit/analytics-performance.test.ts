@@ -23,6 +23,13 @@ describe("analytics performance tracking", () => {
       value: true,
       writable: true,
     });
+    // Mock window for timestamp generation
+    Object.defineProperty(global, "window", {
+      value: {
+        location: { href: "http://localhost:3000" },
+      },
+      writable: true,
+    });
   });
 
   afterEach(() => {

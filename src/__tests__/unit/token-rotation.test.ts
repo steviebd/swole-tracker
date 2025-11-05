@@ -1,7 +1,57 @@
-import { describe, it, expect } from "vitest";
-import { shouldRotateToken } from "~/lib/token-rotation";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  shouldRotateToken,
+  migrateTokens,
+  rotateOAuthTokens,
+} from "~/lib/token-rotation";
+
+// Mock external dependencies
+vi.mock("~/env", () => ({
+  env: {
+    WHOOP_CLIENT_ID: "test-client-id",
+    WHOOP_CLIENT_SECRET: "test-client-secret",
+  },
+}));
+
+vi.mock("~/lib/encryption", () => ({
+  encryptToken: vi.fn(),
+  getDecryptedToken: vi.fn(),
+  isEncrypted: vi.fn(),
+}));
+
+// Mock fetch for WHOOP API calls
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+// Disable MSW for this test
+beforeEach(() => {
+  // Override any MSW handlers
+  global.fetch = mockFetch;
+});
 
 describe("token rotation", () => {
+  let encryptToken: any;
+  let getDecryptedToken: any;
+  let isEncrypted: any;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    const encryption = await import("~/lib/encryption");
+    encryptToken = encryption.encryptToken;
+    getDecryptedToken = encryption.getDecryptedToken;
+    isEncrypted = encryption.isEncrypted;
+
+    // Default mock implementations
+    encryptToken.mockResolvedValue("encrypted-token");
+    getDecryptedToken.mockResolvedValue("decrypted-token");
+    isEncrypted.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("shouldRotateToken", () => {
     const now = new Date();
     const oneHour = 60 * 60 * 1000;
@@ -61,6 +111,268 @@ describe("token rotation", () => {
     it("handles invalid dates gracefully", () => {
       expect(shouldRotateToken("invalid", null)).toBe(true);
       expect(shouldRotateToken(new Date("invalid"), null)).toBe(true);
+    });
+
+    it("respects minimum rotation interval when within buffer window", () => {
+      const expiresSoon = new Date(now.getTime() + oneHour);
+      const recentlyRotated = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes ago
+      expect(shouldRotateToken(expiresSoon, recentlyRotated)).toBe(false);
+    });
+
+    it("ignores minimum rotation interval when outside buffer window", () => {
+      const expiresSoon = new Date(now.getTime() + oneHour);
+      const rotatedLongAgo = new Date(now.getTime() - 20 * 60 * 1000); // 20 minutes ago
+      expect(shouldRotateToken(expiresSoon, rotatedLongAgo)).toBe(true);
+    });
+  });
+
+  describe("migrateTokens", () => {
+    it("skips migration when ENCRYPTION_MASTER_KEY is not available", async () => {
+      delete process.env.ENCRYPTION_MASTER_KEY;
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      } as any;
+
+      const result = await migrateTokens(mockDb);
+
+      expect(result.migrated).toBe(0);
+      expect(result.skipped).toBe(0);
+      expect(result.failed).toBe(0);
+      expect(result.results).toEqual([]);
+    });
+
+    it("migrates plain-text tokens when encryption key is available", async () => {
+      process.env.ENCRYPTION_MASTER_KEY = "test-key";
+
+      const mockIntegrations = [
+        {
+          id: "int-1",
+          user_id: "user-1",
+          provider: "whoop",
+          accessToken: "plain-access-token",
+          refreshToken: "plain-refresh-token",
+        },
+      ];
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(mockIntegrations),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      } as any;
+
+      const result = await migrateTokens(mockDb);
+
+      expect(result.migrated).toBe(1);
+      expect(result.skipped).toBe(0);
+      expect(result.failed).toBe(0);
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].migrated).toBe(true);
+      expect(encryptToken).toHaveBeenCalledTimes(2);
+    });
+
+    it("skips already encrypted tokens", async () => {
+      process.env.ENCRYPTION_MASTER_KEY = "test-key";
+
+      isEncrypted.mockReturnValue(true);
+
+      const mockIntegrations = [
+        {
+          id: "int-1",
+          user_id: "user-1",
+          provider: "whoop",
+          accessToken: "encrypted-access-token",
+          refreshToken: "encrypted-refresh-token",
+        },
+      ];
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(mockIntegrations),
+          }),
+        }),
+      } as any;
+
+      const result = await migrateTokens(mockDb);
+
+      expect(result.migrated).toBe(0);
+      expect(result.skipped).toBe(1);
+      expect(result.failed).toBe(0);
+      expect(encryptToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("rotateOAuthTokens", () => {
+    it("returns error when integration not found", async () => {
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      } as any;
+
+      const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Integration not found");
+      expect(result.rotated).toBe(false);
+    });
+
+    it("returns error when no refresh token available", async () => {
+      const mockIntegration = {
+        id: "int-1",
+        user_id: "user-1",
+        provider: "whoop",
+        accessToken: "access-token",
+        refreshToken: null,
+        expiresAt: null,
+        updatedAt: new Date(),
+        isActive: true,
+      };
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockIntegration]),
+          }),
+        }),
+      } as any;
+
+      // Disable migration to avoid update function issues
+      delete process.env.ENCRYPTION_MASTER_KEY;
+
+      const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("No refresh token available");
+      expect(result.rotated).toBe(false);
+    });
+
+    it("returns decrypted access token when rotation not needed", async () => {
+      const mockIntegration = {
+        id: "int-1",
+        user_id: "user-1",
+        provider: "whoop",
+        accessToken: "encrypted-access-token",
+        refreshToken: "encrypted-refresh-token",
+        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // Expires in 2 days
+        updatedAt: new Date(Date.now() - 60 * 60 * 1000), // Updated 1 hour ago
+        isActive: true,
+      };
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockIntegration]),
+          }),
+        }),
+      } as any;
+
+      // Disable migration to avoid update function issues
+      delete process.env.ENCRYPTION_MASTER_KEY;
+
+      const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
+
+      expect(result.success).toBe(true);
+      expect(result.rotated).toBe(false);
+      expect(result.newAccessToken).toBe("decrypted-token");
+      expect(getDecryptedToken).toHaveBeenCalledWith("encrypted-access-token");
+    });
+
+    it("performs token rotation when needed", async () => {
+      const mockIntegration = {
+        id: "int-1",
+        user_id: "user-1",
+        provider: "whoop",
+        accessToken: "encrypted-access-token",
+        refreshToken: "encrypted-refresh-token",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // Expires in 1 hour
+        updatedAt: new Date(Date.now() - 60 * 60 * 1000),
+        isActive: true,
+      };
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockIntegration]),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue(undefined),
+          }),
+        }),
+      } as any;
+
+      // Mock WHOOP token refresh
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: "new-access-token",
+          refresh_token: "new-refresh-token",
+          expires_in: 3600,
+        }),
+      } as any);
+
+      // Disable migration to avoid update function issues
+      delete process.env.ENCRYPTION_MASTER_KEY;
+
+      const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
+
+      expect(result.success).toBe(true);
+      expect(result.rotated).toBe(true);
+      expect(result.newAccessToken).toBe("new-access-token");
+      expect(encryptToken).toHaveBeenCalledTimes(2);
+      expect(mockDb.update).toHaveBeenCalled();
+    });
+
+    it("handles WHOOP token refresh failure", async () => {
+      const mockIntegration = {
+        id: "int-1",
+        user_id: "user-1",
+        provider: "whoop",
+        accessToken: "encrypted-access-token",
+        refreshToken: "encrypted-refresh-token",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 60 * 60 * 1000),
+        isActive: true,
+      };
+
+      const mockDb = {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockIntegration]),
+          }),
+        }),
+      } as any;
+
+      // Disable migration to avoid update function issues
+      delete process.env.ENCRYPTION_MASTER_KEY;
+
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: "Bad Request",
+      } as any);
+
+      const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
+
+      expect(result.success).toBe(false);
+      expect(result.rotated).toBe(false);
+      expect(result.error).toContain("WHOOP token refresh failed");
     });
   });
 });

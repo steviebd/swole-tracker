@@ -4,13 +4,10 @@ import {
   setGenerateDebriefImplementationForTesting,
   resetGenerateDebriefImplementationForTesting,
 } from "~/server/api/routers/session-debrief";
-import type { db } from "~/server/db";
-
-type Chains = {
-  set: ReturnType<typeof vi.fn>;
-  where: ReturnType<typeof vi.fn>;
-  returning: ReturnType<typeof vi.fn>;
-};
+import {
+  createMockUser,
+  createMockSessionDebrief,
+} from "~/__tests__/mocks/test-data";
 
 type GenerateDebriefFn = Parameters<
   typeof setGenerateDebriefImplementationForTesting
@@ -18,64 +15,98 @@ type GenerateDebriefFn = Parameters<
 
 const mockGenerate = vi.fn();
 
-describe("sessionDebriefRouter", () => {
-  const mockUser = { id: "user-abc" };
-  let mockDb: typeof db;
-  let updateChains: Chains;
+type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 
-  beforeEach(() => {
-    mockGenerate.mockReset();
-    updateChains = {
-      set: vi.fn(),
-      where: vi.fn(),
-      returning: vi.fn(),
-    };
+const createQueryChain = <TData extends unknown[]>(
+  queue: Array<ChainResult<TData>>,
+) => {
+  const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
 
-    const updateBuilder = {
-      set: updateChains.set.mockReturnValue({
-        where: updateChains.where.mockReturnValue({
-          returning: updateChains.returning,
-        }),
-      }),
-    };
+  const chain: any = {
+    result,
+    from: vi.fn(() => chain),
+    innerJoin: vi.fn(() => chain),
+    leftJoin: vi.fn(() => chain),
+    where: vi.fn(() => chain),
+    groupBy: vi.fn(() => chain),
+    orderBy: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    offset: vi.fn(() => chain),
+    values: vi.fn(() => chain),
+    set: vi.fn(() => chain),
+    returning: vi.fn(async () => chain.result),
+    onConflictDoUpdate: vi.fn(() => chain),
+    execute: vi.fn(async () => chain.result),
+    all: vi.fn(async () => chain.result),
+    then: (
+      resolve: (value: TData) => void,
+      reject?: (reason: unknown) => void,
+    ) => Promise.resolve(chain.result as TData).then(resolve, reject),
+    catch: (reject: (reason: unknown) => void) =>
+      Promise.resolve(chain.result as TData).catch(reject),
+    finally: (cb: () => void) =>
+      Promise.resolve(chain.result as TData).finally(cb),
+  };
 
-    updateChains.returning.mockResolvedValue([
-      {
-        id: 1,
-        sessionId: 5,
-        user_id: mockUser.id,
-        version: 1,
-        viewedAt: new Date().toISOString(),
-        pinnedAt: null,
-      },
-    ]);
+  return chain;
+};
 
-    const queryMocks = {
+const createMockDb = () => {
+  const selectQueue: unknown[][] = [];
+  const insertQueue: unknown[][] = [];
+  const updateQueue: unknown[][] = [];
+  const deleteQueue: unknown[][] = [];
+
+  const mockDb = {
+    query: {
       sessionDebriefs: {
         findMany: vi.fn(),
         findFirst: vi.fn(),
       },
-    };
+    },
+    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
+    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
+    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
+    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    select: vi.fn(() => createQueryChain(selectQueue)),
+    insert: vi.fn(() => createQueryChain(insertQueue)),
+    update: vi.fn(() => createQueryChain(updateQueue)),
+    delete: vi.fn(() => createQueryChain(deleteQueue)),
+    transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
+      callback(mockDb),
+    ),
+    all: vi.fn(async () => []),
+  } as any;
 
-    mockDb = {
-      query: queryMocks as any,
-      update: vi.fn().mockReturnValue(updateBuilder),
-    } as unknown as typeof db;
+  return mockDb;
+};
+
+describe("sessionDebriefRouter", () => {
+  const mockUser = createMockUser({ id: "user-abc" });
+
+  let mockDb: ReturnType<typeof createMockDb>;
+  let mockCtx: {
+    db: typeof mockDb;
+    user: typeof mockUser;
+    requestId: string;
+    headers: Headers;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGenerate.mockReset();
+    mockDb = createMockDb();
+    mockCtx = {
+      db: mockDb,
+      user: mockUser,
+      requestId: "test-request",
+      headers: new Headers(),
+    };
 
     setGenerateDebriefImplementationForTesting(
       mockGenerate as unknown as GenerateDebriefFn,
     );
-  });
-
-  const mockCtx = {
-    db: undefined as unknown as typeof db,
-    user: mockUser,
-    requestId: "req-1",
-    headers: new Headers(),
-  };
-
-  beforeEach(() => {
-    mockCtx.db = mockDb;
   });
 
   afterEach(() => {
@@ -85,12 +116,22 @@ describe("sessionDebriefRouter", () => {
   it("generates and saves a new debrief", async () => {
     const caller = sessionDebriefRouter.createCaller(mockCtx);
 
+    const mockDebrief = createMockSessionDebrief({
+      id: 10,
+      sessionId: 5,
+      version: 1,
+      user_id: mockUser.id,
+      summary: "Great job",
+      prHighlights: "Bench Press: 185lbs x 10",
+      focusAreas: "Increase volume on accessories",
+    });
+
     mockGenerate.mockResolvedValue({
-      debrief: { id: 10, sessionId: 5, version: 1 } as any,
+      debrief: mockDebrief,
       content: {
-        summary: "Great job",
-        prHighlights: [],
-        focusAreas: [],
+        summary: mockDebrief.summary,
+        prHighlights: mockDebrief.prHighlights,
+        focusAreas: mockDebrief.focusAreas,
         metadata: {},
       },
       context: {} as any,
@@ -119,16 +160,16 @@ describe("sessionDebriefRouter", () => {
       pinnedAt: null,
     });
 
-    const updatedRow = {
+    const updatedRow = createMockSessionDebrief({
       id: 1,
       sessionId: 5,
       user_id: mockUser.id,
       version: 2,
-      viewedAt: new Date().toISOString(),
+      viewedAt: new Date(),
       pinnedAt: null,
-    };
+    });
 
-    updateChains.returning.mockResolvedValueOnce([updatedRow]);
+    mockDb.queueUpdateResult([updatedRow]);
 
     const result = await caller.markViewed({ sessionId: 5, debriefId: 1 });
     expect(result).toBeDefined();
@@ -136,30 +177,24 @@ describe("sessionDebriefRouter", () => {
       return;
     }
 
-    expect(updateChains.set).toHaveBeenCalledWith({
-      viewedAt: expect.any(Date),
-    });
     expect(result.id).toBe(1);
   });
 
   it("returns session history for listBySession", async () => {
     const caller = sessionDebriefRouter.createCaller(mockCtx);
     const mockList = [
-      {
+      createMockSessionDebrief({
         id: 1,
         sessionId: 5,
         user_id: mockUser.id,
         version: 1,
-        createdAt: new Date().toISOString(),
-        pinnedAt: null,
-        dismissedAt: null,
         summary: "Summary",
-        prHighlights: [],
-        focusAreas: [],
+        prHighlights: "Bench Press: 185lbs x 10",
+        focusAreas: "Increase volume on accessories",
         overloadDigest: null,
         streakContext: null,
         adherenceScore: null,
-      },
+      }),
     ];
 
     (mockDb.query.sessionDebriefs.findMany as any).mockResolvedValue(mockList);

@@ -53,6 +53,12 @@ const safeCapture = (event: string, props?: Record<string, unknown>) => {
   }
 };
 
+const getTimestamp = () => {
+  return typeof window !== "undefined"
+    ? new Date().toISOString()
+    : new Date(0).toISOString();
+};
+
 export const analytics = {
   // Page tracking
   pageView: (page: string, properties?: Record<string, unknown>) => {
@@ -72,7 +78,10 @@ export const analytics = {
   event: (name: string, properties?: Record<string, unknown>) => {
     safeCapture(name, {
       ...properties,
-      timestamp: new Date().toISOString(),
+      timestamp:
+        typeof window !== "undefined"
+          ? new Date().toISOString()
+          : new Date(0).toISOString(),
     });
   },
 
@@ -81,7 +90,7 @@ export const analytics = {
     safeCapture("workout_started", {
       templateId,
       templateName,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -94,7 +103,7 @@ export const analytics = {
       sessionId,
       duration,
       exerciseCount,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -109,7 +118,7 @@ export const analytics = {
       exerciseName,
       sets,
       weight,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -118,14 +127,14 @@ export const analytics = {
     safeCapture("template_created", {
       templateId,
       exerciseCount,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
   templateDeleted: (templateId: string) => {
     safeCapture("template_deleted", {
       templateId,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -133,14 +142,14 @@ export const analytics = {
     safeCapture("template_edited", {
       templateId,
       exerciseCount,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
   templateDuplicated: (templateId: string) => {
     safeCapture("template_duplicated", {
       templateId,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -148,7 +157,7 @@ export const analytics = {
   weightUnitChanged: (unit: "kg" | "lbs") => {
     safeCapture("weight_unit_changed", {
       unit,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -158,7 +167,7 @@ export const analytics = {
       error: error.message,
       stack: error.stack,
       context,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -167,7 +176,7 @@ export const analytics = {
     safeCapture("feature_used", {
       feature,
       ...properties,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -180,7 +189,7 @@ export const analytics = {
       sessionId,
       version,
       streakLength,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -193,7 +202,7 @@ export const analytics = {
       sessionId,
       version,
       reason,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -202,7 +211,7 @@ export const analytics = {
       sessionId,
       version,
       pinned,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -212,7 +221,7 @@ export const analytics = {
       from,
       to,
       source,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -222,7 +231,7 @@ export const analytics = {
       query,
       resultsCount,
       category,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -230,7 +239,7 @@ export const analytics = {
     safeCapture("filters_applied", {
       filters,
       resultsCount,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -239,7 +248,7 @@ export const analytics = {
     safeCapture("workout_shared", {
       workoutId,
       platform,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -247,7 +256,7 @@ export const analytics = {
     safeCapture("progress_shared", {
       timeRange,
       platform,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -257,7 +266,7 @@ export const analytics = {
       goalType,
       target,
       unit,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -272,7 +281,7 @@ export const analytics = {
       actual,
       target,
       unit,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -289,14 +298,14 @@ export const analytics = {
       previousBest,
       newBest,
       unit,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
   // Device and connectivity events
   offlineModeEnabled: () => {
     safeCapture("offline_mode_enabled", {
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -304,7 +313,7 @@ export const analytics = {
     safeCapture("sync_completed", {
       itemsSynced,
       timeTaken,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -312,7 +321,7 @@ export const analytics = {
   appInstalled: (source?: string) => {
     safeCapture("app_installed", {
       source,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -320,7 +329,7 @@ export const analytics = {
     safeCapture("tutorial_completed", {
       tutorialId,
       timeSpent,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -329,7 +338,7 @@ export const analytics = {
       rating,
       category,
       comments,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -345,7 +354,7 @@ export const analytics = {
       queryCount,
       dataPoints,
       cacheHit,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -360,7 +369,7 @@ export const analytics = {
       loadTime,
       dataPoints,
       error,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -375,7 +384,7 @@ export const analytics = {
       duration,
       rowCount,
       userId,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -392,7 +401,7 @@ export const analytics = {
   }) => {
     safeCapture("virtual_list_performance", {
       ...metrics,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
@@ -409,12 +418,12 @@ export const analytics = {
   }) => {
     safeCapture("table_performance", {
       ...metrics,
-      timestamp: new Date().toISOString(),
+      timestamp: getTimestamp(),
     });
   },
 
   // Test helpers
-  setPosthogClientForTesting: (client: any) => {
+  setPosthogClientForTesting: (_client: any) => {
     // For testing purposes
   },
 

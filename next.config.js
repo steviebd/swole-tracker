@@ -31,8 +31,35 @@ const baseConfig = {
       "node:https": "https-browserify",
     };
 
+    // Ignore test files during development to prevent unnecessary rebuilds
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          "**/__tests__/**",
+          "**/*.test.{ts,tsx,js,jsx}",
+          "**/*.spec.{ts,tsx,js,jsx}",
+          "**/test-utils/**",
+          "**/mocks/**",
+          "**/test-data/**",
+        ],
+      };
+    }
+
+    // Check if we're in development mode (using custom flag since NODE_ENV is always production for builds)
+    const isDevelopmentMode = process.env.DEVELOPMENT_MODE === "true" || dev;
+
+    // Disable minification in development for faster builds and easier debugging
+    if (isDevelopmentMode) {
+      config.optimization = {
+        ...config.optimization,
+        minimize: false,
+        minimizer: [],
+      };
+    }
+
     // Optimize bundle size in production
-    if (!dev && !isServer) {
+    if (!isDevelopmentMode && !isServer) {
       // Split chunks more aggressively for better caching
       config.optimization.splitChunks = {
         ...config.optimization.splitChunks,

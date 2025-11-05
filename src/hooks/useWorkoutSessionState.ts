@@ -7,7 +7,7 @@ import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
-import { type RecentWorkout } from "~/lib/workout-metrics";
+
 import {
   applyOptimisticWorkoutDate,
   applyOptimisticVolumeMetrics,
@@ -215,10 +215,12 @@ export function useWorkoutSessionState({
 
   // id generation with counter to ensure uniqueness
   const setIdCounterRef = useRef(0);
-  const generateSetId = () => {
+  const generateSetId = useCallback(() => {
     const counter = ++setIdCounterRef.current;
-    return `set-${Date.now()}-${counter}-${Math.random().toString(36).substr(2, 9)}`;
-  };
+    // Use a stable timestamp on first render to avoid hydration mismatches
+    const timestamp = typeof window !== "undefined" ? Date.now() : 0;
+    return `set-${timestamp}-${counter}-${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
 
   type StoredSet = StoredExercise["sets"][number];
 
@@ -227,7 +229,7 @@ export function useWorkoutSessionState({
       id:
         typeof set.id === "string"
           ? set.id
-          : `restored-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`,
+          : `restored-${Math.random().toString(36).slice(2)}-${typeof window !== "undefined" ? Date.now().toString(36) : "0"}`,
       weight: typeof set.weight === "number" ? set.weight : undefined,
       reps: typeof set.reps === "number" ? set.reps : undefined,
       sets: typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
@@ -458,7 +460,14 @@ export function useWorkoutSessionState({
       }
     },
     onSettled: () => {
-      void invalidateWorkoutDependentCaches(utils, [sessionId]);
+      console.info(`[WORKOUT_SAVE] Cache invalidation started for session ${sessionId} at ${new Date().toISOString()}`);
+      const startTime = performance.now();
+      
+      void invalidateWorkoutDependentCaches(utils, [sessionId]).then(() => {
+        const endTime = performance.now();
+        console.info(`[WORKOUT_SAVE] Cache invalidation completed in ${(endTime - startTime).toFixed(2)}ms`);
+      });
+      
       // Warm progress caches after successful save
       if (session?.user_id) {
         void import("~/lib/workout-cache-helpers").then(
@@ -984,7 +993,8 @@ export function useWorkoutSessionState({
     });
 
     // Generate unique operation ID for this specific delete operation
-    const operationId = `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = typeof window !== "undefined" ? Date.now() : 0;
+    const operationId = `delete-${timestamp}-${Math.random().toString(36).substr(2, 9)}`;
 
     let removedSet: SetData | null = null;
     let clampedIndex = -1;
@@ -1121,7 +1131,9 @@ export function useWorkoutSessionState({
           )
           .map((set) => ({
             ...set,
-            id: set.id ?? `offline-${Math.random().toString(36).slice(2)}`,
+            id:
+              set.id ??
+              `offline-${typeof window !== "undefined" ? Math.random().toString(36).slice(2) : "0"}`,
             weight: set.weight === null ? undefined : set.weight,
             reps: set.reps === null ? undefined : set.reps,
             sets: set.sets === null ? 1 : set.sets,
@@ -1218,26 +1230,6 @@ export function useWorkoutSessionState({
         after: {},
       });
       setRedoStack([]);
-
-      // Trigger auto-save after move
-      const savePayload = {
-        sessionId: session?.id || 0,
-        exercises: next
-          .map((exercise) => ({
-            ...exercise,
-            sets: exercise.sets
-              .filter(
-                (set) =>
-                  set.weight !== undefined ||
-                  set.reps !== undefined ||
-                  set.sets !== undefined,
-              )
-              .map((set) => ({ ...set, unit: set.unit || "kg" })),
-          }))
-          .filter((exercise) => exercise.sets.length > 0),
-      };
-      console.log("[moveSet] Enqueuing save after move");
-      enqueue(savePayload);
 
       debugLog("moveSet:applied", {
         exerciseIndex,

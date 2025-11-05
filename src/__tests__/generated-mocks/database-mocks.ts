@@ -5,27 +5,36 @@
 import { vi } from "vitest";
 
 export const createDatabaseMock = () => {
-  const createQueryChain = <T = unknown>(result: T[] = []) => ({
-    where: vi.fn(() => createQueryChain(result)),
-    select: vi.fn(() => createQueryChain(result)),
-    from: vi.fn(() => createQueryChain(result)),
-    innerJoin: vi.fn(() => createQueryChain(result)),
-    leftJoin: vi.fn(() => createQueryChain(result)),
-    orderBy: vi.fn(() => createQueryChain(result)),
-    groupBy: vi.fn(() => createQueryChain(result)),
-    limit: vi.fn(() => createQueryChain(result)),
-    offset: vi.fn(() => createQueryChain(result)),
-    values: vi.fn(() => createQueryChain(result)),
-    set: vi.fn(() => createQueryChain(result)),
-    onConflictDoUpdate: vi.fn(() => createQueryChain(result)),
-    returning: vi.fn(async () => result),
-    execute: vi.fn(async () => result),
-    all: vi.fn(async () => result),
-    then: (
-      resolve: (value: T[]) => void,
-      reject: (reason?: unknown) => void,
-    ) => Promise.resolve(result).then(resolve, reject),
-  });
+  const createQueryChain = <T = unknown>() => {
+    let chainResult: T[] = [];
+    
+    return {
+      where: vi.fn(() => createQueryChain()),
+      select: vi.fn(() => createQueryChain()),
+      from: vi.fn(() => createQueryChain()),
+      innerJoin: vi.fn(() => createQueryChain()),
+      leftJoin: vi.fn(() => createQueryChain()),
+      orderBy: vi.fn(() => createQueryChain()),
+      groupBy: vi.fn(() => createQueryChain()),
+      limit: vi.fn(() => createQueryChain()),
+      offset: vi.fn(() => createQueryChain()),
+      values: vi.fn(() => createQueryChain()),
+      set: vi.fn(() => createQueryChain()),
+      onConflictDoUpdate: vi.fn(() => createQueryChain()),
+      returning: vi.fn(() => createQueryChain()),
+      execute: vi.fn(async () => chainResult),
+      all: vi.fn(async () => chainResult),
+      then: (
+        resolve: (value: T[]) => void,
+        reject: (reason?: unknown) => void,
+      ) => Promise.resolve(chainResult as T[]).then(resolve, reject),
+      // Helper method to set result for this specific chain
+      _setResult: (result: T[]) => {
+        chainResult = result;
+        return chainResult;
+      },
+    };
+  };
 
   return {
     select: vi.fn(() => createQueryChain()),

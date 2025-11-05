@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Enhanced skeleton loading components with shimmer effects
  *

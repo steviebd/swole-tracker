@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { analytics } from "~/lib/analytics";
 
 export interface SetData {
@@ -324,58 +325,70 @@ export function SetInput({
       {!readOnly && (onMoveUp || onMoveDown) && (
         <div className="mr-1 ml-1 flex flex-col gap-1">
           {/* Move Up Button */}
-          <button
-            type="button"
-            onClick={() => {
-              console.log("[SetInput] Move Up button clicked", {
-                exerciseIndex,
-                setIndex,
-              });
-              onMoveUp?.();
-            }}
-            disabled={!onMoveUp}
-            className="px-1 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
-            style={{ color: "var(--color-text-secondary)" }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "var(--color-text)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "var(--color-text-secondary)")
-            }
-            title="Move set up"
-            aria-label="Move set up"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 14l5-5 5 5z" />
-            </svg>
-          </button>
+          {onMoveUp && (
+            <button
+              type="button"
+              onClick={() => {
+                console.log("[SetInput] Move Up button clicked", {
+                  exerciseIndex,
+                  setIndex,
+                });
+                onMoveUp();
+              }}
+              className="px-1 py-1 transition-colors"
+              style={{ color: "var(--color-text-secondary)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "var(--color-text)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "var(--color-text-secondary)")
+              }
+              title="Move set up"
+              aria-label="Move set up"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M7 14l5-5 5 5z" />
+              </svg>
+            </button>
+          )}
 
           {/* Move Down Button */}
-          <button
-            type="button"
-            onClick={() => {
-              console.log("[SetInput] Move Down button clicked", {
-                exerciseIndex,
-                setIndex,
-              });
-              onMoveDown?.();
-            }}
-            disabled={!onMoveDown}
-            className="px-1 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
-            style={{ color: "var(--color-text-secondary)" }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.color = "var(--color-text)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "var(--color-text-secondary)")
-            }
-            title="Move set down"
-            aria-label="Move set down"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7 10l5 5 5-5z" />
-            </svg>
-          </button>
+          {onMoveDown && (
+            <button
+              type="button"
+              onClick={() => {
+                console.log("[SetInput] Move Down button clicked", {
+                  exerciseIndex,
+                  setIndex,
+                });
+                onMoveDown();
+              }}
+              className="px-1 py-1 transition-colors"
+              style={{ color: "var(--color-text-secondary)" }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "var(--color-text)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "var(--color-text-secondary)")
+              }
+              title="Move set down"
+              aria-label="Move set down"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M7 10l5 5 5-5z" />
+              </svg>
+            </button>
+          )}
         </div>
       )}
 
