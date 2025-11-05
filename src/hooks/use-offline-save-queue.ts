@@ -164,10 +164,13 @@ export function useOfflineSaveQueue() {
 
       // Log success
       if (processedCount > 0) {
-        console.info(`Successfully synced ${processedCount} workout(s)`);
+        console.info(`[OFFLINE_QUEUE] Successfully synced ${processedCount} workout(s) at ${new Date().toISOString()}`);
+        console.info(`[OFFLINE_QUEUE] Processed session IDs:`, Array.from(processedSessionIds));
 
         // Refresh dependent caches so UI reflects synced data
+        console.info(`[OFFLINE_QUEUE] Starting cache invalidation for ${processedSessionIds.size} sessions`);
         await invalidateWorkoutDependentCaches(utils, processedSessionIds);
+        console.info(`[OFFLINE_QUEUE] Cache invalidation completed`);
 
         // Optional: emit PostHog event
         try {

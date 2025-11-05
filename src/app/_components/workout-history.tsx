@@ -88,6 +88,13 @@ export function WorkoutHistory() {
     refetch,
   } = api.workouts.getRecent.useQuery({
     limit: 100, // Increase limit for filtering
+  }, {
+    onSuccess: (data) => {
+      console.info(`[WORKOUT_HISTORY] Fetched ${data?.length || 0} workouts at ${new Date().toISOString()}`);
+    },
+    onSettled: (data, error) => {
+      console.info(`[WORKOUT_HISTORY] Query settled at ${new Date().toISOString()}`, { dataCount: data?.length || 0, hasError: !!error });
+    }
   });
 
   useEffect(() => {
@@ -96,6 +103,7 @@ export function WorkoutHistory() {
       prev === "flushing" &&
       (queueStatus === "done" || (queueStatus === "idle" && queueSize === 0))
     ) {
+      console.info(`[WORKOUT_HISTORY] Queue completed, triggering refetch at ${new Date().toISOString()}`);
       void refetch();
     }
     previousQueueStatus.current = queueStatus;

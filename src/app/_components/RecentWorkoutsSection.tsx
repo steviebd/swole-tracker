@@ -104,7 +104,15 @@ export function RecentWorkoutsSection() {
     data: trpcWorkouts,
     isLoading: trpcLoading,
     error: trpcError,
-  } = api.workouts.getRecent.useQuery({ limit: 3 });
+    refetch,
+  } = api.workouts.getRecent.useQuery({ limit: 3 }, {
+    onSuccess: (data) => {
+      console.info(`[RECENT_WORKOUTS_SECTION] Fetched ${data?.length || 0} workouts at ${new Date().toISOString()}`, data);
+    },
+    onSettled: (data, error) => {
+      console.info(`[RECENT_WORKOUTS_SECTION] Query settled at ${new Date().toISOString()}`, { dataCount: data?.length || 0, hasError: !!error });
+    }
+  });
   
   const { data: mockWorkouts } = useMockFeed(3);
 

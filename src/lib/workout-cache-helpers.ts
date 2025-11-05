@@ -230,6 +230,11 @@ export async function invalidateWorkoutDependentCaches(
   utils: TrpcUtils,
   sessionIds: Iterable<number> = [],
 ): Promise<void> {
+  const startTime = performance.now();
+  const sessionIdsArray = Array.from(sessionIds);
+  
+  console.info(`[CACHE_INVALIDATION] Starting invalidation for ${sessionIdsArray.length} sessions:`, sessionIdsArray);
+  
   const invalidations: Array<Promise<unknown>> = [
     utils.workouts.getRecent.invalidate(),
     utils.templates.getAll.invalidate(),
@@ -263,6 +268,8 @@ export async function invalidateWorkoutDependentCaches(
 
   try {
     await Promise.all(invalidations);
+    const endTime = performance.now();
+    console.info(`[CACHE_INVALIDATION] Completed in ${(endTime - startTime).toFixed(2)}ms`);
   } catch (error) {
     logger.warn("Failed to invalidate workout dependent caches", {
       error: error instanceof Error ? error.message : String(error),

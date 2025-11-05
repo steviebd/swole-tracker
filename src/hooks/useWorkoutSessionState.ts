@@ -460,7 +460,14 @@ export function useWorkoutSessionState({
       }
     },
     onSettled: () => {
-      void invalidateWorkoutDependentCaches(utils, [sessionId]);
+      console.info(`[WORKOUT_SAVE] Cache invalidation started for session ${sessionId} at ${new Date().toISOString()}`);
+      const startTime = performance.now();
+      
+      void invalidateWorkoutDependentCaches(utils, [sessionId]).then(() => {
+        const endTime = performance.now();
+        console.info(`[WORKOUT_SAVE] Cache invalidation completed in ${(endTime - startTime).toFixed(2)}ms`);
+      });
+      
       // Warm progress caches after successful save
       if (session?.user_id) {
         void import("~/lib/workout-cache-helpers").then(

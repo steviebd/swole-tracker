@@ -131,6 +131,7 @@ export function StrengthSessionList({
 
       <div className="hidden w-full md:block lg:hidden">
         <VirtualizedSessionTable
+          key="tablet-view"
           items={sortedRows.slice(
             (currentPage - 1) * pageSize,
             currentPage * pageSize,
@@ -163,6 +164,7 @@ export function StrengthSessionList({
 
       <div className="hidden w-full lg:block">
         <VirtualizedSessionTable
+          key="desktop-view"
           items={sortedRows.slice(
             (currentPage - 1) * pageSize,
             currentPage * pageSize,
@@ -196,9 +198,9 @@ export function StrengthSessionList({
       <div className="w-full space-y-3 md:hidden">
         {sortedRows
           .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-          .map((row) => (
+          .map((row, index) => (
             <div
-              key={`${row.workoutDate.toISOString()}-mobile`}
+              key={`${row.workoutDate.toISOString()}-mobile-${index}`}
               className="border-border/60 bg-background/40 w-full rounded-2xl border p-4 shadow-sm"
             >
               <div className="flex items-start justify-between gap-4">

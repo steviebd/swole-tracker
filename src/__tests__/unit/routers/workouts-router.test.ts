@@ -13,67 +13,67 @@ import {
 } from "~/__tests__/mocks/test-data";
 import { getMockData } from "~/__tests__/mocks/mock-sets";
 import { clearTestData } from "~/__tests__/mocks/db";
+import { createDatabaseMock } from "~/__tests__/generated-mocks/database-mocks";
 
 type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 
-const createQueryChain = <TData extends unknown[]>(
-  queue: Array<ChainResult<TData>>,
-) => {
-  const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
-
-  const chain: any = {
-    result,
-    from: vi.fn(() => chain),
-    innerJoin: vi.fn(() => chain),
-    leftJoin: vi.fn(() => chain),
-    where: vi.fn(() => chain),
-    groupBy: vi.fn(() => chain),
-    orderBy: vi.fn(() => chain),
-    select: vi.fn(() => chain),
-    limit: vi.fn(() => chain),
-    offset: vi.fn(() => chain),
-    values: vi.fn(() => chain),
-    set: vi.fn(() => chain),
-    returning: vi.fn(async () => chain.result),
-    onConflictDoUpdate: vi.fn(() => chain),
-    execute: vi.fn(async () => chain.result),
-    all: vi.fn(async () => chain.result),
-    delete: vi.fn(() => chain),
-    then: (
-      resolve: (value: TData) => void,
-      reject?: (reason: unknown) => void,
-    ) => Promise.resolve(chain.result as TData).then(resolve, reject),
-    catch: (reject: (reason: unknown) => void) =>
-      Promise.resolve(chain.result as TData).catch(reject),
-    finally: (cb: () => void) =>
-      Promise.resolve(chain.result as TData).finally(cb),
-    toString: () => "[MockQueryChain]",
-  };
-
-  return chain;
-};
-
 const createMockDb = () => {
+  // Use the central database mock
+  const centralMock = createDatabaseMock();
+
   const selectQueue: unknown[][] = [];
   const insertQueue: unknown[][] = [];
   const updateQueue: unknown[][] = [];
   const deleteQueue: unknown[][] = [];
 
+  const createQueryChain = <TData extends unknown[]>(
+    queue: Array<ChainResult<TData>>,
+  ) => {
+    const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
+
+    const chain: any = {
+      result,
+      from: vi.fn(() => chain),
+      innerJoin: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      groupBy: vi.fn(() => chain),
+      orderBy: vi.fn(() => chain),
+      select: vi.fn(() => chain),
+      limit: vi.fn(() => chain),
+      offset: vi.fn(() => chain),
+      values: vi.fn(() => chain),
+      set: vi.fn(() => chain),
+      returning: vi.fn(async () => chain.result),
+      onConflictDoUpdate: vi.fn(() => chain),
+      execute: vi.fn(async () => chain.result),
+      all: vi.fn(async () => chain.result),
+      delete: vi.fn(() => chain),
+      then: (
+        resolve: (value: TData) => void,
+        reject?: (reason: unknown) => void,
+      ) => Promise.resolve(chain.result as TData).then(resolve, reject),
+      catch: (reject: (reason: unknown) => void) =>
+        Promise.resolve(chain.result as TData).catch(reject),
+      finally: (cb: () => void) =>
+        Promise.resolve(chain.result as TData).finally(cb),
+      toString: () => "[MockQueryChain]",
+    };
+    return chain;
+  };
+
   const mockDb = {
-    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
-    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
-    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
-    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    ...centralMock,
     select: vi.fn(() => createQueryChain(selectQueue)),
     insert: vi.fn(() => createQueryChain(insertQueue)),
     update: vi.fn(() => createQueryChain(updateQueue)),
     delete: vi.fn(() => createQueryChain(deleteQueue)),
-    transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
-      callback(mockDb),
-    ),
-    batch: vi.fn((statements: any[]) =>
-      Promise.resolve(statements.map(() => [])),
-    ),
+    // Helper methods for queueing results
+    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
+    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
+    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
+    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    // Raw query interface
     all: vi.fn(async () => []),
     query: {
       workoutSessions: {
