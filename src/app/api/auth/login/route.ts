@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const redirectTo = searchParams.get("redirectTo") || "/";
     const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
+    const provider = searchParams.get("provider"); // Optional: specify auth provider
 
     if (!env.WORKOS_CLIENT_ID) {
       console.error("WORKOS_CLIENT_ID not configured");
@@ -60,10 +61,13 @@ export async function GET(request: NextRequest) {
       userAgent,
     );
 
-    const authorizationUrl = workos.userManagement.getAuthorizationUrl({
-      provider: "GoogleOAuth", // Use GoogleOAuth for Google SSO
+    // Build auth URL parameters for WorkOS AuthKit
+    // AuthKit automatically shows all authentication methods enabled in WorkOS Dashboard
+    const authParams: Parameters<
+      typeof workos.userManagement.getAuthorizationUrl
+    >[0] = {
       redirectUri,
-      clientId: env.WORKOS_CLIENT_ID!, // We already checked it's defined
+      clientId: env.WORKOS_CLIENT_ID!,
       state: encodeState(
         JSON.stringify({
           redirectTo: safeRedirect,
@@ -71,7 +75,13 @@ export async function GET(request: NextRequest) {
           oauthState,
         }),
       ),
-    });
+      // Use "authkit" provider to show WorkOS hosted auth page with all enabled methods
+      // If a specific provider is requested (e.g., "GoogleOAuth"), use that instead
+      provider: provider || "authkit",
+    };
+
+    const authorizationUrl =
+      workos.userManagement.getAuthorizationUrl(authParams);
 
     return NextResponse.redirect(authorizationUrl);
   } catch (error) {

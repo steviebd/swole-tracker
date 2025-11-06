@@ -21,8 +21,8 @@ export function GoogleAuthButton({
     setError(null);
 
     try {
-      // Redirect to WorkOS login endpoint
-      window.location.href = `/api/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
+      // Redirect to WorkOS login endpoint with Google OAuth provider
+      window.location.href = `/api/auth/login?provider=GoogleOAuth&redirectTo=${encodeURIComponent(redirectTo)}`;
     } catch {
       setError("An unexpected error occurred during Google authentication");
       setIsLoading(false);

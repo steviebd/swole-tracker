@@ -115,3 +115,11 @@ claude_code_zai_env.sh
 .cache/high-performance-check/cache.json
 .cache/eslint
 .cache/
+debug-home.png
+debug-new-template.png
+debug-login.png
+debug-templates-auth.png
+debug-templates.png
+homepage.png
+login-page.png
+manual-login-start.png
