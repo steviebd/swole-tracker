@@ -326,14 +326,15 @@ class TestResultParser {
 
     if (data.testResults) {
       for (const testResult of data.testResults) {
-        if (testResult.status === 'failed' && testResult.assertionResults) {
+        if (testResult.status === "failed" && testResult.assertionResults) {
           for (const assertion of testResult.assertionResults) {
-            if (assertion.status === 'failed') {
+            if (assertion.status === "failed") {
               failures.push({
                 testName: assertion.title,
                 filePath: testResult.testFilePath,
-                errorMessage: assertion.failureMessages?.join('\n') || 'Unknown error',
-                stackTrace: assertion.failureMessages?.join('\n') || undefined,
+                errorMessage:
+                  assertion.failureMessages?.join("\n") || "Unknown error",
+                stackTrace: assertion.failureMessages?.join("\n") || undefined,
               });
             }
           }
@@ -351,7 +352,7 @@ class TestResultParser {
 
   private parseTextOutput(output: string): TestResult {
     const failures: TestFailure[] = [];
-    const lines = output.split('\n');
+    const lines = output.split("\n");
 
     let currentTest: Partial<TestFailure> | null = null;
     let collectingStack = false;
@@ -368,8 +369,8 @@ class TestResultParser {
 
         currentTest = {
           filePath: failMatch[1],
-          testName: '',
-          errorMessage: '',
+          testName: "",
+          errorMessage: "",
         };
         collectingStack = false;
         stackLines = [];
@@ -384,7 +385,11 @@ class TestResultParser {
       }
 
       // Look for error message start
-      if (line.includes('Error:') || line.includes('AssertionError') || line.includes('Expected')) {
+      if (
+        line.includes("Error:") ||
+        line.includes("AssertionError") ||
+        line.includes("Expected")
+      ) {
         if (currentTest) {
           currentTest.errorMessage = line.trim();
           collectingStack = true;
@@ -394,15 +399,19 @@ class TestResultParser {
       }
 
       // Collect stack trace lines
-      if (collectingStack && currentTest && (line.includes('at ') || line.trim().startsWith('at'))) {
+      if (
+        collectingStack &&
+        currentTest &&
+        (line.includes("at ") || line.trim().startsWith("at"))
+      ) {
         stackLines.push(line.trim());
         continue;
       }
 
       // End of error block (empty line or next test)
-      if (collectingStack && line.trim() === '' && stackLines.length > 0) {
+      if (collectingStack && line.trim() === "" && stackLines.length > 0) {
         if (currentTest) {
-          currentTest.stackTrace = stackLines.join('\n');
+          currentTest.stackTrace = stackLines.join("\n");
           collectingStack = false;
         }
       }
@@ -411,13 +420,15 @@ class TestResultParser {
     // Save the last test
     if (currentTest && currentTest.testName) {
       if (collectingStack && stackLines.length > 0) {
-        currentTest.stackTrace = stackLines.join('\n');
+        currentTest.stackTrace = stackLines.join("\n");
       }
       failures.push(currentTest as TestFailure);
     }
 
     // Extract summary information
-    const summaryMatch = output.match(/Tests?:\s*(\d+)\s*(?:passed|failed|total)/i);
+    const summaryMatch = output.match(
+      /Tests?:\s*(\d+)\s*(?:passed|failed|total)/i,
+    );
     const passedMatch = output.match(/(\d+)\s*passed/i);
     const failedMatch = output.match(/(\d+)\s*failed/i);
 
@@ -439,7 +450,12 @@ class TaskExecutor {
   private runningTasks: Map<string, Promise<any>> = new Map();
   private results: Map<
     string,
-    { success: boolean; output: string; duration: number; testResult?: TestResult }
+    {
+      success: boolean;
+      output: string;
+      duration: number;
+      testResult?: TestResult;
+    }
   > = new Map();
   private testParser = new TestResultParser();
 
@@ -485,7 +501,10 @@ class TaskExecutor {
           console.log(`✅ ${task.name} (cached)`);
 
           // Display cached test failures if any
-          if (cachedResult.testResult && cachedResult.testResult.failures.length > 0) {
+          if (
+            cachedResult.testResult &&
+            cachedResult.testResult.failures.length > 0
+          ) {
             this.displayTestFailures(cachedResult.testResult);
           }
           return;
@@ -496,7 +515,7 @@ class TaskExecutor {
       const result = await this.runCommand(task);
 
       // Parse test results if this is a test task and it failed
-      if (task.name === 'test' && !result.success) {
+      if (task.name === "test" && !result.success) {
         result.testResult = this.testParser.parseVitestOutput(result.output);
       }
 
@@ -516,7 +535,22 @@ class TaskExecutor {
         `${result.success ? "✅" : "❌"} ${task.name} (${result.duration}ms)`,
       );
 
-      // Display test failures if any
+      // Display detailed errors for failed tasks
+      if (!result.success) {
+        if (
+          task.name === "test" &&
+          result.testResult &&
+          result.testResult.failures.length > 0
+        ) {
+          this.displayTestFailures(result.testResult);
+        } else if (task.name === "lint") {
+          this.displayLintErrors(result.output);
+        } else if (task.name === "typecheck") {
+          this.displayTypecheckErrors(result.output);
+        }
+      }
+
+      // Display test failures if any (even for successful runs with warnings)
       if (result.testResult && result.testResult.failures.length > 0) {
         this.displayTestFailures(result.testResult);
       }
@@ -528,9 +562,12 @@ class TaskExecutor {
     }
   }
 
-  private async runCommand(
-    task: Task,
-  ): Promise<{ success: boolean; output: string; duration: number; testResult?: TestResult }> {
+  private async runCommand(task: Task): Promise<{
+    success: boolean;
+    output: string;
+    duration: number;
+    testResult?: TestResult;
+  }> {
     return new Promise((resolve) => {
       const startTime = Date.now();
       const child = spawn(task.command[0], task.command.slice(1), {
@@ -543,11 +580,21 @@ class TaskExecutor {
       let errorOutput = "";
 
       child.stdout?.on("data", (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        output += chunk;
+        // Show output in real-time for better feedback
+        if (task.name !== "test") {
+          process.stdout.write(chunk);
+        }
       });
 
       child.stderr?.on("data", (data) => {
-        errorOutput += data.toString();
+        const chunk = data.toString();
+        errorOutput += chunk;
+        // Show errors in real-time for better feedback
+        if (task.name !== "test") {
+          process.stderr.write(chunk);
+        }
       });
 
       child.on("close", (code) => {
@@ -565,7 +612,9 @@ class TaskExecutor {
   }
 
   private displayTestFailures(testResult: TestResult): void {
-    console.log(`\n❌ Test Failures (${testResult.failed}/${testResult.total}):`);
+    console.log(
+      `\n❌ Test Failures (${testResult.failed}/${testResult.total}):`,
+    );
     console.log("─".repeat(60));
 
     for (const failure of testResult.failures) {
@@ -578,8 +627,9 @@ class TaskExecutor {
 
       if (failure.stackTrace) {
         console.log(`   📋 Stack Trace:`);
-        const stackLines = failure.stackTrace.split('\n');
-        for (const line of stackLines.slice(0, 10)) { // Limit stack trace lines
+        const stackLines = failure.stackTrace.split("\n");
+        for (const line of stackLines.slice(0, 10)) {
+          // Limit stack trace lines
           if (line.trim()) {
             console.log(`      ${line}`);
           }
@@ -592,7 +642,57 @@ class TaskExecutor {
       console.log("─".repeat(40));
     }
 
-    console.log(`\n📊 Summary: ${testResult.passed} passed, ${testResult.failed} failed\n`);
+    console.log(
+      `\n📊 Summary: ${testResult.passed} passed, ${testResult.failed} failed\n`,
+    );
+  }
+
+  private displayLintErrors(output: string): void {
+    console.log(`\n❌ Lint Errors/Warnings:`);
+    console.log("─".repeat(60));
+
+    const lines = output.split("\n");
+    for (const line of lines) {
+      if (line.trim() && (line.includes("error") || line.includes("warning"))) {
+        console.log(`   ${line}`);
+      }
+    }
+    console.log("");
+  }
+
+  private displayTypecheckErrors(output: string): void {
+    console.log(`\n❌ Type Check Errors:`);
+    console.log("─".repeat(60));
+
+    const lines = output.split("\n");
+    let currentError: string[] = [];
+    let collectingError = false;
+
+    for (const line of lines) {
+      if (line.includes("error TS")) {
+        if (currentError.length > 0) {
+          console.log(`   ${currentError.join("\n   ")}`);
+          console.log("");
+        }
+        currentError = [line.trim()];
+        collectingError = true;
+      } else if (collectingError && line.trim()) {
+        currentError.push(line.trim());
+      } else if (collectingError && !line.trim()) {
+        if (currentError.length > 0) {
+          console.log(`   ${currentError.join("\n   ")}`);
+          console.log("");
+        }
+        currentError = [];
+        collectingError = false;
+      }
+    }
+
+    // Print last error if exists
+    if (currentError.length > 0) {
+      console.log(`   ${currentError.join("\n   ")}`);
+      console.log("");
+    }
   }
 
   getResults() {
@@ -651,7 +751,9 @@ async function main() {
       const taskResult = taskExecutor.getResults().get(taskName);
       if (taskResult?.testResult && taskResult.testResult.failures.length > 0) {
         const testResult = taskResult.testResult;
-        console.log(`      📊 Tests: ${testResult.passed} passed, ${testResult.failed} failed`);
+        console.log(
+          `      📊 Tests: ${testResult.passed} passed, ${testResult.failed} failed`,
+        );
       }
     }
 
