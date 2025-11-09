@@ -12,7 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { api } from "~/trpc/react";
+import { api, type RouterOutputs } from "~/trpc/react";
 import { useExportWorkoutsCSV } from "~/hooks/use-insights";
 import { useLocalStorage } from "~/hooks/use-local-storage";
 import {
@@ -88,13 +88,6 @@ export function WorkoutHistory() {
     refetch,
   } = api.workouts.getRecent.useQuery({
     limit: 100, // Increase limit for filtering
-  }, {
-    onSuccess: (data) => {
-      console.info(`[WORKOUT_HISTORY] Fetched ${data?.length || 0} workouts at ${new Date().toISOString()}`);
-    },
-    onSettled: (data, error) => {
-      console.info(`[WORKOUT_HISTORY] Query settled at ${new Date().toISOString()}`, { dataCount: data?.length || 0, hasError: !!error });
-    }
   });
 
   useEffect(() => {
@@ -103,11 +96,22 @@ export function WorkoutHistory() {
       prev === "flushing" &&
       (queueStatus === "done" || (queueStatus === "idle" && queueSize === 0))
     ) {
-      console.info(`[WORKOUT_HISTORY] Queue completed, triggering refetch at ${new Date().toISOString()}`);
+      console.info(
+        `[WORKOUT_HISTORY] Queue completed, triggering refetch at ${new Date().toISOString()}`,
+      );
       void refetch();
     }
     previousQueueStatus.current = queueStatus;
   }, [queueStatus, queueSize, refetch]);
+
+  // Log when workouts are fetched successfully
+  useEffect(() => {
+    if (workouts && workouts.length > 0) {
+      console.info(
+        `[WORKOUT_HISTORY] Fetched ${workouts.length} workouts at ${new Date().toISOString()}`,
+      );
+    }
+  }, [workouts]);
 
   const { isFetching: isExporting, refetch: refetchExport } =
     useExportWorkoutsCSV();
@@ -210,11 +214,7 @@ export function WorkoutHistory() {
         {viewMode === "cards" ? (
           <div className="space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Card
-                key={i}
-                variant="glass"
-                className="animate-shimmer"
-              >
+              <Card key={i} variant="glass" className="animate-shimmer">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <Skeleton className="h-6 w-1/3" />
@@ -298,12 +298,12 @@ export function WorkoutHistory() {
           className="mb-4 text-6xl"
           animate={{
             scale: [1, 1.1, 1],
-            rotate: [0, 5, -5, 0]
+            rotate: [0, 5, -5, 0],
           }}
           transition={{
             duration: 2,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         >
           🏋️
@@ -316,12 +316,7 @@ export function WorkoutHistory() {
           here
         </p>
         <Link href="/workout/start">
-          <Button
-            size="lg"
-            className="gap-2 gradient-primary"
-            haptic
-            ripple
-          >
+          <Button size="lg" className="gradient-primary gap-2" haptic ripple>
             🚀 Start First Workout
           </Button>
         </Link>
@@ -346,12 +341,12 @@ export function WorkoutHistory() {
           className="mb-4 text-6xl"
           animate={{
             scale: [1, 1.1, 1],
-            rotate: [0, -5, 5, 0]
+            rotate: [0, -5, 5, 0],
           }}
           transition={{
             duration: 2,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         >
           📝
@@ -364,12 +359,7 @@ export function WorkoutHistory() {
           Complete a workout to see your history here.
         </p>
         <Link href="/workout/start">
-          <Button
-            size="lg"
-            className="gap-2 gradient-primary"
-            haptic
-            ripple
-          >
+          <Button size="lg" className="gradient-primary gap-2" haptic ripple>
             🚀 Continue Workout
           </Button>
         </Link>
@@ -542,7 +532,7 @@ export function WorkoutHistory() {
           <span className="text-content-secondary text-sm font-medium">
             View:
           </span>
-          <div className="bg-surface-secondary flex items-center rounded-lg border border-border p-1">
+          <div className="bg-surface-secondary border-border flex items-center rounded-lg border p-1">
             <Button
               size="sm"
               variant={viewMode === "cards" ? "default" : "ghost"}
@@ -749,14 +739,10 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
             transition={{
               duration: 0.3,
               delay: index * 0.05,
-              ease: "easeOut"
+              ease: "easeOut",
             }}
           >
-            <Card
-              variant="glass"
-              interactive
-              className="animate-hover-lift"
-            >
+            <Card variant="glass" interactive className="animate-hover-lift">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -767,7 +753,7 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
                       {hasPersonalRecords && (
                         <Badge
                           variant="secondary"
-                          className="text-xs gradient-success"
+                          className="gradient-success text-xs"
                         >
                           🏆 PR
                         </Badge>
@@ -804,29 +790,21 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
               <CardFooter className="pt-3">
                 <div className="flex items-center gap-3">
                   <Link href={`/workout/session/${workout.id}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      haptic
-                      ripple
-                    >
+                    <Button variant="outline" size="sm" haptic ripple>
                       View
                     </Button>
                   </Link>
                   <Link href={`/workouts/${workout.id}`}>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      haptic
-                      ripple
-                    >
+                    <Button variant="secondary" size="sm" haptic ripple>
                       Debrief
                     </Button>
                   </Link>
-                  <Link href={`/workout/start?templateId=${workout.templateId}`}>
+                  <Link
+                    href={`/workout/start?templateId=${workout.templateId}`}
+                  >
                     <Button
                       size="sm"
-                      className="gap-1 gradient-primary"
+                      className="gradient-primary gap-1"
                       haptic
                       ripple
                     >
@@ -1033,10 +1011,15 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
             <TableRow key={workout.id}>
               <TableCell>
                 <div className="flex flex-col gap-1">
-                  <span className="font-medium">{workout.template?.name ?? "Custom Workout"}</span>
+                  <span className="font-medium">
+                    {workout.template?.name ?? "Custom Workout"}
+                  </span>
                   <div className="flex items-center gap-1 md:hidden">
                     {workout.metrics.hasPersonalRecords && (
-                      <Badge variant="secondary" className="text-xs gradient-success">
+                      <Badge
+                        variant="secondary"
+                        className="gradient-success text-xs"
+                      >
                         🏆 PR
                       </Badge>
                     )}
@@ -1070,12 +1053,25 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
                     </Button>
                   </Link>
                   <Link href={`/workouts/${workout.id}`}>
-                    <Button variant="secondary" size="sm" className="hidden sm:inline-flex" haptic ripple>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="hidden sm:inline-flex"
+                      haptic
+                      ripple
+                    >
                       Debrief
                     </Button>
                   </Link>
-                  <Link href={`/workout/start?templateId=${workout.templateId}`}>
-                    <Button size="sm" className="gap-1 gradient-primary" haptic ripple>
+                  <Link
+                    href={`/workout/start?templateId=${workout.templateId}`}
+                  >
+                    <Button
+                      size="sm"
+                      className="gradient-primary gap-1"
+                      haptic
+                      ripple
+                    >
                       <RotateCcw className="h-3 w-3" />
                       <span className="hidden sm:inline">Repeat</span>
                     </Button>

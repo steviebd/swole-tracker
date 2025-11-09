@@ -340,16 +340,23 @@ beforeAll(() => {
 
     (global as any).document = mockDocument;
 
-    // Set up circular references
-    Object.defineProperty(mockDocument.body, "ownerDocument", {
-      value: mockDocument,
-    });
-    Object.defineProperty(mockDocument.documentElement, "ownerDocument", {
-      value: mockDocument,
-    });
-    Object.defineProperty(mockDocument.head, "ownerDocument", {
-      value: mockDocument,
-    });
+    // Set up circular references with configurable properties
+    try {
+      Object.defineProperty(mockDocument.body, "ownerDocument", {
+        value: mockDocument,
+        configurable: true,
+      });
+      Object.defineProperty(mockDocument.documentElement, "ownerDocument", {
+        value: mockDocument,
+        configurable: true,
+      });
+      Object.defineProperty(mockDocument.head, "ownerDocument", {
+        value: mockDocument,
+        configurable: true,
+      });
+    } catch {
+      // Properties might already be readonly, ignore
+    }
   }
 
   ensureLocalStorage();

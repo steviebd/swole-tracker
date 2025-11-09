@@ -178,7 +178,7 @@ describe("token rotation", () => {
       expect(result.skipped).toBe(0);
       expect(result.failed).toBe(0);
       expect(result.results).toHaveLength(1);
-      expect(result.results[0].migrated).toBe(true);
+      expect(result.results[0]?.migrated).toBe(true);
       expect(encryptToken).toHaveBeenCalledTimes(2);
     });
 
