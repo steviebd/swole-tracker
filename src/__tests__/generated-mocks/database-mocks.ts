@@ -7,7 +7,7 @@ import { vi } from "vitest";
 export const createDatabaseMock = () => {
   const createQueryChain = <T = unknown>() => {
     let chainResult: T[] = [];
-    
+
     return {
       where: vi.fn(() => createQueryChain()),
       select: vi.fn(() => createQueryChain()),
@@ -21,6 +21,7 @@ export const createDatabaseMock = () => {
       values: vi.fn(() => createQueryChain()),
       set: vi.fn(() => createQueryChain()),
       onConflictDoUpdate: vi.fn(() => createQueryChain()),
+      onConflictDoNothing: vi.fn(() => createQueryChain()),
       returning: vi.fn(() => createQueryChain()),
       execute: vi.fn(async () => chainResult),
       all: vi.fn(async () => chainResult),

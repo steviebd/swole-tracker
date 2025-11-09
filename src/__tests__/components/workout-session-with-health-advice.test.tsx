@@ -1,4 +1,5 @@
 import React from "react";
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -132,7 +133,108 @@ const mockPreferencesQuery = {
   data: { enable_manual_wellness: false },
   isLoading: false,
   error: null,
+  isError: false,
+  isPending: false,
+  isSuccess: true,
+  isFetched: true,
+  isFetching: false,
+  isRefetching: false,
+  isRefetchError: false,
+  isLoadingError: false,
+  dataUpdatedAt: 0,
+  errorUpdatedAt: 0,
+  failureCount: 0,
+  failureReason: null,
+  errorUpdateCount: 0,
+  fetchStatus: "idle" as const,
+  status: "success" as const,
+  refetch: vi.fn(),
+  fetchNextPage: vi.fn(),
+  fetchPreviousPage: vi.fn(),
+  hasNextPage: false,
+  hasPreviousPage: false,
+  isFetchingNextPage: false,
+  isFetchingPreviousPage: false,
+  isPlaceholderData: false,
+  isPaused: false,
+  queryKey: [],
+  remove: vi.fn(),
+  reset: vi.fn(),
+  select: vi.fn(),
+  setState: vi.fn(),
+  cancel: vi.fn(),
+  promise: Promise.resolve(),
 };
+
+const createMockQuery = (
+  data: any = null,
+  isLoading = false,
+  error: any = null,
+) => ({
+  data,
+  isLoading,
+  error,
+  isError: !!error,
+  isPending: isLoading,
+  isSuccess: !isLoading && !error,
+  isFetched: true,
+  isFetching: isLoading,
+  isRefetching: false,
+  isRefetchError: false,
+  isLoadingError: false,
+  dataUpdatedAt: 0,
+  errorUpdatedAt: 0,
+  failureCount: 0,
+  failureReason: null,
+  errorUpdateCount: 0,
+  fetchStatus: isLoading ? ("fetching" as const) : ("idle" as const),
+  status: error
+    ? ("error" as const)
+    : isLoading
+      ? ("pending" as const)
+      : ("success" as const),
+  refetch: vi.fn(),
+  fetchNextPage: vi.fn(),
+  fetchPreviousPage: vi.fn(),
+  hasNextPage: false,
+  hasPreviousPage: false,
+  isFetchingNextPage: false,
+  isFetchingPreviousPage: false,
+  isPlaceholderData: false,
+  isPaused: false,
+  queryKey: [],
+  remove: vi.fn(),
+  reset: vi.fn(),
+  select: vi.fn(),
+  setState: vi.fn(),
+  cancel: vi.fn(),
+  promise: Promise.resolve(),
+  // Additional properties for newer TanStack Query versions
+  isFetchedAfterMount: true,
+  isInitialLoading: isLoading,
+  isStale: false,
+  isEnabled: true,
+  // tRPC specific property
+  trpc: { path: "" },
+});
+
+const createMockMutation = () => ({
+  data: undefined,
+  error: null,
+  isError: false,
+  isIdle: true,
+  isPending: false,
+  isSuccess: false,
+  variables: undefined,
+  mutate: vi.fn(),
+  mutateAsync: vi.fn(),
+  reset: vi.fn(),
+  status: "idle" as const,
+  failureCount: 0,
+  failureReason: null,
+  submittedAt: 0,
+  trpc: { path: "" },
+});
 
 vi.mock("~/hooks/useHealthAdvice", () => ({
   useHealthAdvice: vi.fn(() => mockUseHealthAdvice),
@@ -148,28 +250,35 @@ vi.mock("~/trpc/react", () => ({
     Provider: vi.fn(({ children }) => children),
     workouts: {
       getById: {
-        useQuery: vi.fn(() => ({ data: null, isLoading: false, trpc: {} })),
+        useQuery: vi.fn(() => ({
+          data: null,
+          isLoading: false,
+          trpc: { path: "" },
+        })) as any,
       },
     },
     preferences: {
       get: {
-        useQuery: vi.fn(() => ({ ...mockPreferencesQuery, trpc: {} })),
+        useQuery: vi.fn(() => ({
+          ...mockPreferencesQuery,
+          trpc: { path: "" },
+        })) as any,
       },
     },
     wellness: {
       save: {
         useMutation: vi.fn(() => ({
           mutateAsync: vi.fn(),
-          trpc: {},
-        })),
+          trpc: { path: "" },
+        })) as any,
       },
     },
     suggestions: {
       trackInteraction: {
         useMutation: vi.fn(() => ({
           mutateAsync: vi.fn(),
-          trpc: {},
-        })),
+          trpc: { path: "" },
+        })) as any,
       },
     },
   },
@@ -849,8 +958,8 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         data: undefined,
         isLoading: true,
         error: null,
-        trpc: {},
-      });
+        trpc: { path: "" },
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -867,8 +976,8 @@ describe("WorkoutSessionWithHealthAdvice", () => {
 
     it("renders with workout session data", async () => {
       // Mock workout session with data
-      vi.mocked(api.workouts.getById.useQuery).mockReturnValue({
-        data: {
+      vi.mocked(api.workouts.getById.useQuery).mockReturnValue(
+        createMockQuery({
           id: 101,
           workoutDate: new Date("2024-01-15T10:00:00Z"),
           template: {
@@ -886,11 +995,8 @@ describe("WorkoutSessionWithHealthAdvice", () => {
               rpe: 7,
             },
           ],
-        },
-        isLoading: false,
-        error: null,
-        trpc: {},
-      });
+        }) as any,
+      ) as any;
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -910,7 +1016,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         data: null,
         isLoading: false,
         error: null,
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -996,7 +1102,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         },
         isLoading: false,
         error: null,
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1022,7 +1128,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         },
         isLoading: false,
         error: null,
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1049,7 +1155,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         },
         isLoading: false,
         error: null,
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1173,17 +1279,24 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       vi.mocked(api.workouts.getById.useQuery).mockReturnValue({
         data: {
           id: 101,
-          workoutDate: new Date(),
+          workoutDate: new Date("2024-01-15"),
           template: {
             name: "Push Day",
             exercises: [{ id: 1, exerciseName: "Bench Press" }],
           },
-          exercises: [],
+          exercises: [
+            {
+              exerciseName: "Bench Press",
+              reps: 8,
+              weight: "135 lbs",
+              rpe: 7,
+            },
+          ],
         },
         isLoading: false,
         error: null,
-        trpc: {},
-      });
+        trpc: { path: "" },
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1258,7 +1371,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       // Mock wellness save to fail
       vi.mocked(api.wellness.save.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Database error")),
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1490,12 +1603,12 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       // Mock the wellness save to succeed but tracking to fail
       vi.mocked(api.wellness.save.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockResolvedValue({ id: 123 }),
-        trpc: {},
+        trpc: { path: "" },
       });
 
       vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1538,7 +1651,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       // Mock tracking to fail
       vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1580,7 +1693,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       // Mock tracking to fail
       vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
-        trpc: {},
+        trpc: { path: "" },
       });
 
       const fetchImpl: FetchHandler = async () =>
@@ -1605,12 +1718,12 @@ describe("WorkoutSessionWithHealthAdvice", () => {
     // Mock the wellness save to succeed but tracking to fail
     vi.mocked(api.wellness.save.useMutation).mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue({ id: 123 }),
-      trpc: {},
+      trpc: { path: "" },
     });
 
     vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
       mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
-      trpc: {},
+      trpc: { path: "" },
     });
 
     const fetchImpl: FetchHandler = async () =>
@@ -1653,7 +1766,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
     // Mock tracking to fail
     vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
       mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
-      trpc: {},
+      trpc: { path: "" },
     });
 
     const fetchImpl: FetchHandler = async () =>

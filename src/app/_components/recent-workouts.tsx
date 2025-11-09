@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useAuth } from "~/providers/AuthProvider";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -37,15 +37,22 @@ export function RecentWorkouts() {
     isLoading,
     error,
     refetch,
-  } = api.workouts.getRecent.useQuery({ limit: 3 }, {
-    enabled: !!user?.id,
-    onSuccess: (data) => {
-      console.info(`[RECENT_WORKOUTS] Fetched ${data?.length || 0} workouts at ${new Date().toISOString()}`, data);
+  } = api.workouts.getRecent.useQuery(
+    { limit: 3 },
+    {
+      enabled: !!user, // Only fetch when user is authenticated
     },
-    onSettled: (data, error) => {
-      console.info(`[RECENT_WORKOUTS] Query settled at ${new Date().toISOString()}`, { dataCount: data?.length || 0, hasError: !!error });
+  );
+
+  // Log when workouts are fetched successfully
+  useEffect(() => {
+    if (recentWorkouts && recentWorkouts.length > 0) {
+      console.info(
+        `[RECENT_WORKOUTS] Fetched ${recentWorkouts.length} workouts at ${new Date().toISOString()}`,
+        recentWorkouts,
+      );
     }
-  });
+  }, [recentWorkouts]);
 
   if (isLoading) {
     return (

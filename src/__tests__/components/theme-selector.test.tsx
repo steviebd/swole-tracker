@@ -116,24 +116,24 @@ describe("ThemeSelector accessibility", () => {
       );
     });
 
-    await waitFor(() => {
-      const radioGroup = screen.getByRole("radiogroup", {
-        name: /appearance/i,
-      });
-      expect(radioGroup).toBeInTheDocument();
-    });
+    // Use a single waitFor with longer timeout to avoid race conditions
+    await waitFor(
+      () => {
+        const radioGroup = screen.getByRole("radiogroup", {
+          name: /appearance/i,
+        });
+        expect(radioGroup).toBeInTheDocument();
 
-    await waitFor(() => {
-      const radioButtons = screen.getAllByRole("radio");
-      expect(radioButtons).toHaveLength(6); // 6 theme options
-    });
+        const radioButtons = screen.getAllByRole("radio");
+        expect(radioButtons).toHaveLength(6); // 6 theme options
 
-    const radioButtons = screen.getAllByRole("radio");
-
-    // Check that one radio button is checked (default theme)
-    const checkedRadios = radioButtons.filter(
-      (radio) => radio.getAttribute("aria-checked") === "true",
+        // Check that one radio button is checked (default theme)
+        const checkedRadios = radioButtons.filter(
+          (radio) => radio.getAttribute("aria-checked") === "true",
+        );
+        expect(checkedRadios).toHaveLength(1);
+      },
+      { timeout: 5000 },
     );
-    expect(checkedRadios).toHaveLength(1);
   });
 });

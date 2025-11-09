@@ -186,8 +186,10 @@ describe("RecentWorkouts", () => {
     });
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("No recent workouts. Start your first workout!"),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("No recent workouts. Start your first workout!"),
+      ).toBeInTheDocument();
+    });
   });
 });
