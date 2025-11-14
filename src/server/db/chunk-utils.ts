@@ -1,6 +1,10 @@
 import type { BatchItem, BatchResponse } from "drizzle-orm/batch";
 
-const DEFAULT_SQLITE_VARIABLE_LIMIT = 90;
+// Reduced to 70 for safety margin (was 90)
+// Reasoning: sessionExercises has ~15 columns
+// - 70 / 15 = 4-5 rows per batch (safer)
+// - 90 / 15 = 6 rows per batch (risky at D1 limit)
+const DEFAULT_SQLITE_VARIABLE_LIMIT = 70;
 const DEFAULT_D1_BATCH_LIMIT = 50;
 
 import { type DrizzleDb } from "./index";

@@ -104,36 +104,43 @@ export const insightsRouter = createTRPCRouter({
         let templateExerciseIds: number[] | undefined;
 
         if (input.templateExerciseId) {
-          const link = await ctx.db.query.exerciseLinks.findFirst({
-            where: and(
-              eq(exerciseLinks.templateExerciseId, input.templateExerciseId),
-              eq(exerciseLinks.user_id, ctx.user.id),
-            ),
-            with: { masterExercise: true },
-          });
-
-          if (link) {
-            const linked = await ctx.db.query.exerciseLinks.findMany({
-              where: and(
-                eq(exerciseLinks.masterExerciseId, link.masterExerciseId),
+          // Single query to get all linked exercises with the same masterExerciseId
+          // Use subquery to find master ID, then get all related links in one query
+          const linked = await ctx.db
+            .select({
+              templateExerciseId: exerciseLinks.templateExerciseId,
+              masterExerciseId: exerciseLinks.masterExerciseId,
+              templateExerciseName: templateExercises.exerciseName,
+            })
+            .from(exerciseLinks)
+            .innerJoin(
+              templateExercises,
+              eq(exerciseLinks.templateExerciseId, templateExercises.id),
+            )
+            .where(
+              and(
                 eq(exerciseLinks.user_id, ctx.user.id),
+                inArray(
+                  exerciseLinks.masterExerciseId,
+                  ctx.db
+                    .select({ id: exerciseLinks.masterExerciseId })
+                    .from(exerciseLinks)
+                    .where(
+                      and(
+                        eq(
+                          exerciseLinks.templateExerciseId,
+                          input.templateExerciseId,
+                        ),
+                        eq(exerciseLinks.user_id, ctx.user.id),
+                      ),
+                    ),
+                ),
               ),
-              with: { templateExercise: true },
-            });
+            );
+
+          if (linked.length > 0) {
             const extractedNames = linked
-              .map((l) => {
-                const template = l.templateExercise;
-                if (
-                  template &&
-                  typeof template === "object" &&
-                  !Array.isArray(template) &&
-                  typeof (template as { exerciseName?: unknown })
-                    .exerciseName === "string"
-                ) {
-                  return (template as { exerciseName: string }).exerciseName;
-                }
-                return null;
-              })
+              .map((l) => l.templateExerciseName)
               .filter((name): name is string => typeof name === "string");
 
             exerciseNamesToSearch = extractedNames.length

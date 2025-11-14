@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const prHighlightSchema = z.object({
   exerciseName: z.string(),
-  metric: z.enum(["weight", "volume", "reps", "streak", "consistency", "readiness", "other"]).default("other"),
+  metric: z.enum(["weight", "volume", "reps", "oneRM", "streak", "consistency", "readiness", "other"]).default("other"),
   summary: z.string(),
   delta: z.number().optional(),
   unit: z.string().optional(),

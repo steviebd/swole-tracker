@@ -221,6 +221,12 @@ export const sessionExercises = createTable(
       t.volume_load,
       t.one_rm_estimate,
     ),
+    // Bulk operations pattern (workouts.ts:823) - for session + exercise lookups
+    index("session_exercise_user_session_name_idx").on(
+      t.user_id,
+      t.sessionId,
+      t.exerciseName,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 

@@ -86,6 +86,7 @@ const createMockDb = () => {
       },
       workoutTemplates: {
         findFirst: vi.fn(),
+        findMany: vi.fn(),
       },
       sessionExercises: {
         findMany: vi.fn(),
@@ -122,7 +123,7 @@ describe("workoutsRouter", () => {
 
   describe("getRecent", () => {
     it("should return recent workouts for user", async () => {
-      const mockWorkouts = [
+      const mockSessions = [
         {
           ...createMockWorkoutSession({
             id: 1,
@@ -130,19 +131,23 @@ describe("workoutsRouter", () => {
             templateId: 1,
             workoutDate: new Date("2024-01-01"),
           }),
-          template: {
-            ...createMockWorkoutTemplate({
-              id: 1,
-              name: "Push Day",
-              user_id: "user-123",
-            }),
-            exercises: [],
-          },
           exercises: [],
         },
       ];
 
-      mockCtx.db.query.workoutSessions.findMany.mockResolvedValue(mockWorkouts);
+      const mockTemplates = [
+        {
+          ...createMockWorkoutTemplate({
+            id: 1,
+            name: "Push Day",
+            user_id: "user-123",
+          }),
+          exercises: [],
+        },
+      ];
+
+      mockCtx.db.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
+      mockCtx.db.query.workoutTemplates.findMany.mockResolvedValue(mockTemplates);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       const result = await caller.getRecent({ limit: 5 });
@@ -152,12 +157,19 @@ describe("workoutsRouter", () => {
           limit: 5,
         }),
       );
-      expect(result).toEqual(mockWorkouts as any);
+      expect(mockCtx.db.query.workoutTemplates.findMany).toHaveBeenCalled();
+      expect(result).toEqual([
+        {
+          ...mockSessions[0],
+          template: mockTemplates[0],
+        },
+      ]);
     });
 
     it("should use default limit of 10", async () => {
       const mockWorkouts: Array<any> = [];
       mockCtx.db.query.workoutSessions.findMany.mockResolvedValue(mockWorkouts);
+      mockCtx.db.query.workoutTemplates.findMany.mockResolvedValue([]);
 
       const caller = workoutsRouter.createCaller(mockCtx);
       await caller.getRecent({});

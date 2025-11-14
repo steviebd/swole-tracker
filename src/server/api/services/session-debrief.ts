@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { env } from "~/env";
 import { logger } from "~/lib/logger";
@@ -136,29 +136,39 @@ const bulkPersistDebriefRecords = async ({
   // Process each debrief record to get version numbers and build payloads
   const payloads: Array<typeof sessionDebriefs.$inferInsert> = [];
 
+  // 1. Batch fetch all versions before loop
+  const sessionIds = [...new Set(debriefRecords.map((r) => r.sessionId))];
+  const latestVersionsResult = await dbClient
+    .select({
+      sessionId: sessionDebriefs.sessionId,
+      version: sql<number>`MAX(${sessionDebriefs.version})`.as("version"),
+    })
+    .from(sessionDebriefs)
+    .where(
+      and(
+        eq(sessionDebriefs.user_id, userId),
+        inArray(sessionDebriefs.sessionId, sessionIds),
+      ),
+    )
+    .groupBy(sessionDebriefs.sessionId);
+
+  // 2. Create version lookup map
+  const versionMap = new Map(
+    latestVersionsResult.map((v) => [v.sessionId, v.version as number]),
+  );
+
+  // 3. Collect IDs to deactivate
+  const idsToDeactivate: number[] = [];
+
   for (const record of debriefRecords) {
     const { sessionId, trigger, content, existingActive } = record;
 
-    const lastVersion = await dbClient
-      .select({ version: sessionDebriefs.version })
-      .from(sessionDebriefs)
-      .where(
-        and(
-          eq(sessionDebriefs.user_id, userId),
-          eq(sessionDebriefs.sessionId, sessionId),
-        ),
-      )
-      .orderBy(desc(sessionDebriefs.version))
-      .limit(1);
+    const lastVersion = versionMap.get(sessionId) ?? 0;
+    const nextVersion = lastVersion + 1;
 
-    const nextVersion = (lastVersion[0]?.version ?? 0) + 1;
-
-    // Deactivate existing active record if present
+    // Collect existing active IDs for batch deactivation
     if (existingActive) {
-      await dbClient
-        .update(sessionDebriefs)
-        .set({ isActive: false })
-        .where(eq(sessionDebriefs.id, existingActive.id));
+      idsToDeactivate.push(existingActive.id);
     }
 
     const metadata = {
@@ -207,6 +217,14 @@ const bulkPersistDebriefRecords = async ({
     }
 
     payloads.push(insertPayload);
+  }
+
+  // 4. Bulk deactivate in single query
+  if (idsToDeactivate.length > 0) {
+    await dbClient
+      .update(sessionDebriefs)
+      .set({ isActive: false })
+      .where(inArray(sessionDebriefs.id, idsToDeactivate));
   }
 
   // Use chunked batch for large datasets

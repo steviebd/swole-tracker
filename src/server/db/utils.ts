@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { db, type DrizzleDb } from ".";
 import {
   workoutSessions,
@@ -447,14 +447,25 @@ export const batchCreateMasterExerciseLinks = async (
             tx.insert(exerciseLinks).values(chunk),
           );
         } catch {
-          // Handle duplicate key constraint - update existing links
-          for (const link of linksToCreate) {
+          // Handle duplicate key constraint - bulk update existing links
+          // Group by masterExerciseId to minimize updates
+          const grouped = linksToCreate.reduce(
+            (acc, link) => {
+              if (!acc[link.masterExerciseId]) {
+                acc[link.masterExerciseId] = [];
+              }
+              acc[link.masterExerciseId].push(link.templateExerciseId);
+              return acc;
+            },
+            {} as Record<string, string[]>,
+          );
+
+          // Batch update per master exercise
+          for (const [masterId, templateIds] of Object.entries(grouped)) {
             await tx
               .update(exerciseLinks)
-              .set({ masterExerciseId: link.masterExerciseId })
-              .where(
-                eq(exerciseLinks.templateExerciseId, link.templateExerciseId),
-              );
+              .set({ masterExerciseId: masterId })
+              .where(inArray(exerciseLinks.templateExerciseId, templateIds));
           }
         }
 
@@ -628,3 +639,40 @@ export const clearUserPreferencesCache = (userId: string): void => {
   const cacheKey = `user_prefs_${userId}`;
   userPreferencesCache.delete(cacheKey);
 };
+
+/**
+ * Retry helper for critical multi-step operations
+ *
+ * Since D1 doesn't support transactions, use this to add retry logic
+ * for important operations that could fail mid-way.
+ *
+ * @example
+ * ```ts
+ * await withRetry(async () => {
+ *   await db.insert(table1).values(data1);
+ *   await db.update(table2).set(data2);
+ * });
+ * ```
+ */
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 100,
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, delayMs * (i + 1)),
+        );
+      }
+    }
+  }
+
+  throw lastError!;
+}

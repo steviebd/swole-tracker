@@ -66,7 +66,9 @@ export const createMockUser = (overrides: Partial<User> = {}): User => ({
   ...overrides,
 });
 
-export const createMockWorkoutTemplate = (overrides: Partial<WorkoutTemplate> = {}): WorkoutTemplate => ({
+export const createMockWorkoutTemplate = (
+  overrides: Partial<WorkoutTemplate> = {},
+): WorkoutTemplate => ({
   id: 1,
   name: "Push Day",
   user_id: "test-user-id",
@@ -76,7 +78,9 @@ export const createMockWorkoutTemplate = (overrides: Partial<WorkoutTemplate> = 
   ...overrides,
 });
 
-export const createMockWorkoutSession = (overrides: Partial<WorkoutSession> = {}): WorkoutSession => ({
+export const createMockWorkoutSession = (
+  overrides: Partial<WorkoutSession> = {},
+): WorkoutSession => ({
   id: 1,
   user_id: "test-user-id",
   templateId: 1,
@@ -86,7 +90,9 @@ export const createMockWorkoutSession = (overrides: Partial<WorkoutSession> = {}
   ...overrides,
 });
 
-export const createMockTemplateExercise = (overrides: Partial<TemplateExercise> = {}): TemplateExercise => ({
+export const createMockTemplateExercise = (
+  overrides: Partial<TemplateExercise> = {},
+): TemplateExercise => ({
   id: 1,
   user_id: "test-user-id",
   templateId: 1,
@@ -97,7 +103,9 @@ export const createMockTemplateExercise = (overrides: Partial<TemplateExercise> 
   ...overrides,
 });
 
-export const createMockSessionExercise = (overrides: Partial<SessionExercise> = {}): SessionExercise => ({
+export const createMockSessionExercise = (
+  overrides: Partial<SessionExercise> = {},
+): SessionExercise => ({
   id: 1,
   user_id: "test-user-id",
   sessionId: 1,
@@ -119,7 +127,9 @@ export const createMockSessionExercise = (overrides: Partial<SessionExercise> = 
   ...overrides,
 });
 
-export const createMockUserPreferences = (overrides: Partial<UserPreference> = {}): UserPreference => ({
+export const createMockUserPreferences = (
+  overrides: Partial<UserPreference> = {},
+): UserPreference => ({
   id: 1,
   user_id: "test-user-id",
   defaultWeightUnit: "kg",
@@ -135,7 +145,9 @@ export const createMockUserPreferences = (overrides: Partial<UserPreference> = {
   ...overrides,
 });
 
-export const createMockUserIntegration = (overrides: Partial<UserIntegration> = {}): UserIntegration => ({
+export const createMockUserIntegration = (
+  overrides: Partial<UserIntegration> = {},
+): UserIntegration => ({
   id: 1,
   user_id: "test-user-id",
   provider: "whoop",
@@ -150,7 +162,9 @@ export const createMockUserIntegration = (overrides: Partial<UserIntegration> = 
   ...overrides,
 });
 
-export const createMockExternalWorkoutWhoop = (overrides: Partial<ExternalWorkoutWhoop> = {}): ExternalWorkoutWhoop => ({
+export const createMockExternalWorkoutWhoop = (
+  overrides: Partial<ExternalWorkoutWhoop> = {},
+): ExternalWorkoutWhoop => ({
   id: 1,
   user_id: "test-user-id",
   whoopWorkoutId: "workout-123",
@@ -167,7 +181,9 @@ export const createMockExternalWorkoutWhoop = (overrides: Partial<ExternalWorkou
   ...overrides,
 });
 
-export const createMockRateLimit = (overrides: Partial<RateLimit> = {}): RateLimit => ({
+export const createMockRateLimit = (
+  overrides: Partial<RateLimit> = {},
+): RateLimit => ({
   id: 1,
   user_id: "test-user-id",
   endpoint: "whoop_sync",
@@ -178,7 +194,9 @@ export const createMockRateLimit = (overrides: Partial<RateLimit> = {}): RateLim
   ...overrides,
 });
 
-export const createMockMasterExercise = (overrides: Partial<MasterExercise> = {}): MasterExercise => ({
+export const createMockMasterExercise = (
+  overrides: Partial<MasterExercise> = {},
+): MasterExercise => ({
   id: 1,
   user_id: "test-user-id",
   name: "Bench Press",
@@ -190,7 +208,9 @@ export const createMockMasterExercise = (overrides: Partial<MasterExercise> = {}
   ...overrides,
 });
 
-export const createMockExerciseLink = (overrides: Partial<ExerciseLink> = {}): ExerciseLink => ({
+export const createMockExerciseLink = (
+  overrides: Partial<ExerciseLink> = {},
+): ExerciseLink => ({
   id: 1,
   templateExerciseId: 1,
   masterExerciseId: 1,
@@ -199,7 +219,9 @@ export const createMockExerciseLink = (overrides: Partial<ExerciseLink> = {}): E
   ...overrides,
 });
 
-export const createMockHealthAdvice = (overrides: Partial<HealthAdvice> = {}): HealthAdvice => ({
+export const createMockHealthAdvice = (
+  overrides: Partial<HealthAdvice> = {},
+): HealthAdvice => ({
   id: 1,
   user_id: "test-user-id",
   sessionId: 1,
@@ -216,14 +238,17 @@ export const createMockHealthAdvice = (overrides: Partial<HealthAdvice> = {}): H
   ...overrides,
 });
 
-export const createMockSessionDebrief = (overrides: Partial<SessionDebrief> = {}): SessionDebrief => ({
+export const createMockSessionDebrief = (
+  overrides: Partial<SessionDebrief> = {},
+): SessionDebrief => ({
   id: 1,
   user_id: "test-user-id",
   sessionId: 1,
   version: 1,
   parentDebriefId: null,
   summary: "Great workout session with PRs in bench press",
-  prHighlights: "Bench Press: 185lbs x 10",
+  prHighlights:
+    '[{"exerciseName":"Bench Press","metric":"weight","summary":"185lbs x 10","delta":5,"unit":"lbs","currentValue":185,"previousValue":180,"emoji":"🏋️"}]',
   adherenceScore: 0.95,
   focusAreas: "Increase volume on accessories",
   streakContext: "5th consecutive workout",
@@ -239,7 +264,9 @@ export const createMockSessionDebrief = (overrides: Partial<SessionDebrief> = {}
   ...overrides,
 });
 
-export const createMockWebhookEvent = (overrides: Partial<WebhookEvent> = {}): WebhookEvent => ({
+export const createMockWebhookEvent = (
+  overrides: Partial<WebhookEvent> = {},
+): WebhookEvent => ({
   id: 1,
   provider: "whoop",
   eventType: "workout.updated",
@@ -256,7 +283,9 @@ export const createMockWebhookEvent = (overrides: Partial<WebhookEvent> = {}): W
   ...overrides,
 });
 
-export const createMockWellnessData = (overrides: Partial<WellnessData> = {}): WellnessData => ({
+export const createMockWellnessData = (
+  overrides: Partial<WellnessData> = {},
+): WellnessData => ({
   id: 1,
   user_id: "test-user-id",
   sessionId: 1,
@@ -273,7 +302,9 @@ export const createMockWellnessData = (overrides: Partial<WellnessData> = {}): W
   ...overrides,
 });
 
-export const createMockWhoopRecovery = (overrides: Partial<WhoopRecovery> = {}): WhoopRecovery => ({
+export const createMockWhoopRecovery = (
+  overrides: Partial<WhoopRecovery> = {},
+): WhoopRecovery => ({
   id: 1,
   user_id: "test-user-id",
   whoop_recovery_id: "recovery-123",
@@ -294,7 +325,9 @@ export const createMockWhoopRecovery = (overrides: Partial<WhoopRecovery> = {}):
   ...overrides,
 });
 
-export const createMockWhoopCycle = (overrides: Partial<WhoopCycle> = {}): WhoopCycle => ({
+export const createMockWhoopCycle = (
+  overrides: Partial<WhoopCycle> = {},
+): WhoopCycle => ({
   id: 1,
   user_id: "test-user-id",
   whoop_cycle_id: "cycle-123",
@@ -316,7 +349,9 @@ export const createMockWhoopCycle = (overrides: Partial<WhoopCycle> = {}): Whoop
   ...overrides,
 });
 
-export const createMockWhoopSleep = (overrides: Partial<WhoopSleep> = {}): WhoopSleep => ({
+export const createMockWhoopSleep = (
+  overrides: Partial<WhoopSleep> = {},
+): WhoopSleep => ({
   id: 1,
   user_id: "test-user-id",
   whoop_sleep_id: "sleep-123",
@@ -345,7 +380,9 @@ export const createMockWhoopSleep = (overrides: Partial<WhoopSleep> = {}): Whoop
   ...overrides,
 });
 
-export const createMockWhoopProfile = (overrides: Partial<WhoopProfile> = {}): WhoopProfile => ({
+export const createMockWhoopProfile = (
+  overrides: Partial<WhoopProfile> = {},
+): WhoopProfile => ({
   id: 1,
   user_id: "test-user-id",
   whoop_user_id: "whoop-user-123",
@@ -360,7 +397,9 @@ export const createMockWhoopProfile = (overrides: Partial<WhoopProfile> = {}): W
   ...overrides,
 });
 
-export const createMockWhoopBodyMeasurement = (overrides: Partial<WhoopBodyMeasurement> = {}): WhoopBodyMeasurement => ({
+export const createMockWhoopBodyMeasurement = (
+  overrides: Partial<WhoopBodyMeasurement> = {},
+): WhoopBodyMeasurement => ({
   id: 1,
   user_id: "test-user-id",
   whoop_measurement_id: "measurement-123",
@@ -375,7 +414,9 @@ export const createMockWhoopBodyMeasurement = (overrides: Partial<WhoopBodyMeasu
   ...overrides,
 });
 
-export const createMockOAuthState = (overrides: Partial<OAuthState> = {}): OAuthState => ({
+export const createMockOAuthState = (
+  overrides: Partial<OAuthState> = {},
+): OAuthState => ({
   id: 1,
   state: "oauth-state-123",
   user_id: "test-user-id",
@@ -388,7 +429,9 @@ export const createMockOAuthState = (overrides: Partial<OAuthState> = {}): OAuth
   ...overrides,
 });
 
-export const createMockSession = (overrides: Partial<Session> = {}): Session => ({
+export const createMockSession = (
+  overrides: Partial<Session> = {},
+): Session => ({
   id: "session-123",
   userId: "test-user-id",
   organizationId: null,
@@ -402,7 +445,9 @@ export const createMockSession = (overrides: Partial<Session> = {}): Session => 
   ...overrides,
 });
 
-export const createMockAISuggestionHistory = (overrides: Partial<AISuggestionHistory> = {}): AISuggestionHistory => ({
+export const createMockAISuggestionHistory = (
+  overrides: Partial<AISuggestionHistory> = {},
+): AISuggestionHistory => ({
   id: 1,
   user_id: "test-user-id",
   sessionId: 1,
@@ -424,7 +469,9 @@ export const createMockAISuggestionHistory = (overrides: Partial<AISuggestionHis
   ...overrides,
 });
 
-export const createMockExerciseDailySummary = (overrides: Partial<ExerciseDailySummary> = {}): ExerciseDailySummary => ({
+export const createMockExerciseDailySummary = (
+  overrides: Partial<ExerciseDailySummary> = {},
+): ExerciseDailySummary => ({
   user_id: "test-user-id",
   exercise_name: "Bench Press",
   date: new Date("2024-01-01T00:00:00.000Z"),
@@ -437,7 +484,9 @@ export const createMockExerciseDailySummary = (overrides: Partial<ExerciseDailyS
   ...overrides,
 });
 
-export const createMockExerciseWeeklySummary = (overrides: Partial<ExerciseWeeklySummary> = {}): ExerciseWeeklySummary => ({
+export const createMockExerciseWeeklySummary = (
+  overrides: Partial<ExerciseWeeklySummary> = {},
+): ExerciseWeeklySummary => ({
   user_id: "test-user-id",
   exercise_name: "Bench Press",
   week_start: new Date("2023-12-25T00:00:00.000Z"), // Monday
@@ -450,7 +499,9 @@ export const createMockExerciseWeeklySummary = (overrides: Partial<ExerciseWeekl
   ...overrides,
 });
 
-export const createMockExerciseMonthlySummary = (overrides: Partial<ExerciseMonthlySummary> = {}): ExerciseMonthlySummary => ({
+export const createMockExerciseMonthlySummary = (
+  overrides: Partial<ExerciseMonthlySummary> = {},
+): ExerciseMonthlySummary => ({
   user_id: "test-user-id",
   exercise_name: "Bench Press",
   month_start: new Date("2024-01-01T00:00:00.000Z"),
@@ -485,7 +536,13 @@ export const createMockSessionExercises = (count = 5, sessionId = 1) =>
     createMockSessionExercise({
       id: i + 1,
       sessionId,
-      exerciseName: ["Bench Press", "Squat", "Deadlift", "Overhead Press", "Pull-ups"][i % 5],
+      exerciseName: [
+        "Bench Press",
+        "Squat",
+        "Deadlift",
+        "Overhead Press",
+        "Pull-ups",
+      ][i % 5],
       weight: Math.floor(Math.random() * 200) + 45,
       reps: Math.floor(Math.random() * 12) + 1,
       sets: Math.floor(Math.random() * 5) + 1,

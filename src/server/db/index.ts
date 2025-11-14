@@ -74,7 +74,23 @@ function createDbInstance(binding: D1Database): DrizzleDb {
   const db = drizzle(binding, {
     schema,
   });
-  // Mock transaction since D1 doesn't support SQL transactions
+  /**
+   * IMPORTANT: D1 does not support SQL transactions.
+   * This is a no-op that executes the callback with the same db instance.
+   *
+   * Implications:
+   * - No atomicity: If operations fail mid-way, partial changes persist
+   * - No isolation: Concurrent requests see partial updates
+   * - No rollback: Failed operations must be manually compensated
+   *
+   * Migration Note: When moving to PostgreSQL/standard SQLite, remove this
+   * mock and use real transactions.
+   *
+   * For critical multi-step operations:
+   * 1. Add application-level validation before writes
+   * 2. Implement retry logic with idempotency keys
+   * 3. Use status fields to track operation completion
+   */
   db.transaction = async (callback) => callback(db as any);
   return db;
 }
