@@ -7,7 +7,7 @@ import {
   exerciseLinks,
 } from "~/server/db/schema";
 import { and, desc, eq, gte, inArray, ne, or } from "drizzle-orm";
-import { whereInChunks } from "~/server/db/chunk-utils";
+import { whereInChunks, chunkArray } from "~/server/db/chunk-utils";
 
 type SessionExercise = typeof sessionExercises.$inferSelect;
 
@@ -533,12 +533,13 @@ export const insightsRouter = createTRPCRouter({
       }
     }),
 
-  // Export recent workout summaries to CSV (simple)
+  // Export recent workout summaries to CSV with chunked processing for large datasets
   exportWorkoutsCSV: protectedProcedure
     .input(
       z.object({
         since: z.date().optional(),
-        limit: z.number().int().positive().max(200).default(50),
+        limit: z.number().int().positive().max(500).default(50),
+        chunkSize: z.number().int().positive().max(100).default(25),
       }),
     )
     .query(async ({ input, ctx }) => {
@@ -548,67 +549,183 @@ export const insightsRouter = createTRPCRouter({
       if (input.since)
         where.push(gte(workoutSessions.workoutDate, input.since));
 
-      const sessions = await ctx.db.query.workoutSessions.findMany({
-        where: and(...where),
-        orderBy: [desc(workoutSessions.workoutDate)],
-        limit: input.limit,
-        with: { exercises: true, template: true },
-      });
+      // For large datasets, use chunked processing to avoid memory issues
+      const useChunking = input.limit > 100;
 
-      const rows: string[] = [];
-      rows.push(
-        [
-          "date",
-          "sessionId",
-          "templateName",
-          "exercise",
-          "setOrder",
-          "weight",
-          "reps",
-          "sets",
-          "unit",
-          "rpe",
-          "rest_seconds",
-        ].join(","),
-      );
-      for (const s of sessions) {
-        for (const ex of s.exercises) {
-          // narrow optional fields safely
-          const templateName =
-            s.template &&
-            typeof (s.template as { name?: unknown }).name === "string"
-              ? (s.template as { name?: string }).name
-              : "";
-          const rpeVal =
-            typeof (ex as { rpe?: unknown }).rpe === "number"
-              ? (ex as { rpe?: number }).rpe
-              : "";
-          const restVal =
-            typeof (ex as { rest_seconds?: unknown }).rest_seconds === "number"
-              ? (ex as { rest_seconds?: number }).rest_seconds
-              : "";
+      if (useChunking) {
+        console.log(
+          `Using chunked CSV export for ${input.limit} sessions with chunk size ${input.chunkSize}`,
+        );
 
-          rows.push(
-            [
-              s.workoutDate.toISOString(),
-              s.id,
-              templateName,
-              ex.exerciseName,
-              ex.setOrder ?? 0,
-              ex.weight ?? "",
-              ex.reps ?? "",
-              ex.sets ?? "",
-              ex.unit ?? "",
-              rpeVal,
-              restVal,
-            ].join(","),
-          );
+        // Get total count first for progress tracking
+        const totalCountResult = await ctx.db
+          .select({ count: workoutSessions.id })
+          .from(workoutSessions)
+          .where(and(...where));
+
+        const totalCount = totalCountResult.length;
+
+        // Process in chunks
+        const allRows: string[] = [];
+
+        // Add header
+        allRows.push(
+          [
+            "date",
+            "sessionId",
+            "templateName",
+            "exercise",
+            "setOrder",
+            "weight",
+            "reps",
+            "sets",
+            "unit",
+            "rpe",
+            "rest_seconds",
+          ].join(","),
+        );
+
+        let processedCount = 0;
+        const sessionChunks = chunkArray(
+          Array.from({ length: totalCount }, (_, i) => i),
+          input.chunkSize,
+        );
+
+        for (const chunkIndices of sessionChunks) {
+          const sessions = await ctx.db.query.workoutSessions.findMany({
+            where: and(...where),
+            orderBy: [desc(workoutSessions.workoutDate)],
+            limit: input.chunkSize,
+            offset: processedCount,
+            with: { exercises: true, template: true },
+          });
+
+          // Process this chunk
+          const chunkRows: string[] = [];
+          for (const s of sessions) {
+            for (const ex of s.exercises) {
+              // narrow optional fields safely
+              const templateName =
+                s.template &&
+                typeof (s.template as { name?: unknown }).name === "string"
+                  ? (s.template as { name?: string }).name
+                  : "";
+              const rpeVal =
+                typeof (ex as { rpe?: unknown }).rpe === "number"
+                  ? (ex as { rpe?: number }).rpe
+                  : "";
+              const restVal =
+                typeof (ex as { rest_seconds?: unknown }).rest_seconds ===
+                "number"
+                  ? (ex as { rest_seconds?: number }).rest_seconds
+                  : "";
+
+              chunkRows.push(
+                [
+                  s.workoutDate.toISOString(),
+                  s.id,
+                  templateName,
+                  ex.exerciseName,
+                  ex.setOrder ?? 0,
+                  ex.weight ?? "",
+                  ex.reps ?? "",
+                  ex.sets ?? "",
+                  ex.unit ?? "",
+                  rpeVal,
+                  restVal,
+                ].join(","),
+              );
+            }
+          }
+
+          allRows.push(...chunkRows);
+          processedCount += sessions.length;
+
+          // Stop if we've reached the limit
+          if (processedCount >= input.limit) {
+            break;
+          }
         }
+
+        return {
+          filename: "workouts_export.csv",
+          mimeType: "text/csv",
+          content: allRows.join("\n"),
+          metadata: {
+            totalSessions: Math.min(processedCount, input.limit),
+            chunkedProcessing: true,
+            chunkSize: input.chunkSize,
+          },
+        };
+      } else {
+        // Regular processing for smaller datasets
+        const sessions = await ctx.db.query.workoutSessions.findMany({
+          where: and(...where),
+          orderBy: [desc(workoutSessions.workoutDate)],
+          limit: input.limit,
+          with: { exercises: true, template: true },
+        });
+
+        const rows: string[] = [];
+        rows.push(
+          [
+            "date",
+            "sessionId",
+            "templateName",
+            "exercise",
+            "setOrder",
+            "weight",
+            "reps",
+            "sets",
+            "unit",
+            "rpe",
+            "rest_seconds",
+          ].join(","),
+        );
+        for (const s of sessions) {
+          for (const ex of s.exercises) {
+            // narrow optional fields safely
+            const templateName =
+              s.template &&
+              typeof (s.template as { name?: unknown }).name === "string"
+                ? (s.template as { name?: string }).name
+                : "";
+            const rpeVal =
+              typeof (ex as { rpe?: unknown }).rpe === "number"
+                ? (ex as { rpe?: number }).rpe
+                : "";
+            const restVal =
+              typeof (ex as { rest_seconds?: unknown }).rest_seconds ===
+              "number"
+                ? (ex as { rest_seconds?: number }).rest_seconds
+                : "";
+
+            rows.push(
+              [
+                s.workoutDate.toISOString(),
+                s.id,
+                templateName,
+                ex.exerciseName,
+                ex.setOrder ?? 0,
+                ex.weight ?? "",
+                ex.reps ?? "",
+                ex.sets ?? "",
+                ex.unit ?? "",
+                rpeVal,
+                restVal,
+              ].join(","),
+            );
+          }
+        }
+        return {
+          filename: "workouts_export.csv",
+          mimeType: "text/csv",
+          content: rows.join("\n"),
+          metadata: {
+            totalSessions: sessions.length,
+            chunkedProcessing: false,
+          },
+        };
       }
-      return {
-        filename: "workouts_export.csv",
-        mimeType: "text/csv",
-        content: rows.join("\n"),
-      };
     }),
 });

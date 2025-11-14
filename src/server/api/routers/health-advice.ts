@@ -9,6 +9,7 @@ import {
 } from "~/server/api/schemas/health-advice";
 import { enhancedHealthAdviceRequestSchema } from "~/server/api/schemas/wellness";
 import { logger } from "~/lib/logger";
+import { chunkedBatch } from "~/server/db/chunk-utils";
 
 export const healthAdviceRouter = createTRPCRouter({
   // Save AI advice response to database
@@ -291,5 +292,121 @@ export const healthAdviceRouter = createTRPCRouter({
         .returning();
 
       return result[0] ?? null;
+    }),
+
+  // Bulk save health advice for multiple sessions (e.g., batch processing)
+  bulkSave: protectedProcedure
+    .input(
+      z.object({
+        adviceRecords: z.array(
+          z.object({
+            sessionId: z.number(),
+            request: healthAdviceRequestSchema,
+            response: healthAdviceResponseSchema,
+            responseTimeMs: z.number().optional(),
+            modelUsed: z.string().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        if (input.adviceRecords.length === 0) {
+          return { savedCount: 0, errors: [] };
+        }
+
+        const adviceValues = input.adviceRecords.map((record) => {
+          const totalSuggestions = record.response.per_exercise.reduce(
+            (sum, ex) => sum + ex.sets.length,
+            0,
+          );
+
+          return {
+            user_id: ctx.user.id,
+            sessionId: record.sessionId,
+            request: JSON.stringify(record.request),
+            response: JSON.stringify(record.response),
+            readiness_rho: record.response.readiness.rho,
+            overload_multiplier: record.response.readiness.overload_multiplier,
+            session_predicted_chance: record.response.session_predicted_chance,
+            user_accepted_suggestions: 0,
+            total_suggestions: totalSuggestions,
+            response_time_ms: record.responseTimeMs
+              ? Math.round(record.responseTimeMs)
+              : null,
+            model_used: record.modelUsed,
+          };
+        });
+
+        // Use chunked batch for large datasets to stay under D1 limits
+        if (input.adviceRecords.length > 10) {
+          logger.info(
+            `Using chunked batch insert for ${input.adviceRecords.length} health advice records`,
+          );
+          await chunkedBatch(
+            ctx.db,
+            adviceValues,
+            (chunk) => {
+              const firstRecord = chunk[0];
+              if (!firstRecord) return Promise.resolve([]);
+              return ctx.db
+                .insert(healthAdvice)
+                .values(chunk)
+                .onConflictDoUpdate({
+                  target: [healthAdvice.user_id, healthAdvice.sessionId],
+                  set: {
+                    request: firstRecord.request,
+                    response: firstRecord.response,
+                    readiness_rho: firstRecord.readiness_rho,
+                    overload_multiplier: firstRecord.overload_multiplier,
+                    session_predicted_chance:
+                      firstRecord.session_predicted_chance,
+                    total_suggestions: firstRecord.total_suggestions,
+                    response_time_ms: firstRecord.response_time_ms,
+                    model_used: firstRecord.model_used,
+                  },
+                });
+            },
+            { limit: 90, maxStatementsPerBatch: 5 },
+          );
+        } else {
+          // For smaller batches, use regular insert with onConflict
+          const firstRecord = adviceValues[0];
+          if (firstRecord) {
+            await ctx.db
+              .insert(healthAdvice)
+              .values(adviceValues)
+              .onConflictDoUpdate({
+                target: [healthAdvice.user_id, healthAdvice.sessionId],
+                set: {
+                  request: firstRecord.request,
+                  response: firstRecord.response,
+                  readiness_rho: firstRecord.readiness_rho,
+                  overload_multiplier: firstRecord.overload_multiplier,
+                  session_predicted_chance:
+                    firstRecord.session_predicted_chance,
+                  total_suggestions: firstRecord.total_suggestions,
+                  response_time_ms: firstRecord.response_time_ms,
+                  model_used: firstRecord.model_used,
+                },
+              });
+          }
+        }
+
+        logger.info("Bulk health advice saved successfully", {
+          userId: ctx.user.id,
+          recordCount: input.adviceRecords.length,
+        });
+
+        return { savedCount: input.adviceRecords.length, errors: [] };
+      } catch (error) {
+        logger.error("Failed to bulk save health advice", {
+          error: error instanceof Error ? error.message : "Unknown error",
+          userId: ctx.user.id,
+          recordCount: input.adviceRecords.length,
+        });
+
+        throw error;
+      }
     }),
 });
