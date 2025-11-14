@@ -139,10 +139,143 @@ import {
   workoutTemplates,
 } from "~/server/db/schema";
 
+// Helper function to create or get master exercise and link it to template exercise
+import type { db } from "~/server/db";
+
+type Db = typeof db;
+
+async function createAndLinkMasterExercise(
+  db: Db,
+  userId: string,
+  exerciseName: string,
+  templateExerciseId: number,
+  linkingRejected = false,
+) {
+  // Don't create links if user has rejected linking
+  if (linkingRejected) {
+    return null;
+  }
+
+  const normalizedName = normalizeExerciseName(exerciseName);
+
+  // Try to find existing master exercise
+  const existing = await db
+    .select()
+    .from(masterExercises)
+    .where(
+      and(
+        eq(masterExercises.user_id, userId),
+        eq(masterExercises.normalizedName, normalizedName),
+      ),
+    )
+    .limit(1);
+
+  let masterExercise:
+    | {
+        id: number;
+        user_id: string;
+        name: string;
+        normalizedName: string;
+      }
+    | undefined;
+
+  if (existing.length > 0) {
+    masterExercise = existing[0];
+  } else {
+    // Create new master exercise
+    const newMasterExercise = await db
+      .insert(masterExercises)
+      .values({
+        user_id: userId,
+        name: exerciseName,
+        normalizedName,
+      })
+      .returning();
+
+    // Defensive: some mocked drivers may return undefined or empty array
+    if (Array.isArray(newMasterExercise) && newMasterExercise.length > 0) {
+      masterExercise =
+        newMasterExercise[0] as typeof masterExercises.$inferInsert & {
+          id: number;
+        };
+    }
+  }
+
+  // If we still don't have a master exercise, skip linking gracefully
+  if (masterExercise?.id == null) {
+    return null;
+  }
+
+  // Create the link
+  const insertLink = db.insert(exerciseLinks).values({
+    templateExerciseId,
+    masterExerciseId: masterExercise.id,
+    user_id: userId,
+  });
+
+  // Some drivers/mocks may not support onConflict; call only if available
+  if (
+    typeof (insertLink as unknown as { onConflictDoNothing?: () => unknown })
+      .onConflictDoNothing === "function"
+  ) {
+    await (
+      insertLink as unknown as {
+        onConflictDoNothing: (args: {
+          target: typeof exerciseLinks.templateExerciseId;
+        }) => Promise<unknown>;
+      }
+    ).onConflictDoNothing({ target: exerciseLinks.templateExerciseId });
+  } else {
+    await insertLink;
+  }
+
+  // Ensure link points to the latest masterExerciseId (idempotent)
+  await db
+    .update(exerciseLinks)
+    .set({
+      masterExerciseId: masterExercise.id,
+    })
+    .where(eq(exerciseLinks.templateExerciseId, templateExerciseId));
+
+  return masterExercise;
+}
+
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, " ");
 }
+
+// Exercise variations dictionary for common exercise names
+const EXERCISE_VARIATIONS = {
+  bench: [
+    "bench press",
+    "barbell bench",
+    "dumbbell bench",
+    "db bench",
+    "bb bench",
+  ],
+  squat: [
+    "squats",
+    "barbell squat",
+    "goblet squat",
+    "front squat",
+    "back squat",
+  ],
+  deadlift: [
+    "deadlifts",
+    "conventional deadlift",
+    "sumo deadlift",
+    "romanian deadlift",
+    "rdl",
+  ],
+  press: ["overhead press", "shoulder press", "military press", "ohp"],
+  row: ["rows", "barbell row", "dumbbell row", "cable row", "machine row"],
+  curl: ["curls", "bicep curl", "dumbbell curl", "barbell curl", "ez bar curl"],
+  extension: ["extensions", "tricep extension", "skullcrusher", "pushdown"],
+  fly: ["flyes", "dumbbell fly", "cable fly", "pec deck"],
+  raise: ["raises", "lateral raise", "front raise", "rear delt raise"],
+  pull: ["pulls", "pull up", "chin up", "lat pulldown", "pull down"],
+};
 
 // Fuzzy matching utility - simple similarity score
 function calculateSimilarity(str1: string, str2: string): number {
@@ -153,6 +286,115 @@ function calculateSimilarity(str1: string, str2: string): number {
 
   const editDistance = levenshteinDistance(longer, shorter);
   return (longer.length - editDistance) / longer.length;
+}
+
+// Enhanced exercise similarity calculation
+function calculateExerciseSimilarity(
+  exercise1: string,
+  exercise2: string,
+): {
+  score: number;
+  matchType: "exact" | "fuzzy" | "partial";
+  details: {
+    exactMatch: boolean;
+    wordOverlap: number;
+    lengthSimilarity: number;
+    commonVariations: string[];
+  };
+} {
+  // 1. Exact normalized match (100%)
+  const normalized1 = normalizeExerciseName(exercise1);
+  const normalized2 = normalizeExerciseName(exercise2);
+
+  if (normalized1 === normalized2) {
+    return {
+      score: 1.0,
+      matchType: "exact",
+      details: {
+        exactMatch: true,
+        wordOverlap: 1.0,
+        lengthSimilarity: 1.0,
+        commonVariations: [],
+      },
+    };
+  }
+
+  // 2. Common variations (bench ↔ bench press, squat ↔ squats)
+  const variations =
+    EXERCISE_VARIATIONS[
+      normalized1.split(" ")[0] as keyof typeof EXERCISE_VARIATIONS
+    ];
+  if (
+    variations?.some((v) => normalized2.includes(v) || v.includes(normalized2))
+  ) {
+    return {
+      score: 0.95,
+      matchType: "fuzzy",
+      details: {
+        exactMatch: false,
+        wordOverlap: 0.9,
+        lengthSimilarity: 0.9,
+        commonVariations: variations,
+      },
+    };
+  }
+
+  // 3. Word-based matching (80-95%)
+  const words1 = normalized1.split(" ");
+  const words2 = normalized2.split(" ");
+  const commonWords = words1.filter((w) => words2.includes(w));
+  const wordOverlap =
+    commonWords.length / Math.max(words1.length, words2.length);
+
+  if (wordOverlap >= 0.7) {
+    return {
+      score: 0.7 + wordOverlap * 0.25,
+      matchType: "fuzzy",
+      details: {
+        exactMatch: false,
+        wordOverlap,
+        lengthSimilarity:
+          1 -
+          Math.abs(exercise1.length - exercise2.length) /
+            Math.max(exercise1.length, exercise2.length),
+        commonVariations: [],
+      },
+    };
+  }
+
+  // 4. Partial matching (60-80%)
+  const contains =
+    exercise1.toLowerCase().includes(exercise2.toLowerCase()) ||
+    exercise2.toLowerCase().includes(exercise1.toLowerCase());
+
+  if (contains) {
+    return {
+      score:
+        0.6 +
+        (Math.min(exercise1.length, exercise2.length) /
+          Math.max(exercise1.length, exercise2.length)) *
+          0.2,
+      matchType: "partial",
+      details: {
+        exactMatch: false,
+        wordOverlap: 0.3,
+        lengthSimilarity: 0.8,
+        commonVariations: [],
+      },
+    };
+  }
+
+  // 5. Low similarity
+  return {
+    score: 0.0,
+    matchType: "partial",
+    details: {
+      exactMatch: false,
+      wordOverlap: 0,
+      lengthSimilarity: 0.5,
+      commonVariations: [],
+    },
+  };
 }
 
 function levenshteinDistance(str1: string, str2: string): number {
@@ -2223,5 +2465,156 @@ export const exercisesRouter = createTRPCRouter({
         sourceName: sourceExercise.name,
         targetName: targetExercise.name,
       };
+    }),
+
+  // Get smart linking suggestions for template exercises
+  getSmartLinkingSuggestions: protectedProcedure
+    .use(apiCallRateLimit)
+    .input(
+      z.object({
+        exercises: z.array(
+          z.object({
+            name: z.string(),
+            tempId: z.string(),
+          }),
+        ),
+        similarityThreshold: z.number().min(0).max(1).default(0.7),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Get all master exercises for comparison
+      const allMasterExercises = await ctx.db
+        .select({
+          id: masterExercises.id,
+          name: masterExercises.name,
+          normalizedName: masterExercises.normalizedName,
+        })
+        .from(masterExercises)
+        .where(eq(masterExercises.user_id, ctx.user.id));
+
+      const suggestions = input.exercises.map((exercise) => {
+        // Find potential matches using enhanced similarity
+        const matches = allMasterExercises
+          .map((masterExercise) => {
+            const similarity = calculateExerciseSimilarity(
+              exercise.name,
+              masterExercise.name,
+            );
+
+            return {
+              masterExerciseId: masterExercise.id,
+              masterName: masterExercise.name,
+              similarity: similarity.score,
+              matchType: similarity.matchType,
+            };
+          })
+          .filter((match) => match.similarity >= input.similarityThreshold)
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 5); // Top 5 matches per exercise
+
+        // Determine recommended action based on best match
+        const bestMatch = matches[0];
+        let recommendedAction: "auto-link" | "manual-review" | "create-new";
+
+        if (!bestMatch) {
+          recommendedAction = "create-new";
+        } else if (
+          bestMatch.similarity > 0.9 ||
+          bestMatch.matchType === "exact"
+        ) {
+          recommendedAction = "auto-link";
+        } else if (bestMatch.similarity >= input.similarityThreshold) {
+          recommendedAction = "manual-review";
+        } else {
+          recommendedAction = "create-new";
+        }
+
+        return {
+          exerciseName: exercise.name,
+          tempId: exercise.tempId,
+          matches,
+          recommendedAction,
+        };
+      });
+
+      // Calculate summary statistics
+      const summary = {
+        totalExercises: suggestions.length,
+        autoLinkCount: suggestions.filter(
+          (s) => s.recommendedAction === "auto-link",
+        ).length,
+        needReviewCount: suggestions.filter(
+          (s) => s.recommendedAction === "manual-review",
+        ).length,
+        createNewCount: suggestions.filter(
+          (s) => s.recommendedAction === "create-new",
+        ).length,
+      };
+
+      return {
+        suggestions,
+        summary,
+      };
+    }),
+
+  // Bulk create and link exercises for templates
+  bulkCreateAndLinkExercises: protectedProcedure
+    .use(apiCallRateLimit)
+    .input(
+      z.object({
+        templateId: z.number(),
+        exercises: z.array(
+          z.object({
+            name: z.string(),
+            orderIndex: z.number(),
+            masterExerciseId: z.number().optional(), // if linking
+            linkingRejected: z.boolean().optional(), // if explicitly rejected
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const createdExercises = [];
+
+      for (const exercise of input.exercises) {
+        // Create template exercise
+        const templateExerciseResult = await ctx.db
+          .insert(templateExercises)
+          .values({
+            user_id: ctx.user.id,
+            templateId: input.templateId,
+            exerciseName: exercise.name,
+            orderIndex: exercise.orderIndex,
+            linkingRejected: exercise.linkingRejected ?? false,
+          })
+          .returning();
+
+        const templateExercise = templateExerciseResult[0];
+        if (!templateExercise) {
+          continue; // Skip if creation failed
+        }
+
+        // Link to master if specified
+        if (exercise.masterExerciseId && !exercise.linkingRejected) {
+          await ctx.db.insert(exerciseLinks).values({
+            templateExerciseId: templateExercise.id,
+            masterExerciseId: exercise.masterExerciseId,
+            user_id: ctx.user.id,
+          });
+        } else if (!exercise.linkingRejected) {
+          // Auto-create master exercise if not rejected and no master specified
+          await createAndLinkMasterExercise(
+            ctx.db,
+            ctx.user.id,
+            exercise.name,
+            templateExercise.id,
+            false,
+          );
+        }
+
+        createdExercises.push(templateExercise);
+      }
+
+      return { createdCount: createdExercises.length };
     }),
 });

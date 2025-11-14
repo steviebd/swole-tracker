@@ -1,7 +1,9 @@
 import { test, expect } from "../fixtures/auth.fixture";
 
 test.describe("Template Creation", () => {
-  test("should create a new empty template", async ({ authenticatedPage }) => {
+  test("should create a new template with exercise linking review", async ({
+    authenticatedPage,
+  }) => {
     const page = authenticatedPage;
 
     // Navigate to templates page
@@ -36,13 +38,17 @@ test.describe("Template Creation", () => {
       await firstOption.click();
     }
 
-    // Move to preview step
+    // Move to preview/linking step (step 3)
     await page.click('button:has-text("Preview")');
 
-    // Save template
-    await page.click(
-      'button:has-text("Create Template"), button:has-text("Save Template")',
-    );
+    // Should show linking review interface
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator("text=Exercise Review")).toBeVisible();
+
+    // Accept the default linking decisions (auto-link or create new)
+    await page.click('button:has-text("Create Template")');
 
     // Should redirect to templates list
     await page.waitForURL("/templates");
@@ -54,7 +60,9 @@ test.describe("Template Creation", () => {
     await expect(templateList).toBeVisible({ timeout: 10000 });
   });
 
-  test("should add exercises to template", async ({ authenticatedPage }) => {
+  test("should add exercises to template with linking review", async ({
+    authenticatedPage,
+  }) => {
     const page = authenticatedPage;
 
     // Navigate to new template
@@ -106,11 +114,21 @@ test.describe("Template Creation", () => {
     await expect(page.locator("text=Squat")).toBeVisible();
     await expect(page.locator("text=Leg Press")).toBeVisible();
 
-    // Move to preview and save
+    // Move to preview/linking step (step 3)
     await page.click('button:has-text("Preview")');
-    await page.click(
-      'button:has-text("Create Template"), button:has-text("Save Template")',
-    );
+
+    // Should show linking review interface
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator("text=Exercise Review")).toBeVisible();
+
+    // Should show both exercises in the review
+    await expect(page.locator("text=Squat")).toBeVisible();
+    await expect(page.locator("text=Leg Press")).toBeVisible();
+
+    // Accept the default linking decisions
+    await page.click('button:has-text("Create Template")');
 
     // Should redirect to templates list
     await page.waitForURL("/templates");
@@ -120,7 +138,7 @@ test.describe("Template Creation", () => {
     await expect(page.locator("text=Leg Day")).toBeVisible({ timeout: 10000 });
   });
 
-  test("should navigate between template form steps", async ({
+  test("should navigate between template form steps including linking review", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
@@ -157,11 +175,16 @@ test.describe("Template Creation", () => {
       page.locator('input[placeholder*="Search exercises"]'),
     ).toBeVisible();
 
-    // Go to preview without exercises (should work)
+    // Go to preview/linking step without exercises (should work)
     await page.click('button:has-text("Preview")');
     await expect(page.locator('button:has-text("Preview")')).toHaveClass(
       /bg-primary/,
     );
+
+    // Should show linking review interface even with no exercises
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
+      timeout: 5000,
+    });
 
     // Go back to exercises
     await page.click('button:has-text("Exercises")');
@@ -215,13 +238,16 @@ test.describe("Template Creation", () => {
       /bg-primary/,
     );
 
-    // Try to go to preview without exercises
+    // Try to go to preview/linking step without exercises
     await page.click('button:has-text("Preview")');
 
-    // Should allow proceeding to preview (empty exercises might be valid)
+    // Should allow proceeding to linking review (empty exercises are valid)
     await expect(page.locator('button:has-text("Preview")')).toHaveClass(
       /bg-primary/,
     );
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("should cancel template creation and return to list", async ({
@@ -244,6 +270,41 @@ test.describe("Template Creation", () => {
 
     // Click back button
     await page.click('a:has-text("Back"), button:has-text("Back")');
+
+    // Should return to templates list
+    await page.waitForURL("/templates");
+    await expect(page.locator("h1")).toContainText("Your Workout Arsenal");
+
+    // Verify unsaved template is not in list
+    await expect(page.locator("text=Unsaved Template")).not.toBeVisible();
+  });
+
+  test("should cancel template creation from linking review step", async ({
+    authenticatedPage,
+  }) => {
+    const page = authenticatedPage;
+
+    await page.goto("/templates/new");
+
+    // Fill some data
+    await page.fill(
+      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
+      "Unsaved Template",
+    );
+    await page.click('button:has-text("Exercises")');
+    await page.fill(
+      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
+      "Test Exercise",
+    );
+
+    // Move to linking review step
+    await page.click('button:has-text("Preview")');
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Click back button from linking review
+    await page.click('button:has-text("Back")');
 
     // Should return to templates list
     await page.waitForURL("/templates");

@@ -871,4 +871,371 @@ describe("templatesRouter - Comprehensive Tests", () => {
       await expect(caller.delete({ id: 1 })).rejects.toThrow("Database error");
     });
   });
+
+  describe("bulkCreateAndLinkExercises", () => {
+    it("should create template with exercises and linking decisions", async () => {
+      const mockTemplate = {
+        id: 1,
+        name: "Test Template",
+        user_id: "user-123",
+        createdAt: new Date("2024-01-15"),
+        updatedAt: new Date("2024-01-15"),
+        exercises: [],
+      };
+
+      const mockTemplateExercises = [
+        {
+          id: 1,
+          user_id: "user-123",
+          templateId: 1,
+          exerciseName: "Bench Press",
+          orderIndex: 0,
+          linkingRejected: false,
+        },
+        {
+          id: 2,
+          user_id: "user-123",
+          templateId: 1,
+          exerciseName: "Squat",
+          orderIndex: 1,
+          linkingRejected: false,
+        },
+      ];
+
+      const mockStats = {
+        lastUsed: null,
+        totalSessions: 0,
+      };
+
+      // Mock template creation
+      mockCtx.db.queueInsertResult([mockTemplate]);
+
+      // Mock template exercises creation
+      mockCtx.db.queueInsertResult(mockTemplateExercises);
+
+      // Mock final template lookup with exercises
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue({
+        ...mockTemplate,
+        exercises: mockTemplateExercises,
+      });
+
+      // Mock stats query
+      mockCtx.db.queueSelectResult([mockStats]);
+
+      const caller = templatesRouter.createCaller(mockCtx);
+      const result = await caller.bulkCreateAndLinkExercises({
+        name: "Test Template",
+        exercises: ["Bench Press", "Squat"],
+        linkingDecisions: [
+          {
+            tempId: "temp-0",
+            action: "link",
+            masterExerciseId: 1,
+          },
+          {
+            tempId: "temp-1",
+            action: "create-new",
+          },
+        ],
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440001",
+      });
+
+      expect(result.name).toBe("Test Template");
+      expect(result.exercises).toHaveLength(2);
+      expect(result.exercises[0]?.exerciseName).toBe("Bench Press");
+      expect(result.exercises[1]?.exerciseName).toBe("Squat");
+    });
+
+    it("should handle linking to existing master exercises", async () => {
+      const mockTemplate = {
+        id: 1,
+        name: "Link Test Template",
+        user_id: "user-123",
+        createdAt: new Date("2024-01-15"),
+        exercises: [],
+      };
+
+      const mockTemplateExercise = {
+        id: 1,
+        user_id: "user-123",
+        templateId: 1,
+        exerciseName: "Bench Press",
+        orderIndex: 0,
+        linkingRejected: false,
+      };
+
+      const mockStats = {
+        lastUsed: null,
+        totalSessions: 0,
+      };
+
+      // Mock template creation
+      mockCtx.db.queueInsertResult([mockTemplate]);
+
+      // Mock template exercise creation
+      mockCtx.db.queueInsertResult([mockTemplateExercise]);
+
+      // Mock exercise link creation
+      mockCtx.db.queueInsertResult([
+        { templateExerciseId: 1, masterExerciseId: 1 },
+      ]);
+
+      // Mock final template lookup
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue({
+        ...mockTemplate,
+        exercises: [mockTemplateExercise],
+      });
+
+      // Mock stats query
+      mockCtx.db.queueSelectResult([mockStats]);
+
+      const caller = templatesRouter.createCaller(mockCtx);
+      const result = await caller.bulkCreateAndLinkExercises({
+        name: "Link Test Template",
+        exercises: ["Bench Press"],
+        linkingDecisions: [
+          {
+            tempId: "temp-0",
+            action: "link",
+            masterExerciseId: 1,
+          },
+        ],
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440002",
+      });
+
+      expect(result.name).toBe("Link Test Template");
+      expect(result.exercises).toHaveLength(1);
+      expect(mockCtx.db.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateExerciseId: 1,
+          masterExerciseId: 1,
+          user_id: "user-123",
+        }),
+      );
+    });
+
+    it("should handle creating new master exercises", async () => {
+      const mockTemplate = {
+        id: 1,
+        name: "New Master Test Template",
+        user_id: "user-123",
+        createdAt: new Date("2024-01-15"),
+        exercises: [],
+      };
+
+      const mockTemplateExercise = {
+        id: 1,
+        user_id: "user-123",
+        templateId: 1,
+        exerciseName: "Custom Exercise",
+        orderIndex: 0,
+        linkingRejected: false,
+      };
+
+      const mockMasterExercise = {
+        id: 1,
+        user_id: "user-123",
+        name: "Custom Exercise",
+        normalizedName: "custom exercise",
+      };
+
+      const mockStats = {
+        lastUsed: null,
+        totalSessions: 0,
+      };
+
+      // Mock template creation
+      mockCtx.db.queueInsertResult([mockTemplate]);
+
+      // Mock template exercise creation
+      mockCtx.db.queueInsertResult([mockTemplateExercise]);
+
+      // Mock master exercise creation (no existing master found)
+      mockCtx.db.queueSelectResult([]); // No existing master exercise
+      mockCtx.db.queueInsertResult([mockMasterExercise]);
+
+      // Mock exercise link creation
+      mockCtx.db.queueInsertResult([
+        { templateExerciseId: 1, masterExerciseId: 1 },
+      ]);
+
+      // Mock final template lookup
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue({
+        ...mockTemplate,
+        exercises: [mockTemplateExercise],
+      });
+
+      // Mock stats query
+      mockCtx.db.queueSelectResult([mockStats]);
+
+      const caller = templatesRouter.createCaller(mockCtx);
+      const result = await caller.bulkCreateAndLinkExercises({
+        name: "New Master Test Template",
+        exercises: ["Custom Exercise"],
+        linkingDecisions: [
+          {
+            tempId: "temp-0",
+            action: "create-new",
+          },
+        ],
+        dedupeKey: "test-dedupe-key-3",
+      });
+
+      expect(result.name).toBe("New Master Test Template");
+      expect(result.exercises).toHaveLength(1);
+      // Should create new master exercise and link it
+      expect(mockCtx.db.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: "user-123",
+          name: "Custom Exercise",
+          normalizedName: "custom exercise",
+        }),
+      );
+    });
+
+    it("should handle rejected linking decisions", async () => {
+      const mockTemplate = {
+        id: 1,
+        name: "Reject Link Test Template",
+        user_id: "user-123",
+        createdAt: new Date("2024-01-15"),
+        exercises: [],
+      };
+
+      const mockTemplateExercise = {
+        id: 1,
+        user_id: "user-123",
+        templateId: 1,
+        exerciseName: "Rejected Exercise",
+        orderIndex: 0,
+        linkingRejected: false,
+      };
+
+      const mockStats = {
+        lastUsed: null,
+        totalSessions: 0,
+      };
+
+      // Mock template creation
+      mockCtx.db.queueInsertResult([mockTemplate]);
+
+      // Mock template exercise creation
+      mockCtx.db.queueInsertResult([mockTemplateExercise]);
+
+      // Mock final template lookup
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue({
+        ...mockTemplate,
+        exercises: [mockTemplateExercise],
+      });
+
+      // Mock stats query
+      mockCtx.db.queueSelectResult([mockStats]);
+
+      const caller = templatesRouter.createCaller(mockCtx);
+      const result = await caller.bulkCreateAndLinkExercises({
+        name: "Reject Link Test Template",
+        exercises: ["Rejected Exercise"],
+        linkingDecisions: [
+          {
+            tempId: "temp-0",
+            action: "reject",
+          },
+        ],
+        dedupeKey: "test-dedupe-key-4",
+      });
+
+      expect(result.name).toBe("Reject Link Test Template");
+      expect(result.exercises).toHaveLength(1);
+      // Should not create any exercise links for rejected exercises
+      expect(mockCtx.db.insert).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateExerciseId: expect.any(Number),
+          masterExerciseId: expect.any(Number),
+        }),
+      );
+    });
+
+    it("should handle dedupeKey conflicts", async () => {
+      const existingTemplate = {
+        id: 1,
+        name: "Existing Template",
+        user_id: "user-123",
+        createdAt: new Date("2024-01-10"),
+        exercises: [],
+      };
+
+      const mockStats = {
+        lastUsed: null,
+        totalSessions: 0,
+      };
+
+      // Mock existing template lookup by dedupeKey
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue(
+        existingTemplate,
+      );
+
+      // Mock final template lookup with exercises
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue({
+        ...existingTemplate,
+        exercises: [],
+      });
+
+      // Mock stats query
+      mockCtx.db.queueSelectResult([mockStats]);
+
+      const caller = templatesRouter.createCaller(mockCtx);
+      const result = await caller.bulkCreateAndLinkExercises({
+        name: "Existing Template",
+        exercises: ["Exercise 1"],
+        linkingDecisions: [
+          {
+            tempId: "temp-0",
+            action: "create-new",
+          },
+        ],
+        dedupeKey: "existing-dedupe-key",
+      });
+
+      expect(result.name).toBe("Existing Template");
+      expect(result.id).toBe(1); // Should return existing template
+    });
+
+    it("should handle empty exercises array", async () => {
+      const mockTemplate = {
+        id: 1,
+        name: "Empty Template",
+        user_id: "user-123",
+        createdAt: new Date("2024-01-15"),
+        exercises: [],
+      };
+
+      const mockStats = {
+        lastUsed: null,
+        totalSessions: 0,
+      };
+
+      // Mock template creation
+      mockCtx.db.queueInsertResult([mockTemplate]);
+
+      // Mock final template lookup
+      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue({
+        ...mockTemplate,
+        exercises: [],
+      });
+
+      // Mock stats query
+      mockCtx.db.queueSelectResult([mockStats]);
+
+      const caller = templatesRouter.createCaller(mockCtx);
+      const result = await caller.bulkCreateAndLinkExercises({
+        name: "Empty Template",
+        exercises: [],
+        linkingDecisions: [],
+        dedupeKey: "empty-dedupe-key",
+      });
+
+      expect(result.name).toBe("Empty Template");
+      expect(result.exercises).toHaveLength(0);
+    });
+  });
 });

@@ -192,6 +192,7 @@ const DashboardRecentWorkoutsView = ({
   repeatingWorkoutId,
   workouts,
 }: DashboardViewProps) => {
+  const router = useRouter();
   const [checklistState, setChecklistState] = React.useState<
     Record<string, boolean>
   >({});
@@ -470,7 +471,7 @@ const DashboardRecentWorkoutsView = ({
                         "Dashboard Debrief button clicked for workout:",
                         workout.id,
                       );
-                      onViewDetails(workout.id);
+                      router.push(`/workouts/${workout.id}`);
                     }}
                     onViewDetails={() => onViewDetails(workout.id)}
                   />
@@ -593,7 +594,7 @@ const CardRecentWorkoutsView = ({
                 workout.id,
               );
               // Navigate to debrief page
-              window.location.href = `/workout/session/${workout.id}`;
+              window.location.href = `/workouts/${workout.id}`;
             };
 
             return (

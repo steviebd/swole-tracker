@@ -505,6 +505,176 @@ export const templatesRouter = createTRPCRouter({
       return response;
     }),
 
+  // Create a new template with exercise linking decisions
+  bulkCreateAndLinkExercises: protectedProcedure
+    .use(templateRateLimit)
+    .input(
+      z.object({
+        name: z.string().min(1).max(256),
+        exercises: z.array(z.string().min(1).max(256)),
+        linkingDecisions: z.array(
+          z.object({
+            tempId: z.string(),
+            action: z.enum(["link", "create-new", "reject"]),
+            masterExerciseId: z.number().optional(),
+          }),
+        ),
+        dedupeKey: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      debugLog("templates.bulkCreateAndLinkExercises: resolver entered", {
+        input,
+        userId: ctx?.user?.id,
+        requestId: ctx.requestId,
+      });
+      const userId = ctx.user.id;
+
+      const dedupeKey = input.dedupeKey;
+
+      const loadTemplateResponse = async (templateId: number) => {
+        const templateWithRelations =
+          await ctx.db.query.workoutTemplates.findFirst({
+            where: eq(workoutTemplates.id, templateId),
+            with: {
+              exercises: {
+                orderBy: (exercises, { asc }) => [asc(exercises.orderIndex)],
+              },
+            },
+          });
+
+        if (!templateWithRelations) {
+          return null;
+        }
+
+        const [stats] = await ctx.db
+          .select({
+            lastUsed: max(workoutSessions.workoutDate).as("lastUsed"),
+            totalSessions: count(workoutSessions.id).as("totalSessions"),
+          })
+          .from(workoutSessions)
+          .where(eq(workoutSessions.templateId, templateId));
+
+        const lastUsedValue = stats?.lastUsed
+          ? stats.lastUsed instanceof Date
+            ? stats.lastUsed
+            : new Date(stats.lastUsed as unknown as string)
+          : null;
+
+        return {
+          ...templateWithRelations,
+          exercises: templateWithRelations.exercises ?? [],
+          lastUsed: lastUsedValue,
+          totalSessions: Number(stats?.totalSessions ?? 0),
+        };
+      };
+
+      // Check for existing template by dedupeKey
+      if (dedupeKey) {
+        const existingByKey = await ctx.db.query.workoutTemplates.findFirst({
+          where: and(
+            eq(workoutTemplates.user_id, userId),
+            eq(workoutTemplates.dedupeKey, dedupeKey),
+          ),
+        });
+
+        if (existingByKey) {
+          debugLog(
+            "templates.bulkCreateAndLinkExercises: returning existing template via dedupeKey",
+            {
+              templateId: existingByKey.id,
+              dedupeKey,
+              requestId: ctx.requestId,
+            },
+          );
+          const response = await loadTemplateResponse(existingByKey.id);
+          if (response) {
+            return response;
+          }
+        }
+      }
+
+      // Create the template
+      const [insertedTemplate] = await ctx.db
+        .insert(workoutTemplates)
+        .values({
+          name: input.name,
+          user_id: userId,
+          dedupeKey,
+        })
+        .returning();
+
+      if (!insertedTemplate) {
+        throw new Error("Failed to create template");
+      }
+
+      // Create template exercises
+      if (input.exercises.length > 0) {
+        const exerciseRows = input.exercises.map((exerciseName, index) => ({
+          user_id: ctx.user.id,
+          templateId: insertedTemplate.id,
+          exerciseName,
+          orderIndex: index,
+          linkingRejected: false,
+        }));
+
+        const batchResults = await chunkedBatch(ctx.db, exerciseRows, (chunk) =>
+          ctx.db.insert(templateExercises).values(chunk).returning(),
+        );
+        const insertedExercises = (
+          batchResults as Array<(typeof templateExercises.$inferSelect)[]>
+        ).flat();
+
+        // Process linking decisions
+        for (const decision of input.linkingDecisions) {
+          // Find the corresponding template exercise by tempId
+          const exerciseIndex = parseInt(decision.tempId.replace("temp-", ""));
+          const templateExercise = insertedExercises[exerciseIndex];
+
+          if (!templateExercise) {
+            debugLog(
+              "templates.bulkCreateAndLinkExercises: template exercise not found",
+              {
+                tempId: decision.tempId,
+                exerciseIndex,
+              },
+            );
+            continue;
+          }
+
+          if (decision.action === "link" && decision.masterExerciseId) {
+            // Create link to existing master exercise
+            await ctx.db.insert(exerciseLinks).values({
+              templateExerciseId: templateExercise.id,
+              masterExerciseId: decision.masterExerciseId,
+              user_id: ctx.user.id,
+            });
+          } else if (decision.action === "create-new") {
+            // Create new master exercise and link it
+            await createAndLinkMasterExercise(
+              ctx.db,
+              ctx.user.id,
+              templateExercise.exerciseName,
+              templateExercise.id,
+              false,
+            );
+          }
+          // If action is "reject", don't create any link
+        }
+      }
+
+      const response = await loadTemplateResponse(insertedTemplate.id);
+      if (!response) {
+        throw new Error("Failed to load template after creation");
+      }
+
+      debugLog("templates.bulkCreateAndLinkExercises: completed", {
+        templateId: insertedTemplate.id,
+        requestId: ctx.requestId,
+      });
+      return response;
+    }),
+
   // Update a template
   update: protectedProcedure
     .use(templateRateLimit)
