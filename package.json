@@ -34,11 +34,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug",
-    "test:e2e:mobile": "playwright test --project=mobile",
-    "test:e2e:headed": "playwright test --headed",
+    "test:e2e": "infisical run --env dev -- playwright test",
+    "test:e2e:ui": "infisical run --env dev -- playwright test --ui",
+    "test:e2e:debug": "infisical run --env dev -- playwright test --debug",
+    "test:e2e:mobile": "infisical run --env dev -- playwright test --project=mobile",
+    "test:e2e:headed": "infisical run --env dev -- playwright test --headed",
     "test:all": "bun run test && bun run test:e2e"
   },
   "dependencies": {
@@ -59,9 +59,9 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
     "@tanstack/zod-form-adapter": "^0.42.1",
-    "@trpc/client": "^11.6.0",
-    "@trpc/react-query": "^11.6.0",
-    "@trpc/server": "^11.6.0",
+    "@trpc/client": "^11.7.0",
+    "@trpc/react-query": "^11.7.0",
+    "@trpc/server": "^11.7.0",
     "@workos-inc/node": "^7.71.0",
     "ai": "5.0.68",
     "class-variance-authority": "^0.7.1",
@@ -125,6 +125,6 @@
   },
   "packageManager": "bun@1.2.21",
   "volta": {
-    "node": "20.19.4"
+    "node": "24.3.0"
   }
 }

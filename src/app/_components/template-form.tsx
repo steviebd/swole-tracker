@@ -11,7 +11,8 @@ import { getQueryKey } from "@trpc/react-query";
 import { api, type RouterInputs, type RouterOutputs } from "~/trpc/react";
 import { formAnalytics } from "~/lib/forms/tanstack-form-config";
 import { analytics } from "~/lib/analytics";
-import { ExerciseInputWithLinking } from "~/app/_components/exercise-input-with-linking";
+import { ExerciseInput } from "~/app/_components/exercise-input";
+import { ExerciseLinkingReview } from "~/app/_components/exercise-linking-review";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
@@ -44,7 +45,11 @@ const sortTemplates = (
   templates: TemplateItem[],
   sort: TemplatesGetAllInput["sort"] | undefined,
 ): TemplateItem[] => {
-  const order = (sort ?? "recent") as "recent" | "lastUsed" | "mostUsed" | "name";
+  const order = (sort ?? "recent") as
+    | "recent"
+    | "lastUsed"
+    | "mostUsed"
+    | "name";
   const copy = [...templates];
 
   switch (order) {
@@ -63,7 +68,7 @@ const sortTemplates = (
         (a, b) =>
           (b.totalSessions ?? 0) - (a.totalSessions ?? 0) ||
           (b.createdAt ? new Date(b.createdAt).getTime() : 0) -
-          (a.createdAt ? new Date(a.createdAt).getTime() : 0),
+            (a.createdAt ? new Date(a.createdAt).getTime() : 0),
       );
       break;
     default:
@@ -93,6 +98,15 @@ const templateFormSchema = z.object({
       }),
     )
     .min(1, "At least one exercise is required"),
+  linkingDecisions: z
+    .array(
+      z.object({
+        tempId: z.string(),
+        action: z.enum(["link", "create-new", "reject"]),
+        masterExerciseId: z.number().optional(),
+      }),
+    )
+    .optional(),
 });
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
@@ -105,13 +119,14 @@ interface TemplateFormProps {
   };
 }
 
-type FormStep = "basics" | "exercises" | "preview";
+type FormStep = "basics" | "exercises" | "linking" | "preview";
 
 export function TemplateForm({ template }: TemplateFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const utils = api.useUtils();
   const [currentStep, setCurrentStep] = useState<FormStep>("basics");
+  const [linkingDecisions, setLinkingDecisions] = useState<any[]>([]);
   const submitRef = useRef(false);
   const lastSubmitRef = useRef<{
     name: string;
@@ -146,7 +161,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
       onBlur: templateFormSchema, // Use lazy validation (onBlur) for better performance
     },
     onSubmit: async ({ value }) => {
+      console.log("TanStack Form onSubmit callback triggered with value:", value);
       await handleSubmit(value);
+    },
+    onSubmitInvalid: ({ value, formApi }) => {
+      console.log("Form submission blocked - validation failed!", {
+        value,
+        errors: formApi.state.errors,
+      });
     },
   });
 
@@ -237,6 +259,51 @@ export function TemplateForm({ template }: TemplateFormProps) {
     },
   });
 
+  const createTemplateWithLinking =
+    api.templates.bulkCreateAndLinkExercises.useMutation({
+      onMutate: async (_newTemplate) => {
+        await utils.templates.getAll.cancel();
+        const previousQueries = snapshotTemplateQueries();
+        return { previousQueries } satisfies TemplateMutationContext;
+      },
+      onError: (err, newTemplate, context) => {
+        const mutationContext = context as TemplateMutationContext | undefined;
+        if (mutationContext?.previousQueries) {
+          restoreTemplateQueries(mutationContext.previousQueries);
+        }
+        submitRef.current = false;
+      },
+      onSuccess: async (data) => {
+        console.log("Template with linking created successfully:", {
+          id: data.id,
+          name: data.name,
+          user_id: data.user_id,
+          createdAt: data.createdAt,
+        });
+        const exercises = form.getFieldValue("exercises");
+        formAnalytics.formSubmissionCompleted("template_form", {
+          templateId: data.id.toString(),
+          exerciseCount: exercises.filter((ex) => ex.exerciseName.trim())
+            .length,
+        });
+        submitRef.current = false;
+
+        const newTemplate = data as TemplateItem;
+
+        updateAllTemplateQueries((current, input) => {
+          if (!shouldIncludeInQuery(newTemplate, input)) {
+            return current;
+          }
+          return upsertTemplateIntoList(current, newTemplate, input?.sort);
+        });
+
+        router.push("/templates");
+      },
+      onSettled: () => {
+        void queryClient.invalidateQueries({ queryKey: templatesQueryKeyRoot });
+      },
+    });
+
   const updateTemplate = api.templates.update.useMutation({
     onMutate: async (updatedTemplate) => {
       await utils.templates.getAll.cancel();
@@ -309,7 +376,11 @@ export function TemplateForm({ template }: TemplateFormProps) {
   });
 
   const handleSubmit = async (data: TemplateFormData) => {
-    console.log("handleSubmit called");
+    console.log("handleSubmit called", {
+      currentStep,
+      linkingDecisionsCount: linkingDecisions.length,
+      data,
+    });
 
     if (isLoading || submitRef.current) {
       console.log("Form already submitting, preventing double submission");
@@ -321,10 +392,14 @@ export function TemplateForm({ template }: TemplateFormProps) {
       .filter((ex) => ex !== "");
     const trimmedName = data.name.trim();
 
+    console.log("Filtered exercises:", filteredExercises);
+    console.log("Linking decisions:", linkingDecisions);
+
     submitRef.current = true;
     const now = Date.now();
     try {
       if (template) {
+        console.log("Updating existing template");
         await updateTemplate.mutateAsync({
           id: template.id,
           name: trimmedName,
@@ -349,15 +424,33 @@ export function TemplateForm({ template }: TemplateFormProps) {
           timestamp: now,
           dedupeKey,
         };
-        console.log("Creating template with data:", {
-          name: trimmedName,
-          exercises: filteredExercises,
-        });
-        await createTemplate.mutateAsync({
-          name: trimmedName,
-          exercises: filteredExercises,
-          dedupeKey,
-        });
+
+        // Use new bulkCreateAndLinkExercises endpoint if we have linking decisions
+        if (linkingDecisions.length > 0) {
+          console.log("Creating template with linking decisions:", {
+            name: trimmedName,
+            exercisesCount: filteredExercises.length,
+            linkingDecisionsCount: linkingDecisions.length,
+            dedupeKey,
+          });
+          await createTemplateWithLinking.mutateAsync({
+            name: trimmedName,
+            exercises: filteredExercises,
+            linkingDecisions,
+            dedupeKey,
+          });
+        } else {
+          console.log("Creating template without linking decisions:", {
+            name: trimmedName,
+            exercisesCount: filteredExercises.length,
+            dedupeKey,
+          });
+          await createTemplate.mutateAsync({
+            name: trimmedName,
+            exercises: filteredExercises,
+            dedupeKey,
+          });
+        }
       }
     } catch (error) {
       console.error("Error saving template:", error);
@@ -371,7 +464,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   };
 
-  const isLoading = createTemplate.isPending || updateTemplate.isPending;
+  const isLoading =
+    createTemplate.isPending ||
+    createTemplateWithLinking.isPending ||
+    updateTemplate.isPending;
 
   // Field array management for exercises
   const addExercise = () => {
@@ -435,6 +531,11 @@ export function TemplateForm({ template }: TemplateFormProps) {
       key: "exercises",
       label: "Exercises",
       description: "Add workout exercises",
+    },
+    {
+      key: "linking",
+      label: "Link Exercises",
+      description: "Review exercise linking suggestions",
     },
     { key: "preview", label: "Preview", description: "Review and save" },
   ];
@@ -530,8 +631,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
         <CardContent>
           <form
             onSubmit={(e) => {
+              console.log("Form onSubmit event triggered!");
               e.preventDefault();
               e.stopPropagation();
+              console.log("About to call form.handleSubmit()");
               void form.handleSubmit();
             }}
             className="space-y-6"
@@ -666,7 +769,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               >
                                 <TanStackFormItem className="flex-1">
                                   <TanStackFormControl>
-                                    <ExerciseInputWithLinking
+                                    <ExerciseInput
                                       value={field.state.value}
                                       onChange={field.handleChange}
                                       placeholder={`Exercise ${index + 1}`}
@@ -803,6 +906,42 @@ export function TemplateForm({ template }: TemplateFormProps) {
               </div>
             )}
 
+            {currentStep === "linking" && (
+              <div className="space-y-6">
+                <ExerciseLinkingReview
+                  templateName={watchedName || "Untitled Template"}
+                  exercises={watchedExercises
+                    .filter((ex) => ex.exerciseName.trim())
+                    .map((ex, index) => ({
+                      name: ex.exerciseName,
+                      tempId: `temp-${index}`, // Generate temporary ID
+                    }))}
+                  onDecisionsChange={(decisions) => {
+                    // Transform decisions to the format expected by the backend
+                    const transformedDecisions = watchedExercises
+                      .filter((ex) => ex.exerciseName.trim())
+                      .map((ex, index) => {
+                        const tempId = `temp-${index}`;
+                        const masterExerciseId = decisions[tempId];
+
+                        return {
+                          tempId,
+                          action: masterExerciseId
+                            ? ("link" as const)
+                            : ("create-new" as const),
+                          masterExerciseId: masterExerciseId
+                            ? parseInt(masterExerciseId, 10)
+                            : undefined,
+                        };
+                      });
+
+                    // Store linking decisions for final submission
+                    setLinkingDecisions(transformedDecisions);
+                  }}
+                />
+              </div>
+            )}
+
             {currentStep === "preview" && (
               <div className="space-y-6">
                 <div className="rounded-lg border p-4">
@@ -882,8 +1021,25 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   </Button>
                 ) : (
                   <Button
-                    type="submit"
+                    type="button"
                     disabled={isLoading || submitRef.current}
+                    onClick={async (e) => {
+                      console.log("Create Template button clicked!", {
+                        currentStep,
+                        isLoading,
+                        submitRefCurrent: submitRef.current,
+                        linkingDecisions,
+                        formState: form.state,
+                      });
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      // Manually trigger form submission
+                      const formValues = form.state.values;
+                      console.log("Form values:", formValues);
+
+                      await handleSubmit(formValues);
+                    }}
                   >
                     {isLoading || submitRef.current
                       ? "Saving..."

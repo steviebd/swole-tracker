@@ -45,30 +45,9 @@ export default async function EditTemplatePage({
         id: template.id,
         name: typeof template.name === "string" ? template.name : "",
         exercises: Array.isArray(template.exercises)
-          ? template.exercises
-              .map((exercise) => {
-                if (
-                  exercise &&
-                  typeof exercise === "object" &&
-                  !Array.isArray(exercise) &&
-                  typeof (exercise as { exerciseName?: unknown })
-                    .exerciseName === "string"
-                ) {
-                  return {
-                    exerciseName: (exercise as { exerciseName: string })
-                      .exerciseName,
-                  };
-                }
-
-                return null;
-              })
-              .filter(
-                (
-                  exercise,
-                ): exercise is {
-                  exerciseName: string;
-                } => exercise !== null,
-              )
+          ? template.exercises.map((exercise) => ({
+              exerciseName: exercise.exerciseName,
+            }))
           : [],
       }
     : undefined;

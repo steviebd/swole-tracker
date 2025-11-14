@@ -10,6 +10,7 @@ import {
 import { sessionDebriefs } from "~/server/db/schema";
 import {
   generateAndPersistDebrief,
+  bulkGenerateAndPersistDebriefs,
   AIDebriefRateLimitError,
 } from "~/server/api/services/session-debrief";
 import { logger } from "~/lib/logger";
@@ -326,5 +327,46 @@ export const sessionDebriefRouter = createTRPCRouter({
       });
 
       return updated;
+    }),
+
+  // Bulk generate debriefs for multiple sessions
+  bulkGenerate: protectedProcedure
+    .input(
+      z.object({
+        sessionIds: z.array(z.number().int().positive()).max(25), // Limit to prevent abuse
+        locale: z.string().optional(),
+        timezone: z.string().optional(),
+        skipIfActive: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await bulkGenerateAndPersistDebriefs({
+          dbClient: ctx.db,
+          userId: ctx.user.id,
+          sessionIds: input.sessionIds,
+          locale: input.locale,
+          timezone: input.timezone,
+          skipIfActive: input.skipIfActive ?? false,
+          trigger: "manual",
+          requestId: ctx.requestId,
+        });
+
+        return {
+          debriefs: result.debriefs,
+          errors: result.errors,
+          totalRequested: input.sessionIds.length,
+          successful: result.debriefs.length,
+          failed: result.errors.length,
+        };
+      } catch (error) {
+        if (error instanceof AIDebriefRateLimitError) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: error.message,
+          });
+        }
+        throw error;
+      }
     }),
 });

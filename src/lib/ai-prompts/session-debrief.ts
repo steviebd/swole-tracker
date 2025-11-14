@@ -4,7 +4,7 @@ const OUTPUT_SCHEMA_SNIPPET = `{
   "summary": string,
   "prHighlights": Array<{
     "exerciseName": string,
-    "metric": "weight" | "volume" | "reps" | "streak" | "consistency" | "readiness" | "other",
+    "metric": "weight" | "volume" | "reps" | "oneRM" | "streak" | "consistency" | "readiness" | "other",
     "summary": string,
     "delta"?: number,
     "unit"?: string,

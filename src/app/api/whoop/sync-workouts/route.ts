@@ -7,6 +7,7 @@ import { eq, desc } from "drizzle-orm";
 import { env } from "~/env";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { getValidAccessToken } from "~/lib/token-rotation";
+import { chunkedBatch } from "~/server/db/chunk-utils";
 
 export const runtime = "nodejs";
 
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
     let newWorkouts = 0;
     const duplicates = workouts.length - newWorkoutData.length;
 
-    // Batch insert new workouts
+    // Batch insert new workouts with chunking for large datasets
     if (newWorkoutData.length > 0) {
       try {
         const workoutValues = newWorkoutData.map((workout) => ({
@@ -195,7 +196,20 @@ export async function POST(request: NextRequest) {
             : null,
         }));
 
-        await db.insert(externalWorkoutsWhoop).values(workoutValues);
+        // Use chunked batch for large datasets to stay under D1 limits
+        if (newWorkoutData.length > 20) {
+          console.log(
+            `Using chunked batch insert for ${newWorkoutData.length} workouts`,
+          );
+          await chunkedBatch(
+            db,
+            workoutValues,
+            (chunk) => db.insert(externalWorkoutsWhoop).values(chunk),
+            { limit: 90, maxStatementsPerBatch: 10 },
+          );
+        } else {
+          await db.insert(externalWorkoutsWhoop).values(workoutValues);
+        }
         newWorkouts = newWorkoutData.length;
       } catch (error) {
         console.error(

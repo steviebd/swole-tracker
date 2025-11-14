@@ -79,6 +79,7 @@ export const workoutsRouter = createTRPCRouter({
       );
 
       logger.debug("Getting recent workouts", { limit: input.limit });
+      // 1. Fetch sessions without template details
       const sessions = await ctx.db.query.workoutSessions.findMany({
         where: and(
           eq(workoutSessions.user_id, ctx.user.id),
@@ -97,21 +98,6 @@ export const workoutsRouter = createTRPCRouter({
           createdAt: true,
         },
         with: {
-          template: {
-            columns: {
-              id: true,
-              name: true,
-            },
-            with: {
-              exercises: {
-                columns: {
-                  id: true,
-                  exerciseName: true,
-                  orderIndex: true,
-                },
-              },
-            },
-          },
           exercises: {
             columns: {
               id: true,
@@ -129,7 +115,44 @@ export const workoutsRouter = createTRPCRouter({
         },
       });
 
-      return sessions;
+      // 2. Get unique template IDs
+      const templateIds = [
+        ...new Set(
+          sessions.map((s) => s.templateId).filter((id): id is number => id !== null),
+        ),
+      ];
+
+      // 3. Batch fetch templates once
+      const templates =
+        templateIds.length > 0
+          ? await ctx.db.query.workoutTemplates.findMany({
+              where: inArray(workoutTemplates.id, templateIds),
+              columns: {
+                id: true,
+                name: true,
+              },
+              with: {
+                exercises: {
+                  columns: {
+                    id: true,
+                    exerciseName: true,
+                    orderIndex: true,
+                  },
+                },
+              },
+            })
+          : [];
+
+      // 4. Create lookup map
+      const templateMap = new Map(templates.map((t) => [t.id, t]));
+
+      // 5. Attach templates to sessions
+      const sessionsWithTemplates = sessions.map((session) => ({
+        ...session,
+        template: session.templateId ? templateMap.get(session.templateId) ?? null : null,
+      }));
+
+      return sessionsWithTemplates;
     }),
 
   // Get a specific workout session

@@ -150,7 +150,10 @@ export const progressRouter = createTRPCRouter({
       const workoutDates = workoutDatesResult.map((row) => row.workoutDate);
 
       // Parallel fetch of all dashboard data
-      const [personalRecords, volumeData, comparativeData] = await Promise.all([
+      const { startDate: prevStartDate, endDate: prevEndDate } =
+        getPreviousPeriod(startDate, endDate);
+
+      const [personalRecords, volumeData, previousData] = await Promise.all([
         calculatePersonalRecords(
           ctx,
           exerciseNames,
@@ -159,21 +162,15 @@ export const progressRouter = createTRPCRouter({
           "both",
         ),
         getVolumeAndStrengthData(ctx, startDate, endDate),
-        // Calculate comparative data inline
-        (async () => {
-          const { startDate: prevStartDate, endDate: prevEndDate } =
-            getPreviousPeriod(startDate, endDate);
-          const [currentData, previousData] = await Promise.all([
-            getVolumeAndStrengthData(ctx, startDate, endDate),
-            getVolumeAndStrengthData(ctx, prevStartDate, prevEndDate),
-          ]);
-          return {
-            current: currentData,
-            previous: previousData,
-            changes: calculateChanges(currentData, previousData),
-          };
-        })(),
+        getVolumeAndStrengthData(ctx, prevStartDate, prevEndDate),
       ]);
+
+      // Use volumeData for both volumeData and comparativeData calculation
+      const comparativeData = {
+        current: volumeData,
+        previous: previousData,
+        changes: calculateChanges(volumeData, previousData),
+      };
 
       const consistencyData = calculateConsistencyMetrics(
         workoutDates,
