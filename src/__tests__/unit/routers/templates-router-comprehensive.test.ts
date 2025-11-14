@@ -575,7 +575,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
         templatesRouter.createCaller(mockCtx).create({
           name: "",
           exercises: [],
-          dedupeKey: "550e8400-e29b-41d4-a716-446655440003",
+          dedupeKey: "550e8400-e29b-41d4-a716-446655440011",
         }),
       ).rejects.toThrow();
     });
@@ -588,7 +588,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
         templatesRouter.createCaller(mockCtx).create({
           name: "Test Template",
           exercises: [],
-          dedupeKey: "550e8400-e29b-41d4-a716-446655440004",
+          dedupeKey: "550e8400-e29b-41d4-a716-446655440012",
         }),
       ).rejects.toThrow();
     });
@@ -1000,7 +1000,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
             masterExerciseId: 1,
           },
         ],
-        dedupeKey: "550e8400-e29b-41d4-a716-446655440002",
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440010",
       });
 
       expect(result.name).toBe("Link Test Template");
@@ -1078,7 +1078,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
             action: "create-new",
           },
         ],
-        dedupeKey: "test-dedupe-key-3",
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440003",
       });
 
       expect(result.name).toBe("New Master Test Template");
@@ -1141,7 +1141,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
             action: "reject",
           },
         ],
-        dedupeKey: "test-dedupe-key-4",
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440004",
       });
 
       expect(result.name).toBe("Reject Link Test Template");
@@ -1193,7 +1193,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
             action: "create-new",
           },
         ],
-        dedupeKey: "existing-dedupe-key",
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440013",
       });
 
       expect(result.name).toBe("Existing Template");
@@ -1231,7 +1231,7 @@ describe("templatesRouter - Comprehensive Tests", () => {
         name: "Empty Template",
         exercises: [],
         linkingDecisions: [],
-        dedupeKey: "empty-dedupe-key",
+        dedupeKey: "550e8400-e29b-41d4-a716-446655440014",
       });
 
       expect(result.name).toBe("Empty Template");
