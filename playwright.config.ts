@@ -20,6 +20,10 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 10000,
     navigationTimeout: 30000,
+    // Slow down actions for interactive testing (comment out for faster CI runs)
+    launchOptions: {
+      slowMo: process.env["SLOW_MO"] ? parseInt(process.env["SLOW_MO"]) : 0,
+    },
   },
 
   projects: [

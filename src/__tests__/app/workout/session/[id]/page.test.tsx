@@ -1,0 +1,582 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { useRouter } from "next/navigation";
+import WorkoutSessionPage from "~/app/workout/session/[id]/page";
+import { api } from "~/trpc/react";
+import { useWorkoutSessionState } from "~/hooks/useWorkoutSessionState";
+import { useWorkoutSessionContext } from "~/contexts/WorkoutSessionContext";
+import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSessionWithHealthAdvice";
+import { GlassHeader } from "~/components/ui/glass-header";
+import { Button } from "~/components/ui/button";
+
+// Mock dependencies
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(),
+}));
+
+vi.mock("~/trpc/react", () => ({
+  api: {
+    workouts: {
+      getById: {
+        useQuery: vi.fn(),
+      },
+    },
+    preferences: {
+      get: {
+        useQuery: vi.fn(),
+      },
+    },
+  },
+}));
+
+vi.mock("~/hooks/useWorkoutSessionState", () => ({
+  useWorkoutSessionState: vi.fn(),
+}));
+
+vi.mock("~/contexts/WorkoutSessionContext", () => ({
+  useWorkoutSessionContext: vi.fn(),
+  WorkoutSessionContext: {
+    Provider: vi.fn(({ children, value }) => (
+      <div
+        data-testid="workout-session-context-provider"
+        data-value={JSON.stringify(value)}
+      >
+        {children}
+      </div>
+    )),
+  },
+}));
+
+vi.mock("~/app/_components/WorkoutSessionWithHealthAdvice", () => ({
+  WorkoutSessionWithHealthAdvice: vi.fn(({ sessionId, onAcceptSuggestion }) => (
+    <div data-testid="workout-session-with-health-advice">
+      <span data-testid="session-id">{sessionId}</span>
+      <button
+        data-testid="accept-suggestion"
+        onClick={() =>
+          onAcceptSuggestion?.({
+            exerciseName: "Test Exercise",
+            setIndex: 0,
+            suggestion: { weight: 100, reps: 10 },
+          })
+        }
+      >
+        Accept Suggestion
+      </button>
+    </div>
+  )),
+}));
+
+vi.mock("~/components/ui/glass-header", () => ({
+  GlassHeader: vi.fn(({ title, subtitle, actions }) => (
+    <header data-testid="glass-header">
+      <h1 data-testid="header-title">{title}</h1>
+      <p data-testid="header-subtitle">{subtitle}</p>
+      <div data-testid="header-actions">{actions}</div>
+    </header>
+  )),
+}));
+
+vi.mock("~/components/ui/button", () => ({
+  Button: vi.fn(({ children, variant, size, asChild, ...props }) => {
+    const ButtonComponent = asChild ? "span" : "button";
+    return (
+      <ButtonComponent
+        data-variant={variant}
+        data-size={size}
+        data-testid={props["data-testid"] || "button"}
+        {...props}
+      >
+        {children}
+      </ButtonComponent>
+    );
+  }),
+}));
+
+describe("WorkoutSessionPage", () => {
+  const mockPush = vi.fn();
+  const mockRouter = { push: mockPush };
+  const mockUseRouter = vi.mocked(useRouter);
+  const mockApiWorkoutsGetById = vi.mocked(api.workouts.getById.useQuery);
+  const mockApiPreferencesGet = vi.mocked(api.preferences.get.useQuery);
+  const mockUseWorkoutSessionState = vi.mocked(useWorkoutSessionState);
+  const mockUseWorkoutSessionContext = vi.mocked(useWorkoutSessionContext);
+
+  const mockWorkoutSession = {
+    id: 123,
+    workoutDate: new Date("2024-01-15"),
+    exercises: [
+      {
+        id: 1,
+        exerciseName: "Bench Press",
+        sets: [
+          { id: 1, weight: 100, reps: 10, unit: "kg" },
+          { id: 2, weight: 105, reps: 8, unit: "kg" },
+        ],
+      },
+    ],
+    template: {
+      id: 1,
+      name: "Upper Body Workout",
+    },
+  };
+
+  const mockSessionState = {
+    exercises: mockWorkoutSession.exercises,
+    updateSet: vi.fn(),
+    loading: false,
+  };
+
+  const mockContextValue = {
+    updateSet: vi.fn(),
+    exercises: mockWorkoutSession.exercises,
+    handleAcceptSuggestion: vi.fn(),
+    sessionState: mockSessionState,
+  } as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseRouter.mockReturnValue(mockRouter as any);
+    mockUseWorkoutSessionContext.mockReturnValue(mockContextValue);
+    mockUseWorkoutSessionState.mockReturnValue(mockSessionState);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("Parameter Validation", () => {
+    it("should redirect to workouts when session ID is invalid", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "invalid" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/workouts");
+      });
+    });
+
+    it("should redirect to workouts when session ID is NaN", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "abc123" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/workouts");
+      });
+    });
+
+    it("should not redirect when session ID is valid", async () => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(mockPush).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("Data Loading", () => {
+    it("should call workouts.getById with correct session ID", async () => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "456" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(mockApiWorkoutsGetById).toHaveBeenCalledWith({ id: 456 });
+      });
+    });
+
+    it("should call preferences.get", async () => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      mockApiPreferencesGet.mockReturnValue({
+        data: { unit: "kg" },
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(mockApiPreferencesGet).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should show not found message when workout session doesn't exist", async () => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: null,
+        error: new Error("Not found"),
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "999" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(screen.getByText("Workout Not Found")).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            /The workout session you're looking for doesn't exist/,
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("should show not found message when there's a workout error", async () => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: null,
+        error: new Error("Database error"),
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(screen.getByText("Workout Not Found")).toBeInTheDocument();
+      });
+    });
+
+    it("should provide back to workouts link when not found", async () => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: null,
+        error: new Error("Not found"),
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const backLink = screen.getByText("Back to Workouts");
+        expect(backLink.closest("a")).toHaveAttribute("href", "/workouts");
+      });
+    });
+  });
+
+  describe("Header Rendering", () => {
+    beforeEach(() => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+    });
+
+    it("should render header with workout name and exercises", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerTitle = screen.getByTestId("header-title");
+        expect(headerTitle).toHaveTextContent(
+          "View Workout: Upper Body Workout",
+        );
+      });
+    });
+
+    it("should render header with just workout name when no exercises", async () => {
+      const workoutWithoutExercises = {
+        ...mockWorkoutSession,
+        exercises: [],
+      };
+
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: workoutWithoutExercises,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerTitle = screen.getByTestId("header-title");
+        expect(headerTitle).toHaveTextContent("Upper Body Workout");
+      });
+    });
+
+    it("should render header with default name when no template", async () => {
+      const workoutWithoutTemplate = {
+        ...mockWorkoutSession,
+        template: null,
+      };
+
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: workoutWithoutTemplate,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerTitle = screen.getByTestId("header-title");
+        expect(headerTitle).toHaveTextContent("View Workout: Workout");
+      });
+    });
+
+    it("should render header subtitle with workout date", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerSubtitle = screen.getByTestId("header-subtitle");
+        expect(headerSubtitle).toHaveTextContent(/1\/15\/2024/);
+      });
+    });
+
+    it("should render back button in header actions", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const backButton = screen.getByText("← Back");
+        expect(backButton.closest("a")).toHaveAttribute("href", "/");
+      });
+    });
+  });
+
+  describe("Workout Session Provider", () => {
+    beforeEach(() => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+    });
+
+    it("should render WorkoutSessionContext.Provider", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const provider = screen.getByTestId("workout-session-context-provider");
+        expect(provider).toBeInTheDocument();
+      });
+    });
+
+    it("should call useWorkoutSessionState with correct session ID", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "789" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(mockUseWorkoutSessionState).toHaveBeenCalledWith({
+          sessionId: 789,
+        });
+      });
+    });
+
+    it("should show loading state when session state is loading", async () => {
+      mockUseWorkoutSessionState.mockReturnValue({
+        ...mockSessionState,
+        loading: true,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Loading workout session..."),
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Workout Session Content", () => {
+    beforeEach(() => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+    });
+
+    it("should render WorkoutSessionWithHealthAdvice", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const workoutComponent = screen.getByTestId(
+          "workout-session-with-health-advice",
+        );
+        expect(workoutComponent).toBeInTheDocument();
+      });
+    });
+
+    it("should pass correct session ID to WorkoutSessionWithHealthAdvice", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "456" } });
+      render(Component);
+
+      await waitFor(() => {
+        const sessionId = screen.getByTestId("session-id");
+        expect(sessionId).toHaveTextContent("456");
+      });
+    });
+
+    it("should pass handleAcceptSuggestion to WorkoutSessionWithHealthAdvice", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const acceptButton = screen.getByTestId("accept-suggestion");
+        expect(acceptButton).toBeInTheDocument();
+      });
+
+      // Test the suggestion acceptance
+      const acceptButton = screen.getByTestId("accept-suggestion");
+      acceptButton.click();
+
+      await waitFor(() => {
+        expect(mockContextValue.handleAcceptSuggestion).toHaveBeenCalledWith({
+          exerciseName: "Test Exercise",
+          setIndex: 0,
+          suggestion: { weight: 100, reps: 10 },
+        });
+      });
+    });
+  });
+
+  describe("Page Structure", () => {
+    beforeEach(() => {
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: mockWorkoutSession,
+        error: null,
+        isLoading: false,
+      } as any);
+    });
+
+    it("should render main element with correct classes", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const main = screen.getByRole("main");
+        expect(main).toHaveClass("min-h-screen", "overflow-x-hidden");
+      });
+    });
+
+    it("should render container with correct classes", async () => {
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const container = screen.getByRole("main").querySelector(".container");
+        expect(container).toHaveClass(
+          "mx-auto",
+          "w-full",
+          "min-w-0",
+          "px-3",
+          "py-4",
+          "sm:px-4",
+          "sm:py-6",
+        );
+      });
+    });
+  });
+
+  describe("Edge Cases", () => {
+    it("should handle workout with invalid date format", async () => {
+      const workoutWithInvalidDate = {
+        ...mockWorkoutSession,
+        workoutDate: "invalid-date",
+      };
+
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: workoutWithInvalidDate,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerSubtitle = screen.getByTestId("header-subtitle");
+        expect(headerSubtitle).toBeInTheDocument();
+        // Should fallback to current date
+      });
+    });
+
+    it("should handle workout with string date", async () => {
+      const workoutWithStringDate = {
+        ...mockWorkoutSession,
+        workoutDate: "2024-01-15T10:30:00Z",
+      };
+
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: workoutWithStringDate,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerSubtitle = screen.getByTestId("header-subtitle");
+        expect(headerSubtitle).toBeInTheDocument();
+      });
+    });
+
+    it("should handle workout with number date (timestamp)", async () => {
+      const workoutWithNumberDate = {
+        ...mockWorkoutSession,
+        workoutDate: 1705311000000, // Jan 15, 2024
+      };
+
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: workoutWithNumberDate,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerSubtitle = screen.getByTestId("header-subtitle");
+        expect(headerSubtitle).toBeInTheDocument();
+      });
+    });
+
+    it("should handle workout with no exercises array", async () => {
+      const workoutWithoutExercises = {
+        ...mockWorkoutSession,
+        exercises: null,
+      };
+
+      mockApiWorkoutsGetById.mockReturnValue({
+        data: workoutWithoutExercises,
+        error: null,
+        isLoading: false,
+      } as any);
+
+      const Component = WorkoutSessionPage({ params: { id: "123" } });
+      render(Component);
+
+      await waitFor(() => {
+        const headerTitle = screen.getByTestId("header-title");
+        expect(headerTitle).toHaveTextContent("Upper Body Workout");
+      });
+    });
+  });
+});

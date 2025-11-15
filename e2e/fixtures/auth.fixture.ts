@@ -1,10 +1,18 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
-// Test credentials for WorkOS - from .env file
+// Test credentials for WorkOS - must be set in environment variables
 const TEST_CREDENTIALS = {
-  email: process.env["E2E_TEST_USERNAME"] || "stevio.wonder@gmail.com",
-  password: process.env["E2E_TEST_PASSWORD"] || "darkdragon",
+  email: process.env["E2E_TEST_USERNAME"],
+  password: process.env["E2E_TEST_PASSWORD"],
 };
+
+// Validate that credentials are provided
+if (!TEST_CREDENTIALS.email || !TEST_CREDENTIALS.password) {
+  throw new Error(
+    "E2E_TEST_USERNAME and E2E_TEST_PASSWORD environment variables must be set for E2E tests. " +
+    "Add them to the .env file in the project root. See e2e/workflow/README.md for details."
+  );
+}
 
 type AuthFixtures = {
   authenticatedPage: Page;
@@ -17,129 +25,53 @@ export const test = base.extend<AuthFixtures>({
       TEST_CREDENTIALS.email,
     );
 
-    // Mock the authentication session API endpoints
-    await page.route("**/api/auth/session", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          user: {
-            id: "e2e-user-id",
-            email: TEST_CREDENTIALS.email,
-            firstName: "Steven",
-            lastName: "Wonder",
-          },
-        }),
-      });
-    });
+    // Navigate to the app home page which will redirect to login
+    await page.goto("/");
 
-    // Mock logout endpoint
-    await page.route("**/api/auth/logout", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ success: true }),
-      });
-    });
+    // Wait for redirect to WorkOS login page
+    await page.waitForURL(/authkit\.app/);
+    console.log("Redirected to WorkOS login page");
 
-    // Mock user preferences
-    await page.route("**/api/trpc/userPreferences.get*", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          result: {
-            data: {
-              id: "e2e-pref-id",
-              userId: "e2e-user-id",
-              theme: "system",
-              units: "metric",
-              created: new Date().toISOString(),
-              updated: new Date().toISOString(),
-            },
-            json: {
-              id: "e2e-pref-id",
-              userId: "e2e-user-id",
-              theme: "system",
-              units: "metric",
-              created: new Date().toISOString(),
-              updated: new Date().toISOString(),
-            },
-          },
-        }),
-      });
-    });
+    // Step 1: Fill in the email field
+    const emailInput = page.locator('input[type="email"], input[name="email"]');
+    await emailInput.waitFor({ state: "visible", timeout: 10000 });
+    await emailInput.fill(TEST_CREDENTIALS.email);
+    console.log("Filled email:", TEST_CREDENTIALS.email);
 
-    // Mock templates API
-    await page.route("**/api/trpc/templates.getAll*", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          result: {
-            data: [],
-            json: [],
-          },
-        }),
-      });
-    });
+    // Step 2: Click the "Continue" button to proceed to password step
+    const continueButton = page.locator('button:has-text("Continue")');
+    await continueButton.waitFor({ state: "visible", timeout: 5000 });
+    await continueButton.click();
+    console.log("Clicked Continue button");
 
-    // Mock master exercises
-    await page.route("**/api/trpc/masterExercises.search*", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          result: {
-            data: [
-              {
-                id: "ex-1",
-                name: "Bench Press",
-                category: "strength",
-                muscleGroups: ["chest", "shoulders", "triceps"],
-              },
-              {
-                id: "ex-2",
-                name: "Squat",
-                category: "strength",
-                muscleGroups: ["quadriceps", "glutes", "hamstrings"],
-              },
-            ],
-            json: [
-              {
-                id: "ex-1",
-                name: "Bench Press",
-                category: "strength",
-                muscleGroups: ["chest", "shoulders", "triceps"],
-              },
-              {
-                id: "ex-2",
-                name: "Squat",
-                category: "strength",
-                muscleGroups: ["quadriceps", "glutes", "hamstrings"],
-              },
-            ],
-          },
-        }),
-      });
-    });
+    // Step 3: Wait for password field to appear (multi-step auth flow)
+    const passwordInput = page.locator('input[type="password"], input[name="password"]');
+    await passwordInput.waitFor({ state: "visible", timeout: 10000 });
+    await passwordInput.fill(TEST_CREDENTIALS.password);
+    console.log("Filled password");
 
-    // Set authentication cookies to simulate logged-in state
-    await page.context().addCookies([
-      {
-        name: "e2e-test",
-        value: "true",
-        domain: "localhost",
-        path: "/",
-        httpOnly: false,
-        sameSite: "Lax" as const,
-      },
-    ]);
+    // Step 4: Click the "Sign in" button (not the magic link button)
+    const submitButton = page.locator('button:has-text("Sign in")').first();
+    await submitButton.click();
+    console.log("Clicked Sign in button");
+
+    // Wait for redirect back to the app
+    await page.waitForURL(/localhost:8787/, { timeout: 30000 });
+    console.log("✓ Successfully authenticated and redirected back to app");
+
+    // Wait for the page to fully load
+    await page.waitForLoadState("networkidle");
 
     await use(page);
 
-    // Cleanup after test
-    await page.context().clearCookies();
+    // Cleanup: logout after test
+    try {
+      await page.goto("/api/auth/logout", { waitUntil: "domcontentloaded" });
+      console.log("Logged out after test");
+    } catch (error) {
+      // Silently ignore logout errors - not critical for test success
+      console.log("Note: Logout cleanup skipped (not critical)");
+    }
   },
 });
 

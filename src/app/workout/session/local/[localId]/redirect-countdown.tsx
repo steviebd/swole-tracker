@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface RedirectCountdownProps {
@@ -8,7 +8,10 @@ interface RedirectCountdownProps {
   seconds?: number;
 }
 
-export function RedirectCountdown({ href, seconds = 5 }: RedirectCountdownProps) {
+export function RedirectCountdown({
+  href,
+  seconds = 5,
+}: RedirectCountdownProps) {
   const router = useRouter();
   const [remaining, setRemaining] = useState(seconds);
 
@@ -37,9 +40,10 @@ export function RedirectCountdown({ href, seconds = 5 }: RedirectCountdownProps)
     <p
       role="status"
       aria-live="polite"
-      className="mt-6 text-sm text-muted-foreground"
+      className="text-muted-foreground mt-6 text-sm"
     >
-      Redirecting to your workout history in {remaining} second{remaining === 1 ? "" : "s"}.
+      Redirecting to your workout history in {remaining} second
+      {remaining === 1 ? "" : "s"}.
     </p>
   );
 }
