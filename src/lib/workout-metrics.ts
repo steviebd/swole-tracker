@@ -100,20 +100,21 @@ const safeDate = (value: Date | string | null | undefined): Date | null => {
 const extractDuration = (workout: RecentWorkout): number | null => {
   const workoutObj = workout as Record<string, unknown>;
 
-  if (typeof workoutObj.duration === "number") {
-    const value = workoutObj.duration;
+  if (typeof workoutObj["duration"] === "number") {
+    const value = workoutObj["duration"];
     return Number.isFinite(value) ? value : null;
   }
 
-  if (typeof workoutObj.durationMinutes === "number") {
-    const value = workoutObj.durationMinutes;
+  if (typeof workoutObj["durationMinutes"] === "number") {
+    const value = workoutObj["durationMinutes"];
     return Number.isFinite(value) ? value : null;
   }
 
   const perfMetrics = (workout as any).perf_metrics;
   if (perfMetrics && typeof perfMetrics === "object") {
-    const durationValue = (perfMetrics as Record<string, unknown>)
-      .durationMinutes;
+    const durationValue = (perfMetrics as Record<string, unknown>)[
+      "durationMinutes"
+    ];
     if (typeof durationValue === "number" && Number.isFinite(durationValue)) {
       return durationValue;
     }

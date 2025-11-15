@@ -64,7 +64,9 @@ export default async function EditTemplatePage({
         </div>
 
         {/* Form */}
-        <TemplateForm template={sanitizedTemplate} />
+        <TemplateForm
+          {...(sanitizedTemplate && { template: sanitizedTemplate })}
+        />
       </div>
     </main>
   );

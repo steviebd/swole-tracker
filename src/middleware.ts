@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SessionCookie } from "~/lib/session-cookie";
+import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
 import { getWorkOS } from "~/lib/workos";
 import { env } from "~/env";
 import {
@@ -129,15 +129,18 @@ export async function middleware(request: NextRequest) {
         const refreshedAt = Math.floor(Date.now() / 1000);
         const newAccessTokenExpiry = refreshedAt + 60 * 60; // 1 hour from now
         const newSessionExpiry = refreshedAt + 72 * 60 * 60; // 72 hours from now
-        const updatedSession = {
+        const updatedSession: WorkOSSession = {
           userId: refreshedSession.user.id,
-          organizationId: refreshedSession.organizationId,
           accessToken: refreshedSession.accessToken,
           refreshToken: refreshedSession.refreshToken ?? null,
           accessTokenExpiresAt: newAccessTokenExpiry,
           sessionExpiresAt: newSessionExpiry,
           expiresAt: newAccessTokenExpiry,
         };
+
+        if (refreshedSession.organizationId) {
+          updatedSession.organizationId = refreshedSession.organizationId;
+        }
 
         // Update session in database
         await SessionCookie.update(request, updatedSession);

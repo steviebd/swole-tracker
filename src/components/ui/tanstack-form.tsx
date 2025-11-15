@@ -166,10 +166,13 @@ export const TanStackFormField = React.memo(function TanStackFormField({
   isTouched?: boolean;
   children: React.ReactNode;
 }) {
-  const contextValue = React.useMemo(
-    () => ({ name, error, isDirty, isTouched }),
-    [name, error, isDirty, isTouched],
-  );
+  const contextValue = React.useMemo(() => {
+    const result: TanStackFormFieldContextValue = { name };
+    if (error) result.error = error;
+    if (isDirty) result.isDirty = isDirty;
+    if (isTouched) result.isTouched = isTouched;
+    return result;
+  }, [name, error, isDirty, isTouched]);
 
   return (
     <TanStackFormFieldContext.Provider value={contextValue}>

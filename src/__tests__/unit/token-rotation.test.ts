@@ -128,7 +128,7 @@ describe("token rotation", () => {
 
   describe("migrateTokens", () => {
     it("skips migration when ENCRYPTION_MASTER_KEY is not available", async () => {
-      delete process.env.ENCRYPTION_MASTER_KEY;
+      delete process.env["ENCRYPTION_MASTER_KEY"];
 
       const mockDb = {
         select: vi.fn().mockReturnValue({
@@ -147,7 +147,7 @@ describe("token rotation", () => {
     });
 
     it("migrates plain-text tokens when encryption key is available", async () => {
-      process.env.ENCRYPTION_MASTER_KEY = "test-key";
+      process.env["ENCRYPTION_MASTER_KEY"] = "test-key";
 
       const mockIntegrations = [
         {
@@ -183,7 +183,7 @@ describe("token rotation", () => {
     });
 
     it("skips already encrypted tokens", async () => {
-      process.env.ENCRYPTION_MASTER_KEY = "test-key";
+      process.env["ENCRYPTION_MASTER_KEY"] = "test-key";
 
       isEncrypted.mockReturnValue(true);
 
@@ -252,7 +252,7 @@ describe("token rotation", () => {
       } as any;
 
       // Disable migration to avoid update function issues
-      delete process.env.ENCRYPTION_MASTER_KEY;
+      delete process.env["ENCRYPTION_MASTER_KEY"];
 
       const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
 
@@ -282,7 +282,7 @@ describe("token rotation", () => {
       } as any;
 
       // Disable migration to avoid update function issues
-      delete process.env.ENCRYPTION_MASTER_KEY;
+      delete process.env["ENCRYPTION_MASTER_KEY"];
 
       const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
 
@@ -328,7 +328,7 @@ describe("token rotation", () => {
       } as any);
 
       // Disable migration to avoid update function issues
-      delete process.env.ENCRYPTION_MASTER_KEY;
+      delete process.env["ENCRYPTION_MASTER_KEY"];
 
       const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
 
@@ -360,7 +360,7 @@ describe("token rotation", () => {
       } as any;
 
       // Disable migration to avoid update function issues
-      delete process.env.ENCRYPTION_MASTER_KEY;
+      delete process.env["ENCRYPTION_MASTER_KEY"];
 
       mockFetch.mockResolvedValue({
         ok: false,

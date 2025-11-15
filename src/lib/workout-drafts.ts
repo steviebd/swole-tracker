@@ -108,35 +108,65 @@ function readDrafts(): WorkoutDraftRecord[] {
           return false;
         const obj = item as Record<string, unknown>;
         return (
-          typeof obj.sessionId === "number" &&
-          typeof obj.updatedAt === "number" &&
-          Array.isArray(obj.exercises)
+          typeof obj["sessionId"] === "number" &&
+          typeof obj["updatedAt"] === "number" &&
+          Array.isArray(obj["exercises"])
         );
       })
       .map((item) => ({
         sessionId: item.sessionId,
         updatedAt:
           typeof item.updatedAt === "number" ? item.updatedAt : Date.now(),
-        exercises: item.exercises.map((exercise: StoredExercise) => ({
-          templateExerciseId: exercise.templateExerciseId,
-          exerciseName: exercise.exerciseName,
-          unit: (exercise.unit as "kg" | "lbs") ?? "kg",
-          sets: Array.isArray(exercise.sets)
-            ? exercise.sets.map((set) => ({
-                id:
-                  typeof set.id === "string"
-                    ? set.id
-                    : `draft-${Math.random().toString(36).slice(2)}`,
-                weight: safeNumber(set.weight),
-                reps: safeNumber(set.reps),
-                sets:
-                  typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
-                unit: (set.unit as "kg" | "lbs") ?? "kg",
-                rpe: safeNumber(set.rpe),
-                rest: safeNumber(set.rest),
-              }))
-            : [],
-        })),
+        exercises: item.exercises.map(
+          (exercise: StoredExercise): StoredExercise => {
+            const exerciseResult: StoredExercise = {
+              exerciseName: exercise.exerciseName,
+              unit: (exercise.unit as "kg" | "lbs") ?? "kg",
+              sets: [],
+            };
+            if (exercise.templateExerciseId !== undefined) {
+              exerciseResult.templateExerciseId = exercise.templateExerciseId;
+            }
+            exerciseResult.sets = Array.isArray(exercise.sets)
+              ? exercise.sets.map((set) => {
+                  const setResult: StoredSet = {
+                    id:
+                      typeof set.id === "string"
+                        ? set.id
+                        : `draft-${Math.random().toString(36).slice(2)}`,
+                    sets:
+                      typeof set.sets === "number" && set.sets > 0
+                        ? set.sets
+                        : 1,
+                    unit: (set.unit as "kg" | "lbs") ?? "kg",
+                  };
+
+                  const weight = safeNumber(set.weight);
+                  if (weight !== undefined) {
+                    setResult.weight = weight;
+                  }
+
+                  const reps = safeNumber(set.reps);
+                  if (reps !== undefined) {
+                    setResult.reps = reps;
+                  }
+
+                  const rpe = safeNumber(set.rpe);
+                  if (rpe !== undefined) {
+                    setResult.rpe = rpe;
+                  }
+
+                  const rest = safeNumber(set.rest);
+                  if (rest !== undefined) {
+                    setResult.rest = rest;
+                  }
+
+                  return setResult;
+                })
+              : [];
+            return exerciseResult;
+          },
+        ),
       }));
   } catch {
     return [];
@@ -254,7 +284,9 @@ export function getMostRecentWorkoutDraft(): WorkoutDraftRecord | null {
     return null;
   }
 
-  return drafts.reduce((latest, current) =>
-    current.updatedAt > latest.updatedAt ? current : latest,
-  drafts[0]!);
+  return drafts.reduce(
+    (latest, current) =>
+      current.updatedAt > latest.updatedAt ? current : latest,
+    drafts[0]!,
+  );
 }

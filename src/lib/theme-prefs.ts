@@ -1,4 +1,10 @@
-export type ThemeMode = "system" | "light" | "dark" | "cool" | "warm" | "neutral";
+export type ThemeMode =
+  | "system"
+  | "light"
+  | "dark"
+  | "cool"
+  | "warm"
+  | "neutral";
 
 export type ThemeVariant = "light" | "dark" | "cool" | "warm" | "neutral";
 
@@ -35,15 +41,17 @@ function isThemeVariant(value: unknown): value is ThemeVariant {
   return typeof value === "string" && THEME_VARIANTS.has(value as ThemeVariant);
 }
 
-export function parseThemeCookie(value?: string | null): ThemePreference | null {
+export function parseThemeCookie(
+  value?: string | null,
+): ThemePreference | null {
   if (!value) return null;
 
   try {
     const decoded = decodeURIComponent(value);
     const parsed = JSON.parse(decoded);
     if (parsed && typeof parsed === "object") {
-      const mode = (parsed as Record<string, unknown>).mode;
-      const resolved = (parsed as Record<string, unknown>).resolved;
+      const mode = (parsed as Record<string, unknown>)["mode"];
+      const resolved = (parsed as Record<string, unknown>)["resolved"];
       if (isThemeMode(mode) && isThemeVariant(resolved)) {
         return { mode, resolved };
       }

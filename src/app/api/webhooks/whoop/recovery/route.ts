@@ -64,7 +64,9 @@ async function fetchRecoveryFromWhoop(
           resting_heart_rate: 52,
           resting_heart_rate_baseline: 54,
         },
-        date: new Date().toISOString().split("T")[0],
+        ...(new Date().toISOString().split("T")[0] && {
+          date: new Date().toISOString().split("T")[0],
+        }),
         timezone_offset: "-08:00",
       };
     }
@@ -113,7 +115,7 @@ async function fetchRecoveryFromWhoop(
 
     // Runtime validation
     const obj = recoveryData as Record<string, unknown>;
-    if (typeof obj.id === "string") {
+    if (typeof obj["id"] === "string") {
       return obj as unknown as WhoopRecoveryData;
     }
 

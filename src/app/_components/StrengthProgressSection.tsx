@@ -222,49 +222,6 @@ export function StrengthProgressSection({
         topSetsResponse.data.length,
       );
     }
-
-    function ExportButton({
-      exerciseName,
-      templateExerciseId,
-      timeRange,
-    }: {
-      exerciseName: string | null;
-      templateExerciseId: number | null;
-      timeRange: TimeRange;
-    }) {
-      const [isExporting, setIsExporting] = useState(false);
-
-      const handleExport = async () => {
-        if (!exerciseName && !templateExerciseId) return;
-
-        setIsExporting(true);
-        try {
-          // This would typically call the export API and trigger a download
-          // For now, we'll just show a placeholder
-          console.log("Exporting data for", {
-            exerciseName,
-            templateExerciseId,
-            timeRange,
-          });
-          // In a real implementation, you'd fetch the CSV and create a download link
-        } catch (error) {
-          console.error("Export failed:", error);
-        } finally {
-          setIsExporting(false);
-        }
-      };
-
-      return (
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isExporting || (!exerciseName && !templateExerciseId)}
-          className="btn-outline w-full disabled:opacity-50 sm:w-auto"
-        >
-          {isExporting ? "Exporting..." : "Export CSV"}
-        </button>
-      );
-    }
   }, [topSetsResponse?.data, topSetsLoading, startTime]);
 
   const selectedOptionId = useMemo(() => {
@@ -636,7 +593,7 @@ export function StrengthProgressSection({
             pageSize={pageSize}
             sortConfig={sortConfig}
             setSortConfig={setSortConfig}
-            trendSummary={trendSummary}
+            trendSummary={trendSummary ?? null}
             hasMultiplePages={hasMultiplePages}
             totalPages={totalPages}
             setCurrentPage={setCurrentPage}

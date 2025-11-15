@@ -224,7 +224,7 @@ const StatsGrid = React.forwardRef<HTMLDivElement, StatsGridProps>(
             <StatCard
               label={card.label}
               value={card.value}
-              change={card.change}
+              {...(card.change && { change: card.change })}
               icon={card.icon}
             />
           </motion.div>

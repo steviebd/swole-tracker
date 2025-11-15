@@ -161,7 +161,7 @@ export const t = initTRPC.context<TRPCContext>().create({
 
     // In tests, surface full stack to console to diagnose failing chains
     const isTest =
-      Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
+      Boolean(process.env["VITEST"]) || process.env.NODE_ENV === "test";
     if (level === "error") {
       logger.error("tRPC internal error", error, {
         path,

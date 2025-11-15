@@ -138,7 +138,7 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
       return (
         <>
           <DashboardRecentWorkoutsView
-            className={className}
+            {...(className && { className })}
             error={error}
             forwardedRef={ref}
             isLoading={isLoading}
@@ -157,7 +157,7 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
     return (
       <>
         <CardRecentWorkoutsView
-          className={className}
+          {...(className && { className })}
           error={error}
           forwardedRef={ref}
           isLoading={isLoading}

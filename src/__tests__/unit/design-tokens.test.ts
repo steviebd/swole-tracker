@@ -33,7 +33,7 @@ describe("Design Tokens", () => {
     it("should return scheme for theme and kind", () => {
       const result = getScheme("light", "light");
       expect(result).toBeDefined();
-      expect(typeof result.primary).toBe("string");
+      expect(typeof result["primary"]).toBe("string");
     });
   });
 
@@ -52,7 +52,7 @@ describe("Design Tokens", () => {
   describe("materialThemes", () => {
     it("should have light theme", () => {
       expect(materialThemes.light).toBeDefined();
-      expect(materialThemes.light.palettes.primary).toBeDefined();
+      expect(materialThemes.light.palettes["primary"]).toBeDefined();
     });
   });
 

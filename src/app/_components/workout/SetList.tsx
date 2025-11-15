@@ -49,7 +49,7 @@ export function SetList({
           setIndex={setIndex}
           exerciseIndex={exerciseIndex}
           exerciseName={exerciseName}
-          templateExerciseId={templateExerciseId}
+          {...(templateExerciseId !== undefined && { templateExerciseId })}
           onUpdate={onUpdate}
           onToggleUnit={onToggleUnit}
           onDelete={onDeleteSet}
@@ -57,28 +57,24 @@ export function SetList({
           showDelete={sets.length > 1}
           preferredUnit={preferredUnit}
           // Arrow button handlers
-          onMoveUp={
-            setIndex > 0
-              ? () => {
-                  console.log("[SetList] onMoveUp callback triggered", {
-                    exerciseIndex,
-                    setIndex,
-                  });
-                  onMoveSet(exerciseIndex, setIndex, "up");
-                }
-              : undefined
-          }
-          onMoveDown={
-            setIndex < sets.length - 1
-              ? () => {
-                  console.log("[SetList] onMoveDown callback triggered", {
-                    exerciseIndex,
-                    setIndex,
-                  });
-                  onMoveSet(exerciseIndex, setIndex, "down");
-                }
-              : undefined
-          }
+          {...(setIndex > 0 && {
+            onMoveUp: () => {
+              console.log("[SetList] onMoveUp callback triggered", {
+                exerciseIndex,
+                setIndex,
+              });
+              onMoveSet(exerciseIndex, setIndex, "up");
+            },
+          })}
+          {...(setIndex < sets.length - 1 && {
+            onMoveDown: () => {
+              console.log("[SetList] onMoveDown callback triggered", {
+                exerciseIndex,
+                setIndex,
+              });
+              onMoveSet(exerciseIndex, setIndex, "down");
+            },
+          })}
         />
       ))}
 
@@ -86,7 +82,7 @@ export function SetList({
       {!readOnly && (
         <div>
           <button
-            className="w-full rounded-md border border-border bg-background py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            className="border-border bg-background text-foreground hover:bg-muted w-full rounded-md border py-2 text-sm transition-colors"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

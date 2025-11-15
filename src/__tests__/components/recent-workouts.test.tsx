@@ -52,7 +52,7 @@ async function renderRecentWorkouts(
       httpBatchLink({
         url: "http://mock-trpc", // not used but required
         transformer: SuperJSON,
-        fetch: fetchImpl,
+        fetch: fetchImpl as any,
       }),
     ],
   });

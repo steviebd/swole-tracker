@@ -249,7 +249,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                             type: "spring",
                             stiffness: 500,
                             damping: 30,
-                            duration: prefersReducedMotion ? 0 : undefined,
+                            ...(prefersReducedMotion && { duration: 0 }),
                           }}
                         />
                         <span className="sr-only">
@@ -538,7 +538,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                             type: "spring",
                             stiffness: 500,
                             damping: 30,
-                            duration: prefersReducedMotion ? 0 : undefined,
+                            ...(prefersReducedMotion && { duration: 0 }),
                           }}
                         />
                         <span className="sr-only">

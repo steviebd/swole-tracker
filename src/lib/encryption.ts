@@ -45,7 +45,7 @@ async function deriveKey(
  * Get the master encryption key from environment variables
  */
 function getMasterKey(): string {
-  const masterKey = process.env.ENCRYPTION_MASTER_KEY;
+  const masterKey = process.env["ENCRYPTION_MASTER_KEY"];
   if (!masterKey) {
     throw new Error(
       "ENCRYPTION_MASTER_KEY environment variable is required for token encryption",
@@ -119,7 +119,7 @@ export async function encryptToken(plaintext: string): Promise<string> {
 export async function decryptToken(encryptedData: string): Promise<string> {
   try {
     // Validate token format before attempting decryption
-    if (!encryptedData || typeof encryptedData !== 'string') {
+    if (!encryptedData || typeof encryptedData !== "string") {
       throw new Error("Invalid token format: token must be a non-empty string");
     }
 
@@ -144,7 +144,10 @@ export async function decryptToken(encryptedData: string): Promise<string> {
       );
     } catch (decodeError) {
       console.error("Token decryption: Base64 decode failed", {
-        error: decodeError instanceof Error ? decodeError.message : "Unknown decode error",
+        error:
+          decodeError instanceof Error
+            ? decodeError.message
+            : "Unknown decode error",
         tokenLength: encryptedData.length,
       });
       throw new Error("Invalid token format: failed to decode base64");
@@ -157,12 +160,16 @@ export async function decryptToken(encryptedData: string): Promise<string> {
 
     // Validate minimum length for our format
     if (combined.length < SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1) {
-      throw new Error(`Invalid token format: decoded data too short (${combined.length} bytes, minimum ${SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1} bytes)`);
+      throw new Error(
+        `Invalid token format: decoded data too short (${combined.length} bytes, minimum ${SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1} bytes)`,
+      );
     }
 
     // Extract components
     const salt = combined.subarray(0, SALT_LENGTH);
-    const iv = new Uint8Array(combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH));
+    const iv = new Uint8Array(
+      combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH),
+    );
     const tag = combined.subarray(
       SALT_LENGTH + IV_LENGTH,
       SALT_LENGTH + IV_LENGTH + TAG_LENGTH,
@@ -182,7 +189,10 @@ export async function decryptToken(encryptedData: string): Promise<string> {
       console.log("Token decryption: Key derivation successful");
     } catch (keyError) {
       console.error("Token decryption: Key derivation failed", {
-        error: keyError instanceof Error ? keyError.message : "Unknown key derivation error",
+        error:
+          keyError instanceof Error
+            ? keyError.message
+            : "Unknown key derivation error",
         saltLength: salt.length,
       });
       throw new Error("Key derivation failed during decryption");
@@ -210,13 +220,18 @@ export async function decryptToken(encryptedData: string): Promise<string> {
       console.log("Token decryption: Decryption successful");
     } catch (decryptError) {
       console.error("Token decryption: Crypto decryption failed", {
-        error: decryptError instanceof Error ? decryptError.message : "Unknown decryption error",
+        error:
+          decryptError instanceof Error
+            ? decryptError.message
+            : "Unknown decryption error",
         encryptedLength: encrypted.length,
         ivLength: iv.length,
         tagLength: tag.length,
         ciphertextLength: ciphertext.length,
       });
-      throw new Error("Cryptographic decryption failed - possible key mismatch or corrupted data");
+      throw new Error(
+        "Cryptographic decryption failed - possible key mismatch or corrupted data",
+      );
     }
 
     const decoder = new TextDecoder();

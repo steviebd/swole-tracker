@@ -9,22 +9,33 @@ const useSyncIndicatorMock = vi.fn<() => UseSyncIndicatorResult>();
 
 const createIndicatorState = (
   overrides: Partial<UseSyncIndicatorResult> = {},
-): UseSyncIndicatorResult => ({
-  status: "idle",
-  isActive: false,
-  tone: "success",
-  badgeText: "All synced",
-  description: "All changes are synced and ready.",
-  pendingOperations: 0,
-  failedOperations: 0,
-  lastSync: undefined,
-  nextRetry: undefined,
-  isOnline: true,
-  isBusy: false,
-  manualSync: vi.fn(),
-  canManualSync: false,
-  ...overrides,
-});
+): UseSyncIndicatorResult => {
+  const baseResult: UseSyncIndicatorResult = {
+    status: "idle",
+    isActive: false,
+    tone: "success",
+    badgeText: "All synced",
+    description: "All changes are synced and ready.",
+    pendingOperations: 0,
+    failedOperations: 0,
+    isOnline: true,
+    isBusy: false,
+    manualSync: vi.fn(),
+    canManualSync: false,
+  };
+
+  // Only add optional properties if they're provided
+  if (overrides.lastSync !== undefined) {
+    baseResult.lastSync = overrides.lastSync;
+  }
+  if (overrides.nextRetry !== undefined) {
+    baseResult.nextRetry = overrides.nextRetry;
+  }
+
+  // Apply remaining overrides
+  const { lastSync, nextRetry, ...remainingOverrides } = overrides;
+  return Object.assign(baseResult, remainingOverrides);
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,9 +48,7 @@ describe("SyncIndicator", () => {
       createIndicatorState({ status: "idle", isActive: false }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.queryByText("All synced")).not.toBeInTheDocument();
   });
@@ -55,14 +64,14 @@ describe("SyncIndicator", () => {
       }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.getByText("Saving...")).toBeInTheDocument();
     const indicator = screen.getByText("Saving...").closest("div");
     expect(indicator).toHaveClass("bg-blue-600");
-    expect(document.querySelectorAll('[data-testid="animated-dot"]')).toHaveLength(3);
+    expect(
+      document.querySelectorAll('[data-testid="animated-dot"]'),
+    ).toHaveLength(3);
   });
 
   it("renders syncing state with animated dots", () => {
@@ -76,14 +85,14 @@ describe("SyncIndicator", () => {
       }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.getByText("Syncing...")).toBeInTheDocument();
     const indicator = screen.getByText("Syncing...").closest("div");
     expect(indicator).toHaveClass("bg-blue-600");
-    expect(document.querySelectorAll('[data-testid="animated-dot"]')).toHaveLength(3);
+    expect(
+      document.querySelectorAll('[data-testid="animated-dot"]'),
+    ).toHaveLength(3);
   });
 
   it("renders offline state with pulse indicator", () => {
@@ -97,14 +106,14 @@ describe("SyncIndicator", () => {
       }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.getByText("Offline")).toBeInTheDocument();
     const indicator = screen.getByText("Offline").closest("div");
     expect(indicator).toHaveClass("bg-orange-600");
-    expect(document.querySelector('[data-testid="pulse-dot"]')).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-testid="pulse-dot"]'),
+    ).toBeInTheDocument();
   });
 
   it("renders error state with indicator", () => {
@@ -118,14 +127,14 @@ describe("SyncIndicator", () => {
       }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.getByText("Needs attention")).toBeInTheDocument();
     const indicator = screen.getByText("Needs attention").closest("div");
     expect(indicator).toHaveClass("bg-red-600");
-    expect(document.querySelector('[data-testid="error-indicator"]')).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-testid="error-indicator"]'),
+    ).toBeInTheDocument();
   });
 
   it("renders offline state with pending operations", () => {
@@ -140,9 +149,7 @@ describe("SyncIndicator", () => {
       }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.getByText("Offline (3)")).toBeInTheDocument();
   });
@@ -159,9 +166,7 @@ describe("SyncIndicator", () => {
       }),
     );
 
-    render(
-      <SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />,
-    );
+    render(<SyncIndicator useSyncIndicatorHook={useSyncIndicatorMock} />);
 
     expect(screen.getByText("2 to retry")).toBeInTheDocument();
   });

@@ -27,7 +27,14 @@ let nodeClient: PosthogSurface | null = null;
 
 // Test-only override hook: allows unit tests to inject a PostHog constructor
 // without importing server-only modules in jsdom. Not used in production.
-type PHCtor = (key: string, opts?: { host?: string; api_host?: string; loaded?: (instance: PostHog) => void }) => PostHog;
+type PHCtor = (
+  key: string,
+  opts?: {
+    host?: string;
+    api_host?: string;
+    loaded?: (instance: PostHog) => void;
+  },
+) => PostHog;
 let __TEST_ONLY_PostHogCtor: PHCtor | null = null;
 export function __setTestPosthogCtor(ctor: PHCtor | null) {
   __TEST_ONLY_PostHogCtor = ctor;
@@ -57,7 +64,7 @@ function getServerClient(): PosthogSurface {
   // If we've already wrapped a client, return it
   if (nodeClient) return nodeClient;
 
-  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const key = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
   if (!key) {
     // No key configured: return a no-op to keep server paths import-safe in tests
     return getBrowserClient();
@@ -74,15 +81,18 @@ function getServerClient(): PosthogSurface {
     }
 
     // Initialize PostHog - handle both constructor and instance cases
-    const ph: PostHog = typeof PH === "function"
-      ? (PH as PHCtor)(key, {
-          api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-          loaded: (ph: PostHog) => {
-            // Set distinct id for server
-            ph.register({ distinct_id: "server" });
-          },
-        })
-      : PH as PostHog;
+    const ph: PostHog =
+      typeof PH === "function"
+        ? (PH as PHCtor)(key, {
+            ...(process.env["NEXT_PUBLIC_POSTHOG_HOST"] && {
+              api_host: process.env["NEXT_PUBLIC_POSTHOG_HOST"],
+            }),
+            loaded: (ph: PostHog) => {
+              // Set distinct id for server
+              ph.register({ distinct_id: "server" });
+            },
+          })
+        : (PH as PostHog);
 
     return ph;
   })();

@@ -1,6 +1,6 @@
 /**
  * Achievement System for Swole Tracker
- * 
+ *
  * Provides badge calculation, streak tracking, and progress milestones
  * to enhance user motivation and engagement.
  */
@@ -11,7 +11,7 @@ export interface Achievement {
   description: string;
   badgeColor: string;
   threshold: number;
-  type: 'goal' | 'streak' | 'milestone' | 'special';
+  type: "goal" | "streak" | "milestone" | "special";
 }
 
 export interface StreakInfo {
@@ -30,106 +30,105 @@ export interface ProgressMilestone {
 const ACHIEVEMENTS: Achievement[] = [
   // Goal-based achievements
   {
-    id: 'perfect-week',
-    title: 'Perfect!',
-    description: 'Completed 100% of weekly goal',
-    badgeColor: 'gradient-stats-orange',
+    id: "perfect-week",
+    title: "Perfect!",
+    description: "Completed 100% of weekly goal",
+    badgeColor: "gradient-stats-orange",
     threshold: 100,
-    type: 'goal'
+    type: "goal",
   },
   {
-    id: 'exceeded-week',
-    title: 'Exceeded!',
-    description: 'Exceeded 110% of weekly goal',
-    badgeColor: 'gradient-stats-amber',
+    id: "exceeded-week",
+    title: "Exceeded!",
+    description: "Exceeded 110% of weekly goal",
+    badgeColor: "gradient-stats-amber",
     threshold: 110,
-    type: 'goal'
+    type: "goal",
   },
   {
-    id: 'nearly-perfect',
-    title: 'Almost There!',
-    description: 'Reached 90% of weekly goal',
-    badgeColor: 'gradient-stats-red',
+    id: "nearly-perfect",
+    title: "Almost There!",
+    description: "Reached 90% of weekly goal",
+    badgeColor: "gradient-stats-red",
     threshold: 90,
-    type: 'goal'
+    type: "goal",
   },
-  
+
   // Streak achievements
   {
-    id: 'streak-3',
-    title: 'Hat Trick',
-    description: '3-day workout streak',
-    badgeColor: 'gradient-stats-orange',
+    id: "streak-3",
+    title: "Hat Trick",
+    description: "3-day workout streak",
+    badgeColor: "gradient-stats-orange",
     threshold: 3,
-    type: 'streak'
+    type: "streak",
   },
   {
-    id: 'streak-7',
-    title: 'Week Warrior',
-    description: '7-day workout streak',
-    badgeColor: 'gradient-stats-amber',
+    id: "streak-7",
+    title: "Week Warrior",
+    description: "7-day workout streak",
+    badgeColor: "gradient-stats-amber",
     threshold: 7,
-    type: 'streak'
+    type: "streak",
   },
   {
-    id: 'streak-14',
-    title: 'Fortnight Fighter',
-    description: '14-day workout streak',
-    badgeColor: 'gradient-stats-orange',
+    id: "streak-14",
+    title: "Fortnight Fighter",
+    description: "14-day workout streak",
+    badgeColor: "gradient-stats-orange",
     threshold: 14,
-    type: 'streak'
+    type: "streak",
   },
   {
-    id: 'streak-30',
-    title: 'Monthly Master',
-    description: '30-day workout streak',
-    badgeColor: 'gradient-stats-red',
+    id: "streak-30",
+    title: "Monthly Master",
+    description: "30-day workout streak",
+    badgeColor: "gradient-stats-red",
     threshold: 30,
-    type: 'streak'
+    type: "streak",
   },
-  
+
   // Progress milestones
   {
-    id: 'first-workout',
-    title: 'Getting Started',
-    description: 'Completed your first workout',
-    badgeColor: 'gradient-stats-orange',
+    id: "first-workout",
+    title: "Getting Started",
+    description: "Completed your first workout",
+    badgeColor: "gradient-stats-orange",
     threshold: 1,
-    type: 'milestone'
+    type: "milestone",
   },
   {
-    id: 'volume-milestone-10k',
-    title: 'Heavy Lifter',
-    description: 'Lifted 10,000kg total volume',
-    badgeColor: 'gradient-stats-amber',
+    id: "volume-milestone-10k",
+    title: "Heavy Lifter",
+    description: "Lifted 10,000kg total volume",
+    badgeColor: "gradient-stats-amber",
     threshold: 10000,
-    type: 'milestone'
+    type: "milestone",
   },
   {
-    id: 'volume-milestone-50k',
-    title: 'Volume Crusher',
-    description: 'Lifted 50,000kg total volume',
-    badgeColor: 'gradient-stats-red',
+    id: "volume-milestone-50k",
+    title: "Volume Crusher",
+    description: "Lifted 50,000kg total volume",
+    badgeColor: "gradient-stats-red",
     threshold: 50000,
-    type: 'milestone'
+    type: "milestone",
   },
   {
-    id: 'consistency-champion',
-    title: 'Consistency Champion',
-    description: 'Maintained 80% weekly consistency for a month',
-    badgeColor: 'gradient-stats-orange',
+    id: "consistency-champion",
+    title: "Consistency Champion",
+    description: "Maintained 80% weekly consistency for a month",
+    badgeColor: "gradient-stats-orange",
     threshold: 80,
-    type: 'special'
-  }
+    type: "special",
+  },
 ];
 
 /**
  * Calculate achievements based on goal progress percentage
  */
 export function calculateGoalAchievements(percentage: number): Achievement[] {
-  return ACHIEVEMENTS
-    .filter(achievement => achievement.type === 'goal')
-    .filter(achievement => percentage >= achievement.threshold)
+  return ACHIEVEMENTS.filter((achievement) => achievement.type === "goal")
+    .filter((achievement) => percentage >= achievement.threshold)
     .sort((a, b) => b.threshold - a.threshold); // Return highest threshold first
 }
 
@@ -144,10 +143,11 @@ export function getBestGoalAchievement(percentage: number): Achievement | null {
 /**
  * Calculate streak-based achievements
  */
-export function calculateStreakAchievements(streakInfo: StreakInfo): Achievement[] {
-  return ACHIEVEMENTS
-    .filter(achievement => achievement.type === 'streak')
-    .filter(achievement => streakInfo.current >= achievement.threshold)
+export function calculateStreakAchievements(
+  streakInfo: StreakInfo,
+): Achievement[] {
+  return ACHIEVEMENTS.filter((achievement) => achievement.type === "streak")
+    .filter((achievement) => streakInfo.current >= achievement.threshold)
     .sort((a, b) => b.threshold - a.threshold);
 }
 
@@ -162,31 +162,38 @@ export function getStreakBadge(streakInfo: StreakInfo): Achievement | null {
 /**
  * Calculate progress milestones
  */
-export function getProgressMilestone(totalWorkouts: number, totalVolume: number): Achievement | null {
+export function getProgressMilestone(
+  totalWorkouts: number,
+  totalVolume: number,
+): Achievement | null {
   // Check workout milestones
   if (totalWorkouts >= 1) {
-    const workoutMilestones = ACHIEVEMENTS
-      .filter(achievement => achievement.type === 'milestone' && achievement.id.includes('workout'))
-      .filter(achievement => totalWorkouts >= achievement.threshold)
+    const workoutMilestones = ACHIEVEMENTS.filter(
+      (achievement) =>
+        achievement.type === "milestone" && achievement.id.includes("workout"),
+    )
+      .filter((achievement) => totalWorkouts >= achievement.threshold)
       .sort((a, b) => b.threshold - a.threshold);
-    
+
     if (workoutMilestones.length > 0) {
       return workoutMilestones[0]!;
     }
   }
-  
+
   // Check volume milestones
   if (totalVolume > 0) {
-    const volumeMilestones = ACHIEVEMENTS
-      .filter(achievement => achievement.type === 'milestone' && achievement.id.includes('volume'))
-      .filter(achievement => totalVolume >= achievement.threshold)
+    const volumeMilestones = ACHIEVEMENTS.filter(
+      (achievement) =>
+        achievement.type === "milestone" && achievement.id.includes("volume"),
+    )
+      .filter((achievement) => totalVolume >= achievement.threshold)
       .sort((a, b) => b.threshold - a.threshold);
-    
+
     if (volumeMilestones.length > 0) {
       return volumeMilestones[0]!;
     }
   }
-  
+
   return null;
 }
 
@@ -198,39 +205,37 @@ export function calculateStreak(workoutDates: Date[]): StreakInfo {
   if (workoutDates?.length === 0) {
     return { current: 0, longest: 0 };
   }
-  
+
   // Sort dates in descending order
   const sortedDates = workoutDates
-    .map(date => new Date(date))
+    .map((date) => new Date(date))
     .sort((a, b) => b.getTime() - a.getTime());
-  
+
   let currentStreak = 0;
   let longestStreak = 0;
   let tempStreak = 1;
-  
+
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   // Check if the most recent workout was today or yesterday
   const mostRecent = sortedDates[0];
   if (!mostRecent) {
     return { current: 0, longest: 0 };
   }
-  
-  const isRecentEnough = (
-    isSameDay(mostRecent, today) || 
-    isSameDay(mostRecent, yesterday)
-  );
-  
+
+  const isRecentEnough =
+    isSameDay(mostRecent, today) || isSameDay(mostRecent, yesterday);
+
   if (isRecentEnough) {
     currentStreak = 1;
-    
+
     // Calculate current streak
     for (let i = 1; i < sortedDates.length; i++) {
       const current = sortedDates[i - 1];
       const next = sortedDates[i];
-      
+
       if (current && next && isConsecutiveDay(current, next)) {
         currentStreak++;
       } else {
@@ -238,12 +243,12 @@ export function calculateStreak(workoutDates: Date[]): StreakInfo {
       }
     }
   }
-  
+
   // Calculate longest streak
   for (let i = 1; i < sortedDates.length; i++) {
     const current = sortedDates[i - 1];
     const next = sortedDates[i];
-    
+
     if (current && next && isConsecutiveDay(current, next)) {
       tempStreak++;
     } else {
@@ -252,11 +257,11 @@ export function calculateStreak(workoutDates: Date[]): StreakInfo {
     }
   }
   longestStreak = Math.max(longestStreak, tempStreak);
-  
+
   return {
     current: currentStreak,
     longest: longestStreak,
-    lastWorkoutDate: mostRecent
+    lastWorkoutDate: mostRecent,
   };
 }
 
@@ -291,7 +296,7 @@ export function getAllAchievements(): Achievement[] {
  * Get achievement by ID
  */
 export function getAchievementById(id: string): Achievement | undefined {
-  return ACHIEVEMENTS.find(achievement => achievement.id === id);
+  return ACHIEVEMENTS.find((achievement) => achievement.id === id);
 }
 
 /**
@@ -302,7 +307,7 @@ export function createProgressReport(
   volumeGoalPercentage: number,
   streakInfo: StreakInfo,
   totalWorkouts: number,
-  totalVolume: number
+  totalVolume: number,
 ): {
   goalAchievement: Achievement | null;
   streakAchievement: Achievement | null;
@@ -312,46 +317,53 @@ export function createProgressReport(
   const goalAchievement = getBestGoalAchievement(workoutGoalPercentage);
   const streakAchievement = getStreakBadge(streakInfo);
   const progressMilestone = getProgressMilestone(totalWorkouts, totalVolume);
-  
+
   const allUnlockedAchievements = [
     ...calculateGoalAchievements(workoutGoalPercentage),
     ...calculateStreakAchievements(streakInfo),
-    ...(progressMilestone ? [progressMilestone] : [])
+    ...(progressMilestone ? [progressMilestone] : []),
   ];
-  
+
   return {
     goalAchievement,
     streakAchievement,
     progressMilestone,
-    allUnlockedAchievements
+    allUnlockedAchievements,
   };
 }
 
 /**
  * Format achievement for display (React component helper)
  */
-export function formatAchievementBadge(achievement: Achievement, showIcon = true): {
+export function formatAchievementBadge(
+  achievement: Achievement,
+  showIcon = true,
+): {
   text: string;
   className: string;
   icon?: string;
 } {
   const icons: Record<string, string> = {
-    'perfect-week': '🎉',
-    'exceeded-week': '💪',
-    'nearly-perfect': '🔥',
-    'streak-3': '🔥',
-    'streak-7': '⚡',
-    'streak-14': '💎',
-    'streak-30': '👑',
-    'first-workout': '🚀',
-    'volume-milestone-10k': '💪',
-    'volume-milestone-50k': '🏆',
-    'consistency-champion': '⭐'
+    "perfect-week": "🎉",
+    "exceeded-week": "💪",
+    "nearly-perfect": "🔥",
+    "streak-3": "🔥",
+    "streak-7": "⚡",
+    "streak-14": "💎",
+    "streak-30": "👑",
+    "first-workout": "🚀",
+    "volume-milestone-10k": "💪",
+    "volume-milestone-50k": "🏆",
+    "consistency-champion": "⭐",
   };
-  
-  return {
+
+  const result: { text: string; className: string; icon?: string } = {
     text: achievement.title,
     className: `${achievement.badgeColor} text-background px-2 py-1 rounded-full text-xs font-medium shadow-sm animate-badge-entrance`,
-    icon: showIcon ? icons[achievement.id] : undefined
   };
+  const iconValue = icons[achievement.id];
+  if (showIcon && iconValue) {
+    result.icon = iconValue;
+  }
+  return result;
 }

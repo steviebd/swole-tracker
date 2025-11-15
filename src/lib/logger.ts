@@ -38,10 +38,10 @@ class Logger {
     const sanitized = { ...context };
 
     // Remove sensitive data from logs
-    delete sanitized.accessToken;
-    delete sanitized.refreshToken;
-    delete sanitized.password;
-    delete sanitized.secret;
+    delete sanitized["accessToken"];
+    delete sanitized["refreshToken"];
+    delete sanitized["password"];
+    delete sanitized["secret"];
 
     // Truncate long strings in production
     if (!this.isDevelopment) {
@@ -238,11 +238,10 @@ export const logWebhook = (
   userId?: string,
   workoutId?: string,
 ) => {
-  logger.webhook(`Processing ${eventType}`, undefined, {
-    userId,
-    workoutId,
-    eventType,
-  });
+  const context: LogContext = { eventType };
+  if (userId) context.userId = userId;
+  if (workoutId) context.workoutId = workoutId;
+  logger.webhook(`Processing ${eventType}`, undefined, context);
 };
 
 export const logSecurityEvent = (
@@ -250,5 +249,7 @@ export const logSecurityEvent = (
   userId?: string,
   details?: Record<string, unknown>,
 ) => {
-  logger.security(event, { userId, ...details });
+  const context: LogContext = { ...details };
+  if (userId) context.userId = userId;
+  logger.security(event, context);
 };

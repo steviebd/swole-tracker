@@ -597,7 +597,7 @@ export const exercisesRouter = createTRPCRouter({
         // For test environment, fall back to the original sequential queries
         if (
           process.env.NODE_ENV === "test" ||
-          process.env.VITEST ||
+          process.env["VITEST"] ||
           typeof window === "undefined"
         ) {
           // Master exercises (prefix matches)

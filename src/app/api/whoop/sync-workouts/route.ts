@@ -140,15 +140,15 @@ export async function POST(request: NextRequest) {
     const workouts: WhoopWorkout[] = workoutsRaw.map((w) => {
       const o = w as Record<string, unknown>;
       return {
-        id: String(o.id ?? ""),
-        start: String(o.start ?? ""),
-        end: String(o.end ?? ""),
-        timezone_offset: String(o.timezone_offset ?? ""),
-        sport_name: String(o.sport_name ?? ""),
-        score_state: String(o.score_state ?? ""),
-        score: o.score,
-        during: o.during,
-        zone_duration: o.zone_duration,
+        id: String(o["id"] ?? ""),
+        start: String(o["start"] ?? ""),
+        end: String(o["end"] ?? ""),
+        timezone_offset: String(o["timezone_offset"] ?? ""),
+        sport_name: String(o["sport_name"] ?? ""),
+        score_state: String(o["score_state"] ?? ""),
+        score: o["score"],
+        during: o["during"],
+        zone_duration: o["zone_duration"],
       };
     });
 

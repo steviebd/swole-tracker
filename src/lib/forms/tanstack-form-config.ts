@@ -280,10 +280,17 @@ export function fieldValidation<TFieldValue>(
     }
   };
 
-  const validators: Record<string, (value: TFieldValue) => { success: boolean; error?: any; data?: TFieldValue }> = {};
+  const validators: Record<
+    string,
+    (value: TFieldValue) => {
+      success: boolean;
+      error?: any;
+      data?: TFieldValue;
+    }
+  > = {};
 
   if (mode === "onChange" || (mode === "lazy" && lazyConfig.validateOnChange)) {
-    validators.onChange = (value: TFieldValue) => {
+    validators["onChange"] = (value: TFieldValue) => {
       const result = schema.safeParse(value);
       trackFieldValidation(
         result.success,
@@ -294,7 +301,7 @@ export function fieldValidation<TFieldValue>(
   }
 
   if (mode === "onBlur" || (mode === "lazy" && lazyConfig.validateOnBlur)) {
-    validators.onBlur = (value: TFieldValue) => {
+    validators["onBlur"] = (value: TFieldValue) => {
       const result = schema.safeParse(value);
       trackFieldValidation(
         result.success,
@@ -305,7 +312,7 @@ export function fieldValidation<TFieldValue>(
   }
 
   if (mode === "onSubmit") {
-    validators.onSubmit = (value: TFieldValue) => {
+    validators["onSubmit"] = (value: TFieldValue) => {
       const result = schema.safeParse(value);
       trackFieldValidation(
         result.success,

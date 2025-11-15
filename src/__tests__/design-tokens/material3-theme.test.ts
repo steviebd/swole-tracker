@@ -95,10 +95,10 @@ describe("material design tokens", () => {
     themeIds.forEach((themeId) => {
       const theme = materialThemes[themeId];
       expect(
-        theme.palettes.primary,
+        theme.palettes["primary"],
         `${themeId} primary palette missing`,
       ).toBeDefined();
-      expect(Object.keys(theme.palettes.primary!).length).toBeGreaterThan(0);
+      expect(Object.keys(theme.palettes["primary"]!).length).toBeGreaterThan(0);
     });
   });
 

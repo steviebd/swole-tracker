@@ -29,7 +29,9 @@ export function LoadingBoundary({
   fallback,
   name,
 }: LoadingBoundaryProps) {
-  const defaultFallback = fallback || <SkeletonFallback name={name} />;
+  const defaultFallback = fallback || (
+    <SkeletonFallback {...(name && { name })} />
+  );
 
   return <Suspense fallback={defaultFallback}>{children}</Suspense>;
 }
@@ -60,7 +62,7 @@ export const PageLoadingBoundary = ({
         )}
       </div>
     }
-    name={name}
+    {...(name && { name })}
   >
     {children}
   </LoadingBoundary>
@@ -86,7 +88,7 @@ export const CardLoadingBoundary = ({
         )}
       </div>
     }
-    name={name}
+    {...(name && { name })}
   >
     {children}
   </LoadingBoundary>
@@ -115,7 +117,7 @@ export const ListLoadingBoundary = ({
         )}
       </div>
     }
-    name={name}
+    {...(name && { name })}
   >
     {children}
   </LoadingBoundary>

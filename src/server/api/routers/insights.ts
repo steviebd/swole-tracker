@@ -255,31 +255,42 @@ export const insightsRouter = createTRPCRouter({
               console.warn(`Null exercise found in session ${s.id}`);
               continue;
             }
-            flat.push({
+            const weight = toNumber(ex.weight);
+            const rpeValue = (ex as { rpe?: unknown }).rpe;
+            const rpe = typeof rpeValue === "number" ? rpeValue : null;
+            const restSecondsValue = (ex as { rest_seconds?: unknown })
+              .rest_seconds;
+            const restSeconds =
+              typeof restSecondsValue === "number" ? restSecondsValue : null;
+            const volumeLoad = toNumber(
+              (ex as { volume_load?: string | number | null | undefined })
+                .volume_load,
+            );
+            const oneRMEstimate = toNumber(
+              (ex as { one_rm_estimate?: string | number | null | undefined })
+                .one_rm_estimate,
+            );
+
+            const flatSet: FlatSet = {
               sessionId: s.id,
               workoutDate: s.workoutDate,
-              weight: toNumber(ex.weight),
               reps: ex.reps,
               sets: ex.sets,
               unit: (ex.unit as Unit) ?? "kg",
-              rpe:
-                typeof (ex as { rpe?: unknown }).rpe === "number"
-                  ? (ex as { rpe?: number }).rpe
-                  : null,
-              rest_seconds:
-                typeof (ex as { rest_seconds?: unknown }).rest_seconds ===
-                "number"
-                  ? (ex as { rest_seconds?: number }).rest_seconds
-                  : null,
-              volumeLoad: toNumber(
-                (ex as { volume_load?: string | number | null | undefined })
-                  .volume_load,
-              ),
-              oneRMEstimate: toNumber(
-                (ex as { one_rm_estimate?: string | number | null | undefined })
-                  .one_rm_estimate,
-              ),
-            });
+              rpe,
+              rest_seconds: restSeconds,
+            };
+
+            if (weight !== undefined) {
+              flatSet.weight = weight;
+            }
+            if (volumeLoad !== undefined) {
+              flatSet.volumeLoad = volumeLoad;
+            }
+            if (oneRMEstimate !== undefined) {
+              flatSet.oneRMEstimate = oneRMEstimate;
+            }
+            flat.push(flatSet);
           }
         }
 
@@ -303,32 +314,41 @@ export const insightsRouter = createTRPCRouter({
           const est =
             fs.oneRMEstimate ?? estimate1RM(weightTarget, fs.reps ?? undefined);
           if (!prev) {
-            bySession.set(fs.sessionId, {
+            const sessionData: any = {
               date: fs.workoutDate,
               volume: vol,
-              bestWeight: weightTarget,
-              bestSet: {
-                weight: weightTarget,
-                reps: fs.reps ?? undefined,
-                unit: input.unit,
-                sets: fs.sets ?? undefined,
-                rpe: fs.rpe ?? undefined,
-              },
               est1RM: est,
-            });
+            };
+            if (weightTarget !== undefined) {
+              sessionData.bestWeight = weightTarget;
+            }
+            if (input.unit) {
+              sessionData.bestSet = { unit: input.unit };
+            }
+            bySession.set(fs.sessionId, sessionData);
           } else {
             prev.volume += vol;
-            if ((weightTarget ?? -Infinity) > (prev.bestWeight ?? -Infinity)) {
+            if (
+              weightTarget !== undefined &&
+              weightTarget > (prev.bestWeight ?? -Infinity)
+            ) {
               prev.bestWeight = weightTarget;
-              prev.bestSet = {
-                weight: weightTarget,
-                reps: fs.reps ?? undefined,
-                unit: input.unit,
-                sets: fs.sets ?? undefined,
-                rpe: fs.rpe ?? undefined,
-              };
+              const bestSet: ExerciseBestSet = { unit: input.unit };
+              if (weightTarget !== undefined) {
+                bestSet.weight = weightTarget;
+              }
+              if (fs.reps !== undefined && fs.reps !== null) {
+                bestSet.reps = fs.reps;
+              }
+              if (fs.sets !== undefined && fs.sets !== null) {
+                bestSet.sets = fs.sets;
+              }
+              if (fs.rpe !== undefined && fs.rpe !== null) {
+                bestSet.rpe = fs.rpe;
+              }
+              prev.bestSet = bestSet;
             }
-            if ((est ?? -Infinity) > (prev.est1RM ?? -Infinity)) {
+            if (est !== undefined && est > (prev.est1RM ?? -Infinity)) {
               prev.est1RM = est;
             }
           }
@@ -458,14 +478,24 @@ export const insightsRouter = createTRPCRouter({
             });
         }
 
-        return {
+        const result: ExerciseInsightsResponse = {
           unit: input.unit,
-          bestSet: bestSetOverall,
-          best1RM: best1RM ? Math.round(best1RM * 100) / 100 : undefined,
           volumeSparkline: sparkline,
-          recommendation,
           suggestions,
         };
+
+        if (recommendation !== undefined) {
+          result.recommendation = recommendation;
+        }
+
+        if (bestSetOverall !== undefined) {
+          result.bestSet = bestSetOverall;
+        }
+        if (best1RM !== undefined) {
+          result.best1RM = Math.round(best1RM * 100) / 100;
+        }
+
+        return result;
       } catch (error) {
         console.error("Error in getExerciseInsights:", error);
         throw new Error(
@@ -497,7 +527,7 @@ export const insightsRouter = createTRPCRouter({
           string,
           {
             volume: number;
-            bestSet?: { weight?: number; reps?: number | null; unit: Unit };
+            bestSet?: ExerciseBestSet;
           }
         >();
 
@@ -517,7 +547,14 @@ export const insightsRouter = createTRPCRouter({
             !entry.bestSet ||
             (weight ?? -Infinity) > (entry.bestSet.weight ?? -Infinity)
           ) {
-            entry.bestSet = { weight, reps, unit: input.unit };
+            const bestSet: ExerciseBestSet = { unit: input.unit };
+            if (weight !== undefined) {
+              bestSet.weight = weight;
+            }
+            if (reps !== null && reps !== undefined) {
+              bestSet.reps = reps;
+            }
+            entry.bestSet = bestSet;
           }
           byExercise.set(key, entry);
         }
@@ -528,7 +565,29 @@ export const insightsRouter = createTRPCRouter({
               100,
           ) / 100;
         const bestSets = Array.from(byExercise.entries()).map(
-          ([exerciseName, v]) => ({ exerciseName, ...v }),
+          ([exerciseName, v]): SessionInsightsResponse["bestSets"][number] => {
+            const result: SessionInsightsResponse["bestSets"][number] = {
+              exerciseName,
+              volume: v.volume,
+            };
+            if (v.bestSet?.unit !== undefined) {
+              const bestSet: {
+                weight?: number;
+                reps?: number | null;
+                unit: Unit;
+              } = {
+                unit: v.bestSet.unit,
+              };
+              if (v.bestSet.weight !== undefined) {
+                bestSet.weight = v.bestSet.weight;
+              }
+              if (v.bestSet.reps !== undefined) {
+                bestSet.reps = v.bestSet.reps;
+              }
+              result.bestSet = bestSet;
+            }
+            return result;
+          },
         );
 
         return { unit: input.unit, totalVolume, bestSets };

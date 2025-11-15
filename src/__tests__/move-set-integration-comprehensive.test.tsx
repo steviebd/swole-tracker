@@ -69,7 +69,7 @@ describe("Move Set Integration - Comprehensive Coverage", () => {
       render(
         <SetInput
           set={mockSet}
-          setIndex={1} // Middle set
+          setIndex={1} // Middle set (index 1)
           exerciseIndex={0}
           exerciseName="Test Exercise"
           onUpdate={mockOnUpdate}
@@ -95,7 +95,7 @@ describe("Move Set Integration - Comprehensive Coverage", () => {
           onUpdate={mockOnUpdate}
           onToggleUnit={mockOnToggleUnit}
           onDelete={mockOnDelete}
-          onMoveUp={undefined} // Not provided for first set
+          // Not provided for first set
           onMoveDown={mockOnMoveDown}
           readOnly={false}
         />,
@@ -116,7 +116,6 @@ describe("Move Set Integration - Comprehensive Coverage", () => {
           onToggleUnit={mockOnToggleUnit}
           onDelete={mockOnDelete}
           onMoveUp={mockOnMoveUp}
-          onMoveDown={undefined} // Not provided for last set
           readOnly={false}
         />,
       );
@@ -129,7 +128,7 @@ describe("Move Set Integration - Comprehensive Coverage", () => {
       render(
         <SetInput
           set={mockSet}
-          setIndex={1}
+          setIndex={1} // Middle set
           exerciseIndex={0}
           exerciseName="Test Exercise"
           onUpdate={mockOnUpdate}
@@ -387,7 +386,7 @@ describe("Move Set Integration - Comprehensive Coverage", () => {
           onUpdate={mockOnUpdate}
           onToggleUnit={mockOnToggleUnit}
           onDelete={mockOnDelete}
-          onMoveUp={undefined} // Not provided for first set
+          // Not provided for first set
           onMoveDown={mockOnMoveDown}
           readOnly={false}
         />,

@@ -3,7 +3,7 @@ import type { Buffer } from "node:buffer";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getWorkOS } from "~/lib/workos";
-import { SessionCookie } from "~/lib/session-cookie";
+import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
 import { env } from "~/env";
 import { upsertUserFromWorkOS } from "~/server/db/users";
 import { validateOAuthState, getClientIp } from "~/lib/oauth-state";
@@ -126,9 +126,9 @@ export async function GET(request: NextRequest) {
       await upsertUserFromWorkOS({
         id: workosUser.id,
         email: primaryEmail,
-        firstName: workosUser.firstName,
-        lastName: workosUser.lastName,
-        profilePictureUrl: workosUser.profilePictureUrl,
+        firstName: workosUser.firstName ?? null,
+        lastName: workosUser.lastName ?? null,
+        profilePictureUrl: workosUser.profilePictureUrl ?? null,
       });
     } catch (dbError) {
       console.error("Failed to upsert user after WorkOS callback:", dbError);
@@ -139,15 +139,18 @@ export async function GET(request: NextRequest) {
       authResponse.oauthTokens?.expiresAt ?? nowInSeconds + 60 * 60; // fallback: 1 hour
     const sessionExpiresAt = nowInSeconds + 72 * 60 * 60; // 72 hours from now
 
-    const session = {
+    const session: WorkOSSession = {
       userId: authResponse.user.id,
-      organizationId: authResponse.organizationId ?? undefined,
       accessToken: authResponse.accessToken,
       refreshToken: authResponse.refreshToken ?? null,
       accessTokenExpiresAt,
       sessionExpiresAt,
       expiresAt: accessTokenExpiresAt,
     };
+
+    if (authResponse.organizationId !== undefined) {
+      session.organizationId = authResponse.organizationId;
+    }
 
     // Create response with session cookie
     const cookieValue = await SessionCookie.create(session);

@@ -10,8 +10,8 @@ describe("posthog", () => {
     __setTestPosthogCtor(null);
     __resetTestPosthogClient();
     // Reset environment
-    delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    delete process.env["NEXT_PUBLIC_POSTHOG_KEY"];
+    delete process.env["NEXT_PUBLIC_POSTHOG_HOST"];
   });
 
   describe("getPosthog", () => {
@@ -86,8 +86,8 @@ describe("posthog", () => {
       });
 
       __setTestPosthogCtor(mockPostHog);
-      process.env.NEXT_PUBLIC_POSTHOG_KEY = "test-key";
-      process.env.NEXT_PUBLIC_POSTHOG_HOST = "test-host";
+      process.env["NEXT_PUBLIC_POSTHOG_KEY"] = "test-key";
+      process.env["NEXT_PUBLIC_POSTHOG_HOST"] = "test-host";
 
       const originalWindow = global.window;
       delete (global as any).window;
@@ -117,8 +117,8 @@ describe("posthog", () => {
       });
 
       __setTestPosthogCtor(mockPostHog);
-      process.env.NEXT_PUBLIC_POSTHOG_KEY = "test-key";
-      process.env.NEXT_PUBLIC_POSTHOG_HOST = "test-host";
+      process.env["NEXT_PUBLIC_POSTHOG_KEY"] = "test-key";
+      process.env["NEXT_PUBLIC_POSTHOG_HOST"] = "test-host";
 
       const originalWindow = global.window;
       delete (global as any).window;

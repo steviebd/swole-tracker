@@ -96,7 +96,7 @@ function generateBreadcrumbsFromPath(pathname: string): BreadcrumbItem[] {
 
     breadcrumbs.push({
       label,
-      href: isLast ? undefined : currentPath,
+      ...(isLast ? {} : { href: currentPath }),
       current: isLast,
     });
   });

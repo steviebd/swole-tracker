@@ -9,7 +9,10 @@ import {
 } from "~/server/api/schemas/health-advice-debrief";
 import { sessionDebriefs } from "~/server/db/schema";
 import { type db } from "~/server/db";
-import { gatherSessionDebriefContext } from "~/server/api/utils/session-debrief";
+import {
+  gatherSessionDebriefContext,
+  type GatherContextArgs,
+} from "~/server/api/utils/session-debrief";
 import { chunkedBatch } from "~/server/db/chunk-utils";
 import type { SQLiteTransaction } from "drizzle-orm/sqlite-core";
 
@@ -250,7 +253,7 @@ const bulkPersistDebriefRecords = async ({
   return results;
 };
 
-interface GenerateDebriefOptions {
+export interface GenerateDebriefOptions {
   dbClient: typeof db;
   userId: string;
   sessionId: number;
@@ -290,13 +293,15 @@ export async function generateAndPersistDebrief({
     return { debrief: existingActive, content: null } as const;
   }
 
-  const payload = await gatherSessionDebriefContext({
+  const contextArgs: GatherContextArgs = {
     dbClient,
     userId,
     sessionId,
-    locale,
-    timezone,
-  });
+    ...(locale !== undefined && { locale }),
+    ...(timezone !== undefined && { timezone }),
+  };
+
+  const payload = await gatherSessionDebriefContext(contextArgs);
 
   const { system, prompt } = buildSessionDebriefPrompt(payload);
 
@@ -408,7 +413,7 @@ export async function generateAndPersistDebrief({
   return { debrief: nextDebrief, content, context: payload.context } as const;
 }
 
-interface BulkGenerateDebriefOptions {
+export interface BulkGenerateDebriefOptions {
   dbClient: typeof db;
   userId: string;
   sessionIds: number[];
@@ -443,13 +448,15 @@ export async function bulkGenerateAndPersistDebriefs({
   const sessionContexts = await Promise.allSettled(
     sessionIds.map(async (sessionId) => {
       try {
-        const payload = await gatherSessionDebriefContext({
+        const contextArgs: GatherContextArgs = {
           dbClient,
           userId,
           sessionId,
-          locale,
-          timezone,
-        });
+          ...(locale !== undefined && { locale }),
+          ...(timezone !== undefined && { timezone }),
+        };
+
+        const payload = await gatherSessionDebriefContext(contextArgs);
         return { sessionId, payload };
       } catch (error) {
         throw new Error(

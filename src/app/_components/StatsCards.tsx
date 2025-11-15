@@ -299,85 +299,114 @@ export const StatsCards = memo(function StatsCards() {
         ? "Target exceeded"
         : `${Math.round(Math.min(stats.goalProgress, 100))}% complete`;
 
-    return [
-      {
-        id: "volume",
-        title: "Weekly Volume Lifted",
-        icon: BarChart3,
-        background: STRENGTH_BACKGROUNDS.volume,
-        value: formatWeeklyVolume(stats.totalVolume),
-        change: buildPercentChange(
-          stats.volumePercent,
-          stats.totalVolume > 0
-            ? "Baseline week — keep building volume"
-            : undefined,
-        ),
-        footers: volumeFooters,
-        accessibilityLabel: `Weekly volume lifted ${formatWeeklyVolume(stats.totalVolume)}`,
-      },
-      {
-        id: "oneRm",
-        title: "Top Estimated 1RM",
-        icon: Target,
-        background: STRENGTH_BACKGROUNDS.oneRm,
-        value: formatKgValue(strengthSummary.currentOneRm),
-        change: buildKgChange(
-          strengthSummary.delta,
-          strengthSummary.previousOneRm,
-        ),
-        footers: strengthFooters,
-        accessibilityLabel: `Top estimated one rep max ${formatKgValue(
-          strengthSummary.currentOneRm,
-        )}`,
-      },
-      {
-        id: "streak",
-        title: "Current Streak",
-        icon: Flame,
-        background: STRENGTH_BACKGROUNDS.streak,
-        value: `${formatCount(stats.streakInfo.current)} days`,
-        change:
-          stats.streakInfo.current > 0
-            ? {
-                label: "Stay locked in — streak active",
-                tone: "positive",
-              }
-            : {
-                label: "Kickstart a new streak this week",
-                tone: "neutral",
-              },
-        footers: streakFooters,
-        badge: stats.streakBadge ?? null,
-        accessibilityLabel: `Current streak ${formatCount(
-          stats.streakInfo.current,
-        )} days`,
-      },
-      {
-        id: "goal",
-        title: "Weekly Goal",
-        icon: Flag,
-        background: STRENGTH_BACKGROUNDS.goal,
-        value: `${formatCount(stats.workoutsThisWeek)}/${formatCount(
-          stats.weeklyGoalTarget,
-        )}`,
-        change:
-          goalRemaining > 0
-            ? {
-                label: `${goalRemaining} sessions remaining`,
-                tone: "neutral",
-              }
-            : {
-                label: "Goal smashed — great work",
-                tone: "positive",
-              },
-        footers: goalFooters,
-        progress: Math.min(stats.goalProgress, 130),
-        progressLabel: goalProgressLabel,
-        accessibilityLabel: `Weekly goal progress ${formatCount(
-          stats.workoutsThisWeek,
-        )} of ${formatCount(stats.weeklyGoalTarget)} sessions`,
-      },
-    ];
+    // Build cards array with explicit typing
+    const result: StrengthStatCard[] = [];
+
+    // Volume card
+    const volumeCard: StrengthStatCard = {
+      id: "volume",
+      title: "Weekly Volume Lifted",
+      icon: BarChart3,
+      background: STRENGTH_BACKGROUNDS.volume,
+      value: formatWeeklyVolume(stats.totalVolume),
+      footers: volumeFooters,
+      accessibilityLabel: `Weekly volume lifted ${formatWeeklyVolume(stats.totalVolume)}`,
+    };
+
+    const volumeChange = buildPercentChange(
+      stats.volumePercent,
+      stats.totalVolume > 0
+        ? "Baseline week — keep building volume"
+        : undefined,
+    );
+    if (volumeChange !== undefined) {
+      volumeCard.change = volumeChange;
+    }
+    result.push(volumeCard);
+
+    // One RM card
+    const oneRmCard: StrengthStatCard = {
+      id: "oneRm",
+      title: "Top Estimated 1RM",
+      icon: Target,
+      background: STRENGTH_BACKGROUNDS.oneRm,
+      value: formatKgValue(strengthSummary.currentOneRm),
+      footers: strengthFooters,
+      accessibilityLabel: `Top estimated one rep max ${formatKgValue(
+        strengthSummary.currentOneRm,
+      )}`,
+    };
+
+    const oneRmChange = buildKgChange(
+      strengthSummary.delta,
+      strengthSummary.previousOneRm,
+    );
+    if (oneRmChange !== undefined) {
+      oneRmCard.change = oneRmChange;
+    }
+    result.push(oneRmCard);
+
+    // Streak card
+    const streakCard: StrengthStatCard = {
+      id: "streak",
+      title: "Current Streak",
+      icon: Flame,
+      background: STRENGTH_BACKGROUNDS.streak,
+      value: `${formatCount(stats.streakInfo.current)} days`,
+      footers: streakFooters,
+      accessibilityLabel: `Current streak ${formatCount(
+        stats.streakInfo.current,
+      )} days`,
+    };
+
+    if (stats.streakInfo.current > 0) {
+      streakCard.change = {
+        label: "Stay locked in — streak active",
+        tone: "positive",
+      };
+    } else {
+      streakCard.change = {
+        label: "Kickstart a new streak this week",
+        tone: "neutral",
+      };
+    }
+
+    if (stats.streakBadge !== undefined) {
+      streakCard.badge = stats.streakBadge;
+    }
+    result.push(streakCard);
+
+    // Goal card
+    const goalCard: StrengthStatCard = {
+      id: "goal",
+      title: "Weekly Goal",
+      icon: Flag,
+      background: STRENGTH_BACKGROUNDS.goal,
+      value: `${formatCount(stats.workoutsThisWeek)}/${formatCount(
+        stats.weeklyGoalTarget,
+      )}`,
+      footers: goalFooters,
+      progress: Math.min(stats.goalProgress, 130),
+      progressLabel: goalProgressLabel,
+      accessibilityLabel: `Weekly goal progress ${formatCount(
+        stats.workoutsThisWeek,
+      )} of ${formatCount(stats.weeklyGoalTarget)} sessions`,
+    };
+
+    if (goalRemaining > 0) {
+      goalCard.change = {
+        label: `${goalRemaining} sessions remaining`,
+        tone: "neutral",
+      };
+    } else {
+      goalCard.change = {
+        label: "Goal smashed — great work",
+        tone: "positive",
+      };
+    }
+    result.push(goalCard);
+
+    return result;
   }, [stats, strengthSummary]);
 
   const handleCardPress = useCallback(

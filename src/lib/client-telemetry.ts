@@ -64,7 +64,10 @@ export function getDeviceType(): string {
   }
 
   // Handle vendor-specific detection
-  if ((navigator as any).vendor && /(Apple|Google|Microsoft|Opera)/i.test((navigator as any).vendor)) {
+  if (
+    (navigator as any).vendor &&
+    /(Apple|Google|Microsoft|Opera)/i.test((navigator as any).vendor)
+  ) {
     return "other";
   }
 
@@ -78,7 +81,7 @@ export function getThemeUsed(): string | null {
   }
 
   try {
-    return document.documentElement.dataset.theme || null;
+    return document.documentElement.dataset["theme"] || null;
   } catch {
     return null;
   }
@@ -93,9 +96,13 @@ export function collectTTI_TBT(): { tti?: number; tbt?: number } {
   try {
     const navigationEntries = performance.getEntriesByType("navigation");
     const paintEntries = performance.getEntriesByType("paint");
-    
-    const navigationEntry = navigationEntries[0] as PerformanceNavigationTiming | undefined;
-    const fcpEntry = paintEntries.find((entry) => entry.name === "first-contentful-paint");
+
+    const navigationEntry = navigationEntries[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const fcpEntry = paintEntries.find(
+      (entry) => entry.name === "first-contentful-paint",
+    );
 
     // Calculate TTI (simplified)
     let tti: number | undefined;
@@ -114,7 +121,8 @@ export function collectTTI_TBT(): { tti?: number; tbt?: number } {
     let tbt: number | undefined;
     if (navigationEntry) {
       // Simplified TBT calculation
-      const loadTime = navigationEntry.loadEventEnd - navigationEntry.loadEventStart;
+      const loadTime =
+        navigationEntry.loadEventEnd - navigationEntry.loadEventStart;
       tbt = Math.max(0, loadTime - 50); // Blocking time is time over 50ms
     } else {
       // Fallback - use a default value
@@ -167,9 +175,13 @@ function calculateP95(samples: number[]): number | undefined {
 }
 
 // Snapshot input latency metrics
-export function snapshotInputLatency(): { samples: number[]; avg?: number; p95?: number } {
+export function snapshotInputLatency(): {
+  samples: number[];
+  avg?: number;
+  p95?: number;
+} {
   const samples = [...inputLatencySamples];
-  
+
   if (samples.length === 0) {
     return { samples: [] };
   }
@@ -177,11 +189,10 @@ export function snapshotInputLatency(): { samples: number[]; avg?: number; p95?:
   const avg = samples.reduce((sum, val) => sum + val, 0) / samples.length;
   const p95 = calculateP95(samples);
 
-  return {
-    samples,
-    avg,
-    p95,
-  };
+  const result: { samples: number[]; avg?: number; p95?: number } = { samples };
+  if (avg !== undefined) result.avg = avg;
+  if (p95 !== undefined) result.p95 = p95;
+  return result;
 }
 
 // Performance metrics snapshot with timestamp
@@ -206,7 +217,11 @@ export function snapshotMetricsBlob(): {
     const inputLatency = snapshotInputLatency();
 
     // Send performance metrics to PostHog
-    if (tti !== undefined || tbt !== undefined || inputLatency.avg !== undefined) {
+    if (
+      tti !== undefined ||
+      tbt !== undefined ||
+      inputLatency.avg !== undefined
+    ) {
       analytics.event("performance.metrics_snapshot", {
         tti,
         tbt,
@@ -218,15 +233,23 @@ export function snapshotMetricsBlob(): {
       });
     }
 
-    return {
-      tti,
-      tbt,
-      inputLatency: {
-        avg: inputLatency.avg,
-        p95: inputLatency.p95,
-      },
+    const result: {
+      tti?: number;
+      tbt?: number;
+      inputLatency?: { avg?: number; p95?: number };
+      ts: number;
+    } = {
       ts: Date.now(),
     };
+    if (tti !== undefined) result.tti = tti;
+    if (tbt !== undefined) result.tbt = tbt;
+    if (inputLatency.avg || inputLatency.p95) {
+      result.inputLatency = {
+        ...(inputLatency.avg && { avg: inputLatency.avg }),
+        ...(inputLatency.p95 && { p95: inputLatency.p95 }),
+      };
+    }
+    return result;
   } catch {
     return {
       ts: Date.now(),
@@ -237,7 +260,7 @@ export function snapshotMetricsBlob(): {
 // Long task observer for performance monitoring
 export function startLongTaskObserver(): void {
   try {
-    if (typeof window === "undefined" || !(("PerformanceObserver" in window))) {
+    if (typeof window === "undefined" || !("PerformanceObserver" in window)) {
       return;
     }
 

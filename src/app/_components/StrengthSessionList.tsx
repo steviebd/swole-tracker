@@ -137,7 +137,7 @@ export function StrengthSessionList({
             currentPage * pageSize,
           )}
           containerHeight={350}
-          trendSummary={trendSummary}
+          trendSummary={trendSummary ?? null}
           sorting={[
             { id: sortConfig.key, desc: sortConfig.direction === "desc" },
           ]}
@@ -170,7 +170,7 @@ export function StrengthSessionList({
             currentPage * pageSize,
           )}
           containerHeight={400}
-          trendSummary={trendSummary}
+          trendSummary={trendSummary ?? null}
           sorting={[
             { id: sortConfig.key, desc: sortConfig.direction === "desc" },
           ]}

@@ -47,7 +47,7 @@ const baseConfig = {
     }
 
     // Check if we're in development mode (using custom flag since NODE_ENV is always production for builds)
-    const isDevelopmentMode = process.env.DEVELOPMENT_MODE === "true" || dev;
+    const isDevelopmentMode = process.env["DEVELOPMENT_MODE"] === "true" || dev;
 
     // Disable minification in development for faster builds and easier debugging
     if (isDevelopmentMode) {

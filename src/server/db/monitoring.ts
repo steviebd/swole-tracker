@@ -314,14 +314,22 @@ export function monitoredDbQuery<T>(
       const duration = Date.now() - startTime;
 
       // Record detailed metrics
-      queryPerformanceMonitor.recordQuery({
+      const queryMetrics: QueryMetrics = {
         queryName,
         duration,
         success: true,
-        rowCount: Array.isArray(result) ? result.length : undefined,
         timestamp: startTime,
-        userId: ctx?.userId,
-      });
+      };
+
+      if (Array.isArray(result)) {
+        queryMetrics.rowCount = result.length;
+      }
+
+      if (ctx?.userId) {
+        queryMetrics.userId = ctx.userId;
+      }
+
+      queryPerformanceMonitor.recordQuery(queryMetrics);
 
       // Send performance metrics to PostHog
       analytics.databaseQueryPerformance(
@@ -341,13 +349,18 @@ export function monitoredDbQuery<T>(
       const duration = Date.now() - startTime;
 
       // Record detailed metrics even on error
-      queryPerformanceMonitor.recordQuery({
+      const errorMetrics: QueryMetrics = {
         queryName,
         duration,
         success: false,
         timestamp: startTime,
-        userId: ctx?.userId,
-      });
+      };
+
+      if (ctx?.userId) {
+        errorMetrics.userId = ctx.userId;
+      }
+
+      queryPerformanceMonitor.recordQuery(errorMetrics);
 
       // Send error metrics to PostHog
       analytics.event("database.query.error", {

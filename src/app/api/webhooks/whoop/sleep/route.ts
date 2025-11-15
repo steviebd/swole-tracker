@@ -138,7 +138,7 @@ async function fetchSleepFromWhoop(
 
     // Runtime validation
     const obj = sleepData as Record<string, unknown>;
-    if (typeof obj.id === "string") {
+    if (typeof obj["id"] === "string") {
       return obj as unknown as WhoopSleepData;
     }
 

@@ -80,10 +80,10 @@ function buildTailwindScale(palette: TonalPalette): TailwindScale {
 }
 
 function buildSurfaceSet(theme: MaterialTheme, schemeKind: SchemeKind) {
-  const neutral = theme.palettes.neutral!;
+  const neutral = theme.palettes["neutral"]!;
   const scheme = theme.schemes[schemeKind]!;
 
-  const tone = (value: number) => neutral[String(value)] ?? scheme.surface!;
+  const tone = (value: number) => neutral[String(value)] ?? scheme["surface"]!;
 
   if (schemeKind === "light") {
     const surface99 = tone(99);
@@ -99,17 +99,17 @@ function buildSurfaceSet(theme: MaterialTheme, schemeKind: SchemeKind) {
       surfaceContainer: mixColors(surface95, surface90, 0.5),
       surfaceContainerHigh: mixColors(surface90, surface95, 0.25),
       surfaceContainerHighest: mixColors(surface90, surface95, 0.1),
-      surfaceVariant: scheme.surfaceVariant,
-      surfaceInverse: scheme.inverseSurface,
-      outline: scheme.outline,
+      surfaceVariant: scheme["surfaceVariant"],
+      surfaceInverse: scheme["inverseSurface"],
+      outline: scheme["outline"],
       outlineVariant:
-        scheme.outlineVariant ??
-        mixColors(scheme.surfaceVariant!, surface99!, 0.35),
-      surfaceTint: scheme.surfaceTint,
+        scheme["outlineVariant"] ??
+        mixColors(scheme["surfaceVariant"]!, surface99!, 0.35),
+      surfaceTint: scheme["surfaceTint"],
     } as const;
   }
 
-  const surface10 = tone(10) ?? scheme.surface;
+  const surface10 = tone(10) ?? scheme["surface"];
   const surface20 = tone(20) ?? mixColors(surface10, tone(30), 0.35);
   const surface4 = mixColors(surface10, neutral["0"]!, 0.65);
 
@@ -121,14 +121,14 @@ function buildSurfaceSet(theme: MaterialTheme, schemeKind: SchemeKind) {
     surfaceContainerLow: mixColors(surface10, surface20, 0.55),
     surfaceContainer: mixColors(surface10, surface20, 0.7),
     surfaceContainerHigh: mixColors(surface10, surface20, 0.85),
-    surfaceContainerHighest: mixColors(surface20!, scheme.surface!, 0.4),
-    surfaceVariant: scheme.surfaceVariant,
-    surfaceInverse: scheme.inverseSurface,
-    outline: scheme.outline,
+    surfaceContainerHighest: mixColors(surface20!, scheme["surface"]!, 0.4),
+    surfaceVariant: scheme["surfaceVariant"],
+    surfaceInverse: scheme["inverseSurface"],
+    outline: scheme["outline"],
     outlineVariant:
-      scheme.outlineVariant ??
-      mixColors(scheme.surfaceVariant!, surface10!, 0.4),
-    surfaceTint: scheme.surfaceTint,
+      scheme["outlineVariant"] ??
+      mixColors(scheme["surfaceVariant"]!, surface10!, 0.4),
+    surfaceTint: scheme["surfaceTint"],
   } as const;
 }
 
@@ -182,31 +182,31 @@ export function getScheme(themeId: ThemeId, schemeKind: SchemeKind) {
 const lightTheme = materialThemes.light;
 
 export const colors = {
-  primary: buildTailwindScale(lightTheme.palettes.primary!),
-  secondary: buildTailwindScale(lightTheme.palettes.secondary!),
-  accent: buildTailwindScale(lightTheme.palettes.tertiary!),
-  neutral: buildTailwindScale(lightTheme.palettes.neutralVariant!),
-  gray: buildTailwindScale(lightTheme.palettes.neutral!),
+  primary: buildTailwindScale(lightTheme.palettes["primary"]!),
+  secondary: buildTailwindScale(lightTheme.palettes["secondary"]!),
+  accent: buildTailwindScale(lightTheme.palettes["tertiary"]!),
+  neutral: buildTailwindScale(lightTheme.palettes["neutralVariant"]!),
+  gray: buildTailwindScale(lightTheme.palettes["neutral"]!),
   success: {
-    500: lightTheme.schemes.light.tertiary!,
+    500: lightTheme.schemes.light["tertiary"]!,
     600: mixColors(
-      lightTheme.schemes.light.tertiary!,
-      lightTheme.schemes.light.surface!,
+      lightTheme.schemes.light["tertiary"]!,
+      lightTheme.schemes.light["surface"]!,
       0.3,
     ),
   },
   warning: {
-    500: lightTheme.schemes.light.secondary!,
+    500: lightTheme.schemes.light["secondary"]!,
     600: mixColors(
-      lightTheme.schemes.light.secondary!,
-      lightTheme.schemes.light.primary!,
+      lightTheme.schemes.light["secondary"]!,
+      lightTheme.schemes.light["primary"]!,
       0.35,
     ),
   },
   danger: {
-    500: lightTheme.schemes.light.error!,
-    600: mixColors(lightTheme.schemes.light.error!, "#8b1a1a", 0.35),
-    dark: materialSchemes.dark.dark.error!,
+    500: lightTheme.schemes.light["error"]!,
+    600: mixColors(lightTheme.schemes.light["error"]!, "#8b1a1a", 0.35),
+    dark: materialSchemes.dark.dark["error"]!,
   },
 } as const;
 

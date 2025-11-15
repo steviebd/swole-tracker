@@ -209,7 +209,9 @@ export function useWorkoutSessionState({
         return false;
       }
       const obj = exercise as Record<string, unknown>;
-      return typeof obj.id === "number" && typeof obj.exerciseName === "string";
+      return (
+        typeof obj["id"] === "number" && typeof obj["exerciseName"] === "string"
+      );
     });
   }, [sessionTemplate]);
 
@@ -225,18 +227,31 @@ export function useWorkoutSessionState({
   type StoredSet = StoredExercise["sets"][number];
 
   const normalizeDraftSet = useCallback(
-    (set: StoredSet, fallbackUnit: "kg" | "lbs"): SetData => ({
-      id:
-        typeof set.id === "string"
-          ? set.id
-          : `restored-${Math.random().toString(36).slice(2)}-${typeof window !== "undefined" ? Date.now().toString(36) : "0"}`,
-      weight: typeof set.weight === "number" ? set.weight : undefined,
-      reps: typeof set.reps === "number" ? set.reps : undefined,
-      sets: typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
-      unit: (set.unit as "kg" | "lbs") ?? fallbackUnit,
-      rpe: typeof set.rpe === "number" ? set.rpe : undefined,
-      rest: typeof set.rest === "number" ? set.rest : undefined,
-    }),
+    (set: StoredSet, fallbackUnit: "kg" | "lbs"): SetData => {
+      const result: SetData = {
+        id:
+          typeof set.id === "string"
+            ? set.id
+            : `restored-${Math.random().toString(36).slice(2)}-${typeof window !== "undefined" ? Date.now().toString(36) : "0"}`,
+        sets: typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
+        unit: (set.unit as "kg" | "lbs") ?? fallbackUnit,
+      };
+
+      if (typeof set.weight === "number") {
+        result.weight = set.weight;
+      }
+      if (typeof set.reps === "number") {
+        result.reps = set.reps;
+      }
+      if (typeof set.rpe === "number") {
+        result.rpe = set.rpe;
+      }
+      if (typeof set.rest === "number") {
+        result.rest = set.rest;
+      }
+
+      return result;
+    },
     [],
   );
 
@@ -281,14 +296,19 @@ export function useWorkoutSessionState({
           (draftExercise.unit as "kg" | "lbs") ??
           (preferences?.defaultWeightUnit as "kg" | "lbs") ??
           "kg";
-        merged.push({
-          templateExerciseId: draftExercise.templateExerciseId,
+        const exerciseData: ExerciseData = {
           exerciseName: draftExercise.exerciseName,
           unit: fallbackUnit,
           sets: draftExercise.sets.map((set) =>
             normalizeDraftSet(set, fallbackUnit),
           ),
-        });
+        };
+
+        if (draftExercise.templateExerciseId !== undefined) {
+          exerciseData.templateExerciseId = draftExercise.templateExerciseId;
+        }
+
+        merged.push(exerciseData);
       }
 
       return merged;
@@ -318,10 +338,15 @@ export function useWorkoutSessionState({
     displayOrder,
     (newDisplayOrder) => {
       // Capture previous order for Undo
-      const prevOrder = exercises.map((ex) => ({
-        name: ex.exerciseName,
-        templateExerciseId: ex.templateExerciseId,
-      }));
+      const prevOrder = exercises.map((ex) => {
+        const item: { name: string; templateExerciseId?: number } = {
+          name: ex.exerciseName,
+        };
+        if (ex.templateExerciseId !== undefined) {
+          item.templateExerciseId = ex.templateExerciseId;
+        }
+        return item;
+      });
       const newExercises = newDisplayOrder.map(
         (item: { exercise: ExerciseData; originalIndex: number }) =>
           item.exercise,
@@ -460,14 +485,18 @@ export function useWorkoutSessionState({
       }
     },
     onSettled: () => {
-      console.info(`[WORKOUT_SAVE] Cache invalidation started for session ${sessionId} at ${new Date().toISOString()}`);
+      console.info(
+        `[WORKOUT_SAVE] Cache invalidation started for session ${sessionId} at ${new Date().toISOString()}`,
+      );
       const startTime = performance.now();
-      
+
       void invalidateWorkoutDependentCaches(utils, [sessionId]).then(() => {
         const endTime = performance.now();
-        console.info(`[WORKOUT_SAVE] Cache invalidation completed in ${(endTime - startTime).toFixed(2)}ms`);
+        console.info(
+          `[WORKOUT_SAVE] Cache invalidation completed in ${(endTime - startTime).toFixed(2)}ms`,
+        );
       });
-      
+
       // Warm progress caches after successful save
       if (session?.user_id) {
         void import("~/lib/workout-cache-helpers").then(
@@ -583,20 +612,39 @@ export function useWorkoutSessionState({
         exerciseGroups.entries(),
       ).map(([exerciseName, exerciseData]) => {
         exerciseData.sort((a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0));
-        return {
-          templateExerciseId: exerciseData[0]?.templateExerciseId ?? undefined,
+        const exerciseResult: ExerciseData = {
           exerciseName,
-          sets: exerciseData.map((sessionExercise) => ({
-            id: `existing-${sessionExercise.id}`,
-            weight: sessionExercise.weight
-              ? Number(sessionExercise.weight)
-              : undefined,
-            reps: sessionExercise.reps ?? undefined,
-            sets: sessionExercise.sets ?? 1,
-            unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
-          })),
+          sets: exerciseData.map((sessionExercise) => {
+            const setResult: SetData = {
+              id: `existing-${sessionExercise.id}`,
+              sets: sessionExercise.sets ?? 1,
+              unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
+            };
+
+            if (sessionExercise.weight) {
+              setResult.weight = Number(sessionExercise.weight);
+            }
+            if (
+              sessionExercise.reps !== undefined &&
+              sessionExercise.reps !== null
+            ) {
+              setResult.reps = sessionExercise.reps;
+            }
+
+            return setResult;
+          }),
           unit: (exerciseData[0]?.unit as "kg" | "lbs") ?? "kg",
         };
+
+        if (
+          exerciseData[0]?.templateExerciseId !== undefined &&
+          exerciseData[0]?.templateExerciseId !== null
+        ) {
+          exerciseResult.templateExerciseId =
+            exerciseData[0].templateExerciseId;
+        }
+
+        return exerciseResult;
       });
 
       setExercises(existingExercises);
@@ -616,22 +664,32 @@ export function useWorkoutSessionState({
 
           let sets: SetData[] = [];
           if (previousData?.sets) {
-            sets = previousData.sets.map((prevSet) => ({
-              id: generateSetId(),
-              weight: prevSet.weight,
-              reps: prevSet.reps,
-              sets: prevSet.sets,
-              unit: prevSet.unit,
-            }));
+            sets = previousData.sets.map((prevSet) => {
+              const setResult: SetData = {
+                id: generateSetId(),
+                sets: prevSet.sets,
+                unit: prevSet.unit,
+              };
+
+              if (prevSet.weight !== undefined) {
+                setResult.weight = prevSet.weight;
+              }
+              if (prevSet.reps !== undefined) {
+                setResult.reps = prevSet.reps;
+              }
+
+              return setResult;
+            });
           } else {
             sets = [
-              {
-                id: generateSetId(),
-                weight: undefined,
-                reps: undefined,
-                sets: 1,
-                unit: defaultUnit,
-              },
+              (() => {
+                const setResult: SetData = {
+                  id: generateSetId(),
+                  sets: 1,
+                  unit: defaultUnit,
+                };
+                return setResult;
+              })(),
             ];
           }
 
@@ -664,6 +722,7 @@ export function useWorkoutSessionState({
     session,
     mergeDraftExercises,
     sessionId,
+    generateSetId,
   ]);
 
   useEffect(() => {
@@ -946,11 +1005,16 @@ export function useWorkoutSessionState({
 
       const newSet: SetData = {
         id: newId,
-        weight: nextWeight,
-        reps: nextReps,
         sets: nextSetsCount,
         unit: unitToUse,
       };
+
+      if (nextWeight !== undefined) {
+        newSet.weight = nextWeight;
+      }
+      if (nextReps !== undefined) {
+        newSet.reps = nextReps;
+      }
 
       // Replace sets array reference to force reconciliation
       const beforeIds = exercise.sets.map((s) => s.id);
@@ -1129,15 +1193,32 @@ export function useWorkoutSessionState({
               set.reps !== undefined ||
               (set.sets && set.sets > 0),
           )
-          .map((set) => ({
-            ...set,
-            id:
-              set.id ??
-              `offline-${typeof window !== "undefined" ? Math.random().toString(36).slice(2) : "0"}`,
-            weight: set.weight === null ? undefined : set.weight,
-            reps: set.reps === null ? undefined : set.reps,
-            sets: set.sets === null ? 1 : set.sets,
-          })),
+          .map((set) => {
+            const result: {
+              id: string;
+              weight?: number;
+              reps?: number;
+              sets?: number;
+              unit: "kg" | "lbs";
+            } = {
+              id:
+                set.id ??
+                `offline-${typeof window !== "undefined" ? Math.random().toString(36).slice(2) : "0"}`,
+              unit: set.unit,
+            };
+
+            if (set.weight !== null && set.weight !== undefined) {
+              result.weight = set.weight;
+            }
+            if (set.reps !== null && set.reps !== undefined) {
+              result.reps = set.reps;
+            }
+            if (set.sets !== null && set.sets !== undefined) {
+              result.sets = set.sets;
+            }
+
+            return result;
+          }),
       }))
       .filter((exercise) => exercise.sets.length > 0);
 

@@ -119,7 +119,7 @@ export function ExerciseCard({
     "horizontal",
   );
 
-  const getCurrentBest = () => {
+  const getCurrentBest = (): PreviousBest | null => {
     if (exercise.sets.length === 0) return null;
 
     const maxWeight = Math.max(...exercise.sets.map((set) => set.weight ?? 0));
@@ -127,24 +127,42 @@ export function ExerciseCard({
 
     if (!bestSet?.weight) return null;
 
-    return {
+    const result: PreviousBest = {
       weight: bestSet.weight,
-      reps: bestSet.reps,
-      sets: bestSet.sets,
       unit: bestSet.unit,
     };
+
+    if (bestSet.reps !== undefined) {
+      result.reps = bestSet.reps;
+    }
+
+    if (bestSet.sets !== undefined) {
+      result.sets = bestSet.sets;
+    }
+
+    return result;
   };
 
   const hasCurrentData = exercise.sets.some((set) => set.weight ?? set.reps);
   const currentBest = getCurrentBest();
 
   // Insights hook (read-only)
-  const { data: insights } = useExerciseInsights({
+  const insightsParams: {
+    exerciseName: string;
+    templateExerciseId?: number;
+    unit: "kg" | "lbs";
+    limitSessions: number;
+  } = {
     exerciseName: exercise.exerciseName,
-    templateExerciseId: exercise.templateExerciseId,
     unit: exercise.unit,
     limitSessions: 10,
-  });
+  };
+
+  if (exercise.templateExerciseId !== undefined) {
+    insightsParams.templateExerciseId = exercise.templateExerciseId;
+  }
+
+  const { data: insights } = useExerciseInsights(insightsParams);
 
   // Calculate styles for animations and feedback
   // Prioritize the active gesture - swipe for horizontal, drag for vertical
@@ -273,20 +291,33 @@ export function ExerciseCard({
       >
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <ExerciseHeader
-              name={exercise.exerciseName}
-              isExpanded={isExpanded}
-              isSwiped={isSwiped}
-              readOnly={readOnly ?? false}
-              previousBest={
-                hasCurrentData && currentBest ? currentBest : previousBest
+            {(() => {
+              const headerProps: any = {
+                name: exercise.exerciseName,
+                isExpanded,
+                isSwiped,
+                readOnly: readOnly ?? false,
+                onToggleExpansion,
+                exerciseIndex,
+                unit: exercise.unit,
+              };
+
+              if (onSwipeToBottom) {
+                headerProps.onSwipeToBottom = onSwipeToBottom;
               }
-              onToggleExpansion={onToggleExpansion}
-              onSwipeToBottom={onSwipeToBottom}
-              exerciseIndex={exerciseIndex}
-              unit={exercise.unit}
-              onBulkUnitChange={onBulkUnitChange}
-            />
+
+              if (onBulkUnitChange) {
+                headerProps.onBulkUnitChange = onBulkUnitChange;
+              }
+
+              const bestToShow =
+                hasCurrentData && currentBest ? currentBest : previousBest;
+              if (bestToShow !== undefined) {
+                headerProps.previousBest = bestToShow;
+              }
+
+              return <ExerciseHeader {...headerProps} />;
+            })()}
           </div>
           {draggable && !readOnly && (
             <button
@@ -525,19 +556,29 @@ export function ExerciseCard({
           )}
 
           {/* Current Sets (presentational) */}
-          <SetList
-            exerciseIndex={exerciseIndex}
-            exerciseName={exercise.exerciseName}
-            templateExerciseId={exercise.templateExerciseId}
-            sets={exercise.sets}
-            readOnly={readOnly ?? false}
-            onUpdate={onUpdate}
-            onToggleUnit={onToggleUnit}
-            onAddSet={onAddSet}
-            onDeleteSet={onDeleteSet}
-            onMoveSet={onMoveSet}
-            preferredUnit={preferredUnit}
-          />
+          {(() => {
+            const setListProps: any = {
+              exerciseIndex,
+              exerciseName: exercise.exerciseName,
+              sets: exercise.sets,
+              readOnly: readOnly ?? false,
+              onUpdate,
+              onToggleUnit,
+              onAddSet,
+              onDeleteSet,
+              onMoveSet,
+            };
+
+            if (exercise.templateExerciseId !== undefined) {
+              setListProps.templateExerciseId = exercise.templateExerciseId;
+            }
+
+            if (preferredUnit !== undefined) {
+              setListProps.preferredUnit = preferredUnit;
+            }
+
+            return <SetList {...setListProps} />;
+          })()}
         </div>
       )}
     </div>

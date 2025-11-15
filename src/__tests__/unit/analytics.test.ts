@@ -97,7 +97,7 @@ describe("analytics", () => {
     it("should call error function with context", () => {
       const error = new Error("Test error");
       // Remove stack to avoid serialization issues in test output
-      error.stack = undefined;
+      delete error.stack;
       const context = { userId: "user-123", page: "workout" };
       expect(() => analytics.error(error, context)).not.toThrow();
     });
@@ -105,7 +105,7 @@ describe("analytics", () => {
     it("should call error function without context", () => {
       const error = new Error("Test error");
       // Remove stack to avoid serialization issues in test output
-      error.stack = undefined;
+      delete error.stack;
       expect(() => analytics.error(error)).not.toThrow();
     });
   });

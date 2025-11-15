@@ -75,7 +75,7 @@ export default async function StartWorkoutPage({
 
           {/* Workout Starter */}
           <WorkoutStarter
-            initialTemplateId={templateId ? parseInt(templateId) : undefined}
+            {...(templateId && { initialTemplateId: parseInt(templateId) })}
           />
         </div>
       </main>

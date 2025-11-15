@@ -270,12 +270,12 @@ async function processWorkoutUpdate(
       if (typeof w !== "object" || w === null) return false;
       const o = w as Record<string, unknown>;
       return (
-        typeof o.id === "string" &&
-        typeof o.start === "string" &&
-        typeof o.end === "string" &&
-        typeof o.timezone_offset === "string" &&
-        typeof o.sport_name === "string" &&
-        typeof o.score_state === "string"
+        typeof o["id"] === "string" &&
+        typeof o["start"] === "string" &&
+        typeof o["end"] === "string" &&
+        typeof o["timezone_offset"] === "string" &&
+        typeof o["sport_name"] === "string" &&
+        typeof o["score_state"] === "string"
       );
     };
     if (!isWhoopWorkoutData(workoutData)) {
@@ -489,8 +489,7 @@ async function processSleepUpdate(
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
-          total_sleep_time_milli:
-            stageSummary?.total_in_bed_time_milli || null,
+          total_sleep_time_milli: stageSummary?.total_in_bed_time_milli || null,
           sleep_efficiency_percentage:
             sleepData.score?.sleep_efficiency_percentage || null,
           slow_wave_sleep_time_milli:
@@ -529,8 +528,7 @@ async function processSleepUpdate(
           timezone_offset: sleepData.timezone_offset || null,
           sleep_performance_percentage:
             sleepData.score?.sleep_performance_percentage || null,
-          total_sleep_time_milli:
-            stageSummary?.total_in_bed_time_milli || null,
+          total_sleep_time_milli: stageSummary?.total_in_bed_time_milli || null,
           sleep_efficiency_percentage:
             sleepData.score?.sleep_efficiency_percentage || null,
           slow_wave_sleep_time_milli:

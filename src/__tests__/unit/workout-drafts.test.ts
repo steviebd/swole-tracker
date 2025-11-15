@@ -87,8 +87,6 @@ describe("workout drafts", () => {
         sets: [
           {
             id: "default-1",
-            weight: undefined,
-            reps: undefined,
             sets: 1,
             unit: "lbs",
           },

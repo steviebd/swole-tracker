@@ -139,8 +139,8 @@ export function useSyncIndicator(): UseSyncIndicatorResult {
     description: descriptionByStatus[computedStatus.status],
     pendingOperations: queueSize,
     failedOperations: lastError ? 1 : 0, // Simplified: 1 if there's an error, 0 otherwise
-    lastSync: lastSyncAt,
-    nextRetry: undefined, // Not tracking this in legacy queue
+    ...(lastSyncAt && { lastSync: lastSyncAt }),
+    // nextRetry not tracked in legacy queue
     isOnline,
     isBusy: ["syncing", "saving"].includes(computedStatus.status),
   };

@@ -366,20 +366,20 @@ describe("whoopRouter.getWebhookInfo", () => {
   let originalWebhookSecret: string | undefined;
 
   beforeEach(() => {
-    originalVercelUrl = process.env.VERCEL_URL;
-    originalNextAuthUrl = process.env.NEXTAUTH_URL;
-    originalWebhookSecret = process.env.WHOOP_WEBHOOK_SECRET;
+    originalVercelUrl = process.env["VERCEL_URL"];
+    originalNextAuthUrl = process.env["NEXTAUTH_URL"];
+    originalWebhookSecret = process.env["WHOOP_WEBHOOK_SECRET"];
   });
 
   afterEach(() => {
-    process.env.VERCEL_URL = originalVercelUrl;
-    process.env.NEXTAUTH_URL = originalNextAuthUrl;
-    process.env.WHOOP_WEBHOOK_SECRET = originalWebhookSecret;
+    process.env["VERCEL_URL"] = originalVercelUrl;
+    process.env["NEXTAUTH_URL"] = originalNextAuthUrl;
+    process.env["WHOOP_WEBHOOK_SECRET"] = originalWebhookSecret;
   });
 
   it("returns webhook info using VERCEL_URL when available", async () => {
-    process.env.VERCEL_URL = "my-app.vercel.app";
-    process.env.WHOOP_WEBHOOK_SECRET = "secret";
+    process.env["VERCEL_URL"] = "my-app.vercel.app";
+    process.env["WHOOP_WEBHOOK_SECRET"] = "secret";
 
     const caller = createCaller();
     const result = await caller.getWebhookInfo();
@@ -394,8 +394,8 @@ describe("whoopRouter.getWebhookInfo", () => {
   });
 
   it("falls back to NEXTAUTH_URL when VERCEL_URL is missing", async () => {
-    delete process.env.VERCEL_URL;
-    process.env.NEXTAUTH_URL = "http://localhost:3000";
+    delete process.env["VERCEL_URL"];
+    process.env["NEXTAUTH_URL"] = "http://localhost:3000";
 
     const caller = createCaller();
     const result = await caller.getWebhookInfo();

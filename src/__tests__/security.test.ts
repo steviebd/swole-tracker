@@ -14,7 +14,7 @@ import { buildContentSecurityPolicy } from "~/lib/security-headers";
 
 // Mock environment for encryption tests
 beforeAll(() => {
-  process.env.ENCRYPTION_MASTER_KEY =
+  process.env["ENCRYPTION_MASTER_KEY"] =
     "test_key_that_is_at_least_32_characters_long_for_security";
 });
 

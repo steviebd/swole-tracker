@@ -116,7 +116,7 @@ async function fetchCycleFromWhoop(
 
     // Runtime validation
     const obj = cycleData as Record<string, unknown>;
-    if (typeof obj.id === "string") {
+    if (typeof obj["id"] === "string") {
       return obj as unknown as WhoopCycleData;
     }
 

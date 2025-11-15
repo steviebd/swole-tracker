@@ -37,7 +37,7 @@ const handler = (req: NextRequest) =>
       // Add total request duration if we have context
       if (ctx?.timings) {
         const totalDuration = Array.from(ctx.timings.values()).reduce(
-          (sum, dur) => sum + dur,
+          (sum: number, dur: unknown) => sum + (dur as number),
           0,
         );
         serverTiming.push(`total;dur=${totalDuration}`);
@@ -51,14 +51,13 @@ const handler = (req: NextRequest) =>
         },
       };
     },
-    onError:
-      env.NODE_ENV === "development"
-        ? ({ path, error }) => {
-            console.error(
-              `❌ tRPC failed on ${path ?? "<no-path>"}: ${error.message}`,
-            );
-          }
-        : undefined,
+    ...(env.NODE_ENV === "development" && {
+      onError: ({ path, error }) => {
+        console.error(
+          `❌ tRPC failed on ${path ?? "<no-path>"}: ${error.message}`,
+        );
+      },
+    }),
   });
 
 export { handler as GET, handler as POST };

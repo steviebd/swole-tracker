@@ -27,8 +27,7 @@ const buttonVariants = cva(
           "bg-interactive-secondary text-secondary-foreground shadow-xs hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-xs",
         ghost:
           "bg-transparent text-interactive-primary hover:scale-105 active:scale-95",
-        link:
-          "bg-transparent text-interactive-primary underline-offset-4 hover:underline hover:scale-105 active:scale-95 px-0 py-0 h-auto",
+        link: "bg-transparent text-interactive-primary underline-offset-4 hover:underline hover:scale-105 active:scale-95 px-0 py-0 h-auto",
       },
       size: {
         default: "h-11 px-4 py-2 has-[>svg]:px-3 touch-target",
@@ -158,10 +157,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const motionProps = !prefersReducedMotion
       ? {
           variants: buttonPressVariants,
-          initial: "initial",
-          whileHover: "hover",
-          whileTap: "tap",
-          layout: true,
+          initial: "initial" as const,
+          whileHover: "hover" as const,
+          whileTap: "tap" as const,
         }
       : {};
 
@@ -174,7 +172,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled}
         className={cn(resolvedClassName, className)}
         onPointerDown={!disabled ? handlePointerDown : undefined}
-        style={style}
+        {...(style && {
+          style: Object.fromEntries(
+            Object.entries(style).filter(([_, v]) => v !== undefined),
+          ),
+        })}
         {...motionProps}
         {...props}
       >

@@ -12,6 +12,8 @@ import {
   generateAndPersistDebrief,
   bulkGenerateAndPersistDebriefs,
   AIDebriefRateLimitError,
+  type GenerateDebriefOptions,
+  type BulkGenerateDebriefOptions,
 } from "~/server/api/services/session-debrief";
 import { logger } from "~/lib/logger";
 import { type db } from "~/server/db";
@@ -85,16 +87,18 @@ export const sessionDebriefRouter = createTRPCRouter({
     .input(generateInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
-        const { debrief, content } = await generateDebriefImpl({
+        const generateOptions: GenerateDebriefOptions = {
           dbClient: ctx.db,
           userId: ctx.user.id,
           sessionId: input.sessionId,
-          locale: input.locale,
-          timezone: input.timezone,
           skipIfActive: input.skipIfActive ?? false,
           trigger: "manual",
           requestId: ctx.requestId,
-        });
+          ...(input.locale !== undefined && { locale: input.locale }),
+          ...(input.timezone !== undefined && { timezone: input.timezone }),
+        };
+
+        const { debrief, content } = await generateDebriefImpl(generateOptions);
 
         return {
           debrief,
@@ -115,16 +119,18 @@ export const sessionDebriefRouter = createTRPCRouter({
     .input(generateInputSchema)
     .mutation(async ({ ctx, input }) => {
       try {
-        const { debrief, content } = await generateDebriefImpl({
+        const generateOptions: GenerateDebriefOptions = {
           dbClient: ctx.db,
           userId: ctx.user.id,
           sessionId: input.sessionId,
-          locale: input.locale,
-          timezone: input.timezone,
           skipIfActive: false,
           trigger: "regenerate",
           requestId: ctx.requestId,
-        });
+          ...(input.locale !== undefined && { locale: input.locale }),
+          ...(input.timezone !== undefined && { timezone: input.timezone }),
+        };
+
+        const { debrief, content } = await generateDebriefImpl(generateOptions);
 
         return {
           debrief,
@@ -341,16 +347,18 @@ export const sessionDebriefRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const result = await bulkGenerateAndPersistDebriefs({
+        const bulkOptions: BulkGenerateDebriefOptions = {
           dbClient: ctx.db,
           userId: ctx.user.id,
           sessionIds: input.sessionIds,
-          locale: input.locale,
-          timezone: input.timezone,
           skipIfActive: input.skipIfActive ?? false,
           trigger: "manual",
           requestId: ctx.requestId,
-        });
+          ...(input.locale !== undefined && { locale: input.locale }),
+          ...(input.timezone !== undefined && { timezone: input.timezone }),
+        };
+
+        const result = await bulkGenerateAndPersistDebriefs(bulkOptions);
 
         return {
           debriefs: result.debriefs,

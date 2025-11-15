@@ -47,7 +47,7 @@ function ensureLocalStorage() {
 }
 
 function createQueueItem(overrides: Partial<QueueItem> = {}): QueueItem {
-  return {
+  const baseItem: QueueItem = {
     id: overrides.id ?? "queue-item-1",
     type: "workout_save",
     payload:
@@ -63,10 +63,16 @@ function createQueueItem(overrides: Partial<QueueItem> = {}): QueueItem {
         ],
       } satisfies QueueItem["payload"]),
     attempts: overrides.attempts ?? 0,
-    lastError: overrides.lastError,
     createdAt: overrides.createdAt ?? Date.now(),
     updatedAt: overrides.updatedAt ?? Date.now(),
   };
+
+  // Only add lastError if it's provided (to satisfy exactOptionalPropertyTypes)
+  if (overrides.lastError !== undefined) {
+    baseItem.lastError = overrides.lastError;
+  }
+
+  return baseItem;
 }
 
 describe("useOfflineSaveQueue", () => {
@@ -166,7 +172,7 @@ describe("useOfflineSaveQueue", () => {
       (api as unknown as { useUtils: typeof originalUseUtils }).useUtils =
         originalUseUtils;
     } else {
-      delete (api as Record<string, unknown>).useUtils;
+      delete (api as Record<string, unknown>)["useUtils"];
     }
     if (originalSaveUseMutation) {
       (
@@ -175,7 +181,7 @@ describe("useOfflineSaveQueue", () => {
         }
       ).useMutation = originalSaveUseMutation;
     } else {
-      delete (api.workouts.save as Record<string, unknown>).useMutation;
+      delete (api.workouts.save as Record<string, unknown>)["useMutation"];
     }
     if (originalBatchSaveUseMutation) {
       (
@@ -184,7 +190,7 @@ describe("useOfflineSaveQueue", () => {
         }
       ).useMutation = originalBatchSaveUseMutation;
     } else {
-      delete (api.workouts.batchSave as Record<string, unknown>).useMutation;
+      delete (api.workouts.batchSave as Record<string, unknown>)["useMutation"];
     }
     vi.restoreAllMocks();
   });

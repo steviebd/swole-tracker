@@ -49,7 +49,10 @@ const exerciseInputSchema = z.object({
 });
 
 import { logger } from "~/lib/logger";
-import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
+import {
+  generateAndPersistDebrief,
+  type GenerateDebriefOptions,
+} from "~/server/api/services/session-debrief";
 import {
   chunkArray,
   chunkedBatch,
@@ -118,7 +121,9 @@ export const workoutsRouter = createTRPCRouter({
       // 2. Get unique template IDs
       const templateIds = [
         ...new Set(
-          sessions.map((s) => s.templateId).filter((id): id is number => id !== null),
+          sessions
+            .map((s) => s.templateId)
+            .filter((id): id is number => id !== null),
         ),
       ];
 
@@ -149,7 +154,9 @@ export const workoutsRouter = createTRPCRouter({
       // 5. Attach templates to sessions
       const sessionsWithTemplates = sessions.map((session) => ({
         ...session,
-        template: session.templateId ? templateMap.get(session.templateId) ?? null : null,
+        template: session.templateId
+          ? (templateMap.get(session.templateId) ?? null)
+          : null,
       }));
 
       return sessionsWithTemplates;
@@ -737,14 +744,16 @@ export const workoutsRouter = createTRPCRouter({
 
           void (async () => {
             try {
-              await generateAndPersistDebrief({
+              const debriefOptions: GenerateDebriefOptions = {
                 dbClient: ctx.db,
                 userId: ctx.user.id,
                 sessionId: input.sessionId,
-                locale,
                 trigger: "auto",
                 requestId: ctx.requestId,
-              });
+                ...(locale !== undefined && { locale }),
+              };
+
+              await generateAndPersistDebrief(debriefOptions);
             } catch (error) {
               logger.warn("session_debrief.auto_generation_failed", {
                 userId: ctx.user.id,
@@ -1101,14 +1110,16 @@ export const workoutsRouter = createTRPCRouter({
 
             void (async () => {
               try {
-                await generateAndPersistDebrief({
+                const debriefOptions: GenerateDebriefOptions = {
                   dbClient: ctx.db,
                   userId: ctx.user.id,
                   sessionId: workout.sessionId,
-                  locale,
                   trigger: "auto",
                   requestId: ctx.requestId,
-                });
+                  ...(locale !== undefined && { locale }),
+                };
+
+                await generateAndPersistDebrief(debriefOptions);
               } catch (error) {
                 logger.warn("session_debrief.auto_generation_failed", {
                   userId: ctx.user.id,

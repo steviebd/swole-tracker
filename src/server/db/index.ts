@@ -11,7 +11,7 @@ if (process.env.NODE_ENV === "test") {
     vi = (globalThis as any).vi;
   } else {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       vi = require("vitest").vi;
     } catch {
       // Fallback if vitest is not available

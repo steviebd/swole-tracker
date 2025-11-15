@@ -435,10 +435,12 @@ export const batchCreateMasterExerciseLinks = async (
         if (!masterExercise) continue;
 
         // Create links for all template exercises in this group
+        if (!masterExercise) continue;
+
         const linksToCreate = exercises.map((exercise) => ({
-          templateExerciseId: exercise.templateExerciseId,
-          masterExerciseId: masterExercise!.id,
           user_id: userId,
+          templateExerciseId: exercise.templateExerciseId,
+          masterExerciseId: masterExercise.id,
         }));
 
         // Batch insert links (ignore duplicates)
@@ -451,20 +453,23 @@ export const batchCreateMasterExerciseLinks = async (
           // Group by masterExerciseId to minimize updates
           const grouped = linksToCreate.reduce(
             (acc, link) => {
-              if (!acc[link.masterExerciseId]) {
-                acc[link.masterExerciseId] = [];
+              const masterId = link.masterExerciseId;
+              if (masterId == null) return acc;
+
+              if (!acc[masterId]) {
+                acc[masterId] = [];
               }
-              acc[link.masterExerciseId].push(link.templateExerciseId);
+              acc[masterId].push(link.templateExerciseId);
               return acc;
             },
-            {} as Record<string, string[]>,
+            {} as Record<number, number[]>,
           );
 
           // Batch update per master exercise
           for (const [masterId, templateIds] of Object.entries(grouped)) {
             await tx
               .update(exerciseLinks)
-              .set({ masterExerciseId: masterId })
+              .set({ masterExerciseId: Number(masterId) })
               .where(inArray(exerciseLinks.templateExerciseId, templateIds));
           }
         }
@@ -667,9 +672,7 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error as Error;
       if (i < maxRetries - 1) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, delayMs * (i + 1)),
-        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
       }
     }
   }

@@ -18,7 +18,7 @@ function normalizeExerciseName(name: string): string {
 
 /* DEBUG LOGGING ENABLED FOR TESTS */
 const debugEnabled =
-  Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
+  Boolean(process.env["VITEST"]) || process.env.NODE_ENV === "test";
 function debugLog(...args: unknown[]) {
   if (debugEnabled) {
     console.log("[templatesRouter]", ...args);

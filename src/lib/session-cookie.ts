@@ -188,15 +188,18 @@ export class SessionCookie {
         return null;
       }
 
-      return {
+      const result: WorkOSSession = {
         userId: sessionData.userId,
-        organizationId: sessionData.organizationId || undefined,
         accessToken: sessionData.accessToken,
         refreshToken: sessionData.refreshToken,
         accessTokenExpiresAt,
         sessionExpiresAt,
         expiresAt: accessTokenExpiresAt,
       };
+      if (sessionData.organizationId) {
+        result.organizationId = sessionData.organizationId;
+      }
+      return result;
     } catch (_error) {
       // Invalid cookie format or database error
       return null;

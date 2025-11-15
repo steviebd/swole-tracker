@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { defineConfig } from "vitest/config";
 
-const isCI = process.env.CI === "true";
+const isCI = process.env["CI"] === "true";
 const cpuCount =
   typeof (os as { availableParallelism?: () => number })
     .availableParallelism === "function"
