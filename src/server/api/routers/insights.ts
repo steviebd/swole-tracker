@@ -323,7 +323,20 @@ export const insightsRouter = createTRPCRouter({
               sessionData.bestWeight = weightTarget;
             }
             if (input.unit) {
-              sessionData.bestSet = { unit: input.unit };
+              const bestSet: ExerciseBestSet = { unit: input.unit };
+              if (weightTarget !== undefined) {
+                bestSet.weight = weightTarget;
+              }
+              if (fs.reps !== undefined && fs.reps !== null) {
+                bestSet.reps = fs.reps;
+              }
+              if (fs.sets !== undefined && fs.sets !== null) {
+                bestSet.sets = fs.sets;
+              }
+              if (fs.rpe !== undefined && fs.rpe !== null) {
+                bestSet.rpe = fs.rpe;
+              }
+              sessionData.bestSet = bestSet;
             }
             bySession.set(fs.sessionId, sessionData);
           } else {

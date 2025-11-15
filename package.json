@@ -39,6 +39,8 @@
     "test:e2e:debug": "infisical run --env dev -- playwright test --debug",
     "test:e2e:mobile": "infisical run --env dev -- playwright test --project=mobile",
     "test:e2e:headed": "infisical run --env dev -- playwright test --headed",
+    "test:e2e:flow": "infisical run --env dev -- bunx playwright test e2e/workflow/full-workout-flow.spec.ts --headed",
+    "test:e2e:flow:ui": "infisical run --env dev -- bunx playwright test e2e/workflow/full-workout-flow.spec.ts --ui",
     "test:all": "bun run test && bun run test:e2e"
   },
   "dependencies": {

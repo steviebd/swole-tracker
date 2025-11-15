@@ -35,7 +35,7 @@ export default defineConfig({
 
   webServer: {
     command:
-      "NODE_ENV=test E2E_TEST=true infisical run --env dev -- bun run dev:worker",
+      "NODE_ENV=test E2E_TESTING=true infisical run --env dev -- bun run dev:worker",
     url: "http://localhost:8787",
     reuseExistingServer: !process.env["CI"],
     timeout: 120000,
