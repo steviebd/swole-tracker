@@ -13,6 +13,9 @@ import { chunkedBatch, whereInChunks } from "~/server/db/chunk-utils";
 
 // Utility function to normalize exercise names for fuzzy matching
 function normalizeExerciseName(name: string): string {
+  if (!name || typeof name !== "string") {
+    return "";
+  }
   return name.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
@@ -219,9 +222,7 @@ export const templatesRouter = createTRPCRouter({
         typeof workoutTemplates.$inferSelect & {
           exercises: (typeof templateExercises.$inferSelect)[];
         }
-      > = [];
-
-      await whereInChunks(templateIds, async (idChunk) => {
+      > = await whereInChunks(templateIds, async (idChunk) => {
         const chunkTemplates = await ctx.db.query.workoutTemplates.findMany({
           where: inArray(workoutTemplates.id, idChunk),
           with: {
@@ -230,7 +231,7 @@ export const templatesRouter = createTRPCRouter({
             },
           },
         });
-        templates.push(...chunkTemplates);
+        return chunkTemplates;
       });
 
       const statsByTemplate = new Map<
@@ -296,6 +297,7 @@ export const templatesRouter = createTRPCRouter({
         name: z.string().min(1).max(256),
         exercises: z.array(z.string().min(1).max(256)),
         dedupeKey: z.string().uuid(),
+        warmupConfig: z.record(z.string(), z.any()).optional(), // Warmup config per exercise
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -416,6 +418,9 @@ export const templatesRouter = createTRPCRouter({
           name: input.name,
           user_id: userId,
           dedupeKey,
+          warmupConfig: input.warmupConfig
+            ? JSON.stringify(input.warmupConfig)
+            : null,
         })
         .onConflictDoNothing({
           target: [workoutTemplates.user_id, workoutTemplates.dedupeKey],
@@ -520,6 +525,7 @@ export const templatesRouter = createTRPCRouter({
           }),
         ),
         dedupeKey: z.string().uuid(),
+        warmupConfig: z.record(z.string(), z.any()).optional(), // Warmup config per exercise
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -601,6 +607,9 @@ export const templatesRouter = createTRPCRouter({
           name: input.name,
           user_id: userId,
           dedupeKey,
+          warmupConfig: input.warmupConfig
+            ? JSON.stringify(input.warmupConfig)
+            : null,
         })
         .returning();
 
@@ -683,6 +692,7 @@ export const templatesRouter = createTRPCRouter({
         id: z.number(),
         name: z.string().min(1).max(256),
         exercises: z.array(z.string().min(1).max(256)),
+        warmupConfig: z.record(z.string(), z.any()).optional(), // Warmup config per exercise
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -699,10 +709,15 @@ export const templatesRouter = createTRPCRouter({
         return { success: true, alreadyDeleted: true };
       }
 
-      // Update template name
+      // Update template name and warmup config
       await ctx.db
         .update(workoutTemplates)
-        .set({ name: input.name })
+        .set({
+          name: input.name,
+          warmupConfig: input.warmupConfig
+            ? JSON.stringify(input.warmupConfig)
+            : null,
+        })
         .where(eq(workoutTemplates.id, input.id));
 
       // Delete existing exercises

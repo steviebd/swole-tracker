@@ -100,10 +100,14 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           },
           // Enhanced error handling for offline scenarios
           fetch: (url, options) => {
+            // Use longer timeout for AI operations (playbook generation, debriefs, etc.)
+            // Default 30s for most requests, but 120s for AI-heavy operations
+            const timeout = url.includes("playbooks.create") || url.includes("debrief") ? 120000 : 30000;
+
             return fetch(url, {
               ...options,
               // Add timeout for better offline detection
-              signal: AbortSignal.timeout(30000), // 30 second timeout
+              signal: AbortSignal.timeout(timeout),
             }).catch((error: unknown) => {
               // Transform network errors for better React Query handling
               if (error && typeof error === "object" && "name" in error) {

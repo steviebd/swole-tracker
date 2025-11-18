@@ -598,7 +598,12 @@ export function useWorkoutSessionState({
 
   // session init
   useEffect(() => {
-    if (!templateExercises || !previousDataLoaded) return;
+    // For playbook workouts (no template), we don't need to wait for templateExercises
+    // We can initialize directly from session.exercises if they exist
+    const isPlaybookWorkout = !sessionTemplate && session;
+    const canInitialize = isPlaybookWorkout || (templateExercises && previousDataLoaded);
+
+    if (!canInitialize) return;
 
     if (Array.isArray(session?.exercises) && session.exercises.length > 0) {
       const exerciseGroups = new Map<string, typeof session.exercises>();
@@ -652,7 +657,8 @@ export function useWorkoutSessionState({
       setExpandedExercises(existingExercises.map((_, index) => index));
       removeWorkoutDraft(sessionId);
       setDraftHydrated(true);
-    } else {
+    } else if (templateExercises) {
+      // Only initialize from template if template exists
       const initialExercises: ExerciseData[] = templateExercises.map(
         (templateExercise) => {
           const previousData = previousExerciseData.get(
@@ -710,6 +716,12 @@ export function useWorkoutSessionState({
       setExercises(resolvedExercises);
       setIsReadOnly(false);
       setDraftHydrated(true);
+    } else {
+      // Playbook workout with no template and no exercises yet
+      // Initialize with empty array - exercises will be added in the session
+      setExercises([]);
+      setIsReadOnly(false);
+      setDraftHydrated(true);
     }
 
     setLoading(false);
@@ -723,6 +735,7 @@ export function useWorkoutSessionState({
     mergeDraftExercises,
     sessionId,
     generateSetId,
+    sessionTemplate,
   ]);
 
   useEffect(() => {

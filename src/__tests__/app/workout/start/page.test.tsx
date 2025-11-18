@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+// import { headers } from "next/headers"; // Mocked below
 import StartWorkoutPage from "~/app/workout/start/page";
-import { api } from "~/trpc/server";
+import { api } from "~/trpc/react";
 import { SessionCookie } from "~/lib/session-cookie";
 import {
   getQueryClient,
@@ -17,6 +17,10 @@ import ClientHydrate from "~/trpc/HydrateClient";
 // Mock dependencies
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({

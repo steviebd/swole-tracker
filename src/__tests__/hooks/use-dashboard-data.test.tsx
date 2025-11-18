@@ -236,11 +236,38 @@ describe("useDashboardData", () => {
 
   it("shows celebration for great streaks", () => {
     useWorkoutStatsMock.mockReturnValue(createStats({ currentStreak: 7 }));
-
+    useProgressGoalsMock.mockImplementation(({ timeRange }) => {
+      if (timeRange === "week") {
+        return createGoals(timeRange, {
+          goals: [
+            {
+              id: "weekly",
+              type: "workouts",
+              label: "Weekly Workouts",
+              current: 3,
+              target: 3,
+              unit: "",
+              percentage: 100,
+              status: "perfect",
+              message: "Perfect!",
+              description: "Weekly workout goal",
+            },
+          ],
+          summary: {
+            totalGoals: 1,
+            achievedGoals: 1,
+            exceededGoals: 0,
+            overallProgress: 100,
+          },
+        });
+      }
+      return createGoals(timeRange);
+    });
+    
     const { result } = renderHook(() =>
       useDashboardData(undefined, dependencies()),
     );
-
+    
     expect(result.current.helpers.shouldShowCelebration()).toBe(true);
     expect(result.current.helpers.getCelebrationMessage()).toBe(
       "🎯 Perfect week! All goals achieved!",

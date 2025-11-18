@@ -15,9 +15,9 @@ export default defineConfig({
 
   use: {
     baseURL: "http://localhost:8787",
-    trace: "on-first-retry",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     actionTimeout: 10000,
     navigationTimeout: 30000,
     // Slow down actions for interactive testing (comment out for faster CI runs)

@@ -6,6 +6,38 @@ import { simpleRender as renderSimple } from "~/__tests__/test-utils";
 // Ensure React is available globally for JSX
 global.React = React;
 
+// Mock framer-motion to prevent DOM warnings
+vi.mock("framer-motion", () => ({
+  motion: {
+    div: ({ children, ...props }: any) => (
+      <div data-motion="div" {...props}>
+        {children}
+      </div>
+    ),
+    span: ({ children, ...props }: any) => (
+      <span data-motion="span" {...props}>
+        {children}
+      </span>
+    ),
+    button: ({ children, ...props }: any) => (
+      <button data-motion="button" {...props}>
+        {children}
+      </button>
+    ),
+    form: ({ children, ...props }: any) => (
+      <form data-motion="form" {...props}>
+        {children}
+      </form>
+    ),
+  },
+  AnimatePresence: ({ children }: any) => (
+    <div data-animate-presence>{children}</div>
+  ),
+  useAnimation: () => ({ start: vi.fn(), stop: vi.fn() }),
+  useMotionValue: () => ({ get: () => 0, set: vi.fn() }),
+  useSpring: () => ({ get: () => 0, set: vi.fn() }),
+}));
+
 // Mock recharts components
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: any) => (

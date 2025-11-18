@@ -14,9 +14,9 @@ vi.mock("~/env", () => ({
 }));
 
 vi.mock("~/lib/encryption", () => ({
-  encryptToken: vi.fn(),
-  getDecryptedToken: vi.fn(),
-  isEncrypted: vi.fn(),
+  encryptToken: vi.fn().mockResolvedValue("encrypted-token"),
+  getDecryptedToken: vi.fn().mockResolvedValue("decrypted-token"),
+  isEncrypted: vi.fn().mockReturnValue(false),
 }));
 
 // Mock fetch for WHOOP API calls
@@ -42,7 +42,7 @@ describe("token rotation", () => {
     getDecryptedToken = encryption.getDecryptedToken;
     isEncrypted = encryption.isEncrypted;
 
-    // Default mock implementations
+    // Reset mock implementations after clearing
     encryptToken.mockResolvedValue("encrypted-token");
     getDecryptedToken.mockResolvedValue("decrypted-token");
     isEncrypted.mockReturnValue(false);

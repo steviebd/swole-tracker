@@ -6,9 +6,11 @@ import { simpleRender as render, screen } from "~/__tests__/test-utils";
 // Ensure React is available globally for JSX
 global.React = React;
 
-// Mock analytics
+// Mock analytics - consistent with other tests
 vi.mock("~/lib/analytics", () => ({
   analytics: {
+    event: vi.fn(),
+    databaseQueryPerformance: vi.fn(),
     progressSectionLoad: vi.fn(),
   },
 }));

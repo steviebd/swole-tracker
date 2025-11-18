@@ -5,12 +5,14 @@ import { useReducedMotion } from "framer-motion";
 
 import { cn } from "~/lib/utils";
 
-export type ToastType = "success" | "error" | "info" | "warning";
+export type ToastType = "success" | "error" | "info" | "warning" | "default" | "destructive";
 
 export interface ToastProps {
   open: boolean;
   type?: ToastType;
-  message: React.ReactNode;
+  message?: React.ReactNode;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
   onClose?: () => void;
   /** If provided, shows a persistent Undo chip that stays until next user action. */
   onUndo?: () => void;
@@ -25,6 +27,8 @@ export function Toast({
   open,
   type = "info",
   message,
+  title,
+  description,
   onClose,
   onUndo,
   className,
@@ -34,10 +38,10 @@ export function Toast({
   // Auto-dismiss behavior
   useEffect(() => {
     if (!open || !onClose) return;
-    
+
     // Don't auto-dismiss if there's an undo action
     if (onUndo) return;
-    
+
     const timer = setTimeout(() => {
       onClose();
     }, 4000); // 4 second auto-dismiss
@@ -74,6 +78,12 @@ export function Toast({
       border: "rgba(248, 113, 113, 0.45)",
       icon: "❌",
     },
+    destructive: {
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-error-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-error-30) 55%, black 10%) 100%)",
+      border: "rgba(248, 113, 113, 0.45)",
+      icon: "❌",
+    },
     warning: {
       background:
         "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-primary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-30) 55%, black 10%) 100%)",
@@ -86,14 +96,24 @@ export function Toast({
       border: "rgba(125, 211, 252, 0.45)",
       icon: "ℹ️",
     },
+    default: {
+      background:
+        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-secondary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-30) 55%, black 10%) 100%)",
+      border: "rgba(125, 211, 252, 0.45)",
+      icon: "ℹ️",
+    },
   };
 
   const tone = toneTokens[type] ?? toneTokens.info;
 
+  // Use title/description if provided, otherwise fall back to message
+  const displayTitle = title;
+  const displayMessage = description ?? message;
+
   return (
     <div
       className={cn(
-        "fixed top-4 left-1/2 z-50 flex min-w-[280px] max-w-md -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3 text-white shadow-xl backdrop-blur-lg",
+        "fixed top-4 left-1/2 z-50 flex min-w-[280px] max-w-md -translate-x-1/2 items-start gap-3 rounded-2xl border px-4 py-3 text-white shadow-xl backdrop-blur-lg",
         prefersReducedMotion
           ? ""
           : "animate-in fade-in-0 slide-in-from-top-2 duration-300",
@@ -107,17 +127,26 @@ export function Toast({
       }}
     >
       {/* Icon */}
-      <span className="text-lg" aria-hidden="true">
+      <span className="text-lg shrink-0 mt-0.5" aria-hidden="true">
         {tone.icon}
       </span>
 
       {/* Message */}
-      <div className="flex-1 text-sm font-medium text-white/90">
-        {message}
+      <div className="flex-1 space-y-1">
+        {displayTitle && (
+          <div className="text-sm font-semibold text-white">
+            {displayTitle}
+          </div>
+        )}
+        {displayMessage && (
+          <div className="text-sm font-medium text-white/90">
+            {displayMessage}
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {onUndo && (
           <button
             onClick={() => {

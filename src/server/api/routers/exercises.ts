@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, and, or, sql, desc, like, inArray } from "drizzle-orm";
+import { eq, and, sql, desc, like, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
@@ -1840,7 +1840,7 @@ export const exercisesRouter = createTRPCRouter({
           }
 
           if (!normalizedRow) {
-            return;
+            return [];
           }
 
           const currentDate = latestPerformance?.workoutDate ?? null;
@@ -1849,6 +1849,8 @@ export const exercisesRouter = createTRPCRouter({
           if (!currentDate || candidateDate > currentDate) {
             latestPerformance = normalizedRow;
           }
+
+          return [normalizedRow];
         },
         SQLITE_VARIABLE_LIMIT,
       );

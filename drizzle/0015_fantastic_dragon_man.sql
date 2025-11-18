@@ -1,0 +1,1 @@
+ALTER TABLE `workout_template` ADD `warmupConfig` text;

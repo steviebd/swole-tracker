@@ -158,10 +158,10 @@ export async function decryptToken(encryptedData: string): Promise<string> {
       expectedMinLength: SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1,
     });
 
-    // Validate minimum length for our format
-    if (combined.length < SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1) {
+    // Validate minimum length for our format (allow empty plaintext)
+    if (combined.length < SALT_LENGTH + IV_LENGTH + TAG_LENGTH) {
       throw new Error(
-        `Invalid token format: decoded data too short (${combined.length} bytes, minimum ${SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1} bytes)`,
+        `Invalid token format: decoded data too short (${combined.length} bytes, minimum ${SALT_LENGTH + IV_LENGTH + TAG_LENGTH} bytes)`,
       );
     }
 
@@ -258,8 +258,8 @@ export async function decryptToken(encryptedData: string): Promise<string> {
 export function isEncrypted(data: string): boolean {
   try {
     const decoded = Buffer.from(data, "base64");
-    // Check if it has the expected minimum length for our format
-    return decoded.length >= SALT_LENGTH + IV_LENGTH + TAG_LENGTH + 1;
+    // Check if it has the expected minimum length for our format (allow empty plaintext)
+    return decoded.length >= SALT_LENGTH + IV_LENGTH + TAG_LENGTH;
   } catch {
     return false;
   }

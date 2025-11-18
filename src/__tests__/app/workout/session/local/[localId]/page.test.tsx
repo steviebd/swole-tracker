@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { redirect } from "next/navigation";
@@ -23,7 +24,7 @@ vi.mock("~/lib/session-cookie", () => ({
 }));
 
 vi.mock("~/app/workout/session/local/[localId]/redirect-countdown", () => ({
-  RedirectCountdown: vi.fn(({ href, seconds }) => (
+  RedirectCountdown: vi.fn(({ href, seconds = 5 }) => (
     <div data-testid="redirect-countdown">
       <span data-testid="redirect-href">{href}</span>
       <span data-testid="redirect-seconds">{seconds}</span>

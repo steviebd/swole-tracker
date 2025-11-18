@@ -8,25 +8,15 @@ import {
   templateExercises,
   exerciseLinks,
   masterExercises,
+  exerciseSets,
+  userPreferences,
 } from "~/server/db/schema";
 import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
 } from "~/server/db/utils";
 // Note: exerciseNameResolutionView replaced with raw SQL queries
-import {
-  eq,
-  desc,
-  and,
-  ne,
-  inArray,
-  gte,
-  or,
-  asc,
-  lt,
-  type SQL,
-  sql,
-} from "drizzle-orm";
+import { eq, desc, and, ne, inArray, gte, asc, lt } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -41,11 +31,25 @@ const setInputSchema = z.object({
   isDefaultApplied: z.boolean().optional(),
 });
 
+// Warm-Up Sets: Individual exercise set schema (Phase 2)
+const exerciseSetInputSchema = z.object({
+  setNumber: z.number().int().positive(),
+  setType: z.enum(["warmup", "working", "backoff", "drop"]).default("working"),
+  weight: z.number().nonnegative().nullable(),
+  reps: z.number().int().positive(),
+  rpe: z.number().int().min(1).max(10).optional(),
+  restSeconds: z.number().int().positive().optional(),
+  completed: z.boolean().optional(),
+  notes: z.string().optional(),
+});
+
 const exerciseInputSchema = z.object({
   templateExerciseId: z.number().optional(),
   exerciseName: z.string().min(1).max(256),
   sets: z.array(setInputSchema),
   unit: z.enum(["kg", "lbs"]).default("kg"),
+  // Warm-Up Sets: Optional array of individual sets with set-level granularity
+  exerciseSets: z.array(exerciseSetInputSchema).optional(),
 });
 
 import { logger } from "~/lib/logger";
@@ -61,6 +65,11 @@ import {
   whereInChunks,
 } from "~/server/db/chunk-utils";
 import { invalidateQueries } from "~/trpc/cache-config";
+import {
+  detectWarmupPattern,
+  generateDefaultWarmupProtocol,
+  calculateVolumeBreakdown,
+} from "~/server/api/utils/warmup-pattern-detection";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -117,6 +126,11 @@ export const workoutsRouter = createTRPCRouter({
           },
         },
       });
+
+      // Safety check: ensure sessions is defined
+      if (!sessions) {
+        throw new Error("Sessions query returned undefined");
+      }
 
       // 2. Get unique template IDs
       const templateIds = [
@@ -608,7 +622,7 @@ export const workoutsRouter = createTRPCRouter({
           throw new Error("Workout session not found");
         }
 
-        // Delete existing exercises for this session
+        // Delete existing exercises (and cascading exercise_sets) for this session
         await ctx.db
           .delete(sessionExercises)
           .where(eq(sessionExercises.sessionId, input.sessionId));
@@ -626,7 +640,150 @@ export const workoutsRouter = createTRPCRouter({
           templateExerciseIds,
         );
 
-        // Flatten exercises into individual sets and filter out empty ones
+        // Handle new exerciseSets format (Phase 2: Warm-Up Sets)
+        // Determine if any exercise uses the new exerciseSets format
+        const usesNewFormat = input.exercises.some(
+          (ex) => ex.exerciseSets && ex.exerciseSets.length > 0,
+        );
+
+        if (usesNewFormat) {
+          // New format: Create session_exercise rows with aggregated stats + individual exercise_sets rows
+          for (const exercise of input.exercises) {
+            if (!exercise.exerciseSets || exercise.exerciseSets.length === 0) {
+              continue; // Skip exercises without exerciseSets data
+            }
+
+            const templateExerciseId = exercise.templateExerciseId ?? null;
+            const hasValidTemplateExercise =
+              templateExerciseId !== null &&
+              resolvedNameLookup.has(templateExerciseId);
+
+            const resolvedTemplateExerciseId = hasValidTemplateExercise
+              ? templateExerciseId
+              : null;
+
+            const { name: resolvedExerciseName } =
+              resolveExerciseNameWithLookup(
+                templateExerciseId,
+                exercise.exerciseName,
+                resolvedNameLookup,
+              );
+
+            // Compute aggregated stats from exerciseSets
+            const stats = computeAggregatedStats(exercise.exerciseSets);
+
+            // Create session_exercise row with aggregated stats
+            const [sessionExerciseRow] = await ctx.db
+              .insert(sessionExercises)
+              .values({
+                user_id: ctx.user.id,
+                sessionId: input.sessionId,
+                templateExerciseId: resolvedTemplateExerciseId,
+                exerciseName: exercise.exerciseName,
+                resolvedExerciseName,
+                setOrder: 0, // Not used in new format
+                weight: stats.topSetWeight,
+                reps: null, // Not meaningful when sets vary
+                sets: stats.totalSets,
+                unit: exercise.unit ?? "kg",
+                usesSetTable: true, // Flag this as using the new format
+                totalSets: stats.totalSets,
+                workingSets: stats.workingSets,
+                warmupSets: stats.warmupSets,
+                topSetWeight: stats.topSetWeight,
+                totalVolume: stats.totalVolume,
+                workingVolume: stats.workingVolume,
+              })
+              .returning({ id: sessionExercises.id });
+
+            if (!sessionExerciseRow) {
+              throw new Error("Failed to create session exercise");
+            }
+
+            // Create individual exercise_sets rows with chunking
+            const exerciseSetsToInsert = exercise.exerciseSets.map((set) => ({
+              id: crypto.randomUUID(),
+              sessionExerciseId: sessionExerciseRow.id,
+              userId: ctx.user.id,
+              setNumber: set.setNumber,
+              setType: set.setType,
+              weight: set.weight,
+              reps: set.reps,
+              rpe: set.rpe ?? null,
+              restSeconds: set.restSeconds ?? null,
+              completed: set.completed ?? true, // Assume completed if not specified
+              notes: set.notes ?? null,
+              createdAt: new Date(),
+              completedAt: set.completed ? new Date() : null,
+            }));
+
+            // Use chunkedBatch to safely insert exercise_sets (D1 limit protection)
+            // exercise_sets has 11 columns, so chunk size ~6 rows
+            await chunkedBatch(
+              ctx.db,
+              exerciseSetsToInsert,
+              (chunk) => ctx.db.insert(exerciseSets).values(chunk),
+              { limit: 70 }, // D1-safe limit
+            );
+
+            logger.debug("Inserted exercise with sets", {
+              exerciseName: exercise.exerciseName,
+              sessionExerciseId: sessionExerciseRow.id,
+              setsCount: exerciseSetsToInsert.length,
+            });
+          }
+
+          // Trigger debrief and aggregation for new format
+          const acceptLanguage =
+            ctx.headers.get("accept-language") ?? undefined;
+          const locale = acceptLanguage?.split(",")[0];
+
+          void (async () => {
+            try {
+              const debriefOptions: GenerateDebriefOptions = {
+                dbClient: ctx.db,
+                userId: ctx.user.id,
+                sessionId: input.sessionId,
+                trigger: "auto",
+                requestId: ctx.requestId,
+                ...(locale !== undefined && { locale }),
+              };
+
+              await generateAndPersistDebrief(debriefOptions);
+            } catch (error) {
+              logger.warn("session_debrief.auto_generation_failed", {
+                userId: ctx.user.id,
+                sessionId: input.sessionId,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+            }
+          })();
+
+          void (async () => {
+            try {
+              const { aggregationTrigger } = await import(
+                "~/server/db/aggregation"
+              );
+              await aggregationTrigger.onSessionChange(
+                input.sessionId,
+                ctx.user.id,
+              );
+            } catch (error) {
+              logger.warn("aggregation_trigger_failed", {
+                userId: ctx.user.id,
+                sessionId: input.sessionId,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+            }
+          })();
+
+          return {
+            success: true,
+            playbookSessionId: null, // Playbook handling could be added later
+          };
+        }
+
+        // Legacy format: Flatten exercises into individual session_exercise rows
         const invalidTemplateExerciseIds = new Set<number>();
 
         const setsToInsert = input.exercises.flatMap((exercise) =>
@@ -783,7 +940,88 @@ export const workoutsRouter = createTRPCRouter({
           })();
         }
 
-        return { success: true };
+        // Check if this workout is part of an active playbook session
+        let playbookSessionId: number | null = null;
+        try {
+          const { playbookSessions } = await import("~/server/db/schema");
+          const linkedPlaybookSession =
+            await ctx.db.query.playbookSessions.findFirst({
+              where: (sessions, { eq, and }) =>
+                and(
+                  eq(sessions.actualWorkoutId, input.sessionId),
+                  eq(sessions.isCompleted, false),
+                ),
+            });
+          if (linkedPlaybookSession) {
+            playbookSessionId = linkedPlaybookSession.id;
+
+            // Calculate adherence score if there are exercises
+            if (setsToInsert.length > 0) {
+              // Simple adherence: compare number of exercises completed vs prescribed
+              const prescription = (
+                linkedPlaybookSession.prescribedWorkoutJson
+                  ? JSON.parse(linkedPlaybookSession.prescribedWorkoutJson)
+                  : null
+              ) as {
+                exercises: Array<{
+                  exerciseName: string;
+                  sets: number;
+                  reps: number;
+                  weight: number | null;
+                }>;
+              } | null;
+
+              let adherenceScore = 100; // Default to perfect if no prescription
+
+              if (prescription?.exercises) {
+                const prescribedExerciseNames = new Set(
+                  prescription.exercises.map((e) =>
+                    e.exerciseName.toLowerCase(),
+                  ),
+                );
+                const completedExerciseNames = new Set(
+                  input.exercises.map((e) => e.exerciseName.toLowerCase()),
+                );
+
+                // Calculate overlap
+                const matchingExercises = Array.from(
+                  prescribedExerciseNames,
+                ).filter((name) => completedExerciseNames.has(name)).length;
+
+                adherenceScore = Math.round(
+                  (matchingExercises / prescribedExerciseNames.size) * 100,
+                );
+              }
+
+              // Mark playbook session as completed
+              await ctx.db
+                .update(playbookSessions)
+                .set({
+                  isCompleted: true,
+                  completedAt: new Date(),
+                  adherenceScore,
+                  updatedAt: new Date(),
+                })
+                .where(eq(playbookSessions.id, linkedPlaybookSession.id));
+
+              logger.info("Marked playbook session as completed", {
+                playbookSessionId: linkedPlaybookSession.id,
+                adherenceScore,
+              });
+            }
+          }
+        } catch (error) {
+          // Silently fail - RPE is optional
+          logger.info("Failed to check for playbook session", {
+            sessionId: input.sessionId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }
+
+        return {
+          success: true,
+          playbookSessionId, // If not null, client should show RPE modal
+        };
       } catch (err: any) {
         const { TRPCError } = await import("@trpc/server");
         const message = err?.message ?? "workouts.save failed";
@@ -875,6 +1113,7 @@ export const workoutsRouter = createTRPCRouter({
           .orderBy(sessionExercises.setOrder);
 
         existingSets = existingSets.concat(chunkSets);
+        return chunkSets;
       });
 
       const setsByExercise = new Map<
@@ -1176,4 +1415,106 @@ export const workoutsRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  // Get warm-up suggestions for an exercise
+  getWarmupSuggestions: protectedProcedure
+    .input(
+      z.object({
+        exerciseName: z.string(),
+        targetWeight: z.number().positive(),
+        targetReps: z.number().int().positive(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Call detectWarmupPattern from utils
+      const pattern = await detectWarmupPattern({
+        userId: ctx.user.id,
+        exerciseName: input.exerciseName,
+        targetWorkingWeight: input.targetWeight,
+        targetWorkingReps: input.targetReps,
+      });
+
+      // If low confidence, get user preferences for fallback protocol
+      if (pattern.confidence === "low") {
+        const preferences = await ctx.db.query.userPreferences.findFirst({
+          where: eq(userPreferences.user_id, ctx.user.id),
+        });
+
+        if (preferences && preferences.warmupStrategy !== "none") {
+          const fallbackSets = generateDefaultWarmupProtocol(
+            input.targetWeight,
+            input.targetReps,
+            {
+              strategy:
+                (preferences.warmupStrategy as "percentage" | "fixed") ??
+                "percentage",
+              percentages: preferences.warmupPercentages
+                ? JSON.parse(preferences.warmupPercentages)
+                : [40, 60, 80],
+              setsCount: preferences.warmupSetsCount ?? 3,
+              repsStrategy:
+                (preferences.warmupRepsStrategy as
+                  | "match_working"
+                  | "descending"
+                  | "fixed") ?? "match_working",
+              fixedReps: preferences.warmupFixedReps ?? 5,
+            },
+          );
+
+          return {
+            sets: fallbackSets,
+            confidence: "low" as const,
+            source: "protocol" as const,
+            sessionCount: 0,
+          };
+        }
+      }
+
+      return pattern;
+    }),
 });
+
+/**
+ * Helper: Compute aggregated stats from exercise sets
+ * Used when persisting sets to calculate session_exercise summary columns
+ */
+function computeAggregatedStats(
+  exerciseSetsData: Array<{
+    setType: string;
+    weight: number | null;
+    reps: number;
+  }>,
+): {
+  totalSets: number;
+  workingSets: number;
+  warmupSets: number;
+  topSetWeight: number;
+  totalVolume: number;
+  workingVolume: number;
+} {
+  const totalSets = exerciseSetsData.length;
+  const workingSets = exerciseSetsData.filter(
+    (s) => s.setType === "working",
+  ).length;
+  const warmupSets = exerciseSetsData.filter(
+    (s) => s.setType === "warmup",
+  ).length;
+  const topSetWeight = Math.max(...exerciseSetsData.map((s) => s.weight ?? 0));
+
+  const volumeBreakdown = calculateVolumeBreakdown(
+    exerciseSetsData.map((s) => ({
+      weight: s.weight,
+      reps: s.reps,
+      setType: s.setType,
+    })),
+  );
+
+  return {
+    totalSets,
+    workingSets,
+    warmupSets,
+    topSetWeight,
+    totalVolume: volumeBreakdown.total,
+    workingVolume: volumeBreakdown.working,
+  };
+}

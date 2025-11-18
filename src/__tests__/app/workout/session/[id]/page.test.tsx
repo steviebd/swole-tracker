@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
@@ -18,12 +19,20 @@ vi.mock("~/trpc/react", () => ({
   api: {
     workouts: {
       getById: {
-        useQuery: vi.fn(),
+        useQuery: vi.fn(() => ({
+          data: undefined,
+          error: null,
+          isLoading: false,
+        })),
       },
     },
     preferences: {
       get: {
-        useQuery: vi.fn(),
+        useQuery: vi.fn(() => ({
+          data: { unit: "kg" },
+          error: null,
+          isLoading: false,
+        })),
       },
     },
   },
@@ -339,7 +348,7 @@ describe("WorkoutSessionPage", () => {
 
       await waitFor(() => {
         const headerSubtitle = screen.getByTestId("header-subtitle");
-        expect(headerSubtitle).toHaveTextContent(/1\/15\/2024/);
+        expect(headerSubtitle).toHaveTextContent(/15\/01\/2024/);
       });
     });
 

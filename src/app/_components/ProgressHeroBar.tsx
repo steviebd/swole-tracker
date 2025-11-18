@@ -90,11 +90,19 @@ export function ProgressHeroBar({ selectedExercise }: ProgressHeroBarProps) {
     timeRange: consistencyRange,
   });
 
+  // Check WHOOP integration status first
+  const { data: whoopStatus } = api.whoop.getIntegrationStatus.useQuery(undefined, {
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  const isWhoopConnected = whoopStatus?.isConnected ?? false;
+
   const {
     data: whoopRecovery,
     error: whoopError,
     isFetching: whoopLoading,
   } = api.whoop.getLatestRecoveryData.useQuery(undefined, {
+    enabled: isWhoopConnected,
     retry: false,
   });
 

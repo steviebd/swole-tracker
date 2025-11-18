@@ -11,7 +11,6 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { SessionCookie } from "~/lib/session-cookie";
-import type { D1Database } from "@cloudflare/workers-types";
 
 import { createDb, db as fallbackDb, getD1Binding } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
@@ -150,7 +149,9 @@ export const t = initTRPC.context<TRPCContext>().create({
         path,
         type,
         zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+          error.cause instanceof ZodError
+            ? (error.cause.flatten as any)()
+            : null,
       },
     };
 

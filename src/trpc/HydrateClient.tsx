@@ -1,6 +1,6 @@
 "use client";
 
-import { type PropsWithChildren, useState } from "react";
+import React, { type PropsWithChildren, useState } from "react";
 import {
   HydrationBoundary,
   QueryClient,

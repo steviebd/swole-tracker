@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock PostHog analytics
+// Mock PostHog analytics - comprehensive mock to prevent conflicts
 vi.mock("~/lib/analytics", () => ({
   analytics: {
     event: vi.fn(),
+    databaseQueryPerformance: vi.fn(),
+    progressSectionLoad: vi.fn(),
   },
 }));
 
@@ -16,6 +18,9 @@ import {
   Logger,
 } from "~/lib/logger";
 import { analytics } from "~/lib/analytics";
+
+// Type the mock for better intellisense
+const mockedAnalytics = vi.mocked(analytics);
 
 // Helper to create logger with specific environment
 const createLoggerWithEnv = (nodeEnv: string) => {
@@ -357,7 +362,10 @@ describe("logSecurityEvent", () => {
 describe("Logger environment behavior", () => {
   it("should handle PostHog failures gracefully", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(analytics.event).mockImplementation(() => {
+    const mockEvent = analytics.event as vi.MockedFunction<
+      typeof analytics.event
+    >;
+    mockEvent.mockImplementation(() => {
       throw new Error("PostHog error");
     });
 

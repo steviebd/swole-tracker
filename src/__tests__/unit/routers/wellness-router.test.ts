@@ -1,29 +1,91 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 import { createMockUser } from "~/__tests__/mocks/test-data";
+import { clearTestData } from "~/__tests__/mocks/db";
+import { createDatabaseMock } from "~/__tests__/generated-mocks/database-mocks";
 
 // Import after mocking
 import { wellnessRouter } from "~/server/api/routers/wellness";
 
+type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
+
+const createMockDb = () => {
+  // Use the central database mock
+  const centralMock = createDatabaseMock();
+  // Clear any existing data
+  clearTestData();
+
+  // Create separate queues for different operations
+  const selectQueue: Array<ChainResult<any>> = [];
+  const insertQueue: Array<ChainResult<any>> = [];
+  const updateQueue: Array<ChainResult<any>> = [];
+  const deleteQueue: Array<ChainResult<any>> = [];
+
+  const createQueryChainWithMethods = <TData extends unknown[]>(
+    queue: Array<ChainResult<TData>>,
+  ) => {
+    const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
+
+    const chain: any = {
+      result,
+      from: vi.fn(() => chain),
+      innerJoin: vi.fn(() => chain),
+      leftJoin: vi.fn(() => chain),
+      where: vi.fn(() => chain),
+      groupBy: vi.fn(() => chain),
+      orderBy: vi.fn(() => chain),
+      select: vi.fn((selectObj?: any) => chain),
+      limit: vi.fn(() => chain),
+      offset: vi.fn(() => chain),
+      values: vi.fn(() => chain),
+      set: vi.fn(() => chain),
+      returning: vi.fn(async () => chain.result),
+      onConflictDoUpdate: vi.fn(() => chain),
+      execute: vi.fn(async () => chain.result),
+      all: vi.fn(async () => chain.result),
+      delete: vi.fn(() => chain),
+      then: (
+        resolve: (value: TData) => void,
+        reject?: (reason: unknown) => void,
+      ) => Promise.resolve(chain.result as TData).then(resolve, reject),
+      catch: (reject: (reason: unknown) => void) =>
+        Promise.resolve(chain.result as TData).catch(reject),
+      finally: (cb: () => void) =>
+        Promise.resolve(chain.result as TData).finally(cb),
+      toString: () => "[MockQueryChain]",
+    };
+    return chain;
+  };
+
+  // Create fresh query mocks for each test
+  const mockDb = {
+    ...centralMock,
+    select: vi.fn(() => createQueryChainWithMethods(selectQueue)),
+    insert: vi.fn(() => createQueryChainWithMethods(insertQueue)),
+    update: vi.fn(() => createQueryChainWithMethods(updateQueue)),
+    delete: vi.fn(() => createQueryChainWithMethods(deleteQueue)),
+    // Helper methods for queueing results
+    queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
+    queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
+    queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
+    queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
+    // Raw query interface - create fresh mocks each time
+    all: vi.fn(async () => []),
+    query: {},
+  } as any;
+
+  return mockDb;
+};
+
 describe("wellnessRouter", () => {
   const mockUser = createMockUser({ id: "test-user-id" });
 
-  let mockDb: any;
+  let mockDb: ReturnType<typeof createMockDb>;
   let caller: ReturnType<(typeof wellnessRouter)["createCaller"]>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Create a simple mock database that works with the router
-    mockDb = {
-      select: vi.fn(),
-      insert: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      transaction: vi.fn((callback: (tx: any) => Promise<any>) =>
-        callback(mockDb),
-      ),
-    };
+    mockDb = createMockDb();
 
     const ctx = {
       db: mockDb,
@@ -37,23 +99,13 @@ describe("wellnessRouter", () => {
 
   describe("save", () => {
     it("should save wellness data successfully", async () => {
-      // Mock session validation - the select chain should return a session
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([{ id: 1 }]),
-          }),
-        }),
-      });
+      // Mock session validation - select chain should return a session
+      mockDb.queueSelectResult([{ id: 1 }]);
+      mockDb.queueSelectResult([{ id: 1 }]); // Additional select calls
+      mockDb.queueSelectResult([{ id: 1 }]); // More select calls
 
-      // Mock insert operation
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-          }),
-        }),
-      });
+      // Mock insert operation - ensure the result is properly queued
+      mockDb.queueInsertResult([{ id: 1 }]);
 
       const input = {
         sessionId: 1,
@@ -72,13 +124,7 @@ describe("wellnessRouter", () => {
 
     it("should save wellness data without sessionId", async () => {
       // Mock insert operation
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-          }),
-        }),
-      });
+      mockDb.queueInsertResult([{ id: 1 }]);
 
       const input = {
         energyLevel: 8,
@@ -96,13 +142,7 @@ describe("wellnessRouter", () => {
 
     it("should handle session validation failure", async () => {
       // Mock session validation - no session found
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult([]);
 
       const input = {
         sessionId: 999,
@@ -118,14 +158,22 @@ describe("wellnessRouter", () => {
     });
 
     it("should handle database errors", async () => {
-      // Mock insert to throw error
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockRejectedValue(new Error("Database error")),
-          }),
+      // Create a custom mock for this test to simulate database error
+      const errorInsertChain = {
+        values: vi.fn(() => errorInsertChain),
+        onConflictDoUpdate: vi.fn(() => errorInsertChain),
+        returning: vi.fn(async () => {
+          throw new Error("Database error");
         }),
-      });
+        then: vi.fn(),
+        catch: vi.fn((cb) => {
+          cb(new Error("Database error"));
+          return Promise.reject(new Error("Database error"));
+        }),
+        finally: vi.fn(),
+      };
+
+      mockDb.insert.mockReturnValue(errorInsertChain);
 
       const input = {
         energyLevel: 8,
@@ -140,19 +188,27 @@ describe("wellnessRouter", () => {
     });
 
     it("should handle TRPCError from database", async () => {
-      // Mock insert to throw TRPCError
-      mockDb.insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            returning: vi.fn().mockRejectedValue(
-              new TRPCError({
-                code: "BAD_REQUEST",
-                message: "Custom error",
-              }),
-            ),
-          }),
-        }),
+      // Create a custom mock for this test to simulate TRPCError
+      const trpcError = new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Custom error",
       });
+
+      const errorInsertChain = {
+        values: vi.fn(() => errorInsertChain),
+        onConflictDoUpdate: vi.fn(() => errorInsertChain),
+        returning: vi.fn(async () => {
+          throw trpcError;
+        }),
+        then: vi.fn(),
+        catch: vi.fn((cb) => {
+          cb(trpcError);
+          return Promise.reject(trpcError);
+        }),
+        finally: vi.fn(),
+      };
+
+      mockDb.insert.mockReturnValue(errorInsertChain);
 
       const input = {
         energyLevel: 8,
@@ -174,15 +230,7 @@ describe("wellnessRouter", () => {
       };
 
       // Mock the select query chain with innerJoin
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          innerJoin: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([{ wellness_data: mockData }]),
-            }),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult([{ wellness_data: mockData }]);
 
       const result = await caller.getBySessionId({ sessionId: 1 });
 
@@ -191,15 +239,7 @@ describe("wellnessRouter", () => {
 
     it("should return null when no data found", async () => {
       // Mock empty result
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          innerJoin: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult([]);
 
       const result = await caller.getBySessionId({ sessionId: 1 });
 
@@ -214,17 +254,7 @@ describe("wellnessRouter", () => {
         { id: 2, date: new Date(), energy_level: 7 },
       ];
 
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue({
-                offset: vi.fn().mockResolvedValue(mockHistory),
-              }),
-            }),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult(mockHistory);
 
       const result = await caller.getHistory({
         limit: 10,
@@ -237,17 +267,22 @@ describe("wellnessRouter", () => {
     });
 
     it("should handle database errors", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            orderBy: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue({
-                offset: vi.fn().mockRejectedValue(new Error("Database error")),
-              }),
-            }),
-          }),
+      // Create a custom mock for this test to simulate database error
+      const errorSelectChain = {
+        from: vi.fn(() => errorSelectChain),
+        where: vi.fn(() => errorSelectChain),
+        orderBy: vi.fn(() => errorSelectChain),
+        limit: vi.fn(() => errorSelectChain),
+        offset: vi.fn(() => errorSelectChain),
+        then: vi.fn(),
+        catch: vi.fn((cb) => {
+          cb(new Error("Database error"));
+          return Promise.reject(new Error("Database error"));
         }),
-      });
+        finally: vi.fn(),
+      };
+
+      mockDb.select.mockReturnValue(errorSelectChain);
 
       await expect(caller.getHistory({ limit: 10, offset: 0 })).rejects.toThrow(
         "Failed to retrieve wellness history",
@@ -264,17 +299,8 @@ describe("wellnessRouter", () => {
         { avgEnergyLevel: 8.0, avgSleepQuality: 7.0, totalEntries: 5 },
       ];
 
-      mockDb.select
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue(mockStats),
-          }),
-        })
-        .mockReturnValueOnce({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue(mockRecentStats),
-          }),
-        });
+      mockDb.queueSelectResult(mockStats);
+      mockDb.queueSelectResult(mockRecentStats);
 
       const result = await caller.getStats({ days: 30 });
 
@@ -295,11 +321,19 @@ describe("wellnessRouter", () => {
     });
 
     it("should handle database errors", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockRejectedValue(new Error("Database error")),
+      // Create a custom mock for this test to simulate database error
+      const errorSelectChain = {
+        from: vi.fn(() => errorSelectChain),
+        where: vi.fn(() => errorSelectChain),
+        then: vi.fn(),
+        catch: vi.fn((cb) => {
+          cb(new Error("Database error"));
+          return Promise.reject(new Error("Database error"));
         }),
-      });
+        finally: vi.fn(),
+      };
+
+      mockDb.select.mockReturnValue(errorSelectChain);
 
       await expect(caller.getStats({ days: 30 })).rejects.toThrow(
         "Failed to retrieve wellness statistics",
@@ -309,12 +343,7 @@ describe("wellnessRouter", () => {
 
   describe("delete", () => {
     it("should delete wellness data", async () => {
-      const mockDeleteBuilder = {
-        where: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-        }),
-      };
-      mockDb.delete.mockReturnValue(mockDeleteBuilder);
+      mockDb.queueDeleteResult([{ id: 1 }]);
 
       const result = await caller.delete({ sessionId: 1 });
 
@@ -323,14 +352,7 @@ describe("wellnessRouter", () => {
     });
 
     it("should throw error when data not found", async () => {
-      const mockDeleteBuilder = {
-        where: vi.fn().mockReturnValue({
-          returning: vi.fn().mockReturnValue({
-            execute: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      };
-      mockDb.delete.mockReturnValue(mockDeleteBuilder);
+      mockDb.queueDeleteResult([]);
 
       await expect(caller.delete({ sessionId: 1 })).rejects.toThrow(
         "Wellness data not found or access denied",
@@ -338,12 +360,22 @@ describe("wellnessRouter", () => {
     });
 
     it("should handle database errors", async () => {
-      const mockDeleteBuilder = {
-        where: vi.fn().mockReturnValue({
-          returning: vi.fn().mockRejectedValue(new Error("Database error")),
+      // Create a custom mock for this test to simulate database error
+      const errorDeleteChain = {
+        from: vi.fn(() => errorDeleteChain),
+        where: vi.fn(() => errorDeleteChain),
+        returning: vi.fn(async () => {
+          throw new Error("Database error");
         }),
+        then: vi.fn(),
+        catch: vi.fn((cb) => {
+          cb(new Error("Database error"));
+          return Promise.reject(new Error("Database error"));
+        }),
+        finally: vi.fn(),
       };
-      mockDb.delete.mockReturnValue(mockDeleteBuilder);
+
+      mockDb.delete.mockReturnValue(errorDeleteChain);
 
       await expect(caller.delete({ sessionId: 1 })).rejects.toThrow(
         "Failed to delete wellness data",
@@ -353,13 +385,7 @@ describe("wellnessRouter", () => {
 
   describe("checkExists", () => {
     it("should return true when data exists", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([{ id: 1 }]),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult([{ id: 1 }]);
 
       const result = await caller.checkExists({ sessionId: 1 });
 
@@ -367,13 +393,7 @@ describe("wellnessRouter", () => {
     });
 
     it("should return false when data does not exist", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult([]);
 
       const result = await caller.checkExists({ sessionId: 1 });
 
@@ -381,15 +401,7 @@ describe("wellnessRouter", () => {
     });
 
     it("should return false on database errors", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockImplementation(() => {
-              throw new Error("Database error");
-            }),
-          }),
-        }),
-      });
+      mockDb.queueSelectResult(new Error("Database error"));
 
       const result = await caller.checkExists({ sessionId: 1 });
 
