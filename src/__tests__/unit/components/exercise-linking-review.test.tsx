@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ExerciseLinkingReview } from "~/app/_components/exercise-linking-review";
 import { api } from "~/trpc/react";
@@ -8,6 +8,33 @@ import {
   type TemplateExercise,
 } from "~/app/_components/exercise-linking-review";
 import { vi, describe, it, expect, beforeEach } from "vitest";
+
+// Ensure DOM environment is available
+if (typeof window === "undefined") {
+  (global as any).window = {
+    removeEventListener: vi.fn(),
+    addEventListener: vi.fn(),
+    matchMedia: vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  };
+}
+
+// Fix screen import by creating a custom screen that works with our DOM setup
+import { getQueriesForElement } from "@testing-library/dom";
+
+const createScreen = () => {
+  const container = document.body;
+  return getQueriesForElement(container);
+};
+
+// Override screen with our custom implementation
+const customScreen = createScreen();
 
 // Mock tRPC API
 vi.mock("~/trpc/react", () => ({
@@ -113,9 +140,11 @@ describe("ExerciseLinkingReview", () => {
         isLoading: true,
       });
 
-      renderComponent();
+      const { container } = renderComponent();
 
-      expect(screen.getByText("Loading exercises...")).toBeInTheDocument();
+      expect(
+        within(container).getByText("Loading exercises..."),
+      ).toBeInTheDocument();
     });
 
     it("should auto-select exact matches", async () => {
@@ -148,23 +177,25 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Use more specific selectors to differentiate between stat boxes
-        expect(screen.getByText("Total Exercises")).toBeInTheDocument();
-        expect(screen.getByText("Auto-Linked")).toBeInTheDocument();
-        expect(screen.getByText("Will Link")).toBeInTheDocument();
-        expect(screen.getByText("Creating New")).toBeInTheDocument();
+        expect(customScreen.getByText("Total Exercises")).toBeInTheDocument();
+        expect(customScreen.getByText("Auto-Linked")).toBeInTheDocument();
+        expect(customScreen.getByText("Will Link")).toBeInTheDocument();
+        expect(customScreen.getByText("Creating New")).toBeInTheDocument();
 
         // Check specific values within their contexts
         const totalExercises =
-          screen.getByText("Total Exercises").nextElementSibling;
+          customScreen.getByText("Total Exercises").nextElementSibling;
         expect(totalExercises).toHaveTextContent("3");
 
-        const autoLinked = screen.getByText("Auto-Linked").nextElementSibling;
+        const autoLinked =
+          customScreen.getByText("Auto-Linked").nextElementSibling;
         expect(autoLinked).toHaveTextContent("2");
 
-        const willLink = screen.getByText("Will Link").nextElementSibling;
+        const willLink = customScreen.getByText("Will Link").nextElementSibling;
         expect(willLink).toHaveTextContent("2");
 
-        const creatingNew = screen.getByText("Creating New").nextElementSibling;
+        const creatingNew =
+          customScreen.getByText("Creating New").nextElementSibling;
         expect(creatingNew).toHaveTextContent("1");
       });
     });
@@ -199,23 +230,25 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Use more specific selectors to differentiate between stat boxes
-        expect(screen.getByText("Total Exercises")).toBeInTheDocument();
-        expect(screen.getByText("Auto-Linked")).toBeInTheDocument();
-        expect(screen.getByText("Will Link")).toBeInTheDocument();
-        expect(screen.getByText("Creating New")).toBeInTheDocument();
+        expect(customScreen.getByText("Total Exercises")).toBeInTheDocument();
+        expect(customScreen.getByText("Auto-Linked")).toBeInTheDocument();
+        expect(customScreen.getByText("Will Link")).toBeInTheDocument();
+        expect(customScreen.getByText("Creating New")).toBeInTheDocument();
 
         // Check specific values within their contexts
         const totalExercises =
-          screen.getByText("Total Exercises").nextElementSibling;
+          customScreen.getByText("Total Exercises").nextElementSibling;
         expect(totalExercises).toHaveTextContent("3");
 
-        const autoLinked = screen.getByText("Auto-Linked").nextElementSibling;
+        const autoLinked =
+          customScreen.getByText("Auto-Linked").nextElementSibling;
         expect(autoLinked).toHaveTextContent("2");
 
-        const willLink = screen.getByText("Will Link").nextElementSibling;
+        const willLink = customScreen.getByText("Will Link").nextElementSibling;
         expect(willLink).toHaveTextContent("2");
 
-        const creatingNew = screen.getByText("Creating New").nextElementSibling;
+        const creatingNew =
+          customScreen.getByText("Creating New").nextElementSibling;
         expect(creatingNew).toHaveTextContent("1");
       });
     });
@@ -228,15 +261,17 @@ describe("ExerciseLinkingReview", () => {
       await waitFor(() => {
         // Use getAllByText since there are multiple exercises with same names
         // Expect more than 1 since exercise names appear in multiple places (title, buttons, etc.)
-        expect(screen.getAllByText("Bench Press").length).toBeGreaterThan(0);
-        expect(screen.getAllByText("Squat").length).toBeGreaterThan(0);
-        expect(screen.getAllByText("Unknown Exercise").length).toBeGreaterThan(
+        expect(customScreen.getAllByText("Bench Press").length).toBeGreaterThan(
           0,
         );
+        expect(customScreen.getAllByText("Squat").length).toBeGreaterThan(0);
+        expect(
+          customScreen.getAllByText("Unknown Exercise").length,
+        ).toBeGreaterThan(0);
       });
 
       // Check for auto-matched badges
-      expect(screen.getAllByText("Auto-matched")).toHaveLength(2); // 2 auto-matched exercises
+      expect(customScreen.getAllByText("Auto-matched")).toHaveLength(2); // 2 auto-matched exercises
     });
 
     it("should show match percentages and muscle groups", async () => {
@@ -244,10 +279,10 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Should show match percentage for exact matches (2 exercises with 100% match)
-        expect(screen.getAllByText("100%")).toHaveLength(2);
+        expect(customScreen.getAllByText("100%")).toHaveLength(2);
         // Should show muscle group info
-        expect(screen.getByText("Chest")).toBeInTheDocument();
-        expect(screen.getByText("Legs")).toBeInTheDocument();
+        expect(customScreen.getByText("Chest")).toBeInTheDocument();
+        expect(customScreen.getByText("Legs")).toBeInTheDocument();
       });
     });
 
@@ -258,14 +293,20 @@ describe("ExerciseLinkingReview", () => {
       await waitFor(() => {
         // Initially Bench Press is linked to Bench Press (id: 1)
         // Use a more flexible query that can handle text split across elements
-        expect(screen.getAllByText(/linking to:/i).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/bench press/i).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/100% match/i).length).toBeGreaterThan(0);
+        expect(
+          customScreen.getAllByText(/linking to:/i).length,
+        ).toBeGreaterThan(0);
+        expect(
+          customScreen.getAllByText(/bench press/i).length,
+        ).toBeGreaterThan(0);
+        expect(customScreen.getAllByText(/100% match/i).length).toBeGreaterThan(
+          0,
+        );
       });
 
       // Click on Deadlift option for Bench Press exercise (if available)
       // Deadlift may not appear if it's not matched as an alternative for Bench Press
-      const deadliftButtons = screen.queryAllByText("Deadlift");
+      const deadliftButtons = customScreen.queryAllByText("Deadlift");
       if (deadliftButtons.length > 0 && deadliftButtons[0]) {
         fireEvent.click(deadliftButtons[0]);
       } else {
@@ -292,11 +333,11 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Should show "Create New Instead" button for linked exercises (2 of them)
-        expect(screen.getAllByText("Create New Instead")).toHaveLength(2);
+        expect(customScreen.getAllByText("Create New Instead")).toHaveLength(2);
       });
 
       // Click "Create New Instead" for Bench Press (first one)
-      const createNewButtons = screen.getAllByText("Create New Instead");
+      const createNewButtons = customScreen.getAllByText("Create New Instead");
       if (createNewButtons[0]) {
         fireEvent.click(createNewButtons[0]);
       }
@@ -309,7 +350,7 @@ describe("ExerciseLinkingReview", () => {
 
       // Should show "Creating new master exercise" message
       expect(
-        screen.getByText("Creating new master exercise"),
+        customScreen.getByText("Creating new master exercise"),
       ).toBeInTheDocument();
     });
 
@@ -319,7 +360,9 @@ describe("ExerciseLinkingReview", () => {
       await waitFor(() => {
         // Unknown Exercise should show no matches message
         expect(
-          screen.getByText("No similar exercises found - will create as new"),
+          customScreen.getByText(
+            "No similar exercises found - will create as new",
+          ),
         ).toBeInTheDocument();
       });
     });
@@ -330,11 +373,11 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Should show "Create New Instead" button for linked exercises (2 of them)
-        expect(screen.getAllByText("Create New Instead")).toHaveLength(2);
+        expect(customScreen.getAllByText("Create New Instead")).toHaveLength(2);
       });
 
       // Click "Create New Instead" for Bench Press (first one)
-      const createNewButtons = screen.getAllByText("Create New Instead");
+      const createNewButtons = customScreen.getAllByText("Create New Instead");
       if (createNewButtons[0]) {
         fireEvent.click(createNewButtons[0]);
       }
@@ -347,7 +390,7 @@ describe("ExerciseLinkingReview", () => {
 
       // Should show "Creating new master exercise" message
       expect(
-        screen.getByText("Creating new master exercise"),
+        customScreen.getByText("Creating new master exercise"),
       ).toBeInTheDocument();
     });
 
@@ -357,7 +400,9 @@ describe("ExerciseLinkingReview", () => {
       await waitFor(() => {
         // Unknown Exercise should show no matches message
         expect(
-          screen.getByText("No similar exercises found - will create as new"),
+          customScreen.getByText(
+            "No similar exercises found - will create as new",
+          ),
         ).toBeInTheDocument();
       });
     });
@@ -369,7 +414,7 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Exact matches should show 100%
-        const percentages = screen.getAllByText("100%");
+        const percentages = customScreen.getAllByText("100%");
         expect(percentages.length).toBeGreaterThan(0);
       });
     });
@@ -379,7 +424,7 @@ describe("ExerciseLinkingReview", () => {
 
       await waitFor(() => {
         // Auto-matched exercises should have green badge
-        const autoMatchedBadges = screen.getAllByText("Auto-matched");
+        const autoMatchedBadges = customScreen.getAllByText("Auto-matched");
         expect(autoMatchedBadges.length).toBeGreaterThan(0);
 
         const autoMatchedBadge = autoMatchedBadges[0];
@@ -396,23 +441,25 @@ describe("ExerciseLinkingReview", () => {
       renderComponent({ exercises: [] });
 
       // Check that all stat values are 0 using more specific selectors
-      expect(screen.getByText("Total Exercises")).toBeInTheDocument();
-      expect(screen.getByText("Auto-Linked")).toBeInTheDocument();
-      expect(screen.getByText("Will Link")).toBeInTheDocument();
-      expect(screen.getByText("Creating New")).toBeInTheDocument();
+      expect(customScreen.getByText("Total Exercises")).toBeInTheDocument();
+      expect(customScreen.getByText("Auto-Linked")).toBeInTheDocument();
+      expect(customScreen.getByText("Will Link")).toBeInTheDocument();
+      expect(customScreen.getByText("Creating New")).toBeInTheDocument();
 
       // Check specific values within their contexts
       const totalExercises =
-        screen.getByText("Total Exercises").nextElementSibling;
+        customScreen.getByText("Total Exercises").nextElementSibling;
       expect(totalExercises).toHaveTextContent("0");
 
-      const autoLinked = screen.getByText("Auto-Linked").nextElementSibling;
+      const autoLinked =
+        customScreen.getByText("Auto-Linked").nextElementSibling;
       expect(autoLinked).toHaveTextContent("0");
 
-      const willLink = screen.getByText("Will Link").nextElementSibling;
+      const willLink = customScreen.getByText("Will Link").nextElementSibling;
       expect(willLink).toHaveTextContent("0");
 
-      const creatingNew = screen.getByText("Creating New").nextElementSibling;
+      const creatingNew =
+        customScreen.getByText("Creating New").nextElementSibling;
       expect(creatingNew).toHaveTextContent("0");
     });
 
@@ -442,7 +489,7 @@ describe("ExerciseLinkingReview", () => {
       // Should not crash and should show exercises from props even with API error
       // The component shows exercises from props regardless of API error
       const totalExercises =
-        screen.getByText("Total Exercises").nextElementSibling;
+        customScreen.getByText("Total Exercises").nextElementSibling;
       expect(totalExercises).toHaveTextContent("3"); // Shows exercises from props
     });
   });
@@ -461,7 +508,7 @@ describe("ExerciseLinkingReview", () => {
       });
 
       // Switch Bench Press to create new
-      const createNewButtons = screen.getAllByText("Create New Instead");
+      const createNewButtons = customScreen.getAllByText("Create New Instead");
       if (createNewButtons[0]) {
         fireEvent.click(createNewButtons[0]);
       }
@@ -473,7 +520,7 @@ describe("ExerciseLinkingReview", () => {
       });
 
       // Switch back to linking
-      const benchPressButtons = screen.getAllByText("Bench Press");
+      const benchPressButtons = customScreen.getAllByText("Bench Press");
       if (benchPressButtons[0]) {
         fireEvent.click(benchPressButtons[0]);
       }
@@ -491,13 +538,15 @@ describe("ExerciseLinkingReview", () => {
       renderComponent({ onDecisionsChange });
 
       await waitFor(() => {
-        expect(screen.getAllByText("Bench Press").length).toBeGreaterThan(0);
+        expect(customScreen.getAllByText("Bench Press").length).toBeGreaterThan(
+          0,
+        );
       });
 
       // Rapidly switch between options
-      const deadliftButtons = screen.queryAllByText("Deadlift");
-      const squatButtons = screen.getAllByText("Squat");
-      const createNewButtons = screen.getAllByText("Create New Instead");
+      const deadliftButtons = customScreen.queryAllByText("Deadlift");
+      const squatButtons = customScreen.getAllByText("Squat");
+      const createNewButtons = customScreen.getAllByText("Create New Instead");
 
       if (deadliftButtons.length > 0 && deadliftButtons[0]) {
         fireEvent.click(deadliftButtons[0]);

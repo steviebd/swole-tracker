@@ -27,7 +27,6 @@ const createMockDb = () => {
     let cachedResult: TData | undefined;
     const getResult = () => {
       if (cachedResult === undefined) {
-        console.log("Getting result, queue length:", queue.length);
         cachedResult =
           queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
       }
@@ -147,15 +146,7 @@ describe("wellnessRouter", () => {
   describe("save", () => {
     it("should save wellness data successfully", async () => {
       // Mock session lookup
-      console.log(
-        "Before queueSelectResult, selectQueue length:",
-        mockDb.selectQueue.length,
-      );
       mockDb.queueSelectResult([{ id: 1 }]);
-      console.log(
-        "After queueSelectResult, selectQueue length:",
-        mockDb.selectQueue.length,
-      );
       // Mock insert operation
       mockDb.queueInsertResult([{ id: 1 }]);
 
