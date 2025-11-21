@@ -424,6 +424,29 @@ export async function rotateOAuthTokens(
     );
 
     if (!tokenResult.success || !tokenResult.accessToken) {
+      // If re-authentication is required, mark the token as expired
+      // This will trigger the re-auth warning in the UI
+      if (tokenResult.requiresReauth) {
+        console.log("Token rotation: Marking integration as expired due to invalid refresh token", {
+          userId: userId.substring(0, 8) + "...",
+          provider,
+          errorCode: tokenResult.errorCode,
+        });
+
+        try {
+          await db
+            .update(userIntegrations)
+            .set({
+              // Set expiry to past to trigger re-auth warning
+              expiresAt: new Date(0),
+              updatedAt: new Date(),
+            })
+            .where(eq(userIntegrations.id, integration.id));
+        } catch (updateError) {
+          console.error("Failed to mark integration as expired:", updateError);
+        }
+      }
+
       const result: TokenRotationResult = {
         success: false,
         rotated: false,
@@ -488,6 +511,8 @@ async function refreshProviderToken(
   refreshToken?: string;
   expiresIn?: number;
   error?: string;
+  errorCode?: string;
+  requiresReauth?: boolean;
 }> {
   switch (provider.toLowerCase()) {
     case "whoop":
@@ -506,6 +531,8 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
   refreshToken?: string;
   expiresIn?: number;
   error?: string;
+  errorCode?: string;
+  requiresReauth?: boolean;
 }> {
   try {
     if (!env.WHOOP_CLIENT_ID || !env.WHOOP_CLIENT_SECRET) {
@@ -531,10 +558,59 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
     });
 
     if (!response.ok) {
-      return {
+      // Capture the actual error response from WHOOP
+      let errorBody: string | null = null;
+      let errorCode: string | undefined;
+      let errorDescription: string | undefined;
+
+      try {
+        errorBody = await response.text();
+        const errorJson = JSON.parse(errorBody) as {
+          error?: string;
+          error_description?: string;
+        };
+        errorCode = errorJson.error;
+        errorDescription = errorJson.error_description;
+      } catch {
+        // Could not parse error response as JSON
+      }
+
+      // Log detailed error information for debugging
+      console.error("WHOOP token refresh failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        errorCode,
+        errorDescription,
+        rawError: errorBody?.substring(0, 500), // Truncate for safety
+      });
+
+      // Determine if re-authentication is required
+      // invalid_grant: refresh token expired/revoked
+      // invalid_client: client credentials mismatch
+      const requiresReauth = errorCode === "invalid_grant" ||
+                             errorCode === "invalid_client" ||
+                             response.status === 401;
+
+      const errorMessage = errorDescription
+        ? `WHOOP token refresh failed: ${errorCode} - ${errorDescription}`
+        : `WHOOP token refresh failed: ${response.status} - ${response.statusText}`;
+
+      const result: {
+        success: false;
+        error: string;
+        errorCode?: string;
+        requiresReauth: boolean;
+      } = {
         success: false,
-        error: `WHOOP token refresh failed: ${response.status} - ${response.statusText}`,
+        error: errorMessage,
+        requiresReauth,
       };
+
+      if (errorCode) {
+        result.errorCode = errorCode;
+      }
+
+      return result;
     }
 
     const tokens = (await response.json()) as {
@@ -560,8 +636,12 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
     if (tokens.refresh_token) {
       result.refreshToken = tokens.refresh_token;
     }
+    if (tokens.expires_in) {
+      result.expiresIn = tokens.expires_in;
+    }
     return result;
   } catch (error) {
+    console.error("WHOOP token refresh exception:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Token refresh failed",
