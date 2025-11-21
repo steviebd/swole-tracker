@@ -87,15 +87,18 @@ const ensurePosthog = () => {
     (global as any).window = {};
   }
 
-  Object.defineProperty(window, "posthog", {
-    value: {
-      capture: vi.fn(),
-      identify: vi.fn(),
-      reset: vi.fn(),
-    },
-    writable: true,
-    configurable: true,
-  });
+  // Only define posthog if it doesn't exist
+  if (!window.posthog) {
+    Object.defineProperty(window, "posthog", {
+      value: {
+        capture: vi.fn(),
+        identify: vi.fn(),
+        reset: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
+    });
+  }
 };
 
 const ensureImage = () => {
@@ -195,7 +198,17 @@ beforeAll(() => {
   console.log("typeof window:", typeof window);
 
   // Fix for JSDOM hardwareConcurrency infinite recursion
-  if (typeof window !== "undefined" && window.navigator) {
+  if (typeof window !== "undefined") {
+    // Ensure navigator exists first
+    if (!window.navigator) {
+      Object.defineProperty(window, "navigator", {
+        value: {},
+        writable: true,
+        configurable: true,
+      });
+    }
+
+    // Fix hardwareConcurrency infinite recursion
     Object.defineProperty(window.navigator, "hardwareConcurrency", {
       value: 4,
       writable: true,

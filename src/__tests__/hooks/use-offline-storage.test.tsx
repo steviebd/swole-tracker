@@ -16,22 +16,33 @@ const mockLocalStorage = {
   removeItem: vi.fn(),
 };
 
-Object.defineProperty(window, "localStorage", {
-  value: mockLocalStorage,
-  writable: true,
-});
-
 // Mock crypto.randomUUID
-Object.defineProperty(global, "crypto", {
-  value: {
-    randomUUID: vi.fn(() => "test-uuid-123"),
-  },
-  writable: true,
-});
+let uuidCounter = 1;
+const mockCrypto = {
+  randomUUID: vi.fn(() => `test-uuid-${uuidCounter++}`),
+};
 
 describe("useOfflineStorage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset UUID counter
+    uuidCounter = 1;
+
+    // Set up localStorage mock
+    Object.defineProperty(globalThis, "localStorage", {
+      value: mockLocalStorage,
+      writable: true,
+      configurable: true,
+    });
+
+    // Set up crypto mock
+    Object.defineProperty(globalThis, "crypto", {
+      value: mockCrypto,
+      writable: true,
+      configurable: true,
+    });
+
     mockLocalStorage.getItem.mockReturnValue(null);
   });
 
@@ -95,12 +106,12 @@ describe("useOfflineStorage", () => {
 
       act(() => {
         const id = result.current.addPendingAction(actionData);
-        expect(id).toBe("test-uuid-123");
+        expect(id).toBe("test-uuid-1");
       });
 
       expect(result.current.pendingActions).toHaveLength(1);
       expect(result.current.pendingActions[0]).toEqual({
-        id: "test-uuid-123",
+        id: "test-uuid-1",
         type: "save_workout",
         data: { sessionId: 1, exercises: [] },
         timestamp: expect.any(Number),
@@ -164,8 +175,9 @@ describe("useOfflineStorage", () => {
       expect(result.current.pendingActions).toHaveLength(2);
 
       // Remove the first action
+      const firstActionId = result.current.pendingActions[0]?.id;
       act(() => {
-        result.current.removePendingAction("test-uuid-123");
+        result.current.removePendingAction(firstActionId);
       });
 
       expect(result.current.pendingActions).toHaveLength(1);
@@ -204,7 +216,7 @@ describe("useOfflineStorage", () => {
       expect(result.current.hasPendingActions).toBe(true);
 
       act(() => {
-        result.current.removePendingAction("test-uuid-123");
+        result.current.removePendingAction("test-uuid-1");
       });
 
       expect(result.current.hasPendingActions).toBe(false);
@@ -360,7 +372,7 @@ describe("useOfflineStorage", () => {
 
     it("should generate unique IDs for each action", () => {
       const { result } = renderHook(() => useOfflineStorage());
-      const mockUUID = vi.mocked(crypto.randomUUID);
+      const mockUUID = crypto.randomUUID as ReturnType<typeof vi.fn>;
 
       mockUUID.mockReturnValueOnce("uuid-1").mockReturnValueOnce("uuid-2");
 
