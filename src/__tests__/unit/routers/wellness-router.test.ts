@@ -71,7 +71,7 @@ const createMockDb = () => {
         resolve: (value: any) => void,
         reject?: (reason: any) => void,
       ) => {
-        return Promise.resolve(result).then(resolve, reject);
+        return Promise.resolve(getResult()).then(resolve, reject);
       },
       enumerable: false,
       configurable: true,
@@ -79,7 +79,7 @@ const createMockDb = () => {
 
     Object.defineProperty(chain, "catch", {
       value: (reject: (reason: any) => void) => {
-        return Promise.resolve(result).catch(reject);
+        return Promise.resolve(getResult()).catch(reject);
       },
       enumerable: false,
       configurable: true,
@@ -87,7 +87,7 @@ const createMockDb = () => {
 
     Object.defineProperty(chain, "finally", {
       value: (cb: () => void) => {
-        return Promise.resolve(result).finally(cb);
+        return Promise.resolve(getResult()).finally(cb);
       },
       enumerable: false,
       configurable: true,
@@ -381,10 +381,8 @@ describe("wellnessRouter", () => {
       const input = {
         energyLevel: 8,
         sleepQuality: 7,
-        readiness: 6,
-        mood: "good",
+        deviceTimezone: "America/New_York",
         sessionId: 1,
-        userId: "test-user",
       };
 
       await expect(caller.save(input)).rejects.toThrow(
