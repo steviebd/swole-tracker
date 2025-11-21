@@ -21,7 +21,6 @@ import {
   playbookRegenerations,
   workoutSessions,
   sessionExercises,
-  exerciseSets,
 } from "~/server/db/schema";
 import { chunkedBatch } from "~/server/db/chunk-utils";
 import { buildPlaybookContext } from "~/server/api/utils/playbook-context";
@@ -34,7 +33,9 @@ import { env } from "~/env";
  * Call AI to generate playbook plan using Vercel AI SDK
  */
 async function generateAIPlan(
-  context: ReturnType<typeof buildPlaybookContext> extends Promise<infer T> ? T : never
+  context: ReturnType<typeof buildPlaybookContext> extends Promise<infer T>
+    ? T
+    : never,
 ): Promise<WeeklyAiPlan[]> {
   const { system, prompt } = buildPlaybookGenerationPrompt(context);
 
@@ -70,7 +71,7 @@ async function generateAIPlan(
   } catch (error) {
     logger.error("Failed to generate AI playbook plan", {
       error: error instanceof Error ? error.message : "Unknown error",
-      userId: context.userId
+      userId: context.userId,
     });
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
@@ -84,7 +85,7 @@ async function generateAIPlan(
  */
 function calculateAdherenceScore(
   prescribed: unknown,
-  actual: { weight: number | null; reps: number; sets: number }[]
+  actual: { weight: number | null; reps: number; sets: number }[],
 ): number {
   // Simplified adherence calculation
   // In a real implementation, compare prescribed exercises with actual
@@ -250,10 +251,7 @@ export const playbookRouter = createTRPCRouter({
       const userId = ctx.user.id;
 
       const playbook = await ctx.db.query.playbooks.findFirst({
-        where: and(
-          eq(playbooks.id, input.id),
-          eq(playbooks.userId, userId)
-        ),
+        where: and(eq(playbooks.id, input.id), eq(playbooks.userId, userId)),
         with: {
           weeks: {
             orderBy: (weeks, { asc }) => [asc(weeks.weekNumber)],
@@ -331,10 +329,7 @@ export const playbookRouter = createTRPCRouter({
 
       // Verify ownership
       const playbook = await ctx.db.query.playbooks.findFirst({
-        where: and(
-          eq(playbooks.id, input.id),
-          eq(playbooks.userId, userId)
-        ),
+        where: and(eq(playbooks.id, input.id), eq(playbooks.userId, userId)),
       });
 
       if (!playbook) {
@@ -385,10 +380,7 @@ export const playbookRouter = createTRPCRouter({
 
       // Verify ownership
       const playbook = await ctx.db.query.playbooks.findFirst({
-        where: and(
-          eq(playbooks.id, input.id),
-          eq(playbooks.userId, userId)
-        ),
+        where: and(eq(playbooks.id, input.id), eq(playbooks.userId, userId)),
       });
 
       if (!playbook) {
@@ -399,9 +391,7 @@ export const playbookRouter = createTRPCRouter({
       }
 
       // Delete playbook (cascade will handle weeks, sessions, regenerations)
-      await ctx.db
-        .delete(playbooks)
-        .where(eq(playbooks.id, input.id));
+      await ctx.db.delete(playbooks).where(eq(playbooks.id, input.id));
 
       logger.info("Playbook deleted", { userId, playbookId: input.id });
 
@@ -499,7 +489,12 @@ export const playbookRouter = createTRPCRouter({
    * Creates a new workout session pre-filled with the prescribed exercises
    */
   startSessionWorkout: protectedProcedure
-    .input(z.object({ playbookSessionId: z.number() }))
+    .input(
+      z.object({
+        playbookSessionId: z.number(),
+        workoutDate: z.date().default(() => new Date()),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
 
@@ -556,7 +551,7 @@ export const playbookRouter = createTRPCRouter({
         }>;
       } | null;
 
-      if (!prescription || !prescription.exercises || prescription.exercises.length === 0) {
+      if (!prescription?.exercises || prescription.exercises.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "No exercises prescribed for this session",
@@ -569,7 +564,7 @@ export const playbookRouter = createTRPCRouter({
         .values({
           user_id: userId,
           templateId: null, // Playbook workouts don't use templates
-          workoutDate: sql`(datetime('now'))`,
+          workoutDate: input.workoutDate,
         })
         .returning();
 
@@ -581,95 +576,49 @@ export const playbookRouter = createTRPCRouter({
       }
 
       // Create session exercises from prescription
-      const exerciseRows = prescription.exercises.map((exercise, index) => ({
-        sessionId: workoutSession.id,
-        user_id: userId,
-        exerciseName: exercise.exerciseName,
-        resolvedExerciseName: exercise.exerciseName,
-        weight: exercise.weight,
-        reps: exercise.reps,
-        sets: exercise.sets,
-        unit: "kg",
-        setOrder: index,
-        templateExerciseId: exercise.templateExerciseId ?? null,
-        rpe: exercise.rpe ?? null,
-        rest_seconds: exercise.restSeconds ?? null,
-        is_estimate: false,
-        is_default_applied: false,
-        one_rm_estimate: null, // Will be calculated on save
-        volume_load: null, // Will be calculated on save
-        usesSetTable: true, // Flag that this exercise uses exercise_sets table
-        warmupSets: exercise.warmupSets?.length ?? 0,
-        workingSets: exercise.sets,
-        topSetWeight: exercise.weight ?? 0,
-      }));
+      // Note: Playbook exercises don't use templateExerciseId since they're not from templates
+      // Historical data lookup will use exerciseName instead
+      // Each set becomes its own row (matching how workouts.save stores data)
+      const exerciseRows = (prescription?.exercises || []).flatMap(
+        (exercise) => {
+          const numSets = exercise.sets || 1;
+          return Array.from({ length: numSets }, (_, setIndex) => ({
+            sessionId: workoutSession.id,
+            user_id: userId,
+            exerciseName: exercise.exerciseName,
+            resolvedExerciseName: exercise.exerciseName,
+            weight: exercise.weight,
+            reps: exercise.reps,
+            sets: 1, // Each row represents ONE set
+            unit: "kg",
+            setOrder: setIndex, // Position within this exercise
+            templateExerciseId: null, // Playbook exercises don't link to templates
+            rpe: exercise.rpe ?? null,
+            rest_seconds: exercise.restSeconds ?? null,
+            is_estimate: false,
+            is_default_applied: false,
+            one_rm_estimate: null, // Will be calculated on save
+            volume_load: null, // Will be calculated on save
+            usesSetTable: false, // Using legacy format (one row per set)
+            warmupSets: exercise.warmupSets?.length ?? 0,
+            workingSets: numSets,
+            topSetWeight: exercise.weight ?? 0,
+          }));
+        },
+      );
 
       // Insert exercises in chunks to avoid D1 parameter limits
       const insertedExercises = await chunkedBatch(
         ctx.db,
         exerciseRows,
         (chunk) => ctx.db.insert(sessionExercises).values(chunk).returning(),
-        { limit: 50 }
+        { limit: 50 },
       );
 
       // Flatten the results (chunkedBatch returns array of arrays)
-      const allInsertedExercises = (insertedExercises as Array<Array<typeof sessionExercises.$inferSelect>>).flat();
-
-      // Create individual exercise_sets for exercises with warmupSets
-      const exerciseSetRows: Array<typeof exerciseSets.$inferInsert> = [];
-
-      for (let i = 0; i < prescription.exercises.length; i++) {
-        const exercise = prescription.exercises[i]!;
-        const insertedExercise = allInsertedExercises[i];
-
-        if (!insertedExercise) continue;
-
-        let setNumber = 1;
-
-        // Add warm-up sets
-        if (exercise.warmupSets && exercise.warmupSets.length > 0) {
-          for (const warmupSet of exercise.warmupSets) {
-            exerciseSetRows.push({
-              sessionExerciseId: insertedExercise.id,
-              userId,
-              setNumber: setNumber++,
-              setType: "warmup",
-              weight: warmupSet.weight,
-              reps: warmupSet.reps,
-              completed: false,
-              notes: null,
-              rpe: null,
-              restSeconds: null,
-            });
-          }
-        }
-
-        // Add working sets
-        for (let s = 0; s < exercise.sets; s++) {
-          exerciseSetRows.push({
-            sessionExerciseId: insertedExercise.id,
-            userId,
-            setNumber: setNumber++,
-            setType: "working",
-            weight: exercise.weight,
-            reps: exercise.reps,
-            completed: false,
-            notes: null,
-            rpe: exercise.rpe ?? null,
-            restSeconds: exercise.restSeconds ?? null,
-          });
-        }
-      }
-
-      // Insert all exercise sets in chunks (D1-safe)
-      if (exerciseSetRows.length > 0) {
-        await chunkedBatch(
-          ctx.db,
-          exerciseSetRows,
-          (chunk) => ctx.db.insert(exerciseSets).values(chunk),
-          { limit: 50 }
-        );
-      }
+      const allInsertedExercises = (
+        insertedExercises as Array<Array<typeof sessionExercises.$inferSelect>>
+      ).flat();
 
       // Link the workout back to the playbook session
       await ctx.db
@@ -694,7 +643,7 @@ export const playbookRouter = createTRPCRouter({
         workout_id: String(workoutSession.id),
         week_number: session.week.weekNumber,
         session_number: session.sessionNumber,
-        exercise_count: prescription.exercises.length,
+        exercise_count: (prescription?.exercises || []).length,
         user_id: userId,
       });
 
@@ -716,7 +665,7 @@ export const playbookRouter = createTRPCRouter({
       const playbook = await ctx.db.query.playbooks.findFirst({
         where: and(
           eq(playbooks.id, input.playbookId),
-          eq(playbooks.userId, userId)
+          eq(playbooks.userId, userId),
         ),
       });
 
@@ -735,8 +684,8 @@ export const playbookRouter = createTRPCRouter({
           and(
             eq(playbookWeeks.playbookId, input.playbookId),
             gte(playbookWeeks.weekNumber, input.weekStart),
-            lte(playbookWeeks.weekNumber, input.weekEnd)
-          )
+            lte(playbookWeeks.weekNumber, input.weekEnd),
+          ),
         )
         .orderBy(asc(playbookWeeks.weekNumber));
 
@@ -750,7 +699,9 @@ export const playbookRouter = createTRPCRouter({
       const playbookInput: PlaybookCreateInput = {
         name: playbook.name,
         goalText: playbook.goalText ?? undefined,
-        goalPreset: (playbook.goalPreset as PlaybookCreateInput["goalPreset"]) ?? undefined,
+        goalPreset:
+          (playbook.goalPreset as PlaybookCreateInput["goalPreset"]) ??
+          undefined,
         targetType: playbook.targetType as "template" | "exercise",
         targetIds: JSON.parse(playbook.targetIds),
         duration: playbook.duration,
@@ -762,7 +713,9 @@ export const playbookRouter = createTRPCRouter({
 
       // Update affected weeks
       for (const week of affectedWeeks) {
-        const newWeek = newAiWeeks.find((w) => w.weekNumber === week.weekNumber);
+        const newWeek = newAiWeeks.find(
+          (w) => w.weekNumber === week.weekNumber,
+        );
         if (newWeek) {
           await ctx.db
             .update(playbookWeeks)
@@ -820,7 +773,7 @@ export const playbookRouter = createTRPCRouter({
       const playbook = await ctx.db.query.playbooks.findFirst({
         where: and(
           eq(playbooks.id, input.playbookId),
-          eq(playbooks.userId, userId)
+          eq(playbooks.userId, userId),
         ),
         with: {
           weeks: {
@@ -840,12 +793,11 @@ export const playbookRouter = createTRPCRouter({
 
       const totalSessions = playbook.weeks.reduce(
         (sum, week) => sum + week.sessions.length,
-        0
+        0,
       );
       const completedSessions = playbook.weeks.reduce(
-        (sum, week) =>
-          sum + week.sessions.filter((s) => s.isCompleted).length,
-        0
+        (sum, week) => sum + week.sessions.filter((s) => s.isCompleted).length,
+        0,
       );
 
       const rpeValues = playbook.weeks
@@ -887,7 +839,7 @@ export const playbookRouter = createTRPCRouter({
       const playbook = await ctx.db.query.playbooks.findFirst({
         where: and(
           eq(playbooks.id, input.playbookId),
-          eq(playbooks.userId, userId)
+          eq(playbooks.userId, userId),
         ),
       });
 

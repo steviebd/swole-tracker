@@ -1,3 +1,5 @@
+import { describe } from "vitest";
+
 // Skip this test file for now due to DOM setup issues with screen object
 describe.skip("Move Set Integration - Comprehensive Coverage", () => {
   // All tests skipped due to DOM setup issues with screen object from testing-library

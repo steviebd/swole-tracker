@@ -13,8 +13,8 @@ describe("ExerciseCard", () => {
   const mockExercise: ExerciseData = {
     exerciseName: "Bench Press",
     sets: [
-      { id: "set-1", weight: 80, reps: 8, sets: 1, unit: "kg" },
-      { id: "set-2", weight: 80, reps: 6, sets: 1, unit: "kg" },
+      { id: "set-1", setNumber: 1, weight: 80, reps: 8, sets: 1, unit: "kg" },
+      { id: "set-2", setNumber: 2, weight: 80, reps: 6, sets: 1, unit: "kg" },
     ],
     unit: "kg",
     templateExerciseId: 1,
@@ -84,6 +84,7 @@ describe("ExerciseCard", () => {
   it("should validate set data structure", () => {
     const validSet: SetData = {
       id: "test-set",
+      setNumber: 1,
       weight: 100,
       reps: 10,
       sets: 1,
@@ -112,8 +113,8 @@ describe("ExerciseCard", () => {
     const exerciseWithNoWeight: ExerciseData = {
       exerciseName: "Bodyweight Exercise",
       sets: [
-        { id: "set-1", reps: 10, sets: 1, unit: "kg" },
-        { id: "set-2", reps: 8, sets: 1, unit: "kg" },
+        { id: "set-1", setNumber: 1, reps: 10, sets: 1, unit: "kg" },
+        { id: "set-2", setNumber: 2, reps: 8, sets: 1, unit: "kg" },
       ],
       unit: "kg",
     };

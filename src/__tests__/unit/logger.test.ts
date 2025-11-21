@@ -362,9 +362,7 @@ describe("logSecurityEvent", () => {
 describe("Logger environment behavior", () => {
   it("should handle PostHog failures gracefully", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const mockEvent = analytics.event as vi.MockedFunction<
-      typeof analytics.event
-    >;
+    const mockEvent = analytics.event as any;
     mockEvent.mockImplementation(() => {
       throw new Error("PostHog error");
     });

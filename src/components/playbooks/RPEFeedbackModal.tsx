@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -17,6 +17,7 @@ import { Badge } from "~/components/ui/badge";
 import { api } from "~/trpc/react";
 import { useReducedMotion } from "~/hooks/use-reduced-motion";
 import { cn } from "~/lib/utils";
+import { invalidateWorkoutDependentCaches } from "~/lib/workout-cache-helpers";
 
 type RPEFeedbackModalProps = {
   open: boolean;
@@ -41,10 +42,26 @@ const RPE_LABELS = [
 ] as const;
 
 const DIFFICULTY_OPTIONS = [
-  { value: "too_easy", label: "Too Easy", description: "I could have done much more" },
-  { value: "just_right", label: "Just Right", description: "Perfect challenge level" },
-  { value: "too_hard", label: "Too Hard", description: "Struggled to complete" },
-  { value: "failed_sets", label: "Failed Sets", description: "Couldn't complete as prescribed" },
+  {
+    value: "too_easy",
+    label: "Too Easy",
+    description: "I could have done much more",
+  },
+  {
+    value: "just_right",
+    label: "Just Right",
+    description: "Perfect challenge level",
+  },
+  {
+    value: "too_hard",
+    label: "Too Hard",
+    description: "Struggled to complete",
+  },
+  {
+    value: "failed_sets",
+    label: "Failed Sets",
+    description: "Couldn't complete as prescribed",
+  },
 ] as const;
 
 const ENCOURAGEMENT_MESSAGES = {
@@ -70,11 +87,17 @@ export function RPEFeedbackModal({
 }: RPEFeedbackModalProps) {
   const prefersReducedMotion = useReducedMotion();
   const [selectedRPE, setSelectedRPE] = useState<number | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(
+    null,
+  );
   const [notes, setNotes] = useState("");
+  const utils = api.useUtils();
 
   const submitRPEMutation = api.playbooks.submitSessionRPE.useMutation({
     onSuccess: (data) => {
+      // Invalidate all workout-dependent caches including playbook data
+      void invalidateWorkoutDependentCaches(utils);
+
       if (onSuccess) {
         onSuccess();
       }
@@ -95,7 +118,11 @@ export function RPEFeedbackModal({
     await submitRPEMutation.mutateAsync({
       playbookSessionId,
       rpe: selectedRPE,
-      difficulty: selectedDifficulty as "too_easy" | "just_right" | "too_hard" | "failed_sets",
+      difficulty: selectedDifficulty as
+        | "too_easy"
+        | "just_right"
+        | "too_hard"
+        | "failed_sets",
       rpeNotes: notes || undefined,
     });
   };
@@ -107,7 +134,7 @@ export function RPEFeedbackModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <Sparkles className="size-5 text-primary" />
+            <Sparkles className="text-primary size-5" />
             How was Week {weekNumber}, Session {sessionNumber}?
           </DialogTitle>
           <DialogDescription>
@@ -122,11 +149,14 @@ export function RPEFeedbackModal({
             animate={prefersReducedMotion ? {} : { scale: 1, opacity: 1 }}
             className="flex flex-col items-center justify-center py-8"
           >
-            <CheckCircle2 className="mb-4 size-16 text-tertiary" />
+            <CheckCircle2 className="text-tertiary mb-4 size-16" />
             <h3 className="mb-2 text-xl font-bold">
-              {selectedRPE && ENCOURAGEMENT_MESSAGES[selectedRPE as keyof typeof ENCOURAGEMENT_MESSAGES]}
+              {selectedRPE &&
+                ENCOURAGEMENT_MESSAGES[
+                  selectedRPE as keyof typeof ENCOURAGEMENT_MESSAGES
+                ]}
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Thanks for the feedback!
             </p>
           </motion.div>
@@ -135,13 +165,16 @@ export function RPEFeedbackModal({
             {/* RPE Slider */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Rate of Perceived Exertion (RPE)</label>
+                <label className="text-sm font-medium">
+                  Rate of Perceived Exertion (RPE)
+                </label>
                 {selectedRPE && (
                   <Badge variant="default" className="gap-2 text-base">
                     <span className="text-xl">
                       {RPE_LABELS.find((r) => r.value === selectedRPE)?.emoji}
                     </span>
-                    {selectedRPE}/10 - {RPE_LABELS.find((r) => r.value === selectedRPE)?.label}
+                    {selectedRPE}/10 -{" "}
+                    {RPE_LABELS.find((r) => r.value === selectedRPE)?.label}
                   </Badge>
                 )}
               </div>
@@ -156,14 +189,14 @@ export function RPEFeedbackModal({
                   onChange={(e) => setSelectedRPE(parseInt(e.target.value))}
                   className={cn(
                     "h-3 w-full cursor-pointer appearance-none rounded-full",
-                    "bg-gradient-to-r from-tertiary via-secondary to-destructive",
+                    "from-tertiary via-secondary to-destructive bg-gradient-to-r",
                     "[&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:appearance-none",
-                    "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-background",
+                    "[&::-webkit-slider-thumb]:bg-background [&::-webkit-slider-thumb]:rounded-full",
                     "[&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:ring-2",
-                    "[&::-webkit-slider-thumb]:ring-primary"
+                    "[&::-webkit-slider-thumb]:ring-primary",
                   )}
                 />
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="text-muted-foreground flex justify-between text-xs">
                   <span>Very Easy</span>
                   <span>Moderate</span>
                   <span>Maximal</span>
@@ -180,14 +213,14 @@ export function RPEFeedbackModal({
                     key={option.value}
                     onClick={() => setSelectedDifficulty(option.value)}
                     className={cn(
-                      "rounded-lg border-2 p-4 text-left transition-all touch-target-large",
+                      "touch-target-large rounded-lg border-2 p-4 text-left transition-all",
                       selectedDifficulty === option.value
                         ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:border-primary/50"
+                        : "border-border bg-card hover:border-primary/50",
                     )}
                   >
                     <p className="font-semibold">{option.label}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 text-xs">
                       {option.description}
                     </p>
                   </button>
@@ -198,7 +231,8 @@ export function RPEFeedbackModal({
             {/* Optional Notes */}
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                Additional Notes <span className="text-muted-foreground">(Optional)</span>
+                Additional Notes{" "}
+                <span className="text-muted-foreground">(Optional)</span>
               </label>
               <textarea
                 value={notes}
@@ -207,12 +241,12 @@ export function RPEFeedbackModal({
                 rows={3}
                 placeholder="Any specific feedback about the session..."
                 className={cn(
-                  "w-full rounded-lg border border-border bg-background p-3",
-                  "text-sm placeholder:text-muted-foreground",
-                  "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  "border-border bg-background w-full rounded-lg border p-3",
+                  "placeholder:text-muted-foreground text-sm",
+                  "focus:border-primary focus:ring-primary/20 focus:ring-2 focus:outline-none",
                 )}
               />
-              <p className="text-xs text-muted-foreground text-right">
+              <p className="text-muted-foreground text-right text-xs">
                 {notes.length}/500
               </p>
             </div>

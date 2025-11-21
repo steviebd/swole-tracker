@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { simpleRender as render, screen } from "~/__tests__/test-utils";
+import { render, screen } from "~/__tests__/test-utils";
 
 // Ensure React is available globally for JSX
 global.React = React;
@@ -339,7 +339,7 @@ describe("StrengthProgressSection", () => {
     }).not.toThrow();
 
     // Should render the exercise select
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Choose an exercise…")).toBeInTheDocument();
   });
 
   it("deduplicates exercises with undefined templateExerciseIds", () => {

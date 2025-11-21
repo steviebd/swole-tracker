@@ -102,7 +102,11 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           fetch: (url, options) => {
             // Use longer timeout for AI operations (playbook generation, debriefs, etc.)
             // Default 30s for most requests, but 120s for AI-heavy operations
-            const timeout = url.includes("playbooks.create") || url.includes("debrief") ? 120000 : 30000;
+            const urlStr = typeof url === "string" ? url : url.toString();
+            const timeout =
+              urlStr.includes("playbooks.create") || urlStr.includes("debrief")
+                ? 120000
+                : 30000;
 
             return fetch(url, {
               ...options,

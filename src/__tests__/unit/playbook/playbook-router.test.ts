@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { type inferProcedureInput } from "@trpc/server";
 import { type AppRouter } from "~/server/api/root";
-import { createInnerTRPCContext } from "~/server/api/trpc";
+import { createTRPCContext } from "~/server/api/trpc";
 import { appRouter } from "~/server/api/root";
 
 // Mock PostHog

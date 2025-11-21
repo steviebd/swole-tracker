@@ -1,5 +1,6 @@
 import { createDb, getD1Binding } from "../src/server/db";
 import { eq } from "drizzle-orm";
+import { chunkedInsert } from "../src/server/db/chunk-utils";
 import {
   users,
   workoutTemplates,
@@ -83,7 +84,7 @@ export async function seedUserPreferences(userId: string = E2E_TEST_USER_ID) {
  */
 export async function seedWorkoutTemplates(
   userId: string = E2E_TEST_USER_ID,
-  count: number = 3
+  count: number = 3,
 ) {
   const db = createDb(getD1Binding());
 
@@ -190,7 +191,9 @@ export async function seedTemplateExercises(userId: string = E2E_TEST_USER_ID) {
     }),
   ];
 
-  await chunkedInsert(db, templateExercises, exercises);
+  await chunkedInsert(exercises, (chunk) =>
+    db.insert(templateExercises).values(chunk).onConflictDoNothing(),
+  );
   console.log(`✓ Seeded ${exercises.length} template exercises for: ${userId}`);
   return exercises;
 }
@@ -200,7 +203,7 @@ export async function seedTemplateExercises(userId: string = E2E_TEST_USER_ID) {
  */
 export async function seedWorkoutSessions(
   userId: string = E2E_TEST_USER_ID,
-  count: number = 5
+  count: number = 5,
 ) {
   const db = createDb(getD1Binding());
 
@@ -211,12 +214,14 @@ export async function seedWorkoutSessions(
     return createMockWorkoutSession({
       id: i + 1,
       user_id: userId,
-      templateId: ((i % 3) + 1), // Cycle through templates
+      templateId: (i % 3) + 1, // Cycle through templates
       workoutDate: date,
     });
   });
 
-  await chunkedInsert(db, workoutSessions, sessions);
+  await chunkedInsert(sessions, (chunk) =>
+    db.insert(workoutSessions).values(chunk).onConflictDoNothing(),
+  );
   console.log(`✓ Seeded ${sessions.length} workout sessions for: ${userId}`);
   return sessions;
 }
@@ -300,7 +305,9 @@ export async function seedSessionExercises(userId: string = E2E_TEST_USER_ID) {
     }),
   ];
 
-  await chunkedInsert(db, sessionExercises, exercises);
+  await chunkedInsert(exercises, (chunk) =>
+    db.insert(sessionExercises).values(chunk).onConflictDoNothing(),
+  );
   console.log(`✓ Seeded ${exercises.length} session exercises for: ${userId}`);
   return exercises;
 }
@@ -330,7 +337,7 @@ export async function seedWhoopIntegration(userId: string = E2E_TEST_USER_ID) {
  */
 export async function seedWhoopRecoveryData(
   userId: string = E2E_TEST_USER_ID,
-  days: number = 7
+  days: number = 7,
 ) {
   const db = createDb(getD1Binding());
 
@@ -349,8 +356,12 @@ export async function seedWhoopRecoveryData(
     });
   });
 
-  await chunkedInsert(db, whoopRecovery, recoveryData);
-  console.log(`✓ Seeded ${recoveryData.length} days of WHOOP recovery data for: ${userId}`);
+  await chunkedInsert(recoveryData, (chunk) =>
+    db.insert(whoopRecovery).values(chunk).onConflictDoNothing(),
+  );
+  console.log(
+    `✓ Seeded ${recoveryData.length} days of WHOOP recovery data for: ${userId}`,
+  );
   return recoveryData;
 }
 
@@ -384,8 +395,12 @@ export async function seedMasterExercises(userId: string = E2E_TEST_USER_ID) {
     }),
   ];
 
-  await chunkedInsert(db, masterExercises, masterExercisesData);
-  console.log(`✓ Seeded ${masterExercisesData.length} master exercises for: ${userId}`);
+  await chunkedInsert(masterExercisesData, (chunk) =>
+    db.insert(masterExercises).values(chunk).onConflictDoNothing(),
+  );
+  console.log(
+    `✓ Seeded ${masterExercisesData.length} master exercises for: ${userId}`,
+  );
   return masterExercisesData;
 }
 
@@ -399,24 +414,26 @@ export async function seedExerciseLinks(userId: string = E2E_TEST_USER_ID) {
     createMockExerciseLink({
       id: 1,
       templateExerciseId: 1, // Bench Press template exercise
-      masterExerciseId: 1,   // Bench Press master exercise
+      masterExerciseId: 1, // Bench Press master exercise
       user_id: userId,
     }),
     createMockExerciseLink({
       id: 2,
       templateExerciseId: 7, // Squat template exercise
-      masterExerciseId: 2,   // Squat master exercise
+      masterExerciseId: 2, // Squat master exercise
       user_id: userId,
     }),
     createMockExerciseLink({
       id: 3,
       templateExerciseId: 4, // Deadlift template exercise
-      masterExerciseId: 3,   // Deadlift master exercise
+      masterExerciseId: 3, // Deadlift master exercise
       user_id: userId,
     }),
   ];
 
-  await chunkedInsert(db, exerciseLinks, links);
+  await chunkedInsert(links, (chunk) =>
+    db.insert(exerciseLinks).values(chunk).onConflictDoNothing(),
+  );
   console.log(`✓ Seeded ${links.length} exercise links for: ${userId}`);
   return links;
 }
@@ -424,7 +441,10 @@ export async function seedExerciseLinks(userId: string = E2E_TEST_USER_ID) {
 /**
  * Seed wellness data for testing
  */
-export async function seedWellnessData(userId: string = E2E_TEST_USER_ID, days: number = 3) {
+export async function seedWellnessData(
+  userId: string = E2E_TEST_USER_ID,
+  days: number = 3,
+) {
   const db = createDb(getD1Binding());
 
   const wellnessEntries = Array.from({ length: days }, (_, i) => {
@@ -441,8 +461,12 @@ export async function seedWellnessData(userId: string = E2E_TEST_USER_ID, days: 
     });
   });
 
-  await chunkedInsert(db, wellnessData, wellnessEntries);
-  console.log(`✓ Seeded ${wellnessEntries.length} wellness entries for: ${userId}`);
+  await chunkedInsert(wellnessEntries, (chunk) =>
+    db.insert(wellnessData).values(chunk).onConflictDoNothing(),
+  );
+  console.log(
+    `✓ Seeded ${wellnessEntries.length} wellness entries for: ${userId}`,
+  );
   return wellnessEntries;
 }
 
@@ -484,7 +508,9 @@ export async function cleanupTestData(userId: string = E2E_TEST_USER_ID) {
   await db.delete(sessionExercises).where(eq(sessionExercises.user_id, userId));
   await db.delete(workoutSessions).where(eq(workoutSessions.user_id, userId));
   await db.delete(exerciseLinks).where(eq(exerciseLinks.user_id, userId));
-  await db.delete(templateExercises).where(eq(templateExercises.user_id, userId));
+  await db
+    .delete(templateExercises)
+    .where(eq(templateExercises.user_id, userId));
   await db.delete(workoutTemplates).where(eq(workoutTemplates.user_id, userId));
   await db.delete(masterExercises).where(eq(masterExercises.user_id, userId));
   await db.delete(userIntegrations).where(eq(userIntegrations.user_id, userId));

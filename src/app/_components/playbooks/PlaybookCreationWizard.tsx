@@ -2,13 +2,26 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Loader2,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { api } from "~/trpc/react";
 import { PageShell } from "~/components/layout/page-shell";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { useReducedMotion } from "~/hooks/use-reduced-motion";
@@ -16,10 +29,26 @@ import { useOnlineStatus } from "~/hooks/use-online-status";
 import { cn } from "~/lib/utils";
 
 const GOAL_PRESETS = [
-  { value: "powerlifting", label: "Powerlifting Cycle", description: "Build max strength in the big 3" },
-  { value: "strength", label: "Strength Builder", description: "General strength gains across movements" },
-  { value: "hypertrophy", label: "Hypertrophy Block", description: "Muscle growth and volume focus" },
-  { value: "peaking", label: "Peaking Program", description: "Prepare for a competition or 1RM test" },
+  {
+    value: "powerlifting",
+    label: "Powerlifting Cycle",
+    description: "Build max strength in the big 3",
+  },
+  {
+    value: "strength",
+    label: "Strength Builder",
+    description: "General strength gains across movements",
+  },
+  {
+    value: "hypertrophy",
+    label: "Hypertrophy Block",
+    description: "Muscle growth and volume focus",
+  },
+  {
+    value: "peaking",
+    label: "Peaking Program",
+    description: "Prepare for a competition or 1RM test",
+  },
 ] as const;
 
 const STEPS = ["Goal", "Target", "Details", "Review"] as const;
@@ -54,8 +83,10 @@ export function PlaybookCreationWizard() {
   });
 
   // Fetch templates and exercises
-  const { data: templates = [], isLoading: loadingTemplates } = api.templates.getAll.useQuery();
-  const { data: exercises = [], isLoading: loadingExercises } = api.exercises.getAllMaster.useQuery();
+  const { data: templates = [], isLoading: loadingTemplates } =
+    api.templates.getAll.useQuery();
+  const { data: exercises = [], isLoading: loadingExercises } =
+    api.exercises.getAllMaster.useQuery();
 
   const createPlaybookMutation = api.playbooks.create.useMutation({
     onSuccess: (data) => {
@@ -96,7 +127,11 @@ export function PlaybookCreationWizard() {
       targetType: formData.targetType,
       targetIds: formData.targetIds,
       duration: formData.duration,
-      metadata: formData.metadata,
+      metadata: {
+        oneRmInputs: formData.metadata?.currentMaxes,
+        trainingDaysPerWeek: formData.metadata?.trainingDays,
+        availableEquipment: formData.metadata?.equipment,
+      },
     });
   };
 
@@ -122,9 +157,10 @@ export function PlaybookCreationWizard() {
   };
 
   const handleSelectAll = () => {
-    const allIds = formData.targetType === "template"
-      ? filteredTemplates.map((t) => t.id)
-      : filteredExercises.map((e) => e.id);
+    const allIds =
+      formData.targetType === "template"
+        ? filteredTemplates.map((t) => t.id)
+        : filteredExercises.map((e) => e.id);
     setFormData((prev) => ({ ...prev, targetIds: allIds }));
   };
 
@@ -134,12 +170,14 @@ export function PlaybookCreationWizard() {
 
   // Filter templates and exercises based on search
   const filteredTemplates = templates.filter((template) =>
-    template.name.toLowerCase().includes(searchQuery.toLowerCase())
+    template.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   type ExerciseType = { id: number; name: string; linkedCount: number };
-  const filteredExercises: ExerciseType[] = (exercises as ExerciseType[]).filter((exercise) =>
-    exercise.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredExercises: ExerciseType[] = (
+    exercises as ExerciseType[]
+  ).filter((exercise) =>
+    exercise.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const isStepValid = () => {
@@ -163,7 +201,7 @@ export function PlaybookCreationWizard() {
     <PageShell
       title="Create Training Playbook"
       description="Design a personalized progression plan"
-      headerActions={
+      actions={
         <Button variant="outline" onClick={handleBack} size="sm">
           <ArrowLeft className="size-4" />
           {currentStep === 0 ? "Cancel" : "Back"}
@@ -179,9 +217,12 @@ export function PlaybookCreationWizard() {
                 <div
                   className={cn(
                     "flex size-10 items-center justify-center rounded-full border-2 transition-all",
-                    index < currentStep && "border-primary bg-primary text-primary-foreground",
-                    index === currentStep && "border-primary bg-background text-primary",
-                    index > currentStep && "border-muted bg-background text-muted-foreground"
+                    index < currentStep &&
+                      "border-primary bg-primary text-primary-foreground",
+                    index === currentStep &&
+                      "border-primary bg-background text-primary",
+                    index > currentStep &&
+                      "border-muted bg-background text-muted-foreground",
                   )}
                 >
                   {index < currentStep ? (
@@ -196,7 +237,7 @@ export function PlaybookCreationWizard() {
                 <div
                   className={cn(
                     "mx-2 h-0.5 flex-1 transition-all",
-                    index < currentStep ? "bg-primary" : "bg-muted"
+                    index < currentStep ? "bg-primary" : "bg-muted",
                   )}
                 />
               )}
@@ -237,18 +278,18 @@ export function PlaybookCreationWizard() {
                         "touch-target-large",
                         formData.goalPreset === preset.value
                           ? "border-primary bg-primary/5"
-                          : "border-border bg-card hover:border-primary/50 hover:bg-muted"
+                          : "border-border bg-card hover:border-primary/50 hover:bg-muted",
                       )}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <p className="font-semibold">{preset.label}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
+                          <p className="text-muted-foreground mt-1 text-xs">
                             {preset.description}
                           </p>
                         </div>
                         {formData.goalPreset === preset.value && (
-                          <Check className="size-5 text-primary" />
+                          <Check className="text-primary size-5" />
                         )}
                       </div>
                     </button>
@@ -263,12 +304,16 @@ export function PlaybookCreationWizard() {
                   <Input
                     value={formData.goalText}
                     onChange={(e) =>
-                      setFormData({ ...formData, goalText: e.target.value, goalPreset: null })
+                      setFormData({
+                        ...formData,
+                        goalText: e.target.value,
+                        goalPreset: null,
+                      })
                     }
                     placeholder="e.g., Build a 200kg deadlift in 8 weeks"
                     className="text-base"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Be specific! This helps us create a better plan.
                   </p>
                 </div>
@@ -290,35 +335,43 @@ export function PlaybookCreationWizard() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => {
-                      setFormData({ ...formData, targetType: "template", targetIds: [] });
+                      setFormData({
+                        ...formData,
+                        targetType: "template",
+                        targetIds: [],
+                      });
                       setSearchQuery("");
                     }}
                     className={cn(
-                      "rounded-lg border-2 p-4 transition-all touch-target-large",
+                      "touch-target-large rounded-lg border-2 p-4 transition-all",
                       formData.targetType === "template"
                         ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:border-primary/50"
+                        : "border-border bg-card hover:border-primary/50",
                     )}
                   >
                     <p className="font-semibold">Templates</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 text-xs">
                       Full workout programs
                     </p>
                   </button>
                   <button
                     onClick={() => {
-                      setFormData({ ...formData, targetType: "exercise", targetIds: [] });
+                      setFormData({
+                        ...formData,
+                        targetType: "exercise",
+                        targetIds: [],
+                      });
                       setSearchQuery("");
                     }}
                     className={cn(
-                      "rounded-lg border-2 p-4 transition-all touch-target-large",
+                      "touch-target-large rounded-lg border-2 p-4 transition-all",
                       formData.targetType === "exercise"
                         ? "border-primary bg-primary/5"
-                        : "border-border bg-card hover:border-primary/50"
+                        : "border-border bg-card hover:border-primary/50",
                     )}
                   >
                     <p className="font-semibold">Exercises</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 text-xs">
                       Specific movements
                     </p>
                   </button>
@@ -328,7 +381,9 @@ export function PlaybookCreationWizard() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">
-                      {formData.targetType === "template" ? "Select Templates" : "Select Exercises"}
+                      {formData.targetType === "template"
+                        ? "Select Templates"
+                        : "Select Exercises"}
                     </label>
                     <Badge variant="secondary">
                       {formData.targetIds.length} selected
@@ -336,8 +391,10 @@ export function PlaybookCreationWizard() {
                   </div>
 
                   {/* Search and Actions */}
-                  {((formData.targetType === "template" && templates.length > 0) ||
-                    (formData.targetType === "exercise" && exercises.length > 0)) && (
+                  {((formData.targetType === "template" &&
+                    templates.length > 0) ||
+                    (formData.targetType === "exercise" &&
+                      exercises.length > 0)) && (
                     <div className="space-y-2">
                       <Input
                         placeholder={`Search ${formData.targetType}s...`}
@@ -352,11 +409,15 @@ export function PlaybookCreationWizard() {
                           size="sm"
                           onClick={handleSelectAll}
                           disabled={
-                            (formData.targetType === "template" && filteredTemplates.length === 0) ||
-                            (formData.targetType === "exercise" && filteredExercises.length === 0)
+                            (formData.targetType === "template" &&
+                              filteredTemplates.length === 0) ||
+                            (formData.targetType === "exercise" &&
+                              filteredExercises.length === 0)
                           }
                         >
-                          Select All {searchQuery && `(${formData.targetType === "template" ? filteredTemplates.length : filteredExercises.length})`}
+                          Select All{" "}
+                          {searchQuery &&
+                            `(${formData.targetType === "template" ? filteredTemplates.length : filteredExercises.length})`}
                         </Button>
                         <Button
                           type="button"
@@ -373,105 +434,117 @@ export function PlaybookCreationWizard() {
 
                   {/* Loading State */}
                   {(loadingTemplates || loadingExercises) && (
-                    <div className="flex items-center justify-center rounded-lg border-2 border-border bg-muted/20 p-8">
-                      <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                    <div className="border-border bg-muted/20 flex items-center justify-center rounded-lg border-2 p-8">
+                      <Loader2 className="text-muted-foreground size-6 animate-spin" />
                     </div>
                   )}
 
                   {/* Empty State */}
-                  {!loadingTemplates && !loadingExercises && formData.targetType === "template" && templates.length === 0 && (
-                    <div className="rounded-lg border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        No templates found. Create some templates first!
-                      </p>
-                    </div>
-                  )}
+                  {!loadingTemplates &&
+                    !loadingExercises &&
+                    formData.targetType === "template" &&
+                    templates.length === 0 && (
+                      <div className="border-muted bg-muted/20 rounded-lg border-2 border-dashed p-8 text-center">
+                        <p className="text-muted-foreground text-sm">
+                          No templates found. Create some templates first!
+                        </p>
+                      </div>
+                    )}
 
-                  {!loadingTemplates && !loadingExercises && formData.targetType === "exercise" && exercises.length === 0 && (
-                    <div className="rounded-lg border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        No exercises found. Add exercises to your templates first!
-                      </p>
-                    </div>
-                  )}
+                  {!loadingTemplates &&
+                    !loadingExercises &&
+                    formData.targetType === "exercise" &&
+                    exercises.length === 0 && (
+                      <div className="border-muted bg-muted/20 rounded-lg border-2 border-dashed p-8 text-center">
+                        <p className="text-muted-foreground text-sm">
+                          No exercises found. Add exercises to your templates
+                          first!
+                        </p>
+                      </div>
+                    )}
 
                   {/* Templates List */}
-                  {!loadingTemplates && formData.targetType === "template" && templates.length > 0 && (
-                    <>
-                      {filteredTemplates.length === 0 ? (
-                        <div className="rounded-lg border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
-                          <p className="text-sm text-muted-foreground">
-                            No templates match "{searchQuery}"
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg border border-border p-2">
-                          {filteredTemplates.map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() => handleTargetToggle(template.id)}
-                              className={cn(
-                                "flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all touch-target-large",
-                                formData.targetIds.includes(template.id)
-                                  ? "border-primary bg-primary/5"
-                                  : "border-border bg-card hover:border-primary/50 hover:bg-muted"
-                              )}
-                            >
-                              <div className="flex-1">
-                                <p className="font-medium">{template.name}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {template.exercises.length} exercises
-                                </p>
-                              </div>
-                              {formData.targetIds.includes(template.id) && (
-                                <Check className="size-5 text-primary" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+                  {!loadingTemplates &&
+                    formData.targetType === "template" &&
+                    templates.length > 0 && (
+                      <>
+                        {filteredTemplates.length === 0 ? (
+                          <div className="border-muted bg-muted/20 rounded-lg border-2 border-dashed p-8 text-center">
+                            <p className="text-muted-foreground text-sm">
+                              No templates match "{searchQuery}"
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="border-border max-h-96 space-y-2 overflow-y-auto rounded-lg border p-2">
+                            {filteredTemplates.map((template) => (
+                              <button
+                                key={template.id}
+                                onClick={() => handleTargetToggle(template.id)}
+                                className={cn(
+                                  "touch-target-large flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all",
+                                  formData.targetIds.includes(template.id)
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border bg-card hover:border-primary/50 hover:bg-muted",
+                                )}
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium">{template.name}</p>
+                                  <p className="text-muted-foreground mt-1 text-xs">
+                                    {template.exercises.length} exercises
+                                  </p>
+                                </div>
+                                {formData.targetIds.includes(template.id) && (
+                                  <Check className="text-primary size-5" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
 
                   {/* Exercises List */}
-                  {!loadingExercises && formData.targetType === "exercise" && exercises.length > 0 && (
-                    <>
-                      {filteredExercises.length === 0 ? (
-                        <div className="rounded-lg border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
-                          <p className="text-sm text-muted-foreground">
-                            No exercises match "{searchQuery}"
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg border border-border p-2">
-                          {filteredExercises.map((exercise) => (
-                            <button
-                              key={exercise.id}
-                              onClick={() => handleTargetToggle(exercise.id)}
-                              className={cn(
-                                "flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all touch-target-large",
-                                formData.targetIds.includes(exercise.id)
-                                  ? "border-primary bg-primary/5"
-                                  : "border-border bg-card hover:border-primary/50 hover:bg-muted"
-                              )}
-                            >
-                              <div className="flex-1">
-                                <p className="font-medium">{exercise.name}</p>
-                                {exercise.linkedCount > 0 && (
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Used in {exercise.linkedCount} template{exercise.linkedCount !== 1 ? "s" : ""}
-                                  </p>
+                  {!loadingExercises &&
+                    formData.targetType === "exercise" &&
+                    exercises.length > 0 && (
+                      <>
+                        {filteredExercises.length === 0 ? (
+                          <div className="border-muted bg-muted/20 rounded-lg border-2 border-dashed p-8 text-center">
+                            <p className="text-muted-foreground text-sm">
+                              No exercises match "{searchQuery}"
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="border-border max-h-96 space-y-2 overflow-y-auto rounded-lg border p-2">
+                            {filteredExercises.map((exercise) => (
+                              <button
+                                key={exercise.id}
+                                onClick={() => handleTargetToggle(exercise.id)}
+                                className={cn(
+                                  "touch-target-large flex w-full items-center justify-between rounded-lg border-2 p-3 text-left transition-all",
+                                  formData.targetIds.includes(exercise.id)
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border bg-card hover:border-primary/50 hover:bg-muted",
                                 )}
-                              </div>
-                              {formData.targetIds.includes(exercise.id) && (
-                                <Check className="size-5 text-primary" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium">{exercise.name}</p>
+                                  {exercise.linkedCount > 0 && (
+                                    <p className="text-muted-foreground mt-1 text-xs">
+                                      Used in {exercise.linkedCount} template
+                                      {exercise.linkedCount !== 1 ? "s" : ""}
+                                    </p>
+                                  )}
+                                </div>
+                                {formData.targetIds.includes(exercise.id) && (
+                                  <Check className="text-primary size-5" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                 </div>
               </CardContent>
             </Card>
@@ -491,7 +564,10 @@ export function PlaybookCreationWizard() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">Duration</label>
-                    <Badge variant="secondary" className="text-base font-semibold">
+                    <Badge
+                      variant="secondary"
+                      className="text-base font-semibold"
+                    >
                       {formData.duration} weeks
                     </Badge>
                   </div>
@@ -502,18 +578,21 @@ export function PlaybookCreationWizard() {
                     step="1"
                     value={formData.duration}
                     onChange={(e) =>
-                      setFormData({ ...formData, duration: parseInt(e.target.value) })
+                      setFormData({
+                        ...formData,
+                        duration: parseInt(e.target.value),
+                      })
                     }
-                    className="h-2 w-full cursor-pointer appearance-none rounded-full bg-muted [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary"
+                    className="bg-muted [&::-webkit-slider-thumb]:bg-primary h-2 w-full cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex justify-between text-xs">
                     <span>4 weeks</span>
                     <span>12 weeks</span>
                   </div>
                 </div>
 
                 {/* Optional Advanced Options (collapsed by default) */}
-                <details className="group rounded-lg border border-border p-4">
+                <details className="group border-border rounded-lg border p-4">
                   <summary className="cursor-pointer font-medium group-open:mb-4">
                     Advanced Options (Optional)
                   </summary>
@@ -543,7 +622,7 @@ export function PlaybookCreationWizard() {
               <Card variant="glass">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="size-5 text-primary" />
+                    <Sparkles className="text-primary size-5" />
                     Review Your Playbook
                   </CardTitle>
                   <CardDescription>
@@ -552,87 +631,97 @@ export function PlaybookCreationWizard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Summary */}
-                  <div className="rounded-lg bg-muted/50 p-4">
+                  <div className="bg-muted/50 rounded-lg p-4">
                     <h4 className="mb-2 font-semibold">Goal</h4>
-                    <p className="text-sm text-muted-foreground">{formData.goalText}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {formData.goalText}
+                    </p>
                     <div className="mt-4 flex gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Duration:</span>{" "}
-                        <span className="font-medium">{formData.duration} weeks</span>
+                        <span className="font-medium">
+                          {formData.duration} weeks
+                        </span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Target:</span>{" "}
-                        <span className="font-medium capitalize">{formData.targetType}</span>
+                        <span className="font-medium capitalize">
+                          {formData.targetType}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Selected Items */}
-                  <div className="rounded-lg border border-border bg-card p-4">
+                  <div className="border-border bg-card rounded-lg border p-4">
                     <h4 className="mb-3 font-semibold">
-                      Selected {formData.targetType === "template" ? "Templates" : "Exercises"}
+                      Selected{" "}
+                      {formData.targetType === "template"
+                        ? "Templates"
+                        : "Exercises"}
                     </h4>
                     <div className="space-y-2">
-                      {formData.targetType === "template" ? (
-                        templates
-                          .filter((t) => formData.targetIds.includes(t.id))
-                          .map((template) => (
-                            <div
-                              key={template.id}
-                              className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
-                            >
-                              <div>
-                                <p className="font-medium">{template.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {template.exercises.length} exercises
-                                </p>
-                              </div>
-                              <Check className="size-4 text-primary" />
-                            </div>
-                          ))
-                      ) : (
-                        (exercises as ExerciseType[])
-                          .filter((e) => formData.targetIds.includes(e.id))
-                          .map((exercise) => (
-                            <div
-                              key={exercise.id}
-                              className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
-                            >
-                              <div>
-                                <p className="font-medium">{exercise.name}</p>
-                                {exercise.linkedCount > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Used in {exercise.linkedCount} template{exercise.linkedCount !== 1 ? "s" : ""}
+                      {formData.targetType === "template"
+                        ? templates
+                            .filter((t) => formData.targetIds.includes(t.id))
+                            .map((template) => (
+                              <div
+                                key={template.id}
+                                className="bg-muted/50 flex items-center justify-between rounded-lg p-3"
+                              >
+                                <div>
+                                  <p className="font-medium">{template.name}</p>
+                                  <p className="text-muted-foreground text-xs">
+                                    {template.exercises.length} exercises
                                   </p>
-                                )}
+                                </div>
+                                <Check className="text-primary size-4" />
                               </div>
-                              <Check className="size-4 text-primary" />
-                            </div>
-                          ))
-                      )}
+                            ))
+                        : (exercises as ExerciseType[])
+                            .filter((e) => formData.targetIds.includes(e.id))
+                            .map((exercise) => (
+                              <div
+                                key={exercise.id}
+                                className="bg-muted/50 flex items-center justify-between rounded-lg p-3"
+                              >
+                                <div>
+                                  <p className="font-medium">{exercise.name}</p>
+                                  {exercise.linkedCount > 0 && (
+                                    <p className="text-muted-foreground text-xs">
+                                      Used in {exercise.linkedCount} template
+                                      {exercise.linkedCount !== 1 ? "s" : ""}
+                                    </p>
+                                  )}
+                                </div>
+                                <Check className="text-primary size-4" />
+                              </div>
+                            ))}
                     </div>
                   </div>
 
                   {/* Offline Warning */}
                   {!isOnline && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-                      <p className="text-sm font-medium text-destructive">
-                        You're offline. Please connect to the internet to generate your playbook.
+                    <div className="border-destructive/50 bg-destructive/10 rounded-lg border p-4">
+                      <p className="text-destructive text-sm font-medium">
+                        You're offline. Please connect to the internet to
+                        generate your playbook.
                       </p>
                     </div>
                   )}
 
                   {/* Loading Message */}
                   {createPlaybookMutation.isPending && (
-                    <div className="rounded-lg border border-primary/50 bg-primary/10 p-4">
+                    <div className="border-primary/50 bg-primary/10 rounded-lg border p-4">
                       <div className="flex items-center gap-3">
-                        <Loader2 className="size-5 animate-spin text-primary" />
+                        <Loader2 className="text-primary size-5 animate-spin" />
                         <div>
-                          <p className="text-sm font-medium text-primary">
+                          <p className="text-primary text-sm font-medium">
                             Generating your personalized playbook...
                           </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            This may take up to 2 minutes as we analyze your training history and generate AI recommendations.
+                          <p className="text-muted-foreground mt-1 text-xs">
+                            This may take up to 2 minutes as we analyze your
+                            training history and generate AI recommendations.
                           </p>
                         </div>
                       </div>
@@ -641,15 +730,19 @@ export function PlaybookCreationWizard() {
 
                   {/* Error Message */}
                   {createPlaybookMutation.isError && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                    <div className="border-destructive/50 bg-destructive/10 rounded-lg border p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-destructive">
-                            {createPlaybookMutation.error.message || "Failed to create playbook. Please try again."}
+                          <p className="text-destructive text-sm font-medium">
+                            {createPlaybookMutation.error.message ||
+                              "Failed to create playbook. Please try again."}
                           </p>
-                          {createPlaybookMutation.error.message?.includes("NETWORK_ERROR") && (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              This could be due to a network timeout. Please check your connection and try again.
+                          {createPlaybookMutation.error.message?.includes(
+                            "NETWORK_ERROR",
+                          ) && (
+                            <p className="text-muted-foreground mt-2 text-xs">
+                              This could be due to a network timeout. Please
+                              check your connection and try again.
                             </p>
                           )}
                         </div>
@@ -667,21 +760,21 @@ export function PlaybookCreationWizard() {
 
                   {/* Plan Preview Placeholder */}
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+                    <div className="border-primary bg-primary/5 rounded-lg border-2 p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <Sparkles className="size-4 text-primary" />
+                        <Sparkles className="text-primary size-4" />
                         <h5 className="font-semibold">AI Plan</h5>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-muted-foreground text-xs">
                         Personalized using your history and goals
                       </p>
                     </div>
-                    <div className="rounded-lg border-2 border-secondary bg-secondary/5 p-4">
+                    <div className="border-secondary bg-secondary/5 rounded-lg border-2 p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <Zap className="size-4 text-secondary" />
+                        <Zap className="text-secondary size-4" />
                         <h5 className="font-semibold">Algorithmic Plan</h5>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-muted-foreground text-xs">
                         Science-based progressive overload
                       </p>
                     </div>

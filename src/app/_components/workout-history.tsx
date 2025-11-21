@@ -643,6 +643,28 @@ export function WorkoutHistory() {
   );
 }
 
+// Helper function to resolve workout name (prioritizes playbook format)
+function resolveWorkoutName(workout: any): string {
+  // Check for playbook first - format as "Playbook Name - Week X - Session Y"
+  if (workout.playbook && typeof workout.playbook === "object") {
+    const pb = workout.playbook as {
+      name?: string;
+      weekNumber?: number;
+      sessionNumber?: number;
+    };
+    if (pb.name && typeof pb.weekNumber === "number" && typeof pb.sessionNumber === "number") {
+      return `${pb.name} - Week ${pb.weekNumber} - Session ${pb.sessionNumber}`;
+    }
+  }
+
+  // Fall back to template name
+  if (workout.template?.name) {
+    return String(workout.template.name);
+  }
+
+  return "Custom Workout";
+}
+
 // Helper function to calculate workout metrics
 function calculateWorkoutMetrics(workout: any): {
   workoutTime: string;
@@ -747,7 +769,7 @@ function WorkoutCardsView({ workouts }: { workouts: any[] }) {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="text-content-primary line-clamp-1 font-semibold">
-                      {workout.template?.name || "Custom Workout"}
+                      {resolveWorkoutName(workout)}
                     </h3>
                     <div className="mt-1 flex items-center gap-2">
                       {hasPersonalRecords && (
@@ -880,10 +902,9 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
         id: "workout",
         header: "Workout",
         cell: (info) => {
-          const name = info.getValue() as string | undefined;
           return (
             <div className="flex flex-col gap-1">
-              <span className="font-medium">{name ?? "Custom Workout"}</span>
+              <span className="font-medium">{resolveWorkoutName(info.row.original)}</span>
               {/* Show badges in mobile view */}
               <div className="flex items-center gap-1 md:hidden">
                 {info.row.original.metrics.hasPersonalRecords && (
@@ -1012,7 +1033,7 @@ function WorkoutTableView({ workouts }: { workouts: any[] }) {
               <TableCell>
                 <div className="flex flex-col gap-1">
                   <span className="font-medium">
-                    {workout.template?.name ?? "Custom Workout"}
+                    {resolveWorkoutName(workout)}
                   </span>
                   <div className="flex items-center gap-1 md:hidden">
                     {workout.metrics.hasPersonalRecords && (

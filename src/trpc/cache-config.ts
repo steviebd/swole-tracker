@@ -74,6 +74,31 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchOnWindowFocus: true, // Useful for exercise tracking
   });
 
+  // Playbook queries - same pattern as workouts for immediate updates after completion
+  queryClient.setQueryDefaults(["playbooks", "listByUser"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnMount: true, // Ensure stale playbooks refetch when visiting page
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  queryClient.setQueryDefaults(["playbooks", "getById"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnMount: true, // Ensure stale playbook data refetches when visiting page
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  queryClient.setQueryDefaults(["playbooks", "getAdherenceMetrics"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnMount: true, // Ensure stale metrics refetch when visiting page
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
   // Progress data - real-time caching for dashboard updates
   const progressDefaults = {
     staleTime: 5 * 60 * 1000, // 5 minutes for progress queries
@@ -282,6 +307,11 @@ export const invalidateQueries = {
   // Invalidate preferences
   preferences: (queryClient: QueryClient) => {
     void queryClient.invalidateQueries({ queryKey: ["preferences"] });
+  },
+
+  // Invalidate playbook queries (when workout completion affects playbook status)
+  playbooks: (queryClient: QueryClient) => {
+    void queryClient.invalidateQueries({ queryKey: ["playbooks"] });
   },
 
   // Invalidate WHOOP queries

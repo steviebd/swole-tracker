@@ -27,6 +27,12 @@ export const preferencesRouter = createTRPCRouter({
       linear_progression_kg: "2.5",
       percentage_progression: "2.5",
       targetWorkoutsPerWeek: 3,
+      warmupStrategy: "history",
+      warmupSetsCount: 3,
+      warmupPercentages: "[40, 60, 80]",
+      warmupRepsStrategy: "match_working",
+      warmupFixedReps: 5,
+      enableMovementPatternSharing: false,
     } as const;
   }),
 

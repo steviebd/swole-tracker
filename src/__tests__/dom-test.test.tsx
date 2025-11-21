@@ -2,6 +2,7 @@
  * @vitest-environment happy-dom
  */
 import { describe, it, expect, beforeEach } from "vitest";
+import React from "react";
 import { render } from "@testing-library/react";
 
 describe("DOM Container Test", () => {

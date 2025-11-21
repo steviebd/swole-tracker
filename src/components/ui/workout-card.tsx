@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Repeat, Eye, Sparkles, FileText } from "lucide-react";
+import { Repeat, Eye, Sparkles, FileText, BookOpen, LayoutTemplate } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { GlassSurface } from "./glass-surface";
 import { Button } from "./button";
@@ -26,6 +26,11 @@ interface WorkoutMetric {
   value: string;
 }
 
+export type WorkoutSource = {
+  type: "template" | "playbook";
+  name: string;
+} | null;
+
 export interface WorkoutCardProps {
   /** Name/title of the workout */
   workoutName: string;
@@ -41,6 +46,8 @@ export interface WorkoutCardProps {
   onDebrief: () => void;
   /** Whether this workout is recent (within 24 hours) */
   isRecent?: boolean;
+  /** Source of the workout (template or playbook) */
+  source?: WorkoutSource;
   /** Additional CSS classes */
   className?: string;
 }
@@ -55,6 +62,7 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
       onViewDetails,
       onDebrief,
       isRecent = false,
+      source,
       className,
       ...props
     },
@@ -114,9 +122,28 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 <h3 className="text-foreground truncate text-lg leading-tight font-semibold">
                   {workoutName}
                 </h3>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  {formatDate(date)}
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-muted-foreground text-sm">
+                    {formatDate(date)}
+                  </p>
+                  {source && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                        source.type === "playbook"
+                          ? "bg-purple-500/15 text-purple-300"
+                          : "bg-blue-500/15 text-blue-300",
+                      )}
+                    >
+                      {source.type === "playbook" ? (
+                        <BookOpen className="h-3 w-3" />
+                      ) : (
+                        <LayoutTemplate className="h-3 w-3" />
+                      )}
+                      {source.type === "playbook" ? "Playbook" : "Template"}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* New workout badge */}

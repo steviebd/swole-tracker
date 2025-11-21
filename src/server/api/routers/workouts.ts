@@ -8,15 +8,15 @@ import {
   templateExercises,
   exerciseLinks,
   masterExercises,
-  exerciseSets,
   userPreferences,
+  playbookSessions,
 } from "~/server/db/schema";
 import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
 } from "~/server/db/utils";
 // Note: exerciseNameResolutionView replaced with raw SQL queries
-import { eq, desc, and, ne, inArray, gte, asc, lt } from "drizzle-orm";
+import { eq, desc, and, ne, inArray, gte, asc, lt, or, sql } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -31,25 +31,11 @@ const setInputSchema = z.object({
   isDefaultApplied: z.boolean().optional(),
 });
 
-// Warm-Up Sets: Individual exercise set schema (Phase 2)
-const exerciseSetInputSchema = z.object({
-  setNumber: z.number().int().positive(),
-  setType: z.enum(["warmup", "working", "backoff", "drop"]).default("working"),
-  weight: z.number().nonnegative().nullable(),
-  reps: z.number().int().positive(),
-  rpe: z.number().int().min(1).max(10).optional(),
-  restSeconds: z.number().int().positive().optional(),
-  completed: z.boolean().optional(),
-  notes: z.string().optional(),
-});
-
 const exerciseInputSchema = z.object({
   templateExerciseId: z.number().optional(),
   exerciseName: z.string().min(1).max(256),
   sets: z.array(setInputSchema),
   unit: z.enum(["kg", "lbs"]).default("kg"),
-  // Warm-Up Sets: Optional array of individual sets with set-level granularity
-  exerciseSets: z.array(exerciseSetInputSchema).optional(),
 });
 
 import { logger } from "~/lib/logger";
@@ -65,11 +51,6 @@ import {
   whereInChunks,
 } from "~/server/db/chunk-utils";
 import { invalidateQueries } from "~/trpc/cache-config";
-import {
-  detectWarmupPattern,
-  generateDefaultWarmupProtocol,
-  calculateVolumeBreakdown,
-} from "~/server/api/utils/warmup-pattern-detection";
 
 export const workoutsRouter = createTRPCRouter({
   // Get recent workouts for the current user
@@ -127,6 +108,43 @@ export const workoutsRouter = createTRPCRouter({
         },
       });
 
+      // 2. Fetch playbook sessions for these workouts
+      const sessionIds = sessions.map((s) => s.id);
+      let playbookSessionData: any[] = [];
+      if (sessionIds.length > 0 && ctx.db.query?.playbookSessions?.findMany) {
+        try {
+          playbookSessionData = await ctx.db.query.playbookSessions.findMany({
+            where: inArray(playbookSessions.actualWorkoutId, sessionIds),
+            with: {
+              week: {
+                with: {
+                  playbook: {
+                    columns: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.warn("Failed to fetch playbook sessions:", error);
+          playbookSessionData = [];
+        }
+      }
+
+      // 3. Create lookup map for playbook data
+      const playbookSessionMap = new Map(
+        playbookSessionData.map((ps) => [
+          ps.actualWorkoutId,
+          {
+            name: ps.week?.playbook?.name,
+            weekNumber: ps.week?.weekNumber,
+            sessionNumber: ps.sessionNumber,
+          },
+        ]),
+      );
+
       // Safety check: ensure sessions is defined
       if (!sessions) {
         throw new Error("Sessions query returned undefined");
@@ -162,16 +180,26 @@ export const workoutsRouter = createTRPCRouter({
             })
           : [];
 
-      // 4. Create lookup map
+      // 4. Create lookup maps
       const templateMap = new Map(templates.map((t) => [t.id, t]));
 
-      // 5. Attach templates to sessions
-      const sessionsWithTemplates = sessions.map((session) => ({
-        ...session,
-        template: session.templateId
-          ? (templateMap.get(session.templateId) ?? null)
-          : null,
-      }));
+      // 5. Attach templates and playbook data to sessions
+      const sessionsWithTemplates = sessions.map((session) => {
+        const playbookData = playbookSessionMap.get(session.id);
+        return {
+          ...session,
+          template: session.templateId
+            ? (templateMap.get(session.templateId) ?? null)
+            : null,
+          playbook: playbookData?.name
+            ? {
+                name: playbookData.name,
+                weekNumber: playbookData.weekNumber,
+                sessionNumber: playbookData.sessionNumber,
+              }
+            : null,
+        };
+      });
 
       return sessionsWithTemplates;
     }),
@@ -224,6 +252,39 @@ export const workoutsRouter = createTRPCRouter({
 
       if (!workout || workout.user_id !== ctx.user.id) {
         throw new Error("Workout not found");
+      }
+
+      // Fetch playbook session data if linked
+      let playbookSessionData: any = null;
+      if (ctx.db.query?.playbookSessions?.findFirst) {
+        try {
+          playbookSessionData = await ctx.db.query.playbookSessions.findFirst({
+            where: eq(playbookSessions.actualWorkoutId, input.id),
+            with: {
+              week: {
+                with: {
+                  playbook: {
+                    columns: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.warn("Failed to fetch playbook session:", error);
+          playbookSessionData = null;
+        }
+      }
+
+      // Add playbook data if found
+      if (playbookSessionData?.week?.playbook?.name) {
+        (workout as any).playbook = {
+          name: playbookSessionData.week.playbook.name,
+          weekNumber: playbookSessionData.week.weekNumber,
+          sessionNumber: playbookSessionData.sessionNumber,
+        };
       }
 
       return workout;
@@ -300,7 +361,7 @@ export const workoutsRouter = createTRPCRouter({
         return null;
       }
 
-      // Get all sets from that session
+      // Legacy format: Query sessionExercises table
       const rows = await ctx.db
         .select({
           weight: sessionExercises.weight,
@@ -325,6 +386,7 @@ export const workoutsRouter = createTRPCRouter({
 
       const sets = rows.map((row, index) => ({
         id: `prev-${index}`,
+        setNumber: index + 1,
         weight: row.weight ?? undefined,
         reps: row.reps ?? undefined,
         sets: row.sets ?? 1,
@@ -346,13 +408,20 @@ export const workoutsRouter = createTRPCRouter({
         undefined,
       );
 
+      console.log("getLastExerciseData: returning", {
+        exerciseName: input.exerciseName,
+        setsCount: sets.length,
+        sets,
+        best: bestSet,
+      });
+
       return {
         sets,
         best: bestSet
           ? {
               weight: bestSet.weight,
               reps: bestSet.reps ?? undefined,
-              sets: bestSet.sets,
+              sets: bestSet.sets ?? 1,
               unit: bestSet.unit,
             }
           : undefined,
@@ -641,147 +710,6 @@ export const workoutsRouter = createTRPCRouter({
         );
 
         // Handle new exerciseSets format (Phase 2: Warm-Up Sets)
-        // Determine if any exercise uses the new exerciseSets format
-        const usesNewFormat = input.exercises.some(
-          (ex) => ex.exerciseSets && ex.exerciseSets.length > 0,
-        );
-
-        if (usesNewFormat) {
-          // New format: Create session_exercise rows with aggregated stats + individual exercise_sets rows
-          for (const exercise of input.exercises) {
-            if (!exercise.exerciseSets || exercise.exerciseSets.length === 0) {
-              continue; // Skip exercises without exerciseSets data
-            }
-
-            const templateExerciseId = exercise.templateExerciseId ?? null;
-            const hasValidTemplateExercise =
-              templateExerciseId !== null &&
-              resolvedNameLookup.has(templateExerciseId);
-
-            const resolvedTemplateExerciseId = hasValidTemplateExercise
-              ? templateExerciseId
-              : null;
-
-            const { name: resolvedExerciseName } =
-              resolveExerciseNameWithLookup(
-                templateExerciseId,
-                exercise.exerciseName,
-                resolvedNameLookup,
-              );
-
-            // Compute aggregated stats from exerciseSets
-            const stats = computeAggregatedStats(exercise.exerciseSets);
-
-            // Create session_exercise row with aggregated stats
-            const [sessionExerciseRow] = await ctx.db
-              .insert(sessionExercises)
-              .values({
-                user_id: ctx.user.id,
-                sessionId: input.sessionId,
-                templateExerciseId: resolvedTemplateExerciseId,
-                exerciseName: exercise.exerciseName,
-                resolvedExerciseName,
-                setOrder: 0, // Not used in new format
-                weight: stats.topSetWeight,
-                reps: null, // Not meaningful when sets vary
-                sets: stats.totalSets,
-                unit: exercise.unit ?? "kg",
-                usesSetTable: true, // Flag this as using the new format
-                totalSets: stats.totalSets,
-                workingSets: stats.workingSets,
-                warmupSets: stats.warmupSets,
-                topSetWeight: stats.topSetWeight,
-                totalVolume: stats.totalVolume,
-                workingVolume: stats.workingVolume,
-              })
-              .returning({ id: sessionExercises.id });
-
-            if (!sessionExerciseRow) {
-              throw new Error("Failed to create session exercise");
-            }
-
-            // Create individual exercise_sets rows with chunking
-            const exerciseSetsToInsert = exercise.exerciseSets.map((set) => ({
-              id: crypto.randomUUID(),
-              sessionExerciseId: sessionExerciseRow.id,
-              userId: ctx.user.id,
-              setNumber: set.setNumber,
-              setType: set.setType,
-              weight: set.weight,
-              reps: set.reps,
-              rpe: set.rpe ?? null,
-              restSeconds: set.restSeconds ?? null,
-              completed: set.completed ?? true, // Assume completed if not specified
-              notes: set.notes ?? null,
-              createdAt: new Date(),
-              completedAt: set.completed ? new Date() : null,
-            }));
-
-            // Use chunkedBatch to safely insert exercise_sets (D1 limit protection)
-            // exercise_sets has 11 columns, so chunk size ~6 rows
-            await chunkedBatch(
-              ctx.db,
-              exerciseSetsToInsert,
-              (chunk) => ctx.db.insert(exerciseSets).values(chunk),
-              { limit: 70 }, // D1-safe limit
-            );
-
-            logger.debug("Inserted exercise with sets", {
-              exerciseName: exercise.exerciseName,
-              sessionExerciseId: sessionExerciseRow.id,
-              setsCount: exerciseSetsToInsert.length,
-            });
-          }
-
-          // Trigger debrief and aggregation for new format
-          const acceptLanguage =
-            ctx.headers.get("accept-language") ?? undefined;
-          const locale = acceptLanguage?.split(",")[0];
-
-          void (async () => {
-            try {
-              const debriefOptions: GenerateDebriefOptions = {
-                dbClient: ctx.db,
-                userId: ctx.user.id,
-                sessionId: input.sessionId,
-                trigger: "auto",
-                requestId: ctx.requestId,
-                ...(locale !== undefined && { locale }),
-              };
-
-              await generateAndPersistDebrief(debriefOptions);
-            } catch (error) {
-              logger.warn("session_debrief.auto_generation_failed", {
-                userId: ctx.user.id,
-                sessionId: input.sessionId,
-                error: error instanceof Error ? error.message : "unknown",
-              });
-            }
-          })();
-
-          void (async () => {
-            try {
-              const { aggregationTrigger } = await import(
-                "~/server/db/aggregation"
-              );
-              await aggregationTrigger.onSessionChange(
-                input.sessionId,
-                ctx.user.id,
-              );
-            } catch (error) {
-              logger.warn("aggregation_trigger_failed", {
-                userId: ctx.user.id,
-                sessionId: input.sessionId,
-                error: error instanceof Error ? error.message : "unknown",
-              });
-            }
-          })();
-
-          return {
-            success: true,
-            playbookSessionId: null, // Playbook handling could be added later
-          };
-        }
 
         // Legacy format: Flatten exercises into individual session_exercise rows
         const invalidTemplateExerciseIds = new Set<number>();
@@ -1415,106 +1343,4 @@ export const workoutsRouter = createTRPCRouter({
 
       return { success: true };
     }),
-
-  // Get warm-up suggestions for an exercise
-  getWarmupSuggestions: protectedProcedure
-    .input(
-      z.object({
-        exerciseName: z.string(),
-        targetWeight: z.number().positive(),
-        targetReps: z.number().int().positive(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      // Call detectWarmupPattern from utils
-      const pattern = await detectWarmupPattern({
-        userId: ctx.user.id,
-        exerciseName: input.exerciseName,
-        targetWorkingWeight: input.targetWeight,
-        targetWorkingReps: input.targetReps,
-      });
-
-      // If low confidence, get user preferences for fallback protocol
-      if (pattern.confidence === "low") {
-        const preferences = await ctx.db.query.userPreferences.findFirst({
-          where: eq(userPreferences.user_id, ctx.user.id),
-        });
-
-        if (preferences && preferences.warmupStrategy !== "none") {
-          const fallbackSets = generateDefaultWarmupProtocol(
-            input.targetWeight,
-            input.targetReps,
-            {
-              strategy:
-                (preferences.warmupStrategy as "percentage" | "fixed") ??
-                "percentage",
-              percentages: preferences.warmupPercentages
-                ? JSON.parse(preferences.warmupPercentages)
-                : [40, 60, 80],
-              setsCount: preferences.warmupSetsCount ?? 3,
-              repsStrategy:
-                (preferences.warmupRepsStrategy as
-                  | "match_working"
-                  | "descending"
-                  | "fixed") ?? "match_working",
-              fixedReps: preferences.warmupFixedReps ?? 5,
-            },
-          );
-
-          return {
-            sets: fallbackSets,
-            confidence: "low" as const,
-            source: "protocol" as const,
-            sessionCount: 0,
-          };
-        }
-      }
-
-      return pattern;
-    }),
 });
-
-/**
- * Helper: Compute aggregated stats from exercise sets
- * Used when persisting sets to calculate session_exercise summary columns
- */
-function computeAggregatedStats(
-  exerciseSetsData: Array<{
-    setType: string;
-    weight: number | null;
-    reps: number;
-  }>,
-): {
-  totalSets: number;
-  workingSets: number;
-  warmupSets: number;
-  topSetWeight: number;
-  totalVolume: number;
-  workingVolume: number;
-} {
-  const totalSets = exerciseSetsData.length;
-  const workingSets = exerciseSetsData.filter(
-    (s) => s.setType === "working",
-  ).length;
-  const warmupSets = exerciseSetsData.filter(
-    (s) => s.setType === "warmup",
-  ).length;
-  const topSetWeight = Math.max(...exerciseSetsData.map((s) => s.weight ?? 0));
-
-  const volumeBreakdown = calculateVolumeBreakdown(
-    exerciseSetsData.map((s) => ({
-      weight: s.weight,
-      reps: s.reps,
-      setType: s.setType,
-    })),
-  );
-
-  return {
-    totalSets,
-    workingSets,
-    warmupSets,
-    topSetWeight,
-    totalVolume: volumeBreakdown.total,
-    workingVolume: volumeBreakdown.working,
-  };
-}

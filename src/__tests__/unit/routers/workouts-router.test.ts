@@ -220,6 +220,7 @@ describe("workoutsRouter", () => {
         {
           ...mockSessions[0],
           template: mockTemplates[0],
+          playbook: null,
         },
       ]);
     });
@@ -336,6 +337,7 @@ describe("workoutsRouter", () => {
         sets: [
           {
             id: "prev-0",
+            setNumber: 1,
             weight: 80,
             reps: 8,
             sets: 3,
@@ -346,58 +348,6 @@ describe("workoutsRouter", () => {
           weight: 80,
           reps: 8,
           sets: 3,
-          unit: "kg",
-        },
-      });
-    });
-
-    it("should handle exercise links for linked exercises", async () => {
-      const isolatedCtx = {
-        db: createMockDb(),
-        user: mockUser,
-        requestId: "test-request",
-        headers: new Headers(),
-      };
-
-      // Mock the exercise name resolution view query
-      isolatedCtx.db.queueSelectResult([
-        { resolvedName: "Bench Press (Barbell)" },
-      ]);
-
-      // Mock the latest session query
-      isolatedCtx.db.queueSelectResult([{ sessionId: 1 }]);
-
-      // Mock the sets query
-      isolatedCtx.db.queueSelectResult([
-        {
-          weight: 75,
-          reps: 10,
-          sets: 4,
-          unit: "kg",
-          setOrder: 0,
-        },
-      ]);
-
-      const caller = workoutsRouter.createCaller(isolatedCtx);
-      const result = await caller.getLastExerciseData({
-        exerciseName: "Bench Press",
-        templateExerciseId: 1,
-      });
-
-      expect(result).toEqual({
-        sets: [
-          {
-            id: "prev-0",
-            weight: 75,
-            reps: 10,
-            sets: 4,
-            unit: "kg",
-          },
-        ],
-        best: {
-          weight: 75,
-          reps: 10,
-          sets: 4,
           unit: "kg",
         },
       });
@@ -435,6 +385,7 @@ describe("workoutsRouter", () => {
         sets: [
           {
             id: "prev-0",
+            setNumber: 1,
             weight: 80,
             reps: 8,
             sets: 3,

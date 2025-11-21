@@ -236,7 +236,8 @@ export async function invalidateWorkoutDependentCaches(
   console.info(`[CACHE_INVALIDATION] Starting invalidation for ${sessionIdsArray.length} sessions:`, sessionIdsArray);
   
   const invalidations: Array<Promise<unknown>> = [
-    utils.workouts.getRecent.invalidate(),
+    // Use refetchType: 'all' for workouts.getRecent to ensure playbook workouts show immediately
+    utils.workouts.getRecent.invalidate(undefined, { refetchType: 'all' }),
     utils.templates.getAll.invalidate(),
     utils.progress.getWorkoutDates.invalidate(),
     utils.progress.getVolumeProgression.invalidate(),
@@ -253,6 +254,11 @@ export async function invalidateWorkoutDependentCaches(
     utils.healthAdvice.getHistory.invalidate(),
     utils.wellness.getHistory.invalidate(),
     utils.wellness.getStats.invalidate(),
+    // Invalidate playbook queries when workouts change (for playbook session completion)
+    // Use refetchType: 'all' to force refetch even inactive queries (matches template behavior)
+    utils.playbooks.listByUser.invalidate(undefined, { refetchType: 'all' }),
+    utils.playbooks.getById.invalidate(undefined, { refetchType: 'all' }),
+    utils.playbooks.getAdherenceMetrics.invalidate(undefined, { refetchType: 'all' }),
   ];
 
   for (const sessionId of sessionIds) {

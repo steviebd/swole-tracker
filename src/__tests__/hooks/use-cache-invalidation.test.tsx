@@ -25,6 +25,7 @@ const createInvalidateHelpersMock = () => ({
   workouts: vi.fn(),
   templates: vi.fn(),
   preferences: vi.fn(),
+  playbooks: vi.fn(),
   whoop: vi.fn(),
   progress: vi.fn(),
   progressAggregated: vi.fn(),

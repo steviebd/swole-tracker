@@ -287,7 +287,7 @@ describe("AuthProvider", () => {
       // Call sign out
       if (signOutCallback) {
         await act(async () => {
-          await signOutCallback();
+          await signOutCallback?.();
         });
       }
 

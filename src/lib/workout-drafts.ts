@@ -5,7 +5,7 @@ import type { SetData } from "~/app/_components/set-input";
 
 type StoredSet = Pick<
   SetData,
-  "id" | "weight" | "reps" | "sets" | "unit" | "rpe" | "rest"
+  "id" | "setNumber" | "weight" | "reps" | "sets" | "unit" | "rpe" | "rest"
 >;
 
 export type StoredExercise = Pick<
@@ -134,6 +134,7 @@ function readDrafts(): WorkoutDraftRecord[] {
                       typeof set.id === "string"
                         ? set.id
                         : `draft-${Math.random().toString(36).slice(2)}`,
+                    setNumber: set.setNumber,
                     sets:
                       typeof set.sets === "number" && set.sets > 0
                         ? set.sets

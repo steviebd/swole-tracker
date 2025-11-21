@@ -211,6 +211,18 @@ function resolveDb(): DrizzleDb {
           findMany: vi.fn(() => []),
           findFirst: vi.fn(() => null),
         },
+        playbookSessions: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        playbookWeeks: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
+        playbooks: {
+          findMany: vi.fn(() => []),
+          findFirst: vi.fn(() => null),
+        },
       },
     };
 

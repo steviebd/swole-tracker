@@ -24,7 +24,6 @@ import {
 } from "~/server/db/schema";
 import { whereInChunks } from "~/server/db/chunk-utils";
 import { calculateOneRM } from "./exercise-calculations";
-import { detectWarmupPattern } from "./warmup-pattern-detection";
 import type {
   PlaybookGenerationContext,
   SessionHistoryForPlaybook,
@@ -39,9 +38,10 @@ import type { PlaybookCreateInput } from "../schemas/playbook";
 export async function buildPlaybookContext(
   db: DrizzleDb,
   userId: string,
-  input: PlaybookCreateInput
+  input: PlaybookCreateInput,
 ): Promise<PlaybookGenerationContext> {
-  const { targetType, targetIds, goalText, goalPreset, duration, metadata } = input;
+  const { targetType, targetIds, goalText, goalPreset, duration, metadata } =
+    input;
 
   // Fetch user preferences
   const [userPrefs] = await db
@@ -53,7 +53,8 @@ export async function buildPlaybookContext(
   const preferences = {
     defaultWeightUnit: userPrefs?.defaultWeightUnit ?? "kg",
     progressionType: userPrefs?.progression_type ?? "adaptive",
-    trainingDaysPerWeek: metadata?.trainingDaysPerWeek ?? userPrefs?.targetWorkoutsPerWeek ?? 3,
+    trainingDaysPerWeek:
+      metadata?.trainingDaysPerWeek ?? userPrefs?.targetWorkoutsPerWeek ?? 3,
   };
 
   // Fetch recent sessions based on target type
@@ -78,43 +79,6 @@ export async function buildPlaybookContext(
 
   // Fetch warm-up patterns for exercises with 1RM data
   const exerciseNames = Object.keys(currentOneRmEstimates);
-  const warmupPatterns = await Promise.all(
-    exerciseNames.map(async (exerciseName) => {
-      try {
-        const oneRM = currentOneRmEstimates[exerciseName] ?? 100;
-        const pattern = await detectWarmupPattern({
-          userId,
-          exerciseName,
-          targetWorkingWeight: oneRM * 0.85, // Use 85% of 1RM as typical working weight
-          targetWorkingReps: 5,
-        });
-
-        return {
-          exerciseName,
-          pattern: pattern.sets.map((s) => {
-            const mapped: { weight: number; reps: number; percentageOfTop?: number } = {
-              weight: s.weight,
-              reps: s.reps,
-            };
-            if (s.percentageOfTop !== undefined) {
-              mapped.percentageOfTop = s.percentageOfTop;
-            }
-            return mapped;
-          }),
-          confidence: pattern.confidence,
-          sessionCount: pattern.sessionCount,
-        };
-      } catch (error) {
-        // If pattern detection fails, skip this exercise
-        return null;
-      }
-    })
-  );
-
-  // Filter out failed pattern detections and low confidence patterns
-  const validWarmupPatterns = warmupPatterns
-    .filter((p) => p !== null && p.confidence !== "low")
-    .map((p) => p!);
 
   // Build context
   const context: PlaybookGenerationContext = {
@@ -128,8 +92,9 @@ export async function buildPlaybookContext(
     currentOneRmEstimates,
     preferences,
     volumeTrends,
-    warmupPatterns: validWarmupPatterns,
-    ...(metadata?.availableEquipment && { availableEquipment: metadata.availableEquipment }),
+    ...(metadata?.availableEquipment && {
+      availableEquipment: metadata.availableEquipment,
+    }),
   };
 
   return context;
@@ -141,7 +106,7 @@ export async function buildPlaybookContext(
 async function fetchRecentSessionsByTemplate(
   db: DrizzleDb,
   userId: string,
-  templateIds: number[]
+  templateIds: number[],
 ): Promise<SessionHistoryForPlaybook[]> {
   const sessions: SessionHistoryForPlaybook[] = [];
 
@@ -151,33 +116,30 @@ async function fetchRecentSessionsByTemplate(
   }
 
   // Use whereInChunks to handle large templateId arrays safely
-  const sessionRows = await whereInChunks(
-    templateIds,
-    async (idChunk) => {
-      const rows = await db
-        .select({
-          sessionId: workoutSessions.id,
-          workoutDate: workoutSessions.workoutDate,
-          templateId: workoutSessions.templateId,
-          templateName: workoutTemplates.name,
-        })
-        .from(workoutSessions)
-        .leftJoin(
-          workoutTemplates,
-          eq(workoutTemplates.id, workoutSessions.templateId)
-        )
-        .where(
-          and(
-            eq(workoutSessions.user_id, userId),
-            inArray(workoutSessions.templateId, idChunk)
-          )
-        )
-        .orderBy(desc(workoutSessions.workoutDate))
-        .limit(20); // Get 20 most recent sessions
+  const sessionRows = await whereInChunks(templateIds, async (idChunk) => {
+    const rows = await db
+      .select({
+        sessionId: workoutSessions.id,
+        workoutDate: workoutSessions.workoutDate,
+        templateId: workoutSessions.templateId,
+        templateName: workoutTemplates.name,
+      })
+      .from(workoutSessions)
+      .leftJoin(
+        workoutTemplates,
+        eq(workoutTemplates.id, workoutSessions.templateId),
+      )
+      .where(
+        and(
+          eq(workoutSessions.user_id, userId),
+          inArray(workoutSessions.templateId, idChunk),
+        ),
+      )
+      .orderBy(desc(workoutSessions.workoutDate))
+      .limit(20); // Get 20 most recent sessions
 
-      return rows;
-    }
-  );
+    return rows;
+  });
 
   // Fetch exercises for these sessions
   for (const session of sessionRows) {
@@ -197,7 +159,7 @@ async function fetchRecentSessionsByTemplate(
 
     const totalVolume = exercises.reduce(
       (sum, ex) => sum + (ex.volumeLoad ?? 0),
-      0
+      0,
     );
 
     sessions.push({
@@ -219,7 +181,7 @@ async function fetchRecentSessionsByTemplate(
 async function fetchRecentSessionsByExercise(
   db: DrizzleDb,
   userId: string,
-  exerciseIds: number[]
+  exerciseIds: number[],
 ): Promise<SessionHistoryForPlaybook[]> {
   // Handle empty exerciseIds
   if (exerciseIds.length === 0) {
@@ -239,12 +201,12 @@ async function fetchRecentSessionsByExercise(
         .where(
           and(
             eq(masterExercises.user_id, userId),
-            inArray(masterExercises.id, idChunk)
-          )
+            inArray(masterExercises.id, idChunk),
+          ),
         );
 
       return rows;
-    }
+    },
   );
 
   const exerciseNames = masterExerciseRows.map((ex) => ex.name);
@@ -273,14 +235,14 @@ async function fetchRecentSessionsByExercise(
         .where(
           and(
             eq(sessionExercises.user_id, userId),
-            inArray(sessionExercises.resolvedExerciseName, nameChunk)
-          )
+            inArray(sessionExercises.resolvedExerciseName, nameChunk),
+          ),
         )
         .orderBy(desc(sessionExercises.sessionId))
         .limit(100); // Get more to ensure we have enough data
 
       return rows;
-    }
+    },
   );
 
   // Group exercises by session
@@ -319,13 +281,13 @@ async function fetchRecentSessionsByExercise(
       .from(workoutSessions)
       .leftJoin(
         workoutTemplates,
-        eq(workoutTemplates.id, workoutSessions.templateId)
+        eq(workoutTemplates.id, workoutSessions.templateId),
       )
       .where(
         and(
           eq(workoutSessions.user_id, userId),
-          inArray(workoutSessions.id, idChunk)
-        )
+          inArray(workoutSessions.id, idChunk),
+        ),
       )
       .orderBy(desc(workoutSessions.workoutDate));
 
@@ -336,7 +298,7 @@ async function fetchRecentSessionsByExercise(
     const exercises = sessionMap.get(session.sessionId) ?? [];
     const totalVolume = exercises.reduce(
       (sum, ex) => sum + (ex.volumeLoad ?? 0),
-      0
+      0,
     );
 
     return {
@@ -357,7 +319,7 @@ async function fetchRecentSessionsByExercise(
  * Uses the highest 1RM estimate for each exercise
  */
 function calculateCurrentOneRMs(
-  sessions: SessionHistoryForPlaybook[]
+  sessions: SessionHistoryForPlaybook[],
 ): Record<string, number> {
   const oneRmMap = new Map<string, number>();
 
@@ -387,12 +349,15 @@ function calculateCurrentOneRMs(
  * Groups by week and calculates trends
  */
 function calculateVolumeTrends(
-  sessions: SessionHistoryForPlaybook[]
+  sessions: SessionHistoryForPlaybook[],
 ): VolumeProgressionData[] {
   // Group exercises by name and week
   const exerciseWeeklyData = new Map<
     string,
-    Map<string, { totalVolume: number; sessionCount: number; intensitySum: number }>
+    Map<
+      string,
+      { totalVolume: number; sessionCount: number; intensitySum: number }
+    >
   >();
 
   for (const session of sessions) {
@@ -421,7 +386,11 @@ function calculateVolumeTrends(
       weekData.sessionCount += 1;
 
       // Calculate intensity as percentage of estimated 1RM
-      if (exercise.weight && exercise.oneRmEstimate && exercise.oneRmEstimate > 0) {
+      if (
+        exercise.weight &&
+        exercise.oneRmEstimate &&
+        exercise.oneRmEstimate > 0
+      ) {
         weekData.intensitySum += exercise.weight / exercise.oneRmEstimate;
       }
     }
@@ -442,7 +411,7 @@ function calculateVolumeTrends(
 
     // Calculate trend slope (simple linear regression)
     const trendSlope = calculateTrendSlope(
-      weeklyData.map((w, idx) => [idx, w.totalVolume])
+      weeklyData.map((w, idx) => [idx, w.totalVolume]),
     );
 
     trends.push({
@@ -486,9 +455,9 @@ function calculateTrendSlope(dataPoints: Array<[number, number]>): number {
  */
 export function getDefaultOneRMs(): Record<string, number> {
   return {
-    "Squat": 70,
+    Squat: 70,
     "Bench Press": 50,
-    "Deadlift": 80,
+    Deadlift: 80,
     "Overhead Press": 35,
     "Barbell Row": 45,
   };

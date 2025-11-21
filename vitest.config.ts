@@ -32,7 +32,6 @@ export default defineConfig({
       },
     },
     // Speed optimizations
-    cacheDir: "node_modules/.vitest",
     // Optimize test output for speed
     reporters: isCI ? ["default"] : [["default", { summary: false }]],
     // Enable heap usage logging to monitor memory

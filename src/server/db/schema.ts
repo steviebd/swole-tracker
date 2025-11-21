@@ -121,53 +121,12 @@ export const templateExercises = createTable(
       t.templateId,
       t.exerciseName,
     ),
-    index("template_exercise_user_exercise_name_idx").on(t.user_id, t.exerciseName),
+    index("template_exercise_user_exercise_name_idx").on(
+      t.user_id,
+      t.exerciseName,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
-
-// Exercise Sets - Individual set tracking with warm-up/working classification
-export const exerciseSets = createTable(
-  "exercise_set",
-  {
-    id: text()
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    sessionExerciseId: integer()
-      .notNull()
-      .references(() => sessionExercises.id, { onDelete: "cascade" }),
-    userId: text().notNull(),
-
-    // Set details
-    setNumber: integer().notNull(), // 1-indexed set number
-    setType: text().notNull().default("working"), // 'warmup' | 'working' | 'backoff' | 'drop'
-
-    // Performance data
-    weight: real(), // kg (can be null for bodyweight exercises)
-    reps: integer().notNull(),
-    rpe: integer(), // 1-10, optional (typically skip for warm-ups)
-    restSeconds: integer(), // rest time in seconds
-
-    // Metadata
-    completed: integer({ mode: "boolean" }).notNull().default(false),
-    notes: text(),
-
-    // Timestamps
-    createdAt: date()
-      .default(sql`(datetime('now'))`)
-      .notNull(),
-    completedAt: date(),
-  },
-  (t) => [
-    index("exercise_set_session_exercise_idx").on(t.sessionExerciseId),
-    index("exercise_set_user_idx").on(t.userId),
-    index("exercise_set_number_idx").on(t.sessionExerciseId, t.setNumber),
-    index("exercise_set_user_created_idx").on(t.userId, t.createdAt),
-    index("exercise_set_type_idx").on(t.setType),
-  ],
-); // RLS disabled - using WorkOS auth with application-level security
-
-export type ExerciseSet = typeof exerciseSets.$inferSelect;
-export type NewExerciseSet = typeof exerciseSets.$inferInsert;
 
 // Session Exercises
 export const sessionExercises = createTable(
@@ -196,14 +155,6 @@ export const sessionExercises = createTable(
     // Phase 3 additions: Exercise progression computed columns
     one_rm_estimate: real(),
     volume_load: real(),
-    // Warm-up sets feature: Migration tracking and aggregated stats
-    usesSetTable: integer({ mode: "boolean" }).default(false), // Flag for migration
-    totalSets: integer(), // Total count (warm-up + working)
-    workingSets: integer(), // Working sets only
-    warmupSets: integer(), // Warm-up sets only
-    topSetWeight: real(), // Heaviest weight used
-    totalVolume: real(), // All volume (warm-up + working)
-    workingVolume: real(), // Working sets volume only
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -1028,10 +979,7 @@ export const playbookRegenerations = createTable(
   (t) => [
     index("playbook_regeneration_playbook_id_idx").on(t.playbookId),
     index("playbook_regeneration_session_id_idx").on(t.triggeredBySessionId),
-    index("playbook_regeneration_created_at_idx").on(
-      t.playbookId,
-      t.createdAt,
-    ),
+    index("playbook_regeneration_created_at_idx").on(t.playbookId, t.createdAt),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -1080,7 +1028,7 @@ export const workoutSessionsRelations = relations(
 
 export const sessionExercisesRelations = relations(
   sessionExercises,
-  ({ one, many }) => ({
+  ({ one }) => ({
     session: one(workoutSessions, {
       fields: [sessionExercises.sessionId],
       references: [workoutSessions.id],
@@ -1089,16 +1037,8 @@ export const sessionExercisesRelations = relations(
       fields: [sessionExercises.templateExerciseId],
       references: [templateExercises.id],
     }),
-    sets: many(exerciseSets),
   }),
 );
-
-export const exerciseSetsRelations = relations(exerciseSets, ({ one }) => ({
-  sessionExercise: one(sessionExercises, {
-    fields: [exerciseSets.sessionExerciseId],
-    references: [sessionExercises.id],
-  }),
-}));
 
 export const userIntegrationsRelations = relations(
   userIntegrations,

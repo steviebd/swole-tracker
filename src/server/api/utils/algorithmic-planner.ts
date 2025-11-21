@@ -34,7 +34,11 @@ const SET_REP_SCHEMES = {
 /**
  * Calculate weight from 1RM and percentage
  */
-function calculateWeight(oneRM: number, percentage: number, incrementKg = 2.5): number {
+function calculateWeight(
+  oneRM: number,
+  percentage: number,
+  incrementKg = 2.5,
+): number {
   const raw = oneRM * percentage;
   // Round to nearest increment
   return Math.round(raw / incrementKg) * incrementKg;
@@ -48,7 +52,7 @@ function calculateWeight(oneRM: number, percentage: number, incrementKg = 2.5): 
  */
 function generateLinearPlan(
   context: PlaybookGenerationContext,
-  duration: number
+  duration: number,
 ): WeeklyAlgorithmicPlan[] {
   const weeks: WeeklyAlgorithmicPlan[] = [];
   const { currentOneRmEstimates, preferences } = context;
@@ -72,10 +76,18 @@ function generateLinearPlan(
       intensityMultiplier = 1.05; // Attempt 105% of baseline
     } else if (weekNum <= 3) {
       // Volume phase
-      scheme = { sets: 3, reps: 10, intensityPercent: 0.7 + (weekNum - 1) * 0.025 };
+      scheme = {
+        sets: 3,
+        reps: 10,
+        intensityPercent: 0.7 + (weekNum - 1) * 0.025,
+      };
     } else {
       // Intensity phase
-      scheme = { sets: 5, reps: 5, intensityPercent: 0.8 + (weekNum - 4) * 0.025 };
+      scheme = {
+        sets: 5,
+        reps: 5,
+        intensityPercent: 0.8 + (weekNum - 4) * 0.025,
+      };
     }
 
     const sessions: SessionPrescription[] = [];
@@ -85,13 +97,15 @@ function generateLinearPlan(
       const sessionExercises: ExercisePrescription[] = [];
 
       // Rotate exercises across sessions
-      const exercisesThisSession = exercises.filter((_, idx) => idx % trainingDaysPerWeek === sessionNum - 1);
+      const exercisesThisSession = exercises.filter(
+        (_, idx) => idx % trainingDaysPerWeek === sessionNum - 1,
+      );
 
       for (const exerciseName of exercisesThisSession) {
         const oneRM = currentOneRmEstimates[exerciseName] ?? 100; // Default 100kg if unknown
         const weight = calculateWeight(
           oneRM,
-          scheme.intensityPercent * intensityMultiplier
+          scheme.intensityPercent * intensityMultiplier,
         );
 
         sessionExercises.push({
@@ -101,12 +115,13 @@ function generateLinearPlan(
           weight,
           restSeconds: scheme.intensityPercent > 0.75 ? 180 : 90, // 3min for heavy, 90s for lighter
           rpe: Math.round(scheme.intensityPercent * 10),
-          notes: weekType === "pr_attempt" ? "Attempt PR - go for max" : undefined,
+          notes:
+            weekType === "pr_attempt" ? "Attempt PR - go for max" : undefined,
         });
       }
 
       const totalVolume = sessionExercises.reduce((sum, ex) => {
-        return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
+        return sum + ex.sets * ex.reps * (ex.weight ?? 0);
       }, 0);
 
       sessions.push({
@@ -117,16 +132,20 @@ function generateLinearPlan(
       });
     }
 
-    const weekVolume = sessions.reduce((sum, s) => sum + (s.totalVolumeTarget ?? 0), 0);
+    const weekVolume = sessions.reduce(
+      (sum, s) => sum + (s.totalVolumeTarget ?? 0),
+      0,
+    );
 
     weeks.push({
       weekNumber: weekNum,
       weekType,
       sessions,
       volumeTarget: weekVolume,
-      progressionFormula: weekType === "deload"
-        ? "deload_65%"
-        : `linear_${scheme.intensityPercent * 100}%`,
+      progressionFormula:
+        weekType === "deload"
+          ? "deload_65%"
+          : `linear_${scheme.intensityPercent * 100}%`,
     });
   }
 
@@ -140,7 +159,7 @@ function generateLinearPlan(
  */
 function generateDUPPlan(
   context: PlaybookGenerationContext,
-  duration: number
+  duration: number,
 ): WeeklyAlgorithmicPlan[] {
   const weeks: WeeklyAlgorithmicPlan[] = [];
   const { currentOneRmEstimates, preferences } = context;
@@ -171,21 +190,40 @@ function generateDUPPlan(
       const cycle = dupCycles[(sessionNum - 1) % dupCycles.length];
       const sessionExercises: ExercisePrescription[] = [];
 
-      let scheme = cycle;
+      let scheme = cycle || {
+        name: "default",
+        sets: 3,
+        reps: 5,
+        intensityPercent: 0.7,
+        rest: 180,
+      };
       if (weekType === "deload") {
-        scheme = { ...cycle, sets: 2, intensityPercent: cycle.intensityPercent! * 0.7 };
+        scheme = {
+          name: cycle?.name || "deload",
+          sets: 2,
+          reps: cycle?.reps || 5,
+          intensityPercent: (cycle?.intensityPercent || 0.7) * 0.7,
+          rest: cycle?.rest || 180,
+        };
       } else if (weekType === "pr_attempt" && sessionNum === 1) {
         // First session of PR week is max attempt
-        scheme = { name: "max", sets: 5, reps: 1, intensityPercent: 0.95, rest: 300 };
+        scheme = {
+          name: "max",
+          sets: 5,
+          reps: 1,
+          intensityPercent: 0.95,
+          rest: 300,
+        };
       }
 
       for (const exerciseName of exercises) {
         const oneRM = currentOneRmEstimates[exerciseName] ?? 100;
         // Progressive overload: add 2.5% per week
-        const progressionMultiplier = 1 + (weekNum - 1) * PROGRESSION_RATES.LINEAR_PERCENTAGE;
+        const progressionMultiplier =
+          1 + (weekNum - 1) * PROGRESSION_RATES.LINEAR_PERCENTAGE;
         const weight = calculateWeight(
           oneRM * progressionMultiplier,
-          scheme.intensityPercent!
+          scheme?.intensityPercent || 0.7,
         );
 
         sessionExercises.push({
@@ -199,7 +237,7 @@ function generateDUPPlan(
       }
 
       const totalVolume = sessionExercises.reduce((sum, ex) => {
-        return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
+        return sum + ex.sets * ex.reps * (ex.weight ?? 0);
       }, 0);
 
       sessions.push({
@@ -207,11 +245,14 @@ function generateDUPPlan(
         dayOfWeek: ["Monday", "Wednesday", "Friday"][sessionNum - 1],
         exercises: sessionExercises,
         totalVolumeTarget: totalVolume,
-        notes: `DUP ${cycle?.name ?? 'max'} day`,
+        notes: `DUP ${cycle?.name ?? "max"} day`,
       });
     }
 
-    const weekVolume = sessions.reduce((sum, s) => sum + (s.totalVolumeTarget ?? 0), 0);
+    const weekVolume = sessions.reduce(
+      (sum, s) => sum + (s.totalVolumeTarget ?? 0),
+      0,
+    );
 
     weeks.push({
       weekNumber: weekNum,
@@ -233,7 +274,7 @@ function generateDUPPlan(
  */
 function generateBlockPlan(
   context: PlaybookGenerationContext,
-  duration: number
+  duration: number,
 ): WeeklyAlgorithmicPlan[] {
   const weeks: WeeklyAlgorithmicPlan[] = [];
   const { currentOneRmEstimates, preferences } = context;
@@ -274,12 +315,15 @@ function generateBlockPlan(
           weight,
           restSeconds: scheme.intensityPercent > 0.8 ? 180 : 90,
           rpe: Math.round(scheme.intensityPercent * 10),
-          notes: blockPhase === "realization" ? "Realization phase - focus on heavy singles" : undefined,
+          notes:
+            blockPhase === "realization"
+              ? "Realization phase - focus on heavy singles"
+              : undefined,
         });
       }
 
       const totalVolume = sessionExercises.reduce((sum, ex) => {
-        return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
+        return sum + ex.sets * ex.reps * (ex.weight ?? 0);
       }, 0);
 
       sessions.push({
@@ -289,7 +333,10 @@ function generateBlockPlan(
       });
     }
 
-    const weekVolume = sessions.reduce((sum, s) => sum + (s.totalVolumeTarget ?? 0), 0);
+    const weekVolume = sessions.reduce(
+      (sum, s) => sum + (s.totalVolumeTarget ?? 0),
+      0,
+    );
 
     weeks.push({
       weekNumber: weekNum,
@@ -308,7 +355,7 @@ function generateBlockPlan(
  * Chooses periodization model based on user experience and goal
  */
 export function generateAlgorithmicPlan(
-  context: PlaybookGenerationContext
+  context: PlaybookGenerationContext,
 ): WeeklyAlgorithmicPlan[] {
   const { duration, goalPreset, recentSessions } = context;
 
@@ -320,7 +367,10 @@ export function generateAlgorithmicPlan(
 
   if (goalPreset === "powerlifting" || goalPreset === "peaking") {
     periodizationModel = "block"; // Block is best for peaking
-  } else if (isExperienced && (goalPreset === "strength" || goalPreset === "hypertrophy")) {
+  } else if (
+    isExperienced &&
+    (goalPreset === "strength" || goalPreset === "hypertrophy")
+  ) {
     periodizationModel = "dup"; // DUP for experienced lifters
   } else {
     periodizationModel = "linear"; // Linear for beginners or general training
@@ -353,7 +403,7 @@ export function calculateWeekVolume(week: WeeklyAlgorithmicPlan): number {
  */
 export function estimateOneRMFromPrescription(
   weight: number,
-  reps: number
+  reps: number,
 ): number {
   return calculateOneRM(weight, reps);
 }

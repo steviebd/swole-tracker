@@ -126,6 +126,35 @@ const ensureFramerMotion = () => {
   }
 };
 
+const ensureComputedStyle = () => {
+  // Ensure window is defined first
+  if (typeof window === "undefined") {
+    (global as any).window = {};
+  }
+
+  // Mock getComputedStyle for React Testing Library
+  if (!window.getComputedStyle) {
+    Object.defineProperty(window, "getComputedStyle", {
+      value: vi.fn(() => ({
+        getPropertyValue: vi.fn(() => ""),
+        zIndex: "0",
+        opacity: "1",
+        color: "rgb(0, 0, 0)",
+        backgroundColor: "rgb(255, 255, 255)",
+        display: "block",
+        visibility: "visible",
+        position: "static",
+        top: "0px",
+        left: "0px",
+        width: "auto",
+        height: "auto",
+      })),
+      writable: true,
+      configurable: true,
+    });
+  }
+};
+
 const ensureResizeObserver = () => {
   // Ensure window is defined first
   if (typeof window === "undefined") {
@@ -186,6 +215,7 @@ beforeAll(() => {
     ensurePosthog();
     ensureImage();
     ensureFramerMotion();
+    ensureComputedStyle();
     ensureResizeObserver();
   } else {
     console.log("DOM not available in setup, skipping DOM-specific setup");

@@ -9,6 +9,7 @@ describe("findHighestWeightSetIndex", () => {
       unit: "kg" as const,
       sets: weights.map((set, idx) => ({
         id: `set-${idx}`,
+        setNumber: idx + 1,
         unit: "kg" as const,
         sets: 1,
         ...set,

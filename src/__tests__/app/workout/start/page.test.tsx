@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { redirect } from "next/navigation";
-// import { headers } from "next/headers"; // Mocked below
+import { headers } from "next/headers";
 import StartWorkoutPage from "~/app/workout/start/page";
 import { api } from "~/trpc/react";
 import { SessionCookie } from "~/lib/session-cookie";
@@ -93,7 +93,7 @@ describe("StartWorkoutPage", () => {
   const mockGetQueryClient = vi.mocked(getQueryClient);
   const mockGetDehydratedState = vi.mocked(getDehydratedState);
   const mockPrefetchWorkoutStart = vi.mocked(prefetchWorkoutStart);
-  const mockApiTemplatesGetById = vi.mocked(api.templates.getById.prefetch);
+  const mockApiTemplatesGetById = vi.fn();
 
   const mockHeadersList = new Map([
     ["cookie", "session=test-session"],

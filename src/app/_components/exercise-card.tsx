@@ -8,8 +8,7 @@ import {
 } from "~/hooks/use-swipe-gestures";
 import { ExerciseHeader } from "./workout/ExerciseHeader";
 import { SetList } from "./workout/SetList";
-import { WarmupSection } from "./workout/WarmupSection";
-import { type WarmupSetData } from "./workout/WarmupSetInput";
+
 import posthog from "posthog-js";
 import { vibrate } from "~/lib/client-telemetry";
 import { useLiveRegion, useAttachLiveRegion } from "./LiveRegion";
@@ -98,13 +97,6 @@ export function ExerciseCard({
   const announce = useLiveRegion();
   useAttachLiveRegion(announce);
 
-  // Warm-up sets state
-  const [warmupSets, setWarmupSets] = useState<WarmupSetData[]>([]);
-
-  // Get user preferences to check if warm-ups are enabled
-  const { data: userPreferences } = api.preferences.get.useQuery();
-  const warmupEnabled = userPreferences?.warmupStrategy !== "none";
-
   // Swipe gesture hook
   const [swipeState, swipeHandlers, resetSwipe] = useSwipeGestures(
     () => {
@@ -156,52 +148,6 @@ export function ExerciseCard({
 
   const hasCurrentData = exercise.sets.some((set) => set.weight ?? set.reps);
   const currentBest = getCurrentBest();
-
-  // Warm-up handlers
-  const handleWarmupUpdate = (sets: WarmupSetData[]) => {
-    setWarmupSets(sets);
-    // TODO: Persist to database when workout save is implemented
-  };
-
-  const handleAutoFillWarmup = () => {
-    // Get the working weight from exercise sets
-    const topWorkingWeight = Math.max(
-      ...exercise.sets.map((set) => set.weight ?? 0),
-    );
-
-    if (topWorkingWeight > 0) {
-      // Generate mock warm-up sets based on percentage protocol
-      // In production, this would call the pattern detection API
-      const mockWarmupSets: WarmupSetData[] = [
-        {
-          setNumber: 1,
-          weight: Math.round((topWorkingWeight * 0.4) / 2.5) * 2.5,
-          reps: 8,
-          percentageOfTop: 0.4,
-        },
-        {
-          setNumber: 2,
-          weight: Math.round((topWorkingWeight * 0.6) / 2.5) * 2.5,
-          reps: 6,
-          percentageOfTop: 0.6,
-        },
-        {
-          setNumber: 3,
-          weight: Math.round((topWorkingWeight * 0.8) / 2.5) * 2.5,
-          reps: 4,
-          percentageOfTop: 0.8,
-        },
-      ];
-      setWarmupSets(mockWarmupSets);
-      announce?.(`Generated ${mockWarmupSets.length} warm-up sets`, {
-        assertive: false,
-      });
-    } else {
-      announce?.("Add a working weight first to generate warm-up sets", {
-        assertive: true,
-      });
-    }
-  };
 
   // Insights hook (read-only)
   const insightsParams: {
@@ -552,23 +498,6 @@ export function ExerciseCard({
                 </ul>
               )}
             </div>
-          )}
-
-          {/* Warm-Up Section */}
-          {warmupEnabled && !readOnly && (
-            <WarmupSection
-              exerciseName={exercise.exerciseName}
-              warmupSets={warmupSets}
-              workingWeight={
-                exercise.sets.length > 0
-                  ? Math.max(...exercise.sets.map((set) => set.weight ?? 0))
-                  : undefined
-              }
-              weightUnit={exercise.unit}
-              onUpdate={handleWarmupUpdate}
-              onAutoFill={handleAutoFillWarmup}
-              className="mb-3"
-            />
           )}
 
           {/* Previous Workout Reference */}

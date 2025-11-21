@@ -44,10 +44,14 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
   const [saving, setSaving] = useState(false);
 
   // Warm-up preferences state
-  const [warmupStrategy, setWarmupStrategy] = useState<WarmupStrategy>("history");
+  const [warmupStrategy, setWarmupStrategy] =
+    useState<WarmupStrategy>("history");
   const [warmupSetsCount, setWarmupSetsCount] = useState<number>(3);
-  const [warmupPercentages, setWarmupPercentages] = useState<number[]>([40, 60, 80]);
-  const [warmupRepsStrategy, setWarmupRepsStrategy] = useState<WarmupRepsStrategy>("match_working");
+  const [warmupPercentages, setWarmupPercentages] = useState<number[]>([
+    40, 60, 80,
+  ]);
+  const [warmupRepsStrategy, setWarmupRepsStrategy] =
+    useState<WarmupRepsStrategy>("match_working");
   const [warmupFixedReps, setWarmupFixedReps] = useState<number>(5);
 
   const updateMutation = api.preferences.update.useMutation({
@@ -109,16 +113,16 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       setWarmupStrategy(warmupStrategyPref as WarmupStrategy);
 
       const warmupSetsCountPref =
-        "warmupSetsCount" in prefs
-          ? (prefs.warmupSetsCount ?? 3)
-          : 3;
+        "warmupSetsCount" in prefs ? (prefs.warmupSetsCount ?? 3) : 3;
       setWarmupSetsCount(warmupSetsCountPref);
 
       const warmupPercentagesPref =
-        "warmupPercentages" in prefs && prefs.warmupPercentages
-          ? (typeof prefs.warmupPercentages === "string"
-            ? JSON.parse(prefs.warmupPercentages)
-            : prefs.warmupPercentages)
+        prefs &&
+        "warmupPercentages" in prefs &&
+        (prefs as any).warmupPercentages
+          ? typeof (prefs as any).warmupPercentages === "string"
+            ? JSON.parse((prefs as any).warmupPercentages)
+            : (prefs as any).warmupPercentages
           : [40, 60, 80];
       setWarmupPercentages(warmupPercentagesPref);
 
@@ -129,9 +133,7 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       setWarmupRepsStrategy(warmupRepsStrategyPref as WarmupRepsStrategy);
 
       const warmupFixedRepsPref =
-        "warmupFixedReps" in prefs
-          ? (prefs.warmupFixedReps ?? 5)
-          : 5;
+        "warmupFixedReps" in prefs ? (prefs.warmupFixedReps ?? 5) : 5;
       setWarmupFixedReps(warmupFixedRepsPref);
     }
   }, [isLoading, prefs]);
@@ -189,7 +191,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
 
   const addPercentageStep = () => {
     if (warmupPercentages.length < 5) {
-      const lastPercentage = warmupPercentages[warmupPercentages.length - 1] ?? 80;
+      const lastPercentage =
+        warmupPercentages[warmupPercentages.length - 1] ?? 80;
       const newPercentage = Math.min(95, lastPercentage + 10);
       setWarmupPercentages([...warmupPercentages, newPercentage]);
     }
@@ -590,7 +593,8 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                         Warm-Up Sets
                       </div>
                       <div className="text-muted-foreground text-sm leading-relaxed">
-                        Configure how warm-up sets are suggested before working sets
+                        Configure how warm-up sets are suggested before working
+                        sets
                       </div>
                     </div>
 
@@ -599,14 +603,17 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-surface glass-hairline rounded-lg border-l-4 border-l-primary p-4"
+                        className="glass-surface glass-hairline border-l-primary rounded-lg border-l-4 p-4"
                       >
                         <div className="flex items-start gap-3">
-                          <Lightbulb className="size-5 text-primary shrink-0 mt-0.5" />
+                          <Lightbulb className="text-primary mt-0.5 size-5 shrink-0" />
                           <div className="flex-1">
-                            <p className="font-medium leading-snug">Set your default warm-up protocol</p>
-                            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                              We'll use this when you start new exercises. You can always adjust per workout.
+                            <p className="leading-snug font-medium">
+                              Set your default warm-up protocol
+                            </p>
+                            <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                              We'll use this when you start new exercises. You
+                              can always adjust per workout.
                             </p>
                           </div>
                         </div>
@@ -614,17 +621,24 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     )}
 
                     {/* Strategy Selection */}
-                    <div role="radiogroup" aria-labelledby="warmup-strategy-label">
-                      <label id="warmup-strategy-label" className="mb-2 block text-sm font-medium text-foreground">
+                    <div
+                      role="radiogroup"
+                      aria-labelledby="warmup-strategy-label"
+                    >
+                      <label
+                        id="warmup-strategy-label"
+                        className="text-foreground mb-2 block text-sm font-medium"
+                      >
                         Default Strategy
                       </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {[
                           {
                             value: "history" as const,
                             emoji: "📊",
                             label: "Smart (Recommended)",
-                            description: "Learn from your history, use protocol as fallback",
+                            description:
+                              "Learn from your history, use protocol as fallback",
                           },
                           {
                             value: "percentage" as const,
@@ -647,7 +661,9 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                         ].map(({ value, emoji, label, description }) => (
                           <Button
                             key={value}
-                            variant={warmupStrategy === value ? "default" : "outline"}
+                            variant={
+                              warmupStrategy === value ? "default" : "outline"
+                            }
                             size="sm"
                             onClick={() => setWarmupStrategy(value)}
                             className={cn(
@@ -658,9 +674,13 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                             aria-checked={warmupStrategy === value}
                             haptic
                           >
-                            <span className="text-lg leading-none">{emoji}</span>
-                            <span className="font-semibold leading-snug">{label}</span>
-                            <span className="text-xs opacity-70 leading-relaxed">
+                            <span className="text-lg leading-none">
+                              {emoji}
+                            </span>
+                            <span className="leading-snug font-semibold">
+                              {label}
+                            </span>
+                            <span className="text-xs leading-relaxed opacity-70">
                               {description}
                             </span>
                           </Button>
@@ -675,16 +695,21 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+                          transition={{
+                            duration: prefersReducedMotion ? 0 : 0.2,
+                          }}
                           className="overflow-hidden"
                         >
-                          <div className="glass-surface glass-hairline rounded-lg p-4 space-y-3">
-                            <label className="block text-sm font-medium text-foreground">
+                          <div className="glass-surface glass-hairline space-y-3 rounded-lg p-4">
+                            <label className="text-foreground block text-sm font-medium">
                               Warm-up Percentages
                             </label>
                             <div className="flex flex-wrap items-center gap-2">
                               {warmupPercentages.map((pct, idx) => (
-                                <div key={idx} className="flex items-center gap-1">
+                                <div
+                                  key={idx}
+                                  className="flex items-center gap-1"
+                                >
                                   <div className="relative">
                                     <input
                                       type="number"
@@ -692,7 +717,12 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                                       max="95"
                                       step="5"
                                       value={pct}
-                                      onChange={(e) => updatePercentage(idx, Number(e.target.value))}
+                                      onChange={(e) =>
+                                        updatePercentage(
+                                          idx,
+                                          Number(e.target.value),
+                                        )
+                                      }
                                       className={cn(
                                         "w-16 rounded-md border px-2 py-1 text-center text-sm",
                                         "bg-input text-foreground border-border",
@@ -702,17 +732,23 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                                     />
                                     {warmupPercentages.length > 1 && (
                                       <button
-                                        onClick={() => removePercentageStep(idx)}
-                                        className="absolute -top-2 -right-2 size-5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 flex items-center justify-center text-xs shadow-sm"
+                                        onClick={() =>
+                                          removePercentageStep(idx)
+                                        }
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/80 absolute -top-2 -right-2 flex size-5 items-center justify-center rounded-full text-xs shadow-sm"
                                         aria-label={`Remove step ${idx + 1}`}
                                       >
                                         <X className="size-3" />
                                       </button>
                                     )}
                                   </div>
-                                  <span className="text-sm text-muted-foreground">%</span>
+                                  <span className="text-muted-foreground text-sm">
+                                    %
+                                  </span>
                                   {idx < warmupPercentages.length - 1 && (
-                                    <span className="text-muted-foreground text-sm">→</span>
+                                    <span className="text-muted-foreground text-sm">
+                                      →
+                                    </span>
                                   )}
                                 </div>
                               ))}
@@ -727,8 +763,12 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                                 Add Step
                               </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 leading-relaxed">
-                              💡 Example: For 100kg working set → {warmupPercentages.map(p => `${p}kg`).join(" → ")} → 100kg
+                            <p className="text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 text-xs leading-relaxed">
+                              💡 Example: For 100kg working set →{" "}
+                              {warmupPercentages
+                                .map((p) => `${p}kg`)
+                                .join(" → ")}{" "}
+                              → 100kg
                             </p>
                           </div>
                         </motion.div>
@@ -736,49 +776,62 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     </AnimatePresence>
 
                     {/* Number of Sets (for percentage/fixed strategies) */}
-                    {warmupStrategy !== "none" && warmupStrategy !== "history" && (
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-foreground">
-                          Number of Warm-up Sets
-                        </label>
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <Button
-                              key={n}
-                              variant={warmupSetsCount === n ? "default" : "outline"}
-                              size="sm"
-                              className={cn(
-                                "h-10 w-10 transition-all",
-                                "hover:shadow-md active:scale-95",
-                              )}
-                              onClick={() => setWarmupSetsCount(n)}
-                              haptic
-                            >
-                              {n}
-                            </Button>
-                          ))}
+                    {warmupStrategy !== "none" &&
+                      warmupStrategy !== "history" && (
+                        <div className="space-y-2">
+                          <label className="text-foreground block text-sm font-medium">
+                            Number of Warm-up Sets
+                          </label>
+                          <div className="flex gap-2">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <Button
+                                key={n}
+                                variant={
+                                  warmupSetsCount === n ? "default" : "outline"
+                                }
+                                size="sm"
+                                className={cn(
+                                  "h-10 w-10 transition-all",
+                                  "hover:shadow-md active:scale-95",
+                                )}
+                                onClick={() => setWarmupSetsCount(n)}
+                                haptic
+                              >
+                                {n}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Reps Strategy */}
                     {warmupStrategy !== "none" && (
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-foreground">
+                        <label className="text-foreground block text-sm font-medium">
                           Warm-up Reps
                         </label>
-                        <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
                           <Button
-                            variant={warmupRepsStrategy === "match_working" ? "default" : "outline"}
+                            variant={
+                              warmupRepsStrategy === "match_working"
+                                ? "default"
+                                : "outline"
+                            }
                             size="sm"
-                            onClick={() => setWarmupRepsStrategy("match_working")}
+                            onClick={() =>
+                              setWarmupRepsStrategy("match_working")
+                            }
                             className="flex-1 transition-all hover:shadow-md active:scale-95"
                             haptic
                           >
                             Match Working Sets
                           </Button>
                           <Button
-                            variant={warmupRepsStrategy === "descending" ? "default" : "outline"}
+                            variant={
+                              warmupRepsStrategy === "descending"
+                                ? "default"
+                                : "outline"
+                            }
                             size="sm"
                             onClick={() => setWarmupRepsStrategy("descending")}
                             className="flex-1 transition-all hover:shadow-md active:scale-95"
@@ -787,7 +840,11 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                             Descending (10→8→6)
                           </Button>
                           <Button
-                            variant={warmupRepsStrategy === "fixed" ? "default" : "outline"}
+                            variant={
+                              warmupRepsStrategy === "fixed"
+                                ? "default"
+                                : "outline"
+                            }
                             size="sm"
                             onClick={() => setWarmupRepsStrategy("fixed")}
                             className="flex-1 transition-all hover:shadow-md active:scale-95"

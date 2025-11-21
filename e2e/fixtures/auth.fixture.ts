@@ -10,7 +10,7 @@ const TEST_CREDENTIALS = {
 if (!TEST_CREDENTIALS.email || !TEST_CREDENTIALS.password) {
   throw new Error(
     "E2E_TEST_USERNAME and E2E_TEST_PASSWORD environment variables must be set for E2E tests. " +
-    "Add them to the .env file in the project root. See e2e/workflow/README.md for details."
+      "Add them to the .env file in the project root. See e2e/workflow/README.md for details.",
   );
 }
 
@@ -22,7 +22,7 @@ export const test = base.extend<AuthFixtures>({
   authenticatedPage: async ({ page }, use) => {
     console.log(
       "Setting up authenticated session for:",
-      TEST_CREDENTIALS.email,
+      TEST_CREDENTIALS.email!,
     );
 
     // Navigate to the app home page which will redirect to login
@@ -35,8 +35,8 @@ export const test = base.extend<AuthFixtures>({
     // Step 1: Fill in the email field
     const emailInput = page.locator('input[type="email"], input[name="email"]');
     await emailInput.waitFor({ state: "visible", timeout: 10000 });
-    await emailInput.fill(TEST_CREDENTIALS.email);
-    console.log("Filled email:", TEST_CREDENTIALS.email);
+    await emailInput.fill(TEST_CREDENTIALS.email!);
+    console.log("Filled email:", TEST_CREDENTIALS.email!);
 
     // Step 2: Click the "Continue" button to proceed to password step
     const continueButton = page.locator('button:has-text("Continue")');
@@ -45,9 +45,11 @@ export const test = base.extend<AuthFixtures>({
     console.log("Clicked Continue button");
 
     // Step 3: Wait for password field to appear (multi-step auth flow)
-    const passwordInput = page.locator('input[type="password"], input[name="password"]');
+    const passwordInput = page.locator(
+      'input[type="password"], input[name="password"]',
+    );
     await passwordInput.waitFor({ state: "visible", timeout: 10000 });
-    await passwordInput.fill(TEST_CREDENTIALS.password);
+    await passwordInput.fill(TEST_CREDENTIALS.password!);
     console.log("Filled password");
 
     // Step 4: Click the "Sign in" button (not the magic link button)

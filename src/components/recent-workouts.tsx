@@ -17,7 +17,7 @@ import {
 } from "~/lib/workout-metrics";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { WorkoutCard } from "~/components/ui/workout-card";
+import { WorkoutCard, type WorkoutSource } from "~/components/ui/workout-card";
 import { Skeleton } from "~/components/ui/skeleton";
 
 const DEFAULT_LIMIT = {
@@ -79,6 +79,27 @@ const resolveTemplateName = (
   workout: RecentWorkout,
   fallback: string,
 ): string => {
+  // Check for playbook first - format as "Playbook Name - Week X - Session Y"
+  const playbook = (workout as { playbook?: unknown }).playbook;
+  if (playbook && typeof playbook === "object" && !Array.isArray(playbook)) {
+    const pb = playbook as {
+      name?: unknown;
+      weekNumber?: unknown;
+      sessionNumber?: unknown;
+    };
+    if (
+      typeof pb.name === "string" &&
+      typeof pb.weekNumber === "number" &&
+      typeof pb.sessionNumber === "number"
+    ) {
+      const name = pb.name.trim();
+      if (name.length > 0) {
+        return `${name} - Week ${pb.weekNumber} - Session ${pb.sessionNumber}`;
+      }
+    }
+  }
+
+  // Fall back to template name
   const template = (workout as { template?: unknown }).template;
   if (
     template &&
@@ -93,6 +114,38 @@ const resolveTemplateName = (
   }
 
   return fallback;
+};
+
+const resolveWorkoutSource = (workout: RecentWorkout): WorkoutSource => {
+  // Check for playbook first (takes precedence)
+  const playbook = (workout as { playbook?: unknown }).playbook;
+  if (
+    playbook &&
+    typeof playbook === "object" &&
+    !Array.isArray(playbook) &&
+    typeof (playbook as { name?: unknown }).name === "string"
+  ) {
+    return {
+      type: "playbook",
+      name: (playbook as { name: string }).name,
+    };
+  }
+
+  // Check for template
+  const template = (workout as { template?: unknown }).template;
+  if (
+    template &&
+    typeof template === "object" &&
+    !Array.isArray(template) &&
+    typeof (template as { name?: unknown }).name === "string"
+  ) {
+    return {
+      type: "template",
+      name: (template as { name: string }).name,
+    };
+  }
+
+  return null;
 };
 
 const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
@@ -125,7 +178,7 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
 
     const handleViewDetails = React.useCallback(
       (workoutId: number | string) => {
-        router.push(`/workouts/${workoutId}`);
+        router.push(`/workout/session/${workoutId}`);
       },
       [router],
     );
@@ -465,6 +518,7 @@ const DashboardRecentWorkoutsView = ({
                     date={isoDate}
                     metrics={summary.metrics}
                     isRecent={isRecent}
+                    source={resolveWorkoutSource(workout)}
                     onRepeat={handleRepeat}
                     onDebrief={() => {
                       console.log(
@@ -585,7 +639,7 @@ const CardRecentWorkoutsView = ({
 
             const handleViewDetails = () => {
               // Navigate to workout details page
-              window.location.href = `/workouts/${workout.id}`;
+              window.location.href = `/workout/session/${workout.id}`;
             };
 
             const handleDebrief = () => {
@@ -604,6 +658,7 @@ const CardRecentWorkoutsView = ({
                 date={isoDate}
                 metrics={summary.metrics}
                 isRecent={isRecent}
+                source={resolveWorkoutSource(workout)}
                 onRepeat={handleRepeat}
                 onDebrief={handleDebrief}
                 onViewDetails={handleViewDetails}

@@ -116,7 +116,7 @@ export async function chunkedInsert<T>(
 
 export async function whereInChunks<T, R>(
   values: readonly T[],
-  callback: (chunk: T[]) => Promise<R[]>,
+  callback: (chunk: T[]) => Promise<R | R[] | void>,
   limit = DEFAULT_SINGLE_COLUMN_CHUNK_SIZE,
 ): Promise<R[]> {
   if (values.length === 0) return [];
@@ -128,6 +128,8 @@ export async function whereInChunks<T, R>(
     const result = await callback(chunk);
     if (Array.isArray(result)) {
       results.push(...result);
+    } else if (result !== undefined && result !== null) {
+      results.push(result as R);
     }
   }
   return results;

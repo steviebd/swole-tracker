@@ -118,9 +118,10 @@ describe("WorkoutSessionPage", () => {
       {
         id: 1,
         exerciseName: "Bench Press",
+        unit: "kg" as const,
         sets: [
-          { id: 1, weight: 100, reps: 10, unit: "kg" },
-          { id: 2, weight: 105, reps: 8, unit: "kg" },
+          { id: "1", weight: 100, reps: 10, sets: 1, unit: "kg" as const },
+          { id: "2", weight: 105, reps: 8, sets: 1, unit: "kg" as const },
         ],
       },
     ],
@@ -131,9 +132,73 @@ describe("WorkoutSessionPage", () => {
   };
 
   const mockSessionState = {
+    // state
     exercises: mockWorkoutSession.exercises,
-    updateSet: vi.fn(),
+    setExercises: vi.fn(),
+    expandedExercises: [],
+    setExpandedExercises: vi.fn(),
     loading: false,
+    isReadOnly: false,
+    showDeleteConfirm: false,
+    setShowDeleteConfirm: vi.fn(),
+    previousExerciseData: new Map(),
+    collapsedIndexes: [],
+
+    // trpc utils and prefs
+    utils: api.useUtils(),
+    preferences: {
+      id: 1,
+      createdAt: new Date(),
+      updatedAt: null,
+      user_id: "test-user",
+      defaultWeightUnit: "kg",
+      predictive_defaults_enabled: false,
+      right_swipe_action: "collapse_expand",
+      enable_manual_wellness: false,
+      progression_type: "linear",
+      linear_progression_kg: "2.5",
+      percentage_progression: "2.5",
+      targetWorkoutsPerWeek: 3,
+      warmupStrategy: "history",
+      warmupSetsCount: 3,
+      warmupPercentages: "[40, 60, 80]",
+      warmupRepsStrategy: "match_working",
+      warmupFixedReps: 5,
+      enableMovementPatternSharing: false,
+    } as any,
+
+    // mutations and queue
+    saveWorkout: vi.fn(),
+    deleteWorkout: vi.fn(),
+    enqueue: vi.fn(),
+    applyOptimisticWorkoutUpdate: vi.fn(),
+    applyOptimisticWorkoutUpdateFromPayload: vi.fn(),
+    clearDraft: vi.fn(),
+
+    // interactions
+    swipeSettings: { leftSwipeAction: "delete", rightSwipeAction: "complete" },
+    dragState: { isDragging: false, draggedIndex: null },
+    dragHandlers: { handleDragStart: vi.fn(), handleDragEnd: vi.fn() },
+    getDisplayOrder: vi.fn(),
+    toggleExpansion: vi.fn(),
+    handleSwipeToBottom: vi.fn(),
+    updateSet: vi.fn(),
+    toggleUnit: vi.fn(),
+    addSet: vi.fn(),
+    deleteSet: vi.fn(),
+    moveSet: vi.fn(),
+    buildSavePayload: vi.fn(),
+
+    // preferences
+    updatePreferences: vi.fn(),
+    session: null,
+
+    // undo
+    lastAction: null,
+    setLastAction: vi.fn(),
+    redoLastUndo: vi.fn(),
+    redoStack: [],
+    undoLastAction: vi.fn(),
   };
 
   const mockContextValue = {
@@ -147,7 +212,7 @@ describe("WorkoutSessionPage", () => {
     vi.clearAllMocks();
     mockUseRouter.mockReturnValue(mockRouter as any);
     mockUseWorkoutSessionContext.mockReturnValue(mockContextValue);
-    mockUseWorkoutSessionState.mockReturnValue(mockSessionState);
+    mockUseWorkoutSessionState.mockReturnValue(mockSessionState as any);
   });
 
   afterEach(() => {

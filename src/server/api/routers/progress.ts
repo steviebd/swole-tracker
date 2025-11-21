@@ -2997,9 +2997,9 @@ async function resolveExerciseSelection(
       ) {
         nameSet.add(linkedSet.masterExerciseName.trim());
       }
-    } else {
-      templateExerciseIds = [params.templateExerciseId];
     }
+    // Note: When linkedSet is null (template exercise not found), we don't use the invalid ID
+    // The lookup will fall back to using exerciseName only
   }
 
   const names = Array.from(nameSet);

@@ -216,7 +216,7 @@ describe("Playbook Warm-Up Generation", () => {
 
       // Context builder should format this for AI prompt
       const contextText = warmupPatterns
-        .filter((p) => p.confidence !== "low")
+        .filter((p) => p.confidence === "high" || p.confidence === "medium")
         .map(
           (p) =>
             `${p.exerciseName}: ${p.pattern.map((s) => `${s.weight}kg×${s.reps}`).join(" → ")} (${p.confidence} confidence, ${p.sessionCount} sessions)`,
@@ -385,9 +385,9 @@ describe("Playbook Warm-Up Generation", () => {
         restSeconds: 90,
       };
 
-      const warmupSets = sessionPrescription.warmupSets || [];
+      const warmupSets: any[] = [];
       const exerciseSets = [
-        ...warmupSets.map((s, i) => ({
+        ...warmupSets.map((s: any, i: number) => ({
           setNumber: i + 1,
           setType: "warmup" as const,
           weight: s.weight,

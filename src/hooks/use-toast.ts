@@ -49,7 +49,7 @@ function reducer(state: ToastState, action: Action): ToastState {
       return {
         ...state,
         toasts: state.toasts.map((t) =>
-          t.id === action.id ? { ...t, ...action.toast } : t
+          t.id === action.id ? { ...t, ...action.toast } : t,
         ),
       };
 
@@ -98,8 +98,8 @@ function toast({
     toast: {
       ...props,
       id,
-      title,
-      description,
+      ...(title && { title }),
+      ...(description && { description }),
       variant,
       duration,
     },

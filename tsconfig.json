@@ -46,6 +46,7 @@
     "coverage",
     "apps",
     "scripts",
-    "src/__e2e__"
+    "src/__e2e__",
+    "playwright-report"
   ]
 }
