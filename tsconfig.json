@@ -10,6 +10,8 @@
     "verbatimModuleSyntax": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
     "checkJs": true,
     "lib": ["dom", "dom.iterable", "ES2022"],
     "noEmit": true,
@@ -44,6 +46,7 @@
     "coverage",
     "apps",
     "scripts",
-    "src/__e2e__"
+    "src/__e2e__",
+    "playwright-report"
   ]
 }

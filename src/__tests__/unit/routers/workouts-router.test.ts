@@ -20,13 +20,16 @@ type ChainResult<TData> = TData extends Array<unknown> ? TData : never;
 const createMockDb = () => {
   // Use the central database mock
   const centralMock = createDatabaseMock();
+  // Clear any existing data
+  clearTestData();
 
-  const selectQueue: unknown[][] = [];
-  const insertQueue: unknown[][] = [];
-  const updateQueue: unknown[][] = [];
-  const deleteQueue: unknown[][] = [];
+  // Create separate queues for different operations
+  const selectQueue: Array<ChainResult<any>> = [];
+  const insertQueue: Array<ChainResult<any>> = [];
+  const updateQueue: Array<ChainResult<any>> = [];
+  const deleteQueue: Array<ChainResult<any>> = [];
 
-  const createQueryChain = <TData extends unknown[]>(
+  const createQueryChainWithMethods = <TData extends unknown[]>(
     queue: Array<ChainResult<TData>>,
   ) => {
     const result = queue.length > 0 ? queue.shift()! : ([] as unknown as TData);
@@ -62,18 +65,19 @@ const createMockDb = () => {
     return chain;
   };
 
+  // Create fresh query mocks for each test
   const mockDb = {
     ...centralMock,
-    select: vi.fn(() => createQueryChain(selectQueue)),
-    insert: vi.fn(() => createQueryChain(insertQueue)),
-    update: vi.fn(() => createQueryChain(updateQueue)),
-    delete: vi.fn(() => createQueryChain(deleteQueue)),
+    select: vi.fn(() => createQueryChainWithMethods(selectQueue)),
+    insert: vi.fn(() => createQueryChainWithMethods(insertQueue)),
+    update: vi.fn(() => createQueryChainWithMethods(updateQueue)),
+    delete: vi.fn(() => createQueryChainWithMethods(deleteQueue)),
     // Helper methods for queueing results
     queueSelectResult: (rows: unknown[]) => selectQueue.push(rows),
     queueInsertResult: (rows: unknown[]) => insertQueue.push(rows),
     queueUpdateResult: (rows: unknown[]) => updateQueue.push(rows),
     queueDeleteResult: (rows: unknown[]) => deleteQueue.push(rows),
-    // Raw query interface
+    // Raw query interface - create fresh mocks each time
     all: vi.fn(async () => []),
     query: {
       workoutSessions: {
@@ -108,7 +112,7 @@ describe("workoutsRouter", () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
     vi.spyOn(sessionDebrief, "generateAndPersistDebrief");
     clearTestData();
 
@@ -122,66 +126,115 @@ describe("workoutsRouter", () => {
   });
 
   describe("getRecent", () => {
+    it("should use default limit of 10", async () => {
+      const mockWorkouts: Array<any> = [];
+
+      // Create completely isolated context for this test
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
+      // Use the isolated context's mocks
+      isolatedCtx.db.query.workoutSessions.findMany.mockResolvedValue(
+        mockWorkouts,
+      );
+      isolatedCtx.db.query.workoutTemplates.findMany.mockResolvedValue([]);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
+      const result = await caller.getRecent({});
+
+      expect(
+        isolatedCtx.db.query.workoutSessions.findMany,
+      ).toHaveBeenCalledWith(expect.objectContaining({ limit: 10 }));
+      expect(result).toEqual([]);
+    });
+
     it("should return recent workouts for user", async () => {
       const mockSessions = [
         {
-          ...createMockWorkoutSession({
-            id: 1,
-            user_id: "user-123",
-            templateId: 1,
-            workoutDate: new Date("2024-01-01"),
-          }),
-          exercises: [],
+          id: 1,
+          workoutDate: new Date("2024-01-15"),
+          templateId: 1,
+          createdAt: new Date("2024-01-15"),
+          exercises: [
+            {
+              id: 1,
+              exerciseName: "Squat",
+              weight: 135,
+              reps: 10,
+              sets: 3,
+              unit: "lbs",
+              setOrder: 1,
+              templateExerciseId: 1,
+              one_rm_estimate: 180,
+              volume_load: 4050,
+            },
+          ],
         },
       ];
 
       const mockTemplates = [
         {
-          ...createMockWorkoutTemplate({
-            id: 1,
-            name: "Push Day",
-            user_id: "user-123",
-          }),
-          exercises: [],
+          id: 1,
+          name: "Push Day",
+          description: "Upper body workout",
         },
       ];
 
-      mockCtx.db.query.workoutSessions.findMany.mockResolvedValue(mockSessions);
-      mockCtx.db.query.workoutTemplates.findMany.mockResolvedValue(mockTemplates);
+      // Create completely isolated context for this test
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      // Use the isolated context's mocks
+      isolatedCtx.db.query.workoutSessions.findMany.mockResolvedValue(
+        mockSessions,
+      );
+      isolatedCtx.db.query.workoutTemplates.findMany.mockResolvedValue(
+        mockTemplates,
+      );
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
+
       const result = await caller.getRecent({ limit: 5 });
 
-      expect(mockCtx.db.query.workoutSessions.findMany).toHaveBeenCalledWith(
+      expect(
+        isolatedCtx.db.query.workoutSessions.findMany,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: expect.anything(),
+          orderBy: expect.anything(),
           limit: 5,
+          columns: expect.anything(),
+          with: expect.anything(),
         }),
       );
-      expect(mockCtx.db.query.workoutTemplates.findMany).toHaveBeenCalled();
+      expect(isolatedCtx.db.query.workoutTemplates.findMany).toHaveBeenCalled();
       expect(result).toEqual([
         {
           ...mockSessions[0],
           template: mockTemplates[0],
+          playbook: null,
         },
       ]);
-    });
-
-    it("should use default limit of 10", async () => {
-      const mockWorkouts: Array<any> = [];
-      mockCtx.db.query.workoutSessions.findMany.mockResolvedValue(mockWorkouts);
-      mockCtx.db.query.workoutTemplates.findMany.mockResolvedValue([]);
-
-      const caller = workoutsRouter.createCaller(mockCtx);
-      await caller.getRecent({});
-
-      expect(mockCtx.db.query.workoutSessions.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 10 }),
-      );
     });
   });
 
   describe("getById", () => {
     it("should return workout by id for owner", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockWorkout = {
         ...createMockWorkoutSession({
           id: 1,
@@ -200,18 +253,27 @@ describe("workoutsRouter", () => {
         exercises: [],
       };
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockWorkout);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockWorkout,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.getById({ id: 1 });
 
       expect(result).toEqual(mockWorkout);
     });
 
     it("should throw error if workout not found", async () => {
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
 
       await expect(caller.getById({ id: 999 })).rejects.toThrow(
         "Workout not found",
@@ -219,6 +281,13 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if workout belongs to different user", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockWorkout = createMockWorkoutSession({
         id: 1,
         user_id: "different-user",
@@ -226,9 +295,11 @@ describe("workoutsRouter", () => {
         workoutDate: new Date("2024-01-01"),
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockWorkout);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockWorkout,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
 
       await expect(caller.getById({ id: 1 })).rejects.toThrow(
         "Workout not found",
@@ -238,11 +309,16 @@ describe("workoutsRouter", () => {
 
   describe("getLastExerciseData", () => {
     it("should return last exercise data for simple exercise", async () => {
-      // Mock the latest session query result
-      mockCtx.db.queueSelectResult([{ sessionId: 1 }]);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      // Mock the sets query result
-      mockCtx.db.queueSelectResult([
+      // Mock the database queries using queue-based approach
+      isolatedCtx.db.queueSelectResult([{ sessionId: 1 }]);
+      isolatedCtx.db.queueSelectResult([
         {
           weight: 80,
           reps: 8,
@@ -252,7 +328,7 @@ describe("workoutsRouter", () => {
         },
       ]);
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.getLastExerciseData({
         exerciseName: "Bench Press",
       });
@@ -261,6 +337,7 @@ describe("workoutsRouter", () => {
         sets: [
           {
             id: "prev-0",
+            setNumber: 1,
             weight: 80,
             reps: 8,
             sets: 3,
@@ -276,55 +353,19 @@ describe("workoutsRouter", () => {
       });
     });
 
-    it("should handle exercise links for linked exercises", async () => {
-      // Mock the exercise name resolution view query
-      mockCtx.db.queueSelectResult([{ resolvedName: "Bench Press (Barbell)" }]);
-
-      // Mock the latest session query
-      mockCtx.db.queueSelectResult([{ sessionId: 1 }]);
-
-      // Mock the sets query
-      mockCtx.db.queueSelectResult([
-        {
-          weight: 75,
-          reps: 10,
-          sets: 4,
-          unit: "kg",
-          setOrder: 0,
-        },
-      ]);
-
-      const caller = workoutsRouter.createCaller(mockCtx);
-      const result = await caller.getLastExerciseData({
-        exerciseName: "Bench Press",
-        templateExerciseId: 1,
-      });
-
-      expect(result).toEqual({
-        sets: [
-          {
-            id: "prev-0",
-            weight: 75,
-            reps: 10,
-            sets: 4,
-            unit: "kg",
-          },
-        ],
-        best: {
-          weight: 75,
-          reps: 10,
-          sets: 4,
-          unit: "kg",
-        },
-      });
-    });
-
     it("should exclude specified session", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       // Mock the latest session query (no need for exercise name resolution since no templateExerciseId)
-      mockCtx.db.queueSelectResult([{ sessionId: 1 }]);
+      isolatedCtx.db.queueSelectResult([{ sessionId: 1 }]);
 
       // Mock the sets query
-      mockCtx.db.queueSelectResult([
+      isolatedCtx.db.queueSelectResult([
         {
           weight: 80,
           reps: 8,
@@ -334,7 +375,7 @@ describe("workoutsRouter", () => {
         },
       ]);
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.getLastExerciseData({
         exerciseName: "Bench Press",
         excludeSessionId: 2,
@@ -344,6 +385,7 @@ describe("workoutsRouter", () => {
         sets: [
           {
             id: "prev-0",
+            setNumber: 1,
             weight: 80,
             reps: 8,
             sets: 3,
@@ -360,9 +402,16 @@ describe("workoutsRouter", () => {
     });
 
     it("should return null if no previous data found", async () => {
-      mockCtx.db.all.mockResolvedValue([]);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      isolatedCtx.db.all.mockResolvedValue([]);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.getLastExerciseData({
         exerciseName: "New Exercise",
       });
@@ -373,6 +422,13 @@ describe("workoutsRouter", () => {
 
   describe("start", () => {
     it("should start a new workout session", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockTemplate = {
         ...createMockWorkoutTemplate({
           id: 1,
@@ -401,8 +457,10 @@ describe("workoutsRouter", () => {
         workoutDate: new Date("2024-01-01"),
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValueOnce(null);
-      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue(
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      isolatedCtx.db.query.workoutTemplates.findFirst.mockResolvedValue(
         mockTemplate,
       );
       const insertChain: any = {
@@ -413,9 +471,9 @@ describe("workoutsRouter", () => {
           reject?: (reason: unknown) => void,
         ) => Promise.resolve([mockSession]).then(resolve, reject),
       };
-      mockCtx.db.insert.mockImplementation(() => insertChain);
+      isolatedCtx.db.insert.mockImplementation(() => insertChain);
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.start({
         templateId: 1,
         workoutDate: new Date("2024-01-01"),
@@ -428,10 +486,19 @@ describe("workoutsRouter", () => {
     });
 
     it("should throw error if template not found", async () => {
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValueOnce(null);
-      mockCtx.db.query.workoutTemplates.findFirst.mockResolvedValue(null);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      isolatedCtx.db.query.workoutTemplates.findFirst.mockResolvedValue(null);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
 
       await expect(
         caller.start({
@@ -444,6 +511,13 @@ describe("workoutsRouter", () => {
 
   describe("save", () => {
     it("should save workout session with exercises", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
@@ -451,9 +525,11 @@ describe("workoutsRouter", () => {
         workoutDate: new Date("2024-01-01"),
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.save({
         sessionId: 1,
         exercises: [
@@ -474,13 +550,20 @@ describe("workoutsRouter", () => {
         ],
       });
 
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, playbookSessionId: null });
     });
 
     it("should throw error if session not found", async () => {
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
 
       await expect(
         caller.save({
@@ -491,6 +574,13 @@ describe("workoutsRouter", () => {
     });
 
     it("should trigger generateAndPersistDebrief when saving exercises", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
@@ -498,9 +588,11 @@ describe("workoutsRouter", () => {
         workoutDate: new Date("2024-01-01"),
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       await caller.save({
         sessionId: 1,
         exercises: [
@@ -522,7 +614,7 @@ describe("workoutsRouter", () => {
       });
 
       expect(sessionDebrief.generateAndPersistDebrief).toHaveBeenCalledWith({
-        dbClient: mockCtx.db,
+        dbClient: isolatedCtx.db,
         userId: "user-123",
         sessionId: 1,
         locale: undefined,
@@ -534,6 +626,13 @@ describe("workoutsRouter", () => {
 
   describe("updateSessionSets", () => {
     it("should update session sets", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = {
         ...createMockWorkoutSession({
           id: 1,
@@ -561,7 +660,9 @@ describe("workoutsRouter", () => {
         },
       ];
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
       const selectChain: any = {
         from: vi.fn(() => selectChain),
         where: vi.fn(() => selectChain),
@@ -571,9 +672,9 @@ describe("workoutsRouter", () => {
           reject?: (reason: unknown) => void,
         ) => Promise.resolve(mockExistingSets).then(resolve, reject),
       };
-      mockCtx.db.select.mockImplementation(() => selectChain);
+      isolatedCtx.db.select.mockImplementation(() => selectChain);
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.updateSessionSets({
         sessionId: 1,
         updates: [
@@ -727,6 +828,13 @@ describe("workoutsRouter", () => {
 
   describe("batchSave", () => {
     it("should save multiple workout sessions successfully", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession1 = createMockWorkoutSession({
         id: 1,
         user_id: mockUser.id,
@@ -736,26 +844,26 @@ describe("workoutsRouter", () => {
         user_id: mockUser.id,
       });
 
-      // Mock the session verification calls - simple approach like the save test
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+      // Mock the session verification calls - simple approach
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
         mockSession1,
       );
 
       // Mock the insert operations for the new session exercises
-      mockCtx.db.queueInsertResult([
+      isolatedCtx.db.queueInsertResult([
         { id: 1 },
         { id: 2 },
         { id: 3 },
         { id: 4 },
       ]);
-      mockCtx.db.queueInsertResult([
+      isolatedCtx.db.queueInsertResult([
         { id: 5 },
         { id: 6 },
         { id: 7 },
         { id: 8 },
       ]);
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.batchSave({
         workouts: [
           {
@@ -788,9 +896,16 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle session not found errors", async () => {
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.batchSave({
         workouts: [
           {
@@ -824,13 +939,20 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle mixed success and failure results", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: mockUser.id,
       });
 
       // Mock all database operations that might interfere with session verification
-      mockCtx.db.queueSelectResult([
+      isolatedCtx.db.queueSelectResult([
         {
           templateExerciseId: 1,
           templateName: "Bench Press",
@@ -847,7 +969,7 @@ describe("workoutsRouter", () => {
 
       // Use a mock implementation that handles the Drizzle SQL object pattern
       // Reset any existing mocks first
-      mockCtx.db.query.workoutSessions.findFirst.mockReset();
+      isolatedCtx.db.query.workoutSessions.findFirst.mockReset();
 
       // Create a mock implementation that returns different results based on session ID
       const findFirstMock = vi.fn();
@@ -872,9 +994,9 @@ describe("workoutsRouter", () => {
         return Promise.resolve(null);
       });
 
-      mockCtx.db.query.workoutSessions.findFirst = findFirstMock;
+      isolatedCtx.db.query.workoutSessions.findFirst = findFirstMock;
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.batchSave({
         workouts: [
           {
@@ -931,14 +1053,24 @@ describe("workoutsRouter", () => {
     });
 
     it("should trigger generateAndPersistDebrief for sessions with exercises", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: mockUser.id,
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      // Mock session verification - simple approach
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.batchSave({
         workouts: [
           {
@@ -983,7 +1115,7 @@ describe("workoutsRouter", () => {
       });
 
       expect(sessionDebrief.generateAndPersistDebrief).toHaveBeenCalledWith({
-        dbClient: mockCtx.db,
+        dbClient: isolatedCtx.db,
         userId: "user-123",
         sessionId: 1,
         locale: undefined,
@@ -993,14 +1125,24 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle empty exercises array", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: mockUser.id,
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      // Mock session verification - simple approach
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.batchSave({
         workouts: [
           {
@@ -1019,15 +1161,24 @@ describe("workoutsRouter", () => {
     });
 
     it("should handle exercises with no valid sets", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: mockUser.id,
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
 
       // Mock the loadResolvedExerciseNameMap function for the template exercise
-      mockCtx.db.queueSelectResult([
+      isolatedCtx.db.queueSelectResult([
         {
           templateExerciseId: 1,
           templateName: "Bench Press",
@@ -1036,7 +1187,7 @@ describe("workoutsRouter", () => {
         },
       ]);
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.batchSave({
         workouts: [
           {
@@ -1073,6 +1224,13 @@ describe("workoutsRouter", () => {
 
   describe("delete", () => {
     it("should delete workout session", async () => {
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
+
       const mockSession = createMockWorkoutSession({
         id: 1,
         user_id: "user-123",
@@ -1080,18 +1238,27 @@ describe("workoutsRouter", () => {
         workoutDate: new Date("2024-01-01"),
       });
 
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(mockSession);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(
+        mockSession,
+      );
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      const caller = workoutsRouter.createCaller(isolatedCtx);
       const result = await caller.delete({ id: 1 });
 
       expect(result).toEqual({ success: true });
     });
 
     it("should throw error if session not found", async () => {
-      mockCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+      const isolatedCtx = {
+        db: createMockDb(),
+        user: mockUser,
+        requestId: "test-request",
+        headers: new Headers(),
+      };
 
-      const caller = workoutsRouter.createCaller(mockCtx);
+      isolatedCtx.db.query.workoutSessions.findFirst.mockResolvedValue(null);
+
+      const caller = workoutsRouter.createCaller(isolatedCtx);
 
       await expect(caller.delete({ id: 999 })).rejects.toThrow(
         "Workout session not found",

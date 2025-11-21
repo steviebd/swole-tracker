@@ -89,6 +89,17 @@ const mockUtils = {
       invalidate: vi.fn(),
     },
   },
+  playbooks: {
+    listByUser: {
+      invalidate: vi.fn(),
+    },
+    getById: {
+      invalidate: vi.fn(),
+    },
+    getAdherenceMetrics: {
+      invalidate: vi.fn(),
+    },
+  },
 };
 
 describe("workout cache helpers", () => {
@@ -271,6 +282,12 @@ describe("workout cache helpers", () => {
       expect(mockUtils.healthAdvice.getHistory.invalidate).toHaveBeenCalled();
       expect(mockUtils.wellness.getHistory.invalidate).toHaveBeenCalled();
       expect(mockUtils.wellness.getStats.invalidate).toHaveBeenCalled();
+      // Check playbook invalidations
+      expect(mockUtils.playbooks.listByUser.invalidate).toHaveBeenCalled();
+      expect(mockUtils.playbooks.getById.invalidate).toHaveBeenCalled();
+      expect(
+        mockUtils.playbooks.getAdherenceMetrics.invalidate,
+      ).toHaveBeenCalled();
     });
 
     it("should invalidate session-specific caches when sessionIds provided", async () => {
@@ -314,6 +331,59 @@ describe("workout cache helpers", () => {
       await expect(
         invalidateWorkoutDependentCaches(mockUtils as any),
       ).resolves.toBeUndefined();
+    });
+
+    it("should use refetchType: 'all' for critical queries to force refetch of inactive queries", async () => {
+      await invalidateWorkoutDependentCaches(mockUtils as any);
+
+      // Critical queries that should use refetchType: 'all'
+      expect(mockUtils.workouts.getRecent.invalidate).toHaveBeenCalledWith(
+        undefined,
+        { refetchType: "all" },
+      );
+      expect(mockUtils.playbooks.listByUser.invalidate).toHaveBeenCalledWith(
+        undefined,
+        { refetchType: "all" },
+      );
+      expect(mockUtils.playbooks.getById.invalidate).toHaveBeenCalledWith(
+        undefined,
+        { refetchType: "all" },
+      );
+      expect(
+        mockUtils.playbooks.getAdherenceMetrics.invalidate,
+      ).toHaveBeenCalledWith(undefined, { refetchType: "all" });
+
+      // Non-critical queries should not use refetchType: 'all'
+      expect(mockUtils.templates.getAll.invalidate).toHaveBeenCalledWith();
+      expect(
+        mockUtils.progress.getWorkoutDates.invalidate,
+      ).toHaveBeenCalledWith();
+    });
+
+    it("should invalidate all playbook-related queries when workouts change", async () => {
+      await invalidateWorkoutDependentCaches(mockUtils as any);
+
+      // Verify all playbook queries are invalidated
+      expect(mockUtils.playbooks.listByUser.invalidate).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockUtils.playbooks.getById.invalidate).toHaveBeenCalledTimes(1);
+      expect(
+        mockUtils.playbooks.getAdherenceMetrics.invalidate,
+      ).toHaveBeenCalledTimes(1);
+
+      // Verify they're called with refetchType: 'all' for immediate updates
+      expect(mockUtils.playbooks.listByUser.invalidate).toHaveBeenCalledWith(
+        undefined,
+        { refetchType: "all" },
+      );
+      expect(mockUtils.playbooks.getById.invalidate).toHaveBeenCalledWith(
+        undefined,
+        { refetchType: "all" },
+      );
+      expect(
+        mockUtils.playbooks.getAdherenceMetrics.invalidate,
+      ).toHaveBeenCalledWith(undefined, { refetchType: "all" });
     });
   });
 });

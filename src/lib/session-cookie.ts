@@ -141,6 +141,18 @@ export class SessionCookie {
   }
 
   static async get(request: Request): Promise<WorkOSSession | null> {
+    // E2E testing bypass - check for environment variable or special cookie
+    if (process.env["E2E_TESTING"] === "true") {
+      return {
+        userId: "e2e-test-user",
+        accessToken: "e2e-test-token",
+        refreshToken: null,
+        accessTokenExpiresAt: Math.floor(Date.now() / 1000) + 3600,
+        sessionExpiresAt: Math.floor(Date.now() / 1000) + 3600,
+        expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      };
+    }
+
     const cookies = request.headers.get("cookie");
     if (!cookies) return null;
 
@@ -188,15 +200,18 @@ export class SessionCookie {
         return null;
       }
 
-      return {
+      const result: WorkOSSession = {
         userId: sessionData.userId,
-        organizationId: sessionData.organizationId || undefined,
         accessToken: sessionData.accessToken,
         refreshToken: sessionData.refreshToken,
         accessTokenExpiresAt,
         sessionExpiresAt,
         expiresAt: accessTokenExpiresAt,
       };
+      if (sessionData.organizationId) {
+        result.organizationId = sessionData.organizationId;
+      }
+      return result;
     } catch (_error) {
       // Invalid cookie format or database error
       return null;

@@ -1,15 +1,10 @@
 /// <reference types="vitest" />
-import os from "os";
 import path from "path";
 import { defineConfig } from "vitest/config";
 
-const isCI = process.env.CI === "true";
-const cpuCount =
-  typeof (os as { availableParallelism?: () => number })
-    .availableParallelism === "function"
-    ? os.availableParallelism()
-    : (os.cpus()?.length ?? 1);
-const maxLocalThreads = Math.min(4, Math.max(1, Math.floor(cpuCount / 2)));
+const isCI = process.env["CI"] === "true";
+// Simplified thread count to avoid JSDOM/os module conflicts
+const maxLocalThreads = isCI ? 4 : 2;
 
 const baseExclude = [
   "**/*.spec.{ts,tsx}",
@@ -18,29 +13,38 @@ const baseExclude = [
   "**/node_modules/**",
   "**/dist/**",
   "**/*.e2e.{ts,tsx}",
+  "e2e/**/*",
   "**/e2e/**/*",
   "**/playwright/**/*",
   "playwright.config.ts",
-];
-
-const jsdomTestGlobs = [
-  "src/__tests__/components/**/*.test.{ts,tsx}",
-  "src/__tests__/hooks/**/*.test.{ts,tsx}",
-  "src/__tests__/unit/hooks/**/*.test.{ts,tsx}",
+  "e2e/**/*.spec.ts",
+  "e2e/**/*.spec.{ts,tsx}",
 ];
 
 export default defineConfig({
   test: {
     globals: true,
+    pool: "forks",
     poolOptions: {
-      threads: {
-        maxThreads: isCI ? cpuCount : maxLocalThreads,
-        minThreads: 1,
+      forks: {
+        singleFork: true,
+        isolate: false,
       },
     },
+    // Speed optimizations
+    // Optimize test output for speed
+    reporters: isCI ? ["default"] : [["default", { summary: false }]],
+    // Enable heap usage logging to monitor memory
+    logHeapUsage: true,
+    // Disable test isolation to reduce memory overhead
+    isolate: false,
+    // Increase timeouts to prevent timeouts due to memory constraints
+    testTimeout: 60000,
+    hookTimeout: 60000,
+
     setupFiles: [
-      "./src/__tests__/setup.common.ts",
       "./src/__tests__/setup.dom.ts",
+      "./src/__tests__/setup.common.ts",
     ],
     environment: "jsdom",
     mockReset: true,
@@ -48,6 +52,7 @@ export default defineConfig({
 
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: baseExclude,
+    maxConcurrency: 1, // Only run one test at a time
     coverage: {
       provider: "v8",
       // Keep full reporter stack for CI; use detailed text output locally.

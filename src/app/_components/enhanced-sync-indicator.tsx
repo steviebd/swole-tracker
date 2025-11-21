@@ -62,11 +62,17 @@ export function EnhancedSyncIndicator() {
 
   const handleManualSync = async () => {
     if (!isOnline) {
-      handleToast("warning", "You're offline. We'll sync again once you're back online.");
+      handleToast(
+        "warning",
+        "You're offline. We'll sync again once you're back online.",
+      );
       return;
     }
     if (!canManualSync && !isBusy) {
-      handleToast("info", "All changes are already queued. We'll keep syncing automatically.");
+      handleToast(
+        "info",
+        "All changes are already queued. We'll keep syncing automatically.",
+      );
       return;
     }
     setManualSyncRequested(true);
@@ -100,8 +106,8 @@ export function EnhancedSyncIndicator() {
   }
 
   const toneKey = tone ?? "default";
-  const containerTone = toneContainer[toneKey] ?? toneContainer.default;
-  const mutedToneClass = mutedText[toneKey] ?? mutedText.default;
+  const containerTone = toneContainer[toneKey] ?? toneContainer["default"];
+  const mutedToneClass = mutedText[toneKey] ?? mutedText["default"];
   const statusSummary = `Sync status ${status}. ${badgeText}. ${pendingOperations} pending, ${failedOperations} failed.`;
 
   return (
@@ -109,14 +115,14 @@ export function EnhancedSyncIndicator() {
       <div className="fixed top-4 right-4 z-40 flex flex-col items-end gap-2">
         <div
           className={cn(
-            "flex items-center gap-3 rounded-full px-4 py-2 shadow-lg backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+            "flex items-center gap-3 rounded-full px-4 py-2 shadow-lg backdrop-blur transition focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none",
             containerTone,
           )}
         >
           <button
             type="button"
             onClick={() => setShowDetails((open) => !open)}
-            className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide focus-visible:outline-none"
+            className="flex items-center gap-3 text-xs font-semibold tracking-wide uppercase focus-visible:outline-none"
           >
             <span className="flex items-center gap-2">
               {(status === "syncing" || status === "saving") && (
@@ -145,7 +151,7 @@ export function EnhancedSyncIndicator() {
             <button
               type="button"
               onClick={handleManualSync}
-              className="rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white transition hover:bg-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold tracking-wide text-white uppercase transition hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
             >
               {isBusy ? "Syncing…" : "Sync now"}
             </button>
@@ -153,24 +159,26 @@ export function EnhancedSyncIndicator() {
         </div>
 
         {showDetails && (
-          <div className="w-72 rounded-2xl border border-border/60 bg-surface-elevated p-4 shadow-xl backdrop-blur">
+          <div className="border-border/60 bg-surface-elevated w-72 rounded-2xl border p-4 shadow-xl backdrop-blur">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-content-primary">
+              <p className="text-content-primary text-sm font-semibold">
                 Sync status
               </p>
               <button
                 type="button"
                 onClick={() => setShowDetails(false)}
-                className="text-content-muted hover:text-content-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="text-content-muted hover:text-content-secondary focus-visible:ring-primary/40 focus-visible:ring-2 focus-visible:outline-none"
                 aria-label="Close sync details"
               >
                 ×
               </button>
             </div>
-            <div className="mt-3 space-y-2 text-xs text-content-secondary">
+            <div className="text-content-secondary mt-3 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span>Connection</span>
-                <span className={isOnline ? "text-emerald-500" : "text-rose-500"}>
+                <span
+                  className={isOnline ? "text-emerald-500" : "text-rose-500"}
+                >
                   {isOnline ? "Online" : "Offline"}
                 </span>
               </div>
@@ -200,7 +208,7 @@ export function EnhancedSyncIndicator() {
                 type="button"
                 onClick={handleManualSync}
                 disabled={!isOnline || (!canManualSync && !isBusy)}
-                className="w-full rounded-full bg-primary px-3 py-2 text-xs font-semibold uppercase tracking-wide text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-full px-3 py-2 text-xs font-semibold tracking-wide uppercase shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isBusy ? "Syncing…" : isOnline ? "Sync now" : "Offline"}
               </button>

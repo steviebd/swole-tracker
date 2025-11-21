@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Check, X, AlertCircle } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "~/components/ui/badge";
 import { api } from "~/trpc/react";
 import { cn } from "~/lib/utils";
 
-interface MasterExercise {
+export interface MasterExercise {
   id: number;
   user_id: string;
   name: string;
@@ -19,7 +19,7 @@ interface MasterExercise {
   updatedAt: Date | null;
 }
 
-interface TemplateExercise {
+export interface TemplateExercise {
   name: string;
   tempId: string;
 }
@@ -63,8 +63,8 @@ function levenshteinDistance(str1: string, str2: string): number {
       } else {
         matrix[i]![j] = Math.min(
           matrix[i - 1]![j - 1]! + 1, // substitution
-          matrix[i]![j - 1]! + 1,     // insertion
-          matrix[i - 1]![j]! + 1,     // deletion
+          matrix[i]![j - 1]! + 1, // insertion
+          matrix[i - 1]![j]! + 1, // deletion
         );
       }
     }
@@ -83,10 +83,7 @@ function calculateSimilarity(str1: string, str2: string): number {
   if (normalized1 === normalized2) return 1.0;
 
   // Contains match (substring)
-  if (
-    normalized1.includes(normalized2) ||
-    normalized2.includes(normalized1)
-  ) {
+  if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
     const minLen = Math.min(normalized1.length, normalized2.length);
     const maxLen = Math.max(normalized1.length, normalized2.length);
     return 0.6 + (minLen / maxLen) * 0.3; // 60-90% range
@@ -106,7 +103,8 @@ function calculateSimilarity(str1: string, str2: string): number {
   const words1 = normalized1.split(" ");
   const words2 = normalized2.split(" ");
   const commonWords = words1.filter((w) => words2.includes(w));
-  const wordOverlap = commonWords.length / Math.max(words1.length, words2.length);
+  const wordOverlap =
+    commonWords.length / Math.max(words1.length, words2.length);
 
   if (wordOverlap > 0) {
     return wordOverlap * 0.7; // 0-70% range
@@ -308,13 +306,13 @@ export function ExerciseLinkingReview({
       <div className="bg-muted/50 flex items-center justify-between rounded-lg border p-4">
         <div className="flex gap-6">
           <div>
-            <div className="text-muted-foreground text-xs uppercase tracking-wide">
+            <div className="text-muted-foreground text-xs tracking-wide uppercase">
               Total Exercises
             </div>
             <div className="text-2xl font-bold">{summary.total}</div>
           </div>
           <div className="border-l pl-6">
-            <div className="text-muted-foreground text-xs uppercase tracking-wide">
+            <div className="text-muted-foreground text-xs tracking-wide uppercase">
               Auto-Linked
             </div>
             <div className="text-2xl font-bold text-green-600">
@@ -322,7 +320,7 @@ export function ExerciseLinkingReview({
             </div>
           </div>
           <div className="border-l pl-6">
-            <div className="text-muted-foreground text-xs uppercase tracking-wide">
+            <div className="text-muted-foreground text-xs tracking-wide uppercase">
               Will Link
             </div>
             <div className="text-2xl font-bold text-blue-600">
@@ -330,7 +328,7 @@ export function ExerciseLinkingReview({
             </div>
           </div>
           <div className="border-l pl-6">
-            <div className="text-muted-foreground text-xs uppercase tracking-wide">
+            <div className="text-muted-foreground text-xs tracking-wide uppercase">
               Creating New
             </div>
             <div className="text-2xl font-bold text-purple-600">
@@ -366,7 +364,7 @@ export function ExerciseLinkingReview({
                     {decision.autoSelected && decision.selectedMasterId && (
                       <Badge
                         variant="outline"
-                        className="bg-green-50 text-xs text-green-700 border-green-300"
+                        className="border-green-300 bg-green-50 text-xs text-green-700"
                       >
                         <Check className="mr-1 h-3 w-3" />
                         Auto-matched
@@ -381,7 +379,7 @@ export function ExerciseLinkingReview({
                     selectedMatch && (
                       <p className="text-muted-foreground mt-1 text-sm">
                         Linking to:{" "}
-                        <span className="font-medium text-foreground">
+                        <span className="text-foreground font-medium">
                           {selectedMatch.masterExercise.name}
                         </span>{" "}
                         ({Math.round(selectedMatch.score * 100)}% match)
@@ -394,7 +392,7 @@ export function ExerciseLinkingReview({
               {/* Suggestions */}
               {decision.topMatches.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                     {isCreatingNew
                       ? "Available matches (click to link instead)"
                       : "Top matches"}
@@ -418,7 +416,7 @@ export function ExerciseLinkingReview({
                           className={cn(
                             "relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all",
                             isSelected
-                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              ? "border-primary bg-primary/5 ring-primary/20 ring-2"
                               : getMatchColor(match.matchType),
                           )}
                         >

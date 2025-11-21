@@ -15,6 +15,7 @@ import { cn, formatDateWithOrdinal } from "~/lib/utils";
 import { api } from "~/trpc/react";
 import { useProgressRange } from "~/contexts/progress-range-context";
 import { analytics } from "~/lib/analytics";
+import { PlaybookProgressCard } from "./playbooks/PlaybookProgressCard";
 
 type HighlightTab = "prs" | "milestones" | "streaks";
 
@@ -212,6 +213,9 @@ export function ProgressHighlightsSection() {
               ))}
             </div>
           )}
+
+          {/* Playbook Progress Card */}
+          <PlaybookProgressCard />
 
           <div className="relative">
             {cards.length === 0 ? (

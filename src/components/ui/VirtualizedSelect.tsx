@@ -73,7 +73,7 @@ export function VirtualizedSelect<T>({
             }}
             getItemId={getItemId}
             getItemLabel={getItemLabel}
-            getItemSubtitle={getItemSubtitle}
+            {...(getItemSubtitle && { getItemSubtitle })}
             maxHeight={maxHeight}
           />
         </div>

@@ -210,6 +210,89 @@ describe("cache configuration", () => {
       invalidateSpy.mockClear();
       invalidateQueries.all(queryClient);
       expect(invalidateSpy).toHaveBeenCalledWith();
+
+      // Test playbooks invalidation
+      invalidateSpy.mockClear();
+      invalidateQueries.playbooks(queryClient);
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["playbooks"] });
+    });
+  });
+
+  describe("playbook cache configuration", () => {
+    let queryClient: QueryClient;
+
+    beforeEach(() => {
+      queryClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      });
+    });
+
+    it("should configure playbook queries with medium cache settings and immediate refetch", () => {
+      configureQueryCache(queryClient);
+
+      const playbookQueries = [
+        ["playbooks", "listByUser"],
+        ["playbooks", "getById"],
+        ["playbooks", "getAdherenceMetrics"],
+      ];
+
+      playbookQueries.forEach((queryKey) => {
+        const defaults = queryClient.getQueryDefaults(queryKey);
+        expect(defaults?.staleTime).toBe(0); // Show cached while refetching
+        expect(defaults?.gcTime).toBe(24 * 60 * 60 * 1000); // 24 hours
+        expect(defaults?.refetchOnMount).toBe(true); // Ensure stale data refetches
+        expect(defaults?.refetchOnWindowFocus).toBe(true);
+        expect(defaults?.refetchOnReconnect).toBe(true);
+      });
+    });
+
+    it("should configure listByUser with immediate refetch on mount", () => {
+      configureQueryCache(queryClient);
+
+      const listByUserDefaults = queryClient.getQueryDefaults([
+        "playbooks",
+        "listByUser",
+      ]);
+
+      expect(listByUserDefaults).toBeDefined();
+      expect(listByUserDefaults?.staleTime).toBe(0);
+      expect(listByUserDefaults?.refetchOnMount).toBe(true);
+      expect(listByUserDefaults?.refetchOnWindowFocus).toBe(true);
+      expect(listByUserDefaults?.refetchOnReconnect).toBe(true);
+    });
+
+    it("should configure getById with immediate refetch on mount", () => {
+      configureQueryCache(queryClient);
+
+      const getByIdDefaults = queryClient.getQueryDefaults([
+        "playbooks",
+        "getById",
+      ]);
+
+      expect(getByIdDefaults).toBeDefined();
+      expect(getByIdDefaults?.staleTime).toBe(0);
+      expect(getByIdDefaults?.refetchOnMount).toBe(true);
+      expect(getByIdDefaults?.refetchOnWindowFocus).toBe(true);
+      expect(getByIdDefaults?.refetchOnReconnect).toBe(true);
+    });
+
+    it("should configure getAdherenceMetrics with immediate refetch on mount", () => {
+      configureQueryCache(queryClient);
+
+      const adherenceDefaults = queryClient.getQueryDefaults([
+        "playbooks",
+        "getAdherenceMetrics",
+      ]);
+
+      expect(adherenceDefaults).toBeDefined();
+      expect(adherenceDefaults?.staleTime).toBe(0);
+      expect(adherenceDefaults?.refetchOnMount).toBe(true);
+      expect(adherenceDefaults?.refetchOnWindowFocus).toBe(true);
+      expect(adherenceDefaults?.refetchOnReconnect).toBe(true);
     });
   });
 });

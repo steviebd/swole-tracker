@@ -41,9 +41,9 @@ export function configureQueryCache(queryClient: QueryClient) {
     staleTime: CACHE_TIMES.STATIC.staleTime,
     gcTime: CACHE_TIMES.STATIC.gcTime,
     refetchOnWindowFocus: false, // Don't refetch templates on focus for performance
-    refetchOnMount: true, // Ensure stale templates refetch when visiting the page again
+    refetchOnMount: true, // Ensure stale templates refetch when visiting page again
     refetchOnReconnect: true,
-    refetchInterval: false, // Disable automatic polling - rely on manual invalidation
+    refetchInterval: false,
   });
 
   // Preferences - static data, cache aggressively (14 days)
@@ -54,7 +54,7 @@ export function configureQueryCache(queryClient: QueryClient) {
     refetchInterval: false,
   });
 
-  // Workouts - show cached data immediately while refetching in background
+  // Workout queries with medium cache times
   queryClient.setQueryDefaults(["workouts", "getRecent"], {
     staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
     gcTime: CACHE_TIMES.MEDIUM.gcTime,
@@ -72,6 +72,31 @@ export function configureQueryCache(queryClient: QueryClient) {
     staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
     gcTime: CACHE_TIMES.MEDIUM.gcTime,
     refetchOnWindowFocus: true, // Useful for exercise tracking
+  });
+
+  // Playbook queries - same pattern as workouts for immediate updates after completion
+  queryClient.setQueryDefaults(["playbooks", "listByUser"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnMount: true, // Ensure stale playbooks refetch when visiting page
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  queryClient.setQueryDefaults(["playbooks", "getById"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnMount: true, // Ensure stale playbook data refetches when visiting page
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  queryClient.setQueryDefaults(["playbooks", "getAdherenceMetrics"], {
+    staleTime: CACHE_TIMES.MEDIUM.staleTime, // 0 - show cached while refetching
+    gcTime: CACHE_TIMES.MEDIUM.gcTime,
+    refetchOnMount: true, // Ensure stale metrics refetch when visiting page
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   // Progress data - real-time caching for dashboard updates
@@ -282,6 +307,11 @@ export const invalidateQueries = {
   // Invalidate preferences
   preferences: (queryClient: QueryClient) => {
     void queryClient.invalidateQueries({ queryKey: ["preferences"] });
+  },
+
+  // Invalidate playbook queries (when workout completion affects playbook status)
+  playbooks: (queryClient: QueryClient) => {
+    void queryClient.invalidateQueries({ queryKey: ["playbooks"] });
   },
 
   // Invalidate WHOOP queries

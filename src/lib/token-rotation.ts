@@ -125,8 +125,10 @@ export async function migrateTokens(
 
   try {
     // Check if encryption key is available
-    if (!process.env.ENCRYPTION_MASTER_KEY) {
-      console.log("Token migration: Skipping migration - ENCRYPTION_MASTER_KEY not available");
+    if (!process.env["ENCRYPTION_MASTER_KEY"]) {
+      console.log(
+        "Token migration: Skipping migration - ENCRYPTION_MASTER_KEY not available",
+      );
       return { migrated: 0, skipped: 0, failed: 0, results: [] };
     }
 
@@ -159,7 +161,9 @@ export async function migrateTokens(
             provider: integration.provider,
           });
 
-          const encryptedAccessToken = await encryptToken(integration.accessToken);
+          const encryptedAccessToken = await encryptToken(
+            integration.accessToken,
+          );
           await db
             .update(userIntegrations)
             .set({
@@ -172,13 +176,18 @@ export async function migrateTokens(
         }
 
         // Migrate refresh token if it's plain-text
-        if (integration.refreshToken && !isEncrypted(integration.refreshToken)) {
+        if (
+          integration.refreshToken &&
+          !isEncrypted(integration.refreshToken)
+        ) {
           console.log("Token migration: Migrating refresh token", {
             userId: integration.user_id.substring(0, 8) + "...",
             provider: integration.provider,
           });
 
-          const encryptedRefreshToken = await encryptToken(integration.refreshToken);
+          const encryptedRefreshToken = await encryptToken(
+            integration.refreshToken,
+          );
           await db
             .update(userIntegrations)
             .set({
@@ -255,7 +264,7 @@ export async function rotateOAuthTokens(
     }
 
     // Migrate tokens to encrypted format if needed and key is available
-    if (process.env.ENCRYPTION_MASTER_KEY) {
+    if (process.env["ENCRYPTION_MASTER_KEY"]) {
       const migrationResult = await migrateTokens(db, userId);
       if (migrationResult.migrated > 0) {
         console.log("Token rotation: Migrated tokens during rotation", {
@@ -297,13 +306,18 @@ export async function rotateOAuthTokens(
     // Check if rotation is needed
     if (!shouldRotateToken(currentExpiresAt, lastRotatedAt)) {
       try {
-        console.log("Token rotation: No rotation needed, decrypting access token", {
-          userId: userId.substring(0, 8) + "...",
-          provider,
-          tokenLength: integration.accessToken.length,
-        });
+        console.log(
+          "Token rotation: No rotation needed, decrypting access token",
+          {
+            userId: userId.substring(0, 8) + "...",
+            provider,
+            tokenLength: integration.accessToken.length,
+          },
+        );
 
-        const decryptedAccessToken = await getDecryptedToken(integration.accessToken);
+        const decryptedAccessToken = await getDecryptedToken(
+          integration.accessToken,
+        );
 
         console.log("Token rotation: Access token decryption successful", {
           userId: userId.substring(0, 8) + "...",
@@ -316,19 +330,28 @@ export async function rotateOAuthTokens(
           newAccessToken: decryptedAccessToken,
         };
       } catch (decryptError) {
-        console.error("Token rotation: Access token decryption failed when no rotation needed", {
-          userId: userId.substring(0, 8) + "...",
-          provider,
-          error: decryptError instanceof Error ? decryptError.message : "Unknown decryption error",
-          tokenLength: integration.accessToken.length,
-        });
+        console.error(
+          "Token rotation: Access token decryption failed when no rotation needed",
+          {
+            userId: userId.substring(0, 8) + "...",
+            provider,
+            error:
+              decryptError instanceof Error
+                ? decryptError.message
+                : "Unknown decryption error",
+            tokenLength: integration.accessToken.length,
+          },
+        );
 
         // Attempt recovery for access token as well
         if (integration.accessToken.length > 10) {
-          console.log("Token rotation: Attempting recovery with plain-text access token", {
-            userId: userId.substring(0, 8) + "...",
-            provider,
-          });
+          console.log(
+            "Token rotation: Attempting recovery with plain-text access token",
+            {
+              userId: userId.substring(0, 8) + "...",
+              provider,
+            },
+          );
           return {
             success: true,
             rotated: false,
@@ -351,10 +374,12 @@ export async function rotateOAuthTokens(
         userId: userId.substring(0, 8) + "...",
         provider,
         tokenLength: integration.refreshToken!.length,
-        isEncrypted: integration.refreshToken!.startsWith('ey') ? false : true, // rough heuristic
+        isEncrypted: integration.refreshToken!.startsWith("ey") ? false : true, // rough heuristic
       });
 
-      decryptedRefreshToken = await getDecryptedToken(integration.refreshToken!);
+      decryptedRefreshToken = await getDecryptedToken(
+        integration.refreshToken!,
+      );
 
       console.log("Token rotation: Refresh token decryption successful", {
         userId: userId.substring(0, 8) + "...",
@@ -364,17 +389,24 @@ export async function rotateOAuthTokens(
       console.error("Token rotation: Refresh token decryption failed", {
         userId: userId.substring(0, 8) + "...",
         provider,
-        error: decryptError instanceof Error ? decryptError.message : "Unknown decryption error",
+        error:
+          decryptError instanceof Error
+            ? decryptError.message
+            : "Unknown decryption error",
         tokenLength: integration.refreshToken!.length,
       });
 
       // Attempt recovery: if decryption fails, try to use the token as-is (might be plain text)
       // This provides backward compatibility during migration
-      if (integration.refreshToken!.length > 10) { // basic sanity check
-        console.log("Token rotation: Attempting recovery with plain-text token", {
-          userId: userId.substring(0, 8) + "...",
-          provider,
-        });
+      if (integration.refreshToken!.length > 10) {
+        // basic sanity check
+        console.log(
+          "Token rotation: Attempting recovery with plain-text token",
+          {
+            userId: userId.substring(0, 8) + "...",
+            provider,
+          },
+        );
         decryptedRefreshToken = integration.refreshToken!;
       } else {
         return {
@@ -392,11 +424,14 @@ export async function rotateOAuthTokens(
     );
 
     if (!tokenResult.success || !tokenResult.accessToken) {
-      return {
+      const result: TokenRotationResult = {
         success: false,
         rotated: false,
-        error: tokenResult.error,
       };
+      if (tokenResult.error) {
+        result.error = tokenResult.error;
+      }
+      return result;
     }
 
     // Encrypt new tokens
@@ -512,12 +547,20 @@ async function refreshWhoopToken(refreshToken: string): Promise<{
       return { success: false, error: "No access token in response" };
     }
 
-    return {
+    const result: {
+      success: boolean;
+      accessToken?: string;
+      refreshToken?: string;
+      expiresIn?: number;
+      error?: string;
+    } = {
       success: true,
       accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresIn: tokens.expires_in,
     };
+    if (tokens.refresh_token) {
+      result.refreshToken = tokens.refresh_token;
+    }
+    return result;
   } catch (error) {
     return {
       success: false,
@@ -554,7 +597,7 @@ export async function rotateAllExpiredTokens(db: DrizzleDb): Promise<{
 
   try {
     // First, run migration for all users if encryption key is available
-    if (process.env.ENCRYPTION_MASTER_KEY) {
+    if (process.env["ENCRYPTION_MASTER_KEY"]) {
       console.log("Bulk token rotation: Running migration for all users");
       const migrationResult = await migrateTokens(db);
       migrated = migrationResult.migrated;
@@ -592,12 +635,20 @@ export async function rotateAllExpiredTokens(db: DrizzleDb): Promise<{
         integration.provider,
       );
 
-      results.push({
+      const resultItem: {
+        userId: string;
+        provider: string;
+        success: boolean;
+        error?: string;
+      } = {
         userId: integration.user_id.substring(0, 8) + "...",
         provider: integration.provider,
         success: result.success,
-        error: result.error,
-      });
+      };
+      if (result.error) {
+        resultItem.error = result.error;
+      }
+      results.push(resultItem);
 
       if (result.success) {
         rotated++;
@@ -628,12 +679,18 @@ export async function getValidAccessToken(
       return { token: rotationResult.newAccessToken };
     }
 
-    return { token: null, error: rotationResult.error };
+    const result1: { token: string | null; error?: string } = { token: null };
+    if (rotationResult.error) {
+      result1.error = rotationResult.error;
+    }
+    return result1;
   } catch (error) {
-    return {
-      token: null,
-      error:
-        error instanceof Error ? error.message : "Failed to get valid token",
-    };
+    const result2: { token: string | null; error?: string } = { token: null };
+    if (error instanceof Error) {
+      result2.error = error.message;
+    } else {
+      result2.error = "Failed to get valid token";
+    }
+    return result2;
   }
 }

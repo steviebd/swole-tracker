@@ -511,23 +511,51 @@ export function SessionDebriefPanel({
                         (e) => e.exerciseName === exercise.exerciseName,
                       );
                       if (existing) {
-                        existing.sets.push({
-                          weight: exercise.weight,
-                          reps: exercise.reps,
-                          unit: exercise.unit,
-                          rpe: exercise.rpe,
-                        });
+                        const setData: {
+                          weight?: number | null;
+                          reps?: number | null;
+                          unit?: string;
+                          rpe?: number | null;
+                        } = {};
+
+                        if (exercise.weight !== undefined) {
+                          setData.weight = exercise.weight;
+                        }
+                        if (exercise.reps !== undefined) {
+                          setData.reps = exercise.reps;
+                        }
+                        if (exercise.unit !== undefined) {
+                          setData.unit = exercise.unit;
+                        }
+                        if (exercise.rpe !== undefined) {
+                          setData.rpe = exercise.rpe;
+                        }
+
+                        existing.sets.push(setData);
                       } else {
+                        const setData: {
+                          weight?: number | null;
+                          reps?: number | null;
+                          unit?: string;
+                          rpe?: number | null;
+                        } = {};
+
+                        if (exercise.weight !== undefined) {
+                          setData.weight = exercise.weight;
+                        }
+                        if (exercise.reps !== undefined) {
+                          setData.reps = exercise.reps;
+                        }
+                        if (exercise.unit !== undefined) {
+                          setData.unit = exercise.unit;
+                        }
+                        if (exercise.rpe !== undefined) {
+                          setData.rpe = exercise.rpe;
+                        }
+
                         acc.push({
                           exerciseName: exercise.exerciseName,
-                          sets: [
-                            {
-                              weight: exercise.weight,
-                              reps: exercise.reps,
-                              unit: exercise.unit,
-                              rpe: exercise.rpe,
-                            },
-                          ],
+                          sets: [setData],
                         });
                       }
                       return acc;

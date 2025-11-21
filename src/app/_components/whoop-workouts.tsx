@@ -75,14 +75,12 @@ export function WhoopWorkouts() {
     }
   };
 
-  const {
-    data: integrationStatus,
-    refetch: refetchStatus,
-  } = api.whoop.getIntegrationStatus.useQuery(undefined, {
-    refetchInterval: isTabVisible ? 5 * 60 * 1000 : false,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-  });
+  const { data: integrationStatus, refetch: refetchStatus } =
+    api.whoop.getIntegrationStatus.useQuery(undefined, {
+      refetchInterval: isTabVisible ? 5 * 60 * 1000 : false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    });
   const {
     data: workouts,
     refetch: refetchWorkouts,
@@ -732,12 +730,20 @@ export function WhoopWorkouts() {
       )}
 
       {/* Workout Detail Overlay */}
-      <WorkoutDetailOverlay
-        workout={selectedWorkout}
-        isOpen={!!selectedWorkout}
-        onClose={() => setSelectedWorkout(null)}
-        clickOrigin={clickOrigin}
-      />
+      {clickOrigin !== undefined ? (
+        <WorkoutDetailOverlay
+          workout={selectedWorkout}
+          isOpen={!!selectedWorkout}
+          onClose={() => setSelectedWorkout(null)}
+          clickOrigin={clickOrigin}
+        />
+      ) : (
+        <WorkoutDetailOverlay
+          workout={selectedWorkout}
+          isOpen={!!selectedWorkout}
+          onClose={() => setSelectedWorkout(null)}
+        />
+      )}
     </div>
   );
 }

@@ -19,9 +19,17 @@ test("basic - login page loads", async ({ page }) => {
   // Check that login page loads
   await expect(page).toHaveTitle(/Swole Tracker/);
 
-  // Look for login form elements
-  await expect(page.locator('input[type="email"]')).toBeVisible();
-  await expect(page.locator('input[type="password"]')).toBeVisible();
+  // Look for OAuth redirect or Google sign-in button
+  try {
+    // Check if it redirects to WorkOS AuthKit
+    await page.waitForURL(/.*authkit\.app.*/, { timeout: 5000 });
+    console.log("Redirected to WorkOS AuthKit as expected");
+  } catch {
+    // If no redirect, look for Google sign-in button
+    await expect(
+      page.locator('button:has-text("Sign in with Google")'),
+    ).toBeVisible();
+  }
 
   // Take a screenshot for debugging
   await page.screenshot({ path: "login-page.png" });

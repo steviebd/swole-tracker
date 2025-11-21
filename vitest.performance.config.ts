@@ -4,7 +4,7 @@ import path from "path";
 import { defineConfig } from "vitest/config";
 
 // Performance-optimized Vitest configuration
-const isCI = process.env.CI === "true";
+const isCI = process.env["CI"] === "true";
 const cpuCount = os.cpus().length;
 const maxLocalThreads = Math.min(4, Math.max(1, Math.floor(cpuCount / 2)));
 

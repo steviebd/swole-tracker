@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { api } from "~/trpc/react";
 import { Card } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -74,24 +74,28 @@ export function ExerciseLinkingPreview({
       </div>
 
       <div className="space-y-3">
-        {exercises.map((exercise, index) => (
-          <ExerciseLinkRow
-            key={index}
-            exercise={exercise}
-            decision={linkDecisions[index]}
-            onDecisionChange={(newDecision) => {
+        {exercises.map((exercise, index) => {
+          const rowProps: any = {
+            exercise,
+            onDecisionChange: (newDecision: LinkDecision) => {
               setLinkDecisions((prev) => {
                 const updated = [...prev];
                 updated[index] = newDecision;
                 onDecisionsChange?.(updated);
                 return updated;
               });
-            }}
-            isSearching={searchingIndex === index}
-            onSearchStart={() => setSearchingIndex(index)}
-            onSearchEnd={() => setSearchingIndex(null)}
-          />
-        ))}
+            },
+            isSearching: searchingIndex === index,
+            onSearchStart: () => setSearchingIndex(index),
+            onSearchEnd: () => setSearchingIndex(null),
+          };
+
+          if (linkDecisions[index] !== undefined) {
+            rowProps.decision = linkDecisions[index];
+          }
+
+          return <ExerciseLinkRow key={index} {...rowProps} />;
+        })}
       </div>
     </Card>
   );

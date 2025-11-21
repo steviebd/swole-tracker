@@ -95,7 +95,7 @@ async function fetchProfileFromWhoop(
 
     // Runtime validation
     const obj = profileData as Record<string, unknown>;
-    if (typeof obj.user_id === "string") {
+    if (typeof obj["user_id"] === "string") {
       return obj as unknown as WhoopProfileData;
     }
 

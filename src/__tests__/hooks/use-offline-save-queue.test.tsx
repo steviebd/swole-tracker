@@ -1,258 +1,712 @@
+/**
+ * Tests for useOfflineSaveQueue hook
+ * Tests offline workout save queue functionality and state management
+ */
+
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { vi, beforeEach, afterEach, describe, expect, it } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
+
+declare global {
+  interface Window {
+    posthog: {
+      capture: ReturnType<typeof vi.fn>;
+    };
+  }
+}
 import {
-  clearQueue,
+  enqueueWorkoutSave,
+  getQueue,
   getQueueLength,
-  type QueueItem,
+  pruneExhausted,
+  readQueue,
+  writeQueue,
+  removeItem,
+  requeueFront,
   QUEUE_UPDATED_EVENT,
 } from "~/lib/offline-queue";
-import { api } from "~/trpc/react";
 
-const storage = new Map<string, string>();
+// Mock the offline queue library
+vi.mock("~/lib/offline-queue", () => ({
+  enqueueWorkoutSave: vi.fn(),
+  getQueue: vi.fn(),
+  getQueueLength: vi.fn(),
+  requeueFront: vi.fn(),
+  removeItem: vi.fn(),
+  pruneExhausted: vi.fn(),
+  readQueue: vi.fn(),
+  writeQueue: vi.fn(),
+  QUEUE_UPDATED_EVENT: "queue-updated",
+}));
 
-function ensureLocalStorage() {
-  if (typeof globalThis.window === "undefined") {
-    (globalThis as any).window = globalThis;
-  }
+// Mock the workout cache helpers
+vi.mock("~/lib/workout-cache-helpers", () => ({
+  invalidateWorkoutDependentCaches: vi.fn(),
+}));
 
-  const localStorageMock: Storage = {
-    getItem: (key: string) => (storage.has(key) ? storage.get(key)! : null),
-    setItem: (key: string, value: string) => {
-      storage.set(key, String(value));
+// Mock the tRPC API
+vi.mock("~/trpc/react", () => ({
+  api: {
+    useUtils: vi.fn(() => ({
+      workouts: {
+        invalidate: vi.fn(),
+      },
+    })),
+    workouts: {
+      batchSave: {
+        useMutation: vi.fn(() => ({
+          mutateAsync: vi.fn(),
+        })),
+      },
     },
-    removeItem: (key: string) => {
-      storage.delete(key);
-    },
-    clear: () => {
-      storage.clear();
-    },
-    key: (index: number) => Array.from(storage.keys())[index] ?? null,
-    get length() {
-      return storage.size;
-    },
-  };
+  },
+}));
 
-  Object.defineProperty(globalThis, "localStorage", {
-    value: localStorageMock,
-    configurable: true,
-  });
-  Object.defineProperty(window, "localStorage", {
-    value: localStorageMock,
-    configurable: true,
-  });
-}
-
-function createQueueItem(overrides: Partial<QueueItem> = {}): QueueItem {
-  return {
-    id: overrides.id ?? "queue-item-1",
-    type: "workout_save",
-    payload:
-      overrides.payload ??
-      ({
-        sessionId: 123,
-        exercises: [
-          {
-            exerciseName: "Bench Press",
-            sets: [{ id: "set-1", weight: 80, reps: 8, unit: "kg" as const }],
-            unit: "kg" as const,
-          },
-        ],
-      } satisfies QueueItem["payload"]),
-    attempts: overrides.attempts ?? 0,
-    lastError: overrides.lastError,
-    createdAt: overrides.createdAt ?? Date.now(),
-    updatedAt: overrides.updatedAt ?? Date.now(),
-  };
-}
+// Mock window event listeners
+const mockSetInterval = vi.fn();
+const mockClearInterval = vi.fn();
+const mockAddEventListener = vi.fn();
+const mockRemoveEventListener = vi.fn();
 
 describe("useOfflineSaveQueue", () => {
-  let queryClient: QueryClient;
-  let wrapper: React.ComponentType<{ children: React.ReactNode }>;
-  const originalUseUtils = api.useUtils;
-  const originalSaveUseMutation = api.workouts.save.useMutation;
-  const originalBatchSaveUseMutation = api.workouts.batchSave.useMutation;
+  const mockEnqueueWorkoutSave = enqueueWorkoutSave as any;
+  const mockGetQueue = getQueue as any;
+  const mockGetQueueLength = getQueueLength as any;
+  const mockPruneExhausted = pruneExhausted as any;
+  const mockReadQueue = readQueue as any;
+  const mockWriteQueue = writeQueue as any;
+  const mockRemoveItem = removeItem as any;
+  const mockRequeueFront = requeueFront as any;
 
   beforeEach(() => {
-    storage.clear();
-    ensureLocalStorage();
-    clearQueue();
-    queryClient = new QueryClient();
+    vi.clearAllMocks();
 
-    // Mock navigator.onLine to false to prevent automatic flush on mount
-    Object.defineProperty(navigator, "onLine", {
-      value: false,
-      configurable: true,
-    });
-    const trpcClient = api.createClient({
-      links: [
-        () => {
-          return () => {
-            throw new Error("TRPC client should not be called in hooks tests");
-          };
+    // Only set up window mocks if window exists (for SSR tests)
+    if (typeof window !== "undefined") {
+      // Mock PostHog
+      Object.defineProperty(window, "posthog", {
+        value: {
+          capture: vi.fn(),
         },
-      ],
-    });
+        writable: true,
+      });
 
-    wrapper = ({ children }) => (
-      <QueryClientProvider client={queryClient}>
-        <api.Provider client={trpcClient} queryClient={queryClient}>
-          {children}
-        </api.Provider>
-      </QueryClientProvider>
-    );
+      // Mock navigator
+      Object.defineProperty(window, "navigator", {
+        value: {
+          onLine: true,
+        },
+        writable: true,
+      });
 
-    const resolved = vi.fn().mockResolvedValue(undefined);
-    const utilsStub = {
-      templates: {
-        getAll: { invalidate: resolved },
-      },
-      workouts: {
-        getRecent: { invalidate: resolved },
-        getById: { invalidate: resolved },
-      },
-      progress: {
-        getWorkoutDates: { invalidate: resolved },
-        getVolumeProgression: { invalidate: resolved },
-        getConsistencyStats: { invalidate: resolved },
-        getPersonalRecords: { invalidate: resolved },
-      },
-      insights: {
-        getExerciseInsights: { invalidate: resolved },
-        getSessionInsights: { invalidate: resolved },
-      },
-      sessionDebriefs: {
-        listRecent: { invalidate: resolved },
-        listBySession: { invalidate: resolved },
-      },
-      healthAdvice: {
-        getHistory: { invalidate: resolved },
-        getBySessionId: { invalidate: resolved },
-      },
-      wellness: {
-        getHistory: { invalidate: resolved },
-        getStats: { invalidate: resolved },
-        getBySessionId: { invalidate: resolved },
-      },
-    };
+      vi.spyOn(window, "addEventListener").mockImplementation(
+        mockAddEventListener,
+      );
+      vi.spyOn(window, "removeEventListener").mockImplementation(
+        mockRemoveEventListener,
+      );
+    }
 
-    (api as unknown as { useUtils: () => typeof utilsStub }).useUtils = vi
-      .fn()
-      .mockReturnValue(utilsStub);
-    (
-      api.workouts.save as unknown as {
-        useMutation: () => { mutateAsync: ReturnType<typeof vi.fn> };
-      }
-    ).useMutation = vi.fn().mockReturnValue({
-      mutateAsync: vi.fn(),
-    });
-    (
-      api.workouts.batchSave as unknown as {
-        useMutation: () => { mutateAsync: ReturnType<typeof vi.fn> };
-      }
-    ).useMutation = vi.fn().mockReturnValue({
-      mutateAsync: vi.fn(),
+    // Mock document properties (only if document exists)
+    if (typeof document !== "undefined") {
+      Object.defineProperty(document, "hidden", {
+        value: false,
+        writable: true,
+      });
+
+      vi.spyOn(document, "addEventListener");
+      vi.spyOn(document, "removeEventListener");
+    }
+
+    vi.spyOn(global, "setInterval").mockImplementation(mockSetInterval);
+    vi.spyOn(global, "clearInterval").mockImplementation(mockClearInterval);
+
+    // Default mock implementations
+    mockGetQueueLength.mockReturnValue(0);
+    mockGetQueue.mockReturnValue([]);
+    mockEnqueueWorkoutSave.mockReturnValue("test-id-123");
+
+    // Mock localStorage operations
+    Object.defineProperty(globalThis, "localStorage", {
+      value: {
+        removeItem: vi.fn(),
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+      },
+      writable: true,
+      configurable: true,
     });
   });
 
   afterEach(() => {
-    storage.clear();
-    clearQueue();
-    queryClient.clear();
-    if (originalUseUtils) {
-      (api as unknown as { useUtils: typeof originalUseUtils }).useUtils =
-        originalUseUtils;
-    } else {
-      delete (api as Record<string, unknown>).useUtils;
-    }
-    if (originalSaveUseMutation) {
-      (
-        api.workouts.save as unknown as {
-          useMutation: typeof originalSaveUseMutation;
-        }
-      ).useMutation = originalSaveUseMutation;
-    } else {
-      delete (api.workouts.save as Record<string, unknown>).useMutation;
-    }
-    if (originalBatchSaveUseMutation) {
-      (
-        api.workouts.batchSave as unknown as {
-          useMutation: typeof originalBatchSaveUseMutation;
-        }
-      ).useMutation = originalBatchSaveUseMutation;
-    } else {
-      delete (api.workouts.batchSave as Record<string, unknown>).useMutation;
-    }
     vi.restoreAllMocks();
   });
 
-  it("refreshCount syncs queue state with persisted storage", async () => {
-    const { result } = renderHook(() => useOfflineSaveQueue(), { wrapper });
+  describe("Initial State", () => {
+    it("should initialize with empty queue", () => {
+      mockGetQueueLength.mockReturnValue(0);
+      mockGetQueue.mockReturnValue([]);
 
-    // Wait for any initial effects to complete
-    await waitFor(() => {
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      expect(result.current.queueSize).toBe(0);
+      expect(result.current.status).toBe("idle");
+      expect(result.current.lastError).toBe(null);
+      expect(result.current.items).toEqual([]);
+      expect(result.current.isFlushing).toBe(false);
+    });
+
+    it("should initialize with existing queue items", () => {
+      const mockQueue = [
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1 },
+          attempts: 0,
+        },
+        {
+          id: "2",
+          type: "workout_save",
+          payload: { sessionId: 2 },
+          attempts: 0,
+        },
+      ];
+      mockGetQueueLength.mockReturnValue(2);
+      mockGetQueue.mockReturnValue(mockQueue);
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      expect(result.current.queueSize).toBe(2);
+      expect(result.current.items).toEqual(mockQueue);
+    });
+
+    it("should handle server-side rendering (no window)", () => {
+      // Mock server environment
+      const originalWindow = global.window;
+      delete (global as any).window;
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      expect(result.current.queueSize).toBe(0);
+      expect(result.current.items).toEqual([]);
+
+      // Restore window
+      global.window = originalWindow;
+    });
+  });
+
+  describe("enqueue function", () => {
+    it("should enqueue workout and refresh count", () => {
+      mockGetQueueLength.mockReturnValue(1);
+      mockGetQueue.mockReturnValue([{ id: "test-id-123" }]);
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      const payload = { sessionId: 1, exercises: [] };
+
+      act(() => {
+        const id = result.current.enqueue(payload);
+        expect(id).toBe("test-id-123");
+      });
+
+      expect(mockEnqueueWorkoutSave).toHaveBeenCalledWith(payload);
+      expect(mockGetQueueLength).toHaveBeenCalled();
+      expect(mockGetQueue).toHaveBeenCalled();
+    });
+  });
+
+  describe("refreshCount function", () => {
+    it("should refresh queue size and items", () => {
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      mockGetQueueLength.mockReturnValue(3);
+      mockGetQueue.mockReturnValue([{ id: "1" }, { id: "2" }, { id: "3" }]);
+
+      act(() => {
+        result.current.refreshCount();
+      });
+
+      expect(result.current.queueSize).toBe(3);
+      expect(result.current.items).toHaveLength(3);
+    });
+
+    it("should handle server environment", () => {
+      const originalWindow = global.window;
+      delete (global as any).window;
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      act(() => {
+        result.current.refreshCount();
+      });
+
+      expect(mockGetQueueLength).not.toHaveBeenCalled();
+      expect(mockGetQueue).not.toHaveBeenCalled();
+
+      global.window = originalWindow;
+    });
+  });
+
+  describe("flush function", () => {
+    it("should handle empty queue", async () => {
+      mockGetQueue.mockReturnValue([]);
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      expect(result.current.status).toBe("done");
+      expect(mockPruneExhausted).toHaveBeenCalled();
+    });
+
+    it("should process queue items successfully", async () => {
+      const mockQueue = [
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+        {
+          id: "2",
+          type: "workout_save",
+          payload: { sessionId: 2, exercises: [] },
+          attempts: 0,
+        },
+      ];
+      mockGetQueue.mockReturnValue(mockQueue);
+      mockReadQueue.mockReturnValue(mockQueue);
+
+      const mockMutateAsync = vi.fn().mockResolvedValue({ success: true });
+      vi.doMock("~/trpc/react", () => ({
+        api: {
+          useUtils: vi.fn(() => ({
+            workouts: {
+              invalidate: vi.fn(),
+            },
+          })),
+          workouts: {
+            batchSave: {
+              useMutation: vi.fn(() => ({
+                mutateAsync: mockMutateAsync,
+              })),
+            },
+          },
+        },
+      }));
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      expect(mockPruneExhausted).toHaveBeenCalled();
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        workouts: [
+          { sessionId: 1, exercises: [] },
+          { sessionId: 2, exercises: [] },
+        ],
+      });
+      expect(result.current.status).toBe("done");
+    });
+
+    it("should handle batch failures", async () => {
+      const mockQueue = [
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ];
+      mockGetQueue.mockReturnValue(mockQueue);
+      mockReadQueue.mockReturnValue(mockQueue);
+
+      const mockMutateAsync = vi
+        .fn()
+        .mockRejectedValue(new Error("Network error"));
+      vi.doMock("~/trpc/react", () => ({
+        api: {
+          useUtils: vi.fn(() => ({
+            workouts: {
+              invalidate: vi.fn(),
+            },
+          })),
+          workouts: {
+            batchSave: {
+              useMutation: vi.fn(() => ({
+                mutateAsync: mockMutateAsync,
+              })),
+            },
+          },
+        },
+      }));
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      expect(result.current.status).toBe("error");
+      expect(result.current.lastError).toContain("Network or server error");
+    });
+
+    it("should prevent concurrent flushes", async () => {
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      // Start first flush
+      const flushPromise1 = act(async () => {
+        await result.current.flush();
+      });
+
+      // Try to start second flush immediately
+      const flushPromise2 = act(async () => {
+        await result.current.flush();
+      });
+
+      await Promise.all([flushPromise1, flushPromise2]);
+
+      // Should only call pruneExhausted once due to concurrent protection
+      expect(mockPruneExhausted).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle exhausted items (attempts >= 8)", async () => {
+      const mockQueue = [
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 8,
+        },
+      ];
+      mockGetQueue.mockReturnValue(mockQueue);
+      mockReadQueue.mockReturnValue(mockQueue);
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      expect(mockRemoveItem).toHaveBeenCalledWith("1");
+      expect(result.current.lastError).toContain(
+        "Failed to sync workout after 9 attempts",
+      );
+    });
+  });
+
+  describe("Event Listeners", () => {
+    it("should set up event listeners on mount", () => {
+      renderHook(() => useOfflineSaveQueue());
+
+      expect(mockAddEventListener).toHaveBeenCalledWith(
+        "online",
+        expect.any(Function),
+      );
+      expect(mockAddEventListener).toHaveBeenCalledWith(
+        "storage",
+        expect.any(Function),
+      );
+      expect(mockAddEventListener).toHaveBeenCalledWith(
+        QUEUE_UPDATED_EVENT,
+        expect.any(Function),
+      );
+      expect(mockSetInterval).toHaveBeenCalledWith(expect.any(Function), 60000);
+    });
+
+    it("should clean up event listeners on unmount", () => {
+      const { unmount } = renderHook(() => useOfflineSaveQueue());
+
+      unmount();
+
+      expect(mockRemoveEventListener).toHaveBeenCalledWith(
+        "online",
+        expect.any(Function),
+      );
+      expect(mockRemoveEventListener).toHaveBeenCalledWith(
+        "storage",
+        expect.any(Function),
+      );
+      expect(mockRemoveEventListener).toHaveBeenCalledWith(
+        QUEUE_UPDATED_EVENT,
+        expect.any(Function),
+      );
+      expect(mockClearInterval).toHaveBeenCalled();
+    });
+  });
+
+  describe("Automatic Triggers", () => {
+    it("should flush on app start when online and queue has items", async () => {
+      mockGetQueueLength.mockReturnValue(2);
+      mockGetQueue.mockReturnValue([]);
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      // Wait for useEffect to run
+      await waitFor(() => {
+        expect(mockPruneExhausted).toHaveBeenCalled();
+      });
+    });
+
+    it("should not flush on app start when offline", () => {
+      Object.defineProperty(window.navigator, "onLine", {
+        value: false,
+        writable: true,
+      });
+
+      renderHook(() => useOfflineSaveQueue());
+
+      expect(mockPruneExhausted).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Cleanup Functions", () => {
+    it("should clean up obsolete storage keys", () => {
+      const mockLocalStorage = {
+        removeItem: vi.fn(),
+      };
+      vi.stubGlobal("localStorage", mockLocalStorage);
+
+      renderHook(() => useOfflineSaveQueue());
+
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
+        "swole-tracker-offline-queue-v2",
+      );
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
+        "swole-tracker-offline-sessions-v1",
+      );
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
+        "swole-tracker-sync-status-v1",
+      );
+    });
+
+    it("should handle cleanup errors gracefully", () => {
+      const mockLocalStorage = {
+        removeItem: vi.fn().mockImplementation(() => {
+          throw new Error("Storage error");
+        }),
+      };
+      const consoleSpy = vi
+        .spyOn(console, "debug")
+        .mockImplementation(() => {});
+      vi.stubGlobal("localStorage", mockLocalStorage);
+
+      expect(() => {
+        renderHook(() => useOfflineSaveQueue());
+      }).not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to remove obsolete key:",
+        expect.any(String),
+        expect.any(Error),
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("Analytics Integration", () => {
+    it("should capture PostHog events on successful sync", async () => {
+      mockGetQueue.mockReturnValue([
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ]);
+      mockReadQueue.mockReturnValue([
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ]);
+
+      const mockMutateAsync = vi.fn().mockResolvedValue({ success: true });
+      vi.doMock("~/trpc/react", () => ({
+        api: {
+          useUtils: vi.fn(() => ({
+            workouts: {
+              invalidate: vi.fn(),
+            },
+          })),
+          workouts: {
+            batchSave: {
+              useMutation: vi.fn(() => ({
+                mutateAsync: mockMutateAsync,
+              })),
+            },
+          },
+        },
+      }));
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      expect(window.posthog.capture).toHaveBeenCalledWith(
+        "offline_sync_success",
+        {
+          itemsProcessed: 1,
+          timestamp: expect.any(String),
+        },
+      );
+    });
+
+    it("should capture PostHog events on sync error", async () => {
+      mockGetQueue.mockReturnValue([
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ]);
+      mockReadQueue.mockReturnValue([
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ]);
+
+      const mockMutateAsync = vi
+        .fn()
+        .mockRejectedValue(new Error("Network error"));
+      vi.doMock("~/trpc/react", () => ({
+        api: {
+          useUtils: vi.fn(() => ({
+            workouts: {
+              invalidate: vi.fn(),
+            },
+          })),
+          workouts: {
+            batchSave: {
+              useMutation: vi.fn(() => ({
+                mutateAsync: mockMutateAsync,
+              })),
+            },
+          },
+        },
+      }));
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      await act(async () => {
+        await result.current.flush();
+      });
+
+      expect(window.posthog.capture).toHaveBeenCalledWith(
+        "offline_sync_error",
+        {
+          error: "Network or server error",
+          timestamp: expect.any(String),
+        },
+      );
+    });
+
+    it("should handle PostHog errors gracefully", async () => {
+      // Make PostHog throw an error
+      Object.defineProperty(window, "posthog", {
+        value: {
+          capture: vi.fn().mockImplementation(() => {
+            throw new Error("PostHog error");
+          }),
+        },
+        writable: true,
+      });
+
+      mockGetQueue.mockReturnValue([
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ]);
+      mockReadQueue.mockReturnValue([
+        {
+          id: "1",
+          type: "workout_save",
+          payload: { sessionId: 1, exercises: [] },
+          attempts: 0,
+        },
+      ]);
+
+      const mockMutateAsync = vi.fn().mockResolvedValue({ success: true });
+      vi.doMock("~/trpc/react", () => ({
+        api: {
+          useUtils: vi.fn(() => ({
+            workouts: {
+              invalidate: vi.fn(),
+            },
+          })),
+          workouts: {
+            batchSave: {
+              useMutation: vi.fn(() => ({
+                mutateAsync: mockMutateAsync,
+              })),
+            },
+          },
+        },
+      }));
+
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      // Should not throw even if PostHog fails
+      await expect(
+        act(async () => {
+          await result.current.flush();
+        }),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe("Status Management", () => {
+    it("should return correct isFlushing status", () => {
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      expect(result.current.isFlushing).toBe(false);
       expect(result.current.status).toBe("idle");
     });
 
-    expect(result.current.queueSize).toBe(0);
-    expect(result.current.items).toHaveLength(0);
+    it("should transition through status states correctly", async () => {
+      mockGetQueue.mockReturnValue([]);
 
-    const storedItem = createQueueItem({
-      id: "stored-item",
-      payload: {
-        sessionId: 555,
-        exercises: [
-          {
-            exerciseName: "Bench",
-            sets: [{ id: "set-1", weight: 80, reps: 8, unit: "kg" as const }],
-            unit: "kg" as const,
-          },
-        ],
-      },
+      const { result } = renderHook(() => useOfflineSaveQueue());
+
+      const flushPromise = act(async () => {
+        await result.current.flush();
+      });
+
+      // Should be flushing during operation
+      expect(result.current.status).toBe("flushing");
+      expect(result.current.isFlushing).toBe(true);
+
+      await flushPromise;
+
+      // Should be done after successful flush
+      expect(result.current.status).toBe("done");
+
+      // Should return to idle after a short delay
+      await waitFor(
+        () => {
+          expect(result.current.status).toBe("idle");
+          expect(result.current.isFlushing).toBe(false);
+        },
+        { timeout: 1000 },
+      );
     });
-
-    storage.set("offline.queue.v1", JSON.stringify([storedItem]));
-
-    act(() => {
-      result.current.refreshCount();
-    });
-
-    expect(getQueueLength()).toBe(1);
-    expect(result.current.queueSize).toBe(1);
-    expect(result.current.items).toHaveLength(1);
-    expect(result.current.items[0]?.id).toBe("stored-item");
-    expect(result.current.items[0]?.payload.sessionId).toBe(555);
-  });
-
-  it("responds to queue updated events", async () => {
-    const { result } = renderHook(() => useOfflineSaveQueue(), { wrapper });
-
-    const externalItem = createQueueItem({
-      id: "external-item",
-      payload: {
-        sessionId: 321,
-        exercises: [
-          {
-            exerciseName: "Squat",
-            sets: [{ id: "set-1", weight: 100, reps: 6, unit: "kg" as const }],
-            unit: "kg" as const,
-          },
-        ],
-      },
-    });
-
-    storage.set("offline.queue.v1", JSON.stringify([externalItem]));
-
-    act(() => {
-      result.current.refreshCount();
-    });
-
-    expect(result.current.queueSize).toBe(1);
-    expect(result.current.items).toHaveLength(1);
-    expect(result.current.items[0]?.id).toBe("external-item");
-    expect(result.current.items[0]?.payload.sessionId).toBe(321);
   });
 });

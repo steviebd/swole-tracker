@@ -1,4 +1,4 @@
-import type { BatchItem, BatchResponse } from "drizzle-orm/batch";
+import type { BatchItem } from "drizzle-orm/batch";
 
 // Reduced to 70 for safety margin (was 90)
 // Reasoning: sessionExercises has ~15 columns
@@ -6,8 +6,6 @@ import type { BatchItem, BatchResponse } from "drizzle-orm/batch";
 // - 90 / 15 = 6 rows per batch (risky at D1 limit)
 const DEFAULT_SQLITE_VARIABLE_LIMIT = 70;
 const DEFAULT_D1_BATCH_LIMIT = 50;
-
-import { type DrizzleDb } from "./index";
 
 export const SQLITE_VARIABLE_LIMIT = DEFAULT_SQLITE_VARIABLE_LIMIT;
 export const DEFAULT_SINGLE_COLUMN_CHUNK_SIZE = DEFAULT_SQLITE_VARIABLE_LIMIT;
@@ -116,16 +114,23 @@ export async function chunkedInsert<T>(
   }
 }
 
-export async function whereInChunks<T>(
+export async function whereInChunks<T, R>(
   values: readonly T[],
-  callback: (chunk: T[]) => Promise<unknown>,
+  callback: (chunk: T[]) => Promise<R | R[] | void>,
   limit = DEFAULT_SINGLE_COLUMN_CHUNK_SIZE,
-): Promise<void> {
-  if (values.length === 0) return;
+): Promise<R[]> {
+  if (values.length === 0) return [];
 
   const chunkSize = Math.max(1, Math.min(limit, SQLITE_VARIABLE_LIMIT));
+  const results: R[] = [];
   for (const chunk of chunkArray(values, chunkSize)) {
     if (chunk.length === 0) continue;
-    await callback(chunk);
+    const result = await callback(chunk);
+    if (Array.isArray(result)) {
+      results.push(...result);
+    } else if (result !== undefined && result !== null) {
+      results.push(result as R);
+    }
   }
+  return results;
 }

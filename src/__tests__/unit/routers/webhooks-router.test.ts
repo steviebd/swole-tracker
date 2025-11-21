@@ -213,10 +213,10 @@ describe("webhooksRouter", () => {
       const result = await caller.getStats();
 
       expect(result.total).toBe(4);
-      expect(result.byStatus.processed).toBe(3);
-      expect(result.byStatus.error).toBe(1);
-      expect(result.byProvider.whoop).toBe(3);
-      expect(result.byProvider.strava).toBe(1);
+      expect(result.byStatus["processed"]).toBe(3);
+      expect(result.byStatus["error"]).toBe(1);
+      expect(result.byProvider["whoop"]).toBe(3);
+      expect(result.byProvider["strava"]).toBe(1);
       expect(result.byEventType["workout.created"]).toBe(2);
       expect(result.byEventType["recovery.updated"]).toBe(1);
       expect(result.byEventType["activity.created"]).toBe(1);

@@ -1,7 +1,11 @@
 import { and, desc, eq, inArray, lte, ne } from "drizzle-orm";
 import { whereInChunks } from "~/server/db/chunk-utils";
 
-import { calculateOneRM, calculateVolumeLoad, isPR } from "~/server/api/utils/exercise-calculations";
+import {
+  calculateOneRM,
+  calculateVolumeLoad,
+  isPR,
+} from "~/server/api/utils/exercise-calculations";
 import {
   healthAdvice,
   sessionDebriefs,
@@ -19,8 +23,12 @@ import type { SessionExerciseData } from "~/server/api/types/exercise-progressio
 import { calculateStreak } from "~/lib/achievements";
 import { logger } from "~/lib/logger";
 import { sessionDebriefContentSchema } from "~/server/api/schemas/health-advice-debrief";
+import {
+  type SessionDebriefExerciseSnapshot,
+  type SessionDebriefStreakSnapshot,
+} from "~/server/api/types/health-advice-debrief";
 
-interface GatherContextArgs {
+export interface GatherContextArgs {
   dbClient: typeof db;
   userId: string;
   sessionId: number;
@@ -39,7 +47,9 @@ const toFiniteNumber = (value: unknown): number | undefined => {
   return parsed === null ? undefined : parsed;
 };
 
-const buildExerciseSet = (set: typeof sessionExercises.$inferSelect): SessionDebriefExerciseSet => {
+const buildExerciseSet = (
+  set: typeof sessionExercises.$inferSelect,
+): SessionDebriefExerciseSet => {
   const weight = toNumber(set.weight);
   const reps = set.reps ?? null;
   const sets = set.sets ?? 1;
@@ -59,30 +69,29 @@ const buildExerciseSet = (set: typeof sessionExercises.$inferSelect): SessionDeb
 const computeExerciseSnapshot = (
   exerciseName: string,
   templateExerciseId: number | null,
-  sets: typeof sessionExercises.$inferSelect[],
+  sets: (typeof sessionExercises.$inferSelect)[],
   historicalSets: SessionDebriefExerciseSet[],
 ) => {
   const mappedSets = sets.map(buildExerciseSet);
   const totalVolume = mappedSets.reduce((sum, set) => sum + set.volume, 0);
-  const bestSet = mappedSets.reduce((prev, curr) =>
-    curr.weight !== null && (prev?.weight ?? 0) < curr.weight ? curr : prev,
-  undefined as SessionDebriefExerciseSet | undefined);
+  const bestSet = mappedSets.reduce(
+    (prev, curr) =>
+      curr.weight !== null && (prev?.weight ?? 0) < curr.weight ? curr : prev,
+    undefined as SessionDebriefExerciseSet | undefined,
+  );
 
-  const bestVolumeSet = mappedSets.reduce((prev, curr) =>
-    curr.volume > (prev?.volume ?? 0) ? curr : prev,
-  undefined as SessionDebriefExerciseSet | undefined);
+  const bestVolumeSet = mappedSets.reduce(
+    (prev, curr) => (curr.volume > (prev?.volume ?? 0) ? curr : prev),
+    undefined as SessionDebriefExerciseSet | undefined,
+  );
 
   const estimatedOneRm = mappedSets
     .map((set) =>
-      set.weight && set.reps
-        ? calculateOneRM(set.weight, set.reps)
-        : null,
+      set.weight && set.reps ? calculateOneRM(set.weight, set.reps) : null,
     )
     .filter((value): value is number => value !== null);
 
-  const bestOneRm = estimatedOneRm.length
-    ? Math.max(...estimatedOneRm)
-    : null;
+  const bestOneRm = estimatedOneRm.length ? Math.max(...estimatedOneRm) : null;
 
   // Build historical best snapshot
   let historicalBestVolume: number | null = null;
@@ -95,14 +104,13 @@ const computeExerciseSnapshot = (
       0,
     );
     historicalBestWeight = historicalSets.reduce(
-      (max, set) => (set.weight !== null && set.weight > max ? set.weight : max),
+      (max, set) =>
+        set.weight !== null && set.weight > max ? set.weight : max,
       0,
     );
     const historicalOneRms = historicalSets
       .map((set) =>
-        set.weight && set.reps
-          ? calculateOneRM(set.weight, set.reps)
-          : null,
+        set.weight && set.reps ? calculateOneRM(set.weight, set.reps) : null,
       )
       .filter((value): value is number => value !== null);
     historicalBestOneRm = historicalOneRms.length
@@ -171,7 +179,7 @@ const computeExerciseSnapshot = (
     }
   }
 
-  return {
+  const result: SessionDebriefExerciseSnapshot = {
     exerciseName,
     templateExerciseId,
     totalVolume,
@@ -179,7 +187,6 @@ const computeExerciseSnapshot = (
     bestWeight: bestSet?.weight ?? null,
     bestReps: bestSet?.reps ?? null,
     sets: mappedSets.sort((a, b) => a.setOrder - b.setOrder),
-    historicalSets: historicalSets.length ? [...historicalSets] : undefined,
     prFlags,
     previousBest: {
       volume: historicalBestVolume,
@@ -187,6 +194,12 @@ const computeExerciseSnapshot = (
       estimatedOneRm: historicalBestOneRm,
     },
   } satisfies SessionDebriefContext["exercises"][number];
+
+  if (historicalSets.length > 0) {
+    result.historicalSets = [...historicalSets];
+  }
+
+  return result;
 };
 
 type SessionExerciseDataLike = {
@@ -236,79 +249,82 @@ export async function gatherSessionDebriefContext({
       sessionId: number;
     }> = [];
 
-    await whereInChunks(
-      exerciseNames,
-      async (nameChunk) => {
-        if (rawHistorical.length >= 200) return;
+    await whereInChunks(exerciseNames, async (nameChunk) => {
+      if (rawHistorical.length >= 200) return;
 
-        const chunkRows = await dbClient
-          .select({
-            exerciseName: sessionExercises.exerciseName,
-            weight: sessionExercises.weight,
-            reps: sessionExercises.reps,
-            sets: sessionExercises.sets,
-            unit: sessionExercises.unit,
-            setOrder: sessionExercises.setOrder,
-            sessionId: sessionExercises.sessionId,
-          })
-          .from(sessionExercises)
-          .innerJoin(
-            workoutSessions,
-            eq(sessionExercises.sessionId, workoutSessions.id),
-          )
-          .where(
-            and(
-              eq(sessionExercises.user_id, userId),
-              inArray(sessionExercises.exerciseName, nameChunk),
-              ne(sessionExercises.sessionId, sessionId),
-              lte(workoutSessions.workoutDate, sessionDate),
-            ),
-          )
-          .orderBy(desc(workoutSessions.workoutDate))
-          .limit(200);
+      const chunkRows = await dbClient
+        .select({
+          exerciseName: sessionExercises.exerciseName,
+          weight: sessionExercises.weight,
+          reps: sessionExercises.reps,
+          sets: sessionExercises.sets,
+          unit: sessionExercises.unit,
+          setOrder: sessionExercises.setOrder,
+          sessionId: sessionExercises.sessionId,
+        })
+        .from(sessionExercises)
+        .innerJoin(
+          workoutSessions,
+          eq(sessionExercises.sessionId, workoutSessions.id),
+        )
+        .where(
+          and(
+            eq(sessionExercises.user_id, userId),
+            inArray(sessionExercises.exerciseName, nameChunk),
+            ne(sessionExercises.sessionId, sessionId),
+            lte(workoutSessions.workoutDate, sessionDate),
+          ),
+        )
+        .orderBy(desc(workoutSessions.workoutDate))
+        .limit(200);
 
-        rawHistorical = rawHistorical.concat(chunkRows);
-        if (rawHistorical.length > 200) {
-          rawHistorical = rawHistorical.slice(0, 200);
-        }
-      },
-    );
+      rawHistorical = rawHistorical.concat(chunkRows);
+      if (rawHistorical.length > 200) {
+        rawHistorical = rawHistorical.slice(0, 200);
+      }
+    });
 
-    historicalSets = rawHistorical.reduce<Record<string, SessionDebriefExerciseSet[]>>(
-      (acc, item) => {
-        const current = acc[item.exerciseName] ?? [];
-        current.push({
-          setOrder: item.setOrder ?? 0,
-          weight: toNumber(item.weight),
-          reps: item.reps ?? null,
-          sets: item.sets ?? 1,
-          unit: (item.unit as "kg" | "lbs") ?? "kg",
-          volume: calculateVolumeLoad(item.sets ?? 1, item.reps ?? 0, toNumber(item.weight) ?? 0),
-        });
-        acc[item.exerciseName] = current;
-        return acc;
-      },
-      {},
-    );
+    historicalSets = rawHistorical.reduce<
+      Record<string, SessionDebriefExerciseSet[]>
+    >((acc, item) => {
+      const current = acc[item.exerciseName] ?? [];
+      current.push({
+        setOrder: item.setOrder ?? 0,
+        weight: toNumber(item.weight),
+        reps: item.reps ?? null,
+        sets: item.sets ?? 1,
+        unit: (item.unit as "kg" | "lbs") ?? "kg",
+        volume: calculateVolumeLoad(
+          item.sets ?? 1,
+          item.reps ?? 0,
+          toNumber(item.weight) ?? 0,
+        ),
+      });
+      acc[item.exerciseName] = current;
+      return acc;
+    }, {});
   }
 
-  const groupedExercises = session.exercises.reduce(
-    (acc, set) => {
-      const bucket = acc.get(set.exerciseName) ?? { sets: [], templateExerciseId: set.templateExerciseId };
-      bucket.sets.push(set);
-      bucket.templateExerciseId ??= set.templateExerciseId;
-      acc.set(set.exerciseName, bucket);
-      return acc;
-    },
-    new Map<string, { sets: typeof sessionExercises.$inferSelect[]; templateExerciseId: number | null }>(),
-  );
+  const groupedExercises = session.exercises.reduce((acc, set) => {
+    const bucket = acc.get(set.exerciseName) ?? {
+      sets: [],
+      templateExerciseId: set.templateExerciseId,
+    };
+    bucket.sets.push(set);
+    bucket.templateExerciseId ??= set.templateExerciseId;
+    acc.set(set.exerciseName, bucket);
+    return acc;
+  }, new Map<string, { sets: (typeof sessionExercises.$inferSelect)[]; templateExerciseId: number | null }>());
 
-  const exerciseEntries = Array.from(
-    groupedExercises.entries(),
-  ) as Array<[
-    string,
-    { sets: typeof sessionExercises.$inferSelect[]; templateExerciseId: number | null },
-  ]>;
+  const exerciseEntries = Array.from(groupedExercises.entries()) as Array<
+    [
+      string,
+      {
+        sets: (typeof sessionExercises.$inferSelect)[];
+        templateExerciseId: number | null;
+      },
+    ]
+  >;
 
   const exerciseSnapshots = exerciseEntries.map(([name, info]) =>
     computeExerciseSnapshot(
@@ -324,7 +340,9 @@ export async function gatherSessionDebriefContext({
     0,
   );
 
-  const prHighlights = exerciseSnapshots.filter((exercise) => exercise.prFlags.length > 0);
+  const prHighlights = exerciseSnapshots.filter(
+    (exercise) => exercise.prFlags.length > 0,
+  );
 
   const sevenDaysAgo = new Date(sessionDate);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
@@ -334,15 +352,23 @@ export async function gatherSessionDebriefContext({
   const adherenceSessions = await dbClient
     .select({ workoutDate: workoutSessions.workoutDate })
     .from(workoutSessions)
-    .where(and(eq(workoutSessions.user_id, userId), lte(workoutSessions.workoutDate, sessionDate)))
+    .where(
+      and(
+        eq(workoutSessions.user_id, userId),
+        lte(workoutSessions.workoutDate, sessionDate),
+      ),
+    )
     .orderBy(desc(workoutSessions.workoutDate))
     .limit(90);
 
   const sessionsLast7 = adherenceSessions.filter(
-    (entry) => entry.workoutDate >= sevenDaysAgo && entry.workoutDate <= sessionDate,
+    (entry) =>
+      entry.workoutDate >= sevenDaysAgo && entry.workoutDate <= sessionDate,
   ).length;
   const sessionsLast28 = adherenceSessions.filter(
-    (entry) => entry.workoutDate >= twentyEightDaysAgo && entry.workoutDate <= sessionDate,
+    (entry) =>
+      entry.workoutDate >= twentyEightDaysAgo &&
+      entry.workoutDate <= sessionDate,
   ).length;
 
   const weeklyFrequency = sessionsLast28 / 4;
@@ -385,20 +411,41 @@ export async function gatherSessionDebriefContext({
   });
 
   let healthAdviceSummary: SessionDebriefHealthAdviceSummary | undefined;
-  if (healthAdviceRow?.response && typeof healthAdviceRow.response === "object") {
+  if (
+    healthAdviceRow?.response &&
+    typeof healthAdviceRow.response === "object"
+  ) {
     try {
       const readiness = (healthAdviceRow.response as any).readiness?.rho;
-      const overload = (healthAdviceRow.response as any).readiness?.overload_multiplier;
+      const overload = (healthAdviceRow.response as any).readiness
+        ?.overload_multiplier;
       const summary = (healthAdviceRow.response as any).summary;
-      const flags = Array.isArray((healthAdviceRow.response as any).readiness?.flags)
+      const flags = Array.isArray(
+        (healthAdviceRow.response as any).readiness?.flags,
+      )
         ? ((healthAdviceRow.response as any).readiness.flags as string[])
         : undefined;
-      healthAdviceSummary = {
-        readinessScore: toFiniteNumber(readiness),
-        overloadMultiplier: toFiniteNumber(overload),
-        summary: typeof summary === "string" ? summary : undefined,
-        focusFlags: flags,
-      };
+      const healthAdviceResult: SessionDebriefHealthAdviceSummary = {};
+
+      if (flags) {
+        healthAdviceResult.focusFlags = flags;
+      }
+
+      const readinessScoreNum = toFiniteNumber(readiness);
+      if (readinessScoreNum !== undefined) {
+        healthAdviceResult.readinessScore = readinessScoreNum;
+      }
+
+      const overloadMultiplierNum = toFiniteNumber(overload);
+      if (overloadMultiplierNum !== undefined) {
+        healthAdviceResult.overloadMultiplier = overloadMultiplierNum;
+      }
+
+      if (typeof summary === "string") {
+        healthAdviceResult.summary = summary;
+      }
+
+      healthAdviceSummary = healthAdviceResult;
     } catch (error) {
       logger.warn("Failed to parse health advice response for debrief", {
         sessionId,
@@ -439,18 +486,33 @@ export async function gatherSessionDebriefContext({
       weeklyFrequency: Number(weeklyFrequency.toFixed(2)),
       rollingCompliance: Math.round(rollingCompliance),
     },
-    streak: {
-      current: streakInfo.current ?? 0,
-      longest: streakInfo.longest ?? 0,
-      lastWorkoutDate: streakInfo.lastWorkoutDate?.toISOString(),
-    },
-    healthAdvice: healthAdviceSummary,
+    streak: (() => {
+      const streakResult: SessionDebriefStreakSnapshot = {
+        current: streakInfo.current ?? 0,
+        longest: streakInfo.longest ?? 0,
+      };
+
+      if (streakInfo.lastWorkoutDate) {
+        streakResult.lastWorkoutDate = streakInfo.lastWorkoutDate.toISOString();
+      }
+
+      return streakResult;
+    })(),
     previousDebrief: previousDebrief ?? null,
   };
 
-  return {
+  if (healthAdviceSummary) {
+    context.healthAdvice = healthAdviceSummary;
+  }
+
+  const payload: SessionDebriefGenerationPayload = {
     context,
     locale,
-    timezone,
-  } satisfies SessionDebriefGenerationPayload;
+  };
+
+  if (timezone !== undefined) {
+    payload.timezone = timezone;
+  }
+
+  return payload;
 }

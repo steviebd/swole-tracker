@@ -121,7 +121,12 @@ async function refreshWhoopIntegrationIfNeeded(
       });
     }
 
-    return { integration, rotationError: rotationResult.error };
+    const result: { integration: typeof integration; rotationError?: string } =
+      { integration };
+    if (rotationResult.error) {
+      result.rotationError = rotationResult.error;
+    }
+    return result;
   }
 
   if (rotationResult.rotated) {
@@ -291,13 +296,13 @@ export const whoopRouter = createTRPCRouter({
 
   getWebhookInfo: protectedProcedure.query(async ({ ctx: _ctx }) => {
     // Get the base URL for the webhook endpoint
-    const webhookUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/webhooks/whoop`
-      : `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/webhooks/whoop`;
+    const webhookUrl = process.env["VERCEL_URL"]
+      ? `https://${process.env["VERCEL_URL"]}/api/webhooks/whoop`
+      : `${process.env["NEXTAUTH_URL"] || "http://localhost:3000"}/api/webhooks/whoop`;
 
     return {
       webhookUrl,
-      isConfigured: !!process.env.WHOOP_WEBHOOK_SECRET,
+      isConfigured: !!process.env["WHOOP_WEBHOOK_SECRET"],
       supportedEvents: [
         "workout.created",
         "workout.updated",

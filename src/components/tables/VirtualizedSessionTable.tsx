@@ -166,7 +166,7 @@ export function VirtualizedSessionTable({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onSortingChange,
+    ...(onSortingChange && { onSortingChange }),
     state: {
       sorting,
     },

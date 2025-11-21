@@ -778,11 +778,18 @@ export function WorkoutSessionWithHealthAdvice({
         sessionId={sessionId}
       />
 
-      <WorkoutSessionStickyHeader
-        templateName={templateName}
-        elapsedTime={elapsedTime}
-        readiness={advice?.readiness.rho}
-      />
+      {advice?.readiness.rho !== undefined ? (
+        <WorkoutSessionStickyHeader
+          templateName={templateName}
+          elapsedTime={elapsedTime}
+          readiness={advice.readiness.rho}
+        />
+      ) : (
+        <WorkoutSessionStickyHeader
+          templateName={templateName}
+          elapsedTime={elapsedTime}
+        />
+      )}
 
       {sessionState ? (
         <WorkoutSessionWithState sessionId={sessionId} state={sessionState} />
@@ -946,7 +953,9 @@ function WellnessModals({
         isWhoopConnected={whoopStatus.isConnected}
         onConnectWhoop={onConnectWhoop}
         isSubmitting={isSubmittingManual}
-        submitError={manualSubmitError ?? undefined}
+        {...(manualSubmitError !== null && {
+          submitError: manualSubmitError,
+        })}
         sessionId={sessionId}
       />
     </>
@@ -992,11 +1001,15 @@ function WorkoutSessionStickyHeader({
 
 function ErrorNotice({ message }: { message: string }) {
   const errorClasses = getStatusClasses("error");
-  
+
   return (
-    <div className={`glass-surface rounded-lg border ${errorClasses.border}/40 p-4 ${errorClasses.text}`}>
-      <h3 className="font-semibold text-content-primary">Health Advice Error</h3>
-      <p className="mt-1 text-sm text-content-primary">{message}</p>
+    <div
+      className={`glass-surface rounded-lg border ${errorClasses.border}/40 p-4 ${errorClasses.text}`}
+    >
+      <h3 className="text-content-primary font-semibold">
+        Health Advice Error
+      </h3>
+      <p className="text-content-primary mt-1 text-sm">{message}</p>
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { WorkoutSessionWithHealthAdvice } from "~/app/_components/WorkoutSession
 
 type FetchHandler = (
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: RequestInit & { signal?: AbortSignal | null },
 ) => Promise<Response>;
 
 interface WorkOSUser {
@@ -78,6 +78,12 @@ const mockWorkoutSessionContext = {
       theme_preference: "system",
       language_preference: "en",
       timezone: "UTC",
+      warmupStrategy: "history",
+      warmupSetsCount: 3,
+      warmupPercentages: "[40, 60, 80]",
+      warmupRepsStrategy: "match_working",
+      warmupFixedReps: 5,
+      enableMovementPatternSharing: false,
     },
     saveWorkout: { mutateAsync: vi.fn() } as any,
     deleteWorkout: { mutateAsync: vi.fn() } as any,
@@ -359,7 +365,7 @@ async function renderWorkoutSessionWithHealthAdvice(
       httpBatchLink({
         url: "http://mock-trpc",
         transformer: SuperJSON,
-        fetch: fetchImpl,
+        fetch: fetchImpl as any,
       }),
     ],
   });
@@ -1012,12 +1018,9 @@ describe("WorkoutSessionWithHealthAdvice", () => {
 
     it("handles missing workout session gracefully", async () => {
       // Mock workout session as not found
-      vi.mocked(api.workouts.getById.useQuery).mockReturnValue({
-        data: null,
-        isLoading: false,
-        error: null,
-        trpc: { path: "" },
-      });
+      vi.mocked(api.workouts.getById.useQuery).mockReturnValue(
+        createMockQuery(null, false, null) as any,
+      );
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1103,7 +1106,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         isLoading: false,
         error: null,
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1129,7 +1132,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         isLoading: false,
         error: null,
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1156,7 +1159,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
         isLoading: false,
         error: null,
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1372,7 +1375,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       vi.mocked(api.wellness.save.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Database error")),
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1604,12 +1607,12 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       vi.mocked(api.wellness.save.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockResolvedValue({ id: 123 }),
         trpc: { path: "" },
-      });
+      } as any);
 
       vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1652,7 +1655,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1694,7 +1697,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
       vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
         mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
         trpc: { path: "" },
-      });
+      } as any);
 
       const fetchImpl: FetchHandler = async () =>
         createResponse({
@@ -1719,12 +1722,12 @@ describe("WorkoutSessionWithHealthAdvice", () => {
     vi.mocked(api.wellness.save.useMutation).mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue({ id: 123 }),
       trpc: { path: "" },
-    });
+    } as any);
 
     vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
       mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
       trpc: { path: "" },
-    });
+    } as any);
 
     const fetchImpl: FetchHandler = async () =>
       createResponse({
@@ -1767,7 +1770,7 @@ describe("WorkoutSessionWithHealthAdvice", () => {
     vi.mocked(api.suggestions.trackInteraction.useMutation).mockReturnValue({
       mutateAsync: vi.fn().mockRejectedValue(new Error("Tracking failed")),
       trpc: { path: "" },
-    });
+    } as any);
 
     const fetchImpl: FetchHandler = async () =>
       createResponse({

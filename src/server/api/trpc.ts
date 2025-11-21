@@ -11,7 +11,6 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { SessionCookie } from "~/lib/session-cookie";
-import type { D1Database } from "@cloudflare/workers-types";
 
 import { createDb, db as fallbackDb, getD1Binding } from "~/server/db";
 import { logger, logApiCall } from "~/lib/logger";
@@ -150,7 +149,9 @@ export const t = initTRPC.context<TRPCContext>().create({
         path,
         type,
         zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+          error.cause instanceof ZodError
+            ? (error.cause.flatten as any)()
+            : null,
       },
     };
 
@@ -161,7 +162,7 @@ export const t = initTRPC.context<TRPCContext>().create({
 
     // In tests, surface full stack to console to diagnose failing chains
     const isTest =
-      Boolean(process.env.VITEST) || process.env.NODE_ENV === "test";
+      Boolean(process.env["VITEST"]) || process.env.NODE_ENV === "test";
     if (level === "error") {
       logger.error("tRPC internal error", error, {
         path,

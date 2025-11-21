@@ -75,56 +75,67 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    // Node environment
+    NODE_ENV: process.env["NODE_ENV"],
     // Cloudflare Workers environment
-    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
-    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: process.env["CLOUDFLARE_ACCOUNT_ID"],
+    CLOUDFLARE_API_TOKEN: process.env["CLOUDFLARE_API_TOKEN"],
     // D1 Database binding (provided by Workers runtime)
-    DB: process.env.DB,
+    DB: process.env["DB"],
 
     // WorkOS Authentication
-    WORKOS_API_KEY: process.env.WORKOS_API_KEY,
-    WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID,
+    WORKOS_API_KEY: process.env["WORKOS_API_KEY"],
+    WORKOS_CLIENT_ID: process.env["WORKOS_CLIENT_ID"],
 
-    // Worker session management
-    WORKER_SESSION_SECRET: process.env.WORKER_SESSION_SECRET,
+    // Session management
+    WORKER_SESSION_SECRET: process.env["WORKER_SESSION_SECRET"],
 
-    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    // Application URLs
+    NEXT_PUBLIC_SITE_URL: process.env["NEXT_PUBLIC_SITE_URL"],
+    NEXT_PUBLIC_POSTHOG_KEY: process.env["NEXT_PUBLIC_POSTHOG_KEY"],
+    NEXT_PUBLIC_POSTHOG_HOST: process.env["NEXT_PUBLIC_POSTHOG_HOST"],
 
-    DATABASE_URL: process.env.DATABASE_URL,
-    NODE_ENV: process.env.NODE_ENV,
-    VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
-    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
-    AI_GATEWAY_MODEL: process.env.AI_GATEWAY_MODEL,
-    AI_GATEWAY_PROMPT: process.env.AI_GATEWAY_PROMPT,
-    AI_GATEWAY_JOKE_MEMORY_NUMBER: process.env.AI_GATEWAY_JOKE_MEMORY_NUMBER,
-    AI_GATEWAY_MODEL_HEALTH: process.env.AI_GATEWAY_MODEL_HEALTH,
-    AI_DEBRIEF_MODEL: process.env.AI_DEBRIEF_MODEL,
-    AI_DEBRIEF_TEMPERATURE: process.env.AI_DEBRIEF_TEMPERATURE,
-    // AI_GATEWAY_PROMPT_HEALTH: process.env.AI_GATEWAY_PROMPT_HEALTH, // Removed: Now using TypeScript module
-    WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID,
-    WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET,
-    WHOOP_REDIRECT_URI: process.env.WHOOP_REDIRECT_URI,
-    WHOOP_SYNC_RATE_LIMIT_PER_HOUR: process.env.WHOOP_SYNC_RATE_LIMIT_PER_HOUR,
-    WHOOP_WEBHOOK_SECRET: process.env.WHOOP_WEBHOOK_SECRET,
+    // Database
+    DATABASE_URL: process.env["DATABASE_URL"],
+
+    // AI Gateway
+    VERCEL_AI_GATEWAY_API_KEY: process.env["VERCEL_AI_GATEWAY_API_KEY"],
+    AI_GATEWAY_API_KEY: process.env["AI_GATEWAY_API_KEY"],
+    AI_GATEWAY_MODEL: process.env["AI_GATEWAY_MODEL"],
+    AI_GATEWAY_PROMPT: process.env["AI_GATEWAY_PROMPT"],
+    AI_GATEWAY_JOKE_MEMORY_NUMBER: process.env["AI_GATEWAY_JOKE_MEMORY_NUMBER"],
+    AI_GATEWAY_MODEL_HEALTH: process.env["AI_GATEWAY_MODEL_HEALTH"],
+    AI_DEBRIEF_MODEL: process.env["AI_DEBRIEF_MODEL"],
+    AI_DEBRIEF_TEMPERATURE: process.env["AI_DEBRIEF_TEMPERATURE"],
+
+    // WHOOP Integration
+    WHOOP_CLIENT_ID: process.env["WHOOP_CLIENT_ID"],
+    WHOOP_CLIENT_SECRET: process.env["WHOOP_CLIENT_SECRET"],
+    WHOOP_REDIRECT_URI: process.env["WHOOP_REDIRECT_URI"],
+    WHOOP_SYNC_RATE_LIMIT_PER_HOUR:
+      process.env["WHOOP_SYNC_RATE_LIMIT_PER_HOUR"],
+    WHOOP_WEBHOOK_SECRET: process.env["WHOOP_WEBHOOK_SECRET"],
+
+    // Rate limiting
     RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR:
-      process.env.RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR,
+      process.env["RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR"],
     RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR:
-      process.env.RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR,
+      process.env["RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR"],
     RATE_LIMIT_API_CALLS_PER_MINUTE:
-      process.env.RATE_LIMIT_API_CALLS_PER_MINUTE,
-    RATE_LIMIT_ENABLED: process.env.RATE_LIMIT_ENABLED,
-    ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY,
+      process.env["RATE_LIMIT_API_CALLS_PER_MINUTE"],
+    RATE_LIMIT_ENABLED: process.env["RATE_LIMIT_ENABLED"],
+
+    // Encryption
+    ENCRYPTION_MASTER_KEY: process.env["ENCRYPTION_MASTER_KEY"],
   },
   /**
    * Environment validation is always enforced for security.
    * Skip validation in development, test, and Vercel preview environments.
    */
   skipValidation:
-    process.env.NODE_ENV === "development" ||
-    process.env.NODE_ENV === "test" ||
-    process.env.VERCEL_ENV === "preview",
+    process.env["NODE_ENV"] === "development" ||
+    process.env["NODE_ENV"] === "test" ||
+    process.env["VERCEL_ENV"] === "preview",
   /**
    * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
    * `SOME_VAR=''` will throw an error.

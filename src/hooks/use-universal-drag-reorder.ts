@@ -420,7 +420,7 @@ export function useUniversalDragReorder<T>(
             "[useUniversalDragReorder] onReorder called with newItems",
             newItems.map((item) => {
               const typedItem = item as Record<string, unknown>;
-              return typedItem.identity ?? typedItem.originalIndex;
+              return typedItem["identity"] ?? typedItem["originalIndex"];
             }),
           );
           onReorder(newItems);

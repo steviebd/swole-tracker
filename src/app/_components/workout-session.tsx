@@ -170,24 +170,60 @@ function WorkoutSessionContent({
       .filter((s) => s.volume && s.volume > 0);
     const bestByVolume = withVolume.sort((a, b) => b.volume - a.volume)[0];
 
-    return {
-      bestWeight: bestByWeight?.weight
-        ? {
-            weight: bestByWeight.weight,
-            reps: bestByWeight.reps,
-            sets: bestByWeight.sets,
-            unit: bestByWeight.unit,
-          }
-        : undefined,
-      bestVolume: bestByVolume
-        ? {
-            volume: bestByVolume.volume,
-            weight: bestByVolume.weight,
-            reps: bestByVolume.reps,
-            unit: bestByVolume.unit,
-          }
-        : undefined,
-    };
+    const result: {
+      bestWeight?: {
+        weight: number;
+        reps?: number;
+        sets?: number;
+        unit: "kg" | "lbs";
+      };
+      bestVolume?: {
+        volume: number;
+        weight?: number;
+        reps?: number;
+        unit: "kg" | "lbs";
+      };
+    } = {};
+
+    if (bestByWeight?.weight) {
+      const weightData: {
+        weight: number;
+        reps?: number;
+        sets?: number;
+        unit: "kg" | "lbs";
+      } = {
+        weight: bestByWeight.weight,
+        unit: bestByWeight.unit,
+      };
+      if (bestByWeight.reps !== undefined) {
+        weightData.reps = bestByWeight.reps;
+      }
+      if (bestByWeight.sets !== undefined) {
+        weightData.sets = bestByWeight.sets;
+      }
+      result.bestWeight = weightData;
+    }
+
+    if (bestByVolume) {
+      const volumeData: {
+        volume: number;
+        weight?: number;
+        reps?: number;
+        unit: "kg" | "lbs";
+      } = {
+        volume: bestByVolume.volume,
+        unit: bestByVolume.unit,
+      };
+      if (bestByVolume.weight !== undefined) {
+        volumeData.weight = bestByVolume.weight;
+      }
+      if (bestByVolume.reps !== undefined) {
+        volumeData.reps = bestByVolume.reps;
+      }
+      result.bestVolume = volumeData;
+    }
+
+    return result;
   };
 
   const openCompleteModal = () => {
@@ -484,12 +520,19 @@ function WorkoutSessionContent({
                 onMoveSet={moveSet}
                 isExpanded={isExpandedNow}
                 onToggleExpansion={toggleExpansion}
-                previousBest={
-                  previousExerciseData.get(exercise.exerciseName)?.best
-                }
-                previousSets={
-                  previousExerciseData.get(exercise.exerciseName)?.sets
-                }
+                {...(() => {
+                  const exerciseData = previousExerciseData.get(
+                    exercise.exerciseName,
+                  );
+                  const result: Record<string, unknown> = {};
+                  if (exerciseData?.best !== undefined) {
+                    result["previousBest"] = exerciseData.best;
+                  }
+                  if (exerciseData?.sets !== undefined) {
+                    result["previousSets"] = exerciseData.sets;
+                  }
+                  return result;
+                })()}
                 readOnly={isReadOnly}
                 onSwipeToBottom={handleSwipeToBottom}
                 swipeSettings={swipeSettings}

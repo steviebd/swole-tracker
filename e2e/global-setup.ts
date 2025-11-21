@@ -11,7 +11,7 @@ async function globalSetup(config: FullConfig) {
     await page.goto(
       config.projects?.[0]?.use?.baseURL || "http://localhost:8787",
     );
-    console.log("Dev server is responding");
+    console.log("✓ Dev server is responding at http://localhost:8787");
   } catch (error) {
     console.error("Dev server not available:", error);
     throw error;

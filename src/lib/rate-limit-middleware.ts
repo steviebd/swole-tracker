@@ -81,7 +81,15 @@ export const asTrpcMiddleware = (handler: RateLimitHandler) =>
   t.middleware(async ({ ctx, next }) => {
     // Execute our plain handler for side-effects and error throwing semantics,
     // then return the original next() result to satisfy tRPC's expected type.
-    await handler({ ctx, next });
+    // Create a clean context object without optional properties that might be undefined
+    const cleanCtx: TRPCContext = {
+      db: ctx.db,
+      user: ctx.user,
+      requestId: ctx.requestId,
+      headers: ctx.headers,
+      ...(ctx.timings && { timings: ctx.timings }),
+    };
+    await handler({ ctx: cleanCtx, next });
     return next();
   });
 
@@ -93,7 +101,15 @@ export const templateRateLimit = t.middleware(async ({ ctx, next }) => {
     windowMs: 60 * 60 * 1000, // 1 hour
     skipIfDisabled: true,
   });
-  await handler({ ctx, next });
+  // Create a clean context object without optional properties that might be undefined
+  const cleanCtx: TRPCContext = {
+    db: ctx.db,
+    user: ctx.user,
+    requestId: ctx.requestId,
+    headers: ctx.headers,
+    ...(ctx.timings && { timings: ctx.timings }),
+  };
+  await handler({ ctx: cleanCtx, next });
   return next();
 });
 
@@ -104,7 +120,15 @@ export const workoutRateLimit = t.middleware(async ({ ctx, next }) => {
     windowMs: 60 * 60 * 1000, // 1 hour
     skipIfDisabled: true,
   });
-  await handler({ ctx, next });
+  // Create a clean context object without optional properties that might be undefined
+  const cleanCtx: TRPCContext = {
+    db: ctx.db,
+    user: ctx.user,
+    requestId: ctx.requestId,
+    headers: ctx.headers,
+    ...(ctx.timings && { timings: ctx.timings }),
+  };
+  await handler({ ctx: cleanCtx, next });
   return next();
 });
 
@@ -115,7 +139,15 @@ export const apiCallRateLimit = t.middleware(async ({ ctx, next }) => {
     windowMs: 60 * 1000, // 1 minute
     skipIfDisabled: false, // Always enforce API call limits
   });
-  await handler({ ctx, next });
+  // Create a clean context object without optional properties that might be undefined
+  const cleanCtx: TRPCContext = {
+    db: ctx.db,
+    user: ctx.user,
+    requestId: ctx.requestId,
+    headers: ctx.headers,
+    ...(ctx.timings && { timings: ctx.timings }),
+  };
+  await handler({ ctx: cleanCtx, next });
   return next();
 });
 
@@ -126,6 +158,14 @@ export const whoopSyncRateLimit = t.middleware(async ({ ctx, next }) => {
     windowMs: 60 * 60 * 1000, // 1 hour
     skipIfDisabled: false, // Always enforce Whoop sync limits
   });
-  await handler({ ctx, next });
+  // Create a clean context object without optional properties that might be undefined
+  const cleanCtx: TRPCContext = {
+    db: ctx.db,
+    user: ctx.user,
+    requestId: ctx.requestId,
+    headers: ctx.headers,
+    ...(ctx.timings && { timings: ctx.timings }),
+  };
+  await handler({ ctx: cleanCtx, next });
   return next();
 });

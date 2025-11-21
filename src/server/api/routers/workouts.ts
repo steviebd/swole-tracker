@@ -8,25 +8,15 @@ import {
   templateExercises,
   exerciseLinks,
   masterExercises,
+  userPreferences,
+  playbookSessions,
 } from "~/server/db/schema";
 import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
 } from "~/server/db/utils";
 // Note: exerciseNameResolutionView replaced with raw SQL queries
-import {
-  eq,
-  desc,
-  and,
-  ne,
-  inArray,
-  gte,
-  or,
-  asc,
-  lt,
-  type SQL,
-  sql,
-} from "drizzle-orm";
+import { eq, desc, and, ne, inArray, gte, asc, lt, or, sql } from "drizzle-orm";
 
 const setInputSchema = z.object({
   id: z.string(),
@@ -49,7 +39,10 @@ const exerciseInputSchema = z.object({
 });
 
 import { logger } from "~/lib/logger";
-import { generateAndPersistDebrief } from "~/server/api/services/session-debrief";
+import {
+  generateAndPersistDebrief,
+  type GenerateDebriefOptions,
+} from "~/server/api/services/session-debrief";
 import {
   chunkArray,
   chunkedBatch,
@@ -115,10 +108,54 @@ export const workoutsRouter = createTRPCRouter({
         },
       });
 
+      // 2. Fetch playbook sessions for these workouts
+      const sessionIds = sessions.map((s) => s.id);
+      let playbookSessionData: any[] = [];
+      if (sessionIds.length > 0 && ctx.db.query?.playbookSessions?.findMany) {
+        try {
+          playbookSessionData = await ctx.db.query.playbookSessions.findMany({
+            where: inArray(playbookSessions.actualWorkoutId, sessionIds),
+            with: {
+              week: {
+                with: {
+                  playbook: {
+                    columns: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.warn("Failed to fetch playbook sessions:", error);
+          playbookSessionData = [];
+        }
+      }
+
+      // 3. Create lookup map for playbook data
+      const playbookSessionMap = new Map(
+        playbookSessionData.map((ps) => [
+          ps.actualWorkoutId,
+          {
+            name: ps.week?.playbook?.name,
+            weekNumber: ps.week?.weekNumber,
+            sessionNumber: ps.sessionNumber,
+          },
+        ]),
+      );
+
+      // Safety check: ensure sessions is defined
+      if (!sessions) {
+        throw new Error("Sessions query returned undefined");
+      }
+
       // 2. Get unique template IDs
       const templateIds = [
         ...new Set(
-          sessions.map((s) => s.templateId).filter((id): id is number => id !== null),
+          sessions
+            .map((s) => s.templateId)
+            .filter((id): id is number => id !== null),
         ),
       ];
 
@@ -143,14 +180,26 @@ export const workoutsRouter = createTRPCRouter({
             })
           : [];
 
-      // 4. Create lookup map
+      // 4. Create lookup maps
       const templateMap = new Map(templates.map((t) => [t.id, t]));
 
-      // 5. Attach templates to sessions
-      const sessionsWithTemplates = sessions.map((session) => ({
-        ...session,
-        template: session.templateId ? templateMap.get(session.templateId) ?? null : null,
-      }));
+      // 5. Attach templates and playbook data to sessions
+      const sessionsWithTemplates = sessions.map((session) => {
+        const playbookData = playbookSessionMap.get(session.id);
+        return {
+          ...session,
+          template: session.templateId
+            ? (templateMap.get(session.templateId) ?? null)
+            : null,
+          playbook: playbookData?.name
+            ? {
+                name: playbookData.name,
+                weekNumber: playbookData.weekNumber,
+                sessionNumber: playbookData.sessionNumber,
+              }
+            : null,
+        };
+      });
 
       return sessionsWithTemplates;
     }),
@@ -203,6 +252,39 @@ export const workoutsRouter = createTRPCRouter({
 
       if (!workout || workout.user_id !== ctx.user.id) {
         throw new Error("Workout not found");
+      }
+
+      // Fetch playbook session data if linked
+      let playbookSessionData: any = null;
+      if (ctx.db.query?.playbookSessions?.findFirst) {
+        try {
+          playbookSessionData = await ctx.db.query.playbookSessions.findFirst({
+            where: eq(playbookSessions.actualWorkoutId, input.id),
+            with: {
+              week: {
+                with: {
+                  playbook: {
+                    columns: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } catch (error) {
+          console.warn("Failed to fetch playbook session:", error);
+          playbookSessionData = null;
+        }
+      }
+
+      // Add playbook data if found
+      if (playbookSessionData?.week?.playbook?.name) {
+        (workout as any).playbook = {
+          name: playbookSessionData.week.playbook.name,
+          weekNumber: playbookSessionData.week.weekNumber,
+          sessionNumber: playbookSessionData.sessionNumber,
+        };
       }
 
       return workout;
@@ -279,7 +361,7 @@ export const workoutsRouter = createTRPCRouter({
         return null;
       }
 
-      // Get all sets from that session
+      // Legacy format: Query sessionExercises table
       const rows = await ctx.db
         .select({
           weight: sessionExercises.weight,
@@ -304,6 +386,7 @@ export const workoutsRouter = createTRPCRouter({
 
       const sets = rows.map((row, index) => ({
         id: `prev-${index}`,
+        setNumber: index + 1,
         weight: row.weight ?? undefined,
         reps: row.reps ?? undefined,
         sets: row.sets ?? 1,
@@ -325,13 +408,20 @@ export const workoutsRouter = createTRPCRouter({
         undefined,
       );
 
+      console.log("getLastExerciseData: returning", {
+        exerciseName: input.exerciseName,
+        setsCount: sets.length,
+        sets,
+        best: bestSet,
+      });
+
       return {
         sets,
         best: bestSet
           ? {
               weight: bestSet.weight,
               reps: bestSet.reps ?? undefined,
-              sets: bestSet.sets,
+              sets: bestSet.sets ?? 1,
               unit: bestSet.unit,
             }
           : undefined,
@@ -601,7 +691,7 @@ export const workoutsRouter = createTRPCRouter({
           throw new Error("Workout session not found");
         }
 
-        // Delete existing exercises for this session
+        // Delete existing exercises (and cascading exercise_sets) for this session
         await ctx.db
           .delete(sessionExercises)
           .where(eq(sessionExercises.sessionId, input.sessionId));
@@ -619,7 +709,9 @@ export const workoutsRouter = createTRPCRouter({
           templateExerciseIds,
         );
 
-        // Flatten exercises into individual sets and filter out empty ones
+        // Handle new exerciseSets format (Phase 2: Warm-Up Sets)
+
+        // Legacy format: Flatten exercises into individual session_exercise rows
         const invalidTemplateExerciseIds = new Set<number>();
 
         const setsToInsert = input.exercises.flatMap((exercise) =>
@@ -737,14 +829,16 @@ export const workoutsRouter = createTRPCRouter({
 
           void (async () => {
             try {
-              await generateAndPersistDebrief({
+              const debriefOptions: GenerateDebriefOptions = {
                 dbClient: ctx.db,
                 userId: ctx.user.id,
                 sessionId: input.sessionId,
-                locale,
                 trigger: "auto",
                 requestId: ctx.requestId,
-              });
+                ...(locale !== undefined && { locale }),
+              };
+
+              await generateAndPersistDebrief(debriefOptions);
             } catch (error) {
               logger.warn("session_debrief.auto_generation_failed", {
                 userId: ctx.user.id,
@@ -774,7 +868,88 @@ export const workoutsRouter = createTRPCRouter({
           })();
         }
 
-        return { success: true };
+        // Check if this workout is part of an active playbook session
+        let playbookSessionId: number | null = null;
+        try {
+          const { playbookSessions } = await import("~/server/db/schema");
+          const linkedPlaybookSession =
+            await ctx.db.query.playbookSessions.findFirst({
+              where: (sessions, { eq, and }) =>
+                and(
+                  eq(sessions.actualWorkoutId, input.sessionId),
+                  eq(sessions.isCompleted, false),
+                ),
+            });
+          if (linkedPlaybookSession) {
+            playbookSessionId = linkedPlaybookSession.id;
+
+            // Calculate adherence score if there are exercises
+            if (setsToInsert.length > 0) {
+              // Simple adherence: compare number of exercises completed vs prescribed
+              const prescription = (
+                linkedPlaybookSession.prescribedWorkoutJson
+                  ? JSON.parse(linkedPlaybookSession.prescribedWorkoutJson)
+                  : null
+              ) as {
+                exercises: Array<{
+                  exerciseName: string;
+                  sets: number;
+                  reps: number;
+                  weight: number | null;
+                }>;
+              } | null;
+
+              let adherenceScore = 100; // Default to perfect if no prescription
+
+              if (prescription?.exercises) {
+                const prescribedExerciseNames = new Set(
+                  prescription.exercises.map((e) =>
+                    e.exerciseName.toLowerCase(),
+                  ),
+                );
+                const completedExerciseNames = new Set(
+                  input.exercises.map((e) => e.exerciseName.toLowerCase()),
+                );
+
+                // Calculate overlap
+                const matchingExercises = Array.from(
+                  prescribedExerciseNames,
+                ).filter((name) => completedExerciseNames.has(name)).length;
+
+                adherenceScore = Math.round(
+                  (matchingExercises / prescribedExerciseNames.size) * 100,
+                );
+              }
+
+              // Mark playbook session as completed
+              await ctx.db
+                .update(playbookSessions)
+                .set({
+                  isCompleted: true,
+                  completedAt: new Date(),
+                  adherenceScore,
+                  updatedAt: new Date(),
+                })
+                .where(eq(playbookSessions.id, linkedPlaybookSession.id));
+
+              logger.info("Marked playbook session as completed", {
+                playbookSessionId: linkedPlaybookSession.id,
+                adherenceScore,
+              });
+            }
+          }
+        } catch (error) {
+          // Silently fail - RPE is optional
+          logger.info("Failed to check for playbook session", {
+            sessionId: input.sessionId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }
+
+        return {
+          success: true,
+          playbookSessionId, // If not null, client should show RPE modal
+        };
       } catch (err: any) {
         const { TRPCError } = await import("@trpc/server");
         const message = err?.message ?? "workouts.save failed";
@@ -866,6 +1041,7 @@ export const workoutsRouter = createTRPCRouter({
           .orderBy(sessionExercises.setOrder);
 
         existingSets = existingSets.concat(chunkSets);
+        return chunkSets;
       });
 
       const setsByExercise = new Map<
@@ -1101,14 +1277,16 @@ export const workoutsRouter = createTRPCRouter({
 
             void (async () => {
               try {
-                await generateAndPersistDebrief({
+                const debriefOptions: GenerateDebriefOptions = {
                   dbClient: ctx.db,
                   userId: ctx.user.id,
                   sessionId: workout.sessionId,
-                  locale,
                   trigger: "auto",
                   requestId: ctx.requestId,
-                });
+                  ...(locale !== undefined && { locale }),
+                };
+
+                await generateAndPersistDebrief(debriefOptions);
               } catch (error) {
                 logger.warn("session_debrief.auto_generation_failed", {
                   userId: ctx.user.id,

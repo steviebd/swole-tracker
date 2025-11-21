@@ -52,7 +52,11 @@ export default function LiveRegionProvider({
   });
   if (!announceRef.current) {
     announceRef.current = (msg: string, opts?: Options) => {
-      queueRef.current.push({ msg, assertive: opts?.assertive });
+      const queueItem: { msg: string; assertive?: boolean } = { msg };
+      if (opts?.assertive !== undefined) {
+        queueItem.assertive = opts.assertive;
+      }
+      queueRef.current.push(queueItem);
       pump();
     };
   }

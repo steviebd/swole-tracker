@@ -232,7 +232,7 @@ const getWorkoutStrain = (workout: unknown): number | null => {
     return null;
   }
 
-  const strain = (score as Record<string, unknown>).strain;
+  const strain = (score as Record<string, unknown>)["strain"];
   return toNumber(strain);
 };
 
@@ -243,7 +243,7 @@ const getWorkoutAverageHeartRate = (workout: unknown): number | null => {
 
   const score = (workout as { score?: unknown }).score;
   if (score && typeof score === "object") {
-    const avg = (score as Record<string, unknown>).average_heart_rate;
+    const avg = (score as Record<string, unknown>)["average_heart_rate"];
     const parsed = toNumber(avg);
     if (parsed !== null) {
       return parsed;
@@ -252,7 +252,7 @@ const getWorkoutAverageHeartRate = (workout: unknown): number | null => {
 
   const during = (workout as { during?: unknown }).during;
   if (during && typeof during === "object") {
-    const avg = (during as Record<string, unknown>).average_heart_rate;
+    const avg = (during as Record<string, unknown>)["average_heart_rate"];
     return toNumber(avg);
   }
 

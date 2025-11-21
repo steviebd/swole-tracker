@@ -359,19 +359,20 @@ async function syncRecovery(
       .map((r) => (r.sleep_id != null ? r.sleep_id.toString() : null))
       .filter((id): id is string => Boolean(id));
 
-    const existingRecoveries: Array<{ whoopRecoveryId: string | null }> = [];
-    await whereInChunks(sleepIds, async (idChunk) => {
-      const chunkRecoveries = await db
-        .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
-        .from(whoopRecovery)
-        .where(
-          and(
-            eq(whoopRecovery.user_id, userId),
-            inArray(whoopRecovery.whoop_recovery_id, idChunk),
-          ),
-        );
-      existingRecoveries.push(...chunkRecoveries);
-    });
+    const existingRecoveries = await whereInChunks(
+      sleepIds,
+      async (idChunk) => {
+        return await db
+          .select({ whoopRecoveryId: whoopRecovery.whoop_recovery_id })
+          .from(whoopRecovery)
+          .where(
+            and(
+              eq(whoopRecovery.user_id, userId),
+              inArray(whoopRecovery.whoop_recovery_id, idChunk),
+            ),
+          );
+      },
+    );
 
     const existingIds = new Set(
       existingRecoveries
@@ -480,21 +481,18 @@ async function syncCycles(
       .filter((id): id is string => Boolean(id));
 
     const existingCycles: Array<{ whoopCycleId: string | null }> = [];
-    await whereInChunks(
-      cycleIds,
-      async (idChunk) => {
-        const chunkCycles = await db
-          .select({ whoopCycleId: whoopCycles.whoop_cycle_id })
-          .from(whoopCycles)
-          .where(
-            and(
-              eq(whoopCycles.user_id, userId),
-              inArray(whoopCycles.whoop_cycle_id, idChunk),
-            ),
-          );
-        existingCycles.push(...chunkCycles);
-      },
-    );
+    await whereInChunks(cycleIds, async (idChunk) => {
+      const chunkCycles = await db
+        .select({ whoopCycleId: whoopCycles.whoop_cycle_id })
+        .from(whoopCycles)
+        .where(
+          and(
+            eq(whoopCycles.user_id, userId),
+            inArray(whoopCycles.whoop_cycle_id, idChunk),
+          ),
+        );
+      existingCycles.push(...chunkCycles);
+    });
 
     const existingIds = new Set(
       existingCycles.map((c) => c.whoopCycleId ?? undefined).filter(Boolean),
@@ -608,9 +606,7 @@ async function syncSleep(
     });
 
     const existingIds = new Set(
-      existingSleeps
-        .map((s) => s.whoopSleepId ?? undefined)
-        .filter(Boolean),
+      existingSleeps.map((s) => s.whoopSleepId ?? undefined).filter(Boolean),
     );
     const newSleeps = sleeps.filter((s) => {
       const id = s.id != null ? s.id.toString() : null;
@@ -652,8 +648,7 @@ async function syncSleep(
           timezone_offset: sleep.timezone_offset ?? null,
           sleep_performance_percentage:
             sleep.score?.sleep_performance_percentage ?? null,
-          total_sleep_time_milli:
-            stageSummary?.total_in_bed_time_milli ?? null,
+          total_sleep_time_milli: stageSummary?.total_in_bed_time_milli ?? null,
           sleep_efficiency_percentage:
             sleep.score?.sleep_efficiency_percentage ?? null,
           slow_wave_sleep_time_milli:

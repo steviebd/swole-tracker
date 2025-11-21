@@ -161,7 +161,10 @@ export function TemplateForm({ template }: TemplateFormProps) {
       onBlur: templateFormSchema, // Use lazy validation (onBlur) for better performance
     },
     onSubmit: async ({ value }) => {
-      console.log("TanStack Form onSubmit callback triggered with value:", value);
+      console.log(
+        "TanStack Form onSubmit callback triggered with value:",
+        value,
+      );
       await handleSubmit(value);
     },
     onSubmitInvalid: ({ value, formApi }) => {
@@ -662,7 +665,12 @@ export function TemplateForm({ template }: TemplateFormProps) {
                     const errorMessage =
                       typeof error === "string" ? error : error?.message;
                     return (
-                      <TanStackFormField name={field.name} error={errorMessage}>
+                      <TanStackFormField
+                        name={field.name}
+                        {...(errorMessage !== undefined && {
+                          error: errorMessage,
+                        })}
+                      >
                         <TanStackFormItem>
                           <TanStackFormLabel>Template Name</TanStackFormLabel>
                           <TanStackFormControl>
@@ -765,7 +773,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
                             return (
                               <TanStackFormField
                                 name={field.name}
-                                error={errorMessage}
+                                {...(errorMessage !== undefined && {
+                                  error: errorMessage,
+                                })}
                               >
                                 <TanStackFormItem className="flex-1">
                                   <TanStackFormControl>

@@ -5,12 +5,17 @@ import { analytics } from "~/lib/analytics";
 
 export interface SetData {
   id: string;
+  setNumber: number;
   weight?: number;
   reps?: number;
   sets: number;
   unit: "kg" | "lbs";
   rpe?: number; // 6–10
   rest?: number; // seconds
+  notes?: string;
+  distance?: number;
+  time?: number;
+  setType?: "warmup" | "working" | "backoff" | "drop"; // Set classification
 }
 
 interface SetInputProps {
@@ -108,7 +113,7 @@ export function SetInput({
       }}
       tabIndex={0}
       role="group"
-      aria-label={`Set ${setIndex + 1} of ${exerciseName}`}
+      aria-label={`Set ${set.setNumber} of ${exerciseName}`}
     >
       {/* Drag Handle */}
       {!readOnly && (
@@ -129,7 +134,7 @@ export function SetInput({
           color: "var(--btn-primary-fg)",
         }}
       >
-        {setIndex + 1}
+        {set.setNumber}
       </div>
 
       {/* Input Grid */}

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { httpBatchStreamLink, loggerLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
@@ -99,10 +100,18 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           },
           // Enhanced error handling for offline scenarios
           fetch: (url, options) => {
+            // Use longer timeout for AI operations (playbook generation, debriefs, etc.)
+            // Default 30s for most requests, but 120s for AI-heavy operations
+            const urlStr = typeof url === "string" ? url : url.toString();
+            const timeout =
+              urlStr.includes("playbooks.create") || urlStr.includes("debrief")
+                ? 120000
+                : 30000;
+
             return fetch(url, {
               ...options,
               // Add timeout for better offline detection
-              signal: AbortSignal.timeout(30000), // 30 second timeout
+              signal: AbortSignal.timeout(timeout),
             }).catch((error: unknown) => {
               // Transform network errors for better React Query handling
               if (error && typeof error === "object" && "name" in error) {
@@ -133,6 +142,6 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return window.location.origin;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return `http://localhost:${process.env.PORT ?? 3000}`;
+  if (process.env["VERCEL_URL"]) return `https://${process.env["VERCEL_URL"]}`;
+  return `http://localhost:${process.env["PORT"] ?? 3000}`;
 }

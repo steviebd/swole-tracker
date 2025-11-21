@@ -73,6 +73,7 @@ export const createMockWorkoutTemplate = (
   name: "Push Day",
   user_id: "test-user-id",
   dedupeKey: null,
+  warmupConfig: null,
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
   updatedAt: null,
   ...overrides,
@@ -140,6 +141,12 @@ export const createMockUserPreferences = (
   linear_progression_kg: 2.5,
   percentage_progression: 2.5,
   targetWorkoutsPerWeek: 3.0,
+  warmupStrategy: "history",
+  warmupSetsCount: 3,
+  warmupPercentages: "[40, 60, 80]",
+  warmupRepsStrategy: "match_working",
+  warmupFixedReps: 5,
+  enableMovementPatternSharing: false,
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
   updatedAt: null,
   ...overrides,
@@ -519,7 +526,7 @@ export const createMockWorkoutTemplates = (count = 3) =>
   Array.from({ length: count }, (_, i) =>
     createMockWorkoutTemplate({
       id: i + 1,
-      name: ["Push Day", "Pull Day", "Leg Day"][i % 3],
+      name: ["Push Day", "Pull Day", "Leg Day"][i % 3]!,
     }),
   );
 
@@ -542,7 +549,7 @@ export const createMockSessionExercises = (count = 5, sessionId = 1) =>
         "Deadlift",
         "Overhead Press",
         "Pull-ups",
-      ][i % 5],
+      ][i % 5]!,
       weight: Math.floor(Math.random() * 200) + 45,
       reps: Math.floor(Math.random() * 12) + 1,
       sets: Math.floor(Math.random() * 5) + 1,

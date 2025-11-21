@@ -98,25 +98,25 @@ export function WellnessHistorySection() {
   const showDualCta = !whoopConnected && !manualEnabled;
 
   return (
-    <div className="glass-surface space-y-6 rounded-2xl border border-border/70 p-6 shadow-sm">
+    <div className="glass-surface border-border/70 space-y-6 rounded-2xl border p-6 shadow-sm">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+          <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase">
             Wellness • {formatTimeRangeLabel(timeRange)}
           </p>
-          <h2 className="text-2xl font-semibold text-foreground">
+          <h2 className="text-foreground text-2xl font-semibold">
             Readiness & Wellness
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex space-x-1 rounded-full border border-border/60 bg-muted/30 p-1">
+          <div className="border-border/60 bg-muted/30 flex space-x-1 rounded-full border p-1">
             {(["week", "month", "year"] as const).map((range) => (
               <button
                 key={range}
                 type="button"
                 onClick={() => setWellnessRange(range)}
                 className={cn(
-                  "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition",
+                  "rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase transition",
                   timeRange === range
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -131,16 +131,16 @@ export function WellnessHistorySection() {
             onClick={() => resetWellnessRange()}
             disabled={timeRange === defaultWellnessRange}
             className={cn(
-              "rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em]",
+              "rounded-full border px-3 py-1 text-[10px] font-semibold tracking-[0.3em] uppercase",
               timeRange === defaultWellnessRange
-                ? "border-transparent text-muted-foreground/60"
+                ? "text-muted-foreground/60 border-transparent"
                 : "border-border/60 text-muted-foreground hover:text-foreground",
             )}
           >
             Reset
           </button>
           {whoopConnected && (
-            <div className="flex flex-col items-start gap-1 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex flex-col items-start gap-1 text-xs">
               <span>Last synced • {lastSyncedLabel}</span>
               <button
                 type="button"
@@ -148,7 +148,7 @@ export function WellnessHistorySection() {
                 disabled={
                   whoopRecoveryQuery.isFetching || whoopWorkoutsQuery.isFetching
                 }
-                className="rounded-full border border-border/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                className="border-border/60 text-muted-foreground hover:text-foreground rounded-full border px-3 py-1 text-[10px] font-semibold tracking-[0.3em] uppercase disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {whoopRecoveryQuery.isFetching || whoopWorkoutsQuery.isFetching
                   ? "Refreshing..."
@@ -197,12 +197,15 @@ function buildReadinessCard({
   manualEnabled: boolean;
   manualStats:
     | {
-        period: { avgEnergyLevel?: number | null; avgSleepQuality?: number | null };
+        period: {
+          avgEnergyLevel?: number | null;
+          avgSleepQuality?: number | null;
+        };
       }
     | undefined;
 }) {
   if (whoopConnected && recoveryData) {
-    const recoveryScore = toNumber(recoveryData.recovery_score);
+    const recoveryScore = toNumber(recoveryData["recovery_score"]);
     const readinessSummary = getReadinessSummary(
       recoveryScore != null ? recoveryScore / 100 : null,
     );
@@ -214,16 +217,16 @@ function buildReadinessCard({
     const descriptor = getRecoveryDescriptor(recoveryScore);
 
     return (
-      <div className="rounded-2xl border border-border/60 bg-card/80 p-4">
+      <div className="border-border/60 bg-card/80 rounded-2xl border p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">
               WHOOP Readiness
             </p>
-            <h3 className="text-2xl font-semibold text-foreground">
+            <h3 className="text-foreground text-2xl font-semibold">
               {formatPercentage(recoveryScore)}
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {readinessSummary.message}
             </p>
           </div>
@@ -231,24 +234,29 @@ function buildReadinessCard({
             <ReadinessMetric
               label="Recovery state"
               value={descriptor.message}
-              accent={descriptor.color}
-              icon={descriptor.emoji}
+              {...(descriptor.color !== undefined && {
+                accent: descriptor.color,
+              })}
+              {...(descriptor.emoji !== undefined && {
+                icon: descriptor.emoji,
+              })}
             />
             <ReadinessMetric
               label="Strain"
               value={
                 strainScore != null ? strainScore.toFixed(1) : "Awaiting sync"
               }
-              icon={getStrainEmoji(strainScore)}
-              helper={
-                averageHeartRate
-                  ? `${Math.round(averageHeartRate)} bpm avg HR`
-                  : undefined
-              }
+              {...(getStrainEmoji(strainScore) !== undefined && {
+                icon: getStrainEmoji(strainScore),
+              })}
+              {...(averageHeartRate !== undefined &&
+                averageHeartRate !== null && {
+                  helper: `${Math.round(averageHeartRate)} bpm avg HR`,
+                })}
             />
           </div>
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-4 text-sm">
           {trainingRecommendation}
         </p>
       </div>
@@ -257,11 +265,11 @@ function buildReadinessCard({
 
   if (manualEnabled && manualStats) {
     return (
-      <div className="rounded-2xl border border-border/60 bg-card/80 p-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+      <div className="border-border/60 bg-card/80 rounded-2xl border p-4">
+        <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">
           Manual Wellness
         </p>
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className="text-foreground text-lg font-semibold">
           Energy & Sleep snapshot
         </h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -289,8 +297,14 @@ function ManualLogCard({
 }: {
   stats:
     | {
-        period: { avgEnergyLevel?: number | null; avgSleepQuality?: number | null };
-        recent: { avgEnergyLevel?: number | null; avgSleepQuality?: number | null };
+        period: {
+          avgEnergyLevel?: number | null;
+          avgSleepQuality?: number | null;
+        };
+        recent: {
+          avgEnergyLevel?: number | null;
+          avgSleepQuality?: number | null;
+        };
       }
     | undefined;
   latestEntry: ManualEntry | undefined;
@@ -302,26 +316,26 @@ function ManualLogCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/70 p-4">
+    <div className="border-border/60 bg-card/70 rounded-2xl border p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+          <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">
             Manual log
           </p>
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="text-foreground text-lg font-semibold">
             Recent check-ins
           </h3>
         </div>
-        <div className="flex gap-3 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex gap-3 text-xs">
           <TrendBadge label="Energy" trend={trends.energy} />
           <TrendBadge label="Sleep" trend={trends.sleep} />
         </div>
       </div>
 
       {latestEntry ? (
-        <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4">
+        <div className="border-border/60 bg-background/70 mt-4 rounded-xl border p-4">
           <div className="flex flex-wrap items-center gap-4 text-sm">
-            <span className="font-semibold text-foreground">
+            <span className="text-foreground font-semibold">
               {new Date(latestEntry.date).toLocaleDateString()}
             </span>
             <span className="text-muted-foreground">
@@ -332,23 +346,23 @@ function ManualLogCard({
             </span>
           </div>
           {latestEntry.notes && (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mt-2 text-sm">
               “{latestEntry.notes}”
             </p>
           )}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-4 text-sm">
           Log a manual entry to start tracking how you feel.
         </p>
       )}
 
       {history.length > 1 && (
-        <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+        <ul className="text-muted-foreground mt-4 space-y-2 text-sm">
           {history.slice(1).map((entry) => (
             <li
               key={entry?.date?.toString()}
-              className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2"
+              className="border-border/60 flex items-center justify-between rounded-lg border px-3 py-2"
             >
               <span>
                 {entry?.date
@@ -375,18 +389,18 @@ function DualCta({
   enablePending: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 p-6 text-center">
-      <h3 className="text-xl font-semibold text-foreground">
+    <div className="border-border/60 bg-card/60 rounded-2xl border border-dashed p-6 text-center">
+      <h3 className="text-foreground text-xl font-semibold">
         Unlock readiness signals
       </h3>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="text-muted-foreground mt-2 text-sm">
         Connect WHOOP for automated recovery or enable manual wellness check-ins
         to capture energy and sleep.
       </p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
         <Link
           href="/connect-whoop"
-          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-primary-foreground shadow-sm"
+          className="bg-primary text-primary-foreground rounded-full px-4 py-2 text-xs font-semibold tracking-[0.3em] uppercase shadow-sm"
         >
           Connect WHOOP
         </Link>
@@ -394,7 +408,7 @@ function DualCta({
           type="button"
           onClick={onEnableManual}
           disabled={enablePending}
-          className="rounded-full border border-border/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          className="border-border/60 text-muted-foreground hover:text-foreground rounded-full border px-4 py-2 text-xs font-semibold tracking-[0.3em] uppercase disabled:cursor-not-allowed disabled:opacity-60"
         >
           {enablePending ? "Enabling…" : "Enable manual wellness"}
         </button>
@@ -417,13 +431,13 @@ function ReadinessMetric({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/60 px-4 py-3 text-sm">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-center gap-2 text-lg font-semibold text-foreground">
+    <div className="border-border/60 bg-background/60 rounded-xl border px-4 py-3 text-sm">
+      <p className="text-muted-foreground text-xs">{label}</p>
+      <div className="text-foreground mt-1 flex items-center gap-2 text-lg font-semibold">
         {icon && <span aria-hidden>{icon}</span>}
         <span style={{ color: accent }}>{value}</span>
       </div>
-      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
+      {helper && <p className="text-muted-foreground text-xs">{helper}</p>}
     </div>
   );
 }
@@ -437,7 +451,8 @@ function TrendBadge({ label, trend }: { label: string; trend: Trend }) {
       : trend === "declining"
         ? "text-rose-500"
         : "text-muted-foreground";
-  const icon = trend === "improving" ? "📈" : trend === "declining" ? "📉" : "➡️";
+  const icon =
+    trend === "improving" ? "📈" : trend === "declining" ? "📉" : "➡️";
 
   return (
     <span className={cn("flex items-center gap-1", tone)}>
@@ -449,11 +464,11 @@ function TrendBadge({ label, trend }: { label: string; trend: Trend }) {
 
 function ManualSummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-      <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">
+    <div className="border-border/60 bg-background/70 rounded-xl border p-3">
+      <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">
         {label}
       </p>
-      <p className="text-xl font-semibold text-foreground">{value}</p>
+      <p className="text-foreground text-xl font-semibold">{value}</p>
     </div>
   );
 }

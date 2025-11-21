@@ -228,8 +228,8 @@ export const progressRouter = createTRPCRouter({
         const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
 
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         // Query raw session_exercises data directly - this is simpler and more reliable
@@ -568,8 +568,8 @@ export const progressRouter = createTRPCRouter({
         const prevStartDate = new Date(prevEndDate.getTime() - periodLength);
 
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         // Use aggregated data for better performance
@@ -711,8 +711,8 @@ export const progressRouter = createTRPCRouter({
         );
 
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         const sessionData = await fetchSessionMetricRows(
@@ -823,8 +823,8 @@ export const progressRouter = createTRPCRouter({
         );
 
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         if (
@@ -1285,8 +1285,8 @@ export const progressRouter = createTRPCRouter({
 
         // Use resolveExerciseSelection for consistent exercise resolution
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         console.log("getStrengthProgression", {
@@ -1509,8 +1509,8 @@ export const progressRouter = createTRPCRouter({
         );
 
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         // Get weekly summaries for the time range
@@ -1581,8 +1581,8 @@ export const progressRouter = createTRPCRouter({
         );
 
         const selection = await resolveExerciseSelection(ctx.db, ctx.user.id, {
-          exerciseName: input.exerciseName,
-          templateExerciseId: input.templateExerciseId,
+          exerciseName: input.exerciseName ?? null,
+          templateExerciseId: input.templateExerciseId ?? null,
         });
 
         // Get all sessions for the time range
@@ -2205,13 +2205,18 @@ export const progressRouter = createTRPCRouter({
 
         const cards = paginatedCards;
 
-        return {
+        const result: ProgressHighlightsPayload = {
           tab,
           summary: { total: personalRecords.length, timeRangeLabel },
-          motivator,
           badges,
           cards,
         };
+
+        if (motivator) {
+          result.motivator = motivator;
+        }
+
+        return result;
       }
 
       if (tab === "milestones") {
@@ -2302,7 +2307,6 @@ export const progressRouter = createTRPCRouter({
 
         const motivator = buildHighlightMotivator({
           totalVolume,
-          goalCompletion: undefined,
         });
 
         const badges = [
@@ -2368,13 +2372,18 @@ export const progressRouter = createTRPCRouter({
           },
         ].filter((card) => card !== null) as HighlightCard[];
 
-        return {
+        const result: ProgressHighlightsPayload = {
           tab,
           summary: { total: cards.length, timeRangeLabel },
-          motivator,
           badges,
           cards,
         };
+
+        if (motivator) {
+          result.motivator = motivator;
+        }
+
+        return result;
       }
 
       // Streaks tab
@@ -2454,40 +2463,53 @@ export const progressRouter = createTRPCRouter({
           icon: "🔥",
           tone: "success",
         },
-        {
-          id: "best-week",
-          title: "Best week",
-          subtitle:
-            bestWeek != null ? `${bestWeek.count} sessions` : "No data yet",
-          detail: bestWeek != null ? `Week of ${bestWeek.label}` : undefined,
-          icon: "📆",
-          tone: "info",
-        },
-        {
-          id: "last-session",
-          title: "Last session",
-          subtitle: lastWorkout
-            ? new Intl.DateTimeFormat("en-US", {
-                month: "short",
-                day: "numeric",
-              }).format(lastWorkout)
-            : "No workouts logged",
-          detail: lastWorkout ? "Tap to review workout log" : undefined,
-          icon: "💪",
-          tone: "warning",
-          meta: lastWorkout
-            ? lastWorkout.toISOString().split("T")[0]!
-            : undefined,
-        },
+        (() => {
+          const card: HighlightCard = {
+            id: "best-week",
+            title: "Best week",
+            subtitle:
+              bestWeek != null ? `${bestWeek.count} sessions` : "No data yet",
+            icon: "📆",
+            tone: "info",
+          };
+          if (bestWeek != null) {
+            card.detail = `Week of ${bestWeek.label}`;
+          }
+          return card;
+        })(),
+        (() => {
+          const card: HighlightCard = {
+            id: "last-session",
+            title: "Last session",
+            subtitle: lastWorkout
+              ? new Intl.DateTimeFormat("en-US", {
+                  month: "short",
+                  day: "numeric",
+                }).format(lastWorkout)
+              : "No workouts logged",
+            icon: "💪",
+            tone: "warning",
+          };
+          if (lastWorkout) {
+            card.detail = "Tap to review workout log";
+            card.meta = lastWorkout.toISOString().split("T")[0]!;
+          }
+          return card;
+        })(),
       ];
 
-      return {
+      const result: ProgressHighlightsPayload = {
         tab,
         summary: { total: cards.length, timeRangeLabel },
-        motivator,
         badges,
         cards,
       };
+
+      if (motivator) {
+        result.motivator = motivator;
+      }
+
+      return result;
     }),
   // Get comparative analysis (current vs previous period)
   getComparativeAnalysis: protectedProcedure
@@ -2975,9 +2997,9 @@ async function resolveExerciseSelection(
       ) {
         nameSet.add(linkedSet.masterExerciseName.trim());
       }
-    } else {
-      templateExerciseIds = [params.templateExerciseId];
     }
+    // Note: When linkedSet is null (template exercise not found), we don't use the invalid ID
+    // The lookup will fall back to using exerciseName only
   }
 
   const names = Array.from(nameSet);

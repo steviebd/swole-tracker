@@ -3,9 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  forbidOnly: !!process.env["CI"],
+  retries: process.env["CI"] ? 2 : 0,
+  workers: process.env["CI"] ? 1 : 1,
   reporter: [
     ["html"],
     ["json", { outputFile: "playwright-report/results.json" }],
@@ -15,11 +15,15 @@ export default defineConfig({
 
   use: {
     baseURL: "http://localhost:8787",
-    trace: "on-first-retry",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     actionTimeout: 10000,
     navigationTimeout: 30000,
+    // Slow down actions for interactive testing (comment out for faster CI runs)
+    launchOptions: {
+      slowMo: process.env["SLOW_MO"] ? parseInt(process.env["SLOW_MO"]) : 0,
+    },
   },
 
   projects: [
@@ -35,9 +39,9 @@ export default defineConfig({
 
   webServer: {
     command:
-      "NODE_ENV=test E2E_TEST=true infisical run --env dev -- bun run dev:worker",
+      "NODE_ENV=test E2E_TESTING=true infisical run --env dev -- bun run dev:worker",
     url: "http://localhost:8787",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env["CI"],
     timeout: 120000,
   },
 });

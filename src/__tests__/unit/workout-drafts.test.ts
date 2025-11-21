@@ -56,6 +56,7 @@ describe("workout drafts", () => {
         sets: [
           {
             id: "temp-1",
+            setNumber: 1,
             weight: 100,
             reps: 5,
             sets: 0, // should default to 1 when sanitized
@@ -87,8 +88,7 @@ describe("workout drafts", () => {
         sets: [
           {
             id: "default-1",
-            weight: undefined,
-            reps: undefined,
+            setNumber: 1,
             sets: 1,
             unit: "lbs",
           },
@@ -110,6 +110,7 @@ describe("workout drafts", () => {
         sets: [
           {
             id: "row-1",
+            setNumber: 1,
             weight: 60,
             reps: 10,
             sets: 3,
@@ -136,6 +137,7 @@ describe("workout drafts", () => {
         sets: [
           {
             id: "s1",
+            setNumber: 1,
             weight: 200,
             reps: 3,
             sets: 3,

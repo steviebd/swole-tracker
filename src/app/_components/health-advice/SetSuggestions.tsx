@@ -12,7 +12,7 @@ import {
 type ProgressionPreference = "ai_recommended";
 
 interface SetSuggestionsProps {
-  exercise: HealthAdviceResponse["per_exercise"][0] & { name?: string };
+  exercise: HealthAdviceResponse["per_exercise"][0];
   onAcceptSuggestion: (
     setId: string,
     suggestion: { weight?: number; reps?: number; restSeconds?: number },
@@ -57,30 +57,47 @@ export function SetSuggestions({
           suggestion.weight !== undefined &&
           set.suggested_weight_kg !== undefined
         ) {
-          trackSuggestionInteraction({
+          const interactionData: Parameters<
+            typeof trackSuggestionInteraction
+          >[0] = {
             sessionId,
             exerciseId: exercise.exercise_id,
             setId,
             action: "accepted",
             suggestionType: "weight",
-            suggestedValue: set.suggested_weight_kg ?? undefined,
             acceptedValue: suggestion.weight,
-            interactionTimeMs: interactionTime,
             dataSource: adviceSource,
-          });
+          };
+          if (
+            set.suggested_weight_kg !== null &&
+            set.suggested_weight_kg !== undefined
+          ) {
+            interactionData.suggestedValue = set.suggested_weight_kg;
+          }
+          if (interactionTime !== undefined) {
+            interactionData.interactionTimeMs = interactionTime;
+          }
+          trackSuggestionInteraction(interactionData);
         }
         if (suggestion.reps !== undefined && set.suggested_reps !== undefined) {
-          trackSuggestionInteraction({
+          const interactionData: Parameters<
+            typeof trackSuggestionInteraction
+          >[0] = {
             sessionId,
             exerciseId: exercise.exercise_id,
             setId,
             action: "accepted",
             suggestionType: "reps",
-            suggestedValue: set.suggested_reps ?? undefined,
             acceptedValue: suggestion.reps,
-            interactionTimeMs: interactionTime,
             dataSource: adviceSource,
-          });
+          };
+          if (set.suggested_reps !== null && set.suggested_reps !== undefined) {
+            interactionData.suggestedValue = set.suggested_reps;
+          }
+          if (interactionTime !== undefined) {
+            interactionData.interactionTimeMs = interactionTime;
+          }
+          trackSuggestionInteraction(interactionData);
         }
       }
     }
@@ -100,28 +117,42 @@ export function SetSuggestions({
       if (set) {
         const interactionTime = getInteractionTimeMs?.();
         if (set.suggested_weight_kg !== undefined) {
-          trackSuggestionInteraction({
+          const interactionData: Parameters<
+            typeof trackSuggestionInteraction
+          >[0] = {
             sessionId,
             exerciseId: exercise.exercise_id,
             setId,
             action: "rejected",
             suggestionType: "weight",
-            suggestedValue: set.suggested_weight_kg ?? undefined,
-            interactionTimeMs: interactionTime,
             dataSource: adviceSource,
-          });
+          };
+          if (set.suggested_weight_kg !== null) {
+            interactionData.suggestedValue = set.suggested_weight_kg;
+          }
+          if (interactionTime !== undefined) {
+            interactionData.interactionTimeMs = interactionTime;
+          }
+          trackSuggestionInteraction(interactionData);
         }
         if (set.suggested_reps !== undefined) {
-          trackSuggestionInteraction({
+          const interactionData: Parameters<
+            typeof trackSuggestionInteraction
+          >[0] = {
             sessionId,
             exerciseId: exercise.exercise_id,
             setId,
             action: "rejected",
             suggestionType: "reps",
-            suggestedValue: set.suggested_reps ?? undefined,
-            interactionTimeMs: interactionTime,
             dataSource: adviceSource,
-          });
+          };
+          if (set.suggested_reps !== null && set.suggested_reps !== undefined) {
+            interactionData.suggestedValue = set.suggested_reps;
+          }
+          if (interactionTime !== undefined) {
+            interactionData.interactionTimeMs = interactionTime;
+          }
+          trackSuggestionInteraction(interactionData);
         }
       }
     }
@@ -215,11 +246,16 @@ export function SetSuggestions({
                             handleAcceptSet(
                               set.set_id,
                               {
-                                weight: set.suggested_weight_kg || undefined,
-                                reps: set.suggested_reps || undefined,
-                                restSeconds:
-                                  (set as any).suggested_rest_seconds ??
-                                  undefined,
+                                ...(set.suggested_weight_kg !== null && {
+                                  weight: set.suggested_weight_kg,
+                                }),
+                                ...(set.suggested_reps !== null && {
+                                  reps: set.suggested_reps,
+                                }),
+                                ...((set as any).suggested_rest_seconds && {
+                                  restSeconds: (set as any)
+                                    .suggested_rest_seconds,
+                                }),
                               },
                               "ai_recommended",
                             )

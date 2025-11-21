@@ -1,14 +1,16 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { simpleRender as render, screen } from "~/__tests__/test-utils";
+import { render, screen } from "~/__tests__/test-utils";
 
 // Ensure React is available globally for JSX
 global.React = React;
 
-// Mock analytics
+// Mock analytics - consistent with other tests
 vi.mock("~/lib/analytics", () => ({
   analytics: {
+    event: vi.fn(),
+    databaseQueryPerformance: vi.fn(),
     progressSectionLoad: vi.fn(),
   },
 }));
@@ -337,7 +339,7 @@ describe("StrengthProgressSection", () => {
     }).not.toThrow();
 
     // Should render the exercise select
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Choose an exercise…")).toBeInTheDocument();
   });
 
   it("deduplicates exercises with undefined templateExerciseIds", () => {

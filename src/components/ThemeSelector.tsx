@@ -30,10 +30,10 @@ const themePreviewMap: Record<
       surface: tokens.surfaces.surface!,
       surfaceContainer: tokens.surfaces.surfaceContainer!,
       outline: tokens.surfaces.outline!,
-      primary: tokens.scheme.primary!,
-      secondary: tokens.scheme.secondary!,
-      tertiary: tokens.scheme.tertiary!,
-      onSurface: tokens.scheme.onSurface!,
+      primary: tokens.scheme["primary"]!,
+      secondary: tokens.scheme["secondary"]!,
+      tertiary: tokens.scheme["tertiary"]!,
+      onSurface: tokens.scheme["onSurface"]!,
     };
     return acc;
   },
@@ -108,9 +108,10 @@ export function ThemeSelector({
 }: ThemeSelectorProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const prefersReducedMotion = useReducedMotion();
-  const [liveAnnouncement, setLiveAnnouncement] = React.useState<
-    { id: number; message: string } | null
-  >(null);
+  const [liveAnnouncement, setLiveAnnouncement] = React.useState<{
+    id: number;
+    message: string;
+  } | null>(null);
 
   const gridColumns =
     variant === "grid" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1";

@@ -209,7 +209,9 @@ export function useWorkoutSessionState({
         return false;
       }
       const obj = exercise as Record<string, unknown>;
-      return typeof obj.id === "number" && typeof obj.exerciseName === "string";
+      return (
+        typeof obj["id"] === "number" && typeof obj["exerciseName"] === "string"
+      );
     });
   }, [sessionTemplate]);
 
@@ -225,18 +227,36 @@ export function useWorkoutSessionState({
   type StoredSet = StoredExercise["sets"][number];
 
   const normalizeDraftSet = useCallback(
-    (set: StoredSet, fallbackUnit: "kg" | "lbs"): SetData => ({
-      id:
-        typeof set.id === "string"
-          ? set.id
-          : `restored-${Math.random().toString(36).slice(2)}-${typeof window !== "undefined" ? Date.now().toString(36) : "0"}`,
-      weight: typeof set.weight === "number" ? set.weight : undefined,
-      reps: typeof set.reps === "number" ? set.reps : undefined,
-      sets: typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
-      unit: (set.unit as "kg" | "lbs") ?? fallbackUnit,
-      rpe: typeof set.rpe === "number" ? set.rpe : undefined,
-      rest: typeof set.rest === "number" ? set.rest : undefined,
-    }),
+    (
+      set: StoredSet,
+      fallbackUnit: "kg" | "lbs",
+      setNumber: number,
+    ): SetData => {
+      const result: SetData = {
+        id:
+          typeof set.id === "string"
+            ? set.id
+            : `restored-${Math.random().toString(36).slice(2)}-${typeof window !== "undefined" ? Date.now().toString(36) : "0"}`,
+        setNumber,
+        sets: typeof set.sets === "number" && set.sets > 0 ? set.sets : 1,
+        unit: (set.unit as "kg" | "lbs") ?? fallbackUnit,
+      };
+
+      if (typeof set.weight === "number") {
+        result.weight = set.weight;
+      }
+      if (typeof set.reps === "number") {
+        result.reps = set.reps;
+      }
+      if (typeof set.rpe === "number") {
+        result.rpe = set.rpe;
+      }
+      if (typeof set.rest === "number") {
+        result.rest = set.rest;
+      }
+
+      return result;
+    },
     [],
   );
 
@@ -272,7 +292,9 @@ export function useWorkoutSessionState({
         return {
           ...exercise,
           unit: fallbackUnit,
-          sets: draft.sets.map((set) => normalizeDraftSet(set, fallbackUnit)),
+          sets: draft.sets.map((set, index) =>
+            normalizeDraftSet(set, fallbackUnit, index + 1),
+          ),
         };
       });
 
@@ -281,14 +303,19 @@ export function useWorkoutSessionState({
           (draftExercise.unit as "kg" | "lbs") ??
           (preferences?.defaultWeightUnit as "kg" | "lbs") ??
           "kg";
-        merged.push({
-          templateExerciseId: draftExercise.templateExerciseId,
+        const exerciseData: ExerciseData = {
           exerciseName: draftExercise.exerciseName,
           unit: fallbackUnit,
-          sets: draftExercise.sets.map((set) =>
-            normalizeDraftSet(set, fallbackUnit),
+          sets: draftExercise.sets.map((set, index) =>
+            normalizeDraftSet(set, fallbackUnit, index + 1),
           ),
-        });
+        };
+
+        if (draftExercise.templateExerciseId !== undefined) {
+          exerciseData.templateExerciseId = draftExercise.templateExerciseId;
+        }
+
+        merged.push(exerciseData);
       }
 
       return merged;
@@ -318,10 +345,15 @@ export function useWorkoutSessionState({
     displayOrder,
     (newDisplayOrder) => {
       // Capture previous order for Undo
-      const prevOrder = exercises.map((ex) => ({
-        name: ex.exerciseName,
-        templateExerciseId: ex.templateExerciseId,
-      }));
+      const prevOrder = exercises.map((ex) => {
+        const item: { name: string; templateExerciseId?: number } = {
+          name: ex.exerciseName,
+        };
+        if (ex.templateExerciseId !== undefined) {
+          item.templateExerciseId = ex.templateExerciseId;
+        }
+        return item;
+      });
       const newExercises = newDisplayOrder.map(
         (item: { exercise: ExerciseData; originalIndex: number }) =>
           item.exercise,
@@ -374,14 +406,15 @@ export function useWorkoutSessionState({
   );
 
   const createOptimisticWorkout = (newWorkout: any): any => {
-    if (!session || !sessionTemplate) return null;
+    // Support both template workouts and playbook workouts (which have no sessionTemplate)
+    if (!session) return null;
 
     return {
       id: sessionId,
       templateId: session.templateId,
       workoutDate: session.workoutDate,
       createdAt: new Date(),
-      template: sessionTemplate,
+      template: sessionTemplate ?? null, // null for playbook workouts
       exercises: newWorkout.exercises.flatMap(
         (exercise: any, exerciseIndex: number) =>
           // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -460,14 +493,18 @@ export function useWorkoutSessionState({
       }
     },
     onSettled: () => {
-      console.info(`[WORKOUT_SAVE] Cache invalidation started for session ${sessionId} at ${new Date().toISOString()}`);
+      console.info(
+        `[WORKOUT_SAVE] Cache invalidation started for session ${sessionId} at ${new Date().toISOString()}`,
+      );
       const startTime = performance.now();
-      
+
       void invalidateWorkoutDependentCaches(utils, [sessionId]).then(() => {
         const endTime = performance.now();
-        console.info(`[WORKOUT_SAVE] Cache invalidation completed in ${(endTime - startTime).toFixed(2)}ms`);
+        console.info(
+          `[WORKOUT_SAVE] Cache invalidation completed in ${(endTime - startTime).toFixed(2)}ms`,
+        );
       });
-      
+
       // Warm progress caches after successful save
       if (session?.user_id) {
         void import("~/lib/workout-cache-helpers").then(
@@ -525,22 +562,54 @@ export function useWorkoutSessionState({
 
   // previous data loading
   useEffect(() => {
-    if (!templateExercises || isReadOnly) {
+    if (isReadOnly) {
+      setPreviousDataLoaded(true);
+      return;
+    }
+
+    // For playbook workouts, get exercise names from session exercises
+    // For template workouts, get from templateExercises
+    const isPlaybookWorkout = !sessionTemplate && session;
+    const exercisesToFetch: Array<{ exerciseName: string; id: number | undefined }> = [];
+
+    if (templateExercises && templateExercises.length > 0) {
+      // Template-based workout
+      exercisesToFetch.push(
+        ...templateExercises.map((te) => ({
+          exerciseName: te.exerciseName,
+          id: te.id,
+        })),
+      );
+    } else if (isPlaybookWorkout && session?.exercises) {
+      // Playbook workout - get unique exercise names from session
+      const uniqueNames = new Set<string>();
+      session.exercises.forEach((ex) => {
+        if (!uniqueNames.has(ex.exerciseName)) {
+          uniqueNames.add(ex.exerciseName);
+          exercisesToFetch.push({
+            exerciseName: ex.exerciseName,
+            id: ex.templateExerciseId ?? undefined,
+          });
+        }
+      });
+    }
+
+    if (exercisesToFetch.length === 0) {
       setPreviousDataLoaded(true);
       return;
     }
 
     const loadPreviousData = async () => {
       const previousDataMap = new Map();
-      for (const templateExercise of templateExercises) {
+      for (const exercise of exercisesToFetch) {
         try {
           const data = await utils.workouts.getLastExerciseData.fetch({
-            exerciseName: templateExercise.exerciseName,
+            exerciseName: exercise.exerciseName,
             excludeSessionId: sessionId,
-            templateExerciseId: templateExercise.id,
+            templateExerciseId: exercise.id,
           });
           if (data) {
-            previousDataMap.set(templateExercise.exerciseName, data);
+            previousDataMap.set(exercise.exerciseName, data);
           }
         } catch {
           // noop
@@ -556,6 +625,8 @@ export function useWorkoutSessionState({
     isReadOnly,
     utils.workouts.getLastExerciseData,
     sessionId,
+    sessionTemplate,
+    session,
   ]);
 
   useEffect(() => {
@@ -569,9 +640,38 @@ export function useWorkoutSessionState({
 
   // session init
   useEffect(() => {
-    if (!templateExercises || !previousDataLoaded) return;
+    // Determine if this is a playbook workout
+    const isPlaybookWorkout = !sessionTemplate && session;
+
+    // Check if playbook workout is completed (read-only view)
+    const isPlaybookCompleted = isPlaybookWorkout &&
+      (session as { isPlaybookCompleted?: boolean | null }).isPlaybookCompleted === true;
+
+    // For NEW playbook workouts, wait for previousDataLoaded to pre-fill with historical data
+    // For COMPLETED playbook workouts, can initialize immediately from saved data
+    // For template workouts, wait for both templateExercises and previousDataLoaded
+    const canInitialize =
+      (isPlaybookWorkout && (isPlaybookCompleted || previousDataLoaded)) ||
+      (templateExercises && previousDataLoaded);
+
+    if (!canInitialize) return;
 
     if (Array.isArray(session?.exercises) && session.exercises.length > 0) {
+      // Determine read-only status FIRST to decide how to build exercises
+      // For playbook workouts (no template): check if playbook session is completed
+      // For template workouts with existing exercises: always read-only (viewing past workout)
+      const isPlaybookWorkout = !sessionTemplate && session;
+      let shouldBeReadOnly = true;
+
+      if (isPlaybookWorkout) {
+        // For playbook workouts, check the completion status
+        // isPlaybookCompleted is null if not a playbook workout, true if completed, false if in-progress
+        const completionStatus = (
+          session as { isPlaybookCompleted?: boolean | null }
+        ).isPlaybookCompleted;
+        shouldBeReadOnly = completionStatus === true;
+      }
+
       const exerciseGroups = new Map<string, typeof session.exercises>();
       session.exercises.forEach((sessionExercise) => {
         const key = sessionExercise.exerciseName;
@@ -579,32 +679,156 @@ export function useWorkoutSessionState({
         exerciseGroups.get(key)!.push(sessionExercise);
       });
 
+      const defaultUnit = (preferences?.defaultWeightUnit ?? "kg") as
+        | "kg"
+        | "lbs";
+
       const existingExercises: ExerciseData[] = Array.from(
         exerciseGroups.entries(),
       ).map(([exerciseName, exerciseData]) => {
         exerciseData.sort((a, b) => (a.setOrder ?? 0) - (b.setOrder ?? 0));
-        return {
-          templateExerciseId: exerciseData[0]?.templateExerciseId ?? undefined,
+
+        // For NEW playbook workouts (not completed), use previousExerciseData like templates do
+        // This allows playbooks to pre-fill with historical data
+        if (isPlaybookWorkout && !shouldBeReadOnly && previousDataLoaded) {
+          const previousData = previousExerciseData.get(exerciseName);
+
+          if (previousData?.sets && previousData.sets.length > 0) {
+            // Use previous workout data to populate sets
+            const exerciseResult: ExerciseData = {
+              exerciseName,
+              sets: previousData.sets.map((prevSet) => {
+                const setResult: SetData = {
+                  id: generateSetId(),
+                  setNumber: prevSet.setNumber ?? 1,
+                  sets: 1, // Individual sets
+                  unit: prevSet.unit ?? defaultUnit,
+                };
+
+                if (prevSet.weight !== undefined) {
+                  setResult.weight = prevSet.weight;
+                }
+                if (prevSet.reps !== undefined) {
+                  setResult.reps = prevSet.reps;
+                }
+
+                return setResult;
+              }),
+              unit: previousData.sets[0]?.unit ?? defaultUnit,
+            };
+
+            if (
+              exerciseData[0]?.templateExerciseId !== undefined &&
+              exerciseData[0]?.templateExerciseId !== null
+            ) {
+              exerciseResult.templateExerciseId =
+                exerciseData[0].templateExerciseId;
+            }
+
+            return exerciseResult;
+          }
+        }
+
+        // For SAVED workouts or when no previous data, use the actual saved data
+        // Check if workout uses new format with exerciseSets table
+        const firstExercise = exerciseData[0] as typeof exerciseData[0] & {
+          usesSetTable?: boolean;
+          sets?: Array<{
+            id: number;
+            setNumber: number;
+            weight: number | null;
+            reps: number | null;
+            rpe: number | null;
+            restSeconds: number | null;
+          }>;
+        };
+        const usesNewFormat = firstExercise?.usesSetTable === true;
+
+        let sets: SetData[];
+
+        if (usesNewFormat && firstExercise?.sets && firstExercise.sets.length > 0) {
+          // New format: use individual sets from exerciseSets table
+          sets = firstExercise.sets.map((set) => {
+            const setResult: SetData = {
+              id: `existing-set-${set.id}`,
+              setNumber: set.setNumber,
+              sets: 1, // Individual set
+              unit: (firstExercise.unit as "kg" | "lbs") ?? "kg",
+            };
+
+            if (set.weight !== null) {
+              setResult.weight = Number(set.weight);
+            }
+            if (set.reps !== null) {
+              setResult.reps = set.reps;
+            }
+            if (set.rpe !== null) {
+              setResult.rpe = set.rpe;
+            }
+            if (set.restSeconds !== null) {
+              setResult.rest = set.restSeconds;
+            }
+
+            return setResult;
+          });
+        } else {
+          // Legacy format: each sessionExercise is one set
+          sets = exerciseData.map((sessionExercise) => {
+            const setResult: SetData = {
+              id: `existing-${sessionExercise.id}`,
+              setNumber: (sessionExercise.setOrder ?? 0) + 1,
+              sets: sessionExercise.sets ?? 1,
+              unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
+            };
+
+            if (sessionExercise.weight) {
+              setResult.weight = Number(sessionExercise.weight);
+            }
+            if (
+              sessionExercise.reps !== undefined &&
+              sessionExercise.reps !== null
+            ) {
+              setResult.reps = sessionExercise.reps;
+            }
+
+            return setResult;
+          });
+        }
+
+        const exerciseResult: ExerciseData = {
           exerciseName,
-          sets: exerciseData.map((sessionExercise) => ({
-            id: `existing-${sessionExercise.id}`,
-            weight: sessionExercise.weight
-              ? Number(sessionExercise.weight)
-              : undefined,
-            reps: sessionExercise.reps ?? undefined,
-            sets: sessionExercise.sets ?? 1,
-            unit: (sessionExercise.unit as "kg" | "lbs") ?? "kg",
-          })),
+          sets,
           unit: (exerciseData[0]?.unit as "kg" | "lbs") ?? "kg",
         };
+
+        if (
+          exerciseData[0]?.templateExerciseId !== undefined &&
+          exerciseData[0]?.templateExerciseId !== null
+        ) {
+          exerciseResult.templateExerciseId =
+            exerciseData[0].templateExerciseId;
+        }
+
+        return exerciseResult;
       });
 
-      setExercises(existingExercises);
-      setIsReadOnly(true);
+      // For in-progress playbook workouts, merge with any saved draft data
+      if (!shouldBeReadOnly) {
+        const draft = getWorkoutDraft(sessionId);
+        const resolvedExercises = draft?.exercises?.length
+          ? mergeDraftExercises(existingExercises, draft.exercises)
+          : existingExercises;
+        setExercises(resolvedExercises);
+      } else {
+        setExercises(existingExercises);
+        removeWorkoutDraft(sessionId);
+      }
+
+      setIsReadOnly(shouldBeReadOnly);
       setExpandedExercises(existingExercises.map((_, index) => index));
-      removeWorkoutDraft(sessionId);
       setDraftHydrated(true);
-    } else {
+    } else if (templateExercises) {
+      // Only initialize from template if template exists
       const initialExercises: ExerciseData[] = templateExercises.map(
         (templateExercise) => {
           const previousData = previousExerciseData.get(
@@ -616,22 +840,34 @@ export function useWorkoutSessionState({
 
           let sets: SetData[] = [];
           if (previousData?.sets) {
-            sets = previousData.sets.map((prevSet) => ({
-              id: generateSetId(),
-              weight: prevSet.weight,
-              reps: prevSet.reps,
-              sets: prevSet.sets,
-              unit: prevSet.unit,
-            }));
+            sets = previousData.sets.map((prevSet) => {
+              const setResult: SetData = {
+                id: generateSetId(),
+                setNumber: prevSet.setNumber ?? 1,
+                sets: prevSet.sets,
+                unit: prevSet.unit,
+              };
+
+              if (prevSet.weight !== undefined) {
+                setResult.weight = prevSet.weight;
+              }
+              if (prevSet.reps !== undefined) {
+                setResult.reps = prevSet.reps;
+              }
+
+              return setResult;
+            });
           } else {
             sets = [
-              {
-                id: generateSetId(),
-                weight: undefined,
-                reps: undefined,
-                sets: 1,
-                unit: defaultUnit,
-              },
+              (() => {
+                const setResult: SetData = {
+                  id: generateSetId(),
+                  setNumber: 1,
+                  sets: 1,
+                  unit: defaultUnit,
+                };
+                return setResult;
+              })(),
             ];
           }
 
@@ -652,6 +888,12 @@ export function useWorkoutSessionState({
       setExercises(resolvedExercises);
       setIsReadOnly(false);
       setDraftHydrated(true);
+    } else {
+      // Playbook workout with no template and no exercises yet
+      // Initialize with empty array - exercises will be added in the session
+      setExercises([]);
+      setIsReadOnly(false);
+      setDraftHydrated(true);
     }
 
     setLoading(false);
@@ -664,6 +906,8 @@ export function useWorkoutSessionState({
     session,
     mergeDraftExercises,
     sessionId,
+    generateSetId,
+    sessionTemplate,
   ]);
 
   useEffect(() => {
@@ -784,6 +1028,11 @@ export function useWorkoutSessionState({
           ex.sets.length,
         );
         ex.sets.splice(insertAt, 0, lastAction.deletedSet.data);
+        // Renumber all sets after restoring
+        ex.sets = ex.sets.map((set, index) => ({
+          ...set,
+          setNumber: index + 1,
+        }));
         return next;
       });
     } else if (lastAction.type === "toggleUnit") {
@@ -946,11 +1195,17 @@ export function useWorkoutSessionState({
 
       const newSet: SetData = {
         id: newId,
-        weight: nextWeight,
-        reps: nextReps,
+        setNumber: exercise.sets.length + 1,
         sets: nextSetsCount,
         unit: unitToUse,
       };
+
+      if (nextWeight !== undefined) {
+        newSet.weight = nextWeight;
+      }
+      if (nextReps !== undefined) {
+        newSet.reps = nextReps;
+      }
 
       // Replace sets array reference to force reconciliation
       const beforeIds = exercise.sets.map((s) => s.id);
@@ -1040,6 +1295,11 @@ export function useWorkoutSessionState({
 
       const beforeIds = exercise.sets.map((s) => s.id);
       exercise.sets = exercise.sets.filter((_, i) => i !== clampedIndex); // replace array ref for React reconciliation
+      // Renumber remaining sets
+      exercise.sets = exercise.sets.map((set, index) => ({
+        ...set,
+        setNumber: index + 1,
+      }));
       const afterIds = exercise.sets.map((s) => s.id);
       debugLog("deleteSet:removed", {
         exerciseIndex,
@@ -1120,25 +1380,55 @@ export function useWorkoutSessionState({
 
   const buildSavePayload = () => {
     const cleanedExercises = exercises
-      .map((exercise) => ({
-        ...exercise,
-        sets: exercise.sets
-          .filter(
-            (set) =>
-              set.weight !== undefined ||
-              set.reps !== undefined ||
-              (set.sets && set.sets > 0),
-          )
-          .map((set) => ({
-            ...set,
+      .map((exercise) => {
+        // Filter out empty sets
+        const validSets = exercise.sets.filter(
+          (set) =>
+            set.weight !== undefined ||
+            set.reps !== undefined ||
+            (set.sets && set.sets > 0),
+        );
+
+        // Keep legacy sets for backward compatibility
+        // The legacy format properly handles the "sets" count field (e.g., "3 sets of 10 reps")
+        const legacySets = validSets.map((set) => {
+          const result: {
+            id: string;
+            weight?: number;
+            reps?: number;
+            sets?: number;
+            unit: "kg" | "lbs";
+          } = {
             id:
               set.id ??
               `offline-${typeof window !== "undefined" ? Math.random().toString(36).slice(2) : "0"}`,
-            weight: set.weight === null ? undefined : set.weight,
-            reps: set.reps === null ? undefined : set.reps,
-            sets: set.sets === null ? 1 : set.sets,
-          })),
-      }))
+            unit: set.unit,
+          };
+
+          if (set.weight !== null && set.weight !== undefined) {
+            result.weight = set.weight;
+          }
+          if (set.reps !== null && set.reps !== undefined) {
+            result.reps = set.reps;
+          }
+          if (set.sets !== null && set.sets !== undefined) {
+            result.sets = set.sets;
+          }
+
+          return result;
+        });
+
+        // Only use exerciseSets format when there are multiple individual sets with different configurations
+        // (i.e., Phase 2 warm-up sets feature). For now, always use legacy format since the UI
+        // uses the "sets" count field (e.g., "3 sets of 10 reps at 100kg").
+        // The exerciseSets format treats each array entry as ONE set, which doesn't match
+        // the legacy "sets count" semantics.
+        return {
+          ...exercise,
+          sets: legacySets,
+          // Don't send exerciseSets - use legacy format which correctly handles the "sets" count
+        };
+      })
       .filter((exercise) => exercise.sets.length > 0);
 
     return {
@@ -1206,9 +1496,9 @@ export function useWorkoutSessionState({
         return prev;
       }
 
-      // Create new objects to force React re-render
-      setsCopy[setIndex] = { ...setB };
-      setsCopy[newIndex] = { ...setA };
+      // Create new objects to force React re-render and swap setNumbers
+      setsCopy[setIndex] = { ...setB, setNumber: setIndex + 1 };
+      setsCopy[newIndex] = { ...setA, setNumber: newIndex + 1 };
 
       // Replace the entire exercise object to ensure React sees the change
       next[exerciseIndex] = {
@@ -1293,6 +1583,7 @@ export function useWorkoutSessionState({
         if (!ex.sets.find((s) => s.id === action.newSetId)) {
           ex.sets.push({
             id: action.newSetId,
+            setNumber: ex.sets.length + 1,
             unit: ex.unit,
             sets: 1,
           } as SetData);

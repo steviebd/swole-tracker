@@ -32,22 +32,8 @@ const MockAuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 // Mock TRPC Provider for testing
 const MockTRPCProvider = ({ children }: { children: React.ReactNode }) => {
-  // Create a mock TRPC client that doesn't make real requests
-  const mockClient = createTRPCProxyClient({
-    links: [
-      httpBatchLink({
-        url: "http://mock-trpc-url",
-        transformer: SuperJSON,
-        fetch: async () =>
-          new Response(JSON.stringify({ result: { data: null } }), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          }),
-      }),
-    ],
-  });
-
-  const TRPCProvider = api.Provider;
+  // For testing, we'll use a simple wrapper that doesn't require actual tRPC setup
+  // This avoids issues with api.Provider being undefined in test environment
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -60,9 +46,7 @@ const MockTRPCProvider = ({ children }: { children: React.ReactNode }) => {
   });
 
   return (
-    <TRPCProvider client={mockClient as any} queryClient={queryClient}>
-      {children}
-    </TRPCProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
 

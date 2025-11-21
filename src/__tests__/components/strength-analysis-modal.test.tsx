@@ -89,7 +89,7 @@ describe("StrengthAnalysisModal", () => {
 
     // Default mock for most tests
     mockGetStrengthProgression.mockReturnValue({
-      data: mockStrengthData, // Direct array, not nested object
+      data: { data: mockStrengthData },
       isLoading: false,
       isError: false,
       trpc: {

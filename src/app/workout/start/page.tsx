@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SessionCookie } from "~/lib/session-cookie";
@@ -75,7 +76,7 @@ export default async function StartWorkoutPage({
 
           {/* Workout Starter */}
           <WorkoutStarter
-            initialTemplateId={templateId ? parseInt(templateId) : undefined}
+            {...(templateId && { initialTemplateId: parseInt(templateId) })}
           />
         </div>
       </main>

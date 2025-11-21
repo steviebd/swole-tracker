@@ -14,6 +14,7 @@ import { ThemeProvider } from "~/providers/ThemeProvider";
 import { AuthProvider } from "~/providers/AuthProvider";
 import { DashboardHeader } from "~/components/dashboard-header";
 import { ErrorBoundary } from "~/components/error-boundary";
+import { Toaster } from "~/components/ui/toaster";
 import {
   THEME_PREFERENCE_COOKIE,
   parseThemeCookie,
@@ -70,6 +71,7 @@ export default async function RootLayout({
                     <DashboardHeader />
                     {children}
                   </ErrorBoundary>
+                  <Toaster />
                 </TRPCReactProvider>
               </ThemeProvider>
             </PostHogProvider>

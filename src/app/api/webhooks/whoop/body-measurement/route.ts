@@ -46,13 +46,19 @@ async function fetchBodyMeasurementFromWhoop(
         `🧪 Test mode detected for body measurement ${measurementId} - creating mock measurement data`,
       );
       // Return mock body measurement data for testing
-      return {
+      const result: WhoopBodyMeasurementData = {
         id: measurementId,
         height_meter: 1.75, // 5'9"
         weight_kilogram: 75.5, // 166 lbs
         max_heart_rate: 190,
-        date: new Date().toISOString().split("T")[0],
       };
+
+      const dateStr = new Date().toISOString().split("T")[0];
+      if (dateStr !== undefined) {
+        result.date = dateStr;
+      }
+
+      return result;
     }
 
     if (!dbUserId) {
@@ -99,7 +105,7 @@ async function fetchBodyMeasurementFromWhoop(
 
     // Runtime validation
     const obj = measurementData as Record<string, unknown>;
-    if (typeof obj.id === "string") {
+    if (typeof obj["id"] === "string") {
       return obj as unknown as WhoopBodyMeasurementData;
     }
 

@@ -14,6 +14,7 @@ import {
   Moon,
   Settings,
   Sun,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -37,6 +38,7 @@ const PRIMARY_NAV: PrimaryNavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, requiresAuth: true },
   { label: "Workouts", href: "/workouts", icon: Dumbbell, requiresAuth: true },
   { label: "Progress", href: "/progress", icon: LineChart, requiresAuth: true },
+  { label: "Playbooks", href: "/playbooks", icon: Target, requiresAuth: true },
   { label: "Templates", href: "/templates", icon: Layers, requiresAuth: true },
   { label: "Whoop", href: "/connect-whoop", icon: Activity, requiresAuth: true },
 ];

@@ -75,7 +75,7 @@ class MockDatabase {
       const condition = this.currentCondition;
       const updatedRows = rows.map((row) => {
         // Simple condition matching - in real tests this would be more sophisticated
-        if (condition && condition.id && row.id === condition.id) {
+        if (condition && condition.id && row["id"] === condition.id) {
           return { ...row, ...this.currentUpdateData };
         }
         return row;
@@ -88,10 +88,11 @@ class MockDatabase {
       const condition = this.currentCondition;
       const filteredRows = rows.filter((row) => {
         // Simple condition matching
-        if (condition.id && row.id === condition.id) return true;
-        if (condition.sessionId && row.sessionId === condition.sessionId)
+        if (condition.id && row["id"] === condition.id) return true;
+        if (condition.sessionId && row["sessionId"] === condition.sessionId)
           return true;
-        if (condition.user_id && row.user_id === condition.user_id) return true;
+        if (condition.user_id && row["user_id"] === condition.user_id)
+          return true;
         return false;
       });
       return filteredRows;

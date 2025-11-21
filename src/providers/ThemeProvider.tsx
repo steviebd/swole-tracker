@@ -35,7 +35,10 @@ interface ThemeProviderProps {
   initialResolvedTheme: ThemeVariant;
 }
 
-function resolveThemeVariant(mode: ThemeMode, systemDark: boolean): ThemeVariant {
+function resolveThemeVariant(
+  mode: ThemeMode,
+  systemDark: boolean,
+): ThemeVariant {
   if (mode === "system") {
     return systemDark ? "dark" : "light";
   }
@@ -44,8 +47,8 @@ function resolveThemeVariant(mode: ThemeMode, systemDark: boolean): ThemeVariant
 
 function applyThemeAttributes(mode: ThemeMode, resolved: ThemeVariant) {
   const root = document.documentElement;
-  root.dataset.theme = resolved;
-  root.dataset.themeMode = mode;
+  root.dataset["theme"] = resolved;
+  root.dataset["themeMode"] = mode;
   root.classList.toggle("dark", resolved === "dark");
 }
 
@@ -77,9 +80,8 @@ export function ThemeProvider({
   initialResolvedTheme,
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<ThemeVariant>(
-    initialResolvedTheme,
-  );
+  const [resolvedTheme, setResolvedTheme] =
+    useState<ThemeVariant>(initialResolvedTheme);
   const [systemDark, setSystemDark] = useState<boolean>(() =>
     initialTheme === "system"
       ? initialResolvedTheme === "dark"

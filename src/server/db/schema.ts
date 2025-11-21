@@ -59,6 +59,7 @@ export const workoutTemplates = createTable(
     name: text().notNull(),
     user_id: text().notNull(),
     dedupeKey: text(),
+    warmupConfig: text(), // JSON: { [exerciseName]: WarmupStrategy }
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -120,7 +121,10 @@ export const templateExercises = createTable(
       t.templateId,
       t.exerciseName,
     ),
-    index("template_exercise_user_exercise_name_idx").on(t.user_id, t.exerciseName),
+    index("template_exercise_user_exercise_name_idx").on(
+      t.user_id,
+      t.exerciseName,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -251,6 +255,15 @@ export const userPreferences = createTable(
     linear_progression_kg: real().default(2.5), // Default 2.5kg increment
     percentage_progression: real().default(2.5), // Default 2.5% increment
     targetWorkoutsPerWeek: real().notNull().default(3),
+    // Warm-up configuration
+    warmupStrategy: text().notNull().default("history"), // 'percentage' | 'fixed' | 'history' | 'none'
+    warmupSetsCount: integer().notNull().default(3),
+    warmupPercentages: text().notNull().default("[40, 60, 80]"), // JSON array of percentages
+    warmupRepsStrategy: text().notNull().default("match_working"), // 'match_working' | 'descending' | 'fixed'
+    warmupFixedReps: integer().notNull().default(5),
+    enableMovementPatternSharing: integer({ mode: "boolean" })
+      .notNull()
+      .default(false), // Future ML feature
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -846,6 +859,130 @@ export const aiSuggestionHistory = createTable(
   ],
 );
 
+// Playbooks - Adaptive Progression Playbooks for 4-6 week training cycles
+export const playbooks = createTable(
+  "playbook",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    userId: text().notNull(),
+    name: text().notNull(),
+    goalText: text(), // Free text goal description
+    goalPreset: text(), // 'powerlifting' | 'strength' | 'hypertrophy' | 'peaking' | null
+    targetType: text().notNull(), // 'template' | 'exercise'
+    targetIds: text().notNull(), // JSON array of template/exercise IDs
+    duration: integer().notNull().default(6), // Duration in weeks (4-6)
+    status: text().notNull().default("draft"), // 'draft' | 'active' | 'completed' | 'archived'
+    metadata: text(), // JSON: user inputs for 1RMs, availability, equipment
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+    startedAt: date(),
+    completedAt: date(),
+  },
+  (t) => [
+    index("playbook_user_id_idx").on(t.userId),
+    index("playbook_status_idx").on(t.status),
+    index("playbook_user_status_idx").on(t.userId, t.status),
+    index("playbook_created_at_idx").on(t.createdAt),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Playbook Weeks - Weekly breakdown of playbook plans
+export const playbookWeeks = createTable(
+  "playbook_week",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    playbookId: integer()
+      .notNull()
+      .references(() => playbooks.id, { onDelete: "cascade" }),
+    weekNumber: integer().notNull(), // 1-6
+    weekType: text().notNull().default("training"), // 'training' | 'deload' | 'pr_attempt'
+    aiPlanJson: text(), // JSON: AI-generated sessions with exercises, sets, reps, weights
+    algorithmicPlanJson: text(), // JSON: formula-based baseline for comparison
+    volumeTarget: real(), // Calculated total volume target for the week
+    status: text().notNull().default("pending"), // 'pending' | 'in_progress' | 'completed' | 'skipped'
+    metadata: text(), // JSON: additional metadata
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    index("playbook_week_playbook_id_idx").on(t.playbookId),
+    index("playbook_week_number_idx").on(t.playbookId, t.weekNumber),
+    index("playbook_week_status_idx").on(t.status),
+    uniqueIndex("playbook_week_unique").on(t.playbookId, t.weekNumber),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Playbook Sessions - Individual session prescriptions and tracking
+export const playbookSessions = createTable(
+  "playbook_session",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    playbookWeekId: integer()
+      .notNull()
+      .references(() => playbookWeeks.id, { onDelete: "cascade" }),
+    sessionNumber: integer().notNull(), // 1-7 per week
+    sessionDate: date(), // Nullable, set when scheduled
+    prescribedWorkoutJson: text().notNull(), // JSON: sets, reps, weights per exercise
+    actualWorkoutId: integer().references(() => workoutSessions.id, {
+      onDelete: "set null",
+    }),
+    adherenceScore: real(), // 0-100, calculated post-session
+    rpe: integer(), // 1-10, from questionnaire
+    rpeNotes: text(), // User notes from RPE questionnaire
+    deviation: text(), // JSON: comparison of prescribed vs actual
+    isCompleted: integer({ mode: "boolean" }).notNull().default(false),
+    completedAt: date(),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    index("playbook_session_week_id_idx").on(t.playbookWeekId),
+    index("playbook_session_date_idx").on(t.sessionDate),
+    index("playbook_session_workout_id_idx").on(t.actualWorkoutId),
+    index("playbook_session_week_number_idx").on(
+      t.playbookWeekId,
+      t.sessionNumber,
+    ),
+    uniqueIndex("playbook_session_unique").on(
+      t.playbookWeekId,
+      t.sessionNumber,
+    ),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Playbook Regenerations - Track playbook plan regenerations
+export const playbookRegenerations = createTable(
+  "playbook_regeneration",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    playbookId: integer()
+      .notNull()
+      .references(() => playbooks.id, { onDelete: "cascade" }),
+    triggeredBySessionId: integer().references(() => playbookSessions.id, {
+      onDelete: "set null",
+    }),
+    regenerationReason: text().notNull(), // 'manual' | 'deviation' | 'failed_pr' | 'rpe_feedback'
+    affectedWeekStart: integer().notNull(), // Week number where regeneration starts
+    affectedWeekEnd: integer().notNull(), // Week number where regeneration ends
+    previousPlanSnapshot: text(), // JSON: snapshot of plan before regeneration
+    newPlanSnapshot: text(), // JSON: snapshot of new plan
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+  },
+  (t) => [
+    index("playbook_regeneration_playbook_id_idx").on(t.playbookId),
+    index("playbook_regeneration_session_id_idx").on(t.triggeredBySessionId),
+    index("playbook_regeneration_created_at_idx").on(t.playbookId, t.createdAt),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
 // Relations
 export const workoutTemplatesRelations = relations(
   workoutTemplates,
@@ -1012,6 +1149,50 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const playbooksRelations = relations(playbooks, ({ many }) => ({
+  weeks: many(playbookWeeks),
+  regenerations: many(playbookRegenerations),
+}));
+
+export const playbookWeeksRelations = relations(
+  playbookWeeks,
+  ({ one, many }) => ({
+    playbook: one(playbooks, {
+      fields: [playbookWeeks.playbookId],
+      references: [playbooks.id],
+    }),
+    sessions: many(playbookSessions),
+  }),
+);
+
+export const playbookSessionsRelations = relations(
+  playbookSessions,
+  ({ one }) => ({
+    week: one(playbookWeeks, {
+      fields: [playbookSessions.playbookWeekId],
+      references: [playbookWeeks.id],
+    }),
+    actualWorkout: one(workoutSessions, {
+      fields: [playbookSessions.actualWorkoutId],
+      references: [workoutSessions.id],
+    }),
+  }),
+);
+
+export const playbookRegenerationsRelations = relations(
+  playbookRegenerations,
+  ({ one }) => ({
+    playbook: one(playbooks, {
+      fields: [playbookRegenerations.playbookId],
+      references: [playbooks.id],
+    }),
+    triggeredBySession: one(playbookSessions, {
+      fields: [playbookRegenerations.triggeredBySessionId],
+      references: [playbookSessions.id],
+    }),
+  }),
+);
 
 // Exercise Daily Summary - Pre-computed daily metrics for performance
 export const exerciseDailySummary = createTable(

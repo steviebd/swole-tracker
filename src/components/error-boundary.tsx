@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React from "react";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -12,22 +12,33 @@ interface ErrorBoundaryProps {
   fallback?: React.ComponentType<{ error?: Error; retry: () => void }>;
 }
 
-const DefaultErrorFallback = ({ error, retry }: { error?: Error; retry: () => void }) => (
-  <div className="flex flex-col items-center justify-center min-h-[200px] p-8 text-center">
-    <div className="text-xl font-semibold text-foreground mb-2">Something went wrong</div>
-    <div className="text-sm text-muted-foreground mb-4">
+const DefaultErrorFallback = ({
+  error,
+  retry,
+}: {
+  error?: Error;
+  retry: () => void;
+}) => (
+  <div className="flex min-h-[200px] flex-col items-center justify-center p-8 text-center">
+    <div className="text-foreground mb-2 text-xl font-semibold">
+      Something went wrong
+    </div>
+    <div className="text-muted-foreground mb-4 text-sm">
       {error?.message || "An unexpected error occurred"}
     </div>
     <button
       onClick={retry}
-      className="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity"
+      className="bg-primary text-primary-foreground rounded px-4 py-2 transition-opacity hover:opacity-90"
     >
       Try again
     </button>
   </div>
 );
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -38,17 +49,22 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
+    this.setState({ hasError: false });
   };
 
   render() {
     if (this.state.hasError) {
       const FallbackComponent = this.props.fallback || DefaultErrorFallback;
-      return <FallbackComponent error={this.state.error} retry={this.handleRetry} />;
+      return (
+        <FallbackComponent
+          {...(this.state.error && { error: this.state.error })}
+          retry={this.handleRetry}
+        />
+      );
     }
 
     return this.props.children;
@@ -58,19 +74,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 // Higher-order component for wrapping components with error boundary
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
-  fallback?: React.ComponentType<{ error?: Error; retry: () => void }>
+  fallback?: React.ComponentType<{ error?: Error; retry: () => void }>,
 ) {
   const WrappedComponent = (props: P) => (
-    <ErrorBoundary fallback={fallback}>
+    <ErrorBoundary {...(fallback && { fallback })}>
       <Component {...props} />
     </ErrorBoundary>
   );
-  
+
   const componentDisplayName = Component.displayName
     ? `(${Component.displayName})`
     : "()";
 
   WrappedComponent.displayName = `withErrorBoundary${componentDisplayName}`;
-  
+
   return WrappedComponent;
 }

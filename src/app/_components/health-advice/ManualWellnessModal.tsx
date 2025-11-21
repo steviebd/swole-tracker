@@ -58,7 +58,7 @@ export function ManualWellnessModal({
       deviceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     } as ManualWellnessData,
     validators: {
-      onBlur: manualWellnessDataSchema,
+      onBlur: manualWellnessDataSchema as any,
     },
     onSubmit: async ({ value }) => {
       // Track submission
