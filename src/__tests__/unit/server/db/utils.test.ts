@@ -226,7 +226,7 @@ describe("Database Utils", () => {
         "function",
       );
       expect(typeof utilsModule.batchDeleteWorkouts).toBe("function");
-      expect(typeof utilsModule.getCachedUserPreferences).toBe("function");
+      expect(typeof utilsModule.getUserPreferences).toBe("function");
       expect(typeof utilsModule.clearUserPreferencesCache).toBe("function");
     });
 

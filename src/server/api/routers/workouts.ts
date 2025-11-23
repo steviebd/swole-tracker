@@ -50,6 +50,10 @@ import {
   SQLITE_VARIABLE_LIMIT,
   whereInChunks,
 } from "~/server/db/chunk-utils";
+import {
+  triggerExerciseAggregation,
+  triggerSessionAggregation,
+} from "~/server/db/incremental-aggregation";
 import { invalidateQueries } from "~/trpc/cache-config";
 
 export const workoutsRouter = createTRPCRouter({
@@ -301,10 +305,8 @@ export const workoutsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input, ctx }) => {
-      // Build exercise name filter conditions
-      const exerciseConditions = [
-        eq(sessionExercises.exerciseName, input.exerciseName),
-      ];
+      // Collect all exercise names to match (input name + any linked/resolved names)
+      const exerciseNames = [input.exerciseName];
 
       // If templateExerciseId is provided, also include linked exercise names
       if (input.templateExerciseId) {
@@ -330,12 +332,17 @@ export const workoutsRouter = createTRPCRouter({
             linked.resolvedName &&
             linked.resolvedName !== input.exerciseName
           ) {
-            exerciseConditions.push(
-              eq(sessionExercises.exerciseName, linked.resolvedName),
-            );
+            exerciseNames.push(linked.resolvedName);
           }
         }
       }
+
+      // Build exercise name filter conditions - check BOTH exerciseName and resolvedExerciseName
+      // This ensures we find history whether the exercise was used directly or via a link
+      const exerciseConditions = exerciseNames.flatMap((name) => [
+        eq(sessionExercises.exerciseName, name),
+        eq(sessionExercises.resolvedExerciseName, name),
+      ]);
 
       // Get the latest session with matching exercises
       const latestSession = await ctx.db
@@ -638,12 +645,36 @@ export const workoutsRouter = createTRPCRouter({
               one_rm_estimate: ex.one_rm_estimate,
               volume_load: ex.volume_load,
             }));
+            const insertedExerciseIds: number[] = [];
             await chunkedBatch(
               ctx.db,
               exerciseRows,
-              (chunk) => ctx.db.insert(sessionExercises).values(chunk),
+              async (chunk) => {
+                const result = await ctx.db
+                  .insert(sessionExercises)
+                  .values(chunk)
+                  .returning({ id: sessionExercises.id });
+                insertedExerciseIds.push(...result.map((r) => r.id));
+              },
               { limit: 50 },
             ); // Lower limit for D1 safety
+
+            // Trigger incremental aggregation for new exercises
+            if (insertedExerciseIds.length > 0) {
+              try {
+                await triggerExerciseAggregation(
+                  ctx.db,
+                  ctx.user.id,
+                  insertedExerciseIds,
+                );
+              } catch (error) {
+                logger.warn("incremental_aggregation_failed", {
+                  userId: ctx.user.id,
+                  exerciseIds: insertedExerciseIds,
+                  error: error instanceof Error ? error.message : "unknown",
+                });
+              }
+            }
           }
         }
 
@@ -691,10 +722,34 @@ export const workoutsRouter = createTRPCRouter({
           throw new Error("Workout session not found");
         }
 
+        // Get exercise IDs that will be deleted for aggregation
+        const exercisesToDelete = await ctx.db.query.sessionExercises.findMany({
+          where: eq(sessionExercises.sessionId, input.sessionId),
+          columns: { id: true },
+        });
+
         // Delete existing exercises (and cascading exercise_sets) for this session
         await ctx.db
           .delete(sessionExercises)
           .where(eq(sessionExercises.sessionId, input.sessionId));
+
+        // Trigger incremental aggregation for deleted exercises
+        if (exercisesToDelete.length > 0) {
+          const deletedExerciseIds = exercisesToDelete.map((ex) => ex.id);
+          try {
+            await triggerExerciseAggregation(
+              ctx.db,
+              ctx.user.id,
+              deletedExerciseIds,
+            );
+          } catch (error) {
+            logger.warn("incremental_aggregation_failed", {
+              userId: ctx.user.id,
+              exerciseIds: deletedExerciseIds,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          }
+        }
 
         const templateExerciseIds = Array.from(
           new Set(
@@ -1158,6 +1213,24 @@ export const workoutsRouter = createTRPCRouter({
           );
       }
 
+      // Trigger incremental aggregation for updated exercises
+      if (updatesMap.size > 0) {
+        const updatedExerciseIds = Array.from(updatesMap.keys());
+        try {
+          await triggerExerciseAggregation(
+            ctx.db,
+            ctx.user.id,
+            updatedExerciseIds,
+          );
+        } catch (error) {
+          logger.warn("incremental_aggregation_failed", {
+            userId: ctx.user.id,
+            exerciseIds: updatedExerciseIds,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }
+      }
+
       return { success: true, updatedCount: updatesMap.size };
     }),
 
@@ -1210,10 +1283,35 @@ export const workoutsRouter = createTRPCRouter({
             continue;
           }
 
+          // Get exercise IDs that will be deleted for aggregation
+          const exercisesToDelete =
+            await ctx.db.query.sessionExercises.findMany({
+              where: eq(sessionExercises.sessionId, workout.sessionId),
+              columns: { id: true },
+            });
+
           // Delete existing exercises for this session
           await ctx.db
             .delete(sessionExercises)
             .where(eq(sessionExercises.sessionId, workout.sessionId));
+
+          // Trigger incremental aggregation for deleted exercises
+          if (exercisesToDelete.length > 0) {
+            const deletedExerciseIds = exercisesToDelete.map((ex) => ex.id);
+            try {
+              await triggerExerciseAggregation(
+                ctx.db,
+                ctx.user.id,
+                deletedExerciseIds,
+              );
+            } catch (error) {
+              logger.warn("incremental_aggregation_failed", {
+                userId: ctx.user.id,
+                exerciseIds: deletedExerciseIds,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+            }
+          }
 
           // Flatten exercises into individual sets and filter out empty ones
           const setsToInsert = workout.exercises.flatMap((exercise) =>

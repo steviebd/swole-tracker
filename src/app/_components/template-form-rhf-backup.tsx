@@ -159,8 +159,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
         break;
       case "mostUsed":
         sorted.sort((a, b) => {
-          const diff =
-            (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
+          const diff = (b.totalSessions ?? 0) - (a.totalSessions ?? 0);
           if (diff !== 0) {
             return diff;
           }
@@ -208,8 +207,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
     });
 
     for (const [key] of matching) {
-      const maybeOpts =
-        (key as QueryKey)[1] as { input?: TemplatesGetAllInput } | undefined;
+      const maybeOpts = (key as QueryKey)[1] as
+        | { input?: TemplatesGetAllInput }
+        | undefined;
       const input = maybeOpts?.input;
 
       queryClient.setQueryData<TemplateList | undefined>(
@@ -222,7 +222,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const createTemplate = api.templates.create.useMutation({
     onMutate: async (_newTemplate) => {
       // Cancel any outgoing refetches to prevent race conditions
-      await utils.templates.getAll.cancel();
+      await queryClient.cancelQueries({ queryKey: templatesQueryKeyRoot });
 
       // Snapshot the previous value for error rollback
       const previousQueries = snapshotTemplateQueries();
@@ -230,9 +230,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       return { previousQueries } satisfies TemplateMutationContext;
     },
     onError: (err, newTemplate, context) => {
-      const mutationContext = context as
-        | TemplateMutationContext
-        | undefined;
+      const mutationContext = context as TemplateMutationContext | undefined;
       // Rollback on error
       if (mutationContext?.previousQueries) {
         restoreTemplateQueries(mutationContext.previousQueries);
@@ -276,7 +274,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const updateTemplate = api.templates.update.useMutation({
     onMutate: async (updatedTemplate) => {
       // Cancel any outgoing refetches
-      await utils.templates.getAll.cancel();
+      await queryClient.cancelQueries({ queryKey: templatesQueryKeyRoot });
 
       // Snapshot the previous value
       const previousQueries = snapshotTemplateQueries();
@@ -328,9 +326,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       return { previousQueries } satisfies TemplateMutationContext;
     },
     onError: (err, updatedTemplate, context) => {
-      const mutationContext = context as
-        | TemplateMutationContext
-        | undefined;
+      const mutationContext = context as TemplateMutationContext | undefined;
       // Rollback on error
       if (mutationContext?.previousQueries) {
         restoreTemplateQueries(mutationContext.previousQueries);

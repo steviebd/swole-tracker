@@ -31,15 +31,25 @@ const isBrowser = () =>
   typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 
 const notifyDraftsUpdated = () => {
-  if (!isBrowser()) return;
-  if (typeof window.dispatchEvent !== "function") return;
+  console.log("notifyDraftsUpdated called");
+  if (!isBrowser()) {
+    console.log("Not in browser environment");
+    return;
+  }
+  if (typeof window.dispatchEvent !== "function") {
+    console.log("window.dispatchEvent not available");
+    return;
+  }
   try {
+    console.log("Dispatching custom event:", WORKOUT_DRAFTS_UPDATED_EVENT);
     window.dispatchEvent(
       new CustomEvent(WORKOUT_DRAFTS_UPDATED_EVENT, {
         bubbles: false,
       }),
     );
-  } catch {
+    console.log("Custom event dispatched successfully");
+  } catch (error) {
+    console.error("Error dispatching custom event:", error);
     // Swallow errors to avoid breaking callers that lack CustomEvent support
   }
 };
@@ -202,8 +212,13 @@ function enforceBudget(drafts: WorkoutDraftRecord[]): WorkoutDraftRecord[] {
 }
 
 function writeDrafts(drafts: WorkoutDraftRecord[]) {
-  if (!isBrowser()) return;
+  console.log("writeDrafts called with", drafts.length, "drafts");
+  if (!isBrowser()) {
+    console.log("Not in browser environment");
+    return;
+  }
   if (drafts.length === 0) {
+    console.log("No drafts to write, removing storage key");
     window.localStorage.removeItem(STORAGE_KEY);
     notifyDraftsUpdated();
     return;
@@ -211,11 +226,14 @@ function writeDrafts(drafts: WorkoutDraftRecord[]) {
 
   const toPersist = enforceBudget(drafts);
   const serialized = JSON.stringify(toPersist);
+  console.log("Writing to localStorage:", serialized.length, "bytes");
 
   try {
     window.localStorage.setItem(STORAGE_KEY, serialized);
+    console.log("Successfully wrote to localStorage");
     notifyDraftsUpdated();
   } catch (error) {
+    console.error("Error writing to localStorage:", error);
     if (!isQuotaError(error)) {
       console.warn("Failed to persist workout drafts", error);
       return;
@@ -277,6 +295,7 @@ export function removeWorkoutDraft(sessionId: number) {
   const filtered = drafts.filter((draft) => draft.sessionId !== sessionId);
   if (filtered.length === drafts.length) return;
   writeDrafts(filtered);
+  notifyDraftsUpdated();
 }
 
 export function getMostRecentWorkoutDraft(): WorkoutDraftRecord | null {

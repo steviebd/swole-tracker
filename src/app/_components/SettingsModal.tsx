@@ -62,7 +62,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   // Sync local state with preferences
   useEffect(() => {
     if (!isLoading && preferences) {
-      setManualWellnessEnabled(preferences.enable_manual_wellness ?? false);
+      setManualWellnessEnabled(preferences?.enable_manual_wellness ?? false);
 
       // Sync the preferences from the old modal
       const predictive =
@@ -102,7 +102,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       "defaultWeightUnit" in preferences
         ? (preferences.defaultWeightUnit ?? "kg")
         : "kg";
-    const mw = preferences.enable_manual_wellness ?? false;
+    const mw = preferences?.enable_manual_wellness ?? false;
 
     return (
       pe === predictiveEnabled &&

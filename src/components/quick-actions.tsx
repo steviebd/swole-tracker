@@ -57,23 +57,23 @@ function ContinueSessionCard({
   const sessionHref = `/workout/session/${draft.sessionId}`;
 
   return (
-    <Card className="glass-card glass-hairline flex h-full flex-col justify-between overflow-hidden border border-white/8 bg-card/85 shadow-xl transition-all duration-300">
+    <Card className="glass-card glass-hairline bg-card/85 flex h-full flex-col justify-between overflow-hidden border border-white/8 shadow-xl transition-all duration-300">
       <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
       <CardContent className="flex flex-1 flex-col gap-4 p-5 sm:p-6">
         <div className="flex items-center gap-4">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-primary-foreground">
+          <span className="text-primary-foreground grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500">
             <Flame className="h-6 w-6" aria-hidden />
           </span>
           <div>
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-foreground text-lg font-semibold">
               Continue session
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Last updated {updatedLabel}
             </p>
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-muted-foreground text-sm">
           {exerciseCount} exercises · {setCount} sets saved locally
         </div>
         <div className="mt-auto flex flex-col gap-3 sm:flex-row">
@@ -82,7 +82,7 @@ function ContinueSessionCard({
           </Button>
           <Button
             variant="ghost"
-            className="flex-1 text-destructive hover:text-destructive"
+            className="text-destructive hover:text-destructive flex-1"
             type="button"
             onClick={onDiscard}
           >
@@ -100,13 +100,13 @@ function QuickActionCard({ action }: { action: QuickAction }) {
   return (
     <Link
       href={action.href}
-      className="group focus-visible:outline-none focus-visible:ring-0"
+      className="group focus-visible:ring-0 focus-visible:outline-none"
     >
       <Card
         className={cn(
-          "glass-card glass-hairline flex h-full flex-col overflow-hidden border border-white/8 bg-card/85 shadow-xl transition-all duration-300",
+          "glass-card glass-hairline bg-card/85 flex h-full flex-col overflow-hidden border border-white/8 shadow-xl transition-all duration-300",
           "hover:-translate-y-1 hover:shadow-xl",
-          "group-focus-visible:-translate-y-1 group-focus-visible:shadow-xl group-focus-visible:ring-2 group-focus-visible:ring-primary/45 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-background",
+          "group-focus-visible:ring-primary/45 group-focus-visible:ring-offset-background group-focus-visible:-translate-y-1 group-focus-visible:shadow-xl group-focus-visible:ring-2 group-focus-visible:ring-offset-2",
         )}
       >
         <div className={cn("h-1 bg-gradient-to-r", action.gradient)} />
@@ -114,7 +114,7 @@ function QuickActionCard({ action }: { action: QuickAction }) {
           <div className="flex items-center gap-4">
             <span
               className={cn(
-                "grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br text-primary-foreground transition-transform duration-300",
+                "text-primary-foreground grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br transition-transform duration-300",
                 action.gradient,
                 "group-hover:scale-110",
               )}
@@ -122,17 +122,17 @@ function QuickActionCard({ action }: { action: QuickAction }) {
               <Icon className="h-6 w-6" aria-hidden />
             </span>
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-foreground text-lg font-semibold">
                 {action.title}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {action.description}
               </p>
             </div>
           </div>
           <Button
             className={cn(
-              "mt-auto w-full border-0 text-primary-foreground",
+              "text-primary-foreground mt-auto w-full border-0",
               "bg-gradient-to-r",
               action.gradient,
               "hover:opacity-90",
@@ -147,7 +147,9 @@ function QuickActionCard({ action }: { action: QuickAction }) {
 }
 
 export const QuickActions = memo(function QuickActions() {
-  const [resumeDraft, setResumeDraft] = useState<WorkoutDraftRecord | null>(null);
+  const [resumeDraft, setResumeDraft] = useState<WorkoutDraftRecord | null>(
+    null,
+  );
 
   const refreshDraftState = useCallback(() => {
     setResumeDraft(getMostRecentWorkoutDraft());

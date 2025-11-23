@@ -11,6 +11,7 @@ import {
   exerciseWeeklySummary,
   exerciseMonthlySummary,
   viewSessionExerciseMetrics,
+  exerciseResolutionCache,
 } from "~/server/db/schema";
 // Note: sessionExerciseMetricsView replaced with direct joins
 import {
@@ -39,6 +40,11 @@ import {
   calculateFrequency,
 } from "~/server/api/utils/exercise-calculations";
 import { SQLITE_VARIABLE_LIMIT, whereInChunks } from "~/server/db/chunk-utils";
+import {
+  createIncrementalAggregator,
+  triggerExerciseAggregation,
+  triggerSessionAggregation,
+} from "~/server/db/incremental-aggregation";
 import type {
   ExerciseStrengthProgression,
   ExerciseVolumeProgression,
@@ -56,6 +62,10 @@ import type {
 
 import { logger } from "~/lib/logger";
 import { formatTimeRangeLabel, getWeeksForRange } from "~/lib/time-range";
+import {
+  getCachedExerciseResolution,
+  bulkRefreshExerciseCache,
+} from "~/server/db/exercise-resolution-cache";
 
 // Alias for backward compatibility
 const sessionExerciseMetricsView = viewSessionExerciseMetrics;
@@ -131,47 +141,176 @@ export const progressRouter = createTRPCRouter({
         undefined,
       );
 
-      // Get all exercise names for PR calculation
-      const exerciseNames = await getAllExerciseNames(ctx.db, ctx.user.id);
-
-      // Get workout dates for consistency
-      const workoutDatesResult = await ctx.db
-        .select({ workoutDate: workoutSessions.workoutDate })
-        .from(workoutSessions)
-        .where(
-          and(
-            eq(workoutSessions.user_id, ctx.user.id),
-            gte(workoutSessions.workoutDate, startDate),
-            lte(workoutSessions.workoutDate, endDate),
-          ),
-        )
-        .orderBy(desc(workoutSessions.workoutDate));
-
-      const workoutDates = workoutDatesResult.map((row) => row.workoutDate);
-
-      // Parallel fetch of all dashboard data
+      // Calculate previous period dates
       const { startDate: prevStartDate, endDate: prevEndDate } =
         getPreviousPeriod(startDate, endDate);
 
-      const [personalRecords, volumeData, previousData] = await Promise.all([
-        calculatePersonalRecords(
-          ctx,
-          exerciseNames,
-          startDate,
-          endDate,
-          "both",
+      // Optimized dashboard query using CTEs to consolidate multiple data fetches
+      const dashboardQuery = sql`
+        WITH current_period_data AS (
+          SELECT
+            ws.workoutDate,
+            se.exerciseName,
+            se.resolvedExerciseName,
+            se.weight,
+            se.reps,
+            se.sets,
+            se.unit,
+            se.one_rm_estimate,
+            se.volume_load,
+            se.templateExerciseId
+          FROM session_exercise se
+          INNER JOIN workout_session ws ON ws.id = se.sessionId
+          WHERE se.user_id = ${ctx.user.id}
+            AND ws.workoutDate >= ${startDate}
+            AND ws.workoutDate <= ${endDate}
         ),
-        getVolumeAndStrengthData(ctx, startDate, endDate),
-        getVolumeAndStrengthData(ctx, prevStartDate, prevEndDate),
-      ]);
+        previous_period_data AS (
+          SELECT
+            ws.workoutDate,
+            se.exerciseName,
+            se.resolvedExerciseName,
+            se.weight,
+            se.reps,
+            se.sets,
+            se.unit,
+            se.one_rm_estimate,
+            se.volume_load,
+            se.templateExerciseId
+          FROM session_exercise se
+          INNER JOIN workout_session ws ON ws.id = se.sessionId
+          WHERE se.user_id = ${ctx.user.id}
+            AND ws.workoutDate >= ${prevStartDate.toISOString()}
+            AND ws.workoutDate <= ${prevEndDate.toISOString()}
+        ),
+        current_workout_dates AS (
+          SELECT DISTINCT workoutDate
+          FROM current_period_data
+          ORDER BY workoutDate DESC
+        ),
+        current_aggregates AS (
+          SELECT
+            COALESCE(NULLIF(resolvedExerciseName, ''), exerciseName) as exerciseName,
+            COUNT(DISTINCT workoutDate) as session_count,
+            COALESCE(SUM(volume_load), 0) as total_volume,
+            MAX(weight) as max_weight,
+            MAX(one_rm_estimate) as max_one_rm,
+            COUNT(*) as total_sets
+          FROM current_period_data
+          GROUP BY COALESCE(NULLIF(resolvedExerciseName, ''), exerciseName)
+        ),
+        previous_aggregates AS (
+          SELECT
+            COALESCE(NULLIF(resolvedExerciseName, ''), exerciseName) as exerciseName,
+            COALESCE(SUM(volume_load), 0) as total_volume,
+            COUNT(*) as total_sets
+          FROM previous_period_data
+          GROUP BY COALESCE(NULLIF(resolvedExerciseName, ''), exerciseName)
+        ),
+        current_summary AS (
+          SELECT
+            COUNT(DISTINCT workoutDate) as workout_count,
+            COALESCE(SUM(volume_load), 0) as total_volume,
+            COUNT(*) as total_sets,
+            COALESCE(SUM(reps * sets), 0) as total_reps,
+            COUNT(DISTINCT COALESCE(NULLIF(resolvedExerciseName, ''), exerciseName)) as unique_exercises
+          FROM current_period_data
+        ),
+        previous_summary AS (
+          SELECT
+            COALESCE(SUM(volume_load), 0) as total_volume,
+            COUNT(*) as total_sets,
+            COALESCE(SUM(reps * sets), 0) as total_reps
+          FROM previous_period_data
+        )
+        SELECT
+          (SELECT json_group_array(workoutDate) FROM current_workout_dates) as workout_dates,
+          (SELECT json_object(
+            'workoutCount', workout_count,
+            'totalVolume', total_volume,
+            'totalSets', total_sets,
+            'totalReps', total_reps,
+            'uniqueExercises', unique_exercises
+          ) FROM current_summary) as current_summary,
+          (SELECT json_object(
+            'totalVolume', total_volume,
+            'totalSets', total_sets,
+            'totalReps', total_reps
+          ) FROM previous_summary) as previous_summary,
+          (SELECT json_group_array(json_object(
+            'exerciseName', exerciseName,
+            'sessionCount', session_count,
+            'totalVolume', total_volume,
+            'maxWeight', max_weight,
+            'maxOneRM', max_one_rm
+          )) FROM current_aggregates) as exercise_aggregates
+      `;
 
-      // Use volumeData for both volumeData and comparativeData calculation
-      const comparativeData = {
-        current: volumeData,
-        previous: previousData,
-        changes: calculateChanges(volumeData, previousData),
+      const result = (await ctx.db.get(dashboardQuery)) as {
+        workout_dates?: string;
+        current_summary?: string;
+        previous_summary?: string;
+        exercise_aggregates?: string;
       };
 
+      // Parse the JSON results from the consolidated query
+      const workoutDates = result.workout_dates
+        ? JSON.parse(result.workout_dates).map((d: string) => new Date(d))
+        : [];
+      const currentSummary = result.current_summary
+        ? JSON.parse(result.current_summary)
+        : {
+            workoutCount: 0,
+            totalVolume: 0,
+            totalSets: 0,
+            totalReps: 0,
+            uniqueExercises: 0,
+          };
+      const previousSummary = result.previous_summary
+        ? JSON.parse(result.previous_summary)
+        : {
+            totalVolume: 0,
+            totalSets: 0,
+            totalReps: 0,
+          };
+      const exerciseAggregates = result.exercise_aggregates
+        ? JSON.parse(result.exercise_aggregates)
+        : [];
+
+      // Get exercise names for PR calculation from aggregates
+      const exerciseNames = exerciseAggregates
+        .map((ex: { exerciseName: string }) => ex.exerciseName)
+        .filter(Boolean);
+
+      // Calculate personal records using the optimized data
+      const personalRecords =
+        exerciseNames.length > 0
+          ? await calculatePersonalRecords(
+              ctx,
+              exerciseNames,
+              startDate,
+              endDate,
+              "both",
+            )
+          : [];
+
+      // Build volume data from aggregates
+      const volumeData = {
+        totalVolume: currentSummary.totalVolume,
+        totalSets: currentSummary.totalSets,
+        totalReps: currentSummary.totalReps,
+        uniqueExercises: currentSummary.uniqueExercises,
+        workoutCount: currentSummary.workoutCount,
+      };
+
+      // Build comparative data
+      const comparativeData = {
+        current: volumeData,
+        previous: previousSummary,
+        changes: calculateChanges(volumeData, previousSummary),
+      };
+
+      // Calculate consistency metrics
       const consistencyData = calculateConsistencyMetrics(
         workoutDates,
         startDate,
@@ -184,18 +323,21 @@ export const progressRouter = createTRPCRouter({
       const dataPoints = personalRecords.length + workoutDates.length;
 
       // Log performance metrics
-      logger.info("Progress dashboard data loaded", {
+      logger.info("Progress dashboard data loaded (optimized)", {
         userId: ctx.user.id,
         loadTime,
         dataPoints,
         timeRange: input.timeRange,
+        queryOptimization: "CTE-based consolidation",
       });
 
       return {
         personalRecords,
         volumeData,
         consistencyData,
-        workoutDates: workoutDates.map((w) => w.toISOString().split("T")[0]!),
+        workoutDates: workoutDates.map(
+          (w: Date) => w.toISOString().split("T")[0]!,
+        ),
         comparativeData,
         timeRange: input.timeRange,
         timeRangeLabel: formatTimeRangeLabel(input.timeRange),
@@ -232,7 +374,7 @@ export const progressRouter = createTRPCRouter({
           templateExerciseId: input.templateExerciseId ?? null,
         });
 
-        // Query raw session_exercises data directly - this is simpler and more reliable
+        // Query raw session_exercise data directly - this is simpler and more reliable
         // than maintaining separate aggregation tables
         console.log("getExerciseStrengthProgression: querying raw data", {
           userId: ctx.user.id,
@@ -2978,48 +3120,82 @@ async function resolveExerciseSelection(
   }
 
   let templateExerciseIds: number[] = [];
+  let masterExerciseName: string | null = null;
+
+  // Use cached exercise resolution for faster lookups
   if (typeof params.templateExerciseId === "number") {
-    const linkedSet = await getLinkedExerciseSet(
+    const cachedResolution = await getCachedExerciseResolution(
       database,
-      params.templateExerciseId,
       userId,
+      params.templateExerciseId,
     );
-    if (linkedSet) {
-      templateExerciseIds = linkedSet.templateExerciseIds;
-      linkedSet.exerciseNames.forEach((name) => {
+
+    if (cachedResolution) {
+      templateExerciseIds = cachedResolution.templateExerciseIds;
+      cachedResolution.aliases.forEach((name) => {
         if (typeof name === "string" && name.trim().length > 0) {
           nameSet.add(name.trim());
         }
       });
-      if (
-        linkedSet.masterExerciseName &&
-        linkedSet.masterExerciseName.trim().length > 0
-      ) {
-        nameSet.add(linkedSet.masterExerciseName.trim());
+      masterExerciseName = cachedResolution.masterExerciseName;
+      if (masterExerciseName && masterExerciseName.trim().length > 0) {
+        nameSet.add(masterExerciseName.trim());
+      }
+    } else {
+      // Fallback to legacy method if cache fails
+      const linkedSet = await getLinkedExerciseSet(
+        database,
+        params.templateExerciseId,
+        userId,
+      );
+      if (linkedSet) {
+        templateExerciseIds = linkedSet.templateExerciseIds;
+        linkedSet.exerciseNames.forEach((name) => {
+          if (typeof name === "string" && name.trim().length > 0) {
+            nameSet.add(name.trim());
+          }
+        });
+        masterExerciseName = linkedSet.masterExerciseName;
+        if (masterExerciseName && masterExerciseName.trim().length > 0) {
+          nameSet.add(masterExerciseName.trim());
+        }
       }
     }
-    // Note: When linkedSet is null (template exercise not found), we don't use the invalid ID
-    // The lookup will fall back to using exerciseName only
+  } else if (rawName) {
+    // Try cache lookup by exercise name
+    const cachedResolution = await getCachedExerciseResolution(
+      database,
+      userId,
+      rawName,
+    );
+
+    if (cachedResolution) {
+      templateExerciseIds = cachedResolution.templateExerciseIds;
+      cachedResolution.aliases.forEach((name) => {
+        if (typeof name === "string" && name.trim().length > 0) {
+          nameSet.add(name.trim());
+        }
+      });
+      masterExerciseName = cachedResolution.masterExerciseName;
+      if (masterExerciseName && masterExerciseName.trim().length > 0) {
+        nameSet.add(masterExerciseName.trim());
+      }
+    }
+    // If cache miss, we still have the rawName in nameSet
   }
 
   const names = Array.from(nameSet);
-  const displayName = rawName ?? names[0] ?? "Selected exercise";
+  const displayName =
+    masterExerciseName || rawName || names[0] || "Selected exercise";
 
-  console.log("resolveExerciseSelection", {
+  logger.debug("resolveExerciseSelection (optimized)", {
     userId,
     params,
     resolved: {
       displayName,
       names,
       templateExerciseIds,
-      linkedSet:
-        typeof params.templateExerciseId === "number"
-          ? await getLinkedExerciseSet(
-              database,
-              params.templateExerciseId,
-              userId,
-            )
-          : null,
+      cacheUsed: true,
     },
   });
 
@@ -3315,60 +3491,102 @@ async function fetchSessionMetricRowsFromBaseTable(
 }
 
 async function getAllExerciseNames(database: typeof db, userId: string) {
-  const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
-  const userIdColumn = sessionExerciseMetricsView.userId;
+  try {
+    // First try to get unique exercise names from cache table
+    const cacheRows = await database
+      .select({
+        exerciseName: exerciseResolutionCache.resolved_name,
+      })
+      .from(exerciseResolutionCache)
+      .where(eq(exerciseResolutionCache.user_id, userId))
+      .groupBy(exerciseResolutionCache.resolved_name);
 
-  if (resolvedNameColumn && userIdColumn) {
-    try {
-      const rows = await database
-        .select({
-          exerciseName: sql<string>`${resolvedNameColumn!}`,
-        })
-        .from(sessionExerciseMetricsView)
-        .where(eq(userIdColumn!, userId))
-        .groupBy(sql`${resolvedNameColumn!}`);
-
-      const names = rows
-        .map((row) =>
-          typeof row.exerciseName === "string"
-            ? (row.exerciseName as string).trim()
-            : "",
-        )
+    if (cacheRows.length > 0) {
+      const names = cacheRows
+        .map((row) => row.exerciseName?.trim())
         .filter((name): name is string => Boolean(name));
 
       if (names.length > 0) {
+        logger.debug("Exercise names loaded from cache", {
+          userId,
+          count: names.length,
+        });
         return names;
       }
-    } catch (error) {
-      logger.warn("sessionExerciseMetricsView unavailable for name lookup", {
-        error,
-      });
     }
+
+    // Fallback to database query if cache is empty
+    const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
+    const userIdColumn = sessionExerciseMetricsView.userId;
+
+    if (resolvedNameColumn && userIdColumn) {
+      try {
+        const rows = await database
+          .select({
+            exerciseName: sql<string>`${resolvedNameColumn!}`,
+          })
+          .from(sessionExerciseMetricsView)
+          .where(eq(userIdColumn!, userId))
+          .groupBy(sql`${resolvedNameColumn!}`);
+
+        const names = rows
+          .map((row) =>
+            typeof row.exerciseName === "string"
+              ? (row.exerciseName as string).trim()
+              : "",
+          )
+          .filter((name): name is string => Boolean(name));
+
+        if (names.length > 0) {
+          // Bulk refresh cache with these names for future lookups
+          await bulkRefreshExerciseCache(database, userId, names);
+          return names;
+        }
+      } catch (error) {
+        logger.warn("sessionExerciseMetricsView unavailable for name lookup", {
+          error,
+        });
+      }
+    }
+
+    // Final fallback to base table
+    const fallbackRows = await database
+      .select({
+        resolvedExerciseName: sessionExercises.resolvedExerciseName,
+        exerciseName: sessionExercises.exerciseName,
+      })
+      .from(sessionExercises)
+      .where(eq(sessionExercises.user_id, userId))
+      .groupBy(
+        sessionExercises.resolvedExerciseName,
+        sessionExercises.exerciseName,
+      );
+
+    const names = fallbackRows
+      .map((row) => {
+        const resolvedName =
+          typeof row.resolvedExerciseName === "string"
+            ? row.resolvedExerciseName.trim()
+            : "";
+        const fallbackName =
+          typeof row.exerciseName === "string" ? row.exerciseName.trim() : "";
+        return resolvedName || fallbackName;
+      })
+      .filter((name): name is string => Boolean(name));
+
+    // Bulk refresh cache with these names
+    if (names.length > 0) {
+      await bulkRefreshExerciseCache(database, userId, names);
+    }
+
+    return names;
+  } catch (error) {
+    logger.error("Failed to get all exercise names", {
+      userId,
+      error,
+    });
+    return [];
   }
-
-  const fallbackRows = await database
-    .select({
-      resolvedExerciseName: sessionExercises.resolvedExerciseName,
-      exerciseName: sessionExercises.exerciseName,
-    })
-    .from(sessionExercises)
-    .where(eq(sessionExercises.user_id, userId))
-    .groupBy(
-      sessionExercises.resolvedExerciseName,
-      sessionExercises.exerciseName,
-    );
-
-  return fallbackRows
-    .map((row) => {
-      const resolvedName =
-        typeof row.resolvedExerciseName === "string"
-          ? row.resolvedExerciseName.trim()
-          : "";
-      const fallbackName =
-        typeof row.exerciseName === "string" ? row.exerciseName.trim() : "";
-      return resolvedName || fallbackName;
-    })
-    .filter((name): name is string => Boolean(name));
 }
 
 export async function getLinkedExerciseNames(
@@ -3935,140 +4153,21 @@ export async function calculatePersonalRecords(
     return [];
   }
 
-  // Create a single batched query to fetch all exercise data at once
-  type ExerciseDataRow = {
-    workoutDate: Date;
-    weight: number | null;
-    reps: number | null;
-    sets: number | null;
-    unit: string | null;
-    oneRMEstimate: number | null;
-    volumeLoad: number | null;
-    exerciseName: string;
-  };
-
-  const resolvedNameColumn = sessionExerciseMetricsView.resolvedExerciseName;
-  const userIdColumn = sessionExerciseMetricsView.userId;
-  const workoutDateColumn = sessionExerciseMetricsView.workoutDate;
-  const weightColumn = sessionExerciseMetricsView.weight;
-  const repsColumn = sessionExerciseMetricsView.reps;
-  const setsColumn = sessionExerciseMetricsView.sets;
-  const unitColumn = sessionExerciseMetricsView.unit;
-  const oneRmColumn = sessionExerciseMetricsView.oneRmEstimate;
-  const volumeLoadColumn = sessionExerciseMetricsView.volumeLoad;
-  const exerciseNameColumn = sessionExerciseMetricsView.exerciseName;
-
-  if (
-    !resolvedNameColumn ||
-    !userIdColumn ||
-    !workoutDateColumn ||
-    !weightColumn ||
-    !repsColumn ||
-    !setsColumn ||
-    !unitColumn ||
-    !oneRmColumn ||
-    !volumeLoadColumn ||
-    !exerciseNameColumn
-  ) {
-    throw new Error("sessionExerciseMetricsView columns are not defined");
-  }
-
-  let allExerciseData: ExerciseDataRow[] = [];
-
   try {
+    // Optimized PR calculation using CTEs to find weight and volume PRs in a single query
+    const records: Array<{
+      exerciseName: string;
+      recordType: "weight" | "volume";
+      weight: number;
+      reps: number;
+      sets: number;
+      unit: string;
+      workoutDate: Date;
+      oneRMEstimate?: number;
+      totalVolume?: number;
+    }> = [];
+
     // Use whereInChunks to handle large exercise lists within D1 limits
-    await whereInChunks(exerciseNames, async (nameChunk) => {
-      const nameClause =
-        nameChunk.length === 1
-          ? or(
-              eq(resolvedNameColumn!, nameChunk[0]!),
-              eq(exerciseNameColumn!, nameChunk[0]!),
-            )
-          : or(
-              inArray(resolvedNameColumn!, nameChunk),
-              inArray(exerciseNameColumn!, nameChunk),
-            );
-
-      const chunkData = await ctx.db
-        .select({
-          workoutDate: workoutDateColumn!,
-          weight: weightColumn!,
-          reps: repsColumn!,
-          sets: setsColumn!,
-          unit: unitColumn!,
-          oneRMEstimate: oneRmColumn!,
-          volumeLoad: volumeLoadColumn!,
-          exerciseName: resolvedNameColumn!,
-        })
-        .from(sessionExerciseMetricsView)
-        .where(
-          and(
-            eq(userIdColumn!, ctx.user.id),
-            nameClause,
-            gte(workoutDateColumn!, startDate),
-            lte(workoutDateColumn!, endDate),
-          ),
-        )
-        .orderBy(desc(workoutDateColumn!));
-
-      // Normalize chunk data
-      const normalizedChunk: ExerciseDataRow[] = chunkData
-        .map((row) => {
-          const rawWorkoutDate = row.workoutDate as unknown;
-          let workoutDate: Date;
-          if (rawWorkoutDate instanceof Date) {
-            workoutDate = rawWorkoutDate;
-          } else if (
-            typeof rawWorkoutDate === "string" ||
-            typeof rawWorkoutDate === "number"
-          ) {
-            const parsed = new Date(rawWorkoutDate);
-            workoutDate = Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
-          } else {
-            workoutDate = new Date(0);
-          }
-
-          const rawExerciseName = row.exerciseName as unknown;
-          const exerciseName =
-            typeof rawExerciseName === "string" && rawExerciseName.length > 0
-              ? rawExerciseName
-              : "Unknown Exercise";
-
-          return {
-            workoutDate,
-            weight:
-              row.weight == null
-                ? null
-                : Number(row.weight as unknown as number | string),
-            reps:
-              row.reps == null
-                ? null
-                : Number(row.reps as unknown as number | string),
-            sets:
-              row.sets == null
-                ? null
-                : Number(row.sets as unknown as number | string),
-            unit: row.unit ?? "kg",
-            oneRMEstimate:
-              row.oneRMEstimate == null
-                ? null
-                : Number(row.oneRMEstimate as unknown as number | string),
-            volumeLoad:
-              row.volumeLoad == null
-                ? null
-                : Number(row.volumeLoad as unknown as number | string),
-            exerciseName,
-          };
-        })
-        .filter((row) => row.exerciseName !== "Unknown Exercise");
-
-      allExerciseData = allExerciseData.concat(normalizedChunk);
-    });
-  } catch (error) {
-    logger.warn("sessionExerciseMetricsView unavailable for PR calculation", {
-      error,
-    });
-    // Fall back to base table query
     await whereInChunks(exerciseNames, async (nameChunk) => {
       const nameClause =
         nameChunk.length === 1
@@ -4081,135 +4180,297 @@ export async function calculatePersonalRecords(
               inArray(sessionExercises.exerciseName, nameChunk),
             );
 
-      const chunkData = await ctx.db
-        .select({
-          workoutDate: workoutSessions.workoutDate,
-          weight: sessionExercises.weight,
-          reps: sessionExercises.reps,
-          sets: sessionExercises.sets,
-          unit: sessionExercises.unit,
-          oneRMEstimate: sessionExercises.one_rm_estimate,
-          volumeLoad: sql<number>`${sessionExercises.weight} * ${sessionExercises.reps} * ${sessionExercises.sets}`,
-          exerciseName: sessionExercises.resolvedExerciseName,
-        })
-        .from(sessionExercises)
-        .innerJoin(
-          workoutSessions,
-          eq(workoutSessions.id, sessionExercises.sessionId),
-        )
-        .where(
-          and(
-            eq(sessionExercises.user_id, ctx.user.id),
-            nameClause,
-            gte(workoutSessions.workoutDate, startDate),
-            lte(workoutSessions.workoutDate, endDate),
-          ),
-        )
-        .orderBy(desc(workoutSessions.workoutDate));
-
-      // Normalize chunk data
-      const normalizedChunk: ExerciseDataRow[] = chunkData
-        .map((row) => {
-          const rawWorkoutDate = row.workoutDate as unknown;
-          let workoutDate: Date;
-          if (rawWorkoutDate instanceof Date) {
-            workoutDate = rawWorkoutDate;
-          } else if (
-            typeof rawWorkoutDate === "string" ||
-            typeof rawWorkoutDate === "number"
-          ) {
-            const parsed = new Date(rawWorkoutDate);
-            workoutDate = Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
-          } else {
-            workoutDate = new Date(0);
-          }
-
-          const rawExerciseName = row.exerciseName as unknown;
-          const exerciseName =
-            typeof rawExerciseName === "string" && rawExerciseName.length > 0
-              ? rawExerciseName
-              : "Unknown Exercise";
-
-          return {
-            workoutDate,
-            weight: row.weight ? Number(row.weight) : null,
-            reps: row.reps ? Number(row.reps) : null,
-            sets: row.sets ? Number(row.sets) : null,
-            unit: row.unit ?? "kg",
-            oneRMEstimate: row.oneRMEstimate ? Number(row.oneRMEstimate) : null,
-            volumeLoad: row.volumeLoad ? Number(row.volumeLoad) : null,
-            exerciseName,
-          };
-        })
-        .filter((row) => row.exerciseName !== "Unknown Exercise");
-
-      allExerciseData = allExerciseData.concat(normalizedChunk);
-    });
-  }
-
-  // Group data by exercise name
-  const exerciseDataMap = new Map<string, ExerciseDataRow[]>();
-  for (const row of allExerciseData) {
-    if (!exerciseDataMap.has(row.exerciseName)) {
-      exerciseDataMap.set(row.exerciseName, []);
-    }
-    exerciseDataMap.get(row.exerciseName)!.push(row);
-  }
-
-  // Calculate PRs for each exercise
-  const records = [];
-  for (const exerciseName of exerciseNames) {
-    const exerciseData = exerciseDataMap.get(exerciseName) || [];
-
-    // When exerciseData is empty, skip
-    if (exerciseData.length === 0) continue;
-
-    // Find weight PR
-    const weightPR = exerciseData.reduce((max, current) => {
-      const currentWeight = current.weight || 0;
-      const maxWeight = max.weight || 0;
-      return currentWeight > maxWeight ? current : max;
-    });
-
-    // Find volume PR
-    const volumePR = exerciseData.reduce((max, current) => {
-      const currentVolume =
-        (current.weight || 0) * (current.reps || 0) * (current.sets || 1);
-      const maxVolume = (max.weight || 0) * (max.reps || 0) * (max.sets || 1);
-      return currentVolume > maxVolume ? current : max;
-    });
-
-    if (recordType === "weight" || recordType === "both") {
-      records.push({
-        exerciseName,
-        recordType: "weight" as const,
-        weight: weightPR.weight || 0,
-        reps: weightPR.reps || 0,
-        sets: weightPR.sets || 0,
-        unit: weightPR.unit ?? "kg",
-        workoutDate: weightPR.workoutDate,
-        oneRMEstimate: calculateLocalOneRM(
-          weightPR.weight || 0,
-          weightPR.reps || 1,
+      const prQuery = sql`
+        WITH exercise_data AS (
+          SELECT
+            COALESCE(NULLIF(se.resolvedExerciseName, ''), se.exerciseName) as exercise_name,
+            ws.workoutDate as workout_date,
+            se.weight,
+            se.reps,
+            se.sets,
+            se.unit,
+            se.one_rm_estimate,
+            (se.weight * se.reps * se.sets) as calculated_volume
+          FROM session_exercise se
+          INNER JOIN workout_session ws ON ws.id = se.sessionId
+          WHERE se.user_id = ${ctx.user.id}
+            AND ws.workoutDate >= ${startDate}
+            AND ws.workoutDate <= ${endDate}
+            AND (
+              ${
+                nameChunk.length === 1
+                  ? sql`(se.resolvedExerciseName = ${nameChunk[0]!} OR se.exerciseName = ${nameChunk[0]!})`
+                  : sql`(se.resolvedExerciseName IN (${nameChunk}) OR se.exerciseName IN (${nameChunk}))`
+              }
+            )
         ),
-      });
+        weight_prs AS (
+          SELECT 
+            exercise_name,
+            weight,
+            reps,
+            sets,
+            unit,
+            workout_date,
+            one_rm_estimate,
+            ROW_NUMBER() OVER (PARTITION BY exercise_name ORDER BY weight DESC, workout_date DESC) as rn
+          FROM exercise_data
+          WHERE weight > 0
+        ),
+        volume_prs AS (
+          SELECT 
+            exercise_name,
+            weight,
+            reps,
+            sets,
+            unit,
+            workout_date,
+            calculated_volume,
+            ROW_NUMBER() OVER (PARTITION BY exercise_name ORDER BY calculated_volume DESC, workout_date DESC) as rn
+          FROM exercise_data
+          WHERE calculated_volume > 0
+        )
+        SELECT 
+          exercise_name,
+          weight,
+          reps,
+          sets,
+          unit,
+          workout_date,
+          one_rm_estimate,
+          calculated_volume,
+          'weight' as record_type
+        FROM weight_prs 
+        WHERE rn = 1
+        ${recordType === "weight" || recordType === "both" ? sql`UNION ALL` : sql``}
+        SELECT 
+          exercise_name,
+          weight,
+          reps,
+          sets,
+          unit,
+          workout_date,
+          one_rm_estimate,
+          calculated_volume,
+          'volume' as record_type
+        FROM volume_prs 
+        WHERE rn = 1
+        ${recordType === "volume" || recordType === "both" ? sql`` : sql`LIMIT 0`}
+      `;
+
+      const prResults = (await ctx.db.all(prQuery)) as Array<{
+        exercise_name: string;
+        weight: number;
+        reps: number;
+        sets: number;
+        unit: string;
+        workout_date: string;
+        one_rm_estimate: number;
+        calculated_volume: number;
+        record_type: string;
+      }>;
+
+      for (const row of prResults) {
+        const exerciseName = row.exercise_name as string;
+        const weight = Number(row.weight || 0);
+        const reps = Number(row.reps || 0);
+        const sets = Number(row.sets || 0);
+        const unit = (row.unit as string) || "kg";
+        const workoutDate = new Date(row.workout_date as string);
+        const oneRMEstimate = row.one_rm_estimate
+          ? Number(row.one_rm_estimate)
+          : calculateLocalOneRM(weight, Math.max(reps, 1));
+        const calculatedVolume = row.calculated_volume
+          ? Number(row.calculated_volume)
+          : weight * reps * sets;
+
+        if (
+          row.record_type === "weight" &&
+          (recordType === "weight" || recordType === "both")
+        ) {
+          records.push({
+            exerciseName,
+            recordType: "weight",
+            weight,
+            reps,
+            sets,
+            unit,
+            workoutDate,
+            oneRMEstimate,
+          });
+        } else if (
+          row.record_type === "volume" &&
+          (recordType === "volume" || recordType === "both")
+        ) {
+          records.push({
+            exerciseName,
+            recordType: "volume",
+            weight,
+            reps,
+            sets,
+            unit,
+            workoutDate,
+            totalVolume: calculatedVolume,
+          });
+        }
+      }
+    });
+
+    return records;
+  } catch (error) {
+    logger.warn(
+      "Optimized PR calculation failed, falling back to legacy method",
+      {
+        error,
+        exerciseCount: exerciseNames.length,
+      },
+    );
+
+    // Fallback to original implementation if CTE optimization fails
+    return calculatePersonalRecordsLegacy(
+      ctx,
+      exerciseNames,
+      startDate,
+      endDate,
+      recordType,
+    );
+  }
+}
+
+// Legacy fallback implementation for PR calculation
+async function calculatePersonalRecordsLegacy(
+  ctx: { db: typeof db; user: { id: string } },
+  exerciseNames: string[],
+  startDate: Date,
+  endDate: Date,
+  recordType: "weight" | "volume" | "both",
+): Promise<
+  Array<{
+    exerciseName: string;
+    recordType: "weight" | "volume";
+    weight: number;
+    reps: number;
+    sets: number;
+    unit: string;
+    workoutDate: Date;
+    oneRMEstimate?: number;
+    totalVolume?: number;
+  }>
+> {
+  // This is the original implementation as a fallback
+  if (exerciseNames.length === 0) {
+    return [];
+  }
+
+  const records: Array<{
+    exerciseName: string;
+    recordType: "weight" | "volume";
+    weight: number;
+    reps: number;
+    sets: number;
+    unit: string;
+    workoutDate: Date;
+    oneRMEstimate?: number;
+    totalVolume?: number;
+  }> = [];
+
+  await whereInChunks(exerciseNames, async (nameChunk) => {
+    const nameClause =
+      nameChunk.length === 1
+        ? or(
+            eq(sessionExercises.resolvedExerciseName, nameChunk[0]!),
+            eq(sessionExercises.exerciseName, nameChunk[0]!),
+          )
+        : or(
+            inArray(sessionExercises.resolvedExerciseName, nameChunk),
+            inArray(sessionExercises.exerciseName, nameChunk),
+          );
+
+    const chunkData = await ctx.db
+      .select({
+        workoutDate: workoutSessions.workoutDate,
+        weight: sessionExercises.weight,
+        reps: sessionExercises.reps,
+        sets: sessionExercises.sets,
+        unit: sessionExercises.unit,
+        oneRMEstimate: sessionExercises.one_rm_estimate,
+        exerciseName: sessionExercises.resolvedExerciseName,
+      })
+      .from(sessionExercises)
+      .innerJoin(
+        workoutSessions,
+        eq(workoutSessions.id, sessionExercises.sessionId),
+      )
+      .where(
+        and(
+          eq(sessionExercises.user_id, ctx.user.id),
+          nameClause,
+          gte(workoutSessions.workoutDate, startDate),
+          lte(workoutSessions.workoutDate, endDate),
+        ),
+      )
+      .orderBy(desc(workoutSessions.workoutDate));
+
+    // Group by exercise and find PRs
+    const exerciseDataMap = new Map<string, typeof chunkData>();
+    for (const row of chunkData) {
+      const exerciseName = row.exerciseName || "Unknown Exercise";
+      if (!exerciseDataMap.has(exerciseName)) {
+        exerciseDataMap.set(exerciseName, []);
+      }
+      exerciseDataMap.get(exerciseName)!.push(row);
     }
 
-    if (recordType === "volume" || recordType === "both") {
-      const volume =
-        (volumePR.weight || 0) * (volumePR.reps || 0) * (volumePR.sets || 1);
-      records.push({
-        exerciseName,
-        recordType: "volume" as const,
-        weight: volumePR.weight || 0,
-        reps: volumePR.reps || 0,
-        sets: volumePR.sets || 0,
-        unit: volumePR.unit ?? "kg",
-        workoutDate: volumePR.workoutDate,
-        totalVolume: volume,
+    for (const [exerciseName, exerciseData] of exerciseDataMap) {
+      if (exerciseData.length === 0) continue;
+
+      // Find weight PR
+      const weightPR = exerciseData.reduce((max, current) => {
+        const currentWeight = current.weight || 0;
+        const maxWeight = max.weight || 0;
+        return currentWeight > maxWeight ? current : max;
       });
+
+      // Find volume PR
+      const volumePR = exerciseData.reduce((max, current) => {
+        const currentVolume =
+          (current.weight || 0) * (current.reps || 0) * (current.sets || 1);
+        const maxVolume = (max.weight || 0) * (max.reps || 0) * (max.sets || 1);
+        return currentVolume > maxVolume ? current : max;
+      });
+
+      if (recordType === "weight" || recordType === "both") {
+        records.push({
+          exerciseName,
+          recordType: "weight" as const,
+          weight: weightPR.weight || 0,
+          reps: weightPR.reps || 0,
+          sets: weightPR.sets || 0,
+          unit: weightPR.unit ?? "kg",
+          workoutDate: weightPR.workoutDate,
+          oneRMEstimate: calculateLocalOneRM(
+            weightPR.weight || 0,
+            weightPR.reps || 1,
+          ),
+        });
+      }
+
+      if (recordType === "volume" || recordType === "both") {
+        const volume =
+          (volumePR.weight || 0) * (volumePR.reps || 0) * (volumePR.sets || 0);
+        records.push({
+          exerciseName,
+          recordType: "volume" as const,
+          weight: volumePR.weight || 0,
+          reps: volumePR.reps || 0,
+          sets: volumePR.sets || 0,
+          unit: volumePR.unit ?? "kg",
+          workoutDate: volumePR.workoutDate,
+          totalVolume: volume,
+        });
+      }
     }
-  }
+  });
 
   return records;
 }
@@ -4226,65 +4487,56 @@ export async function getVolumeAndStrengthData(
   workoutCount: number;
 }> {
   try {
-    const data = await ctx.db
-      .select({
-        exerciseName: sessionExercises.exerciseName,
-        weight: sessionExercises.weight,
-        reps: sessionExercises.reps,
-        sets: sessionExercises.sets,
-        unit: sessionExercises.unit,
-      })
-      .from(sessionExercises)
-      .innerJoin(
-        workoutSessions,
-        eq(workoutSessions.id, sessionExercises.sessionId),
+    // Optimized single query using CTEs to calculate all metrics at once
+    const optimizedQuery = sql`
+      WITH exercise_data AS (
+        SELECT
+          se.exerciseName,
+          se.weight,
+          se.reps,
+          se.sets,
+          se.unit,
+          ws.workoutDate
+        FROM session_exercise se
+        INNER JOIN workout_session ws ON ws.id = se.sessionId
+          WHERE se.user_id = ${ctx.user.id}
+            AND ws.workoutDate >= ${startDate.toISOString()}
+            AND ws.workoutDate <= ${endDate.toISOString()}
+      ),
+      workout_dates AS (
+        SELECT DISTINCT workoutDate
+        FROM exercise_data
+      ),
+      volume_summary AS (
+        SELECT
+          COALESCE(SUM(weight * reps * sets), 0) as total_volume,
+          COALESCE(SUM(sets), 0) as total_sets,
+          COALESCE(SUM(reps * sets), 0) as total_reps,
+          COUNT(DISTINCT exerciseName) as unique_exercises
+        FROM exercise_data
       )
-      .where(
-        and(
-          eq(sessionExercises.user_id, ctx.user.id),
-          gte(workoutSessions.workoutDate, startDate),
-          lte(workoutSessions.workoutDate, endDate),
-        ),
-      );
+      SELECT
+        (SELECT COUNT(*) FROM workout_dates) as workout_count,
+        (SELECT total_volume FROM volume_summary) as total_volume,
+        (SELECT total_sets FROM volume_summary) as total_sets,
+        (SELECT total_reps FROM volume_summary) as total_reps,
+        (SELECT unique_exercises FROM volume_summary) as unique_exercises
+    `;
 
-    const workoutCountRows = await ctx.db
-      .select({
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(workoutSessions)
-      .where(
-        and(
-          eq(workoutSessions.user_id, ctx.user.id),
-          gte(workoutSessions.workoutDate, startDate),
-          lte(workoutSessions.workoutDate, endDate),
-        ),
-      );
-
-    const totalVolume = data.reduce((sum: number, row) => {
-      return (
-        sum +
-        parseFloat(String(row.weight || "0")) *
-          (row.reps || 0) *
-          (row.sets || 1)
-      );
-    }, 0);
-
-    const totalSets = data.reduce(
-      (sum: number, row) => sum + (row.sets || 1),
-      0,
-    );
-    const totalReps = data.reduce(
-      (sum: number, row) => sum + (row.reps || 0) * (row.sets || 1),
-      0,
-    );
-    const uniqueExercises = new Set(data.map((row) => row.exerciseName)).size;
+    const result = (await ctx.db.get(optimizedQuery)) as {
+      total_volume?: number;
+      total_sets?: number;
+      total_reps?: number;
+      unique_exercises?: number;
+      workout_count?: number;
+    };
 
     return {
-      totalVolume,
-      totalSets,
-      totalReps,
-      uniqueExercises,
-      workoutCount: Number(workoutCountRows[0]?.count ?? 0),
+      totalVolume: Number(result?.total_volume ?? 0),
+      totalSets: Number(result?.total_sets ?? 0),
+      totalReps: Number(result?.total_reps ?? 0),
+      uniqueExercises: Number(result?.unique_exercises ?? 0),
+      workoutCount: Number(result?.workout_count ?? 0),
     };
   } catch (error) {
     console.error("Error in getVolumeAndStrengthData:", error);

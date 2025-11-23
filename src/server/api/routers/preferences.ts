@@ -3,37 +3,12 @@ import { userPreferences } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { unitPreferenceSchema } from "~/server/api/schemas/common";
 import { z } from "zod";
-import {
-  getCachedUserPreferences,
-  clearUserPreferencesCache,
-} from "~/server/db/utils";
+import { getUserPreferences, updateUserPreferences } from "~/server/db/utils";
 
 export const preferencesRouter = createTRPCRouter({
   // Get user preferences
   get: protectedProcedure.query(async ({ ctx }) => {
-    const prefs = await getCachedUserPreferences(ctx.db, ctx.user.id);
-
-    // Return full preferences row when found to satisfy integration tests,
-    // otherwise return default shape with all expected properties.
-    if (prefs) {
-      return prefs;
-    }
-    return {
-      defaultWeightUnit: "kg",
-      predictive_defaults_enabled: false,
-      right_swipe_action: "collapse_expand",
-      enable_manual_wellness: false,
-      progression_type: "adaptive",
-      linear_progression_kg: "2.5",
-      percentage_progression: "2.5",
-      targetWorkoutsPerWeek: 3,
-      warmupStrategy: "history",
-      warmupSetsCount: 3,
-      warmupPercentages: "[40, 60, 80]",
-      warmupRepsStrategy: "match_working",
-      warmupFixedReps: 5,
-      enableMovementPatternSharing: false,
-    } as const;
+    return getUserPreferences(ctx.db, ctx.user.id);
   }),
 
   // Update user preferences
@@ -158,9 +133,6 @@ export const preferencesRouter = createTRPCRouter({
           })(),
         });
       }
-
-      // Clear cache after preferences update
-      clearUserPreferencesCache(ctx.user.id);
 
       return { success: true };
     }),
