@@ -118,6 +118,7 @@ vi.mock("~/components/ui/button", () => ({
 describe("WorkoutSessionPage", () => {
   const mockPush = vi.fn();
   const mockRouter = { push: mockPush };
+  const mockUseWorkoutSessionState = vi.fn();
 
   const mockWorkoutSession = {
     id: 123,
@@ -222,8 +223,9 @@ describe("WorkoutSessionPage", () => {
     (useWorkoutSessionContext as ReturnType<typeof vi.fn>).mockReturnValue(
       mockContextValue,
     );
-    (useWorkoutSessionState as ReturnType<typeof vi.fn>).mockReturnValue(
-      mockSessionState as any,
+    mockUseWorkoutSessionState.mockReturnValue(mockSessionState as any);
+    (useWorkoutSessionState as ReturnType<typeof vi.fn>).mockImplementation(
+      mockUseWorkoutSessionState,
     );
   });
 
@@ -449,7 +451,7 @@ describe("WorkoutSessionPage", () => {
 
       await waitFor(() => {
         const headerSubtitle = screen.getByTestId("header-subtitle");
-        expect(headerSubtitle).toHaveTextContent(/1\/15\/2024/);
+        expect(headerSubtitle).toHaveTextContent(/15\/01\/2024/);
       });
     });
 
