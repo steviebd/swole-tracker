@@ -2,6 +2,7 @@ import React from "react";
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import "~/__tests__/setup.dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import SuperJSON from "superjson";

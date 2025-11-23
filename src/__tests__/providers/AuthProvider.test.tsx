@@ -62,14 +62,18 @@ describe("AuthProvider", () => {
         json: () => Promise.resolve({ user: null }),
       });
 
-      render(
+      const { container } = render(
         <AuthProvider>
           <TestComponent />
         </AuthProvider>,
       );
 
-      expect(screen.getByTestId("loading")).toHaveTextContent("true");
-      expect(screen.getByTestId("user")).toHaveTextContent("null");
+      expect(
+        container.querySelector('[data-testid="loading"]'),
+      ).toHaveTextContent("true");
+      expect(container.querySelector('[data-testid="user"]')).toHaveTextContent(
+        "null",
+      );
     });
 
     it("should load user session on mount", async () => {

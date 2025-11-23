@@ -66,6 +66,9 @@ jobs:
       - name: Run lint
         run: bun run lint
 
+      - name: Run test
+        run: bun run test
+
   deploy:
     name: Deploy (${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }})
     runs-on: ubuntu-latest

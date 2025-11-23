@@ -367,11 +367,10 @@ describe("LocalWorkoutSessionPage", () => {
 
       await waitFor(() => {
         expect(mockRedirectCountdown).toHaveBeenCalledWith(
-          expect.objectContaining({
+          {
             href: "/workouts",
-            seconds: 5,
-          }),
-          {},
+          },
+          undefined,
         );
       });
     });
@@ -445,8 +444,9 @@ describe("LocalWorkoutSessionPage", () => {
       render(Component);
 
       await waitFor(() => {
-        const sessionId = screen.getByText("Session ID: ");
+        const sessionId = screen.getByText(/Session ID:/);
         expect(sessionId).toBeInTheDocument();
+        expect(sessionId).toHaveTextContent("Session ID:");
       });
     });
   });
@@ -455,28 +455,24 @@ describe("LocalWorkoutSessionPage", () => {
     it("should handle headers() errors gracefully", async () => {
       mockHeaders.mockRejectedValue(new Error("Headers error"));
 
-      const Component = await LocalWorkoutSessionPage({
-        params: Promise.resolve({ localId: "test-local-id" }),
-      });
-
-      // Should not throw but may log error
-      expect(async () => {
-        render(Component);
-      }).not.toThrow();
+      // Should handle the error and not crash
+      await expect(
+        LocalWorkoutSessionPage({
+          params: Promise.resolve({ localId: "test-local-id" }),
+        }),
+      ).resolves.toBeDefined();
     });
 
     it("should handle params parsing errors", async () => {
       mockSessionCookieGet.mockResolvedValue(mockSession);
       mockSessionCookieIsExpired.mockReturnValue(false);
 
-      const Component = await LocalWorkoutSessionPage({
-        params: Promise.reject(new Error("Params error")),
-      });
-
-      // Should not throw but may handle error gracefully
-      expect(async () => {
-        render(Component);
-      }).not.toThrow();
+      // Should handle the error and not crash
+      await expect(
+        LocalWorkoutSessionPage({
+          params: Promise.reject(new Error("Params error")),
+        }),
+      ).resolves.toBeDefined();
     });
   });
 

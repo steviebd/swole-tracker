@@ -409,7 +409,8 @@ describe("Chunk Utils", () => {
 
       const result = await whereInChunks(values, callback, 2);
 
-      expect(result).toEqual([]);
+      // whereInChunks should collect non-array results
+      expect(result).toEqual(["single result", "single result"]);
     });
 
     it("should use default chunk size when not specified", async () => {

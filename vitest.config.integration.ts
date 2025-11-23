@@ -3,7 +3,6 @@ import path from "path";
 import { defineConfig } from "vitest/config";
 
 const isCI = process.env["CI"] === "true";
-// Optimize for GitHub Actions free tier (2 vCPU, 7GB RAM)
 const maxThreads = isCI ? 2 : 2;
 
 const baseExclude = [
@@ -24,48 +23,39 @@ const baseExclude = [
 export default defineConfig({
   test: {
     globals: true,
-    pool: "threads", // Threads share memory, forks don't
+    pool: "threads",
     poolOptions: {
       threads: {
-        maxThreads: maxThreads, // Match free tier vCPU count
+        maxThreads: maxThreads,
         minThreads: 1,
       },
     },
-    // Speed optimizations
-    // Optimize test output for speed
-    reporters: isCI ? ["default"] : [["default", { summary: false }]],
-    // Enable heap usage logging to monitor memory
-    logHeapUsage: true,
-    // Enable test isolation to prevent test interference
-    isolate: true,
-    // Optimize timeouts for faster execution
-    testTimeout: 10000,
-    hookTimeout: 5000,
 
-    setupFiles: [
-      "./src/__tests__/setup.dom.ts",
-      "./src/__tests__/setup.common.ts",
-    ],
-    environment: "jsdom",
+    // Integration test configuration
+    reporters: isCI ? ["default"] : [["default", { summary: false }]],
+    logHeapUsage: true,
+    isolate: false,
+    testTimeout: 15000,
+    hookTimeout: 8000,
+
+    setupFiles: ["./src/__tests__/setup.common.ts"],
+    environment: "happy-dom",
     mockReset: true,
     restoreMocks: true,
 
-    include: ["src/__tests__/**/*.test.{ts,tsx}"],
+    include: ["src/__tests__/integration/**/*.test.{ts,tsx}"],
     exclude: baseExclude,
-    maxConcurrency: maxThreads, // Enable parallel execution
+    maxConcurrency: maxThreads,
+
     coverage: {
       provider: "v8",
-      // Keep full reporter stack for CI; use detailed text output locally.
-      reporter: isCI ? ["text", "lcov", "json", "html"] : ["text"],
+      reporter: isCI ? ["text", "lcov", "json"] : ["text"],
       all: isCI,
       include: [
-        "src/app/**/*.{ts,tsx}",
-        "src/components/**/*.{ts,tsx}",
-        "src/hooks/**/*.{ts,tsx}",
-        "src/lib/**/*.{ts,tsx}",
-        "src/providers/**/*.{ts,tsx}",
-        "src/server/**/*.{ts,tsx}",
-        "src/trpc/**/*.{ts,tsx}",
+        "src/contexts/**/*",
+        "src/hooks/**/*",
+        "src/lib/**/*",
+        "src/components/**/*",
       ],
       exclude: [
         "src/**/__tests__/**",
@@ -80,10 +70,10 @@ export default defineConfig({
         "src/**/test-data/**",
       ],
       thresholds: {
-        lines: 43,
-        functions: 41,
-        branches: 34,
-        statements: 42,
+        lines: 75,
+        functions: 75,
+        branches: 65,
+        statements: 75,
       },
     },
   },

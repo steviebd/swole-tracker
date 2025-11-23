@@ -35,6 +35,18 @@ vi.mock("~/trpc/react", () => ({
         })),
       },
     },
+    useUtils: vi.fn(() => ({
+      workouts: {
+        getById: {
+          invalidate: vi.fn(),
+        },
+      },
+      preferences: {
+        get: {
+          invalidate: vi.fn(),
+        },
+      },
+    })),
   },
 }));
 
