@@ -40,8 +40,15 @@ export async function buildPlaybookContext(
   userId: string,
   input: PlaybookCreateInput,
 ): Promise<PlaybookGenerationContext> {
-  const { targetType, targetIds, goalText, goalPreset, duration, metadata } =
-    input;
+  const {
+    targetType,
+    targetIds,
+    goalText,
+    goalPreset,
+    duration,
+    metadata,
+    selectedPlans,
+  } = input;
 
   // Fetch user preferences
   const [userPrefs] = await db

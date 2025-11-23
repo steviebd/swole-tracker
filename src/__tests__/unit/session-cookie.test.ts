@@ -1,5 +1,5 @@
-// Set env vars for testing
-process.env["WORKER_SESSION_SECRET"] =
+// Set env vars for testing (using ??= like setup.unit.ts)
+process.env["WORKER_SESSION_SECRET"] ??=
   "test-secret-for-testing-123456789012345678901234567890";
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";

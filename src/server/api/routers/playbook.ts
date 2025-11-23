@@ -9,10 +9,12 @@ import {
   rpeSubmissionSchema,
   regenerationRequestSchema,
   playbookStatusSchema,
+  activePlanTypeSchema,
   type PlaybookCreateInput,
   type PlaybookStatus,
   type WeeklyAiPlan,
   type WeeklyAlgorithmicPlan,
+  type ActivePlanType,
 } from "~/server/api/schemas/playbook";
 import {
   playbooks,
@@ -26,6 +28,7 @@ import { chunkedBatch } from "~/server/db/chunk-utils";
 import { buildPlaybookContext } from "~/server/api/utils/playbook-context";
 import { generateAlgorithmicPlan } from "~/server/api/utils/algorithmic-planner";
 import { buildPlaybookGenerationPrompt } from "~/lib/ai-prompts/playbook-generation";
+import { calculateWarmupSets } from "~/lib/warmup-utils";
 import { logger } from "~/lib/logger";
 import { env } from "~/env";
 
@@ -115,17 +118,32 @@ export const playbookRouter = createTRPCRouter({
     .input(playbookCreateInputSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
+      const { selectedPlans } = input;
 
       logger.info("Creating playbook", { userId, input });
 
       // Build context from database
       const context = await buildPlaybookContext(ctx.db, userId, input);
 
-      // Generate both AI and algorithmic plans
-      const [aiWeeks, algorithmicWeeks] = await Promise.all([
-        generateAIPlan(context),
-        Promise.resolve(generateAlgorithmicPlan(context)),
-      ]);
+      // Conditional generation
+      let aiWeeks: WeeklyAiPlan[] | null = null;
+      let algorithmicWeeks: WeeklyAlgorithmicPlan[];
+
+      if (selectedPlans.ai) {
+        // Generate both (AI selected means we want AI, Algorithmic is always free)
+        [aiWeeks, algorithmicWeeks] = await Promise.all([
+          generateAIPlan(context),
+          Promise.resolve(generateAlgorithmicPlan(context)),
+        ]);
+      } else {
+        // Only Algorithmic
+        algorithmicWeeks = generateAlgorithmicPlan(context);
+      }
+
+      // Determine default active plan type
+      const defaultActivePlanType: "ai" | "algorithmic" = selectedPlans.ai
+        ? "ai"
+        : "algorithmic";
 
       // Create playbook record
       const [playbook] = await ctx.db
@@ -140,6 +158,7 @@ export const playbookRouter = createTRPCRouter({
           duration: input.duration,
           status: "draft",
           metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+          hasAiPlan: selectedPlans.ai,
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -152,18 +171,16 @@ export const playbookRouter = createTRPCRouter({
         });
       }
 
-      // Create weeks with both plans
-      const weekRows = aiWeeks.map((aiWeek, idx) => {
-        const algorithmicWeek = algorithmicWeeks[idx];
+      // Create weeks
+      const weekRows = algorithmicWeeks.map((algoWeek, idx) => {
+        const aiWeek = aiWeeks?.[idx] ?? null;
         return {
           playbookId: playbook.id,
-          weekNumber: aiWeek.weekNumber,
-          weekType: aiWeek.weekType,
-          aiPlanJson: JSON.stringify(aiWeek),
-          algorithmicPlanJson: algorithmicWeek
-            ? JSON.stringify(algorithmicWeek)
-            : null,
-          volumeTarget: aiWeek.volumeTarget ?? null,
+          weekNumber: algoWeek.weekNumber,
+          weekType: algoWeek.weekType,
+          aiPlanJson: aiWeek ? JSON.stringify(aiWeek) : null,
+          algorithmicPlanJson: JSON.stringify(algoWeek),
+          volumeTarget: aiWeek?.volumeTarget ?? algoWeek.volumeTarget,
           status: "pending" as const,
           metadata: null,
           createdAt: new Date(),
@@ -183,13 +200,17 @@ export const playbookRouter = createTRPCRouter({
         .where(eq(playbookWeeks.playbookId, playbook.id))
         .orderBy(asc(playbookWeeks.weekNumber));
 
-      // Create sessions for each week
+      // Create sessions from active plan
+      const sourcePlan = selectedPlans.ai ? aiWeeks : algorithmicWeeks;
       const sessionRows = [];
-      for (const week of createdWeeks) {
-        const aiWeek = aiWeeks.find((w) => w.weekNumber === week.weekNumber);
-        if (!aiWeek) continue;
 
-        for (const session of aiWeek.sessions) {
+      for (const week of createdWeeks) {
+        const weekPlan = sourcePlan?.find(
+          (w) => w.weekNumber === week.weekNumber,
+        );
+        if (!weekPlan) continue;
+
+        for (const session of weekPlan.sessions) {
           sessionRows.push({
             playbookWeekId: week.id,
             sessionNumber: session.sessionNumber,
@@ -200,6 +221,7 @@ export const playbookRouter = createTRPCRouter({
             rpe: null,
             rpeNotes: null,
             deviation: null,
+            activePlanType: defaultActivePlanType, // Set active plan
             isCompleted: false,
             completedAt: null,
             createdAt: new Date(),
@@ -218,6 +240,7 @@ export const playbookRouter = createTRPCRouter({
         playbookId: playbook.id,
         weeks: createdWeeks.length,
         sessions: sessionRows.length,
+        hasAiPlan: selectedPlans.ai,
       });
 
       // Analytics: Track playbook creation
@@ -229,6 +252,7 @@ export const playbookRouter = createTRPCRouter({
         duration_weeks: playbook.duration,
         weeks_count: createdWeeks.length,
         sessions_count: sessionRows.length,
+        has_ai_plan: selectedPlans.ai,
         user_id: userId,
       });
 
@@ -582,28 +606,77 @@ export const playbookRouter = createTRPCRouter({
       const exerciseRows = (prescription?.exercises || []).flatMap(
         (exercise) => {
           const numSets = exercise.sets || 1;
-          return Array.from({ length: numSets }, (_, setIndex) => ({
-            sessionId: workoutSession.id,
-            user_id: userId,
-            exerciseName: exercise.exerciseName,
-            resolvedExerciseName: exercise.exerciseName,
-            weight: exercise.weight,
-            reps: exercise.reps,
-            sets: 1, // Each row represents ONE set
-            unit: "kg",
-            setOrder: setIndex, // Position within this exercise
-            templateExerciseId: null, // Playbook exercises don't link to templates
-            rpe: exercise.rpe ?? null,
-            rest_seconds: exercise.restSeconds ?? null,
-            is_estimate: false,
-            is_default_applied: false,
-            one_rm_estimate: null, // Will be calculated on save
-            volume_load: null, // Will be calculated on save
-            usesSetTable: false, // Using legacy format (one row per set)
-            warmupSets: exercise.warmupSets?.length ?? 0,
-            workingSets: numSets,
-            topSetWeight: exercise.weight ?? 0,
-          }));
+          const topWeight = exercise.weight;
+          const rows: Array<{
+            sessionId: number;
+            user_id: string;
+            exerciseName: string;
+            resolvedExerciseName: string;
+            weight: number | null;
+            reps: number;
+            sets: number;
+            unit: string;
+            setOrder: number;
+            templateExerciseId: null;
+            rpe: number | null;
+            rest_seconds: number | null;
+            is_estimate: boolean;
+            is_default_applied: boolean;
+            one_rm_estimate: null;
+            volume_load: null;
+          }> = [];
+
+          let setOrder = 0;
+
+          // Calculate and add warmup sets if we have a working weight
+          if (topWeight && topWeight > 0) {
+            const warmupSets = calculateWarmupSets(topWeight, exercise.reps, 5);
+
+            for (const warmup of warmupSets) {
+              rows.push({
+                sessionId: workoutSession.id,
+                user_id: userId,
+                exerciseName: exercise.exerciseName,
+                resolvedExerciseName: exercise.exerciseName,
+                weight: warmup.weight,
+                reps: warmup.reps,
+                sets: 1,
+                unit: "kg",
+                setOrder: setOrder++,
+                templateExerciseId: null,
+                rpe: null,
+                rest_seconds: exercise.restSeconds ?? null,
+                is_estimate: false,
+                is_default_applied: false,
+                one_rm_estimate: null,
+                volume_load: null,
+              });
+            }
+          }
+
+          // Add working sets
+          for (let i = 0; i < numSets; i++) {
+            rows.push({
+              sessionId: workoutSession.id,
+              user_id: userId,
+              exerciseName: exercise.exerciseName,
+              resolvedExerciseName: exercise.exerciseName,
+              weight: exercise.weight,
+              reps: exercise.reps,
+              sets: 1,
+              unit: "kg",
+              setOrder: setOrder++,
+              templateExerciseId: null,
+              rpe: exercise.rpe ?? null,
+              rest_seconds: exercise.restSeconds ?? null,
+              is_estimate: false,
+              is_default_applied: false,
+              one_rm_estimate: null,
+              volume_load: null,
+            });
+          }
+
+          return rows;
         },
       );
 
@@ -656,17 +729,27 @@ export const playbookRouter = createTRPCRouter({
   /**
    * Regenerate weeks from a specific point
    */
-  regenerateWeeks: protectedProcedure
-    .input(regenerationRequestSchema)
+  regenerateFromLatestSession: protectedProcedure
+    .input(
+      z.object({
+        playbookId: z.number(),
+        addAiPlan: z.boolean().optional(), // For prompting to add AI
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
+      const { playbookId, addAiPlan } = input;
       const userId = ctx.user.id;
 
-      // Verify playbook ownership
+      // Get playbook
       const playbook = await ctx.db.query.playbooks.findFirst({
-        where: and(
-          eq(playbooks.id, input.playbookId),
-          eq(playbooks.userId, userId),
-        ),
+        where: and(eq(playbooks.id, playbookId), eq(playbooks.userId, userId)),
+        with: {
+          weeks: {
+            with: {
+              sessions: true,
+            },
+          },
+        },
       });
 
       if (!playbook) {
@@ -676,26 +759,37 @@ export const playbookRouter = createTRPCRouter({
         });
       }
 
-      // Fetch affected weeks separately using query builder
-      const affectedWeeks = await ctx.db
-        .select()
-        .from(playbookWeeks)
-        .where(
-          and(
-            eq(playbookWeeks.playbookId, input.playbookId),
-            gte(playbookWeeks.weekNumber, input.weekStart),
-            lte(playbookWeeks.weekNumber, input.weekEnd),
-          ),
-        )
-        .orderBy(asc(playbookWeeks.weekNumber));
+      // Find latest completed session
+      const allSessions = playbook.weeks.flatMap((w) => w.sessions);
+      const completedSessions = allSessions
+        .filter((s) => s.isCompleted)
+        .sort((a, b) => {
+          // Sort by week number then session number
+          const weekA = playbook.weeks.find((w) => w.id === a.playbookWeekId)!;
+          const weekB = playbook.weeks.find((w) => w.id === b.playbookWeekId)!;
+          if (weekA.weekNumber !== weekB.weekNumber) {
+            return weekB.weekNumber - weekA.weekNumber;
+          }
+          return b.sessionNumber - a.sessionNumber;
+        });
 
-      // Store snapshot of previous plan
-      const previousPlanSnapshot = affectedWeeks.map((w) => ({
-        weekNumber: w.weekNumber,
-        aiPlan: w.aiPlanJson ? JSON.parse(w.aiPlanJson) : null,
-      }));
+      const latestSession = completedSessions[0];
+      if (!latestSession) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No completed sessions to regenerate from",
+        });
+      }
 
-      // Rebuild context and generate new plan
+      const latestWeek = playbook.weeks.find(
+        (w) => w.id === latestSession.playbookWeekId,
+      )!;
+
+      // Determine if we should generate AI plan
+      const shouldGenerateAi =
+        playbook.hasAiPlan || false || addAiPlan || false;
+
+      // Build context including completed session history
       const playbookInput: PlaybookCreateInput = {
         name: playbook.name,
         goalText: playbook.goalText ?? undefined,
@@ -706,60 +800,142 @@ export const playbookRouter = createTRPCRouter({
         targetIds: JSON.parse(playbook.targetIds),
         duration: playbook.duration,
         metadata: playbook.metadata ? JSON.parse(playbook.metadata) : undefined,
+        selectedPlans: {
+          algorithmic: true,
+          ai: shouldGenerateAi,
+        },
       };
 
       const context = await buildPlaybookContext(ctx.db, userId, playbookInput);
-      const newAiWeeks = await generateAIPlan(context);
 
-      // Update affected weeks
+      // Generate plans for remaining weeks
+      const remainingWeekNumbers = playbook.weeks
+        .filter((w) => w.weekNumber > latestWeek.weekNumber)
+        .map((w) => w.weekNumber);
+
+      let aiWeeks: WeeklyAiPlan[] | null = null;
+      let algorithmicWeeks: WeeklyAlgorithmicPlan[];
+
+      if (shouldGenerateAi) {
+        [aiWeeks, algorithmicWeeks] = await Promise.all([
+          generateAIPlan(context),
+          Promise.resolve(generateAlgorithmicPlan(context)),
+        ]);
+      } else {
+        algorithmicWeeks = generateAlgorithmicPlan(context);
+      }
+
+      // Update playbook hasAiPlan if AI was added
+      if (addAiPlan && !playbook.hasAiPlan) {
+        await ctx.db
+          .update(playbooks)
+          .set({ hasAiPlan: true, updatedAt: new Date() })
+          .where(eq(playbooks.id, playbookId));
+      }
+
+      // Update weeks and sessions
+      const affectedWeeks = playbook.weeks.filter(
+        (w) => w.weekNumber > latestWeek.weekNumber,
+      );
+
       for (const week of affectedWeeks) {
-        const newWeek = newAiWeeks.find(
+        const aiWeek = aiWeeks?.find((w) => w.weekNumber === week.weekNumber);
+        const algoWeek = algorithmicWeeks.find(
           (w) => w.weekNumber === week.weekNumber,
         );
-        if (newWeek) {
-          await ctx.db
-            .update(playbookWeeks)
-            .set({
-              aiPlanJson: JSON.stringify(newWeek),
-              volumeTarget: newWeek.volumeTarget ?? null,
-              updatedAt: new Date(),
-            })
-            .where(eq(playbookWeeks.id, week.id));
+
+        if (!algoWeek) continue;
+
+        // Update week
+        await ctx.db
+          .update(playbookWeeks)
+          .set({
+            aiPlanJson: aiWeek ? JSON.stringify(aiWeek) : week.aiPlanJson,
+            algorithmicPlanJson: JSON.stringify(algoWeek),
+            volumeTarget: aiWeek?.volumeTarget ?? algoWeek.volumeTarget,
+            updatedAt: new Date(),
+          })
+          .where(eq(playbookWeeks.id, week.id));
+
+        // Update sessions in this week
+        const sourcePlan = shouldGenerateAi ? aiWeeks : algorithmicWeeks;
+        const weekPlan = sourcePlan?.find(
+          (w) => w.weekNumber === week.weekNumber,
+        );
+
+        if (weekPlan) {
+          for (const session of weekPlan.sessions) {
+            await ctx.db
+              .update(playbookSessions)
+              .set({
+                prescribedWorkoutJson: JSON.stringify(session),
+                activePlanType: shouldGenerateAi ? "ai" : "algorithmic",
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(playbookSessions.playbookWeekId, week.id),
+                  eq(playbookSessions.sessionNumber, session.sessionNumber),
+                ),
+              );
+          }
         }
       }
 
-      // Record regeneration
+      // Log regeneration
       await ctx.db.insert(playbookRegenerations).values({
-        playbookId: input.playbookId,
-        triggeredBySessionId: null,
-        regenerationReason: input.reason,
-        affectedWeekStart: input.weekStart,
-        affectedWeekEnd: input.weekEnd,
-        previousPlanSnapshot: JSON.stringify(previousPlanSnapshot),
-        newPlanSnapshot: JSON.stringify(newAiWeeks),
+        playbookId,
+        triggeredBySessionId: latestSession.id,
+        regenerationReason: `Regenerated from session ${latestSession.sessionNumber} of week ${latestWeek.weekNumber}`,
+        affectedWeekStart: latestWeek.weekNumber + 1,
+        affectedWeekEnd: playbook.duration,
+        previousPlanSnapshot: JSON.stringify({
+          weeks: affectedWeeks.map((w) => ({
+            weekNumber: w.weekNumber,
+            aiPlan: w.aiPlanJson ? JSON.parse(w.aiPlanJson) : null,
+          })),
+        }),
+        newPlanSnapshot: JSON.stringify({
+          weeks: remainingWeekNumbers.map((weekNum) => {
+            const aiWeek = aiWeeks?.find((w) => w.weekNumber === weekNum);
+            const algoWeek = algorithmicWeeks.find(
+              (w) => w.weekNumber === weekNum,
+            );
+            return {
+              weekNumber: weekNum,
+              aiPlan: aiWeek ?? null,
+              algorithmicPlan: algoWeek ?? null,
+            };
+          }),
+        }),
         createdAt: new Date(),
       });
 
-      logger.info("Playbook regenerated", {
+      logger.info("Playbook regenerated from latest session", {
         userId,
-        playbookId: input.playbookId,
-        weekStart: input.weekStart,
-        weekEnd: input.weekEnd,
-        reason: input.reason,
+        playbookId,
+        latestSessionId: latestSession.id,
+        latestWeekNumber: latestWeek.weekNumber,
+        remainingWeeks: remainingWeekNumbers,
+        aiPlanAdded: addAiPlan && !playbook.hasAiPlan,
       });
 
       // Analytics: Track playbook regeneration
       const posthog = getPosthog();
-      posthog.capture("playbook.regenerated", {
-        playbook_id: input.playbookId,
-        regeneration_reason: input.reason,
-        week_start: input.weekStart,
-        week_end: input.weekEnd,
-        weeks_regenerated: newAiWeeks.length,
+      posthog.capture("playbook.regenerated_from_latest", {
+        playbook_id: playbookId,
+        latest_session_id: latestSession.id,
+        latest_week_number: latestWeek.weekNumber,
+        remaining_weeks: remainingWeekNumbers.length,
+        ai_plan_added: addAiPlan && !playbook.hasAiPlan,
         user_id: userId,
       });
 
-      return { success: true, regeneratedWeeks: newAiWeeks.length };
+      return {
+        success: true,
+        regeneratedWeeks: remainingWeekNumbers,
+        aiPlanAdded: addAiPlan && !playbook.hasAiPlan,
+      };
     }),
 
   /**
@@ -865,5 +1041,23 @@ export const playbookRouter = createTRPCRouter({
           ? JSON.parse(r.newPlanSnapshot)
           : null,
       }));
+    }),
+
+  updateSessionPlanType: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.number(),
+        planType: activePlanTypeSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { sessionId, planType } = input;
+
+      await ctx.db
+        .update(playbookSessions)
+        .set({ activePlanType: planType, updatedAt: new Date() })
+        .where(eq(playbookSessions.id, sessionId));
+
+      return { success: true };
     }),
 });

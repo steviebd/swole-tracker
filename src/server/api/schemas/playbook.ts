@@ -33,6 +33,8 @@ export const regenerationReasonSchema = z.enum([
   "rpe_feedback",
 ]);
 
+export const activePlanTypeSchema = z.enum(["ai", "algorithmic"]);
+
 // Playbook metadata schema
 export const playbookMetadataSchema = z.object({
   // User inputs for 1RMs (exercise name -> 1RM in kg)
@@ -130,6 +132,14 @@ export const playbookCreateInputSchema = z.object({
   targetIds: z.array(z.number()).min(1), // Template or exercise IDs
   duration: z.number().min(4).max(6).default(6),
   metadata: playbookMetadataSchema.optional(),
+  selectedPlans: z
+    .object({
+      algorithmic: z.boolean(),
+      ai: z.boolean(),
+    })
+    .refine((data) => data.algorithmic || data.ai, {
+      message: "At least one plan must be selected",
+    }),
 });
 
 // RPE submission schema
@@ -174,6 +184,25 @@ export const regenerationRequestSchema = z.object({
   context: z.string().optional(), // Additional context for regeneration
 });
 
+// Playbook session schema
+export const playbookSessionSchema = z.object({
+  id: z.number(),
+  playbookWeekId: z.number(),
+  sessionNumber: z.number(),
+  sessionDate: z.date().nullable(),
+  prescribedWorkoutJson: z.string(),
+  actualWorkoutId: z.number().nullable(),
+  adherenceScore: z.number().nullable(),
+  rpe: z.number().nullable(),
+  rpeNotes: z.string().nullable(),
+  deviation: z.string().nullable(),
+  activePlanType: activePlanTypeSchema,
+  isCompleted: z.boolean(),
+  completedAt: z.date().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date().nullable(),
+});
+
 // Playbook analytics schema
 export const playbookAnalyticsSchema = z.object({
   playbookId: z.number(),
@@ -202,6 +231,7 @@ export type PlaybookStatus = z.infer<typeof playbookStatusSchema>;
 export type WeekType = z.infer<typeof weekTypeSchema>;
 export type WeekStatus = z.infer<typeof weekStatusSchema>;
 export type RegenerationReason = z.infer<typeof regenerationReasonSchema>;
+export type ActivePlanType = z.infer<typeof activePlanTypeSchema>;
 export type PlaybookMetadata = z.infer<typeof playbookMetadataSchema>;
 export type ExercisePrescription = z.infer<typeof exercisePrescriptionSchema>;
 export type SessionPrescription = z.infer<typeof sessionPrescriptionSchema>;
@@ -211,4 +241,5 @@ export type PlaybookCreateInput = z.infer<typeof playbookCreateInputSchema>;
 export type RpeSubmission = z.infer<typeof rpeSubmissionSchema>;
 export type SessionDeviation = z.infer<typeof sessionDeviationSchema>;
 export type RegenerationRequest = z.infer<typeof regenerationRequestSchema>;
+export type PlaybookSession = z.infer<typeof playbookSessionSchema>;
 export type PlaybookAnalytics = z.infer<typeof playbookAnalyticsSchema>;

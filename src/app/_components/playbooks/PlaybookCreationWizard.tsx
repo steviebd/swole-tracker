@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -82,14 +82,23 @@ export function PlaybookCreationWizard() {
     duration: 6,
   });
 
+  const [selectedPlans, setSelectedPlans] = useState({
+    algorithmic: true, // Pre-selected by default
+    ai: false,
+  });
+
   // Fetch templates and exercises
   const { data: templates = [], isLoading: loadingTemplates } =
     api.templates.getAll.useQuery();
   const { data: exercises = [], isLoading: loadingExercises } =
     api.exercises.getAllMaster.useQuery();
 
+  const utils = api.useUtils();
+
   const createPlaybookMutation = api.playbooks.create.useMutation({
     onSuccess: (data) => {
+      // Invalidate playbook list so new playbook appears immediately
+      void utils.playbooks.listByUser.invalidate();
       router.push(`/playbooks/${data.id}`);
     },
     onError: (error) => {
@@ -127,6 +136,7 @@ export function PlaybookCreationWizard() {
       targetType: formData.targetType,
       targetIds: formData.targetIds,
       duration: formData.duration,
+      selectedPlans,
       metadata: {
         oneRmInputs: formData.metadata?.currentMaxes,
         trainingDaysPerWeek: formData.metadata?.trainingDays,
@@ -758,27 +768,70 @@ export function PlaybookCreationWizard() {
                     </div>
                   )}
 
-                  {/* Plan Preview Placeholder */}
+                  {/* Plan Selection Cards */}
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="border-primary bg-primary/5 rounded-lg border-2 p-4">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Sparkles className="text-primary size-4" />
-                        <h5 className="font-semibold">AI Plan</h5>
-                      </div>
-                      <p className="text-muted-foreground text-xs">
-                        Personalized using your history and goals
-                      </p>
-                    </div>
-                    <div className="border-secondary bg-secondary/5 rounded-lg border-2 p-4">
+                    {/* Algorithmic Plan Card - Default Selected */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPlans((prev) => ({
+                          ...prev,
+                          algorithmic: !prev.algorithmic,
+                        }))
+                      }
+                      className={cn(
+                        "rounded-lg border-2 p-4 text-left transition-all",
+                        selectedPlans.algorithmic
+                          ? "border-secondary bg-secondary/10"
+                          : "border-border bg-background hover:border-secondary/50",
+                      )}
+                    >
                       <div className="mb-2 flex items-center gap-2">
                         <Zap className="text-secondary size-4" />
                         <h5 className="font-semibold">Algorithmic Plan</h5>
+                        {selectedPlans.algorithmic && (
+                          <Check className="text-secondary ml-auto size-4" />
+                        )}
                       </div>
                       <p className="text-muted-foreground text-xs">
                         Science-based progressive overload
                       </p>
-                    </div>
+                    </button>
+
+                    {/* AI Plan Card - Optional */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedPlans((prev) => ({ ...prev, ai: !prev.ai }))
+                      }
+                      className={cn(
+                        "rounded-lg border-2 p-4 text-left transition-all",
+                        selectedPlans.ai
+                          ? "border-primary bg-primary/10"
+                          : "border-border bg-background hover:border-primary/50",
+                      )}
+                    >
+                      <div className="mb-2 flex items-center gap-2">
+                        <Sparkles className="text-primary size-4" />
+                        <h5 className="font-semibold">AI Plan</h5>
+                        {selectedPlans.ai && (
+                          <Check className="text-primary ml-auto size-4" />
+                        )}
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {selectedPlans.ai
+                          ? "Personalized using your history and goals"
+                          : "Add AI for personalized coaching and PR predictions based on your history"}
+                      </p>
+                    </button>
                   </div>
+
+                  {/* Validation message */}
+                  {!selectedPlans.algorithmic && !selectedPlans.ai && (
+                    <p className="text-destructive text-sm">
+                      Please select at least one plan type
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -806,7 +859,11 @@ export function PlaybookCreationWizard() {
         ) : (
           <Button
             onClick={handleSubmit}
-            disabled={!isOnline || createPlaybookMutation.isPending}
+            disabled={
+              !isOnline ||
+              createPlaybookMutation.isPending ||
+              (!selectedPlans.algorithmic && !selectedPlans.ai)
+            }
             size="lg"
             haptic
             className="gap-2"

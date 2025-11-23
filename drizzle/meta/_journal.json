@@ -113,6 +113,13 @@
       "when": 1763450023819,
       "tag": "0015_fantastic_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1763450023820,
+      "tag": "0021_playbook_plan_selection",
+      "breakpoints": true
     }
   ]
 }

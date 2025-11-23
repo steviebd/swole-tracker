@@ -890,6 +890,7 @@ export const playbooks = createTable(
     duration: integer().notNull().default(6), // Duration in weeks (4-6)
     status: text().notNull().default("draft"), // 'draft' | 'active' | 'completed' | 'archived'
     metadata: text(), // JSON: user inputs for 1RMs, availability, equipment
+    hasAiPlan: integer("has_ai_plan", { mode: "boolean" }).default(false), // Track if AI plan was generated
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -951,6 +952,9 @@ export const playbookSessions = createTable(
     rpe: integer(), // 1-10, from questionnaire
     rpeNotes: text(), // User notes from RPE questionnaire
     deviation: text(), // JSON: comparison of prescribed vs actual
+    activePlanType: text("active_plan_type", { enum: ["ai", "algorithmic"] })
+      .default("algorithmic")
+      .notNull(), // Track which plan is active for this session
     isCompleted: integer({ mode: "boolean" }).notNull().default(false),
     completedAt: date(),
     createdAt: date()

@@ -19,6 +19,7 @@ export interface PlaybookWithWeeks {
   targetIds: number[]; // Parsed from JSON
   duration: number;
   status: PlaybookStatus;
+  hasAiPlan: boolean;
   metadata: PlaybookMetadata | null; // Parsed from JSON
   createdAt: Date;
   updatedAt: Date | null;
@@ -53,6 +54,7 @@ export interface PlaybookSessionDetail {
   rpe: number | null;
   rpeNotes: string | null;
   deviation: SessionDeviation[] | null; // Parsed from JSON
+  activePlanType: "ai" | "algorithmic";
   isCompleted: boolean;
   completedAt: Date | null;
   createdAt: Date;
