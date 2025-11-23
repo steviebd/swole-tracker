@@ -451,7 +451,7 @@ describe("WorkoutSessionPage", () => {
 
       await waitFor(() => {
         const headerSubtitle = screen.getByTestId("header-subtitle");
-        expect(headerSubtitle).toHaveTextContent(/15\/01\/2024/);
+        expect(headerSubtitle).toHaveTextContent(/1\/15\/2024/);
       });
     });
 
