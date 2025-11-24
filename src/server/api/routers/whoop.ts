@@ -556,4 +556,193 @@ export const whoopRouter = createTRPCRouter({
 
     return measurements;
   }),
+
+  // Get aggregated readiness data for recovery planner
+  getReadinessAggregation: protectedProcedure.query(async ({ ctx }) => {
+    const { integration, rotationError } =
+      await refreshWhoopIntegrationIfNeeded(ctx.db, ctx.user.id);
+
+    if (!integration?.isActive) {
+      // Return default values for users without WHOOP integration
+      return {
+        hasData: false,
+        recoveryScore: null,
+        sleepPerformance: null,
+        hrvStatus: null,
+        rhrStatus: null,
+        readinessScore: 0.5, // Default neutral readiness
+        dataQuality: "none",
+        recommendation: "manual_input_required",
+      };
+    }
+
+    // Check if token is expired
+    const now = new Date();
+    const isExpired = integration.expiresAt
+      ? new Date(integration.expiresAt).getTime() < now.getTime()
+      : false;
+
+    if (isExpired) {
+      return {
+        hasData: false,
+        recoveryScore: null,
+        sleepPerformance: null,
+        hrvStatus: null,
+        rhrStatus: null,
+        readinessScore: 0.5,
+        dataQuality: "expired",
+        recommendation: "reconnect_whoop",
+      };
+    }
+
+    try {
+      // Get latest recovery and sleep data in parallel
+      const [latestRecovery, latestSleep, recentRecoveries] = await Promise.all(
+        [
+          ctx.db
+            .select({
+              recovery_score: whoopRecovery.recovery_score,
+              hrv_rmssd_milli: whoopRecovery.hrv_rmssd_milli,
+              hrv_rmssd_baseline: whoopRecovery.hrv_rmssd_baseline,
+              resting_heart_rate: whoopRecovery.resting_heart_rate,
+              resting_heart_rate_baseline:
+                whoopRecovery.resting_heart_rate_baseline,
+              date: whoopRecovery.date,
+            })
+            .from(whoopRecovery)
+            .where(eq(whoopRecovery.user_id, ctx.user.id))
+            .orderBy(desc(whoopRecovery.date))
+            .limit(1)
+            .then((rows) => rows[0]),
+          ctx.db
+            .select({
+              sleep_performance_percentage:
+                whoopSleep.sleep_performance_percentage,
+              start: whoopSleep.start,
+            })
+            .from(whoopSleep)
+            .where(eq(whoopSleep.user_id, ctx.user.id))
+            .orderBy(desc(whoopSleep.start))
+            .limit(1)
+            .then((rows) => rows[0]),
+          ctx.db
+            .select({
+              recovery_score: whoopRecovery.recovery_score,
+              hrv_rmssd_milli: whoopRecovery.hrv_rmssd_milli,
+              hrv_rmssd_baseline: whoopRecovery.hrv_rmssd_baseline,
+              resting_heart_rate: whoopRecovery.resting_heart_rate,
+              resting_heart_rate_baseline:
+                whoopRecovery.resting_heart_rate_baseline,
+              date: whoopRecovery.date,
+            })
+            .from(whoopRecovery)
+            .where(eq(whoopRecovery.user_id, ctx.user.id))
+            .orderBy(desc(whoopRecovery.date))
+            .limit(7) // Last 7 days for baseline calculation
+            .then((rows) => rows),
+        ],
+      );
+
+      if (!latestRecovery) {
+        return {
+          hasData: false,
+          recoveryScore: null,
+          sleepPerformance: null,
+          hrvStatus: null,
+          rhrStatus: null,
+          readinessScore: 0.5,
+          dataQuality: "no_data",
+          recommendation: "sync_whoop_data",
+        };
+      }
+
+      // Calculate HRV status based on deviation from baseline
+      let hrvStatus: "low" | "baseline" | "high" = "baseline";
+      if (latestRecovery.hrv_rmssd_milli && latestRecovery.hrv_rmssd_baseline) {
+        const deviation =
+          (latestRecovery.hrv_rmssd_milli - latestRecovery.hrv_rmssd_baseline) /
+          latestRecovery.hrv_rmssd_baseline;
+        if (deviation < -0.1)
+          hrvStatus = "low"; // More than 10% below baseline
+        else if (deviation > 0.1) hrvStatus = "high"; // More than 10% above baseline
+      }
+
+      // Calculate RHR status based on deviation from baseline
+      let rhrStatus: "elevated" | "baseline" | "optimal" = "baseline";
+      if (
+        latestRecovery.resting_heart_rate &&
+        latestRecovery.resting_heart_rate_baseline
+      ) {
+        const deviation =
+          (latestRecovery.resting_heart_rate -
+            latestRecovery.resting_heart_rate_baseline) /
+          latestRecovery.resting_heart_rate_baseline;
+        if (deviation > 0.05)
+          rhrStatus = "elevated"; // More than 5% above baseline
+        else if (deviation < -0.05) rhrStatus = "optimal"; // More than 5% below baseline
+      }
+
+      // Calculate composite readiness score (0-1)
+      const recoveryScore = latestRecovery.recovery_score || 50;
+      const sleepPerformance = latestSleep?.sleep_performance_percentage || 50;
+
+      // Weight the components: Recovery (40%), Sleep (30%), HRV (20%), RHR (10%)
+      const hrvScore =
+        hrvStatus === "baseline" ? 0.8 : hrvStatus === "high" ? 0.9 : 0.6;
+      const rhrScore =
+        rhrStatus === "baseline" ? 0.8 : rhrStatus === "optimal" ? 0.9 : 0.6;
+
+      const readinessScore =
+        (recoveryScore / 100) * 0.4 +
+        (sleepPerformance / 100) * 0.3 +
+        hrvScore * 0.2 +
+        rhrScore * 0.1;
+
+      // Determine data quality based on recency and completeness
+      const dataAge = Date.now() - new Date(latestRecovery.date).getTime();
+      const hoursOld = dataAge / (1000 * 60 * 60);
+
+      let dataQuality: "excellent" | "good" | "fair" | "poor" = "excellent";
+      let recommendation = "train_as_planned";
+
+      if (hoursOld > 48) {
+        dataQuality = "poor";
+        recommendation = "data_stale";
+      } else if (hoursOld > 24) {
+        dataQuality = "fair";
+        recommendation = "consider_recent_trends";
+      } else if (!latestSleep?.sleep_performance_percentage) {
+        dataQuality = "good";
+        recommendation = "missing_sleep_data";
+      }
+
+      return {
+        hasData: true,
+        recoveryScore: latestRecovery.recovery_score,
+        sleepPerformance: latestSleep?.sleep_performance_percentage || null,
+        hrvStatus,
+        rhrStatus,
+        readinessScore: Math.round(readinessScore * 100) / 100, // Round to 2 decimal places
+        dataQuality,
+        recommendation,
+        lastUpdated: latestRecovery.date,
+        recentTrends: recentRecoveries.slice(0, 7).map((r) => ({
+          date: r.date,
+          recoveryScore: r.recovery_score,
+        })),
+      };
+    } catch (error) {
+      console.error("Failed to aggregate WHOOP readiness data:", error);
+      return {
+        hasData: false,
+        recoveryScore: null,
+        sleepPerformance: null,
+        hrvStatus: null,
+        rhrStatus: null,
+        readinessScore: 0.5,
+        dataQuality: "error",
+        recommendation: "try_again_later",
+      };
+    }
+  }),
 });

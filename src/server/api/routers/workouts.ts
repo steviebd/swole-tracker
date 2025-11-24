@@ -15,6 +15,10 @@ import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
 } from "~/server/db/utils";
+import {
+  detectPlateau,
+  storePlateau,
+} from "~/server/api/utils/plateau-detection";
 // Note: exerciseNameResolutionView replaced with raw SQL queries
 import { eq, desc, and, ne, inArray, gte, asc, lt, or, sql } from "drizzle-orm";
 
@@ -56,7 +60,254 @@ import {
 } from "~/server/db/incremental-aggregation";
 import { invalidateQueries } from "~/trpc/cache-config";
 
+/**
+ * Simple exercise name normalization
+ */
+function normalizeExerciseName(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Ensure master exercise links exist for template exercises
+ * Creates master exercises and links if they don't exist
+ */
+async function ensureMasterExerciseLinks(
+  db: any, // typeof ctx.db - using any to avoid type issues
+  userId: string,
+  templateExerciseIds: number[],
+): Promise<void> {
+  if (templateExerciseIds.length === 0) return;
+
+  // Find which template exercises already have master exercise links
+  const existingLinks = await db
+    .select()
+    .from(exerciseLinks)
+    .where(
+      and(
+        eq(exerciseLinks.user_id, userId),
+        inArray(exerciseLinks.templateExerciseId, templateExerciseIds),
+      ),
+    );
+
+  const existingTemplateIds = new Set(
+    existingLinks.map((link: any) => link.templateExerciseId),
+  );
+
+  // Find template exercises that need master exercise links
+  const missingTemplateIds = templateExerciseIds.filter(
+    (id) => !existingTemplateIds.has(id),
+  );
+
+  if (missingTemplateIds.length === 0) return;
+
+  logger.info("Creating master exercise links", {
+    userId,
+    missingTemplateIds,
+    count: missingTemplateIds.length,
+  });
+
+  // Get template exercise details
+  const templateExercisesData = await db
+    .select()
+    .from(templateExercises)
+    .where(
+      and(
+        eq(templateExercises.user_id, userId),
+        inArray(templateExercises.id, missingTemplateIds),
+      ),
+    );
+
+  // Create master exercises and links for missing ones
+  for (const templateExercise of templateExercisesData) {
+    const exerciseName = normalizeExerciseName(
+      templateExercise.exerciseName || "Unknown Exercise",
+    );
+
+    // Check if master exercise already exists with this name
+    const existingMaster = await db
+      .select()
+      .from(masterExercises)
+      .where(
+        and(
+          eq(masterExercises.user_id, userId),
+          eq(masterExercises.normalizedName, exerciseName),
+        ),
+      )
+      .limit(1);
+
+    let masterExerciseId: number;
+
+    if (existingMaster.length > 0) {
+      // Use existing master exercise
+      masterExerciseId = existingMaster[0]!.id;
+    } else {
+      // Create new master exercise
+      const newMaster = await db
+        .insert(masterExercises)
+        .values({
+          user_id: userId,
+          name: templateExercise.exerciseName || "Unknown Exercise",
+          normalizedName: exerciseName,
+          muscleGroup: templateExercise.muscleGroup || null,
+          tags: templateExercise.tags || null,
+        })
+        .returning({ id: masterExercises.id });
+
+      masterExerciseId = newMaster[0]!.id;
+    }
+
+    // Create exercise link
+    await db.insert(exerciseLinks).values({
+      user_id: userId,
+      templateExerciseId: templateExercise.id,
+      masterExerciseId,
+    });
+  }
+
+  logger.info("Master exercise links created successfully", {
+    userId,
+    count: templateExercisesData.length,
+  });
+}
+
 export const workoutsRouter = createTRPCRouter({
+  // Migration endpoint to create master exercise links for existing exercises
+  migrateMasterExercises: protectedProcedure.mutation(async ({ ctx }) => {
+    logger.info("Starting master exercise migration for user", {
+      userId: ctx.user.id,
+    });
+
+    try {
+      // 1. Find all template exercises that don't have master exercise links
+      const allTemplateExercises = await ctx.db
+        .select()
+        .from(templateExercises)
+        .where(eq(templateExercises.user_id, ctx.user.id));
+
+      if (allTemplateExercises.length === 0) {
+        return {
+          success: true,
+          message: "No template exercises found",
+          migrated: 0,
+        };
+      }
+
+      // 2. Find which ones already have master exercise links
+      const existingLinks = await ctx.db
+        .select()
+        .from(exerciseLinks)
+        .where(
+          and(
+            eq(exerciseLinks.user_id, ctx.user.id),
+            inArray(
+              exerciseLinks.templateExerciseId,
+              allTemplateExercises.map((ex) => ex.id),
+            ),
+          ),
+        );
+
+      const existingTemplateIds = new Set(
+        existingLinks.map((link) => link.templateExerciseId),
+      );
+
+      // 3. Find template exercises that need master exercise links
+      const missingTemplateIds = allTemplateExercises
+        .map((ex) => ex.id)
+        .filter((id) => !existingTemplateIds.has(id));
+
+      if (missingTemplateIds.length === 0) {
+        return {
+          success: true,
+          message: "All exercises already have master links",
+          migrated: 0,
+        };
+      }
+
+      // 4. Get template exercise details for missing ones
+      const missingTemplateExercises = await ctx.db
+        .select()
+        .from(templateExercises)
+        .where(
+          and(
+            eq(templateExercises.user_id, ctx.user.id),
+            inArray(templateExercises.id, missingTemplateIds),
+          ),
+        );
+
+      // 5. Create master exercises and links for missing ones
+      let createdCount = 0;
+      let linkedCount = 0;
+
+      for (const templateExercise of missingTemplateExercises) {
+        const exerciseName = normalizeExerciseName(
+          templateExercise.exerciseName || "Unknown Exercise",
+        );
+
+        // Check if master exercise already exists with this name
+        const existingMaster = await ctx.db
+          .select()
+          .from(masterExercises)
+          .where(
+            and(
+              eq(masterExercises.user_id, ctx.user.id),
+              eq(masterExercises.normalizedName, exerciseName),
+            ),
+          )
+          .limit(1);
+
+        let masterExerciseId: number;
+
+        if (existingMaster.length > 0) {
+          // Use existing master exercise
+          masterExerciseId = existingMaster[0]!.id;
+        } else {
+          // Create new master exercise
+          const newMaster = await ctx.db
+            .insert(masterExercises)
+            .values({
+              user_id: ctx.user.id,
+              name: templateExercise.exerciseName || "Unknown Exercise",
+              normalizedName: exerciseName,
+              muscleGroup: null, // Template exercises don't have muscleGroup
+              tags: null, // Template exercises don't have tags
+            })
+            .returning({ id: masterExercises.id });
+
+          masterExerciseId = newMaster[0]!.id;
+          createdCount++;
+        }
+
+        // Create exercise link
+        await ctx.db.insert(exerciseLinks).values({
+          user_id: ctx.user.id,
+          templateExerciseId: templateExercise.id,
+          masterExerciseId,
+        });
+
+        linkedCount++;
+      }
+
+      logger.info("Master exercise migration completed", {
+        userId: ctx.user.id,
+        createdCount,
+        linkedCount,
+        totalProcessed: missingTemplateIds.length,
+      });
+
+      return {
+        success: true,
+        message: `Migration completed: ${createdCount} master exercises created, ${linkedCount} links created`,
+        migrated: linkedCount,
+      };
+    } catch (error) {
+      logger.error("Master exercise migration failed", {
+        userId: ctx.user.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      throw new Error("Migration failed");
+    }
+  }),
+
   // Get recent workouts for the current user
   getRecent: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().default(10) }))
@@ -659,6 +910,27 @@ export const workoutsRouter = createTRPCRouter({
               { limit: 50 },
             ); // Lower limit for D1 safety
 
+            // Ensure master exercise links exist for all exercises
+            if (exerciseRows.length > 0) {
+              try {
+                await ensureMasterExerciseLinks(
+                  ctx.db,
+                  ctx.user.id,
+                  exerciseRows
+                    .map((ex) => ex.templateExerciseId!)
+                    .filter(Boolean),
+                );
+              } catch (error) {
+                logger.warn("master_exercise_links_failed", {
+                  userId: ctx.user.id,
+                  templateExerciseIds: exerciseRows.map(
+                    (ex) => ex.templateExerciseId,
+                  ),
+                  error: error instanceof Error ? error.message : "unknown",
+                });
+              }
+            }
+
             // Trigger incremental aggregation for new exercises
             if (insertedExerciseIds.length > 0) {
               try {
@@ -903,108 +1175,148 @@ export const workoutsRouter = createTRPCRouter({
             }
           })();
 
-          // Trigger aggregation for progress tracking
+          // Check if this workout is part of an active playbook session
+          let playbookSessionId: number | null = null;
+          try {
+            const { playbookSessions } = await import("~/server/db/schema");
+            const linkedPlaybookSession =
+              await ctx.db.query.playbookSessions.findFirst({
+                where: (sessions, { eq, and }) =>
+                  and(
+                    eq(sessions.actualWorkoutId, input.sessionId),
+                    eq(sessions.isCompleted, false),
+                  ),
+              });
+            if (linkedPlaybookSession) {
+              playbookSessionId = linkedPlaybookSession.id;
+
+              // Calculate adherence score if there are exercises
+              if (setsToInsert.length > 0) {
+                // Simple adherence: compare number of exercises completed vs prescribed
+                const prescription = (
+                  linkedPlaybookSession.prescribedWorkoutJson
+                    ? JSON.parse(linkedPlaybookSession.prescribedWorkoutJson)
+                    : null
+                ) as {
+                  exercises: Array<{
+                    exerciseName: string;
+                    sets: number;
+                    reps: number;
+                    weight: number | null;
+                  }>;
+                } | null;
+
+                let adherenceScore = 100; // Default to perfect if no prescription
+
+                if (prescription?.exercises) {
+                  const prescribedExerciseNames = new Set(
+                    prescription.exercises.map((e) =>
+                      e.exerciseName.toLowerCase(),
+                    ),
+                  );
+                  const completedExerciseNames = new Set(
+                    input.exercises.map((e) => e.exerciseName.toLowerCase()),
+                  );
+
+                  // Calculate overlap
+                  const matchingExercises = Array.from(
+                    prescribedExerciseNames,
+                  ).filter((name) => completedExerciseNames.has(name)).length;
+
+                  adherenceScore = Math.round(
+                    (matchingExercises / prescribedExerciseNames.size) * 100,
+                  );
+                }
+
+                // Mark playbook session as completed
+                await ctx.db
+                  .update(playbookSessions)
+                  .set({
+                    isCompleted: true,
+                    completedAt: new Date(),
+                    adherenceScore,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(playbookSessions.id, linkedPlaybookSession.id));
+
+                logger.info("Marked playbook session as completed", {
+                  playbookSessionId: linkedPlaybookSession.id,
+                  adherenceScore,
+                });
+              }
+            }
+          } catch (error) {
+            // Silently fail - RPE is optional
+            logger.info("Failed to check for playbook session", {
+              sessionId: input.sessionId,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+          }
+
+          // Trigger plateau detection for key lifts (run after workout is saved)
           void (async () => {
             try {
-              const { aggregationTrigger } = await import(
-                "~/server/db/aggregation"
+              // Get master exercise IDs from the saved exercises
+              const masterExerciseIds = Array.from(
+                new Set(
+                  input.exercises
+                    .map((exercise) => exercise.templateExerciseId)
+                    .filter((id): id is number => typeof id === "number")
+                    .map((templateId) => {
+                      // Get master exercise ID from template exercise
+                      const templateExercise =
+                        resolvedNameLookup.get(templateId);
+                      return templateExercise?.masterExerciseId;
+                    })
+                    .filter((id): id is number => id !== undefined),
+                ),
               );
-              await aggregationTrigger.onSessionChange(
-                input.sessionId,
-                ctx.user.id,
-              );
+
+              // Detect plateaus for each key lift
+              for (const masterExerciseId of masterExerciseIds) {
+                const plateauResult = await detectPlateau(
+                  ctx.db,
+                  ctx.user.id,
+                  masterExerciseId,
+                );
+
+                if (plateauResult.plateauDetected && plateauResult.plateau) {
+                  // Transform PlateauDetectionResponse to PlateauDetectionResult for storage
+                  const detectionResult = {
+                    isPlateaued: true,
+                    sessionCount: plateauResult.plateau.sessionCount,
+                    stalledWeight: plateauResult.plateau.stalledWeight,
+                    stalledReps: plateauResult.plateau.stalledReps,
+                    confidenceLevel: (plateauResult.plateau.severity === "high"
+                      ? "high"
+                      : plateauResult.plateau.severity === "medium"
+                        ? "medium"
+                        : "low") as "low" | "medium" | "high",
+                    detectedAt: plateauResult.plateau.detectedAt,
+                  };
+
+                  await storePlateau(
+                    ctx.db,
+                    ctx.user.id,
+                    masterExerciseId,
+                    detectionResult,
+                  );
+                }
+              }
             } catch (error) {
-              logger.warn("aggregation_trigger_failed", {
+              logger.warn("plateau_detection_failed", {
                 userId: ctx.user.id,
                 sessionId: input.sessionId,
                 error: error instanceof Error ? error.message : "unknown",
               });
             }
           })();
+
+          return {
+            success: true,
+            playbookSessionId, // If not null, client should show RPE modal
+          };
         }
-
-        // Check if this workout is part of an active playbook session
-        let playbookSessionId: number | null = null;
-        try {
-          const { playbookSessions } = await import("~/server/db/schema");
-          const linkedPlaybookSession =
-            await ctx.db.query.playbookSessions.findFirst({
-              where: (sessions, { eq, and }) =>
-                and(
-                  eq(sessions.actualWorkoutId, input.sessionId),
-                  eq(sessions.isCompleted, false),
-                ),
-            });
-          if (linkedPlaybookSession) {
-            playbookSessionId = linkedPlaybookSession.id;
-
-            // Calculate adherence score if there are exercises
-            if (setsToInsert.length > 0) {
-              // Simple adherence: compare number of exercises completed vs prescribed
-              const prescription = (
-                linkedPlaybookSession.prescribedWorkoutJson
-                  ? JSON.parse(linkedPlaybookSession.prescribedWorkoutJson)
-                  : null
-              ) as {
-                exercises: Array<{
-                  exerciseName: string;
-                  sets: number;
-                  reps: number;
-                  weight: number | null;
-                }>;
-              } | null;
-
-              let adherenceScore = 100; // Default to perfect if no prescription
-
-              if (prescription?.exercises) {
-                const prescribedExerciseNames = new Set(
-                  prescription.exercises.map((e) =>
-                    e.exerciseName.toLowerCase(),
-                  ),
-                );
-                const completedExerciseNames = new Set(
-                  input.exercises.map((e) => e.exerciseName.toLowerCase()),
-                );
-
-                // Calculate overlap
-                const matchingExercises = Array.from(
-                  prescribedExerciseNames,
-                ).filter((name) => completedExerciseNames.has(name)).length;
-
-                adherenceScore = Math.round(
-                  (matchingExercises / prescribedExerciseNames.size) * 100,
-                );
-              }
-
-              // Mark playbook session as completed
-              await ctx.db
-                .update(playbookSessions)
-                .set({
-                  isCompleted: true,
-                  completedAt: new Date(),
-                  adherenceScore,
-                  updatedAt: new Date(),
-                })
-                .where(eq(playbookSessions.id, linkedPlaybookSession.id));
-
-              logger.info("Marked playbook session as completed", {
-                playbookSessionId: linkedPlaybookSession.id,
-                adherenceScore,
-              });
-            }
-          }
-        } catch (error) {
-          // Silently fail - RPE is optional
-          logger.info("Failed to check for playbook session", {
-            sessionId: input.sessionId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
-        }
-
-        return {
-          success: true,
-          playbookSessionId, // If not null, client should show RPE modal
-        };
       } catch (err: any) {
         const { TRPCError } = await import("@trpc/server");
         const message = err?.message ?? "workouts.save failed";

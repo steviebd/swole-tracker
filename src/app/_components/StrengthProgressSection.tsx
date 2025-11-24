@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getQueryKey } from "@trpc/react-query";
 
 import { formatTimeRangeLabel } from "~/lib/time-range";
 import { cn } from "~/lib/utils";
@@ -13,6 +15,7 @@ import { StrengthAnalysisModal } from "./StrengthAnalysisModal";
 import { StrengthSummaryMetrics } from "./StrengthSummaryMetrics";
 import { StrengthChartContainer } from "./StrengthChartContainer";
 import { StrengthSessionList } from "./StrengthSessionList";
+import { RecoveryPlannerCard } from "./RecoveryPlannerCard";
 
 type TimeRange = "week" | "month" | "year";
 type ViewMode = "topSet" | "oneRm" | "intensity";
@@ -127,6 +130,33 @@ export function StrengthProgressSection({
     isError: exerciseListErrored,
   } = api.progress.getExerciseList.useQuery();
 
+  // Get key lifts to check if current exercise is tracked
+  const { data: keyLiftsData } = api.plateauMilestone.getKeyLifts.useQuery(
+    { trackingOnly: true },
+    { enabled: hasExerciseSelection },
+  );
+
+  // Query client for cache invalidation
+  const queryClient = useQueryClient();
+
+  // Toggle key lift mutation
+  const toggleKeyLift = api.plateauMilestone.toggleKeyLift.useMutation({
+    onSuccess: () => {
+      // Invalidate key lifts query to refresh the UI
+      console.log("Mutation successful, invalidating key lifts cache");
+      void queryClient.invalidateQueries({
+        queryKey: getQueryKey(api.plateauMilestone.getKeyLifts),
+      });
+      // Also invalidate exercise list to get updated masterExerciseId if newly created
+      void queryClient.invalidateQueries({
+        queryKey: getQueryKey(api.progress.getExerciseList),
+      });
+    },
+    onError: (error) => {
+      console.error("Key lift toggle mutation failed:", error);
+    },
+  });
+
   const deduplicatedExerciseList = useMemo(() => {
     if (!exerciseList) return [];
     const map = new Map<string, (typeof exerciseList)[0]>();
@@ -184,6 +214,58 @@ export function StrengthProgressSection({
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedExerciseName, selectedTemplateExerciseId, sortConfig, timeRange]);
+
+  // Find the current exercise's masterExerciseId and check if it's a key lift
+  const currentExercise = deduplicatedExerciseList.find(
+    (exercise) =>
+      exercise.exerciseName === selectedExerciseName ||
+      (exercise.templateExerciseIds ?? []).includes(
+        selectedTemplateExerciseId ?? -1,
+      ),
+  );
+
+  const currentMasterExerciseId = currentExercise?.masterExerciseId;
+  const isKeyLift = currentMasterExerciseId
+    ? (keyLiftsData?.keyLifts.some(
+        (kl) => kl.masterExerciseId === currentMasterExerciseId,
+      ) ?? false)
+    : false;
+
+  // Debug logging for key lift state
+  console.log("Key lift state debug:", {
+    selectedExerciseName,
+    selectedTemplateExerciseId,
+    currentExercise: currentExercise?.exerciseName,
+    currentMasterExerciseId,
+    keyLiftsData: keyLiftsData?.keyLifts ?? [],
+    isKeyLift,
+    toggleKeyLiftStatus: toggleKeyLift.isPending,
+    keyLiftsDataLoading: !keyLiftsData,
+    benchKeyLift: keyLiftsData?.keyLifts.find(
+      (kl) => kl.masterExerciseName === "Bench",
+    ),
+    squatKeyLift: keyLiftsData?.keyLifts.find(
+      (kl) => kl.masterExerciseName === "Squat",
+    ),
+  });
+
+  // Effect to track when keyLiftsData changes
+  useEffect(() => {
+    console.log("=== KEY LIFTS DATA UPDATE ===", {
+      timestamp: new Date().toISOString(),
+      keyLiftsCount: keyLiftsData?.keyLifts.length ?? 0,
+      keyLifts:
+        keyLiftsData?.keyLifts.map((kl) => ({
+          masterExerciseId: kl.masterExerciseId,
+          masterExerciseName: kl.masterExerciseName,
+          isTracked: kl.isTracked,
+          isTracking: kl.isTracking,
+        })) ?? [],
+      currentMasterExerciseId,
+      currentExerciseName: selectedExerciseName,
+      isKeyLift,
+    });
+  }, [keyLiftsData, currentMasterExerciseId, isKeyLift, selectedExerciseName]);
 
   const {
     data: topSetsResponse,
@@ -263,6 +345,32 @@ export function StrengthProgressSection({
       name: option.exerciseName,
       templateExerciseId: (option.templateExerciseIds ?? [])[0] ?? null,
     });
+  };
+
+  const handleKeyLiftToggle = async () => {
+    // Allow toggle if we have either masterExerciseId or templateExerciseId
+    if (!currentMasterExerciseId && !selectedTemplateExerciseId) return;
+
+    try {
+      const result = await toggleKeyLift.mutateAsync({
+        masterExerciseId: currentMasterExerciseId || undefined,
+        templateExerciseId: currentMasterExerciseId
+          ? undefined
+          : selectedTemplateExerciseId || undefined,
+        action: isKeyLift ? "untrack" : "track",
+      });
+
+      // Log success for debugging
+      console.log("Key lift toggle result:", result);
+
+      // Optional: Show toast notification if you have a toast system
+      // For now, just log success message from API
+      if (result?.message) {
+        console.log("Success:", result.message);
+      }
+    } catch (error) {
+      console.error("Failed to toggle key lift:", error);
+    }
   };
 
   const normalizedSets = useMemo(() => {
@@ -494,6 +602,26 @@ export function StrengthProgressSection({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <TimeRangeSelector current={timeRange} onChange={setStrengthRange} />
+          {(currentMasterExerciseId || selectedTemplateExerciseId) && (
+            <button
+              type="button"
+              onClick={handleKeyLiftToggle}
+              disabled={toggleKeyLift.isPending}
+              className={cn(
+                "rounded-full border px-3 py-1 text-[10px] font-semibold tracking-[0.3em] uppercase transition",
+                isKeyLift
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-border/60 text-muted-foreground hover:text-foreground",
+                toggleKeyLift.isPending && "opacity-50",
+              )}
+            >
+              {toggleKeyLift.isPending
+                ? "Updating..."
+                : isKeyLift
+                  ? "🎯 Key Lift"
+                  : "+ Add Key Lift"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => resetStrengthRange()}
@@ -567,6 +695,51 @@ export function StrengthProgressSection({
           </p>
         )}
       </div>
+
+      {/* Recovery Planner - shown when exercise is selected */}
+      {hasExerciseSelection && (
+        <RecoveryPlannerCard
+          workoutDate={new Date()}
+          plannedWorkout={{
+            exercises: selectedExerciseName
+              ? [
+                  {
+                    exerciseName: selectedExerciseName,
+                    templateExerciseId: selectedTemplateExerciseId ?? undefined,
+                    sets: [],
+                    unit: "kg",
+                  },
+                ]
+              : [],
+          }}
+          {...(selectedTemplateExerciseId && {
+            templateId: selectedTemplateExerciseId,
+          })}
+          onRecommendationAccept={(recommendation) => {
+            console.log(
+              "Recovery recommendation accepted for exercise:",
+              selectedExerciseName,
+              recommendation,
+            );
+            // TODO: Apply recovery guidance for exercise progression
+          }}
+          onRecommendationModify={(recommendation) => {
+            console.log(
+              "Recovery recommendation modified for exercise:",
+              selectedExerciseName,
+              recommendation,
+            );
+            // TODO: Allow modification of recovery guidance
+          }}
+          onRecommendationIgnore={() => {
+            console.log(
+              "Recovery recommendation ignored for exercise:",
+              selectedExerciseName,
+            );
+            // Continue with normal exercise analysis
+          }}
+        />
+      )}
 
       {!hasExerciseSelection ? (
         <EmptyState />

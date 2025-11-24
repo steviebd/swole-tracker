@@ -149,6 +149,16 @@ export const createMockUserPreferences = (
   warmupRepsStrategy: "match_working",
   warmupFixedReps: 5,
   enableMovementPatternSharing: false,
+  // Recovery-Guided Session Planner preferences
+  enableRecoveryPlanner: false,
+  recoveryPlannerStrategy: "adaptive",
+  recoveryPlannerSensitivity: 5,
+  autoAdjustIntensity: true,
+  recoveryPlannerPreferences: null,
+  // Plateau & Milestone preferences
+  experienceLevel: "intermediate",
+  bodyweight: null,
+  bodyweightSource: null,
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
   updatedAt: null,
   ...overrides,

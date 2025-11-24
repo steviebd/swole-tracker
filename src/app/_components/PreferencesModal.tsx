@@ -54,6 +54,15 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
     useState<WarmupRepsStrategy>("match_working");
   const [warmupFixedReps, setWarmupFixedReps] = useState<number>(5);
 
+  // Milestone preferences state
+  const [experienceLevel, setExperienceLevel] = useState<
+    "beginner" | "intermediate" | "advanced"
+  >("intermediate");
+  const [bodyweight, setBodyweight] = useState<string>("70");
+  const [bodyweightSource, setBodyweightSource] = useState<"manual" | "whoop">(
+    "manual",
+  );
+
   const updateMutation = api.preferences.update.useMutation({
     onSuccess: async () => {
       await utils.preferences.get.invalidate();
@@ -117,6 +126,25 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       setWarmupPercentages([40, 60, 80]);
       setWarmupRepsStrategy("match_working" as WarmupRepsStrategy);
       setWarmupFixedReps(5);
+
+      // Milestone preferences
+      const milestoneExperienceLevel =
+        "experienceLevel" in prefs
+          ? (prefs.experienceLevel ?? "intermediate")
+          : "intermediate";
+      setExperienceLevel(
+        milestoneExperienceLevel as "beginner" | "intermediate" | "advanced",
+      );
+
+      const milestoneBodyweight =
+        "bodyweight" in prefs ? String(prefs.bodyweight ?? 70) : "70";
+      setBodyweight(milestoneBodyweight);
+
+      const milestoneBodyweightSource =
+        "bodyweightSource" in prefs
+          ? (prefs.bodyweightSource ?? "manual")
+          : "manual";
+      setBodyweightSource(milestoneBodyweightSource as "manual" | "whoop");
     }
   }, [isLoading, prefs]);
 
@@ -148,6 +176,9 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       warmupPercentages?: string;
       warmupRepsStrategy?: WarmupRepsStrategy;
       warmupFixedReps?: number;
+      experienceLevel?: "beginner" | "intermediate" | "advanced";
+      bodyweight?: number;
+      bodyweightSource?: "manual" | "whoop";
     } = {
       predictive_defaults_enabled: predictiveEnabled,
       right_swipe_action: rightSwipeAction,
@@ -160,6 +191,9 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
       warmupPercentages: JSON.stringify(warmupPercentages),
       warmupRepsStrategy: warmupRepsStrategy,
       warmupFixedReps: warmupFixedReps,
+      experienceLevel: experienceLevel,
+      bodyweight: parseFloat(bodyweight),
+      bodyweightSource: bodyweightSource,
     };
     updateMutation.mutate(payload);
   };
@@ -887,6 +921,82 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
                     <div id="manual-wellness-description" className="sr-only">
                       When enabled, you can manually log your energy levels and
                       sleep quality in the progress dashboard
+                    </div>
+                  </section>
+
+                  {/* Milestone & Plateau Preferences */}
+                  <section className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="text-foreground flex items-center gap-2 leading-none font-medium">
+                        <span className="text-lg">🎯</span>
+                        Milestone & Plateau Tracking
+                      </div>
+                      <div className="text-muted-foreground text-sm leading-relaxed">
+                        Configure your strength milestones and plateau detection
+                        settings
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Experience Level */}
+                      <div className="space-y-2">
+                        <label className="text-foreground text-sm font-medium">
+                          Experience Level
+                        </label>
+                        <select
+                          value={experienceLevel}
+                          onChange={(e) =>
+                            setExperienceLevel(
+                              e.target.value as
+                                | "beginner"
+                                | "intermediate"
+                                | "advanced",
+                            )
+                          }
+                          className="border-border bg-background w-full rounded-lg border px-3 py-2 text-sm"
+                        >
+                          <option value="beginner">
+                            Beginner (&lt;1 year training)
+                          </option>
+                          <option value="intermediate">
+                            Intermediate (1-3 years training)
+                          </option>
+                          <option value="advanced">
+                            Advanced (&gt;3 years training)
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* Bodyweight */}
+                      <div className="space-y-2">
+                        <label className="text-foreground text-sm font-medium">
+                          Bodyweight (for bodyweight milestones)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={bodyweight}
+                            onChange={(e) => setBodyweight(e.target.value)}
+                            className="border-border bg-background flex-1 rounded-lg border px-3 py-2 text-sm"
+                            placeholder="70"
+                            step="0.1"
+                            min="30"
+                            max="200"
+                          />
+                          <select
+                            value={bodyweightSource}
+                            onChange={(e) =>
+                              setBodyweightSource(
+                                e.target.value as "manual" | "whoop",
+                              )
+                            }
+                            className="border-border bg-background rounded-lg border px-3 py-2 text-sm"
+                          >
+                            <option value="manual">Manual</option>
+                            <option value="whoop">From WHOOP</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                   </section>
                 </div>
