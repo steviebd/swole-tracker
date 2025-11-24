@@ -16,6 +16,7 @@ import { api } from "~/trpc/react";
 import { useProgressRange } from "~/contexts/progress-range-context";
 import { analytics } from "~/lib/analytics";
 import { PlaybookProgressCard } from "./playbooks/PlaybookProgressCard";
+import { PlateauMilestoneCard } from "~/components/dashboard/PlateauMilestoneCard";
 
 type HighlightTab = "prs" | "milestones" | "streaks";
 
@@ -216,6 +217,9 @@ export function ProgressHighlightsSection() {
 
           {/* Playbook Progress Card */}
           <PlaybookProgressCard />
+
+          {/* Plateau & Milestone Card */}
+          <PlateauMilestoneCard />
 
           <div className="relative">
             {cards.length === 0 ? (

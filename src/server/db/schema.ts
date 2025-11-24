@@ -256,12 +256,85 @@ export const userPreferences = createTable(
     enableMovementPatternSharing: integer({ mode: "boolean" })
       .notNull()
       .default(false), // Future ML feature
+
+    // Recovery-Guided Session Planner preferences
+    enableRecoveryPlanner: integer({ mode: "boolean" })
+      .notNull()
+      .default(false), // Enable/disable recovery planner
+    recoveryPlannerStrategy: text().notNull().default("adaptive"), // 'conservative' | 'moderate' | 'adaptive' | 'aggressive'
+    recoveryPlannerSensitivity: integer().notNull().default(5), // 1-10 scale for how much recovery impacts recommendations
+    autoAdjustIntensity: integer({ mode: "boolean" }).notNull().default(true), // Auto-adjust weights/volume based on recovery
+    recoveryPlannerPreferences: text(), // JSON: Custom preferences for different recovery tiers
+
+    // Plateau & Milestone preferences
+    experienceLevel: text().notNull().default("intermediate"), // 'beginner' | 'intermediate' | 'advanced'
+    bodyweight: real(), // User's bodyweight in kg
+    bodyweightSource: text(), // 'manual' | 'whoop'
+
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
     updatedAt: date(),
   },
   (t) => [index("user_preferences_user_id_idx").on(t.user_id)],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Recovery Session Planner Logs - Track recovery-guided planning decisions
+export const recoverySessionPlanner = createTable(
+  "recovery_session_planner",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    user_id: text().notNull(),
+    sessionId: integer()
+      .notNull()
+      .references(() => workoutSessions.id, { onDelete: "cascade" }),
+    templateId: integer().references(() => workoutTemplates.id, {
+      onDelete: "set null",
+    }),
+
+    // Recovery data at time of planning
+    recoveryScore: integer(), // 0-100 from WHOOP or manual
+    sleepPerformance: integer(), // 0-100 from WHOOP or manual
+    hrvStatus: text(), // 'low' | 'baseline' | 'high' based on deviation from baseline
+    rhrStatus: text(), // 'elevated' | 'baseline' | 'optimal' based on deviation from baseline
+    readinessScore: real(), // 0.00-1.00 calculated composite readiness
+
+    // Planner recommendations
+    recommendation: text().notNull(), // 'train_as_planned' | 'reduce_intensity' | 'reduce_volume' | 'active_recovery' | 'rest_day'
+    intensityAdjustment: real(), // 0.50-1.20 multiplier for weights/intensity
+    volumeAdjustment: real(), // 0.50-1.20 multiplier for volume/sets
+    suggestedModifications: text(), // JSON: Specific exercise modifications
+    reasoning: text(), // Plain text explanation of the recommendation
+
+    // User interaction
+    userAction: text(), // 'accepted' | 'modified' | 'ignored' | 'deferred'
+    appliedAdjustments: text(), // JSON: What adjustments were actually applied
+    userFeedback: text(), // Optional user feedback on the recommendation
+
+    // Context
+    plannedWorkoutJson: text(), // JSON: Original planned workout
+    adjustedWorkoutJson: text(), // JSON: Final workout after adjustments
+    metadata: text(), // JSON: Additional context (stress factors, etc.)
+
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    index("recovery_session_planner_user_id_idx").on(t.user_id),
+    index("recovery_session_planner_session_id_idx").on(t.sessionId),
+    index("recovery_session_planner_template_id_idx").on(t.templateId),
+    index("recovery_session_planner_recommendation_idx").on(t.recommendation),
+    index("recovery_session_planner_user_created_idx").on(
+      t.user_id,
+      t.createdAt,
+    ),
+    uniqueIndex("recovery_session_planner_user_session_unique").on(
+      t.user_id,
+      t.sessionId,
+    ),
+  ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
 // User Integrations (OAuth tokens for external services)
@@ -1044,6 +1117,10 @@ export const workoutSessionsRelations = relations(
       fields: [workoutSessions.id],
       references: [wellnessData.sessionId],
     }),
+    recoveryPlanner: one(recoverySessionPlanner, {
+      fields: [workoutSessions.id],
+      references: [recoverySessionPlanner.sessionId],
+    }),
   }),
 );
 
@@ -1127,6 +1204,20 @@ export const wellnessDataRelations = relations(wellnessData, ({ one }) => ({
     references: [workoutSessions.id],
   }),
 }));
+
+export const recoverySessionPlannerRelations = relations(
+  recoverySessionPlanner,
+  ({ one }) => ({
+    session: one(workoutSessions, {
+      fields: [recoverySessionPlanner.sessionId],
+      references: [workoutSessions.id],
+    }),
+    template: one(workoutTemplates, {
+      fields: [recoverySessionPlanner.templateId],
+      references: [workoutTemplates.id],
+    }),
+  }),
+);
 
 export const aiSuggestionHistoryRelations = relations(
   aiSuggestionHistory,
@@ -1312,6 +1403,218 @@ export const exerciseMonthlySummary = createTable(
 ); // RLS disabled - using WorkOS auth with application-level security
 
 // Database Views - Managed by Drizzle ORM
+
+// Key Lifts - Track exercises users want to monitor for plateaus and milestones
+export const keyLifts = createTable(
+  "key_lifts",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    userId: text().notNull(),
+    masterExerciseId: integer().notNull(),
+    isTracking: integer({ mode: "boolean" }).notNull().default(true),
+    maintenanceMode: integer({ mode: "boolean" }).notNull().default(false),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    index("key_lifts_user_master_idx").on(t.userId, t.masterExerciseId),
+    index("key_lifts_user_tracking_idx").on(t.userId, t.isTracking),
+    uniqueIndex("key_lifts_user_master_unique").on(
+      t.userId,
+      t.masterExerciseId,
+    ),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Plateaus - Track detected plateaus for key lifts
+export const plateaus = createTable(
+  "plateaus",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    userId: text().notNull(),
+    masterExerciseId: integer().notNull(),
+    keyLiftId: integer(),
+    detectedAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    resolvedAt: date(),
+    stalledWeight: real().notNull(),
+    stalledReps: integer().notNull(),
+    sessionCount: integer().notNull().default(3),
+    status: text().notNull().default("active"), // 'active' | 'resolved' | 'maintaining'
+    metadata: text(),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+  },
+  (t) => [
+    index("plateaus_user_status_detected_idx").on(
+      t.userId,
+      t.status,
+      t.detectedAt,
+    ),
+    index("plateaus_master_exercise_idx").on(t.masterExerciseId),
+    index("plateaus_key_lift_idx").on(t.keyLiftId),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Milestones - Exercise-specific goals and targets
+export const milestones = createTable(
+  "milestones",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    userId: text().notNull(),
+    masterExerciseId: integer(), // nullable for volume milestones
+    type: text().notNull(), // 'absolute_weight' | 'bodyweight_multiplier' | 'volume'
+    targetValue: real().notNull(),
+    targetMultiplier: real(), // for BW type
+    isSystemDefault: integer({ mode: "boolean" }).notNull().default(false),
+    isCustomized: integer({ mode: "boolean" }).notNull().default(false),
+    experienceLevel: text().notNull(),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+  },
+  (t) => [
+    index("milestones_user_master_idx").on(t.userId, t.masterExerciseId),
+    index("milestones_user_type_level_idx").on(
+      t.userId,
+      t.type,
+      t.experienceLevel,
+    ),
+    index("milestones_system_default_idx").on(
+      t.isSystemDefault,
+      t.experienceLevel,
+    ),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Milestone Achievements - Track completed milestones
+export const milestoneAchievements = createTable(
+  "milestone_achievements",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    userId: text().notNull(),
+    milestoneId: integer().notNull(),
+    achievedAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    achievedValue: real().notNull(),
+    workoutId: integer(),
+    metadata: text(),
+  },
+  (t) => [
+    index("milestone_achievements_user_achieved_idx").on(
+      t.userId,
+      t.achievedAt,
+    ),
+    index("milestone_achievements_milestone_idx").on(t.milestoneId),
+    index("milestone_achievements_workout_idx").on(t.workoutId),
+    uniqueIndex("milestone_achievements_user_milestone_unique").on(
+      t.userId,
+      t.milestoneId,
+    ),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// PR Forecasts - Predict future PRs based on historical data
+export const prForecasts = createTable(
+  "pr_forecasts",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    userId: text().notNull(),
+    masterExerciseId: integer().notNull(),
+    forecastedWeight: real().notNull(),
+    estimatedWeeksLow: integer().notNull(),
+    estimatedWeeksHigh: integer().notNull(),
+    confidencePercent: integer().notNull(),
+    whoopRecoveryFactor: real(),
+    calculatedAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    metadata: text(),
+  },
+  (t) => [
+    index("pr_forecasts_user_master_calculated_idx").on(
+      t.userId,
+      t.masterExerciseId,
+      t.calculatedAt,
+    ),
+    index("pr_forecasts_master_exercise_idx").on(t.masterExerciseId),
+    index("pr_forecasts_confidence_idx").on(t.confidencePercent),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Relations for Plateau & Milestone tables
+export const keyLiftsRelations = relations(keyLifts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [keyLifts.userId],
+    references: [users.id],
+  }),
+  masterExercise: one(masterExercises, {
+    fields: [keyLifts.masterExerciseId],
+    references: [masterExercises.id],
+  }),
+  plateaus: many(plateaus),
+}));
+
+export const plateausRelations = relations(plateaus, ({ one, many }) => ({
+  user: one(users, {
+    fields: [plateaus.userId],
+    references: [users.id],
+  }),
+  masterExercise: one(masterExercises, {
+    fields: [plateaus.masterExerciseId],
+    references: [masterExercises.id],
+  }),
+  keyLift: one(keyLifts, {
+    fields: [plateaus.keyLiftId],
+    references: [keyLifts.id],
+  }),
+}));
+
+export const milestonesRelations = relations(milestones, ({ one, many }) => ({
+  user: one(users, {
+    fields: [milestones.userId],
+    references: [users.id],
+  }),
+  masterExercise: one(masterExercises, {
+    fields: [milestones.masterExerciseId],
+    references: [masterExercises.id],
+  }),
+  achievements: many(milestoneAchievements),
+}));
+
+export const milestoneAchievementsRelations = relations(
+  milestoneAchievements,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [milestoneAchievements.userId],
+      references: [users.id],
+    }),
+    milestone: one(milestones, {
+      fields: [milestoneAchievements.milestoneId],
+      references: [milestones.id],
+    }),
+    workout: one(workoutSessions, {
+      fields: [milestoneAchievements.workoutId],
+      references: [workoutSessions.id],
+    }),
+  }),
+);
+
+export const prForecastsRelations = relations(prForecasts, ({ one }) => ({
+  user: one(users, {
+    fields: [prForecasts.userId],
+    references: [users.id],
+  }),
+  masterExercise: one(masterExercises, {
+    fields: [prForecasts.masterExerciseId],
+    references: [masterExercises.id],
+  }),
+}));
 
 export const viewExerciseNameResolution = sqliteView(
   "view_exercise_name_resolution",

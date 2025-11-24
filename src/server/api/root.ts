@@ -11,6 +11,8 @@ import { wellnessRouter } from "~/server/api/routers/wellness";
 import { suggestionsRouter } from "~/server/api/routers/suggestions";
 import { sessionDebriefRouter } from "~/server/api/routers/session-debrief";
 import { playbookRouter } from "~/server/api/routers/playbook";
+import { recoveryPlannerRouter } from "~/server/api/routers/recovery-planner";
+import { plateauMilestoneRouter } from "~/server/api/routers/plateau-milestone";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -32,6 +34,8 @@ export const appRouter = createTRPCRouter({
   suggestions: suggestionsRouter,
   sessionDebriefs: sessionDebriefRouter,
   playbooks: playbookRouter,
+  recoveryPlanner: recoveryPlannerRouter,
+  plateauMilestone: plateauMilestoneRouter,
 });
 
 // export type definition of API
