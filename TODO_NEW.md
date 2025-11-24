@@ -293,7 +293,12 @@
     - Social features: Share warm-up protocols, community-sourced strategies by exercise.
     - Voice-guided warm-ups: Audio prompts during sets, haptic feedback on completion.
 
-- [ ] **Plateau & Milestone Alerts** — Detect stalled lifts, forecast time-to-PR, and trigger milestone badges with tailored next steps so lifters stay motivated and see tangible progress.
+- [x] **Plateau & Milestone Alerts** — Detect stalled lifts, forecast time-to-PR, and trigger milestone badges with tailored next steps so lifters stay motivated and see tangible progress.
+  - **✅ COMPLETED**: Full implementation including database schema, detection algorithms, forecasting, dashboard cards, and UI components
+  - **✅ COMPLETED**: Key lift toggle functionality with automatic master exercise link creation
+  - **✅ COMPLETED**: Migration endpoint to create master exercise links for existing data
+  - **🎯 CURRENT ISSUE**: Key lift toggle UI state not persisting because exercises lack master exercise links
+  - **🔧 SOLUTION**: Run migration via browser console: `fetch('/api/trpc/workouts.migrateMasterExercises', {method: 'POST', credentials: 'include'}).then(r => r.json()).then(console.log)`
 - **Rollout Strategy**: Phase 1 (Database Schema + Algorithms) → Phase 2 (Backend Infrastructure + tRPC Router) → Phase 3 (UI Components + Dashboard Card) → Phase 4 (Testing + Deployment).
 - **Implementation Guide**:
   - **✅ PARTIAL COMPLETED**: Basic plateau detection algorithm exists in `src/lib/health-calculations.ts` with integration into health advice system. Basic milestone system exists in `src/lib/achievements.ts` for volume/workout milestones. Progress highlights section has milestones tab.
