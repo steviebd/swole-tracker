@@ -160,11 +160,7 @@ export const sessionExercises = createTable(
       .notNull(),
   },
   (t) => [
-    index("session_exercise_user_id_idx").on(t.user_id),
-    index("session_exercise_session_id_idx").on(t.sessionId),
-    index("session_exercise_template_exercise_id_idx").on(t.templateExerciseId),
-    index("session_exercise_name_idx").on(t.exerciseName),
-    // Critical composite indexes for performance
+    // Critical composite indexes for performance (consolidated from redundant single-column indexes)
     index("session_exercise_user_exercise_idx").on(t.user_id, t.exerciseName),
     index("session_exercise_user_exercise_date_idx").on(
       t.user_id,
@@ -205,14 +201,6 @@ export const sessionExercises = createTable(
       sql`date(${workoutSessions.workoutDate})`,
       t.exerciseName,
     ),
-    index("session_exercise_user_resolved_exercise_idx").on(
-      t.user_id,
-      t.resolvedExerciseName,
-    ),
-    index("session_exercise_user_template_exercise_idx").on(
-      t.user_id,
-      t.templateExerciseId,
-    ),
     // Phase 2: Additional indexes for query optimization and pagination
     index("session_exercise_user_resolved_exercise_session_idx").on(
       t.user_id,
@@ -231,6 +219,8 @@ export const sessionExercises = createTable(
       t.sessionId,
       t.exerciseName,
     ),
+    // NEW: Critical missing index for dashboard queries (from TODO)
+    // Note: This will be created via migration as SQLite doesn't support subqueries in indexes via Drizzle
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -252,6 +242,7 @@ export const userPreferences = createTable(
       .default(false),
     // AI Suggestions progression preferences
     progression_type: text().notNull().default("adaptive"), // "linear" | "percentage" | "adaptive"
+    progression_type_enum: text().notNull().default("adaptive"), // Extracted from JSON for faster querying
     linear_progression_kg: real().default(2.5), // Default 2.5kg increment
     percentage_progression: real().default(2.5), // Default 2.5% increment
     targetWorkoutsPerWeek: real().notNull().default(3),
@@ -259,6 +250,7 @@ export const userPreferences = createTable(
     warmupStrategy: text().notNull().default("history"), // 'percentage' | 'fixed' | 'history' | 'none'
     warmupSetsCount: integer().notNull().default(3),
     warmupPercentages: text().notNull().default("[40, 60, 80]"), // JSON array of percentages
+    warmup_percentages_array: text().notNull().default("40,60,80"), // Extracted from JSON for faster querying
     warmupRepsStrategy: text().notNull().default("match_working"), // 'match_working' | 'descending' | 'fixed'
     warmupFixedReps: integer().notNull().default(5),
     enableMovementPatternSharing: integer({ mode: "boolean" })
@@ -398,6 +390,29 @@ export const exerciseLinks = createTable(
     index("exercise_link_master_exercise_idx").on(t.masterExerciseId),
     index("exercise_link_user_id_idx").on(t.user_id),
     index("exercise_link_user_master_idx").on(t.user_id, t.masterExerciseId),
+  ],
+); // RLS disabled - using WorkOS auth with application-level security
+
+// Exercise Resolution Cache - Pre-computed resolved exercise names for performance
+export const exerciseResolutionCache = createTable(
+  "exercise_resolution_cache",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    user_id: text().notNull(),
+    resolved_name: text().notNull(),
+    master_exercise_id: integer(),
+    createdAt: date()
+      .default(sql`(datetime('now'))`)
+      .notNull(),
+    updatedAt: date(),
+  },
+  (t) => [
+    index("exercise_resolution_cache_id_idx").on(t.id),
+    index("exercise_resolution_cache_user_idx").on(t.user_id),
+    index("exercise_resolution_cache_user_name_idx").on(
+      t.user_id,
+      t.resolved_name,
+    ),
   ],
 ); // RLS disabled - using WorkOS auth with application-level security
 
@@ -568,6 +583,7 @@ export const whoopRecovery = createTable(
 
     // Full recovery data
     raw_data: text(), // Complete recovery payload from WHOOP
+    recovery_score_tier: text(), // Extracted: 'low', 'medium', 'high' for faster querying
 
     // Metadata
     timezone_offset: text(),
@@ -668,6 +684,7 @@ export const whoopSleep = createTable(
 
     // Full sleep data
     raw_data: text(), // Complete sleep payload from WHOOP
+    sleep_quality_tier: text(), // Extracted: 'poor', 'fair', 'good', 'excellent' for faster querying
 
     // Metadata
     webhook_received_at: date()
@@ -873,6 +890,7 @@ export const playbooks = createTable(
     duration: integer().notNull().default(6), // Duration in weeks (4-6)
     status: text().notNull().default("draft"), // 'draft' | 'active' | 'completed' | 'archived'
     metadata: text(), // JSON: user inputs for 1RMs, availability, equipment
+    hasAiPlan: integer("has_ai_plan", { mode: "boolean" }).default(false), // Track if AI plan was generated
     createdAt: date()
       .default(sql`(datetime('now'))`)
       .notNull(),
@@ -934,6 +952,9 @@ export const playbookSessions = createTable(
     rpe: integer(), // 1-10, from questionnaire
     rpeNotes: text(), // User notes from RPE questionnaire
     deviation: text(), // JSON: comparison of prescribed vs actual
+    activePlanType: text("active_plan_type", { enum: ["ai", "algorithmic"] })
+      .default("algorithmic")
+      .notNull(), // Track which plan is active for this session
     isCompleted: integer({ mode: "boolean" }).notNull().default(false),
     completedAt: date(),
     createdAt: date()

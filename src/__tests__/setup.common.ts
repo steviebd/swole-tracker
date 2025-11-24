@@ -1,22 +1,35 @@
-import { beforeAll, afterEach, vi } from "vitest";
-import "@testing-library/jest-dom";
-import { cleanup } from "@testing-library/react";
-
-// Setup DOM environment manually if needed
-if (typeof globalThis.document === "undefined") {
-  console.log("Setting up DOM environment manually");
+// Ensure DOM is available BEFORE any imports that might need it
+if (typeof global.document === "undefined") {
+  console.log("Creating DOM environment for tests");
   const { JSDOM } = require("jsdom");
   const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
     url: "http://localhost:3000",
+    pretendToBeVisual: true,
+    resources: "usable",
   });
+
+  // Set up all of global DOM objects
+  global.document = dom.window.document;
+  global.window = dom.window as any; // Use type assertion to avoid conflict
+  global.navigator = dom.window.navigator;
+  global.location = dom.window.location;
+  global.HTMLElement = dom.window.HTMLElement;
+  global.Element = dom.window.Element;
+  global.Node = dom.window.Node;
+
+  // Also set on globalThis for React Testing Library
   globalThis.document = dom.window.document;
   globalThis.window = dom.window;
   globalThis.navigator = dom.window.navigator;
   globalThis.location = dom.window.location;
-
-  // Add cleanup to prevent multiple DOM instances
-  (globalThis as any).__jsdomCleanup = dom;
 }
+
+import { beforeAll, afterEach, vi } from "vitest";
+import "@testing-library/jest-dom";
+import { cleanup } from "@testing-library/react";
+
+// DOM environment should be handled by vitest's jsdom environment
+// Types are already provided by the JSDOM setup above
 
 // Ensure NODE_ENV defaults to test so runtime guards behave as expected
 if (!process.env.NODE_ENV) {
@@ -51,6 +64,33 @@ const ensureBase64Helpers = () => {
 
 beforeAll(async () => {
   console.log("=== SETUP.COMMON RUNNING ===");
+
+  // Ensure DOM is available - this handles timing issues with vitest jsdom initialization
+  if (typeof global.document === "undefined") {
+    console.log("Creating DOM environment for tests");
+    const { JSDOM } = require("jsdom");
+    const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+      url: "http://localhost:3000",
+      pretendToBeVisual: true,
+      resources: "usable",
+    });
+
+    // Set up all the global DOM objects
+    global.document = dom.window.document;
+    global.window = dom.window;
+    global.navigator = dom.window.navigator;
+    global.location = dom.window.location;
+    global.HTMLElement = dom.window.HTMLElement;
+    global.Element = dom.window.Element;
+    global.Node = dom.window.Node;
+
+    // Also set on globalThis for React Testing Library
+    globalThis.document = dom.window.document;
+    globalThis.window = dom.window;
+    globalThis.navigator = dom.window.navigator;
+    globalThis.location = dom.window.location;
+  }
+
   console.log("typeof document:", typeof document);
 
   if (typeof globalThis.crypto === "undefined") {

@@ -49,6 +49,10 @@ describe("Playbook Router", () => {
         targetType: "template",
         targetIds: [1, 2],
         duration: 6,
+        selectedPlans: {
+          algorithmic: true,
+          ai: false,
+        },
       };
 
       // Would test:

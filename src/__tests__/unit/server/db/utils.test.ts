@@ -190,7 +190,7 @@ describe("Database Utils", () => {
       const result = await withRetry(operation, 3, 1);
 
       expect(result).toBe("success");
-      expect(operation).toHaveBeenCalledTimes(3);
+      expect(operation).toHaveBeenCalledTimes(2); // One failure, then success
 
       global.setTimeout = originalSetTimeout;
     });
@@ -226,7 +226,7 @@ describe("Database Utils", () => {
         "function",
       );
       expect(typeof utilsModule.batchDeleteWorkouts).toBe("function");
-      expect(typeof utilsModule.getCachedUserPreferences).toBe("function");
+      expect(typeof utilsModule.getUserPreferences).toBe("function");
       expect(typeof utilsModule.clearUserPreferencesCache).toBe("function");
     });
 

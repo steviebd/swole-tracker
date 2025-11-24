@@ -91,9 +91,12 @@ export function ProgressHeroBar({ selectedExercise }: ProgressHeroBarProps) {
   });
 
   // Check WHOOP integration status first
-  const { data: whoopStatus } = api.whoop.getIntegrationStatus.useQuery(undefined, {
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-  });
+  const { data: whoopStatus } = api.whoop.getIntegrationStatus.useQuery(
+    undefined,
+    {
+      staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    },
+  );
 
   const isWhoopConnected = whoopStatus?.isConnected ?? false;
 

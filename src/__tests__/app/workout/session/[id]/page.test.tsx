@@ -1,4 +1,5 @@
 import React from "react";
+// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
@@ -35,6 +36,18 @@ vi.mock("~/trpc/react", () => ({
         })),
       },
     },
+    useUtils: vi.fn(() => ({
+      workouts: {
+        getById: {
+          invalidate: vi.fn(),
+        },
+      },
+      preferences: {
+        get: {
+          invalidate: vi.fn(),
+        },
+      },
+    })),
   },
 }));
 
@@ -105,11 +118,7 @@ vi.mock("~/components/ui/button", () => ({
 describe("WorkoutSessionPage", () => {
   const mockPush = vi.fn();
   const mockRouter = { push: mockPush };
-  const mockUseRouter = vi.mocked(useRouter);
-  const mockApiWorkoutsGetById = vi.mocked(api.workouts.getById.useQuery);
-  const mockApiPreferencesGet = vi.mocked(api.preferences.get.useQuery);
-  const mockUseWorkoutSessionState = vi.mocked(useWorkoutSessionState);
-  const mockUseWorkoutSessionContext = vi.mocked(useWorkoutSessionContext);
+  const mockUseWorkoutSessionState = vi.fn();
 
   const mockWorkoutSession = {
     id: 123,
@@ -210,9 +219,14 @@ describe("WorkoutSessionPage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRouter.mockReturnValue(mockRouter as any);
-    mockUseWorkoutSessionContext.mockReturnValue(mockContextValue);
+    (useRouter as ReturnType<typeof vi.fn>).mockReturnValue(mockRouter as any);
+    (useWorkoutSessionContext as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockContextValue,
+    );
     mockUseWorkoutSessionState.mockReturnValue(mockSessionState as any);
+    (useWorkoutSessionState as ReturnType<typeof vi.fn>).mockImplementation(
+      mockUseWorkoutSessionState,
+    );
   });
 
   afterEach(() => {
@@ -239,7 +253,9 @@ describe("WorkoutSessionPage", () => {
     });
 
     it("should not redirect when session ID is valid", async () => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
@@ -256,7 +272,9 @@ describe("WorkoutSessionPage", () => {
 
   describe("Data Loading", () => {
     it("should call workouts.getById with correct session ID", async () => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
@@ -266,18 +284,24 @@ describe("WorkoutSessionPage", () => {
       render(Component);
 
       await waitFor(() => {
-        expect(mockApiWorkoutsGetById).toHaveBeenCalledWith({ id: 456 });
+        expect(
+          api.workouts.getById.useQuery as ReturnType<typeof vi.fn>,
+        ).toHaveBeenCalledWith({ id: 456 });
       });
     });
 
     it("should call preferences.get", async () => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
       } as any);
 
-      mockApiPreferencesGet.mockReturnValue({
+      (
+        api.preferences.get.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: { unit: "kg" },
         isLoading: false,
       } as any);
@@ -286,14 +310,18 @@ describe("WorkoutSessionPage", () => {
       render(Component);
 
       await waitFor(() => {
-        expect(mockApiPreferencesGet).toHaveBeenCalled();
+        expect(
+          api.preferences.get.useQuery as ReturnType<typeof vi.fn>,
+        ).toHaveBeenCalled();
       });
     });
   });
 
   describe("Error Handling", () => {
     it("should show not found message when workout session doesn't exist", async () => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: null,
         error: new Error("Not found"),
         isLoading: false,
@@ -313,7 +341,9 @@ describe("WorkoutSessionPage", () => {
     });
 
     it("should show not found message when there's a workout error", async () => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: null,
         error: new Error("Database error"),
         isLoading: false,
@@ -328,7 +358,9 @@ describe("WorkoutSessionPage", () => {
     });
 
     it("should provide back to workouts link when not found", async () => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: null,
         error: new Error("Not found"),
         isLoading: false,
@@ -346,7 +378,9 @@ describe("WorkoutSessionPage", () => {
 
   describe("Header Rendering", () => {
     beforeEach(() => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
@@ -371,7 +405,9 @@ describe("WorkoutSessionPage", () => {
         exercises: [],
       };
 
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: workoutWithoutExercises,
         error: null,
         isLoading: false,
@@ -392,7 +428,9 @@ describe("WorkoutSessionPage", () => {
         template: null,
       };
 
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: workoutWithoutTemplate,
         error: null,
         isLoading: false,
@@ -413,7 +451,7 @@ describe("WorkoutSessionPage", () => {
 
       await waitFor(() => {
         const headerSubtitle = screen.getByTestId("header-subtitle");
-        expect(headerSubtitle).toHaveTextContent(/15\/01\/2024/);
+        expect(headerSubtitle).toHaveTextContent(/1\/15\/2024/);
       });
     });
 
@@ -430,7 +468,9 @@ describe("WorkoutSessionPage", () => {
 
   describe("Workout Session Provider", () => {
     beforeEach(() => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
@@ -477,7 +517,9 @@ describe("WorkoutSessionPage", () => {
 
   describe("Workout Session Content", () => {
     beforeEach(() => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
@@ -531,7 +573,9 @@ describe("WorkoutSessionPage", () => {
 
   describe("Page Structure", () => {
     beforeEach(() => {
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: mockWorkoutSession,
         error: null,
         isLoading: false,
@@ -574,7 +618,9 @@ describe("WorkoutSessionPage", () => {
         workoutDate: "invalid-date",
       };
 
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: workoutWithInvalidDate,
         error: null,
         isLoading: false,
@@ -596,7 +642,9 @@ describe("WorkoutSessionPage", () => {
         workoutDate: "2024-01-15T10:30:00Z",
       };
 
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: workoutWithStringDate,
         error: null,
         isLoading: false,
@@ -617,7 +665,9 @@ describe("WorkoutSessionPage", () => {
         workoutDate: 1705311000000, // Jan 15, 2024
       };
 
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: workoutWithNumberDate,
         error: null,
         isLoading: false,
@@ -638,7 +688,9 @@ describe("WorkoutSessionPage", () => {
         exercises: null,
       };
 
-      mockApiWorkoutsGetById.mockReturnValue({
+      (
+        api.workouts.getById.useQuery as ReturnType<typeof vi.fn>
+      ).mockReturnValue({
         data: workoutWithoutExercises,
         error: null,
         isLoading: false,

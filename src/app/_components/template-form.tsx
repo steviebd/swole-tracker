@@ -221,7 +221,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   const createTemplate = api.templates.create.useMutation({
     onMutate: async (_newTemplate) => {
-      await utils.templates.getAll.cancel();
+      await queryClient.cancelQueries({ queryKey: templatesQueryKeyRoot });
       const previousQueries = snapshotTemplateQueries();
       return { previousQueries } satisfies TemplateMutationContext;
     },
@@ -265,7 +265,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
   const createTemplateWithLinking =
     api.templates.bulkCreateAndLinkExercises.useMutation({
       onMutate: async (_newTemplate) => {
-        await utils.templates.getAll.cancel();
+        await queryClient.cancelQueries({ queryKey: templatesQueryKeyRoot });
         const previousQueries = snapshotTemplateQueries();
         return { previousQueries } satisfies TemplateMutationContext;
       },
@@ -309,7 +309,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   const updateTemplate = api.templates.update.useMutation({
     onMutate: async (updatedTemplate) => {
-      await utils.templates.getAll.cancel();
+      await queryClient.cancelQueries({ queryKey: templatesQueryKeyRoot });
       const previousQueries = snapshotTemplateQueries();
       const updatedAt = new Date();
 

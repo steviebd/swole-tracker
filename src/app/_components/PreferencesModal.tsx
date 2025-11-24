@@ -105,36 +105,18 @@ export function PreferencesModal({ open, onClose }: PreferencesModalProps) {
           : false;
       setEnableManualWellness(manualWellness);
 
-      // Warm-up preferences
-      const warmupStrategyPref =
-        "warmupStrategy" in prefs
-          ? (prefs.warmupStrategy ?? "history")
-          : "history";
-      setWarmupStrategy(warmupStrategyPref as WarmupStrategy);
+      // Warm-up preferences - using transformed properties
+      const warmupEnabled = prefs?.warmupEnabled ?? true;
+      // Note: warmupStrategy, warmupSetsCount, etc. are not in transformed preferences
+      // Using default values for now
+      setWarmupStrategy("history" as WarmupStrategy);
+      setWarmupSetsCount(3);
 
-      const warmupSetsCountPref =
-        "warmupSetsCount" in prefs ? (prefs.warmupSetsCount ?? 3) : 3;
-      setWarmupSetsCount(warmupSetsCountPref);
-
-      const warmupPercentagesPref =
-        prefs &&
-        "warmupPercentages" in prefs &&
-        (prefs as any).warmupPercentages
-          ? typeof (prefs as any).warmupPercentages === "string"
-            ? JSON.parse((prefs as any).warmupPercentages)
-            : (prefs as any).warmupPercentages
-          : [40, 60, 80];
-      setWarmupPercentages(warmupPercentagesPref);
-
-      const warmupRepsStrategyPref =
-        "warmupRepsStrategy" in prefs
-          ? (prefs.warmupRepsStrategy ?? "match_working")
-          : "match_working";
-      setWarmupRepsStrategy(warmupRepsStrategyPref as WarmupRepsStrategy);
-
-      const warmupFixedRepsPref =
-        "warmupFixedReps" in prefs ? (prefs.warmupFixedReps ?? 5) : 5;
-      setWarmupFixedReps(warmupFixedRepsPref);
+      // Note: warmupPercentages, warmupRepsStrategy, warmupFixedReps are not in transformed preferences
+      // Using default values for now
+      setWarmupPercentages([40, 60, 80]);
+      setWarmupRepsStrategy("match_working" as WarmupRepsStrategy);
+      setWarmupFixedReps(5);
     }
   }, [isLoading, prefs]);
 

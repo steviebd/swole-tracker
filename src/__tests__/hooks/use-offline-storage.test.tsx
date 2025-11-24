@@ -176,9 +176,11 @@ describe("useOfflineStorage", () => {
 
       // Remove the first action
       const firstActionId = result.current.pendingActions[0]?.id;
-      act(() => {
-        result.current.removePendingAction(firstActionId);
-      });
+      if (firstActionId) {
+        act(() => {
+          result.current.removePendingAction(firstActionId);
+        });
+      }
 
       expect(result.current.pendingActions).toHaveLength(1);
       expect(result.current.hasPendingActions).toBe(true);

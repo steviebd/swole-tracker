@@ -37,7 +37,7 @@ describe("Database Monitoring", () => {
   describe("DatabaseMonitor", () => {
     it("should track successful queries", async () => {
       // Small delay to ensure uptime > 0
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       dbMonitor.trackQuery(100, true);
 
@@ -522,7 +522,7 @@ describe("Database Monitoring", () => {
       queryPerformanceMonitor.resetMetrics();
 
       const queryFn = vi.fn().mockImplementation(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         return "result";
       });
       const ctx = { userId: "user123" };

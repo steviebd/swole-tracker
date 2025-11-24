@@ -287,7 +287,7 @@ export function useWorkoutSessionState({
         const fallbackUnit =
           (draft.unit as "kg" | "lbs") ??
           exercise.unit ??
-          (preferences?.defaultWeightUnit as "kg" | "lbs") ??
+          (preferences?.defaultUnit as "kg" | "lbs") ??
           "kg";
         return {
           ...exercise,
@@ -301,7 +301,7 @@ export function useWorkoutSessionState({
       for (const draftExercise of draftMap.values()) {
         const fallbackUnit =
           (draftExercise.unit as "kg" | "lbs") ??
-          (preferences?.defaultWeightUnit as "kg" | "lbs") ??
+          (preferences?.defaultUnit as "kg" | "lbs") ??
           "kg";
         const exerciseData: ExerciseData = {
           exerciseName: draftExercise.exerciseName,
@@ -320,7 +320,7 @@ export function useWorkoutSessionState({
 
       return merged;
     },
-    [normalizeDraftSet, preferences?.defaultWeightUnit],
+    [normalizeDraftSet, preferences?.defaultUnit],
   );
 
   // swipe settings
@@ -463,7 +463,7 @@ export function useWorkoutSessionState({
 
   const saveWorkout = api.workouts.save.useMutation({
     onMutate: async (newWorkout) => {
-      await utils.workouts.getRecent.cancel();
+      await queryClient.cancelQueries({ queryKey: recentQueryKeyRoot });
       const previousQueries = snapshotRecentQueries();
 
       const optimisticWorkout = createOptimisticWorkout(newWorkout);
@@ -520,7 +520,7 @@ export function useWorkoutSessionState({
     // Disable retries since they're causing multiple failed attempts
     retry: false,
     onMutate: async (variables) => {
-      await utils.workouts.getRecent.cancel();
+      await queryClient.cancelQueries({ queryKey: recentQueryKeyRoot });
       const previousQueries = snapshotRecentQueries();
 
       // Optimistic update - remove from cache immediately
@@ -570,7 +570,10 @@ export function useWorkoutSessionState({
     // For playbook workouts, get exercise names from session exercises
     // For template workouts, get from templateExercises
     const isPlaybookWorkout = !sessionTemplate && session;
-    const exercisesToFetch: Array<{ exerciseName: string; id: number | undefined }> = [];
+    const exercisesToFetch: Array<{
+      exerciseName: string;
+      id: number | undefined;
+    }> = [];
 
     if (templateExercises && templateExercises.length > 0) {
       // Template-based workout
@@ -644,8 +647,10 @@ export function useWorkoutSessionState({
     const isPlaybookWorkout = !sessionTemplate && session;
 
     // Check if playbook workout is completed (read-only view)
-    const isPlaybookCompleted = isPlaybookWorkout &&
-      (session as { isPlaybookCompleted?: boolean | null }).isPlaybookCompleted === true;
+    const isPlaybookCompleted =
+      isPlaybookWorkout &&
+      (session as { isPlaybookCompleted?: boolean | null })
+        .isPlaybookCompleted === true;
 
     // For NEW playbook workouts, wait for previousDataLoaded to pre-fill with historical data
     // For COMPLETED playbook workouts, can initialize immediately from saved data
@@ -679,9 +684,7 @@ export function useWorkoutSessionState({
         exerciseGroups.get(key)!.push(sessionExercise);
       });
 
-      const defaultUnit = (preferences?.defaultWeightUnit ?? "kg") as
-        | "kg"
-        | "lbs";
+      const defaultUnit = (preferences?.defaultUnit ?? "kg") as "kg" | "lbs";
 
       const existingExercises: ExerciseData[] = Array.from(
         exerciseGroups.entries(),
@@ -731,7 +734,7 @@ export function useWorkoutSessionState({
 
         // For SAVED workouts or when no previous data, use the actual saved data
         // Check if workout uses new format with exerciseSets table
-        const firstExercise = exerciseData[0] as typeof exerciseData[0] & {
+        const firstExercise = exerciseData[0] as (typeof exerciseData)[0] & {
           usesSetTable?: boolean;
           sets?: Array<{
             id: number;
@@ -746,7 +749,11 @@ export function useWorkoutSessionState({
 
         let sets: SetData[];
 
-        if (usesNewFormat && firstExercise?.sets && firstExercise.sets.length > 0) {
+        if (
+          usesNewFormat &&
+          firstExercise?.sets &&
+          firstExercise.sets.length > 0
+        ) {
           // New format: use individual sets from exerciseSets table
           sets = firstExercise.sets.map((set) => {
             const setResult: SetData = {
@@ -834,7 +841,7 @@ export function useWorkoutSessionState({
           const previousData = previousExerciseData.get(
             templateExercise.exerciseName,
           );
-          const defaultUnit = (preferences?.defaultWeightUnit ?? "kg") as
+          const defaultUnit = (preferences?.defaultUnit ?? "kg") as
             | "kg"
             | "lbs";
 
@@ -900,7 +907,7 @@ export function useWorkoutSessionState({
   }, [
     templateExercises,
     session?.exercises,
-    preferences?.defaultWeightUnit,
+    preferences?.defaultUnit,
     previousExerciseData,
     previousDataLoaded,
     session,

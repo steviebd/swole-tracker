@@ -1,12 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Mock the logger before importing
+vi.mock("~/lib/logger", () => ({
+  logger: {
+    debug: vi.fn(),
+    error: vi.fn(),
+  } as any,
+}));
+
 import { batchDeleteWorkouts } from "~/server/db/utils";
+import { logger } from "~/lib/logger";
 
 const transactionMock = vi.fn();
 const findManyMock = vi.fn();
 const deleteMock = vi.fn();
 const deleteWhereMock = vi.fn();
-const debugMock = vi.fn();
-const errorMock = vi.fn();
+const debugMock = logger.debug as ReturnType<typeof vi.fn>;
+const errorMock = logger.error as ReturnType<typeof vi.fn>;
 
 const mockDb = {
   transaction: transactionMock,
@@ -45,10 +55,7 @@ describe("batchDeleteWorkouts", () => {
     findManyMock.mockResolvedValue([{ id: 1 }, { id: 3 }]);
     deleteWhereMock.mockResolvedValue({ changes: 2 });
 
-    const result = await batchDeleteWorkouts("user-1", [1, 2, 3], {
-      db: mockDb,
-      logger: mockLogger,
-    });
+    const result = await batchDeleteWorkouts(mockDb, "user-1", [1, 2, 3]);
 
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(findManyMock).toHaveBeenCalledTimes(1);
@@ -69,10 +76,7 @@ describe("batchDeleteWorkouts", () => {
     findManyMock.mockResolvedValue([{ id: 10 }, { id: 11 }]);
     deleteWhereMock.mockResolvedValue({});
 
-    const result = await batchDeleteWorkouts("user-2", [10, 11, 12], {
-      db: mockDb,
-      logger: mockLogger,
-    });
+    const result = await batchDeleteWorkouts(mockDb, "user-2", [10, 11, 12]);
 
     expect(deleteWhereMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ success: true, deletedCount: 2 });
@@ -81,12 +85,7 @@ describe("batchDeleteWorkouts", () => {
   it("throws when no valid sessions are owned by the user", async () => {
     findManyMock.mockResolvedValue([]);
 
-    await expect(
-      batchDeleteWorkouts("user-3", [99], {
-        db: mockDb,
-        logger: mockLogger,
-      }),
-    ).rejects.toThrow(
+    await expect(batchDeleteWorkouts(mockDb, "user-3", [99])).rejects.toThrow(
       "No valid sessions found for deletion",
     );
     expect(deleteMock).not.toHaveBeenCalled();

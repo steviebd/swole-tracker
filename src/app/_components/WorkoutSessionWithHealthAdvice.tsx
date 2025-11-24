@@ -634,7 +634,7 @@ export function WorkoutSessionWithHealthAdvice({
             action: "accepted",
             acceptedWeightKg: suggestion.weight,
             acceptedReps: suggestion.reps,
-            progressionType: userPreferences?.progression_type ?? "adaptive",
+            progressionType: userPreferences?.progressionType ?? "adaptive",
             readinessScore: advice?.readiness.rho,
             plateauDetected:
               setAdvice.rationale.includes("Plateau Alert") ||
@@ -687,7 +687,7 @@ export function WorkoutSessionWithHealthAdvice({
           suggestedRestSeconds: setAdvice.suggested_rest_seconds ?? undefined,
           suggestionRationale: setAdvice.rationale,
           action: "rejected",
-          progressionType: userPreferences?.progression_type ?? "adaptive",
+          progressionType: userPreferences?.progressionType ?? "adaptive",
           readinessScore: advice?.readiness.rho,
           plateauDetected:
             setAdvice.rationale.includes("Plateau Alert") ||
@@ -977,22 +977,17 @@ function WorkoutSessionStickyHeader({
     <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 border-border sticky top-0 z-10 border-b backdrop-blur">
       <div className="container mx-auto px-3 py-3 sm:px-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-lg font-semibold">{templateName}</h2>
-              <p className="text-muted-foreground text-sm">
-                Elapsed: {elapsedTime} • Online
-              </p>
-            </div>
-            {typeof readiness === "number" && (
-              <StatusBadge status={getReadinessStatus(readiness)}>
-                Readiness: {Math.round(readiness * 100)}%
-              </StatusBadge>
-            )}
+          <div>
+            <h2 className="text-lg font-semibold">{templateName}</h2>
+            <p className="text-muted-foreground text-sm">
+              Elapsed: {elapsedTime} • Online
+            </p>
           </div>
-          <Button variant="default" size="sm">
-            Complete Workout
-          </Button>
+          {typeof readiness === "number" && (
+            <StatusBadge status={getReadinessStatus(readiness)}>
+              Readiness: {Math.round(readiness * 100)}%
+            </StatusBadge>
+          )}
         </div>
       </div>
     </div>

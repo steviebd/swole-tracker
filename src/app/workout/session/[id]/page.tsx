@@ -219,20 +219,31 @@ export default function WorkoutSessionPage({
   }${templateDetails.name}`;
 
   const headerSubtitle = (() => {
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    };
+
     if (!workoutSession) {
-      return new Date().toLocaleString();
+      return formatDate(new Date());
     }
 
     const rawDate = (workoutSession as { workoutDate?: unknown }).workoutDate;
     if (rawDate instanceof Date) {
-      return rawDate.toLocaleString();
+      return formatDate(rawDate);
     }
 
     if (typeof rawDate === "string" || typeof rawDate === "number") {
-      return new Date(rawDate).toLocaleString();
+      return formatDate(new Date(rawDate));
     }
 
-    return new Date().toLocaleString();
+    return formatDate(new Date());
   })();
 
   return (

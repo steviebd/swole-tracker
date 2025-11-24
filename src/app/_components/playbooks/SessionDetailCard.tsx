@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Clock, Dumbbell, CheckCircle2, Circle, Play } from "lucide-react";
+import {
+  ChevronDown,
+  Clock,
+  Dumbbell,
+  CheckCircle2,
+  Circle,
+  Play,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "~/lib/utils";
@@ -11,7 +20,11 @@ import { Button } from "~/components/ui/button";
 import { useReducedMotion } from "~/hooks/use-reduced-motion";
 import { SessionExerciseList } from "./SessionExerciseList";
 import { api } from "~/trpc/react";
-import type { SessionPrescription } from "~/server/api/schemas/playbook";
+import type {
+  SessionPrescription,
+  WeeklyAiPlan,
+  WeeklyAlgorithmicPlan,
+} from "~/server/api/schemas/playbook";
 
 interface SessionDetailCardProps {
   session: {
@@ -20,8 +33,11 @@ interface SessionDetailCardProps {
     isCompleted: boolean;
     rpe: number | null;
     adherenceScore: number | null;
+    activePlanType: "ai" | "algorithmic";
   };
   prescription: SessionPrescription;
+  aiPlan?: WeeklyAiPlan | null;
+  algorithmicPlan?: WeeklyAlgorithmicPlan | null;
   isExpanded?: boolean;
   onToggle?: () => void;
 }
@@ -29,12 +45,22 @@ interface SessionDetailCardProps {
 export function SessionDetailCard({
   session,
   prescription,
+  aiPlan,
+  algorithmicPlan,
   isExpanded = false,
   onToggle,
 }: SessionDetailCardProps) {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
   const [localExpanded, setLocalExpanded] = useState(isExpanded);
+
+  // Extract the session prescription from each week plan
+  const aiSessionPrescription = aiPlan?.sessions.find(
+    (s) => s.sessionNumber === session.sessionNumber,
+  );
+  const algoSessionPrescription = algorithmicPlan?.sessions.find(
+    (s) => s.sessionNumber === session.sessionNumber,
+  );
 
   const expanded = onToggle ? isExpanded : localExpanded;
   const handleToggle = onToggle || (() => setLocalExpanded(!localExpanded));
@@ -45,6 +71,15 @@ export function SessionDetailCard({
       router.push(`/workout/session/${data.workoutId}`);
     },
   });
+
+  const updateSessionPlanType = api.playbooks.updateSessionPlanType.useMutation(
+    {
+      onSuccess: () => {
+        // Invalidate cache to refresh data
+        window.location.reload();
+      },
+    },
+  );
 
   const handleStartWorkout = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent expanding/collapsing when clicking button
@@ -59,25 +94,25 @@ export function SessionDetailCard({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-border transition-all",
+        "border-border overflow-hidden rounded-lg border transition-all",
         session.isCompleted
-          ? "bg-gradient-to-br from-tertiary/5 to-tertiary/10"
-          : "bg-muted/30"
+          ? "from-tertiary/5 to-tertiary/10 bg-gradient-to-br"
+          : "bg-muted/30",
       )}
     >
       {/* Session Header - Clickable */}
       <button
         onClick={handleToggle}
-        className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50 active:bg-muted/70 touch-target"
+        className="hover:bg-muted/50 active:bg-muted/70 touch-target flex w-full items-center justify-between p-4 text-left transition-colors"
         aria-expanded={expanded}
         aria-controls={`session-${session.id}-content`}
       >
         <div className="flex items-center gap-3">
           {/* Completion Icon */}
           {session.isCompleted ? (
-            <CheckCircle2 className="size-5 shrink-0 text-tertiary" />
+            <CheckCircle2 className="text-tertiary size-5 shrink-0" />
           ) : (
-            <Circle className="size-5 shrink-0 text-muted-foreground" />
+            <Circle className="text-muted-foreground size-5 shrink-0" />
           )}
 
           {/* Session Info */}
@@ -85,14 +120,14 @@ export function SessionDetailCard({
             <div className="flex items-center gap-2">
               <p className="font-semibold">Session {session.sessionNumber}</p>
               {prescription.dayOfWeek && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   • {prescription.dayOfWeek}
                 </span>
               )}
             </div>
 
             {/* Metadata Row */}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
                 <Dumbbell className="size-3" />
                 {prescription.exercises.length} exercise
@@ -100,8 +135,8 @@ export function SessionDetailCard({
               </span>
               {prescription.estimatedDurationMinutes && (
                 <span className="flex items-center gap-1">
-                  <Clock className="size-3" />
-                  ~{prescription.estimatedDurationMinutes} min
+                  <Clock className="size-3" />~
+                  {prescription.estimatedDurationMinutes} min
                 </span>
               )}
             </div>
@@ -120,7 +155,9 @@ export function SessionDetailCard({
                 )}
                 {session.adherenceScore !== null && (
                   <Badge
-                    variant={session.adherenceScore >= 80 ? "default" : "outline"}
+                    variant={
+                      session.adherenceScore >= 80 ? "default" : "outline"
+                    }
                     className="text-xs"
                   >
                     {session.adherenceScore}% match
@@ -131,12 +168,48 @@ export function SessionDetailCard({
           </div>
         </div>
 
+        {/* Plan Toggle - only if both plans have this session */}
+        {aiSessionPrescription && algoSessionPrescription && (
+          <div className="mr-2 flex items-center gap-1">
+            <Button
+              variant={session.activePlanType === "ai" ? "default" : "outline"}
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                updateSessionPlanType.mutate({
+                  sessionId: session.id,
+                  planType: "ai",
+                });
+              }}
+            >
+              <Sparkles className="mr-1 size-3" />
+              AI
+            </Button>
+            <Button
+              variant={
+                session.activePlanType === "algorithmic" ? "default" : "outline"
+              }
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                updateSessionPlanType.mutate({
+                  sessionId: session.id,
+                  planType: "algorithmic",
+                });
+              }}
+            >
+              <Zap className="mr-1 size-3" />
+              Algo
+            </Button>
+          </div>
+        )}
+
         {/* Expand/Collapse Icon */}
         <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
           transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
         >
-          <ChevronDown className="size-5 text-muted-foreground" />
+          <ChevronDown className="text-muted-foreground size-5" />
         </motion.div>
       </button>
 
@@ -152,14 +225,16 @@ export function SessionDetailCard({
             animate={{ height: "auto", opacity: 1 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
-            <div className="space-y-4 border-t border-border/50 p-4">
+            <div className="border-border/50 space-y-4 border-t p-4">
               {/* Session Metadata */}
-              {(prescription.totalVolumeTarget || totalVolume > 0 || prescription.notes) && (
+              {(prescription.totalVolumeTarget ||
+                totalVolume > 0 ||
+                prescription.notes) && (
                 <div className="glass-surface glass-hairline rounded-lg p-3">
                   <div className="flex flex-wrap items-center gap-4 text-sm">
                     {prescription.totalVolumeTarget && (
                       <div>
-                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Target Volume
                         </span>
                         <p className="mt-0.5 font-semibold">
@@ -169,7 +244,7 @@ export function SessionDetailCard({
                     )}
                     {totalVolume > 0 && (
                       <div>
-                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                           Calculated Volume
                         </span>
                         <p className="mt-0.5 font-semibold">
@@ -179,7 +254,7 @@ export function SessionDetailCard({
                     )}
                   </div>
                   {prescription.notes && (
-                    <p className="mt-2 text-xs italic text-muted-foreground">
+                    <p className="text-muted-foreground mt-2 text-xs italic">
                       {prescription.notes}
                     </p>
                   )}
@@ -206,7 +281,7 @@ export function SessionDetailCard({
 
               {/* Exercise List */}
               <div>
-                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <h4 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                   Exercises
                 </h4>
                 <SessionExerciseList exercises={prescription.exercises} />

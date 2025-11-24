@@ -172,7 +172,7 @@ export function TemplatesList() {
 
   const deleteTemplate = api.templates.delete.useMutation({
     onMutate: async (deletedTemplate) => {
-      await utils.templates.getAll.cancel();
+      await queryClient.cancelQueries({ queryKey: ["templates", "getAll"] });
       const snapshot = snapshotTemplateCaches(queryClient);
       removeTemplateFromCaches(queryClient, deletedTemplate.id);
       return { snapshot } satisfies { snapshot: TemplateCacheSnapshot };

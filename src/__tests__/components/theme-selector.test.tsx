@@ -20,8 +20,11 @@ describe("ThemeSelector accessibility", () => {
         ? (globalThis as unknown as Window & typeof globalThis)
         : window;
     originalMatchMedia = win.matchMedia;
-    (win as unknown as { localStorage: Storage }).localStorage =
-      mockLocalStorage() as unknown as Storage;
+    Object.defineProperty(win, "localStorage", {
+      value: mockLocalStorage(),
+      writable: true,
+      configurable: true,
+    });
     if (
       typeof (win as unknown as { addEventListener?: unknown })
         .addEventListener !== "function"
@@ -119,10 +122,17 @@ describe("ThemeSelector accessibility", () => {
     // Use a single waitFor with longer timeout to avoid race conditions
     await waitFor(
       () => {
-        const radioGroup = screen.getByRole("radiogroup", {
-          name: /appearance/i,
-        });
+        const radioGroup = screen.getByRole("radiogroup");
         expect(radioGroup).toBeInTheDocument();
+        expect(radioGroup).toHaveAttribute(
+          "aria-labelledby",
+          "theme-selector-label",
+        );
+
+        // Check that the label exists
+        const label = screen.getByText("Appearance");
+        expect(label).toBeInTheDocument();
+        expect(label).toHaveAttribute("id", "theme-selector-label");
 
         const radioButtons = screen.getAllByRole("radio");
         expect(radioButtons).toHaveLength(6); // 6 theme options

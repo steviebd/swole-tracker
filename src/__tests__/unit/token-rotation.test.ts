@@ -14,9 +14,26 @@ vi.mock("~/env", () => ({
 }));
 
 vi.mock("~/lib/encryption", () => ({
-  encryptToken: vi.fn().mockResolvedValue("encrypted-token"),
-  getDecryptedToken: vi.fn().mockResolvedValue("decrypted-token"),
-  isEncrypted: vi.fn().mockReturnValue(false),
+  encryptToken: vi.fn().mockImplementation(async (token: string) => {
+    if (
+      process.env["ENCRYPTION_MASTER_KEY"]?.length &&
+      process.env["ENCRYPTION_MASTER_KEY"].length >= 32
+    ) {
+      return `encrypted-${token}`;
+    }
+    throw new Error(
+      "ENCRYPTION_MASTER_KEY must be at least 32 characters long",
+    );
+  }),
+  getDecryptedToken: vi.fn().mockImplementation(async (token: string) => {
+    if (token.startsWith("encrypted-")) {
+      return token.replace("encrypted-", "");
+    }
+    return token;
+  }),
+  isEncrypted: vi.fn().mockImplementation((token: string) => {
+    return token.startsWith("encrypted-");
+  }),
 }));
 
 // Mock fetch for WHOOP API calls
@@ -42,10 +59,27 @@ describe("token rotation", () => {
     getDecryptedToken = encryption.getDecryptedToken;
     isEncrypted = encryption.isEncrypted;
 
-    // Reset mock implementations after clearing
-    encryptToken.mockResolvedValue("encrypted-token");
-    getDecryptedToken.mockResolvedValue("decrypted-token");
-    isEncrypted.mockReturnValue(false);
+    // Reset mock implementations after clearing - use the original mock implementations
+    encryptToken.mockImplementation(async (token: string) => {
+      if (
+        process.env["ENCRYPTION_MASTER_KEY"]?.length &&
+        process.env["ENCRYPTION_MASTER_KEY"].length >= 32
+      ) {
+        return `encrypted-${token}`;
+      }
+      throw new Error(
+        "ENCRYPTION_MASTER_KEY must be at least 32 characters long",
+      );
+    });
+    getDecryptedToken.mockImplementation(async (token: string) => {
+      if (token.startsWith("encrypted-")) {
+        return token.replace("encrypted-", "");
+      }
+      return token;
+    });
+    isEncrypted.mockImplementation((token: string) => {
+      return token.startsWith("encrypted-");
+    });
   });
 
   afterEach(() => {
@@ -147,7 +181,8 @@ describe("token rotation", () => {
     });
 
     it("migrates plain-text tokens when encryption key is available", async () => {
-      process.env["ENCRYPTION_MASTER_KEY"] = "test-key";
+      process.env["ENCRYPTION_MASTER_KEY"] =
+        "test-key-that-is-at-least-32-characters-long";
 
       const mockIntegrations = [
         {
@@ -183,7 +218,8 @@ describe("token rotation", () => {
     });
 
     it("skips already encrypted tokens", async () => {
-      process.env["ENCRYPTION_MASTER_KEY"] = "test-key";
+      process.env["ENCRYPTION_MASTER_KEY"] =
+        "test-key-that-is-at-least-32-characters-long";
 
       isEncrypted.mockReturnValue(true);
 
@@ -281,14 +317,15 @@ describe("token rotation", () => {
         }),
       } as any;
 
-      // Disable migration to avoid update function issues
-      delete process.env["ENCRYPTION_MASTER_KEY"];
+      // Set up encryption key for proper decryption
+      process.env["ENCRYPTION_MASTER_KEY"] =
+        "test-key-that-is-at-least-32-characters-long";
 
       const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
 
       expect(result.success).toBe(true);
       expect(result.rotated).toBe(false);
-      expect(result.newAccessToken).toBe("decrypted-token");
+      expect(result.newAccessToken).toBe("access-token");
       expect(getDecryptedToken).toHaveBeenCalledWith("encrypted-access-token");
     });
 
@@ -325,10 +362,11 @@ describe("token rotation", () => {
           refresh_token: "new-refresh-token",
           expires_in: 3600,
         }),
-      } as any);
+      });
 
-      // Disable migration to avoid update function issues
-      delete process.env["ENCRYPTION_MASTER_KEY"];
+      // Set up encryption key for proper encryption
+      process.env["ENCRYPTION_MASTER_KEY"] =
+        "test-key-that-is-at-least-32-characters-long";
 
       const result = await rotateOAuthTokens(mockDb, "user-1", "whoop");
 
@@ -361,6 +399,10 @@ describe("token rotation", () => {
 
       // Disable migration to avoid update function issues
       delete process.env["ENCRYPTION_MASTER_KEY"];
+
+      // Set up encryption key
+      process.env["ENCRYPTION_MASTER_KEY"] =
+        "test-key-that-is-at-least-32-characters-long";
 
       mockFetch.mockResolvedValue({
         ok: false,

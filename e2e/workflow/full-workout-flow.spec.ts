@@ -18,7 +18,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/01-templates-page.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 2: Click "Create Template" button
@@ -34,7 +34,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/02-new-template-page.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 3: Fill in template name (Step 1 - Basics)
@@ -52,7 +52,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/03-exercises-step.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 4: Add "Squat" exercise (Step 2 - Exercises)
@@ -67,7 +67,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/04-squat-added.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Click "Next" to go to linking step
@@ -77,7 +77,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/05-linking-step.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 5: Review linking suggestions (Step 3 - Link Exercises)
@@ -90,7 +90,7 @@ test.describe("Full Workout Flow - Interactive", () => {
     // Take screenshot of linking decisions
     await page.screenshot({
       path: "test-screenshots/06-linking-review.png",
-      fullPage: true
+      fullPage: true,
     });
 
     console.log("✓ Linking review displayed");
@@ -102,12 +102,14 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/07-preview-step.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 6: Create the template (Step 4 - Preview)
     console.log("\nStep 6: Creating template...");
-    const createTemplateButton = page.locator('button:has-text("Create Template")');
+    const createTemplateButton = page.locator(
+      'button:has-text("Create Template")',
+    );
     await expect(createTemplateButton).toBeVisible({ timeout: 5000 });
     await createTemplateButton.click();
 
@@ -123,7 +125,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/08-template-created.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 7: Start a workout from the template
@@ -136,7 +138,9 @@ test.describe("Full Workout Flow - Interactive", () => {
     // Strategy: Find the "Start workout" link specifically for OUR template
     // The link has aria-label="Start workout with [TEMPLATE_NAME]"
     // This ensures we click the right template, not a pre-existing one like "TOTAL"
-    const ourStartWorkoutLink = page.locator(`a[aria-label="Start workout with ${templateName}"]`);
+    const ourStartWorkoutLink = page.locator(
+      `a[aria-label="Start workout with ${templateName}"]`,
+    );
     await expect(ourStartWorkoutLink).toBeVisible({ timeout: 5000 });
     console.log(`✓ Found "Start workout" link for our template`);
 
@@ -150,12 +154,14 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/09-workout-start-with-template.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Click "Start workout" button/link again (second time, at the bottom of the page)
     // This could be either a button or a link
-    const startWorkoutButton2 = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+    const startWorkoutButton2 = page
+      .locator('button:has-text("Start workout"), a:has-text("Start workout")')
+      .last();
     await expect(startWorkoutButton2).toBeVisible({ timeout: 5000 });
     await startWorkoutButton2.click();
     await page.waitForLoadState("networkidle");
@@ -167,14 +173,14 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/10-workout-session-active.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 8: Check Squat exercise and verify historic data
     console.log("\nStep 8: Verifying Squat exercise and historic data...");
 
     // Look for the Squat exercise in the workout session
-    const squatExercise = page.locator('text=/Squat/i').first();
+    const squatExercise = page.locator("text=/Squat/i").first();
     await expect(squatExercise).toBeVisible({ timeout: 5000 });
     console.log("✓ Squat exercise found in workout session");
 
@@ -185,14 +191,17 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/11-squat-with-historic-data.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 9: Complete the workout
     console.log("\nStep 9: Completing workout...");
 
     // We're on /workout/session/XXX, click the exact "Complete" button (not "Complete Workout")
-    const completeButton = page.getByRole('button', { name: 'Complete', exact: true });
+    const completeButton = page.getByRole("button", {
+      name: "Complete",
+      exact: true,
+    });
     await expect(completeButton).toBeVisible({ timeout: 5000 });
     await completeButton.click();
     await page.waitForTimeout(1000);
@@ -200,14 +209,16 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/12-complete-popup.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // A popup/modal appears with 2 "Complete Workout" buttons visible:
     // 1. One in the top-right corner (outside modal)
     // 2. One inside the modal (the one we want)
     // We need to click the one inside the modal
-    const completeWorkoutButtons = page.getByRole('button', { name: 'Complete Workout' });
+    const completeWorkoutButtons = page.getByRole("button", {
+      name: "Complete Workout",
+    });
     const buttonCount = await completeWorkoutButtons.count();
     console.log(`  Found ${buttonCount} "Complete Workout" buttons`);
 
@@ -219,26 +230,26 @@ test.describe("Full Workout Flow - Interactive", () => {
     console.log("✓ Workout completed and confirmed");
 
     // Should redirect to homepage
-    await expect(page).toHaveURL(/^\/$|\/$/);
+    await expect(page).toHaveURL(/^\/$|\/$/, { timeout: 10000 });
     console.log("✓ Redirected to homepage");
 
     await page.screenshot({
       path: "test-screenshots/13-redirected-to-homepage.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Step 10: Verify workout appears in history
     console.log("\nStep 10: Verifying workout appears in history...");
 
     // We should already be on homepage - check Recent Workouts
-    const recentWorkouts = page.locator('text=/Recent Workouts/i');
+    const recentWorkouts = page.locator("text=/Recent Workouts/i");
     if (await recentWorkouts.isVisible({ timeout: 3000 }).catch(() => false)) {
       console.log("✓ Recent Workouts section found on homepage");
     }
 
     await page.screenshot({
       path: "test-screenshots/14-homepage-recent-workouts.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Check /progress/ page for Strength Progression - Squat
@@ -246,8 +257,12 @@ test.describe("Full Workout Flow - Interactive", () => {
     await page.goto("/progress");
     await page.waitForLoadState("networkidle");
 
-    const strengthProgression = page.locator('text=/Strength Progression.*Squat/i');
-    if (await strengthProgression.isVisible({ timeout: 5000 }).catch(() => false)) {
+    const strengthProgression = page.locator(
+      "text=/Strength Progression.*Squat/i",
+    );
+    if (
+      await strengthProgression.isVisible({ timeout: 5000 }).catch(() => false)
+    ) {
       console.log("✓ Strength Progression - Squat found on progress page");
     } else {
       console.log("⚠️  Squat progression not visible on progress page");
@@ -255,7 +270,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/15-progress-page.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Check /workouts page for 180kg / 5 reps
@@ -264,8 +279,8 @@ test.describe("Full Workout Flow - Interactive", () => {
     await page.waitForLoadState("networkidle");
 
     // Look for 180kg and 5 reps in the workout history
-    const weight180kg = page.locator('text=/180.*kg/i');
-    const reps5 = page.locator('text=/5.*reps/i');
+    const weight180kg = page.locator("text=/180.*kg/i");
+    const reps5 = page.locator("text=/5.*reps/i");
 
     if (await weight180kg.isVisible({ timeout: 3000 }).catch(() => false)) {
       console.log("✓ Found 180kg in workouts history");
@@ -280,10 +295,10 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/16-workouts-history.png",
-      fullPage: true
+      fullPage: true,
     });
 
-    console.log("✓ Workout verified in all locations")
+    console.log("✓ Workout verified in all locations");
 
     // Step 11: Clean up - delete the test template we created
     console.log("\nStep 11: Cleaning up - deleting test template...");
@@ -293,7 +308,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/17-templates-before-delete.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Find the EXACT template we created using the unique name
@@ -309,12 +324,12 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/18-template-selected.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Now look for the Delete button that appears after selecting our template
     // Use a more specific selector to avoid clicking the wrong delete button
-    const deleteButton = page.getByRole('button', { name: 'Delete' }).first();
+    const deleteButton = page.getByRole("button", { name: "Delete" }).first();
     await expect(deleteButton).toBeVisible({ timeout: 5000 });
     await deleteButton.click();
     await page.waitForTimeout(500);
@@ -322,7 +337,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/19-delete-confirmation.png",
-      fullPage: true
+      fullPage: true,
     });
 
     // Confirm deletion if there's a confirmation dialog
@@ -335,7 +350,9 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     // Verify the template is gone
     const deletedTemplate = page.locator(`text="${templateName}"`);
-    const isGone = !(await deletedTemplate.isVisible({ timeout: 2000 }).catch(() => false));
+    const isGone = !(await deletedTemplate
+      .isVisible({ timeout: 2000 })
+      .catch(() => false));
     if (isGone) {
       console.log(`✓ Template "${templateName}" successfully deleted`);
     } else {
@@ -344,7 +361,7 @@ test.describe("Full Workout Flow - Interactive", () => {
 
     await page.screenshot({
       path: "test-screenshots/20-final-state.png",
-      fullPage: true
+      fullPage: true,
     });
 
     console.log("\n✅ Full workflow test completed!\n");
@@ -353,8 +370,12 @@ test.describe("Full Workout Flow - Interactive", () => {
     console.log("  - Clicked on template → Start Workout");
     console.log("  - Clicked Start Workout again → Started session");
     console.log("  - Verified Squat exercise with historic data");
-    console.log("  - Clicked Complete → Complete Workout → Redirected to homepage");
-    console.log("  - Verified workout in history (homepage, /progress, /workouts)");
+    console.log(
+      "  - Clicked Complete → Complete Workout → Redirected to homepage",
+    );
+    console.log(
+      "  - Verified workout in history (homepage, /progress, /workouts)",
+    );
     console.log(`  - Deleted template "${templateName}" successfully`);
   });
 });

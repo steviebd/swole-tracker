@@ -197,6 +197,13 @@ beforeAll(() => {
   console.log("typeof document:", typeof document);
   console.log("typeof window:", typeof window);
 
+  // Ensure document and window are available for React Testing Library
+  if (typeof document === "undefined") {
+    throw new Error(
+      "Document is not available. Check vitest environment configuration.",
+    );
+  }
+
   // Fix for JSDOM hardwareConcurrency infinite recursion
   if (typeof window !== "undefined") {
     // Ensure navigator exists first
@@ -216,23 +223,18 @@ beforeAll(() => {
     });
   }
 
-  // Only run setup if DOM is available
-  if (typeof document !== "undefined") {
-    console.log("DOM environment check:");
-    console.log("window exists:", typeof window !== "undefined");
-    console.log("document exists:", typeof document !== "undefined");
-    console.log("document constructor:", document?.constructor?.name);
+  console.log("DOM environment check:");
+  console.log("window exists:", typeof window !== "undefined");
+  console.log("document exists:", typeof document !== "undefined");
+  console.log("document constructor:", document?.constructor?.name);
 
-    ensureLocalStorage();
-    ensureMatchMedia();
-    ensurePosthog();
-    ensureImage();
-    ensureFramerMotion();
-    ensureComputedStyle();
-    ensureResizeObserver();
-  } else {
-    console.log("DOM not available in setup, skipping DOM-specific setup");
-  }
+  ensureLocalStorage();
+  ensureMatchMedia();
+  ensurePosthog();
+  ensureImage();
+  ensureFramerMotion();
+  ensureComputedStyle();
+  ensureResizeObserver();
 
   server.listen();
   console.log("=== DOM SETUP END ===");

@@ -3,8 +3,8 @@ import path from "path";
 import { defineConfig } from "vitest/config";
 
 const isCI = process.env["CI"] === "true";
-// Simplified thread count to avoid JSDOM/os module conflicts
-const maxLocalThreads = isCI ? 4 : 2;
+// Optimize for GitHub Actions free tier (2 vCPU, 7GB RAM)
+const maxThreads = isCI ? 2 : 2;
 
 const baseExclude = [
   "**/*.spec.{ts,tsx}",
@@ -24,11 +24,11 @@ const baseExclude = [
 export default defineConfig({
   test: {
     globals: true,
-    pool: "forks",
+    pool: "threads", // Threads share memory, forks don't
     poolOptions: {
-      forks: {
-        singleFork: true,
-        isolate: false,
+      threads: {
+        maxThreads: maxThreads, // Match free tier vCPU count
+        minThreads: 1,
       },
     },
     // Speed optimizations
@@ -36,11 +36,11 @@ export default defineConfig({
     reporters: isCI ? ["default"] : [["default", { summary: false }]],
     // Enable heap usage logging to monitor memory
     logHeapUsage: true,
-    // Disable test isolation to reduce memory overhead
-    isolate: false,
-    // Increase timeouts to prevent timeouts due to memory constraints
-    testTimeout: 60000,
-    hookTimeout: 60000,
+    // Enable test isolation to prevent test interference
+    isolate: true,
+    // Optimize timeouts for faster execution
+    testTimeout: 10000,
+    hookTimeout: 5000,
 
     setupFiles: [
       "./src/__tests__/setup.dom.ts",
@@ -52,7 +52,7 @@ export default defineConfig({
 
     include: ["src/__tests__/**/*.test.{ts,tsx}"],
     exclude: baseExclude,
-    maxConcurrency: 1, // Only run one test at a time
+    maxConcurrency: maxThreads, // Enable parallel execution
     coverage: {
       provider: "v8",
       // Keep full reporter stack for CI; use detailed text output locally.

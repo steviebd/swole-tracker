@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { redirect } from "next/navigation";
@@ -33,6 +34,8 @@ vi.mock("~/lib/session-cookie", () => ({
     isExpired: vi.fn(),
   },
 }));
+
+const mockApiTemplatesGetById = vi.fn();
 
 vi.mock("~/trpc/server", () => ({
   api: {
@@ -93,7 +96,7 @@ describe("StartWorkoutPage", () => {
   const mockGetQueryClient = vi.mocked(getQueryClient);
   const mockGetDehydratedState = vi.mocked(getDehydratedState);
   const mockPrefetchWorkoutStart = vi.mocked(prefetchWorkoutStart);
-  const mockApiTemplatesGetById = vi.fn();
+  let mockApiTemplatesGetById: any;
 
   const mockHeadersList = new Map([
     ["cookie", "session=test-session"],
@@ -113,11 +116,15 @@ describe("StartWorkoutPage", () => {
     expiresAt: Math.floor((Date.now() + 3600000) / 1000),
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockHeaders.mockResolvedValue(mockHeadersList as any);
     mockGetQueryClient.mockReturnValue(mockQueryClient as any);
     mockGetDehydratedState.mockReturnValue({} as any);
+
+    // Set up the mock for API templates getById prefetch
+    const { api: serverApi } = await import("~/trpc/server");
+    mockApiTemplatesGetById = vi.mocked(serverApi.templates.getById.prefetch);
   });
 
   afterEach(() => {
@@ -383,7 +390,8 @@ describe("StartWorkoutPage", () => {
       await waitFor(() => {
         const flexContainer = screen
           .getByRole("heading", { level: 1 })
-          .closest(".flex");
+          .closest(".flex")
+          ?.parentElement?.closest(".flex");
         expect(flexContainer).toHaveClass(
           "flex-col",
           "space-y-3",
@@ -417,28 +425,24 @@ describe("StartWorkoutPage", () => {
     it("should handle headers() errors gracefully", async () => {
       mockHeaders.mockRejectedValue(new Error("Headers error"));
 
-      const Component = await StartWorkoutPage({
-        searchParams: Promise.resolve({}),
-      });
-
-      // Should not throw but may log error
-      expect(async () => {
-        render(Component);
-      }).not.toThrow();
+      // Should handle the error and not crash
+      await expect(
+        StartWorkoutPage({
+          searchParams: Promise.resolve({}),
+        }),
+      ).resolves.toBeDefined();
     });
 
     it("should handle searchParams parsing errors", async () => {
       mockSessionCookieGet.mockResolvedValue(mockSession);
       mockSessionCookieIsExpired.mockReturnValue(false);
 
-      const Component = await StartWorkoutPage({
-        searchParams: Promise.reject(new Error("Search params error")),
-      });
-
-      // Should not throw but may handle error gracefully
-      expect(async () => {
-        render(Component);
-      }).not.toThrow();
+      // Should handle the error and not crash
+      await expect(
+        StartWorkoutPage({
+          searchParams: Promise.reject(new Error("Search params error")),
+        }),
+      ).resolves.toBeDefined();
     });
   });
 

@@ -552,7 +552,7 @@ function WorkoutSessionContent({
                   dragHandlers.setCardElement?.(displayIndex, element)
                 }
                 preferredUnit={
-                  (preferences?.defaultWeightUnit as "kg" | "lbs") ?? "kg"
+                  (preferences?.defaultUnit as "kg" | "lbs") ?? "kg"
                 }
               />
             </div>
@@ -937,6 +937,8 @@ function WorkoutSessionContent({
                     await handleSave();
                     // Navigate to main page after successful workout completion
                     router.push("/");
+                    // Wait a moment for navigation to complete
+                    await new Promise((resolve) => setTimeout(resolve, 100));
                   }}
                   className="btn-primary flex-1 py-2.5 text-base font-semibold sm:py-3 sm:text-lg"
                 >

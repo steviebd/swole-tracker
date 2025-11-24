@@ -59,6 +59,32 @@ compatibility_flags = ["nodejs_compat"]
  name = "swole-tracker-staging"
  compatibility_flags = ["nodejs_compat"]
 
+  [env.staging.vars]
+  WORKOS_CLIENT_ID = ""
+  WORKOS_API_KEY = ""
+  WORKOS_COOKIE_PASSWORD = ""
+  ENCRYPTION_MASTER_KEY = ""
+  WORKER_SESSION_SECRET = ""
+  WHOOP_CLIENT_ID = ""
+  WHOOP_CLIENT_SECRET = ""
+  WHOOP_WEBHOOK_SECRET = ""
+  WHOOP_SYNC_RATE_LIMIT_PER_HOUR = ""
+  AI_GATEWAY_API_KEY = ""
+  AI_GATEWAY_MODEL = ""
+  AI_GATEWAY_PROMPT = ""
+  AI_GATEWAY_JOKE_MEMORY_NUMBER = ""
+  AI_GATEWAY_MODEL_HEALTH = ""
+  AI_DEBRIEF_MODEL = ""
+  AI_DEBRIEF_TEMPERATURE = ""
+  VERCEL_AI_GATEWAY_API_KEY = ""
+  NEXT_PUBLIC_POSTHOG_KEY = ""
+  NEXT_PUBLIC_POSTHOG_HOST = ""
+  NEXT_PUBLIC_SITE_URL = ""
+  RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = ""
+  RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = ""
+  RATE_LIMIT_API_CALLS_PER_MINUTE = ""
+  RATE_LIMIT_ENABLED = ""
+
     [[env.staging.d1_databases]]
     binding = "DB"
     database_id = "{{ D1_DB_ID }}"
@@ -66,6 +92,32 @@ compatibility_flags = ["nodejs_compat"]
  [env.production]
  name = "swole-tracker-prod"
  compatibility_flags = ["nodejs_compat"]
+
+  [env.production.vars]
+  WORKOS_CLIENT_ID = ""
+  WORKOS_API_KEY = ""
+  WORKOS_COOKIE_PASSWORD = ""
+  ENCRYPTION_MASTER_KEY = ""
+  WORKER_SESSION_SECRET = ""
+  WHOOP_CLIENT_ID = ""
+  WHOOP_CLIENT_SECRET = ""
+  WHOOP_WEBHOOK_SECRET = ""
+  WHOOP_SYNC_RATE_LIMIT_PER_HOUR = ""
+  AI_GATEWAY_API_KEY = ""
+  AI_GATEWAY_MODEL = ""
+  AI_GATEWAY_PROMPT = ""
+  AI_GATEWAY_JOKE_MEMORY_NUMBER = ""
+  AI_GATEWAY_MODEL_HEALTH = ""
+  AI_DEBRIEF_MODEL = ""
+  AI_DEBRIEF_TEMPERATURE = ""
+  VERCEL_AI_GATEWAY_API_KEY = ""
+  NEXT_PUBLIC_POSTHOG_KEY = ""
+  NEXT_PUBLIC_POSTHOG_HOST = ""
+  NEXT_PUBLIC_SITE_URL = ""
+  RATE_LIMIT_TEMPLATE_OPERATIONS_PER_HOUR = ""
+  RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR = ""
+  RATE_LIMIT_API_CALLS_PER_MINUTE = ""
+  RATE_LIMIT_ENABLED = ""
 
     [[env.production.d1_databases]]
     binding = "DB"
