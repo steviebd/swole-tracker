@@ -298,6 +298,8 @@ export const workoutsRouter = createTRPCRouter({
         success: true,
         message: `Migration completed: ${createdCount} master exercises created, ${linkedCount} links created`,
         migrated: linkedCount,
+        created: createdCount,
+        linked: linkedCount,
       };
     } catch (error) {
       logger.error("Master exercise migration failed", {
