@@ -298,9 +298,7 @@ export function ExerciseManager() {
       columnHelper.accessor("tags", {
         header: "Tags",
         cell: (info) => (
-          <span className="text-sm">
-            {info.getValue() || "—"}
-          </span>
+          <span className="text-sm">{info.getValue() || "—"}</span>
         ),
         enableSorting: true,
         enableColumnFilter: true,
@@ -310,9 +308,7 @@ export function ExerciseManager() {
       columnHelper.accessor("muscleGroup", {
         header: "Muscle Group",
         cell: (info) => (
-          <span className="text-sm">
-            {info.getValue() || "—"}
-          </span>
+          <span className="text-sm">{info.getValue() || "—"}</span>
         ),
         enableSorting: true,
         enableColumnFilter: true,
@@ -394,16 +390,22 @@ export function ExerciseManager() {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     if (selectedRows.length === 0) return;
 
-    const exerciseNames = selectedRows.map(row => row.original.name);
-    if (confirm(`Are you sure you want to delete ${selectedRows.length} exercises?\n\n${exerciseNames.join('\n')}\n\nThis action cannot be undone.`)) {
+    const exerciseNames = selectedRows.map((row) => row.original.name);
+    if (
+      confirm(
+        `Are you sure you want to delete ${selectedRows.length} exercises?\n\n${exerciseNames.join("\n")}\n\nThis action cannot be undone.`,
+      )
+    ) {
       // TODO: Implement bulk delete API call
-      alert("Bulk delete functionality coming soon - API endpoint needs to be implemented");
+      alert(
+        "Bulk delete functionality coming soon - API endpoint needs to be implemented",
+      );
       setRowSelection({});
     }
   };
 
   // Table state persistence
-  const TABLE_STATE_KEY = 'exercise-manager-table-state';
+  const TABLE_STATE_KEY = "exercise-manager-table-state";
 
   const saveTableState = useCallback(() => {
     const state = {
@@ -426,7 +428,7 @@ export function ExerciseManager() {
         if (state.sorting) setSorting(state.sorting);
       }
     } catch (error) {
-      console.warn('Failed to load table state:', error);
+      console.warn("Failed to load table state:", error);
     }
   }, []);
 
@@ -545,11 +547,7 @@ export function ExerciseManager() {
             {mergeMode ? "Cancel Merge" : "Merge Exercises"}
           </Button>
           {Object.keys(rowSelection).length > 0 && (
-            <Button
-              onClick={handleBulkDelete}
-              variant="destructive"
-              size="sm"
-            >
+            <Button onClick={handleBulkDelete} variant="destructive" size="sm">
               Delete Selected ({Object.keys(rowSelection).length})
             </Button>
           )}
@@ -659,7 +657,7 @@ export function ExerciseManager() {
             {filteredExercises.length} exercise
             {filteredExercises.length !== 1 ? "s" : ""} found
             {Object.keys(rowSelection).length > 0 && (
-              <span className="ml-2 text-primary">
+              <span className="text-primary ml-2">
                 • {Object.keys(rowSelection).length} selected
               </span>
             )}
@@ -667,11 +665,16 @@ export function ExerciseManager() {
           <div className="flex items-center gap-2">
             {/* Column visibility toggle */}
             <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground mr-2">Columns:</span>
+              <span className="text-muted-foreground mr-2 text-xs">
+                Columns:
+              </span>
               {table.getAllLeafColumns().map((column) => {
                 if (!column.getCanHide()) return null;
                 return (
-                  <label key={column.id} className="flex items-center gap-1 text-xs">
+                  <label
+                    key={column.id}
+                    className="flex items-center gap-1 text-xs"
+                  >
                     <input
                       type="checkbox"
                       checked={column.getIsVisible()}
@@ -740,7 +743,7 @@ export function ExerciseManager() {
                           <div
                             onMouseDown={header.getResizeHandler()}
                             onTouchStart={header.getResizeHandler()}
-                            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-border hover:bg-primary"
+                            className="bg-border hover:bg-primary absolute top-0 right-0 h-full w-1 cursor-col-resize"
                           />
                         )}
                       </TableHead>
@@ -772,7 +775,10 @@ export function ExerciseManager() {
                             | { className?: string }
                             | undefined;
                           return (
-                            <TableCell key={cell.id} className={meta?.className}>
+                            <TableCell
+                              key={cell.id}
+                              className={meta?.className}
+                            >
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext(),
@@ -811,7 +817,7 @@ export function ExerciseManager() {
                     colSpan={table.getVisibleLeafColumns().length}
                     className="text-muted-foreground py-8 text-center"
                   >
-                    No exercises found
+                    No exercises found matching your search
                   </TableCell>
                 </TableRow>
               )}
@@ -1289,7 +1295,7 @@ function ExerciseDetails({
         <Card className="bg-muted/30">
           <CardContent className="p-4 text-center">
             <div className="text-muted-foreground text-sm">
-              No unlinked template exercises found
+              All template exercises are linked! Great job staying organized. 🎯
             </div>
           </CardContent>
         </Card>

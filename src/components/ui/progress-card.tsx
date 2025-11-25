@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CheckCircle, Target } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { GlassSurface } from "./glass-surface";
+import { vibrate } from "~/lib/client-telemetry";
 
 /**
  * Progress card component for goal tracking with visual progress bars
@@ -114,11 +115,14 @@ const ProgressCard = React.forwardRef<HTMLDivElement, ProgressCardProps>(
                     delay: 0.2,
                   }}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full",
+                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full",
                     isOverAchieved
                       ? "text-success"
                       : "text-interactive-primary",
                   )}
+                  onClick={() =>
+                    vibrate(isOverAchieved ? [20, 50, 20] : [10, 30, 10])
+                  }
                 >
                   {isOverAchieved ? (
                     <CheckCircle className="h-6 w-6" />

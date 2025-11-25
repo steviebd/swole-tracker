@@ -305,7 +305,7 @@ export function ProgressHeroBar({ selectedExercise }: ProgressHeroBarProps) {
               data={intensityMetrics.sparkline}
               ariaLabel="Intensity trend"
               className="text-amber-500"
-              color="var(--md-sys-color-secondary)"
+              color="currentColor"
             />
           </div>
           <div className="bg-muted/30 flex items-center justify-between rounded-xl px-3 py-2 text-xs">
@@ -352,7 +352,7 @@ export function ProgressHeroBar({ selectedExercise }: ProgressHeroBarProps) {
               cx="60"
               cy="60"
               r="48"
-              stroke="var(--md-sys-color-primary)"
+              stroke="currentColor"
               strokeWidth="10"
               fill="none"
               strokeLinecap="round"

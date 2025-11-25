@@ -42,10 +42,9 @@ async function runMigration() {
     }
   } catch (error) {
     console.error("❌ Migration failed:", error);
-    console.log("\n💡 To run the migration manually:");
-    console.log("1. Start the development server: bun dev");
-    console.log("2. Navigate to: http://localhost:3000/migrate");
-    console.log('3. Click "Run Migration" button');
+    console.log(
+      "\n💡 Migration page has been removed. Use the direct script method instead.",
+    );
   }
 }
 

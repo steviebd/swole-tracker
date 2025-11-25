@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Repeat, Eye, Sparkles, FileText, BookOpen, LayoutTemplate } from "lucide-react";
+import {
+  Repeat,
+  Eye,
+  Sparkles,
+  FileText,
+  BookOpen,
+  LayoutTemplate,
+} from "lucide-react";
 import { cn } from "~/lib/utils";
 import { GlassSurface } from "./glass-surface";
 import { Button } from "./button";
@@ -235,8 +242,8 @@ const WorkoutCard = React.forwardRef<HTMLDivElement, WorkoutCardProps>(
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-3",
                   "text-sm font-medium transition-all duration-200",
-                  "border-[color:color-mix(in srgb, var(--md-sys-color-primary) 28%, transparent 72%)] border",
-                  "bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 16%, transparent 84%)] text-interactive-primary",
+                  "border-interactive-primary/28 border",
+                  "bg-interactive-primary/16 text-interactive-primary",
                   "focus-visible:ring-primary focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
                   "min-h-[44px]", // Touch target size
                 )}

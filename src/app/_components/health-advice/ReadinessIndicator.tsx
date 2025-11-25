@@ -56,35 +56,32 @@ export function ReadinessIndicator({
     switch (readinessLevel) {
       case "high":
         return {
-          text: "text-[var(--md-sys-color-on-tertiary-container)]",
-          bg: "bg-[color-mix(in_srgb,var(--md-sys-color-tertiary-container)_10%,_transparent_90%)]",
-          border:
-            "border-[color-mix(in_srgb,var(--md-sys-color-tertiary-container)_30%,_transparent_70%)]",
-          progressBg: "bg-[var(--md-sys-color-tertiary)]",
+          text: "text-status-success",
+          bg: "bg-status-success/10",
+          border: "border-status-success/30",
+          progressBg: "bg-status-success",
         };
       case "medium":
         return {
-          text: "text-[var(--md-sys-color-on-surface)]",
-          bg: "bg-[color-mix(in_srgb,var(--md-sys-color-surface-variant)_50%,var(--md-sys-color-surface)_50%)]",
-          border: "border-[var(--md-sys-color-outline)]",
-          progressBg: "bg-[var(--md-sys-color-on-surface-variant)]",
+          text: "text-content-primary",
+          bg: "bg-surface-secondary",
+          border: "border-border",
+          progressBg: "bg-content-secondary",
         };
       case "low":
         return {
-          text: "text-[var(--md-sys-color-on-secondary-container)]",
-          bg: "bg-[color-mix(in_srgb,var(--md-sys-color-secondary-container)_10%,_transparent_90%)]",
-          border:
-            "border-[color-mix(in_srgb,var(--md-sys-color-secondary-container)_30%,_transparent_70%)]",
-          progressBg: "bg-[var(--md-sys-color-secondary)]",
+          text: "text-interactive-secondary",
+          bg: "bg-interactive-secondary/10",
+          border: "border-interactive-secondary/30",
+          progressBg: "bg-interactive-secondary",
         };
       case "very-low":
       default:
         return {
-          text: "text-[var(--md-sys-color-on-error-container)]",
-          bg: "bg-[color-mix(in_srgb,var(--md-sys-color-error-container)_10%,_transparent_90%)]",
-          border:
-            "border-[color-mix(in_srgb,var(--md-sys-color-error-container)_30%,_transparent_70%)]",
-          progressBg: "bg-[var(--md-sys-color-error)]",
+          text: "text-status-danger",
+          bg: "bg-status-danger/10",
+          border: "border-status-danger/30",
+          progressBg: "bg-status-danger",
         };
     }
   })();
@@ -96,15 +93,15 @@ export function ReadinessIndicator({
   const progressWidthClass = progressWidthClasses[progressStep];
   const overloadClass =
     overloadMultiplier > 1
-      ? "text-[var(--md-sys-color-primary)]"
+      ? "text-interactive-primary"
       : overloadMultiplier < 1
-        ? "text-[var(--md-sys-color-secondary)]"
-        : "text-[var(--md-sys-color-on-surface-variant)]";
+        ? "text-interactive-secondary"
+        : "text-content-secondary";
 
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-[var(--md-sys-color-on-surface)]">
+        <h3 className="text-content-primary text-lg font-semibold">
           Readiness Score
         </h3>
         <span className={cx("text-2xl font-bold", colors.text)}>
@@ -113,7 +110,7 @@ export function ReadinessIndicator({
       </div>
 
       {/* Progress bar */}
-      <div className="h-3 w-full rounded-full bg-[color-mix(in_oklab,var(--md-sys-color-surface-variant)_50%,var(--md-sys-color-outline)_50%)]">
+      <div className="bg-surface-secondary h-3 w-full rounded-full">
         <div
           className={cx(
             "h-3 rounded-full transition-all duration-300",
@@ -125,9 +122,7 @@ export function ReadinessIndicator({
 
       {/* Overload multiplier */}
       <div className="flex items-center justify-between text-sm">
-        <span className="text-[var(--md-sys-color-on-surface-variant)]">
-          Load Adjustment:
-        </span>
+        <span className="text-content-secondary">Load Adjustment:</span>
         <span className={cx("font-semibold", overloadClass)}>
           {overloadMultiplier > 1 ? "+" : ""}
           {Math.round((overloadMultiplier - 1) * 100)}%
@@ -137,7 +132,7 @@ export function ReadinessIndicator({
       {/* Flags */}
       {flags.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-[var(--md-sys-color-on-surface-variant)]">
+          <h4 className="text-content-secondary text-sm font-medium">
             Status Flags:
           </h4>
           <div className="flex flex-wrap gap-1">
@@ -145,24 +140,22 @@ export function ReadinessIndicator({
               const flagColors =
                 flag.includes("good") || flag.includes("high")
                   ? {
-                      text: "text-[var(--md-sys-color-on-tertiary-container)]",
-                      bg: "bg-[color-mix(in_srgb,var(--md-sys-color-tertiary-container)_10%,_transparent_90%)]",
-                      border:
-                        "border-[color-mix(in_srgb,var(--md-sys-color-tertiary-container)_30%,_transparent_70%)]",
+                      text: "text-status-success",
+                      bg: "bg-status-success/10",
+                      border: "border-status-success/30",
                     }
                   : flag.includes("low") ||
                       flag.includes("poor") ||
                       flag.includes("missing")
                     ? {
-                        text: "text-[var(--md-sys-color-on-secondary-container)]",
-                        bg: "bg-[color-mix(in_srgb,var(--md-sys-color-secondary-container)_10%,_transparent_90%)]",
-                        border:
-                          "border-[color-mix(in_srgb,var(--md-sys-color-secondary-container)_30%,_transparent_70%)]",
+                        text: "text-interactive-secondary",
+                        bg: "bg-interactive-secondary/10",
+                        border: "border-interactive-secondary/30",
                       }
                     : {
-                        text: "text-[var(--md-sys-color-on-surface-variant)]",
-                        bg: "bg-[color-mix(in_srgb,var(--md-sys-color-surface-variant)_50%,var(--md-sys-color-surface)_50%)]",
-                        border: "border-[var(--md-sys-color-outline)]",
+                        text: "text-content-secondary",
+                        bg: "bg-surface-secondary",
+                        border: "border-border",
                       };
               return (
                 <span

@@ -846,10 +846,11 @@ export function VolumeTrackingSection() {
             />
           </svg>
           <p className="mb-2 text-lg font-medium text-[var(--color-text-secondary)]">
-            No volume data found
+            Ready to track your first workout?
           </p>
           <p className="text-sm text-[var(--color-text-muted)]">
-            Complete some workouts to see your volume progression and analysis.
+            Start logging workouts to visualize your strength journey and unlock
+            powerful insights. 💪
           </p>
         </div>
       )}
