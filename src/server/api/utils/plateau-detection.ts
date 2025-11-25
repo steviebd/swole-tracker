@@ -42,6 +42,10 @@ export async function detectPlateau(
   userId: string,
   masterExerciseId: number,
 ): Promise<PlateauDetectionResponse> {
+  console.log(
+    `🔍 [Plateau Detection] Starting detection for user ${userId}, master exercise ${masterExerciseId}`,
+  );
+
   // Check if exercise is being tracked and not in maintenance mode
   const keyLift = await database
     .select()
@@ -57,6 +61,9 @@ export async function detectPlateau(
     .limit(1);
 
   if (keyLift.length === 0) {
+    console.log(
+      `❌ [Plateau Detection] No key lift found for master exercise ${masterExerciseId}`,
+    );
     return {
       plateauDetected: false,
       recommendations: [],
@@ -64,6 +71,7 @@ export async function detectPlateau(
   }
 
   // Get last 3 sessions for this exercise
+  // Use templateExerciseId to join to exerciseLinks and filter by masterExerciseId
   const recentSessions = await database
     .select({
       weight: sessionExercises.weight,
@@ -77,21 +85,23 @@ export async function detectPlateau(
       workoutSessions,
       eq(workoutSessions.id, sessionExercises.sessionId),
     )
+    .innerJoin(
+      exerciseLinks,
+      eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+    )
     .where(
       and(
         eq(sessionExercises.user_id, userId),
-        sql`${sessionExercises.resolvedExerciseName} = ${masterExerciseId} OR ${sessionExercises.exerciseName} IN (
-        SELECT ${templateExercises.exerciseName}
-        FROM ${templateExercises}
-        INNER JOIN ${exerciseLinks} ON ${exerciseLinks.templateExerciseId} = ${templateExercises.id}
-        WHERE ${exerciseLinks.masterExerciseId} = ${masterExerciseId}
-      )`,
+        eq(exerciseLinks.masterExerciseId, masterExerciseId),
       ),
     )
     .orderBy(desc(workoutSessions.workoutDate))
     .limit(3);
 
   if (recentSessions.length < 3) {
+    console.log(
+      `❌ [Plateau Detection] Only ${recentSessions.length} sessions found (need 3+)`,
+    );
     return {
       plateauDetected: false,
       recommendations: [],
@@ -102,28 +112,20 @@ export async function detectPlateau(
   const weights = recentSessions.map((s) => Number(s.weight) || 0);
   const reps = recentSessions.map((s) => Number(s.reps) || 0);
 
-  const hasWeightProgression = weights.some(
-    (w: number, i: number) => i > 0 && w > (weights[i - 1] || 0),
+  // For plateau detection, we want to see if all weights and reps are the same
+  // Sessions are ordered by most recent first, so we check if they're all equal
+  const allWeightsSame = weights.every((w, i, arr) => i === 0 || w === arr[0]);
+  const allRepsSame = reps.every((r, i, arr) => i === 0 || r === arr[0]);
+
+  const isPlateaued = allWeightsSame && allRepsSame;
+
+  console.log(
+    `📊 [Plateau Detection] Weights: [${weights.join(", ")}], Reps: [${reps.join(", ")}]`,
   );
-  const hasRepsProgression = reps.some(
-    (r: number, i: number) => i > 0 && r > (reps[i - 1] || 0),
+  console.log(
+    `📊 [Plateau Detection] All weights same: ${allWeightsSame}, All reps same: ${allRepsSame}`,
   );
-
-  const isPlateaued = !hasWeightProgression && !hasRepsProgression;
-
-  // Calculate confidence based on how flat the progression is
-  const weightVariance = calculateVariance(weights);
-  const repsVariance = calculateVariance(reps);
-  const totalVariance = weightVariance + repsVariance;
-
-  let confidenceLevel: "low" | "medium" | "high";
-  if (totalVariance < 0.5) {
-    confidenceLevel = "high";
-  } else if (totalVariance < 2.0) {
-    confidenceLevel = "medium";
-  } else {
-    confidenceLevel = "low";
-  }
+  console.log(`🎯 [Plateau Detection] Plateau detected: ${isPlateaued}`);
 
   if (isPlateaued) {
     return {
@@ -299,6 +301,7 @@ export async function getPlateauDetectionContext(
     .limit(1);
 
   // Get recent sessions for analysis
+  // Use templateExerciseId to join to exerciseLinks and filter by masterExerciseId
   const sessions = await database
     .select({
       weight: sessionExercises.weight,
@@ -311,15 +314,14 @@ export async function getPlateauDetectionContext(
       workoutSessions,
       eq(workoutSessions.id, sessionExercises.sessionId),
     )
+    .innerJoin(
+      exerciseLinks,
+      eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+    )
     .where(
       and(
         eq(sessionExercises.user_id, userId),
-        sql`${sessionExercises.resolvedExerciseName} = ${masterExerciseId} OR ${sessionExercises.exerciseName} IN (
-        SELECT ${templateExercises.exerciseName}
-        FROM ${templateExercises}
-        INNER JOIN ${exerciseLinks} ON ${exerciseLinks.templateExerciseId} = ${templateExercises.id}
-        WHERE ${exerciseLinks.masterExerciseId} = ${masterExerciseId}
-      )`,
+        eq(exerciseLinks.masterExerciseId, masterExerciseId),
       ),
     )
     .orderBy(desc(workoutSessions.workoutDate))

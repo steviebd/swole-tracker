@@ -994,34 +994,38 @@ export const plateauMilestoneRouter = createTRPCRouter({
     ].filter((id): id is number => id !== null);
 
     // Fetch current 1RM values for all exercises in one query
-    const currentValues = await db
-      .select({
-        masterExerciseId: exerciseLinks.masterExerciseId,
-        oneRmEstimate: sql<number>`MAX(${sessionExercises.one_rm_estimate})`,
-        weight: sql<number>`MAX(${sessionExercises.weight})`,
-        volumeLoad: sql<number>`MAX(${sessionExercises.volume_load})`,
-      })
-      .from(sessionExercises)
-      .innerJoin(
-        exerciseLinks,
-        and(
-          eq(
-            exerciseLinks.templateExerciseId,
-            sessionExercises.templateExerciseId,
-          ),
-          eq(exerciseLinks.user_id, userId),
-        ),
-      )
-      .where(
-        and(
-          eq(sessionExercises.user_id, userId),
-          sql`${exerciseLinks.masterExerciseId} IN (${sql.join(
-            masterExerciseIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
-        ),
-      )
-      .groupBy(exerciseLinks.masterExerciseId);
+    // Only execute if there are master exercise IDs to query
+    const currentValues =
+      masterExerciseIds.length > 0
+        ? await db
+            .select({
+              masterExerciseId: exerciseLinks.masterExerciseId,
+              oneRmEstimate: sql<number>`MAX(${sessionExercises.one_rm_estimate})`,
+              weight: sql<number>`MAX(${sessionExercises.weight})`,
+              volumeLoad: sql<number>`MAX(${sessionExercises.volume_load})`,
+            })
+            .from(sessionExercises)
+            .innerJoin(
+              exerciseLinks,
+              and(
+                eq(
+                  exerciseLinks.templateExerciseId,
+                  sessionExercises.templateExerciseId,
+                ),
+                eq(exerciseLinks.user_id, userId),
+              ),
+            )
+            .where(
+              and(
+                eq(sessionExercises.user_id, userId),
+                sql`${exerciseLinks.masterExerciseId} IN (${sql.join(
+                  masterExerciseIds.map((id) => sql`${id}`),
+                  sql`, `,
+                )})`,
+              ),
+            )
+            .groupBy(exerciseLinks.masterExerciseId)
+        : [];
 
     // Create a lookup map for current values
     const currentValueMap = new Map(

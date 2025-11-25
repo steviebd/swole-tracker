@@ -1262,6 +1262,9 @@ export const workoutsRouter = createTRPCRouter({
           // Trigger plateau detection for key lifts (run after workout is saved)
           void (async () => {
             try {
+              console.log(
+                `🚀 [Workout Router] Starting plateau detection for ${input.exercises.length} exercises`,
+              );
               // Get master exercise IDs from the saved exercises
               const masterExerciseIds = Array.from(
                 new Set(
@@ -1342,7 +1345,10 @@ export const workoutsRouter = createTRPCRouter({
                   .where(
                     and(
                       eq(exerciseLinks.user_id, ctx.user.id),
-                      inArray(exerciseLinks.templateExerciseId, templateExerciseIds),
+                      inArray(
+                        exerciseLinks.templateExerciseId,
+                        templateExerciseIds,
+                      ),
                     ),
                   )
               : [];
@@ -1398,7 +1404,10 @@ export const workoutsRouter = createTRPCRouter({
                 .innerJoin(
                   exerciseLinks,
                   and(
-                    eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+                    eq(
+                      exerciseLinks.templateExerciseId,
+                      sessionExercises.templateExerciseId,
+                    ),
                     eq(exerciseLinks.user_id, ctx.user.id),
                   ),
                 )
@@ -1447,7 +1456,10 @@ export const workoutsRouter = createTRPCRouter({
                     .innerJoin(
                       exerciseLinks,
                       and(
-                        eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+                        eq(
+                          exerciseLinks.templateExerciseId,
+                          sessionExercises.templateExerciseId,
+                        ),
                         eq(exerciseLinks.user_id, ctx.user.id),
                       ),
                     )
@@ -1485,7 +1497,10 @@ export const workoutsRouter = createTRPCRouter({
                     .innerJoin(
                       exerciseLinks,
                       and(
-                        eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+                        eq(
+                          exerciseLinks.templateExerciseId,
+                          sessionExercises.templateExerciseId,
+                        ),
                         eq(exerciseLinks.user_id, ctx.user.id),
                       ),
                     )

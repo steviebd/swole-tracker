@@ -193,6 +193,7 @@ async function getHistoricalPerformanceData(
   userId: string,
   masterExerciseId: number,
 ) {
+  // Use templateExerciseId to join to exerciseLinks and filter by masterExerciseId
   return await database
     .select({
       weight: sessionExercises.weight,
@@ -205,15 +206,14 @@ async function getHistoricalPerformanceData(
       workoutSessions,
       eq(workoutSessions.id, sessionExercises.sessionId),
     )
+    .innerJoin(
+      exerciseLinks,
+      eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+    )
     .where(
       and(
         eq(sessionExercises.user_id, userId),
-        sql`${sessionExercises.resolvedExerciseName} = ${masterExerciseId} OR ${sessionExercises.exerciseName} IN (
-        SELECT ${templateExercises.exerciseName}
-        FROM ${templateExercises}
-        INNER JOIN ${exerciseLinks} ON ${exerciseLinks.templateExerciseId} = ${templateExercises.id}
-        WHERE ${exerciseLinks.masterExerciseId} = ${masterExerciseId}
-      )`,
+        eq(exerciseLinks.masterExerciseId, masterExerciseId),
       ),
     )
     .orderBy(desc(workoutSessions.workoutDate))
