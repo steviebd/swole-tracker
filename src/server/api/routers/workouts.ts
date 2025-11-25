@@ -1316,9 +1316,219 @@ export const workoutsRouter = createTRPCRouter({
             }
           })();
 
+          // Collect plateau and milestone information for client notifications
+          const plateauNotifications = [];
+          const milestoneNotifications = [];
+
+          // Get exercise names for notifications
+          const masterExerciseIds = Array.from(
+            new Set(
+              input.exercises
+                .map((e) => e.masterExerciseId)
+                .filter((id): id is number => id !== null),
+            ),
+          );
+
+          for (const masterExerciseId of masterExerciseIds) {
+            // Check for plateaus
+            const plateauResult = await detectPlateau(
+              ctx.db,
+              ctx.user.id,
+              masterExerciseId,
+            );
+
+            if (plateauResult.plateauDetected && plateauResult.plateau) {
+              const exerciseName =
+                resolvedNameLookup.get(
+                  Array.from(resolvedNameLookup.keys()).find(
+                    (key) =>
+                      resolvedNameLookup.get(key)?.masterExerciseId ===
+                      masterExerciseId,
+                  ) || 0,
+                )?.name || "Unknown exercise";
+
+              plateauNotifications.push({
+                type: "plateau_detected" as const,
+                exerciseName,
+                stalledWeight: plateauResult.plateau.stalledWeight,
+                stalledReps: plateauResult.plateau.stalledReps,
+              });
+            }
+
+            // Check for new milestone achievements
+            const activeMilestones = await ctx.db
+              .select()
+              .from(milestones)
+              .where(
+                and(
+                  eq(milestones.userId, ctx.user.id),
+                  eq(milestones.masterExerciseId, masterExerciseId),
+                ),
+              );
+
+            for (const milestone of activeMilestones) {
+              // Get current best 1RM for this exercise from the session
+              const currentPerformance = await ctx.db
+                .select({
+                  oneRMEstimate: sessionExercises.one_rm_estimate,
+                })
+                .from(sessionExercises)
+                .where(
+                  and(
+                    eq(sessionExercises.user_id, ctx.user.id),
+                    eq(sessionExercises.master_exercise_id, masterExerciseId),
+                    gte(
+                      sessionExercises.workout_date,
+                      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                    ), // Last 30 days
+                  ),
+                )
+                .orderBy(desc(sessionExercises.one_rm_estimate))
+                .limit(1);
+
+              if (currentPerformance.length > 0) {
+                const currentOneRM = currentPerformance[0]!.oneRMEstimate ?? 0;
+
+                // Check if milestone is achieved
+                let isAchieved = false;
+                if (
+                  milestone.type === "absolute_weight" &&
+                  currentOneRM >= (milestone.targetValue ?? 0)
+                ) {
+                  isAchieved = true;
+                } else if (
+                  milestone.type === "bodyweight_multiplier" &&
+                  currentOneRM >= (milestone.targetValue ?? 0)
+                ) {
+                  isAchieved = true;
+                } else if (milestone.type === "volume") {
+                  // Check volume milestone (sum of all sets in recent session)
+                  const volumeResult = await ctx.db
+                    .select({
+                      totalVolume:
+                        sql<number>`SUM(${sessionExercises.weight} * ${sessionExercises.reps} * ${sessionExercises.sets})`.as(
+                          "totalVolume",
+                        ),
+                    })
+                    .from(sessionExercises)
+                    .where(
+                      and(
+                        eq(sessionExercises.user_id, ctx.user.id),
+                        eq(
+                          sessionExercises.master_exercise_id,
+                          masterExerciseId,
+                        ),
+                        gte(
+                          sessionExercises.workout_date,
+                          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                        ), // Last 7 days
+                      ),
+                    )
+                    .limit(1);
+
+                  if (
+                    volumeResult.length > 0 &&
+                    volumeResult[0]!.totalVolume >= (milestone.targetValue ?? 0)
+                  ) {
+                    isAchieved = true;
+                  }
+                } else if (milestone.type === "reps") {
+                  // Check rep milestone (max reps at target weight)
+                  const repResult = await ctx.db
+                    .select({
+                      maxReps: sql<number>`MAX(${sessionExercises.reps})`.as(
+                        "maxReps",
+                      ),
+                    })
+                    .from(sessionExercises)
+                    .where(
+                      and(
+                        eq(sessionExercises.user_id, ctx.user.id),
+                        eq(
+                          sessionExercises.master_exercise_id,
+                          masterExerciseId,
+                        ),
+                        gte(
+                          sessionExercises.weight,
+                          (milestone.targetValue ?? 0) * 0.9,
+                        ), // Within 10% of target weight
+                        gte(
+                          sessionExercises.workout_date,
+                          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                        ), // Last 30 days
+                      ),
+                    )
+                    .limit(1);
+
+                  if (
+                    repResult.length > 0 &&
+                    repResult[0]!.maxReps >= (milestone.targetValue ?? 0)
+                  ) {
+                    isAchieved = true;
+                  }
+                }
+
+                if (isAchieved) {
+                  // Check if this achievement was already recorded
+                  const recentAchievement = await ctx.db
+                    .select()
+                    .from(milestoneAchievements)
+                    .where(
+                      and(
+                        eq(milestoneAchievements.userId, ctx.user.id),
+                        eq(milestoneAchievements.milestoneId, milestone.id),
+                        gte(
+                          milestoneAchievements.achievedAt,
+                          new Date(Date.now() - 24 * 60 * 60 * 1000),
+                        ), // Last 24 hours
+                      ),
+                    )
+                    .limit(1);
+
+                  if (recentAchievement.length === 0) {
+                    const exerciseName =
+                      resolvedNameLookup.get(
+                        Array.from(resolvedNameLookup.keys()).find(
+                          (key) =>
+                            resolvedNameLookup.get(key)?.masterExerciseId ===
+                            masterExerciseId,
+                        ) || 0,
+                      )?.name || "Unknown exercise";
+
+                    // Record the achievement
+                    await ctx.db.insert(milestoneAchievements).values({
+                      userId: ctx.user.id,
+                      milestoneId: milestone.id,
+                      workoutId: sessionId,
+                      achievedAt: new Date(),
+                      achievedValue: currentOneRM,
+                      metadata: JSON.stringify({
+                        trigger: "workout_completion",
+                        masterExerciseId,
+                      }),
+                    });
+
+                    milestoneNotifications.push({
+                      type: "milestone_achieved" as const,
+                      exerciseName,
+                      milestoneType: milestone.type,
+                      achievedValue: currentOneRM,
+                      targetValue: milestone.targetValue,
+                      achievedDate: new Date().toISOString(),
+                    });
+                  }
+                }
+              }
+            }
+          }
+
           return {
             success: true,
             playbookSessionId, // If not null, client should show RPE modal
+            notifications: {
+              plateaus: plateauNotifications,
+              milestones: milestoneNotifications,
+            },
           };
         }
       } catch (err: any) {

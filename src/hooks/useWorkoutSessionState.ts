@@ -7,6 +7,7 @@ import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
+import { toast } from "~/hooks/use-toast";
 
 import {
   applyOptimisticWorkoutDate,
@@ -490,6 +491,29 @@ export function useWorkoutSessionState({
       const mutationContext = context as RecentMutationContext | undefined;
       if (mutationContext?.previousQueries) {
         restoreRecentQueries(mutationContext.previousQueries);
+      }
+    },
+    onSuccess: (data: any) => {
+      // Handle plateau notifications
+      if (data?.notifications?.plateaus?.length > 0) {
+        for (const plateau of data.notifications.plateaus) {
+          toast({
+            title: "Plateau Detected",
+            description: `${plateau.exerciseName} has stalled at ${plateau.stalledWeight}kg × ${plateau.stalledReps}`,
+            duration: 8000,
+          });
+        }
+      }
+
+      // Handle milestone notifications
+      if (data?.notifications?.milestones?.length > 0) {
+        for (const milestone of data.notifications.milestones) {
+          toast({
+            title: "Milestone Achieved! 🎉",
+            description: `${milestone.exerciseName}: ${milestone.achievedValue}kg (target: ${milestone.targetValue}kg)`,
+            duration: 8000,
+          });
+        }
       }
     },
     onSettled: () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { cn } from "~/lib/utils";
 import { buttonVariants } from "~/components/ui/button";
@@ -193,6 +194,7 @@ export function PlateauMilestoneCard({ className }: PlateauMilestoneCardProps) {
 }
 
 function PlateauItem({ plateau }: { plateau: PlateauAlert }) {
+  const router = useRouter();
   const severityColor =
     plateau.severity === "high"
       ? "text-rose-600"
@@ -200,10 +202,17 @@ function PlateauItem({ plateau }: { plateau: PlateauAlert }) {
         ? "text-amber-600"
         : "text-yellow-600";
 
+  const handleCreatePlaybook = () => {
+    router.push(
+      "/playbooks/create?plateau=" +
+        encodeURIComponent(plateau.exerciseName || "Unknown"),
+    );
+  };
+
   return (
     <div className="rounded-lg border border-amber-200/50 bg-amber-50/50 p-3">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <p className="text-foreground text-sm font-medium">
             {plateau.exerciseName || "Unknown Exercise"}
           </p>
@@ -214,6 +223,19 @@ function PlateauItem({ plateau }: { plateau: PlateauAlert }) {
         <Badge variant="outline" className={cn("text-xs", severityColor)}>
           {plateau.severity}
         </Badge>
+      </div>
+
+      {/* CTA Button */}
+      <div className="mt-3">
+        <button
+          onClick={handleCreatePlaybook}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "w-full border-amber-300 text-xs font-medium text-amber-700 hover:bg-amber-100 hover:text-amber-800",
+          )}
+        >
+          📋 Create Playbook to Break Plateau
+        </button>
       </div>
     </div>
   );
