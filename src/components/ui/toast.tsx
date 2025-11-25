@@ -5,7 +5,13 @@ import { useReducedMotion } from "framer-motion";
 
 import { cn } from "~/lib/utils";
 
-export type ToastType = "success" | "error" | "info" | "warning" | "default" | "destructive";
+export type ToastType =
+  | "success"
+  | "error"
+  | "info"
+  | "warning"
+  | "default"
+  | "destructive";
 
 export interface ToastProps {
   open: boolean;
@@ -65,40 +71,37 @@ export function Toast({
 
   if (!open) return null;
 
-  const toneTokens: Record<ToastType, { background: string; border: string; icon: string }> = {
+  const toneTokens: Record<
+    ToastType,
+    { background: string; border: string; icon: string }
+  > = {
     success: {
-      background:
-        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-tertiary-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-tertiary-30) 55%, black 10%) 100%)",
+      background: "var(--gradient-universal-success)",
       border: "rgba(54, 211, 153, 0.4)",
       icon: "✅",
     },
     error: {
-      background:
-        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-error-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-error-30) 55%, black 10%) 100%)",
+      background: "var(--gradient-universal-stats-orange)",
       border: "rgba(248, 113, 113, 0.45)",
       icon: "❌",
     },
     destructive: {
-      background:
-        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-error-40) 75%, black 20%) 0%, color-mix(in oklab, var(--md-ref-palette-error-30) 55%, black 10%) 100%)",
+      background: "var(--gradient-universal-stats-orange)",
       border: "rgba(248, 113, 113, 0.45)",
       icon: "❌",
     },
     warning: {
-      background:
-        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-primary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-30) 55%, black 10%) 100%)",
+      background: "var(--gradient-universal-action-primary)",
       border: "rgba(250, 204, 21, 0.5)",
       icon: "⚠️",
     },
     info: {
-      background:
-        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-secondary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-30) 55%, black 10%) 100%)",
+      background: "var(--gradient-universal-stats-orange)",
       border: "rgba(125, 211, 252, 0.45)",
       icon: "ℹ️",
     },
     default: {
-      background:
-        "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-secondary-40) 70%, black 15%) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-30) 55%, black 10%) 100%)",
+      background: "var(--gradient-universal-stats-orange)",
       border: "rgba(125, 211, 252, 0.45)",
       icon: "ℹ️",
     },
@@ -113,7 +116,7 @@ export function Toast({
   return (
     <div
       className={cn(
-        "fixed top-4 left-1/2 z-50 flex min-w-[280px] max-w-md -translate-x-1/2 items-start gap-3 rounded-2xl border px-4 py-3 text-white shadow-xl backdrop-blur-lg",
+        "fixed top-4 left-1/2 z-50 flex max-w-md min-w-[280px] -translate-x-1/2 items-start gap-3 rounded-2xl border px-4 py-3 text-white shadow-xl backdrop-blur-lg",
         prefersReducedMotion
           ? ""
           : "animate-in fade-in-0 slide-in-from-top-2 duration-300",
@@ -127,16 +130,14 @@ export function Toast({
       }}
     >
       {/* Icon */}
-      <span className="text-lg shrink-0 mt-0.5" aria-hidden="true">
+      <span className="mt-0.5 shrink-0 text-lg" aria-hidden="true">
         {tone.icon}
       </span>
 
       {/* Message */}
       <div className="flex-1 space-y-1">
         {displayTitle && (
-          <div className="text-sm font-semibold text-white">
-            {displayTitle}
-          </div>
+          <div className="text-sm font-semibold text-white">{displayTitle}</div>
         )}
         {displayMessage && (
           <div className="text-sm font-medium text-white/90">
@@ -146,14 +147,14 @@ export function Toast({
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
         {onUndo && (
           <button
             onClick={() => {
               onUndo();
               if (onClose) onClose();
             }}
-            className="text-xs font-semibold underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-current focus:ring-offset-1 rounded"
+            className="rounded text-xs font-semibold underline hover:no-underline focus:ring-2 focus:ring-current focus:ring-offset-1 focus:outline-none"
             aria-label="Undo action"
           >
             Undo
@@ -163,10 +164,12 @@ export function Toast({
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-1 text-white/70 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-1 rounded"
+            className="ml-1 rounded text-white/70 transition hover:text-white focus:ring-2 focus:ring-white/70 focus:ring-offset-1 focus:outline-none"
             aria-label="Close notification"
           >
-            <span className="text-lg leading-none" aria-hidden="true">×</span>
+            <span className="text-lg leading-none" aria-hidden="true">
+              ×
+            </span>
           </button>
         )}
       </div>

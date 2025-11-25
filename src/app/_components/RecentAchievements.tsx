@@ -1,6 +1,8 @@
 "use client";
 
+import { Card } from "~/components/ui/card";
 import { api } from "~/trpc/react";
+import { vibrate } from "~/lib/client-telemetry";
 
 export function RecentAchievements() {
   // Get recent data for current month
@@ -20,8 +22,7 @@ export function RecentAchievements() {
       timeRange: "month",
     });
 
-  const cardClass =
-    "transition-all duration-300 rounded-xl border shadow-sm bg-card border-border";
+  const cardClass = "transition-all duration-300";
   const titleClass = "text-xl font-bold mb-4 text-theme-primary";
   const subtitleClass = "text-sm font-medium mb-2 text-theme-secondary";
 
@@ -235,9 +236,13 @@ export function RecentAchievements() {
               <h3 className={subtitleClass}>Achievement Badges</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {achievements.map((achievement, index) => (
-                  <div
+                  <Card
                     key={index}
-                    className="border-border bg-surface relative rounded-xl border p-4 transition-all duration-200 hover:scale-105"
+                    surface="card"
+                    variant="elevated"
+                    padding="md"
+                    className="relative transition-all duration-200 hover:scale-105"
+                    onClick={() => vibrate([10, 50, 10])}
                   >
                     {/* Badge Icon with Gradient */}
                     <div
@@ -265,7 +270,7 @@ export function RecentAchievements() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             </div>
@@ -277,9 +282,12 @@ export function RecentAchievements() {
               <h3 className={subtitleClass}>Recent Personal Records</h3>
               <div className="max-h-48 space-y-3 overflow-y-auto">
                 {personalRecords.slice(0, 5).map((record, index) => (
-                  <div
+                  <Card
                     key={index}
-                    className="bg-surface flex items-center justify-between rounded-lg p-3 transition-all hover:scale-[1.02]"
+                    surface="card"
+                    variant="default"
+                    padding="sm"
+                    className="flex items-center justify-between transition-all hover:scale-[1.02]"
                   >
                     <div className="flex items-center space-x-3">
                       <span className="text-xl">
@@ -308,7 +316,7 @@ export function RecentAchievements() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             </div>

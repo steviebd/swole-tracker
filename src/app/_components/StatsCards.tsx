@@ -1,12 +1,14 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
 import { BarChart3, Target, Flame, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { useSharedWorkoutData } from "~/hooks/use-shared-workout-data";
 import { useCacheInvalidation } from "~/hooks/use-cache-invalidation";
 import { Card } from "~/components/ui/card";
+import { GlassSurface } from "~/components/ui/glass-surface";
 import { cn } from "~/lib/utils";
 import { analytics } from "~/lib/analytics";
 import {
@@ -36,13 +38,10 @@ const percentFormatter = new Intl.NumberFormat(undefined, {
 type StrengthCardId = "volume" | "oneRm" | "streak" | "goal";
 
 const STRENGTH_BACKGROUNDS: Record<StrengthCardId, string> = {
-  volume:
-    "linear-gradient(135deg, var(--md-ref-palette-primary-40) 0%, color-mix(in oklab, var(--md-ref-palette-secondary-40) 80%, black 10%) 100%)",
-  oneRm:
-    "linear-gradient(135deg, var(--md-ref-palette-secondary-30) 0%, color-mix(in oklab, var(--md-ref-palette-tertiary-40) 70%, black 5%) 100%)",
-  streak:
-    "linear-gradient(135deg, var(--md-ref-palette-tertiary-40) 0%, color-mix(in oklab, var(--md-ref-palette-primary-40) 85%, black 5%) 100%)",
-  goal: "linear-gradient(135deg, color-mix(in oklab, var(--md-ref-palette-neutral-30) 80%, black 10%) 0%, color-mix(in oklab, var(--md-ref-palette-primary-50) 65%, black 20%) 100%)",
+  volume: "var(--gradient-universal-stats-orange)",
+  oneRm: "var(--gradient-universal-action-primary)",
+  streak: "var(--gradient-universal-success)",
+  goal: "var(--gradient-universal-action-primary)",
 };
 
 const changeToneClass = {
@@ -428,7 +427,7 @@ export const StatsCards = memo(function StatsCards() {
         {[0, 1, 2, 3].map((index) => (
           <div
             key={index}
-            className="border-border/40 bg-surface-secondary/60 h-[200px] animate-pulse rounded-2xl border"
+            className="border-border/40 bg-surface-secondary/60 skeleton animate-shimmer h-[200px] rounded-2xl border"
             aria-hidden
           />
         ))}
@@ -437,15 +436,34 @@ export const StatsCards = memo(function StatsCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => {
+    <motion.div
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: { staggerChildren: 0.1 },
+        },
+      }}
+    >
+      {cards.map((card, index) => {
         const BadgeIcon = card.badge
           ? formatAchievementBadge(card.badge)
           : null;
         const isUpdating = isSecondaryLoading && !isLoading;
 
         return (
-          <div key={card.id} className="h-full">
+          <motion.div
+            key={card.id}
+            className="h-full"
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0 },
+            }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+          >
             <Card
               surface="card"
               variant="glass"
@@ -454,7 +472,7 @@ export const StatsCards = memo(function StatsCards() {
               className={cn(
                 "relative flex h-full min-h-[200px] flex-col overflow-hidden text-white shadow-xl transition-all duration-300",
                 "focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black/20",
-                isUpdating && "animate-pulse opacity-90",
+                isUpdating && "skeleton animate-shimmer opacity-90",
               )}
               style={{ background: card.background }}
               onClick={() => handleCardPress(card.id)}
@@ -464,94 +482,96 @@ export const StatsCards = memo(function StatsCards() {
               }
             >
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/10 via-black/0 to-black/50" />
-              <div className="relative flex flex-1 flex-col">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="rounded-xl bg-white/12 p-2 shadow-sm backdrop-blur-sm">
-                    <card.icon className="h-6 w-6" aria-hidden />
+              <div className="absolute inset-0 bg-black/20" aria-hidden />
+              <div className="relative z-10 flex flex-1 flex-col">
+                {" "}
+                <div className="relative flex flex-1 flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <GlassSurface className="rounded-xl bg-white/12 p-2 shadow-sm">
+                      <card.icon className="h-6 w-6" aria-hidden />
+                    </GlassSurface>
+                    {BadgeIcon && (
+                      <span className="glass-surface inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs font-semibold text-white shadow-sm">
+                        {BadgeIcon.icon && (
+                          <span aria-hidden>{BadgeIcon.icon}</span>
+                        )}
+                        {BadgeIcon.text}
+                      </span>
+                    )}
                   </div>
-                  {BadgeIcon && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-sm">
-                      {BadgeIcon.icon && (
-                        <span aria-hidden>{BadgeIcon.icon}</span>
-                      )}
-                      {BadgeIcon.text}
-                    </span>
-                  )}
-                </div>
 
-                <div className="mt-6 space-y-3">
-                  <div>
-                    <p className="text-xs font-semibold tracking-wider text-white/70 uppercase">
-                      {card.title}
-                    </p>
-                    <p className="mt-2 text-3xl leading-tight font-semibold">
-                      {card.value}
-                    </p>
-                  </div>
-                  {card.change && (
-                    <p
-                      className={cn(
-                        "text-sm font-medium",
-                        changeToneClass[card.change.tone],
-                      )}
-                    >
-                      {card.change.label}
-                    </p>
-                  )}
-                </div>
-
-                {card.progress !== undefined && (
-                  <div className="mt-5 space-y-2">
-                    <div className="h-2 w-full rounded-full bg-white/20">
-                      <div
-                        className="h-2 rounded-full bg-white"
-                        style={{
-                          width: `${Math.min(card.progress, 120)}%`,
-                        }}
-                      />
+                  <div className="mt-6 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold tracking-wider text-white/70 uppercase">
+                        {card.title}
+                      </p>
+                      <p className="text-display mt-2">{card.value}</p>
                     </div>
-                    {card.progressLabel && (
-                      <p className="text-xs font-semibold text-white/80">
-                        {card.progressLabel}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {card.footers?.length ? (
-                  <div className="mt-6 space-y-2 text-sm text-white/80">
-                    {card.footers.map((footer, footerIndex) => (
+                    {card.change && (
                       <p
-                        key={`${card.id}-footer-${footerIndex}`}
-                        className="flex items-center gap-2 leading-tight"
+                        className={cn(
+                          "text-sm font-medium",
+                          changeToneClass[card.change.tone],
+                        )}
                       >
-                        <span
-                          className="h-1.5 w-1.5 rounded-full bg-white/40"
-                          aria-hidden
-                        />
-                        <span>{footer}</span>
-                      </p>
-                    ))}
-                    {isUpdating && (
-                      <p className="flex items-center gap-2 text-xs text-white/60">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
-                        <span>Updating...</span>
+                        {card.change.label}
                       </p>
                     )}
                   </div>
-                ) : isUpdating ? (
-                  <div className="mt-6 text-xs text-white/60">
-                    <p className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/40" />
-                      <span>Updating...</span>
-                    </p>
-                  </div>
-                ) : null}
-              </div>
+
+                  {card.progress !== undefined && (
+                    <div className="mt-5 space-y-2">
+                      <div className="h-2 w-full rounded-full bg-white/20">
+                        <div
+                          className="h-2 rounded-full bg-white"
+                          style={{
+                            width: `${Math.min(card.progress, 120)}%`,
+                          }}
+                        />
+                      </div>
+                      {card.progressLabel && (
+                        <p className="text-xs font-semibold text-white/80">
+                          {card.progressLabel}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {card.footers?.length ? (
+                    <div className="mt-6 space-y-2 text-sm text-white/80">
+                      {card.footers.map((footer, footerIndex) => (
+                        <p
+                          key={`${card.id}-footer-${footerIndex}`}
+                          className="flex items-center gap-2 leading-tight"
+                        >
+                          <span
+                            className="h-1.5 w-1.5 rounded-full bg-white/40"
+                            aria-hidden
+                          />
+                          <span>{footer}</span>
+                        </p>
+                      ))}
+                      {isUpdating && (
+                        <p className="flex items-center gap-2 text-xs text-white/60">
+                          <span className="skeleton animate-shimmer h-1.5 w-1.5 rounded-full bg-white/40" />
+                          <span>Syncing your progress...</span>
+                        </p>
+                      )}
+                    </div>
+                  ) : isUpdating ? (
+                    <div className="mt-6 text-xs text-white/60">
+                      <p className="flex items-center gap-2">
+                        <span className="skeleton animate-shimmer h-1.5 w-1.5 rounded-full bg-white/40" />
+                        <span>Syncing your progress...</span>
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>{" "}
             </Card>
-          </div>
+          </motion.div>
         );
       })}
-    </div>
+    </motion.div>
   );
 });

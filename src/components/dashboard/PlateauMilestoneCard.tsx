@@ -12,6 +12,11 @@ import {
 } from "~/components/ui/dialog";
 import { Badge } from "~/components/ui/badge";
 import { Skeleton } from "~/components/ui/skeleton";
+import type {
+  PlateauAlert,
+  MilestoneProgress,
+  ForecastData,
+} from "~/server/api/types/plateau-milestone";
 
 interface PlateauMilestoneCardProps {
   className?: string;
@@ -187,11 +192,7 @@ export function PlateauMilestoneCard({ className }: PlateauMilestoneCardProps) {
   );
 }
 
-function PlateauItem({
-  plateau,
-}: {
-  plateau: import("~/server/api/types/plateau-milestone").PlateauAlert;
-}) {
+function PlateauItem({ plateau }: { plateau: PlateauAlert }) {
   const severityColor =
     plateau.severity === "high"
       ? "text-rose-600"
@@ -218,11 +219,7 @@ function PlateauItem({
   );
 }
 
-function MilestoneItem({
-  milestone,
-}: {
-  milestone: import("~/server/api/types/plateau-milestone").MilestoneProgress;
-}) {
+function MilestoneItem({ milestone }: { milestone: MilestoneProgress }) {
   const progressColor =
     milestone.progressPercent >= 90
       ? "text-emerald-600"
@@ -251,11 +248,7 @@ function MilestoneItem({
   );
 }
 
-function ForecastItem({
-  forecast,
-}: {
-  forecast: import("~/server/api/types/plateau-milestone").ForecastData;
-}) {
+function ForecastItem({ forecast }: { forecast: ForecastData }) {
   const confidenceColor =
     forecast.confidencePercent >= 80
       ? "text-emerald-600"

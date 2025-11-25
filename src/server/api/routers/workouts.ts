@@ -90,7 +90,9 @@ async function ensureMasterExerciseLinks(
     );
 
   const existingTemplateIds = new Set(
-    existingLinks.map((link: any) => link.templateExerciseId),
+    existingLinks.map(
+      (link: { templateExerciseId: number }) => link.templateExerciseId,
+    ),
   );
 
   // Find template exercises that need master exercise links

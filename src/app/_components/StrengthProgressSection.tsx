@@ -141,14 +141,14 @@ export function StrengthProgressSection({
 
   // Toggle key lift mutation
   const toggleKeyLift = api.plateauMilestone.toggleKeyLift.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       // Invalidate key lifts query to refresh the UI
       console.log("Mutation successful, invalidating key lifts cache");
-      void queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: getQueryKey(api.plateauMilestone.getKeyLifts),
       });
       // Also invalidate exercise list to get updated masterExerciseId if newly created
-      void queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: getQueryKey(api.progress.getExerciseList),
       });
     },
@@ -183,6 +183,10 @@ export function StrengthProgressSection({
         existing.totalSets += exercise.totalSets;
         if (exercise.lastUsed > existing.lastUsed) {
           existing.lastUsed = exercise.lastUsed;
+        }
+        // Prefer non-null masterExerciseId when merging
+        if (exercise.masterExerciseId && !existing.masterExerciseId) {
+          existing.masterExerciseId = exercise.masterExerciseId;
         }
       }
     }

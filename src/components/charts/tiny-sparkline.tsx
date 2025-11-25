@@ -27,7 +27,7 @@ export const TinySparkline = memo(function TinySparkline({
   width = 120,
   height = 40,
   strokeWidth = 2,
-  color = "var(--md-sys-color-primary)",
+  color = "currentColor",
   showGradient = true,
   ariaLabel = "trend sparkline",
 }: TinySparklineProps) {
@@ -112,7 +112,7 @@ export const TinySparkline = memo(function TinySparkline({
           cx={point.x}
           cy={point.y}
           r={strokeWidth}
-          fill="var(--md-sys-color-surface)"
+          fill="currentColor"
           stroke={color}
           strokeWidth={strokeWidth / 1.5}
           opacity={index === prepared.points.length - 1 ? 1 : 0.4}

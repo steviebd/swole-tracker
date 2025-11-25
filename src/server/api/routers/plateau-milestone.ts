@@ -49,6 +49,7 @@ import type {
   DashboardCardData,
   KeyLiftToggleResponse,
   PlateauDetectionResponse,
+  PlateauAlert,
 } from "~/server/api/types/plateau-milestone";
 
 /**
@@ -732,7 +733,7 @@ export const plateauMilestoneRouter = createTRPCRouter({
           status: "active" as const,
           detectedAt: p.detectedAt,
           recommendations: [], // TODO: Generate
-        }) satisfies import("~/server/api/types/plateau-milestone").PlateauAlert,
+        }) satisfies PlateauAlert,
     );
 
     const milestoneProgress = upcomingMilestones.map((m) => ({
@@ -788,4 +789,292 @@ export const plateauMilestoneRouter = createTRPCRouter({
       lastUpdated: new Date(),
     } satisfies DashboardCardData;
   }),
+
+  // Diagnostic query to check exercise link status
+  checkExerciseLink: protectedProcedure
+    .input(
+      z.object({
+        templateExerciseId: z.number().optional(),
+        exerciseName: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { templateExerciseId, exerciseName } = input;
+
+      if (!templateExerciseId && !exerciseName) {
+        throw new Error(
+          "Either templateExerciseId or exerciseName is required",
+        );
+      }
+
+      let templateExercise;
+      if (templateExerciseId) {
+        const results = await db
+          .select()
+          .from(templateExercises)
+          .where(
+            and(
+              eq(templateExercises.id, templateExerciseId),
+              eq(templateExercises.user_id, ctx.user.id),
+            ),
+          )
+          .limit(1);
+        templateExercise = results[0];
+      } else if (exerciseName) {
+        const results = await db
+          .select()
+          .from(templateExercises)
+          .where(
+            and(
+              eq(templateExercises.exerciseName, exerciseName),
+              eq(templateExercises.user_id, ctx.user.id),
+            ),
+          )
+          .limit(1);
+        templateExercise = results[0];
+      }
+
+      if (!templateExercise) {
+        return {
+          found: false,
+          message: "Template exercise not found",
+        };
+      }
+
+      // Check if exercise link exists
+      const links = await db
+        .select({
+          linkId: exerciseLinks.id,
+          masterExerciseId: exerciseLinks.masterExerciseId,
+          masterExerciseName: masterExercises.name,
+          masterExerciseNormalizedName: masterExercises.normalizedName,
+        })
+        .from(exerciseLinks)
+        .leftJoin(
+          masterExercises,
+          eq(masterExercises.id, exerciseLinks.masterExerciseId),
+        )
+        .where(
+          and(
+            eq(exerciseLinks.templateExerciseId, templateExercise.id),
+            eq(exerciseLinks.user_id, ctx.user.id),
+          ),
+        )
+        .limit(1);
+
+      const link = links[0];
+
+      // Check if key lift exists for this master exercise
+      let keyLiftInfo = null;
+      if (link?.masterExerciseId) {
+        const keyLiftResults = await db
+          .select()
+          .from(keyLifts)
+          .where(
+            and(
+              eq(keyLifts.masterExerciseId, link.masterExerciseId),
+              eq(keyLifts.userId, ctx.user.id),
+            ),
+          )
+          .limit(1);
+        keyLiftInfo = keyLiftResults[0] ?? null;
+      }
+
+      // Find ALL master exercises with similar names (case-insensitive)
+      const normalizedSearchName = templateExercise.exerciseName
+        ?.toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ");
+      const allSimilarMasters = await db
+        .select({
+          id: masterExercises.id,
+          name: masterExercises.name,
+          normalizedName: masterExercises.normalizedName,
+        })
+        .from(masterExercises)
+        .where(eq(masterExercises.user_id, ctx.user.id));
+
+      const similarMasters = allSimilarMasters.filter(
+        (m) =>
+          m.normalizedName === normalizedSearchName ||
+          m.name?.toLowerCase() ===
+            templateExercise.exerciseName?.toLowerCase(),
+      );
+
+      // Check which of these similar masters have key lifts
+      const masterIds = similarMasters.map((m) => m.id);
+      const keyLiftsForSimilar =
+        masterIds.length > 0
+          ? await db
+              .select()
+              .from(keyLifts)
+              .where(
+                and(
+                  eq(keyLifts.userId, ctx.user.id),
+                  sql`${keyLifts.masterExerciseId} IN (${sql.join(
+                    masterIds.map((id) => sql`${id}`),
+                    sql`, `,
+                  )})`,
+                ),
+              )
+          : [];
+
+      return {
+        found: true,
+        templateExercise: {
+          id: templateExercise.id,
+          name: templateExercise.exerciseName,
+          userId: templateExercise.user_id,
+          normalizedNameWouldBe: normalizedSearchName,
+        },
+        exerciseLink: link
+          ? {
+              linkId: link.linkId,
+              masterExerciseId: link.masterExerciseId,
+              masterExerciseName: link.masterExerciseName,
+              masterExerciseNormalizedName: link.masterExerciseNormalizedName,
+            }
+          : null,
+        hasExerciseLink: !!link,
+        keyLift: keyLiftInfo
+          ? {
+              id: keyLiftInfo.id,
+              isTracking: keyLiftInfo.isTracking,
+              maintenanceMode: keyLiftInfo.maintenanceMode,
+            }
+          : null,
+        hasKeyLift: !!keyLiftInfo,
+        // New diagnostic info
+        allSimilarMasterExercises: similarMasters.map((m) => ({
+          id: m.id,
+          name: m.name,
+          normalizedName: m.normalizedName,
+          hasKeyLift: keyLiftsForSimilar.some(
+            (kl) => kl.masterExerciseId === m.id,
+          ),
+          keyLiftDetails: keyLiftsForSimilar.find(
+            (kl) => kl.masterExerciseId === m.id,
+          )
+            ? {
+                isTracking: keyLiftsForSimilar.find(
+                  (kl) => kl.masterExerciseId === m.id,
+                )!.isTracking,
+                maintenanceMode: keyLiftsForSimilar.find(
+                  (kl) => kl.masterExerciseId === m.id,
+                )!.maintenanceMode,
+              }
+            : null,
+        })),
+        diagnosis: {
+          issue:
+            !link && similarMasters.length > 0
+              ? "Template exercise not linked, but similar master exercises exist"
+              : !link
+                ? "Template exercise not linked, no similar master exercises found"
+                : link && !keyLiftInfo && keyLiftsForSimilar.length > 0
+                  ? "Linked to master exercise without key lift, but other similar masters have key lifts"
+                  : "OK",
+          recommendation:
+            !link && similarMasters.length > 0
+              ? `Link template exercise ${templateExercise.id} to master exercise ${similarMasters[0]!.id}`
+              : !link
+                ? "Run migration to create master exercise link"
+                : link && !keyLiftInfo && keyLiftsForSimilar.length > 0
+                  ? `Update exercise link to point to master exercise ${keyLiftsForSimilar[0]!.masterExerciseId}`
+                  : "No action needed",
+        },
+      };
+    }),
+
+  // Fix exercise link by connecting template exercise to correct master exercise
+  fixExerciseLink: protectedProcedure
+    .input(
+      z.object({
+        templateExerciseId: z.number(),
+        targetMasterExerciseId: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { templateExerciseId, targetMasterExerciseId } = input;
+
+      // Verify the master exercise exists and belongs to this user
+      const masterExercise = await db
+        .select()
+        .from(masterExercises)
+        .where(
+          and(
+            eq(masterExercises.id, targetMasterExerciseId),
+            eq(masterExercises.user_id, ctx.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (masterExercise.length === 0) {
+        throw new Error("Master exercise not found or does not belong to you");
+      }
+
+      // Verify the template exercise exists and belongs to this user
+      const templateExercise = await db
+        .select()
+        .from(templateExercises)
+        .where(
+          and(
+            eq(templateExercises.id, templateExerciseId),
+            eq(templateExercises.user_id, ctx.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (templateExercise.length === 0) {
+        throw new Error(
+          "Template exercise not found or does not belong to you",
+        );
+      }
+
+      // Check if link already exists
+      const existingLink = await db
+        .select()
+        .from(exerciseLinks)
+        .where(
+          and(
+            eq(exerciseLinks.templateExerciseId, templateExerciseId),
+            eq(exerciseLinks.user_id, ctx.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (existingLink.length > 0) {
+        // Update existing link
+        await db
+          .update(exerciseLinks)
+          .set({
+            masterExerciseId: targetMasterExerciseId,
+          })
+          .where(
+            and(
+              eq(exerciseLinks.templateExerciseId, templateExerciseId),
+              eq(exerciseLinks.user_id, ctx.user.id),
+            ),
+          );
+
+        return {
+          success: true,
+          action: "updated",
+          message: `Updated exercise link from master ${existingLink[0]!.masterExerciseId} to ${targetMasterExerciseId}`,
+        };
+      } else {
+        // Create new link
+        await db.insert(exerciseLinks).values({
+          user_id: ctx.user.id,
+          templateExerciseId,
+          masterExerciseId: targetMasterExerciseId,
+        });
+
+        return {
+          success: true,
+          action: "created",
+          message: `Created exercise link to master ${targetMasterExerciseId}`,
+        };
+      }
+    }),
 });

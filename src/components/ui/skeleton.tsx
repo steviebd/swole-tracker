@@ -21,16 +21,11 @@ import { cn } from "~/lib/utils";
 const skeletonVariants = cva("relative rounded-md overflow-hidden", {
   variants: {
     variant: {
-      default:
-        "bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container-high) 92%, transparent 8%)]",
-      card:
-        "bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container) 88%, transparent 12%)] border border-[color:color-mix(in srgb, var(--md-sys-color-outline-variant) 60%, transparent 40%)]",
-      text:
-        "bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container-high) 85%, transparent 15%)]",
-      avatar:
-        "rounded-full bg-[color:color-mix(in srgb, var(--md-sys-color-surface-container-high) 90%, transparent 10%)]",
-      button:
-        "border border-[color:color-mix(in srgb, var(--md-sys-color-primary) 35%, transparent 65%)] bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent 82%)]",
+      default: "bg-surface-secondary",
+      card: "bg-surface-secondary border border-border",
+      text: "bg-surface-secondary",
+      avatar: "rounded-full bg-surface-secondary",
+      button: "border border-interactive-primary/35 bg-interactive-primary/18",
     },
     size: {
       sm: "h-3",
@@ -103,11 +98,11 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
         {/* Shimmer effect overlay */}
         {shimmer && !prefersReducedMotion && (
           <motion.div
-            className="absolute inset-0 pointer-events-none"
+            className="pointer-events-none absolute inset-0"
             style={{
               backgroundSize: "200% 100%",
               backgroundImage:
-                "linear-gradient(90deg, transparent, color-mix(in srgb, var(--md-sys-color-surface-tint) 24%, transparent 76%), transparent)",
+                "linear-gradient(90deg, transparent, color-mix(in srgb, currentColor 24%, transparent 76%), transparent)",
             }}
             variants={skeletonShimmerVariants}
             animate="animate"
@@ -120,7 +115,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
             className="absolute inset-0 animate-pulse"
             style={{
               backgroundColor:
-                "color-mix(in srgb, var(--md-sys-color-surface-tint) 18%, transparent 82%)",
+                "color-mix(in srgb, currentColor 18%, transparent 82%)",
             }}
           />
         )}
@@ -244,7 +239,7 @@ const SkeletonChart: React.FC<{
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton
             key={index}
-            className="w-6 bg-[color:color-mix(in srgb, var(--md-sys-color-primary) 18%, transparent 82%)]"
+            className="bg-interactive-primary/18 w-6"
             height={Math.random() * height * 0.6 + height * 0.2}
           />
         ))}

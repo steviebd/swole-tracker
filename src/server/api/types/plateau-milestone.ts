@@ -146,9 +146,7 @@ export interface DashboardCardData {
 }
 
 // User preferences with plateau/milestone settings
-export interface UserPreferencesWithPlateau extends UserPreference {
-  // Additional fields beyond base UserPreference
-}
+export type UserPreferencesWithPlateau = UserPreference;
 
 // Plateau detection context
 export interface PlateauDetectionContext {

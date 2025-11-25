@@ -2,13 +2,22 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { cn } from "~/lib/utils";
 import { GlassSurface } from "../ui/glass-surface";
+import { useSwipeGestures } from "~/hooks/use-swipe-gestures";
 
 /**
  * Progress chart component for weekly/monthly progress visualization
- * 
+ *
  * Features:
  * - Responsive line chart with gradient strokes from design tokens
  * - Glass surface container with backdrop blur
@@ -35,7 +44,7 @@ export interface ProgressChartProps {
   /** Unit of measurement (e.g., "lbs", "reps", "min") */
   unit: string;
   /** Color theme for the chart line */
-  theme?: 'primary' | 'success' | 'warning' | 'info';
+  theme?: "primary" | "success" | "warning" | "info";
   /** Height of the chart in pixels */
   height?: number;
   /** Additional CSS classes */
@@ -43,38 +52,33 @@ export interface ProgressChartProps {
 }
 
 const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
-  ({ 
-    data, 
-    title, 
-    unit, 
-    theme = 'primary',
-    height = 300,
-    className,
-    ...props 
-  }, ref) => {
+  (
+    { data, title, unit, theme = "primary", height = 300, className, ...props },
+    ref,
+  ) => {
     // Calculate min and max for better chart scaling
-    const values = data.map(d => d.value);
+    const values = data.map((d) => d.value);
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
     const padding = (maxValue - minValue) * 0.1 || 10;
-    
+
     const palette = {
-      primary: 'var(--chart-1, #1f78b4)',
-      success: 'var(--chart-3, #33a02c)',
-      warning: 'var(--chart-2, #ff7f0e)',
-      info: 'var(--chart-4, #6a3d9a)',
+      primary: "var(--chart-1, #1f78b4)",
+      success: "var(--chart-3, #33a02c)",
+      warning: "var(--chart-2, #ff7f0e)",
+      info: "var(--chart-4, #6a3d9a)",
     } as const;
 
     const strokeColor = palette[theme] ?? palette.primary;
-    
+
     // Custom tooltip component
     const CustomTooltip = ({ active, payload, label }: any) => {
       if (active && payload?.length) {
         const data = payload[0].payload;
         return (
-          <GlassSurface className="px-3 py-2 shadow-lg border">
+          <GlassSurface className="border px-3 py-2 shadow-lg">
             <div className="text-sm">
-              <div className="font-medium text-foreground">
+              <div className="text-foreground font-medium">
                 {data.fullDate || label}
               </div>
               <div className="font-semibold" style={{ color: strokeColor }}>
@@ -86,7 +90,13 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
       }
       return null;
     };
-    
+
+    const [swipeState, swipeHandlers] = useSwipeGestures(
+      undefined,
+      { dismissThreshold: 100, velocityThreshold: 5 },
+      "horizontal",
+    );
+
     return (
       <motion.div
         ref={ref}
@@ -94,21 +104,20 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className={cn("w-full", className)}
+        {...swipeHandlers}
         {...props}
       >
         <GlassSurface className="p-6">
           {/* Chart header */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-foreground">
-              {title}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h3 className="text-foreground text-lg font-semibold">{title}</h3>
+            <p className="text-muted-foreground mt-1 text-sm">
               Progress over time ({unit})
             </p>
           </div>
-          
+
           {/* Chart container */}
-          <div 
+          <div
             style={{ height }}
             className="w-full"
             role="img"
@@ -120,43 +129,46 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
                 margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
               >
                 {/* Grid */}
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  stroke="var(--md-sys-color-outline-variant)"
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="currentColor"
                   opacity={0.3}
                 />
-                
+
                 {/* X-axis */}
                 <XAxis
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: 'var(--md-sys-color-on-surface-variant)', fontSize: 12 }}
+                  tick={{
+                    fill: "currentColor",
+                    fontSize: 12,
+                  }}
                   dy={10}
                 />
-                
+
                 {/* Y-axis */}
                 <YAxis
-                  domain={[
-                    Math.max(0, minValue - padding),
-                    maxValue + padding
-                  ]}
+                  domain={[Math.max(0, minValue - padding), maxValue + padding]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: 'var(--md-sys-color-on-surface-variant)', fontSize: 12 }}
+                  tick={{
+                    fill: "currentColor",
+                    fontSize: 12,
+                  }}
                   dx={-10}
                 />
-                
+
                 {/* Tooltip */}
                 <Tooltip
                   content={<CustomTooltip />}
                   cursor={{
                     stroke: strokeColor,
                     strokeWidth: 1,
-                    strokeDasharray: '4 4',
+                    strokeDasharray: "4 4",
                   }}
                 />
-                
+
                 {/* Animated line */}
                 <motion.g
                   initial={{ pathLength: 0 }}
@@ -171,13 +183,13 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
                     dot={{
                       fill: strokeColor,
                       strokeWidth: 2,
-                      stroke: 'var(--md-sys-color-surface-container-high)',
+                      stroke: "currentColor",
                       r: 4,
                     }}
                     activeDot={{
                       r: 6,
                       fill: strokeColor,
-                      stroke: 'var(--md-sys-color-surface-container-high)',
+                      stroke: "currentColor",
                       strokeWidth: 2,
                     }}
                     connectNulls={false}
@@ -186,32 +198,33 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
               </LineChart>
             </ResponsiveContainer>
           </div>
-          
+
           {/* Chart stats */}
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-muted">
+          <div className="border-muted mt-4 flex items-center justify-between border-t pt-4">
             <div className="text-center">
-              <div className="text-xs text-muted-foreground">Min</div>
-              <div className="text-sm font-semibold text-foreground">
+              <div className="text-muted-foreground text-xs">Min</div>
+              <div className="text-foreground text-sm font-semibold">
                 {minValue} {unit}
               </div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-muted-foreground">Max</div>
-              <div className="text-sm font-semibold text-foreground">
+              <div className="text-muted-foreground text-xs">Max</div>
+              <div className="text-foreground text-sm font-semibold">
                 {maxValue} {unit}
               </div>
             </div>
             <div className="text-center">
-              <div className="text-xs text-muted-foreground">Avg</div>
-              <div className="text-sm font-semibold text-foreground">
-                {Math.round(values.reduce((a, b) => a + b, 0) / values.length)} {unit}
+              <div className="text-muted-foreground text-xs">Avg</div>
+              <div className="text-foreground text-sm font-semibold">
+                {Math.round(values.reduce((a, b) => a + b, 0) / values.length)}{" "}
+                {unit}
               </div>
             </div>
           </div>
         </GlassSurface>
       </motion.div>
     );
-  }
+  },
 );
 
 ProgressChart.displayName = "ProgressChart";

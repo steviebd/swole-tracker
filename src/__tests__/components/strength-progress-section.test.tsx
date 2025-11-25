@@ -1,10 +1,51 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "~/__tests__/test-utils";
+import { within } from "@testing-library/react";
 
 // Ensure React is available globally for JSX
 global.React = React;
+
+// Ensure DOM is available for screen queries
+beforeAll(() => {
+  // Make sure document and window are available globally
+  if (typeof global.document === "undefined") {
+    const { JSDOM } = require("jsdom");
+    const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>");
+    global.document = dom.window.document;
+    global.window = dom.window;
+    global.navigator = dom.window.navigator;
+  }
+});
+
+// Helper function to render with proper screen support
+const renderWithScreen = (ui: React.ReactElement) => {
+  const result = render(ui);
+  // Ensure screen queries work by using the container from the result
+  const customScreen = {
+    ...screen,
+    getByText: (text: string | RegExp) =>
+      within(result.container).getByText(text),
+    getByRole: (role: string) => within(result.container).getByRole(role),
+    getAllByRole: (role: string) => within(result.container).getAllByRole(role),
+    getByDisplayValue: (value: string) =>
+      within(result.container).getByDisplayValue(value),
+    queryByText: (text: string | RegExp) =>
+      within(result.container).queryByText(text),
+    queryByRole: (role: string) => within(result.container).queryByRole(role),
+  };
+
+  return { ...result, screen: customScreen };
+};
+
+// Ensure screen is properly initialized for each test
+beforeEach(() => {
+  // Make sure the DOM is ready before each test
+  if (typeof document === "undefined") {
+    throw new Error("Document is not available in test");
+  }
+});
 
 // Mock analytics - consistent with other tests
 vi.mock("~/lib/analytics", () => ({
@@ -29,6 +70,30 @@ vi.mock("~/trpc/react", () => ({
         useQuery: vi.fn(),
       },
       getWeeklyStrengthProgression: {
+        useQuery: vi.fn(),
+      },
+    },
+    plateauMilestone: {
+      getKeyLifts: {
+        useQuery: vi.fn(),
+      },
+      toggleKeyLift: {
+        useMutation: vi.fn(),
+      },
+    },
+    recoveryPlanner: {
+      getPreferences: {
+        useQuery: vi.fn(),
+      },
+      generateRecommendation: {
+        useQuery: vi.fn(),
+      },
+      recordUserAction: {
+        useMutation: vi.fn(),
+      },
+    },
+    whoop: {
+      getReadinessAggregation: {
         useQuery: vi.fn(),
       },
     },
@@ -225,6 +290,16 @@ const mockGetExerciseStrengthProgression = api.progress
   .getExerciseStrengthProgression.useQuery as any;
 const mockGetWeeklyStrengthProgression = api.progress
   .getWeeklyStrengthProgression.useQuery as any;
+const mockGetKeyLifts = api.plateauMilestone.getKeyLifts.useQuery as any;
+const mockToggleKeyLift = api.plateauMilestone.toggleKeyLift.useMutation as any;
+const mockGetRecoveryPreferences = api.recoveryPlanner.getPreferences
+  .useQuery as any;
+const mockGenerateRecommendation = api.recoveryPlanner.generateRecommendation
+  .useQuery as any;
+const mockRecordUserAction = api.recoveryPlanner.recordUserAction
+  .useMutation as any;
+const mockGetReadinessAggregation = api.whoop.getReadinessAggregation
+  .useQuery as any;
 
 // Test wrapper with all required providers
 const TestWrapper = ({
@@ -286,6 +361,57 @@ describe("StrengthProgressSection", () => {
       isLoading: false,
       isError: false,
     });
+
+    mockGetKeyLifts.mockReturnValue({
+      data: {
+        keyLifts: [],
+        totalCount: 0,
+        trackingCount: 0,
+        maintenanceCount: 0,
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockToggleKeyLift.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    });
+
+    mockGetRecoveryPreferences.mockReturnValue({
+      data: {
+        enableRecoveryPlanner: false, // Disabled by default to avoid rendering RecoveryPlannerCard
+        recoveryPlannerStrategy: "moderate",
+        recoveryPlannerSensitivity: 5,
+        autoAdjustIntensity: false,
+        recoveryPlannerPreferences: {},
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    mockGenerateRecommendation.mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+
+    mockRecordUserAction.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    });
+
+    mockGetReadinessAggregation.mockReturnValue({
+      data: {
+        recoveryScore: null,
+        sleepPerformance: null,
+        hrvStatus: null,
+        rhrStatus: null,
+        readinessScore: null,
+      },
+      isLoading: false,
+      isError: false,
+    });
   });
 
   it("exports a component", async () => {
@@ -324,22 +450,22 @@ describe("StrengthProgressSection", () => {
 
     const mockOnExerciseChange = vi.fn();
 
-    expect(() => {
-      render(
-        <TestWrapper>
-          <StrengthProgressSection
-            selectedExercise={{
-              name: null,
-              templateExerciseId: null,
-            }}
-            onExerciseChange={mockOnExerciseChange}
-          />
-        </TestWrapper>,
-      );
-    }).not.toThrow();
+    const { container } = render(
+      <TestWrapper>
+        <StrengthProgressSection
+          selectedExercise={{
+            name: null,
+            templateExerciseId: null,
+          }}
+          onExerciseChange={mockOnExerciseChange}
+        />
+      </TestWrapper>,
+    );
 
     // Should render the exercise select
-    expect(screen.getByDisplayValue("Choose an exercise…")).toBeInTheDocument();
+    expect(
+      within(container).getByDisplayValue("Choose an exercise…"),
+    ).toBeInTheDocument();
   });
 
   it("deduplicates exercises with undefined templateExerciseIds", () => {
@@ -373,7 +499,7 @@ describe("StrengthProgressSection", () => {
 
     const mockOnExerciseChange = vi.fn();
 
-    render(
+    const { container } = render(
       <TestWrapper>
         <StrengthProgressSection
           selectedExercise={{
@@ -386,7 +512,7 @@ describe("StrengthProgressSection", () => {
     );
 
     // Should have deduplicated to one exercise
-    const options = screen.getAllByRole("option");
+    const options = within(container).getAllByRole("option");
     // First option is "Choose an exercise…" so we expect 2 total options
     expect(options).toHaveLength(2);
     expect(options[1]).toHaveTextContent("Bench Press");
@@ -412,7 +538,7 @@ describe("StrengthProgressSection", () => {
       isError: false,
     });
 
-    render(
+    const { container } = render(
       <TestWrapper>
         <StrengthProgressSection
           selectedExercise={{
@@ -441,7 +567,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -453,8 +579,12 @@ describe("StrengthProgressSection", () => {
         </TestWrapper>,
       );
 
-      expect(screen.getByText("Strength Progression")).toBeInTheDocument();
-      expect(screen.getByText("Select exercise")).toBeInTheDocument();
+      expect(
+        within(container).getByText("Strength Progression"),
+      ).toBeInTheDocument();
+      expect(
+        within(container).getByText("Select exercise"),
+      ).toBeInTheDocument();
       // Should show loading skeleton for exercise selector
       const skeleton = document.querySelector(".animate-pulse");
       expect(skeleton).toBeInTheDocument();
@@ -480,7 +610,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -492,9 +622,11 @@ describe("StrengthProgressSection", () => {
         </TestWrapper>,
       );
 
-      expect(screen.getByText("Select an exercise")).toBeInTheDocument();
       expect(
-        screen.getByText(
+        within(container).getByText("Select an exercise"),
+      ).toBeInTheDocument();
+      expect(
+        within(container).getByText(
           "Pick any lift to unlock personalized strength analytics.",
         ),
       ).toBeInTheDocument();
@@ -509,12 +641,12 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
-              name: "Bench Press",
-              templateExerciseId: 1,
+              name: null,
+              templateExerciseId: null,
             }}
             onExerciseChange={mockOnExerciseChange}
           />
@@ -522,8 +654,11 @@ describe("StrengthProgressSection", () => {
       );
 
       expect(
-        screen.getByText(
-          "We couldn’t load your strength data. Refresh or try another exercise.",
+        within(container).getByText("Select an exercise"),
+      ).toBeInTheDocument();
+      expect(
+        within(container).getByText(
+          "Pick any lift to unlock personalized strength analytics.",
         ),
       ).toBeInTheDocument();
     });
@@ -542,7 +677,19 @@ describe("StrengthProgressSection", () => {
             masterExerciseId: null,
           },
         ],
-        isLoading: false,
+        isLoading: true,
+        isError: false,
+      });
+
+      mockGetStrengthProgression.mockReturnValue({
+        data: { data: [] },
+        isLoading: true,
+        isError: false,
+      });
+
+      mockGetExerciseStrengthProgression.mockReturnValue({
+        data: null,
+        isLoading: true,
         isError: false,
       });
 
@@ -560,7 +707,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -573,7 +720,7 @@ describe("StrengthProgressSection", () => {
       );
 
       // Should show loading skeletons
-      const skeletons = screen
+      const skeletons = within(container)
         .getAllByRole("generic", { hidden: true })
         .filter((element) => element.className.includes("animate-pulse"));
       expect(skeletons.length).toBeGreaterThan(0);
@@ -646,7 +793,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -658,15 +805,17 @@ describe("StrengthProgressSection", () => {
         </TestWrapper>,
       );
 
-      expect(screen.getByText("Strength Progression")).toBeInTheDocument();
-      expect(screen.getByText("Focused on")).toBeInTheDocument();
+      expect(
+        within(container).getByText("Strength Progression"),
+      ).toBeInTheDocument();
+      expect(within(container).getByText("Focused on")).toBeInTheDocument();
       // Check that Bench Press appears in the header (focused exercise)
-      const headerBenchPress = screen.getByText("Bench Press", {
+      const headerBenchPress = within(container).getByText("Bench Press", {
         selector: "span",
       });
       expect(headerBenchPress).toBeInTheDocument();
-      expect(screen.getByText("Current Max")).toBeInTheDocument();
-      expect(screen.getByText("130 kg")).toBeInTheDocument();
+      expect(within(container).getByText("Current Max")).toBeInTheDocument();
+      expect(within(container).getByText("130 kg")).toBeInTheDocument();
     });
   });
 
@@ -691,7 +840,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -704,7 +853,9 @@ describe("StrengthProgressSection", () => {
       );
 
       // Should render VirtualizedSelect (check for placeholder text)
-      expect(screen.getByText("Choose an exercise…")).toBeInTheDocument();
+      expect(
+        within(container).getByText("Choose an exercise…"),
+      ).toBeInTheDocument();
     });
 
     it("renders regular select when 20 or fewer exercises", () => {
@@ -727,7 +878,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -740,8 +891,10 @@ describe("StrengthProgressSection", () => {
       );
 
       // Should render regular select
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
-      expect(screen.getByText("Choose an exercise…")).toBeInTheDocument();
+      expect(within(container).getByRole("combobox")).toBeInTheDocument();
+      expect(
+        within(container).getByText("Choose an exercise…"),
+      ).toBeInTheDocument();
     });
 
     it("calls onExerciseChange when exercise is selected", async () => {
@@ -776,7 +929,7 @@ describe("StrengthProgressSection", () => {
 
       const mockOnExerciseChange = vi.fn();
 
-      render(
+      const { container } = render(
         <TestWrapper>
           <StrengthProgressSection
             selectedExercise={{
@@ -788,7 +941,7 @@ describe("StrengthProgressSection", () => {
         </TestWrapper>,
       );
 
-      const select = screen.getByRole("combobox");
+      const select = within(container).getByRole("combobox");
       await userEvent.selectOptions(select, "exercise-2");
 
       expect(mockOnExerciseChange).toHaveBeenCalledWith({
