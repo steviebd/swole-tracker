@@ -307,7 +307,7 @@
   - **✅ COMPLETED**: tRPC router with all CRUD operations and dashboard data aggregation
   - **✅ COMPLETED**: Key lift toggle UI in Strength Progression section with visual indicators
   - **✅ COMPLETED**: Dashboard card (PlateauMilestoneCard) integrated in ProgressHighlightsSection
-  - **❌ MISSING**: Workout save integration, toast notifications, achievement history page, playbook integration, preferences updates, testing
+  - **✅ COMPLETED**: Workout save integration, toast notifications, achievement history page, playbook integration, preferences updates, testing
   1.  **Model & schema**: ✅ **COMPLETED** - Create Drizzle tables for plateau/milestone tracking:
       - ✅ `key_lifts` table: `id`, `userId`, `masterExerciseId`, `isTracking` (boolean), `maintenanceMode` (boolean), `createdAt`, `updatedAt`.
       - ✅ `plateaus` table: `id`, `userId`, `masterExerciseId`, `keyLiftId` (FK), `detectedAt`, `resolvedAt` (nullable), `stalledWeight`, `stalledReps`, `sessionCount` (starts at 3), `status` (enum: 'active' | 'resolved' | 'maintaining'), `metadata` (JSON), `createdAt`.

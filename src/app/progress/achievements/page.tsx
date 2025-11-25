@@ -4,7 +4,7 @@ import { Suspense, lazy } from "react";
 import { headers } from "next/headers";
 
 const AchievementsPage = lazy(() =>
-  import("../_components/AchievementsPage").then((module) => ({
+  import("../../_components/AchievementsPage").then((module) => ({
     default: module.AchievementsPage,
   })),
 );

@@ -111,6 +111,7 @@ export interface PlateauRecommendation {
 
 export interface MilestoneProgress {
   milestone: Milestone;
+  exerciseName?: string;
   currentValue: number;
   progressPercent: number;
   isAchieved: boolean;

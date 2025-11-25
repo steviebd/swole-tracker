@@ -11,6 +11,8 @@ import {
   exerciseLinks,
   templateExercises,
   masterExercises,
+  userPreferences,
+  sessionExercises,
 } from "~/server/db/schema";
 import {
   detectPlateau,
@@ -51,6 +53,32 @@ import type {
   PlateauDetectionResponse,
   PlateauAlert,
 } from "~/server/api/types/plateau-milestone";
+
+/**
+ * Helper function to fetch user preferences with defaults
+ */
+async function getUserPreferences(userId: string) {
+  const prefs = await db
+    .select()
+    .from(userPreferences)
+    .where(eq(userPreferences.user_id, userId))
+    .limit(1);
+
+  if (prefs.length === 0) {
+    // Return defaults if no preferences exist
+    return {
+      experienceLevel: "intermediate" as const,
+      bodyweight: 75, // Default 75kg
+    };
+  }
+
+  return {
+    experienceLevel:
+      (prefs[0]?.experienceLevel as "beginner" | "intermediate" | "advanced") ||
+      "intermediate",
+    bodyweight: prefs[0]?.bodyweight || 75,
+  };
+}
 
 /**
  * Plateau & Milestone Router
@@ -164,12 +192,15 @@ export const plateauMilestoneRouter = createTRPCRouter({
 
       const keyLift = result[0]!;
 
+      // Fetch user preferences for experience level and bodyweight
+      const userPrefs = await getUserPreferences(userId);
+
       // Generate default milestones for this exercise
       const context = {
         userId,
         masterExerciseId,
-        experienceLevel: "intermediate" as const,
-        bodyweight: 150, // Default bodyweight
+        experienceLevel: userPrefs.experienceLevel,
+        bodyweight: userPrefs.bodyweight,
       };
 
       const defaultMilestones = await generateDefaultMilestones(db, context);
@@ -373,8 +404,21 @@ export const plateauMilestoneRouter = createTRPCRouter({
       }
 
       const plateausList = await db
-        .select()
+        .select({
+          id: plateaus.id,
+          masterExerciseId: plateaus.masterExerciseId,
+          stalledWeight: plateaus.stalledWeight,
+          stalledReps: plateaus.stalledReps,
+          sessionCount: plateaus.sessionCount,
+          status: plateaus.status,
+          detectedAt: plateaus.detectedAt,
+          exerciseName: masterExercises.name,
+        })
         .from(plateaus)
+        .leftJoin(
+          masterExercises,
+          eq(plateaus.masterExerciseId, masterExercises.id),
+        )
         .where(and(...whereConditions))
         .orderBy(desc(plateaus.detectedAt))
         .limit(limit)
@@ -402,24 +446,32 @@ export const plateauMilestoneRouter = createTRPCRouter({
           ? totalCount - activeCount
           : plateausList.filter((p) => p.status === "resolved").length;
 
+      // Helper function to calculate duration in weeks
+      const calculateDurationWeeks = (detectedAt: Date): number => {
+        const now = new Date();
+        const diffMs = now.getTime() - new Date(detectedAt).getTime();
+        const diffWeeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+        return Math.max(1, diffWeeks);
+      };
+
       return {
         plateaus: plateausList.map((p) => ({
           id: p.id,
-          exerciseName: "", // TODO: Join with masterExercises
+          exerciseName: p.exerciseName || "Unknown Exercise",
           masterExerciseId: p.masterExerciseId,
           stalledWeight: p.stalledWeight,
           stalledReps: p.stalledReps,
           sessionCount: p.sessionCount,
-          durationWeeks: 0, // TODO: Calculate from detectedAt
+          durationWeeks: calculateDurationWeeks(p.detectedAt),
           severity:
             p.sessionCount >= 6
-              ? "high"
+              ? ("high" as const)
               : p.sessionCount >= 4
-                ? "medium"
-                : "low",
+                ? ("medium" as const)
+                : ("low" as const),
           status: p.status as "active" | "resolved" | "maintaining",
           detectedAt: p.detectedAt,
-          recommendations: [], // TODO: Generate recommendations
+          recommendations: [], // Recommendations can be fetched separately via getPlateauRecommendations
         })),
         totalCount,
         activeCount,
@@ -490,7 +542,7 @@ export const plateauMilestoneRouter = createTRPCRouter({
       const userId = ctx.user.id;
       const { limit, offset, achievedOnly, upcomingOnly } = input;
 
-      // Get milestones with achievement status
+      // Get milestones with achievement status and exercise names
       const milestonesList = await db
         .select({
           id: milestones.id,
@@ -505,8 +557,13 @@ export const plateauMilestoneRouter = createTRPCRouter({
           createdAt: milestones.createdAt,
           achievedAt: milestoneAchievements.achievedAt,
           achievedValue: milestoneAchievements.achievedValue,
+          exerciseName: masterExercises.name,
         })
         .from(milestones)
+        .leftJoin(
+          masterExercises,
+          eq(milestones.masterExerciseId, masterExercises.id),
+        )
         .leftJoin(
           milestoneAchievements,
           and(
@@ -531,16 +588,82 @@ export const plateauMilestoneRouter = createTRPCRouter({
         );
       }
 
+      // Get unique master exercise IDs for current value lookups
+      const masterExerciseIds = [
+        ...new Set(
+          filteredMilestones
+            .map((m) => m.masterExerciseId)
+            .filter((id): id is number => id !== null),
+        ),
+      ];
+
+      // Fetch current values for all exercises
+      const currentValues =
+        masterExerciseIds.length > 0
+          ? await db
+              .select({
+                masterExerciseId: exerciseLinks.masterExerciseId,
+                oneRmEstimate: sql<number>`MAX(${sessionExercises.one_rm_estimate})`,
+                volumeLoad: sql<number>`MAX(${sessionExercises.volume_load})`,
+              })
+              .from(sessionExercises)
+              .innerJoin(
+                exerciseLinks,
+                and(
+                  eq(
+                    exerciseLinks.templateExerciseId,
+                    sessionExercises.templateExerciseId,
+                  ),
+                  eq(exerciseLinks.user_id, userId),
+                ),
+              )
+              .where(
+                and(
+                  eq(sessionExercises.user_id, userId),
+                  sql`${exerciseLinks.masterExerciseId} IN (${sql.join(
+                    masterExerciseIds.map((id) => sql`${id}`),
+                    sql`, `,
+                  )})`,
+                ),
+              )
+              .groupBy(exerciseLinks.masterExerciseId)
+          : [];
+
+      const currentValueMap = new Map(
+        currentValues.map((cv) => [
+          cv.masterExerciseId,
+          {
+            oneRm: cv.oneRmEstimate || 0,
+            volume: cv.volumeLoad || 0,
+          },
+        ]),
+      );
+
       // Calculate progress for each milestone
       const milestoneProgress = filteredMilestones.map((milestone) => {
-        const currentValue = 0; // TODO: Calculate from user's actual performance
+        const milestoneType = milestone.type as
+          | "absolute_weight"
+          | "bodyweight_multiplier"
+          | "volume";
+
+        const currentData = milestone.masterExerciseId
+          ? currentValueMap.get(milestone.masterExerciseId)
+          : undefined;
+
+        let currentValue = 0;
+        if (
+          milestoneType === "absolute_weight" ||
+          milestoneType === "bodyweight_multiplier"
+        ) {
+          currentValue = currentData?.oneRm || 0;
+        } else if (milestoneType === "volume") {
+          currentValue = currentData?.volume || 0;
+        }
+
         const progressPercent = calculateMilestoneProgress(
           currentValue,
           milestone.targetValue,
-          milestone.type as
-            | "absolute_weight"
-            | "bodyweight_multiplier"
-            | "volume",
+          milestoneType,
         );
 
         return {
@@ -548,10 +671,7 @@ export const plateauMilestoneRouter = createTRPCRouter({
             id: milestone.id,
             userId: milestone.userId,
             masterExerciseId: milestone.masterExerciseId,
-            type: milestone.type as
-              | "absolute_weight"
-              | "bodyweight_multiplier"
-              | "volume",
+            type: milestoneType,
             targetValue: milestone.targetValue,
             targetMultiplier: milestone.targetMultiplier,
             isSystemDefault: milestone.isSystemDefault,
@@ -562,11 +682,11 @@ export const plateauMilestoneRouter = createTRPCRouter({
               | "advanced",
             createdAt: milestone.createdAt,
           },
+          exerciseName: milestone.exerciseName || "Unknown Exercise",
           currentValue,
           progressPercent,
           isAchieved: milestone.achievedAt !== null,
           ...(milestone.achievedAt && { achievedAt: milestone.achievedAt }),
-          // estimatedDate: undefined, // TODO: Calculate based on progression rate
         };
       });
 
@@ -661,25 +781,102 @@ export const plateauMilestoneRouter = createTRPCRouter({
       const userId = ctx.user.id;
       const { limit, offset } = input;
 
-      const forecasts = await getActivePRForecasts(db, userId);
+      // Fetch forecasts with master exercise names
+      const forecastsWithNames = await db
+        .select({
+          masterExerciseId: prForecasts.masterExerciseId,
+          forecastedWeight: prForecasts.forecastedWeight,
+          estimatedWeeksLow: prForecasts.estimatedWeeksLow,
+          estimatedWeeksHigh: prForecasts.estimatedWeeksHigh,
+          confidencePercent: prForecasts.confidencePercent,
+          calculatedAt: prForecasts.calculatedAt,
+          exerciseName: masterExercises.name,
+        })
+        .from(prForecasts)
+        .leftJoin(
+          masterExercises,
+          eq(prForecasts.masterExerciseId, masterExercises.id),
+        )
+        .where(eq(prForecasts.userId, userId))
+        .orderBy(desc(prForecasts.calculatedAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Get current 1RM values for these exercises
+      const masterExerciseIds = forecastsWithNames.map(
+        (f) => f.masterExerciseId,
+      );
+      const currentValues =
+        masterExerciseIds.length > 0
+          ? await db
+              .select({
+                masterExerciseId: exerciseLinks.masterExerciseId,
+                oneRmEstimate: sql<number>`MAX(${sessionExercises.one_rm_estimate})`,
+              })
+              .from(sessionExercises)
+              .innerJoin(
+                exerciseLinks,
+                and(
+                  eq(
+                    exerciseLinks.templateExerciseId,
+                    sessionExercises.templateExerciseId,
+                  ),
+                  eq(exerciseLinks.user_id, userId),
+                ),
+              )
+              .where(
+                and(
+                  eq(sessionExercises.user_id, userId),
+                  sql`${exerciseLinks.masterExerciseId} IN (${sql.join(
+                    masterExerciseIds.map((id) => sql`${id}`),
+                    sql`, `,
+                  )})`,
+                ),
+              )
+              .groupBy(exerciseLinks.masterExerciseId)
+          : [];
+
+      const currentValueMap = new Map(
+        currentValues.map((cv) => [cv.masterExerciseId, cv.oneRmEstimate || 0]),
+      );
+
+      const totalCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(prForecasts)
+        .where(eq(prForecasts.userId, userId))
+        .then((result) => result[0]?.count || 0);
 
       return {
-        forecasts: forecasts.slice(offset, offset + limit).map((f) => ({
-          exerciseName: "", // TODO: Join with masterExercises
-          masterExerciseId: f.masterExerciseId,
-          currentWeight: 0, // TODO: Calculate from user's actual performance
-          forecastedWeight: f.forecastedWeight,
-          estimatedWeeksLow: f.estimatedWeeksLow,
-          estimatedWeeksHigh: f.estimatedWeeksHigh,
-          confidencePercent: f.confidencePercent,
-          calculatedAt: f.calculatedAt,
-          trajectory: "stable" as const, // TODO: Calculate from trend
-        })),
-        totalCount: forecasts.length,
+        forecasts: forecastsWithNames.map((f) => {
+          const currentWeight = currentValueMap.get(f.masterExerciseId) || 0;
+          let trajectory: "improving" | "stable" | "declining" = "stable";
+
+          // Calculate trajectory based on current vs forecasted
+          if (f.forecastedWeight > currentWeight * 1.05) {
+            trajectory = "improving";
+          } else if (f.forecastedWeight < currentWeight * 0.95) {
+            trajectory = "declining";
+          }
+
+          return {
+            exerciseName: f.exerciseName || "Unknown Exercise",
+            masterExerciseId: f.masterExerciseId,
+            currentWeight,
+            forecastedWeight: f.forecastedWeight,
+            estimatedWeeksLow: f.estimatedWeeksLow,
+            estimatedWeeksHigh: f.estimatedWeeksHigh,
+            confidencePercent: f.confidencePercent,
+            calculatedAt: f.calculatedAt,
+            trajectory,
+          };
+        }),
+        totalCount,
         averageConfidence:
-          forecasts.length > 0
-            ? forecasts.reduce((sum, f) => sum + f.confidencePercent, 0) /
-              forecasts.length
+          forecastsWithNames.length > 0
+            ? forecastsWithNames.reduce(
+                (sum, f) => sum + f.confidencePercent,
+                0,
+              ) / forecastsWithNames.length
             : 0,
       } satisfies ForecastListResponse;
     }),
@@ -688,96 +885,293 @@ export const plateauMilestoneRouter = createTRPCRouter({
   getDashboardData: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
 
-    // Get all data for dashboard
-    const [activePlateaus, upcomingMilestones, prForecasts] = await Promise.all(
-      [
-        getActivePlateaus(db, userId),
-        db
-          .select()
-          .from(milestones)
-          .leftJoin(
-            milestoneAchievements,
-            and(
-              eq(milestoneAchievements.milestoneId, milestones.id),
-              eq(milestoneAchievements.userId, userId),
-            ),
-          )
-          .where(
-            and(
-              eq(milestones.userId, userId),
-              sql`${milestoneAchievements.achievedAt} IS NULL`,
-            ),
-          )
-          .orderBy(milestones.targetValue)
-          .limit(5),
-        getActivePRForecasts(db, userId),
-      ],
+    // Fetch user preferences for experience level
+    const userPrefs = await getUserPreferences(userId);
+
+    // Get all data for dashboard with proper JOINs
+    const [
+      activePlateaus,
+      upcomingMilestonesWithExercises,
+      prForecastsData,
+      totalKeyLiftsCount,
+    ] = await Promise.all([
+      // Fetch plateaus with master exercise names
+      db
+        .select({
+          id: plateaus.id,
+          masterExerciseId: plateaus.masterExerciseId,
+          stalledWeight: plateaus.stalledWeight,
+          stalledReps: plateaus.stalledReps,
+          sessionCount: plateaus.sessionCount,
+          confidenceLevel: plateaus.metadata,
+          status: plateaus.status,
+          detectedAt: plateaus.detectedAt,
+          exerciseName: masterExercises.name,
+        })
+        .from(plateaus)
+        .leftJoin(
+          masterExercises,
+          eq(plateaus.masterExerciseId, masterExercises.id),
+        )
+        .where(and(eq(plateaus.userId, userId), eq(plateaus.status, "active")))
+        .orderBy(desc(plateaus.detectedAt)),
+
+      // Fetch milestones with master exercise names
+      db
+        .select({
+          milestone: {
+            id: milestones.id,
+            userId: milestones.userId,
+            masterExerciseId: milestones.masterExerciseId,
+            type: milestones.type,
+            targetValue: milestones.targetValue,
+            targetMultiplier: milestones.targetMultiplier,
+            isSystemDefault: milestones.isSystemDefault,
+            isCustomized: milestones.isCustomized,
+            experienceLevel: milestones.experienceLevel,
+            createdAt: milestones.createdAt,
+          },
+          exerciseName: masterExercises.name,
+          achievedAt: milestoneAchievements.achievedAt,
+        })
+        .from(milestones)
+        .leftJoin(
+          masterExercises,
+          eq(milestones.masterExerciseId, masterExercises.id),
+        )
+        .leftJoin(
+          milestoneAchievements,
+          and(
+            eq(milestoneAchievements.milestoneId, milestones.id),
+            eq(milestoneAchievements.userId, userId),
+          ),
+        )
+        .where(
+          and(
+            eq(milestones.userId, userId),
+            sql`${milestoneAchievements.achievedAt} IS NULL`,
+          ),
+        )
+        .orderBy(milestones.targetValue)
+        .limit(5),
+
+      // Fetch forecasts with master exercise names
+      db
+        .select({
+          masterExerciseId: prForecasts.masterExerciseId,
+          forecastedWeight: prForecasts.forecastedWeight,
+          estimatedWeeksLow: prForecasts.estimatedWeeksLow,
+          estimatedWeeksHigh: prForecasts.estimatedWeeksHigh,
+          confidencePercent: prForecasts.confidencePercent,
+          calculatedAt: prForecasts.calculatedAt,
+          exerciseName: masterExercises.name,
+        })
+        .from(prForecasts)
+        .leftJoin(
+          masterExercises,
+          eq(prForecasts.masterExerciseId, masterExercises.id),
+        )
+        .where(eq(prForecasts.userId, userId))
+        .orderBy(desc(prForecasts.calculatedAt))
+        .limit(5),
+
+      // Count total key lifts
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(keyLifts)
+        .where(eq(keyLifts.userId, userId))
+        .then((result) => result[0]?.count || 0),
+    ]);
+
+    // Get unique master exercise IDs for current value lookups
+    const masterExerciseIds = [
+      ...new Set([
+        ...upcomingMilestonesWithExercises.map(
+          (m) => m.milestone.masterExerciseId,
+        ),
+        ...prForecastsData.map((f) => f.masterExerciseId),
+      ]),
+    ].filter((id): id is number => id !== null);
+
+    // Fetch current 1RM values for all exercises in one query
+    const currentValues = await db
+      .select({
+        masterExerciseId: exerciseLinks.masterExerciseId,
+        oneRmEstimate: sql<number>`MAX(${sessionExercises.one_rm_estimate})`,
+        weight: sql<number>`MAX(${sessionExercises.weight})`,
+        volumeLoad: sql<number>`MAX(${sessionExercises.volume_load})`,
+      })
+      .from(sessionExercises)
+      .innerJoin(
+        exerciseLinks,
+        and(
+          eq(
+            exerciseLinks.templateExerciseId,
+            sessionExercises.templateExerciseId,
+          ),
+          eq(exerciseLinks.user_id, userId),
+        ),
+      )
+      .where(
+        and(
+          eq(sessionExercises.user_id, userId),
+          sql`${exerciseLinks.masterExerciseId} IN (${sql.join(
+            masterExerciseIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})`,
+        ),
+      )
+      .groupBy(exerciseLinks.masterExerciseId);
+
+    // Create a lookup map for current values
+    const currentValueMap = new Map(
+      currentValues.map((cv) => [
+        cv.masterExerciseId,
+        {
+          oneRm: cv.oneRmEstimate || 0,
+          weight: cv.weight || 0,
+          volume: cv.volumeLoad || 0,
+        },
+      ]),
     );
 
-    // Transform data for dashboard
-    const plateauAlerts = activePlateaus.map(
-      (p) =>
-        ({
+    // Calculate duration in weeks helper
+    const calculateDurationWeeks = (detectedAt: Date): number => {
+      const now = new Date();
+      const diffMs = now.getTime() - new Date(detectedAt).getTime();
+      const diffWeeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+      return Math.max(1, diffWeeks);
+    };
+
+    // Transform plateaus with recommendations
+    const plateauAlerts = await Promise.all(
+      activePlateaus.map(async (p) => {
+        const durationWeeks = calculateDurationWeeks(p.detectedAt);
+
+        // Parse confidence level from metadata JSON
+        let confidenceLevel = "medium";
+        try {
+          const metadata =
+            typeof p.confidenceLevel === "string"
+              ? JSON.parse(p.confidenceLevel)
+              : p.confidenceLevel;
+          confidenceLevel = metadata?.confidenceLevel || "medium";
+        } catch {
+          // Use default
+        }
+
+        // Generate recommendations based on duration
+        const recommendations = generatePlateauRecommendations({
+          userId,
+          masterExerciseId: p.masterExerciseId,
+          sessions: [], // TODO: Fetch actual session data for this plateau
+          maintenanceMode: false,
+          experienceLevel: userPrefs.experienceLevel,
+        });
+
+        return {
           id: p.id,
-          exerciseName: "", // TODO: Join with masterExercises
+          exerciseName: p.exerciseName || "Unknown Exercise",
           masterExerciseId: p.masterExerciseId,
           stalledWeight: p.stalledWeight,
           stalledReps: p.stalledReps,
           sessionCount: p.sessionCount,
-          durationWeeks: 0, // TODO: Calculate
-          severity: (p.confidenceLevel === "high"
+          durationWeeks,
+          severity: (confidenceLevel === "high"
             ? "high"
-            : p.confidenceLevel === "medium"
+            : confidenceLevel === "medium"
               ? "medium"
               : "low") as "low" | "medium" | "high",
           status: "active" as const,
           detectedAt: p.detectedAt,
-          recommendations: [], // TODO: Generate
-        }) satisfies PlateauAlert,
+          recommendations: recommendations.slice(0, 3), // Top 3 recommendations
+        } satisfies PlateauAlert;
+      }),
     );
 
-    const milestoneProgress = upcomingMilestones.map((m) => ({
-      milestone: {
-        id: m.milestones.id,
-        userId: m.milestones.userId,
-        masterExerciseId: m.milestones.masterExerciseId,
-        type: m.milestones.type as
-          | "absolute_weight"
-          | "bodyweight_multiplier"
-          | "volume",
-        targetValue: m.milestones.targetValue,
-        targetMultiplier: m.milestones.targetMultiplier,
-        isSystemDefault: m.milestones.isSystemDefault,
-        isCustomized: m.milestones.isCustomized,
-        experienceLevel: m.milestones.experienceLevel as
-          | "beginner"
-          | "intermediate"
-          | "advanced",
-        createdAt: m.milestones.createdAt,
-      },
-      currentValue: 0, // TODO: Calculate
-      progressPercent: 0, // TODO: Calculate
-      isAchieved: false,
-    }));
+    // Transform milestones with current progress
+    const milestoneProgress = upcomingMilestonesWithExercises.map((m) => {
+      const currentData = m.milestone.masterExerciseId
+        ? currentValueMap.get(m.milestone.masterExerciseId)
+        : undefined;
 
-    const forecastData = prForecasts.map((f) => ({
-      exerciseName: "", // TODO: Join with masterExercises
-      masterExerciseId: f.masterExerciseId,
-      currentWeight: 0, // TODO: Calculate
-      forecastedWeight: f.forecastedWeight,
-      estimatedWeeksLow: f.estimatedWeeksLow,
-      estimatedWeeksHigh: f.estimatedWeeksHigh,
-      confidencePercent: f.confidencePercent,
-      calculatedAt: f.calculatedAt,
-      trajectory: "stable" as const, // TODO: Calculate
-    }));
+      let currentValue = 0;
+      const milestoneType = m.milestone.type as
+        | "absolute_weight"
+        | "bodyweight_multiplier"
+        | "volume";
+
+      // Calculate current value based on milestone type
+      if (milestoneType === "absolute_weight") {
+        currentValue = currentData?.oneRm || 0;
+      } else if (milestoneType === "volume") {
+        currentValue = currentData?.volume || 0;
+      } else if (milestoneType === "bodyweight_multiplier") {
+        // For bodyweight multipliers, use 1RM
+        currentValue = currentData?.oneRm || 0;
+      }
+
+      const progressPercent = calculateMilestoneProgress(
+        currentValue,
+        m.milestone.targetValue,
+        milestoneType,
+      );
+
+      return {
+        milestone: {
+          id: m.milestone.id,
+          userId: m.milestone.userId,
+          masterExerciseId: m.milestone.masterExerciseId,
+          type: milestoneType,
+          targetValue: m.milestone.targetValue,
+          targetMultiplier: m.milestone.targetMultiplier,
+          isSystemDefault: m.milestone.isSystemDefault,
+          isCustomized: m.milestone.isCustomized,
+          experienceLevel: m.milestone.experienceLevel as
+            | "beginner"
+            | "intermediate"
+            | "advanced",
+          createdAt: m.milestone.createdAt,
+        },
+        exerciseName: m.exerciseName || "Unknown Exercise",
+        currentValue,
+        progressPercent,
+        isAchieved: false,
+      };
+    });
+
+    // Transform forecasts with current weights
+    const forecastData = prForecastsData.map((f) => {
+      const currentData = currentValueMap.get(f.masterExerciseId);
+      const currentWeight = currentData?.oneRm || 0;
+
+      // Calculate trajectory based on current vs forecasted
+      let trajectory: "improving" | "stable" | "declining" = "stable";
+      if (f.forecastedWeight > currentWeight * 1.05) {
+        trajectory = "improving";
+      } else if (f.forecastedWeight < currentWeight * 0.95) {
+        trajectory = "declining";
+      }
+
+      return {
+        exerciseName: f.exerciseName || "Unknown Exercise",
+        masterExerciseId: f.masterExerciseId,
+        currentWeight,
+        forecastedWeight: f.forecastedWeight,
+        estimatedWeeksLow: f.estimatedWeeksLow,
+        estimatedWeeksHigh: f.estimatedWeeksHigh,
+        confidencePercent: f.confidencePercent,
+        calculatedAt: f.calculatedAt,
+        trajectory,
+      };
+    });
 
     return {
       activePlateaus: plateauAlerts,
       upcomingMilestones: milestoneProgress,
       prForecasts: forecastData,
       summary: {
-        totalKeyLifts: 0, // TODO: Count from keyLifts table
+        totalKeyLifts: totalKeyLiftsCount,
         activePlateauCount: plateauAlerts.length,
         upcomingMilestoneCount: milestoneProgress.length,
         averageConfidence:

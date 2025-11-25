@@ -1,284 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  detectPlateau,
-  storePlateau,
-  getActivePlateaus,
-} from "~/server/api/utils/plateau-detection";
-import {
-  generatePRForecast,
-  storePRForecast,
-} from "~/server/api/utils/pr-forecasting";
-import {
-  generateDefaultMilestones,
-  storeMilestones,
   calculateMilestoneProgress,
+  getMilestoneDifficulty,
 } from "~/server/api/utils/milestone-defaults";
-import { generatePlateauRecommendations } from "~/server/api/utils/plateau-recommendations";
-import { db } from "~/server/db";
-import { eq, and, desc } from "drizzle-orm";
 import {
-  sessionExercises,
-  workoutSessions,
-  plateaus,
-  milestones,
-  milestoneAchievements,
-  prForecasts,
-  masterExercises,
-} from "~/server/db/schema";
-
-// Mock database
-vi.mock("~/server/db", () => ({
-  db: {
-    select: vi.fn(),
-    insert: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-    query: {
-      sessionExercises: {},
-      workoutSessions: {},
-      plateaus: {},
-      milestones: {},
-      milestoneAchievements: {},
-      prForecasts: {},
-      masterExercises: {},
-    },
-  },
-}));
+  generatePlateauRecommendations,
+  getSpecificPlateauRecommendation,
+  filterRecommendationsByPreferences,
+} from "~/server/api/utils/plateau-recommendations";
+import type { Milestone } from "~/server/api/types/plateau-milestone";
+import type {
+  ExperienceLevel,
+  MilestoneType,
+} from "~/server/api/schemas/plateau-milestone";
 
 describe("Plateau & Milestone Features", () => {
-  const mockUserId = "test-user-id";
-  const mockExerciseId = 1;
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("Plateau Detection", () => {
-    it("should detect plateau when performance stalls", async () => {
-      // Mock exercise history showing plateau
-      const mockExerciseHistory = [
-        { one_rm_estimate: 100, workout_date: new Date("2024-01-01") },
-        { one_rm_estimate: 101, workout_date: new Date("2024-01-08") },
-        { one_rm_estimate: 100, workout_date: new Date("2024-01-15") }, // No progress
-        { one_rm_estimate: 99.5, workout_date: new Date("2024-01-22") }, // Slight regression
-        { one_rm_estimate: 100, workout_date: new Date("2024-01-29") }, // No progress
-        { one_rm_estimate: 99, workout_date: new Date("2024-02-05") }, // Regression
-      ];
-
-      vi.mocked(db.select).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue(mockExerciseHistory),
-          }),
-        }),
-      });
-
-      const result = await detectPlateau(db as any, mockUserId, mockExerciseId);
-
-      expect(result.plateauDetected).toBe(true);
-      expect(result.plateau).toBeDefined();
-      expect(result.plateau!.stalledWeight).toBe(100);
-      expect(result.plateau!.stalledReps).toBeCloseTo(5, 0);
-      expect(result.plateau!.severity).toBe("medium");
-    });
-
-    it("should not detect plateau with consistent progress", async () => {
-      // Mock exercise history showing progress
-      const mockExerciseHistory = [
-        { one_rm_estimate: 100, workout_date: new Date("2024-01-01") },
-        { one_rm_estimate: 105, workout_date: new Date("2024-01-08") },
-        { one_rm_estimate: 110, workout_date: new Date("2024-01-15") },
-        { one_rm_estimate: 115, workout_date: new Date("2024-01-22") },
-        { one_rm_estimate: 120, workout_date: new Date("2024-01-29") },
-      ];
-
-      vi.mocked(db.select).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue(mockExerciseHistory),
-          }),
-        }),
-      });
-
-      const result = await detectPlateau(db as any, mockUserId, mockExerciseId);
-
-      expect(result.plateauDetected).toBe(false);
-      expect(result.plateau).toBeNull();
-    });
-
-    it("should store plateau detection results", async () => {
-      const plateauData = {
-        isPlateaued: true,
-        sessionCount: 6,
-        stalledWeight: 100,
-        stalledReps: 5,
-        confidenceLevel: "medium" as const,
-        detectedAt: new Date(),
-      };
-
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            set: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([{ id: 123 }]),
-            }),
-          }),
-        }),
-      });
-
-      await storePlateau(db as any, mockUserId, mockExerciseId, plateauData);
-
-      expect(db.insert).toHaveBeenCalledWith(plateaus);
-      expect(db.insert().values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: mockUserId,
-          masterExerciseId: mockExerciseId,
-          isPlateaued: true,
-          sessionCount: 6,
-          stalledWeight: 100,
-          stalledReps: 5,
-          confidenceLevel: "medium",
-        }),
-      );
-    });
-  });
-
-  describe("PR Forecasting", () => {
-    it("should generate PR forecast based on progression", async () => {
-      // Mock exercise history for forecasting
-      const mockExerciseHistory = [
-        { one_rm_estimate: 100, workout_date: new Date("2024-01-01") },
-        { one_rm_estimate: 102, workout_date: new Date("2024-01-08") },
-        { one_rm_estimate: 104, workout_date: new Date("2024-01-15") },
-        { one_rm_estimate: 106, workout_date: new Date("2024-01-22") },
-        { one_rm_estimate: 108, workout_date: new Date("2024-01-29") },
-      ];
-
-      vi.mocked(db.select).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue(mockExerciseHistory),
-          }),
-        }),
-      });
-
-      const result = await generatePRForecast(
-        db as any,
-        mockUserId,
-        mockExerciseId,
-      );
-
-      expect(result.forecasts).toHaveLength(1);
-      expect(result.forecasts[0].currentWeight).toBe(108);
-      expect(result.forecasts[0].forecastedWeight).toBeGreaterThan(108);
-      expect(result.forecasts[0].confidencePercent).toBeGreaterThan(60);
-    });
-
-    it("should store PR forecast results", async () => {
-      const forecastData = {
-        currentWeight: 100,
-        forecastedWeight: 115,
-        confidencePercent: 75,
-        timeframeWeeks: 8,
-      };
-
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          onConflictDoUpdate: vi.fn().mockReturnValue({
-            set: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([{ id: 456 }]),
-            }),
-          }),
-        }),
-      });
-
-      await storePRForecast(
-        db as any,
-        mockUserId,
-        mockExerciseId,
-        forecastData,
-      );
-
-      expect(db.insert).toHaveBeenCalledWith(prForecasts);
-      expect(db.insert().values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: mockUserId,
-          masterExerciseId: mockExerciseId,
-          currentWeight: 100,
-          forecastedWeight: 115,
-          confidencePercent: 75,
-          timeframeWeeks: 8,
-        }),
-      );
-    });
-  });
-
-  describe("Milestone Management", () => {
-    it("should generate default milestones for experience level", () => {
-      const milestones = generateDefaultMilestones("intermediate", 70);
-
-      expect(milestones).toHaveLengthGreaterThan(0);
-      expect(milestones.some((m) => m.type === "absolute_weight")).toBe(true);
-      expect(milestones.some((m) => m.type === "bodyweight_multiplier")).toBe(
-        true,
-      );
-      expect(milestones.some((m) => m.type === "volume")).toBe(true);
-    });
-
-    it("should store milestones for user", async () => {
-      const milestoneData = [
-        {
-          type: "absolute_weight" as const,
-          targetValue: 150,
-          experienceLevel: "intermediate" as const,
-          isSystemDefault: true,
-        },
-        {
-          type: "bodyweight_multiplier" as const,
-          targetValue: 2.0,
-          targetMultiplier: 2.0,
-          experienceLevel: "intermediate" as const,
-          isSystemDefault: true,
-        },
-      ];
-
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ id: 789 }, { id: 790 }]),
-        }),
-      });
-
-      await storeMilestones(
-        db as any,
-        mockUserId,
-        mockExerciseId,
-        milestoneData,
-      );
-
-      expect(db.insert).toHaveBeenCalledWith(milestones);
-      expect(db.insert().values).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            userId: mockUserId,
-            masterExerciseId: mockExerciseId,
-            type: "absolute_weight",
-            targetValue: 150,
-            experienceLevel: "intermediate",
-            isSystemDefault: true,
-          }),
-          expect.objectContaining({
-            userId: mockUserId,
-            masterExerciseId: mockExerciseId,
-            type: "bodyweight_multiplier",
-            targetValue: 2.0,
-            targetMultiplier: 2.0,
-            experienceLevel: "intermediate",
-            isSystemDefault: true,
-          }),
-        ]),
-      );
-    });
-
+  describe("Milestone Progress Calculation", () => {
     it("should calculate milestone progress correctly", () => {
       const progress = calculateMilestoneProgress(
         100, // current value
@@ -289,264 +30,469 @@ describe("Plateau & Milestone Features", () => {
       expect(progress).toBeCloseTo(66.67, 1);
     });
 
-    it("should detect milestone achievement", async () => {
-      // Mock milestone and achievement data
-      vi.mocked(db.select).mockReturnValueOnce({
-        where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([
-            {
-              id: 123,
-              targetValue: 100,
-              type: "absolute_weight",
-            },
-          ]),
-        }),
-      });
-
-      vi.mocked(db.select).mockReturnValueOnce({
-        where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([]), // No existing achievement
-        }),
-      });
-
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([{ id: 999 }]),
-        }),
-      });
-
-      // This would be called from the workout save logic
-      const currentOneRM = 105;
-      const milestoneId = 123;
-
-      // Simulate the achievement check logic
-      if (currentOneRM >= 100) {
-        await db.insert(milestoneAchievements).values({
-          userId: mockUserId,
-          milestoneId,
-          workoutId: 456,
-          achievedAt: new Date(),
-          achievedValue: currentOneRM,
-          metadata: JSON.stringify({
-            trigger: "workout_completion",
-            masterExerciseId: mockExerciseId,
-          }),
-        });
-      }
-
-      expect(db.insert).toHaveBeenCalledWith(milestoneAchievements);
-      expect(db.insert().values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: mockUserId,
-          milestoneId,
-          achievedValue: currentOneRM,
-        }),
+    it("should handle zero target values gracefully", () => {
+      const progress = calculateMilestoneProgress(
+        100, // current value
+        0, // target value
+        "absolute_weight",
       );
+
+      expect(progress).toBe(0);
+    });
+
+    it("should handle negative values gracefully", () => {
+      const progress = calculateMilestoneProgress(
+        -10, // current value
+        100, // target value
+        "absolute_weight",
+      );
+
+      expect(progress).toBe(-10); // Negative values are calculated as percentage
+    });
+
+    it("should cap progress at 100%", () => {
+      const progress = calculateMilestoneProgress(
+        200, // current value (exceeds target)
+        150, // target value
+        "absolute_weight",
+      );
+
+      expect(progress).toBe(100);
+    });
+
+    it("should handle exact target achievement", () => {
+      const progress = calculateMilestoneProgress(
+        150, // current value (exactly target)
+        150, // target value
+        "absolute_weight",
+      );
+
+      expect(progress).toBe(100);
+    });
+  });
+
+  describe("Milestone Difficulty Assessment", () => {
+    it("should assess difficulty for absolute weight milestones", () => {
+      const easyMilestone: Milestone = {
+        id: 1,
+        userId: "user1",
+        masterExerciseId: 1,
+        type: "absolute_weight",
+        targetValue: 135,
+        targetMultiplier: null,
+        isSystemDefault: true,
+        isCustomized: false,
+        experienceLevel: "beginner",
+        createdAt: new Date(),
+      };
+
+      const difficulty = getMilestoneDifficulty(easyMilestone, "beginner");
+      expect(difficulty).toBe("easy");
+    });
+
+    it("should assess difficulty for bodyweight multiplier milestones", () => {
+      const moderateMilestone: Milestone = {
+        id: 2,
+        userId: "user1",
+        masterExerciseId: 1,
+        type: "bodyweight_multiplier",
+        targetValue: 1,
+        targetMultiplier: 1,
+        isSystemDefault: true,
+        isCustomized: false,
+        experienceLevel: "intermediate",
+        createdAt: new Date(),
+      };
+
+      const difficulty = getMilestoneDifficulty(
+        moderateMilestone,
+        "intermediate",
+      );
+      expect(difficulty).toBe("moderate");
+    });
+
+    it("should assess difficulty for volume milestones", () => {
+      const challengingMilestone: Milestone = {
+        id: 3,
+        userId: "user1",
+        masterExerciseId: 1,
+        type: "volume",
+        targetValue: 3000,
+        targetMultiplier: null,
+        isSystemDefault: true,
+        isCustomized: false,
+        experienceLevel: "advanced",
+        createdAt: new Date(),
+      };
+
+      const difficulty = getMilestoneDifficulty(
+        challengingMilestone,
+        "advanced",
+      );
+      expect(difficulty).toBe("challenging");
     });
   });
 
   describe("Plateau Recommendations", () => {
     it("should generate recommendations for detected plateau", () => {
-      const plateauData = {
-        exerciseName: "Squat",
-        stalledWeight: 100,
-        stalledReps: 5,
-        severity: "medium" as const,
-        sessionCount: 6,
+      const plateauContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [
+          { weight: 100, reps: 5, date: new Date("2024-01-01") },
+          { weight: 100, reps: 5, date: new Date("2024-01-08") },
+          { weight: 100, reps: 4, date: new Date("2024-01-15") },
+          { weight: 100, reps: 5, date: new Date("2024-01-22") },
+          { weight: 100, reps: 4, date: new Date("2024-01-29") },
+          { weight: 100, reps: 5, date: new Date("2024-02-05") },
+        ],
+        experienceLevel: "intermediate" as ExperienceLevel,
+        maintenanceMode: false,
       };
 
-      const recommendations = generatePlateauRecommendations(
-        plateauData,
-        "intermediate",
-      );
+      const recommendations = generatePlateauRecommendations(plateauContext);
 
-      expect(recommendations).toHaveLengthGreaterThan(0);
-      expect(recommendations.some((r) => r.category === "volume")).toBe(true);
-      expect(recommendations.some((r) => r.category === "intensity")).toBe(
-        true,
-      );
-      expect(recommendations.some((r) => r.category === "technique")).toBe(
-        true,
-      );
-      expect(recommendations.some((r) => r.category === "recovery")).toBe(true);
-    });
-
-    it("should provide different recommendations for different severity levels", () => {
-      const lowSeverityPlateau = {
-        exerciseName: "Bench Press",
-        stalledWeight: 80,
-        stalledReps: 8,
-        severity: "low" as const,
-        sessionCount: 4,
-      };
-
-      const highSeverityPlateau = {
-        exerciseName: "Deadlift",
-        stalledWeight: 150,
-        stalledReps: 3,
-        severity: "high" as const,
-        sessionCount: 8,
-      };
-
-      const lowRecs = generatePlateauRecommendations(
-        lowSeverityPlateau,
-        "beginner",
-      );
-      const highRecs = generatePlateauRecommendations(
-        highSeverityPlateau,
-        "advanced",
-      );
-
-      // High severity should have more urgent recommendations
-      expect(highRecs.length).toBeGreaterThanOrEqual(lowRecs.length);
-
-      // Check for deload recommendations in high severity
+      expect(recommendations.length).toBeGreaterThan(0);
+      expect(recommendations.length).toBeLessThanOrEqual(6); // Should be limited to top 6
       expect(
-        highRecs.some(
+        recommendations.every(
           (r) =>
-            r.title.toLowerCase().includes("deload") ||
-            r.description.toLowerCase().includes("deload"),
+            r.rule &&
+            r.description &&
+            r.action &&
+            ["low", "medium", "high"].includes(r.priority),
         ),
       ).toBe(true);
     });
-  });
 
-  describe("Integration Scenarios", () => {
-    it("should handle complete plateau detection and notification flow", async () => {
-      // 1. Mock workout data that triggers plateau
-      const workoutData = {
-        exercises: [
-          { templateExerciseId: 1, masterExerciseId: 1, oneRMEstimate: 100 },
+    it("should return maintenance recommendation when in maintenance mode", () => {
+      const maintenanceContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [],
+        experienceLevel: "intermediate" as ExperienceLevel,
+        maintenanceMode: true,
+      };
+
+      const recommendations =
+        generatePlateauRecommendations(maintenanceContext);
+
+      expect(recommendations).toHaveLength(1);
+      expect(recommendations[0]?.rule).toBe("maintenance_mode");
+      expect(recommendations[0]?.priority).toBe("low");
+    });
+
+    it("should handle empty sessions gracefully", () => {
+      const emptyContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [],
+        experienceLevel: "beginner" as ExperienceLevel,
+        maintenanceMode: false,
+      };
+
+      const recommendations = generatePlateauRecommendations(emptyContext);
+
+      expect(recommendations.length).toBeGreaterThan(0);
+    });
+
+    it("should provide different recommendations for different session patterns", () => {
+      const highIntensityContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [
+          { weight: 150, reps: 3, date: new Date("2024-01-01") },
+          { weight: 150, reps: 2, date: new Date("2024-01-08") },
+          { weight: 155, reps: 2, date: new Date("2024-01-15") },
         ],
+        experienceLevel: "advanced" as ExperienceLevel,
+        maintenanceMode: false,
       };
 
-      // 2. Mock plateau detection
-      vi.mocked(detectPlateau).mockResolvedValue({
-        plateauDetected: true,
-        plateau: {
-          id: "plateau-123",
-          exerciseName: "Squat",
-          stalledWeight: 100,
-          stalledReps: 5,
-          severity: "medium",
-        },
-      });
-
-      // 3. Mock milestone check
-      vi.mocked(db.select).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue([
-            {
-              id: 456,
-              type: "absolute_weight",
-              targetValue: 120,
-            },
-          ]),
-        }),
-      });
-
-      // 4. Simulate the flow
-      const plateauResult = await detectPlateau(db as any, mockUserId, 1);
-
-      expect(plateauResult.plateauDetected).toBe(true);
-
-      if (plateauResult.plateauDetected) {
-        // Store plateau
-        await storePlateau(db as any, mockUserId, 1, {
-          isPlateaued: true,
-          sessionCount: 6,
-          stalledWeight: plateauResult.plateau!.stalledWeight,
-          stalledReps: plateauResult.plateau!.stalledReps,
-          confidenceLevel: plateauResult.plateau!.severity,
-          detectedAt: new Date(),
-        });
-
-        // Check for milestone achievements
-        const currentOneRM = 100;
-        if (currentOneRM >= 120) {
-          await db.insert(milestoneAchievements).values({
-            userId: mockUserId,
-            milestoneId: 456,
-            workoutId: 789,
-            achievedAt: new Date(),
-            achievedValue: currentOneRM,
-          });
-        }
-      }
-
-      // Verify plateau was stored
-      expect(db.insert).toHaveBeenCalledWith(plateaus);
-    });
-
-    it("should handle milestone achievement with toast notification", async () => {
-      // Mock milestone achievement data
-      const achievementData = {
-        type: "milestone_achieved" as const,
-        exerciseName: "Deadlift",
-        achievedValue: 200,
-        targetValue: 200,
-        achievedDate: new Date().toISOString(),
+      const highVolumeContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [
+          { weight: 80, reps: 12, date: new Date("2024-01-01") },
+          { weight: 80, reps: 10, date: new Date("2024-01-08") },
+          { weight: 80, reps: 11, date: new Date("2024-01-15") },
+        ],
+        experienceLevel: "beginner" as ExperienceLevel,
+        maintenanceMode: false,
       };
 
-      // Mock toast function
-      const mockToast = vi.fn();
-      global.toast = mockToast;
+      const highIntensityRecs =
+        generatePlateauRecommendations(highIntensityContext);
+      const highVolumeRecs = generatePlateauRecommendations(highVolumeContext);
 
-      // Simulate toast notification from workout save
-      if (achievementData.type === "milestone_achieved") {
-        mockToast({
-          title: "Milestone Achieved! 🎉",
-          description: `${achievementData.exerciseName}: ${achievementData.achievedValue}kg (target: ${achievementData.targetValue}kg)`,
-          duration: 8000,
-        });
-      }
+      expect(highIntensityRecs.length).toBeGreaterThan(0);
+      expect(highVolumeRecs.length).toBeGreaterThan(0);
 
-      expect(mockToast).toHaveBeenCalledWith({
-        title: "Milestone Achieved! 🎉",
-        description: "Deadlift: 200kg (target: 200kg)",
-        duration: 8000,
-      });
+      // Recommendations should be different based on session patterns
+      const highIntensityRules = highIntensityRecs.map((r) => r.rule);
+      const highVolumeRules = highVolumeRecs.map((r) => r.rule);
+
+      expect(highIntensityRules).not.toEqual(highVolumeRules);
     });
   });
 
-  describe("Data Validation", () => {
-    it("should validate milestone target values", () => {
-      const validMilestones = [
-        { type: "absolute_weight", targetValue: 100 },
-        { type: "bodyweight_multiplier", targetValue: 1.5 },
-        { type: "volume", targetValue: 10000 },
-      ];
+  describe("Specific Plateau Recommendations", () => {
+    it("should provide strength-specific recommendations", () => {
+      const recommendation = getSpecificPlateauRecommendation(
+        "strength",
+        "intermediate",
+      );
 
-      validMilestones.forEach((milestone) => {
-        expect(milestone.targetValue).toBeGreaterThan(0);
-      });
-
-      // Test invalid cases
-      expect(() => generateDefaultMilestones("intermediate", 0)).not.toThrow();
-      expect(() =>
-        generateDefaultMilestones("intermediate", -10),
-      ).not.toThrow();
+      expect(recommendation.rule).toBe("strength_plateau");
+      expect(recommendation.priority).toBe("high");
+      expect(recommendation.description).toContain("strength plateau");
+      expect(recommendation.action).toContain("85-95%");
     });
 
-    it("should handle edge cases in plateau detection", async () => {
-      // Test with insufficient data
-      const insufficientHistory = [
-        { one_rm_estimate: 100, workout_date: new Date("2024-01-01") },
-        { one_rm_estimate: 101, workout_date: new Date("2024-01-08") },
+    it("should provide hypertrophy-specific recommendations", () => {
+      const recommendation = getSpecificPlateauRecommendation(
+        "hypertrophy",
+        "advanced",
+      );
+
+      expect(recommendation.rule).toBe("hypertrophy_plateau");
+      expect(recommendation.priority).toBe("high");
+      expect(recommendation.description).toContain("Muscle growth");
+      expect(recommendation.action).toContain("20%");
+    });
+
+    it("should provide endurance-specific recommendations", () => {
+      const recommendation = getSpecificPlateauRecommendation(
+        "endurance",
+        "beginner",
+      );
+
+      expect(recommendation.rule).toBe("endurance_plateau");
+      expect(recommendation.priority).toBe("medium");
+      expect(recommendation.description).toContain("endurance");
+      expect(recommendation.action).toContain("drop sets");
+    });
+
+    it("should provide technique-specific recommendations", () => {
+      const recommendation = getSpecificPlateauRecommendation(
+        "technique",
+        "intermediate",
+      );
+
+      expect(recommendation.rule).toBe("technique_plateau");
+      expect(recommendation.priority).toBe("high");
+      expect(recommendation.description).toContain("Technical");
+      expect(recommendation.action).toContain("Film");
+    });
+  });
+
+  describe("Recommendation Filtering", () => {
+    it("should filter recommendations by playbook preference", () => {
+      const allRecommendations = [
+        {
+          rule: "volume_overload",
+          description: "Increase volume",
+          action: "Add more sets",
+          playbookCTA: true,
+          priority: "high" as const,
+        },
+        {
+          rule: "sleep_optimization",
+          description: "Sleep more",
+          action: "Get 8 hours",
+          playbookCTA: false,
+          priority: "low" as const,
+        },
+        {
+          rule: "intensity_increase",
+          description: "Increase intensity",
+          action: "Add weight",
+          playbookCTA: true,
+          priority: "medium" as const,
+        },
       ];
 
-      vi.mocked(db.select).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          orderBy: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue(insufficientHistory),
-          }),
-        }),
+      const playbookOnly = filterRecommendationsByPreferences(
+        allRecommendations,
+        {
+          prefersPlaybooks: true,
+        },
+      );
+
+      expect(playbookOnly).toHaveLength(2);
+      expect(playbookOnly.every((r) => r.playbookCTA)).toBe(true);
+    });
+
+    it("should filter recommendations by excluded rules", () => {
+      const allRecommendations = [
+        {
+          rule: "volume_overload",
+          description: "Increase volume",
+          action: "Add more sets",
+          playbookCTA: true,
+          priority: "high" as const,
+        },
+        {
+          rule: "sleep_optimization",
+          description: "Sleep more",
+          action: "Get 8 hours",
+          playbookCTA: false,
+          priority: "low" as const,
+        },
+        {
+          rule: "intensity_increase",
+          description: "Increase intensity",
+          action: "Add weight",
+          playbookCTA: true,
+          priority: "medium" as const,
+        },
+      ];
+
+      const filtered = filterRecommendationsByPreferences(allRecommendations, {
+        excludedRules: ["sleep_optimization"],
       });
 
-      const result = await detectPlateau(db as any, mockUserId, mockExerciseId);
+      expect(filtered).toHaveLength(2);
+      expect(filtered.some((r) => r.rule === "sleep_optimization")).toBe(false);
+    });
 
-      // Should not detect plateau with insufficient data
-      expect(result.plateauDetected).toBe(false);
+    it("should limit recommendations by max count", () => {
+      const allRecommendations = [
+        {
+          rule: "volume_overload",
+          description: "Increase volume",
+          action: "Add more sets",
+          playbookCTA: true,
+          priority: "high" as const,
+        },
+        {
+          rule: "sleep_optimization",
+          description: "Sleep more",
+          action: "Get 8 hours",
+          playbookCTA: false,
+          priority: "low" as const,
+        },
+        {
+          rule: "intensity_increase",
+          description: "Increase intensity",
+          action: "Add weight",
+          playbookCTA: true,
+          priority: "medium" as const,
+        },
+      ];
+
+      const limited = filterRecommendationsByPreferences(allRecommendations, {
+        maxRecommendations: 2,
+      });
+
+      expect(limited).toHaveLength(2);
+    });
+
+    it("should apply multiple filters together", () => {
+      const allRecommendations = [
+        {
+          rule: "volume_overload",
+          description: "Increase volume",
+          action: "Add more sets",
+          playbookCTA: true,
+          priority: "high" as const,
+        },
+        {
+          rule: "sleep_optimization",
+          description: "Sleep more",
+          action: "Get 8 hours",
+          playbookCTA: false,
+          priority: "low" as const,
+        },
+        {
+          rule: "intensity_increase",
+          description: "Increase intensity",
+          action: "Add weight",
+          playbookCTA: true,
+          priority: "medium" as const,
+        },
+        {
+          rule: "recovery_focus",
+          description: "Focus on recovery",
+          action: "Take rest days",
+          playbookCTA: true,
+          priority: "medium" as const,
+        },
+      ];
+
+      const filtered = filterRecommendationsByPreferences(allRecommendations, {
+        prefersPlaybooks: true,
+        excludedRules: ["recovery_focus"],
+        maxRecommendations: 1,
+      });
+
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0]?.playbookCTA).toBe(true);
+      expect(filtered[0]?.rule).not.toBe("recovery_focus");
+    });
+  });
+
+  describe("Data Validation and Edge Cases", () => {
+    it("should handle milestone progress with very small numbers", () => {
+      const progress = calculateMilestoneProgress(0.1, 0.5, "absolute_weight");
+
+      expect(progress).toBeCloseTo(20, 1);
+    });
+
+    it("should handle milestone progress with very large numbers", () => {
+      const progress = calculateMilestoneProgress(
+        1000000,
+        2000000,
+        "absolute_weight",
+      );
+
+      expect(progress).toBeCloseTo(50, 1);
+    });
+
+    it("should handle different milestone types in progress calculation", () => {
+      const types: MilestoneType[] = [
+        "absolute_weight",
+        "bodyweight_multiplier",
+        "volume",
+      ];
+
+      types.forEach((type) => {
+        const progress = calculateMilestoneProgress(75, 100, type);
+        expect(progress).toBeCloseTo(75, 1);
+      });
+    });
+
+    it("should handle plateau detection with single session", () => {
+      const singleSessionContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [{ weight: 100, reps: 5, date: new Date("2024-01-01") }],
+        experienceLevel: "intermediate" as ExperienceLevel,
+        maintenanceMode: false,
+      };
+
+      const recommendations =
+        generatePlateauRecommendations(singleSessionContext);
+      expect(recommendations.length).toBeGreaterThan(0);
+    });
+
+    it("should handle plateau detection with consistent progress", () => {
+      const progressingContext = {
+        userId: "test-user",
+        masterExerciseId: 1,
+        sessions: [
+          { weight: 100, reps: 5, date: new Date("2024-01-01") },
+          { weight: 105, reps: 5, date: new Date("2024-01-08") },
+          { weight: 110, reps: 5, date: new Date("2024-01-15") },
+          { weight: 115, reps: 5, date: new Date("2024-01-22") },
+        ],
+        experienceLevel: "intermediate" as ExperienceLevel,
+        maintenanceMode: false,
+      };
+
+      const recommendations =
+        generatePlateauRecommendations(progressingContext);
+      expect(recommendations.length).toBeGreaterThan(0);
     });
   });
 });

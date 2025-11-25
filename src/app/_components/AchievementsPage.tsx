@@ -36,14 +36,14 @@ export function AchievementsPage() {
       achievedOnly: true,
     });
 
-  // Enhance achievements with exercise names (simplified for now)
+  // Enhance achievements with exercise names
   const achievements = useMemo(() => {
     if (!milestoneData?.milestones) return [];
 
     return milestoneData.milestones.map((achievement: any) => {
       return {
         id: achievement.milestone.id,
-        exerciseName: `Exercise ${achievement.milestone.masterExerciseId}`, // Simplified for now
+        exerciseName: achievement.exerciseName || "Unknown Exercise",
         milestoneType: achievement.milestone.type,
         achievedValue: achievement.achievedAt
           ? achievement.currentValue

@@ -10,6 +10,8 @@ import {
   masterExercises,
   userPreferences,
   playbookSessions,
+  milestones,
+  milestoneAchievements,
 } from "~/server/db/schema";
 import {
   loadResolvedExerciseNameMap,
@@ -1320,13 +1322,33 @@ export const workoutsRouter = createTRPCRouter({
           const plateauNotifications = [];
           const milestoneNotifications = [];
 
-          // Get exercise names for notifications
-          const masterExerciseIds = Array.from(
+          // Get master exercise IDs via exerciseLinks lookup
+          const templateExerciseIds = Array.from(
             new Set(
               input.exercises
-                .map((e) => e.masterExerciseId)
-                .filter((id): id is number => id !== null),
+                .map((e) => e.templateExerciseId)
+                .filter((id): id is number => id !== undefined),
             ),
+          );
+
+          const exerciseLinkResults =
+            templateExerciseIds.length > 0
+              ? await ctx.db
+                  .select({
+                    templateExerciseId: exerciseLinks.templateExerciseId,
+                    masterExerciseId: exerciseLinks.masterExerciseId,
+                  })
+                  .from(exerciseLinks)
+                  .where(
+                    and(
+                      eq(exerciseLinks.user_id, ctx.user.id),
+                      inArray(exerciseLinks.templateExerciseId, templateExerciseIds),
+                    ),
+                  )
+              : [];
+
+          const masterExerciseIds = Array.from(
+            new Set(exerciseLinkResults.map((el) => el.masterExerciseId)),
           );
 
           for (const masterExerciseId of masterExerciseIds) {
@@ -1367,18 +1389,29 @@ export const workoutsRouter = createTRPCRouter({
               );
 
             for (const milestone of activeMilestones) {
-              // Get current best 1RM for this exercise from the session
+              // Get current best 1RM for this exercise from recent sessions
               const currentPerformance = await ctx.db
                 .select({
                   oneRMEstimate: sessionExercises.one_rm_estimate,
                 })
                 .from(sessionExercises)
+                .innerJoin(
+                  exerciseLinks,
+                  and(
+                    eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+                    eq(exerciseLinks.user_id, ctx.user.id),
+                  ),
+                )
+                .innerJoin(
+                  workoutSessions,
+                  eq(workoutSessions.id, sessionExercises.sessionId),
+                )
                 .where(
                   and(
                     eq(sessionExercises.user_id, ctx.user.id),
-                    eq(sessionExercises.master_exercise_id, masterExerciseId),
+                    eq(exerciseLinks.masterExerciseId, masterExerciseId),
                     gte(
-                      sessionExercises.workout_date,
+                      workoutSessions.workoutDate,
                       new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
                     ), // Last 30 days
                   ),
@@ -1411,15 +1444,23 @@ export const workoutsRouter = createTRPCRouter({
                         ),
                     })
                     .from(sessionExercises)
+                    .innerJoin(
+                      exerciseLinks,
+                      and(
+                        eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+                        eq(exerciseLinks.user_id, ctx.user.id),
+                      ),
+                    )
+                    .innerJoin(
+                      workoutSessions,
+                      eq(workoutSessions.id, sessionExercises.sessionId),
+                    )
                     .where(
                       and(
                         eq(sessionExercises.user_id, ctx.user.id),
-                        eq(
-                          sessionExercises.master_exercise_id,
-                          masterExerciseId,
-                        ),
+                        eq(exerciseLinks.masterExerciseId, masterExerciseId),
                         gte(
-                          sessionExercises.workout_date,
+                          workoutSessions.workoutDate,
                           new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
                         ), // Last 7 days
                       ),
@@ -1441,19 +1482,27 @@ export const workoutsRouter = createTRPCRouter({
                       ),
                     })
                     .from(sessionExercises)
+                    .innerJoin(
+                      exerciseLinks,
+                      and(
+                        eq(exerciseLinks.templateExerciseId, sessionExercises.templateExerciseId),
+                        eq(exerciseLinks.user_id, ctx.user.id),
+                      ),
+                    )
+                    .innerJoin(
+                      workoutSessions,
+                      eq(workoutSessions.id, sessionExercises.sessionId),
+                    )
                     .where(
                       and(
                         eq(sessionExercises.user_id, ctx.user.id),
-                        eq(
-                          sessionExercises.master_exercise_id,
-                          masterExerciseId,
-                        ),
+                        eq(exerciseLinks.masterExerciseId, masterExerciseId),
                         gte(
                           sessionExercises.weight,
                           (milestone.targetValue ?? 0) * 0.9,
                         ), // Within 10% of target weight
                         gte(
-                          sessionExercises.workout_date,
+                          workoutSessions.workoutDate,
                           new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
                         ), // Last 30 days
                       ),
@@ -1499,7 +1548,7 @@ export const workoutsRouter = createTRPCRouter({
                     await ctx.db.insert(milestoneAchievements).values({
                       userId: ctx.user.id,
                       milestoneId: milestone.id,
-                      workoutId: sessionId,
+                      workoutId: input.sessionId,
                       achievedAt: new Date(),
                       achievedValue: currentOneRM,
                       metadata: JSON.stringify({
