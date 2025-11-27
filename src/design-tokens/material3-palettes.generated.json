@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-10-01T01:20:01.779Z",
+  "generatedAt": "2025-11-27T04:40:17.119Z",
   "tones": [
     0,
     10,
@@ -23,7 +23,7 @@
           "10": "#3c1902",
           "20": "#632a03",
           "30": "#9f4404",
-          "40": "#c05005",
+          "40": "#d15905",
           "50": "#f96a06",
           "60": "#fa8838",
           "70": "#fbab74",
@@ -53,7 +53,7 @@
           "10": "#093419",
           "20": "#0f572a",
           "30": "#188b42",
-          "40": "#177a36",
+          "40": "#20b757",
           "50": "#26d968",
           "60": "#51e186",
           "70": "#85eaaa",
@@ -111,7 +111,7 @@
       },
       "schemes": {
         "light": {
-          "primary": "#c05005",
+          "primary": "#9f4404",
           "onPrimary": "#ffffff",
           "primaryContainer": "#f4e3d7",
           "onPrimaryContainer": "#3c1902",
@@ -119,7 +119,7 @@
           "onSecondary": "#ffffff",
           "secondaryContainer": "#d9e1f2",
           "onSecondaryContainer": "#051538",
-          "tertiary": "#177a36",
+          "tertiary": "#0f572a",
           "onTertiary": "#ffffff",
           "tertiaryContainer": "#dbf0e3",
           "onTertiaryContainer": "#093419",
@@ -140,7 +140,7 @@
           "inverseSurface": "#2f3237",
           "inverseOnSurface": "#f4f5f5",
           "inversePrimary": "#fdc9a6",
-          "surfaceTint": "#c05005"
+          "surfaceTint": "#d15905"
         },
         "dark": {
           "primary": "#fdc9a6",
@@ -149,7 +149,7 @@
           "onPrimaryContainer": "#f4e3d7",
           "secondary": "#abc3f7",
           "onSecondary": "#09235d",
-          "secondaryContainer": "#0e3895",
+          "secondaryContainer": "#09235d",
           "onSecondaryContainer": "#d9e1f2",
           "tertiary": "#b1f1c9",
           "onTertiary": "#0f572a",
@@ -219,7 +219,7 @@
           "0": "#000000",
           "10": "#043239",
           "20": "#07535f",
-          "30": "#0a6c79",
+          "30": "#0c8598",
           "40": "#0fafc7",
           "50": "#12d0ed",
           "60": "#42d9f0",
@@ -293,7 +293,7 @@
       },
       "schemes": {
         "light": {
-          "primary": "#d64a00",
+          "primary": "#a33900",
           "onPrimary": "#ffffff",
           "primaryContainer": "#f5e1d6",
           "onPrimaryContainer": "#3d1500",
@@ -301,7 +301,7 @@
           "onSecondary": "#ffffff",
           "secondaryContainer": "#d8eff3",
           "onSecondaryContainer": "#043239",
-          "tertiary": "#6e0acd",
+          "tertiary": "#340561",
           "onTertiary": "#ffffff",
           "tertiaryContainer": "#e6d8f3",
           "onTertiaryContainer": "#1f033a",
@@ -331,7 +331,7 @@
           "onPrimaryContainer": "#f5e1d6",
           "secondary": "#aaeef8",
           "onSecondary": "#07535f",
-          "secondaryContainer": "#0a6c79",
+          "secondaryContainer": "#07535f",
           "onSecondaryContainer": "#d8eff3",
           "tertiary": "#d2a7fb",
           "onTertiary": "#340561",
@@ -475,7 +475,7 @@
       },
       "schemes": {
         "light": {
-          "primary": "#d63700",
+          "primary": "#a32a00",
           "onPrimary": "#ffffff",
           "primaryContainer": "#f5ded6",
           "onPrimaryContainer": "#3d1000",
@@ -483,7 +483,7 @@
           "onSecondary": "#ffffff",
           "secondaryContainer": "#d7ebf4",
           "onSecondaryContainer": "#022a3b",
-          "tertiary": "#0761d0",
+          "tertiary": "#032e63",
           "onTertiary": "#ffffff",
           "tertiaryContainer": "#d7e4f4",
           "onTertiaryContainer": "#021c3b",
@@ -513,7 +513,7 @@
           "onPrimaryContainer": "#f5ded6",
           "secondary": "#a6e2fc",
           "onSecondary": "#034563",
-          "secondaryContainer": "#066f9e",
+          "secondaryContainer": "#034563",
           "onSecondaryContainer": "#d7ebf4",
           "tertiary": "#a6cdfc",
           "onTertiary": "#032e63",
@@ -569,7 +569,7 @@
           "10": "#331d0a",
           "20": "#553011",
           "30": "#884c1b",
-          "40": "#a8581d",
+          "40": "#b26424",
           "50": "#d4772b",
           "60": "#dd9255",
           "70": "#e7b388",
@@ -599,7 +599,7 @@
           "10": "#3c2102",
           "20": "#633603",
           "30": "#9f5704",
-          "40": "#a45708",
+          "40": "#d07206",
           "50": "#f88807",
           "60": "#faa038",
           "70": "#fbbc74",
@@ -657,7 +657,7 @@
       },
       "schemes": {
         "light": {
-          "primary": "#a8581d",
+          "primary": "#884c1b",
           "onPrimary": "#ffffff",
           "primaryContainer": "#f0e5db",
           "onPrimaryContainer": "#331d0a",
@@ -665,7 +665,7 @@
           "onSecondary": "#ffffff",
           "secondaryContainer": "#e7dbf0",
           "onSecondaryContainer": "#210a33",
-          "tertiary": "#a45708",
+          "tertiary": "#633603",
           "onTertiary": "#ffffff",
           "tertiaryContainer": "#f4e7d7",
           "onTertiaryContainer": "#3c2102",
@@ -686,7 +686,7 @@
           "inverseSurface": "#39322d",
           "inverseOnSurface": "#f6f5f4",
           "inversePrimary": "#f0ceb3",
-          "surfaceTint": "#a8581d"
+          "surfaceTint": "#b26424"
         },
         "dark": {
           "primary": "#f0ceb3",
@@ -695,7 +695,7 @@
           "onPrimaryContainer": "#f0e5db",
           "secondary": "#d4b2f0",
           "onSecondary": "#371056",
-          "secondaryContainer": "#571a89",
+          "secondaryContainer": "#371056",
           "onSecondaryContainer": "#e7dbf0",
           "tertiary": "#fdd4a6",
           "onTertiary": "#633603",
@@ -781,7 +781,7 @@
           "10": "#063732",
           "20": "#0a5c53",
           "30": "#109385",
-          "40": "#108071",
+          "40": "#15c1ae",
           "50": "#19e6cf",
           "60": "#47ebd9",
           "70": "#7ef1e4",
@@ -839,7 +839,7 @@
       },
       "schemes": {
         "light": {
-          "primary": "#5c697a",
+          "primary": "#46505d",
           "onPrimary": "#ffffff",
           "primaryContainer": "#e3e5e8",
           "onPrimaryContainer": "#1a1e23",
@@ -847,7 +847,7 @@
           "onSecondary": "#ffffff",
           "secondaryContainer": "#d9d9f2",
           "onSecondaryContainer": "#050638",
-          "tertiary": "#108071",
+          "tertiary": "#0a5c53",
           "onTertiary": "#ffffff",
           "tertiaryContainer": "#d9f2ef",
           "onTertiaryContainer": "#063732",
@@ -877,7 +877,7 @@
           "onPrimaryContainer": "#e3e5e8",
           "secondary": "#abacf7",
           "onSecondary": "#080a5e",
-          "secondaryContainer": "#0d1096",
+          "secondaryContainer": "#080a5e",
           "onSecondaryContainer": "#d9d9f2",
           "tertiary": "#acf6ee",
           "onTertiary": "#0a5c53",

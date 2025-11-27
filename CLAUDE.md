@@ -64,7 +64,7 @@ Always use chunking helpers for bulk operations:
 
 ```typescript
 // Location: src/server/db/chunk-utils.ts
-import { chunkedBatch, whereInChunks } from '~/server/db/chunk-utils';
+import { chunkedBatch, whereInChunks } from "~/server/db/chunk-utils";
 
 // For bulk inserts/updates
 await chunkedBatch(db, items, async (chunk) => {
@@ -78,6 +78,7 @@ const results = await whereInChunks(db, ids, async (idChunk) => {
 ```
 
 This applies to:
+
 - Workout saves
 - Template mutations
 - Analytics queries
@@ -207,6 +208,9 @@ bun run test -- src/__tests__/hooks/
 - [ ] Test offline functionality if applicable
 - [ ] Update tests for new features
 - [ ] Update docs if needed
+- [ ] **NEW: Test component in all 5 themes (light, dark, cool, warm, neutral)**
+- [ ] **NEW: No hardcoded colors - use CSS variables or `getStatusColors()`**
+- [ ] **NEW: Shadows use `shadow-*` utility classes, not inline styles**
 
 ## Known Issues & Workarounds
 

@@ -175,14 +175,14 @@ export function PlaybookProgressCard() {
               <LineChart data={chartData}>
                 <XAxis
                   dataKey="week"
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                   tickLine={false}
                 />
                 <YAxis hide />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
+                    backgroundColor: "var(--card)",
+                    border: "1px solid var(--border)",
                     borderRadius: "0.5rem",
                     fontSize: "0.75rem",
                   }}
@@ -190,7 +190,7 @@ export function PlaybookProgressCard() {
                 <Line
                   type="monotone"
                   dataKey="planned"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   dot={false}
                   strokeDasharray="5 5"
@@ -198,7 +198,7 @@ export function PlaybookProgressCard() {
                 <Line
                   type="monotone"
                   dataKey="actual"
-                  stroke="hsl(var(--tertiary))"
+                  stroke="var(--tertiary)"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />

@@ -283,6 +283,52 @@
   }
 }
 
+/* Theme-aware shadow utilities for hover/active states */
+@utility shadow-primary-hover {
+  box-shadow: 0 20px 40px -10px
+    color-mix(in srgb, var(--md-sys-color-primary) 15%, transparent 85%);
+}
+
+@utility shadow-primary-active {
+  box-shadow: 0 10px 25px -5px
+    color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent 90%);
+}
+
+@utility shadow-secondary-hover {
+  box-shadow: 0 20px 40px -10px
+    color-mix(in srgb, var(--md-sys-color-secondary) 15%, transparent 85%);
+}
+
+@utility shadow-tertiary-hover {
+  box-shadow: 0 20px 40px -10px
+    color-mix(in srgb, var(--md-sys-color-tertiary) 15%, transparent 85%);
+}
+
+/* Elevation shadows that adapt to theme */
+@utility shadow-elevation-1 {
+  box-shadow:
+    0 1px 2px 0
+      color-mix(in srgb, var(--md-sys-color-shadow, #000) 10%, transparent 90%),
+    0 1px 3px 0
+      color-mix(in srgb, var(--md-sys-color-shadow, #000) 5%, transparent 95%);
+}
+
+@utility shadow-elevation-2 {
+  box-shadow:
+    0 4px 6px -1px
+      color-mix(in srgb, var(--md-sys-color-shadow, #000) 10%, transparent 90%),
+    0 2px 4px -1px
+      color-mix(in srgb, var(--md-sys-color-shadow, #000) 6%, transparent 94%);
+}
+
+@utility shadow-elevation-3 {
+  box-shadow:
+    0 10px 15px -3px
+      color-mix(in srgb, var(--md-sys-color-shadow, #000) 10%, transparent 90%),
+    0 4px 6px -2px
+      color-mix(in srgb, var(--md-sys-color-shadow, #000) 5%, transparent 95%);
+}
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -417,38 +463,38 @@
   }
 }
 
-  /* Typography utilities for design manifesto compliance */
-  .text-display {
-    font-family: var(--font-montserrat);
-    font-weight: 900; /* Black */
-    font-size: 2rem;
-    line-height: 1.2;
-    @apply font-serif text-3xl leading-tight font-black tracking-tight md:text-4xl lg:text-5xl;
-  }
+/* Typography utilities for design manifesto compliance */
+.text-display {
+  font-family: var(--font-montserrat);
+  font-weight: 900; /* Black */
+  font-size: 2rem;
+  line-height: 1.2;
+  @apply font-serif text-3xl leading-tight font-black tracking-tight md:text-4xl lg:text-5xl;
+}
 
-  .text-heading {
-    font-family: var(--font-montserrat);
-    font-weight: 700; /* Bold */
-    font-size: 1.5rem;
-    line-height: 1.3;
-    @apply font-serif text-xl font-bold tracking-tight md:text-2xl lg:text-3xl;
-  }
+.text-heading {
+  font-family: var(--font-montserrat);
+  font-weight: 700; /* Bold */
+  font-size: 1.5rem;
+  line-height: 1.3;
+  @apply font-serif text-xl font-bold tracking-tight md:text-2xl lg:text-3xl;
+}
 
-  .text-body {
-    font-family: var(--font-open-sans);
-    font-weight: 400; /* Regular */
-    font-size: 1rem;
-    line-height: 1.5;
-    @apply font-sans text-base leading-relaxed;
-  }
+.text-body {
+  font-family: var(--font-open-sans);
+  font-weight: 400; /* Regular */
+  font-size: 1rem;
+  line-height: 1.5;
+  @apply font-sans text-base leading-relaxed;
+}
 
-  .text-ui {
-    font-family: var(--font-open-sans);
-    font-weight: 500; /* Medium */
-    font-size: 0.875rem;
-    line-height: 1.4;
-    @apply font-sans text-sm font-medium;
-  }
+.text-ui {
+  font-family: var(--font-open-sans);
+  font-weight: 500; /* Medium */
+  font-size: 0.875rem;
+  line-height: 1.4;
+  @apply font-sans text-sm font-medium;
+}
 /* Custom gradient utilities */
 @layer utilities {
   .gradient-primary {

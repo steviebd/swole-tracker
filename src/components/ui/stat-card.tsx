@@ -135,10 +135,7 @@ const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
 
           {/* Enhanced hover shadow */}
           <div
-            className="absolute inset-0 -z-10 rounded-lg opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            style={{
-              boxShadow: "0 20px 40px -10px rgba(255, 138, 76, 0.15)",
-            }}
+            className="shadow-primary-hover absolute inset-0 -z-10 rounded-lg opacity-0 transition-opacity duration-300 group-hover:opacity-100"
             aria-hidden="true"
           />
         </GlassSurface>

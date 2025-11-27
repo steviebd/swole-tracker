@@ -105,7 +105,7 @@ const WorkoutVolumeChart = React.forwardRef<
     const avgVolume = data.length > 0 ? totalVolume / data.length : 0;
     const maxVolume = Math.max(...data.map((d) => d.volume));
 
-    const chartFill = "var(--chart-1, #1f78b4)";
+    const chartFill = "var(--chart-1, var(--md-sys-color-primary))";
     const chartGradientAccent = `color-mix(in srgb, ${chartFill} 65%, currentColor 35%)`;
     const axisColor = "currentColor";
     const gridColor = "currentColor";
@@ -114,8 +114,8 @@ const WorkoutVolumeChart = React.forwardRef<
 
     // Custom tooltip component
     const trendPalette = {
-      up: "var(--chart-3, #33a02c)",
-      down: "var(--color-danger, #d90429)",
+      up: "var(--chart-3, var(--md-sys-color-tertiary))",
+      down: "var(--color-danger, var(--md-sys-color-error))",
       stable: "currentColor",
     } as const;
 

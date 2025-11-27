@@ -47,3 +47,17 @@ Swole Tracker is a modern fitness tracking application built with Next.js, React
 - Large IN clauses go through `whereInChunks` to avoid exceeding parameter caps.
 - Whoop sync, analytics, and debrief generation rely on paging data in manageable slices.
 - This design trades a few extra DB round trips for guaranteed success under D1 constraints.
+
+## Pre-Commit Checklist
+
+- [ ] Run `bun check` (lint + typecheck)
+- [ ] Run `bun run test` (all tests pass)
+- [ ] Check chunking for any bulk DB operations
+- [ ] Verify accessibility (WCAG 2.2 AA)
+- [ ] Test on mobile viewport
+- [ ] Test offline functionality if applicable
+- [ ] Update tests for new features
+- [ ] Update docs if needed
+- [ ] **NEW: Test component in all 5 themes (light, dark, cool, warm, neutral)**
+- [ ] **NEW: No hardcoded colors - use CSS variables or `getStatusColors()`**
+- [ ] **NEW: Shadows use `shadow-*` utility classes, not inline styles**
