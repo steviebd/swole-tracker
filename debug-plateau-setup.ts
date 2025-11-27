@@ -146,9 +146,11 @@ async function debugPlateauSetup() {
     console.log(`   Reps: [${reps.join(", ")}]`);
 
     const hasWeightProgression = weights.some(
-      (w, i) => i > 0 && w > weights[i - 1],
+      (w, i) => i > 0 && weights[i - 1] !== undefined && w > weights[i - 1]!,
     );
-    const hasRepsProgression = reps.some((r, i) => i > 0 && r > reps[i - 1]);
+    const hasRepsProgression = reps.some(
+      (r, i) => i > 0 && reps[i - 1] !== undefined && r > reps[i - 1]!,
+    );
 
     if (!hasWeightProgression && !hasRepsProgression) {
       console.log("✅ Plateau conditions met!");

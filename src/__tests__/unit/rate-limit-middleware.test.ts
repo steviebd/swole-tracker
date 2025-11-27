@@ -96,10 +96,6 @@ describe("rateLimitMiddleware", () => {
     expect(mockNext).toHaveBeenCalled();
   });
 
-  // it("should skip rate limiting when disabled and skipIfDisabled is true", async () => {
-  //   // TODO: fix mock for env
-  // });
-
   it("should call next and log error when checkRateLimit throws", async () => {
     (rateLimit.checkRateLimit as any).mockRejectedValue(new Error("DB error"));
 

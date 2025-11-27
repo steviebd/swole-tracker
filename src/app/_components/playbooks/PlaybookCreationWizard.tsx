@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -69,14 +69,19 @@ type FormData = {
 
 export function PlaybookCreationWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const prefersReducedMotion = useReducedMotion();
   const isOnline = useOnlineStatus();
   const [currentStep, setCurrentStep] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Check for plateau parameter in URL
+  const plateauParam = searchParams.get("plateau");
+
   const [formData, setFormData] = useState<FormData>({
     name: "",
-    goalText: "",
-    goalPreset: null,
+    goalText: plateauParam ? `Break through ${plateauParam} plateau` : "",
+    goalPreset: plateauParam ? "strength" : null,
     targetType: "template",
     targetIds: [],
     duration: 6,
@@ -209,8 +214,16 @@ export function PlaybookCreationWizard() {
 
   return (
     <PageShell
-      title="Create Training Playbook"
-      description="Design a personalized progression plan"
+      title={
+        plateauParam
+          ? `Create Playbook for ${plateauParam}`
+          : "Create Training Playbook"
+      }
+      description={
+        plateauParam
+          ? `Design a plan to break through your ${plateauParam} plateau`
+          : "Design a personalized progression plan"
+      }
       actions={
         <Button variant="outline" onClick={handleBack} size="sm">
           <ArrowLeft className="size-4" />

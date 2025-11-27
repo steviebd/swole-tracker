@@ -164,7 +164,7 @@ export function ConsistencyAnalysisModal({
     if (!consistencyData || !workoutDatesData) return null;
 
     const workoutsByDayOfWeek = workoutDatesData.reduce(
-      (acc, dateStr) => {
+      (acc: Record<number, number>, dateStr: string) => {
         const day = new Date(dateStr).getDay();
         acc[day] = (acc[day] || 0) + 1;
         return acc;

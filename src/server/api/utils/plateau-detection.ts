@@ -119,6 +119,14 @@ export async function detectPlateau(
 
   const isPlateaued = allWeightsSame && allRepsSame;
 
+  // Calculate confidence level based on number of sessions
+  const confidenceLevel: "low" | "medium" | "high" =
+    recentSessions.length >= 5
+      ? "high"
+      : recentSessions.length >= 3
+        ? "medium"
+        : "low";
+
   console.log(
     `📊 [Plateau Detection] Weights: [${weights.join(", ")}], Reps: [${reps.join(", ")}]`,
   );

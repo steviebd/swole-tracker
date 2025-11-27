@@ -18,6 +18,7 @@ import {
   type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { api } from "~/trpc/react";
+import { useBulkOperations } from "~/hooks/use-bulk-operations";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
@@ -80,6 +81,11 @@ export function ExerciseManager() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+  const { handleBulkDelete } = useBulkOperations(() => {
+    void invalidateExerciseDependents();
+    setRowSelection({});
+  });
 
   const utils = api.useUtils();
   const invalidateExerciseDependents = () => {
@@ -366,7 +372,6 @@ export function ExerciseManager() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      // TODO: Implement favorite functionality
                       alert("Favorite functionality coming soon");
                     }}
                     aria-label={`Mark ${exercise.name} as favorite`}
@@ -384,25 +389,6 @@ export function ExerciseManager() {
     ],
     [selectedForMerge, mergeMode, handleEditExercise, handleMergeSelection],
   );
-
-  // Add bulk delete functionality (placeholder - API endpoint needs to be created)
-  const handleBulkDelete = () => {
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
-    if (selectedRows.length === 0) return;
-
-    const exerciseNames = selectedRows.map((row) => row.original.name);
-    if (
-      confirm(
-        `Are you sure you want to delete ${selectedRows.length} exercises?\n\n${exerciseNames.join("\n")}\n\nThis action cannot be undone.`,
-      )
-    ) {
-      // TODO: Implement bulk delete API call
-      alert(
-        "Bulk delete functionality coming soon - API endpoint needs to be implemented",
-      );
-      setRowSelection({});
-    }
-  };
 
   // Table state persistence
   const TABLE_STATE_KEY = "exercise-manager-table-state";

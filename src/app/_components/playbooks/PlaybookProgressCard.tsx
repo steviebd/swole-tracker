@@ -2,7 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { Target, TrendingUp, Calendar, ArrowRight } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 import { api } from "~/trpc/react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -26,7 +33,9 @@ export function PlaybookProgressCard() {
   // Get adherence metrics if we have an active playbook
   const { data: adherenceMetrics } = api.playbooks.getAdherenceMetrics.useQuery(
     { playbookId: activePlaybook?.id ?? 0 },
-    { enabled: !!activePlaybook?.id }
+    {
+      enabled: !!activePlaybook?.id && activePlaybook?.id !== 0,
+    },
   );
 
   if (isLoading) {
@@ -47,13 +56,13 @@ export function PlaybookProgressCard() {
       <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="size-5 text-primary" />
+            <Target className="text-primary size-5" />
             Playbook Progress
           </CardTitle>
         </CardHeader>
         <CardContent>
           <EmptyState
-            icon={<Target className="size-12 text-primary" />}
+            icon={<Target className="text-primary size-12" />}
             title="No active playbook"
             description="Create a training playbook to track your structured progression"
             action={{
@@ -71,11 +80,12 @@ export function PlaybookProgressCard() {
   const progressPercent = (currentWeek / activePlaybook.duration) * 100;
 
   // Generate mock chart data (would come from actual metrics)
-  const chartData = adherenceMetrics?.weeklyBreakdown.map((week) => ({
-    week: week.weekNumber,
-    planned: week.sessionsTotal * 100, // Mock volume
-    actual: week.sessionsCompleted * 80, // Mock actual volume
-  })) || [];
+  const chartData =
+    adherenceMetrics?.weeklyBreakdown.map((week) => ({
+      week: week.weekNumber,
+      planned: week.sessionsTotal * 100, // Mock volume
+      actual: week.sessionsCompleted * 80, // Mock actual volume
+    })) || [];
 
   return (
     <Card
@@ -86,7 +96,7 @@ export function PlaybookProgressCard() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Target className="size-5 text-primary" />
+            <Target className="text-primary size-5" />
             Playbook Progress
           </CardTitle>
           <Badge variant="default">Active</Badge>
@@ -98,7 +108,7 @@ export function PlaybookProgressCard() {
         <div>
           <h4 className="mb-1 font-semibold">{activePlaybook.name}</h4>
           {activePlaybook.goalText && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
+            <p className="text-muted-foreground line-clamp-2 text-sm">
               {activePlaybook.goalText}
             </p>
           )}
@@ -112,9 +122,9 @@ export function PlaybookProgressCard() {
               Week {currentWeek} of {activePlaybook.duration}
             </span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
             <div
-              className="h-full bg-gradient-to-r from-primary to-secondary transition-all"
+              className="from-primary to-secondary h-full bg-gradient-to-r transition-all"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -124,17 +134,20 @@ export function PlaybookProgressCard() {
         {adherenceMetrics && (
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Adherence</p>
-              <p className="text-xl font-bold">{adherenceMetrics.adherencePercentage}%</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Sessions</p>
+              <p className="text-muted-foreground text-xs">Adherence</p>
               <p className="text-xl font-bold">
-                {adherenceMetrics.completedSessions}/{adherenceMetrics.totalSessions}
+                {adherenceMetrics.adherencePercentage}%
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Avg RPE</p>
+              <p className="text-muted-foreground text-xs">Sessions</p>
+              <p className="text-xl font-bold">
+                {adherenceMetrics.completedSessions}/
+                {adherenceMetrics.totalSessions}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted-foreground text-xs">Avg RPE</p>
               <p className="text-xl font-bold">
                 {adherenceMetrics.averageRpe?.toFixed(1) || "N/A"}
               </p>
@@ -149,11 +162,11 @@ export function PlaybookProgressCard() {
               <p className="text-sm font-medium">Weekly Volume</p>
               <div className="flex gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
-                  <div className="size-2 rounded-full bg-primary"></div>
+                  <div className="bg-primary size-2 rounded-full"></div>
                   <span className="text-muted-foreground">Planned</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="size-2 rounded-full bg-tertiary"></div>
+                  <div className="bg-tertiary size-2 rounded-full"></div>
                   <span className="text-muted-foreground">Actual</span>
                 </div>
               </div>

@@ -8,6 +8,8 @@ import {
 } from "~/server/db/schema";
 import { and, desc, eq, gte, inArray, ne, or } from "drizzle-orm";
 import { whereInChunks, chunkArray } from "~/server/db/chunk-utils";
+import { type SessionData } from "~/server/api/types";
+import { logger } from "~/lib/logger";
 
 type SessionExercise = typeof sessionExercises.$inferSelect;
 
@@ -167,8 +169,8 @@ export const insightsRouter = createTRPCRouter({
           sessionWhere.push(ne(workoutSessions.id, input.excludeSessionId));
 
         // Fetch recent sessions for the user
-        let recentSessions: any[] = [];
-        const sessionsById = new Map<number, any>();
+        let recentSessions: SessionData[] = [];
+        const sessionsById = new Map<number, SessionData>();
 
         // Only proceed if we have exercises to search for
         if (
@@ -243,16 +245,24 @@ export const insightsRouter = createTRPCRouter({
         const flat: FlatSet[] = [];
         for (const s of recentSessions) {
           if (!s.exercises || !Array.isArray(s.exercises)) {
-            console.warn(
-              `Session ${s.id} has no exercises or exercises is not an array`,
+            logger.warn(
+              "Session has no exercises or exercises is not an array",
+              {
+                sessionId: s.id,
+                userId: ctx.user.id,
+              },
             );
             continue;
           }
           for (const ex of s.exercises.sort(
-            (a: any, b: any) => (a.setOrder ?? 0) - (b.setOrder ?? 0),
+            (a: SessionExercise, b: SessionExercise) =>
+              (a.setOrder ?? 0) - (b.setOrder ?? 0),
           )) {
             if (!ex) {
-              console.warn(`Null exercise found in session ${s.id}`);
+              logger.warn("Null exercise found in session", {
+                sessionId: s.id,
+                userId: ctx.user.id,
+              });
               continue;
             }
             const weight = toNumber(ex.weight);
@@ -314,7 +324,7 @@ export const insightsRouter = createTRPCRouter({
           const est =
             fs.oneRMEstimate ?? estimate1RM(weightTarget, fs.reps ?? undefined);
           if (!prev) {
-            const sessionData: any = {
+            const sessionData: SessionData = {
               date: fs.workoutDate,
               volume: vol,
               est1RM: est,
@@ -510,7 +520,14 @@ export const insightsRouter = createTRPCRouter({
 
         return result;
       } catch (error) {
-        console.error("Error in getExerciseInsights:", error);
+        logger.error(
+          "Error in getExerciseInsights",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            exerciseName: input.exerciseName,
+            userId: ctx.user.id,
+          },
+        );
         throw new Error(
           `Failed to get exercise insights: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
@@ -605,7 +622,14 @@ export const insightsRouter = createTRPCRouter({
 
         return { unit: input.unit, totalVolume, bestSets };
       } catch (error) {
-        console.error("Error in getSessionInsights:", error);
+        logger.error(
+          "Error in getSessionInsights",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            sessionId: input.sessionId,
+            userId: ctx.user.id,
+          },
+        );
         throw new Error(
           `Failed to get session insights: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
@@ -632,9 +656,11 @@ export const insightsRouter = createTRPCRouter({
       const useChunking = input.limit > 100;
 
       if (useChunking) {
-        console.log(
-          `Using chunked CSV export for ${input.limit} sessions with chunk size ${input.chunkSize}`,
-        );
+        logger.info("Using chunked CSV export", {
+          limit: input.limit,
+          chunkSize: input.chunkSize,
+          userId: ctx.user.id,
+        });
 
         // Get total count first for progress tracking
         const totalCountResult = await ctx.db

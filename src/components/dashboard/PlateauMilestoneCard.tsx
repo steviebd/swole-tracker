@@ -204,7 +204,7 @@ function PlateauItem({ plateau }: { plateau: PlateauAlert }) {
 
   const handleCreatePlaybook = () => {
     router.push(
-      "/playbooks/create?plateau=" +
+      "/playbooks/new?plateau=" +
         encodeURIComponent(plateau.exerciseName || "Unknown"),
     );
   };

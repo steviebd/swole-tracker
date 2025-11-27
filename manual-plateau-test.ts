@@ -49,6 +49,7 @@ async function testPlateauDetection() {
     const result = await db
       .insert(masterExercises)
       .values({
+        user_id: userId,
         name: "Squat",
         normalizedName: "squat",
         muscleGroup: "legs",
@@ -56,7 +57,7 @@ async function testPlateauDetection() {
       })
       .returning({ id: masterExercises.id });
 
-    masterExercise = result;
+    masterExercise = result as any;
     console.log(`✅ Created master exercise with ID: ${result[0]!.id}`);
   } else {
     console.log(
@@ -72,8 +73,7 @@ async function testPlateauDetection() {
     .insert(workoutTemplates)
     .values({
       user_id: userId,
-      templateName: `Manual Test Template ${Date.now()}`,
-      description: "Test template for plateau detection",
+      name: `Manual Test Template ${Date.now()}`,
     })
     .returning({ id: workoutTemplates.id });
 
@@ -136,8 +136,6 @@ async function testPlateauDetection() {
         user_id: userId,
         templateId,
         workoutDate,
-        durationMinutes: 60,
-        notes: `Plateau test workout ${i + 1}`,
       })
       .returning({ id: workoutSessions.id });
 

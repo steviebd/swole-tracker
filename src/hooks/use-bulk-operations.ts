@@ -16,7 +16,6 @@ export function useBulkOperations(onSuccess: () => void) {
   );
 
   const handleBulkDelete = () => {
-    // TODO: Implement bulk delete functionality
     alert("Bulk delete functionality not yet implemented");
     setSelectedExercises([]);
     onSuccess();

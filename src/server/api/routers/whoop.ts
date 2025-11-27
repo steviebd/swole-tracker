@@ -233,7 +233,7 @@ export const whoopRouter = createTRPCRouter({
         lastSyncAt: lastSyncDate ? lastSyncDate.toISOString() : null,
       };
     } catch (error) {
-      console.error("Failed to fetch WHOOP integration status:", error);
+      logger.error("Failed to fetch WHOOP integration status:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message:
@@ -269,7 +269,7 @@ export const whoopRouter = createTRPCRouter({
 
         return workouts;
       } catch (error) {
-        console.error("Failed to fetch WHOOP workouts:", error);
+        logger.error("Failed to fetch WHOOP workouts:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch WHOOP workouts. Please try again later.",
@@ -422,7 +422,7 @@ export const whoopRouter = createTRPCRouter({
         throw error;
       }
 
-      console.error(
+      logger.error(
         "Failed to fetch WHOOP recovery data from database:",
         error,
       );
@@ -732,7 +732,7 @@ export const whoopRouter = createTRPCRouter({
         })),
       };
     } catch (error) {
-      console.error("Failed to aggregate WHOOP readiness data:", error);
+      logger.error("Failed to aggregate WHOOP readiness data:", error);
       return {
         hasData: false,
         recoveryScore: null,

@@ -1,31 +1,31 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { workoutRateLimit } from "~/lib/rate-limit-middleware";
 import {
-  sessionExercises,
+  viewSessionExerciseMetrics,
   workoutSessions,
-  exerciseLinks,
-  templateExercises,
-  userPreferences,
-  masterExercises,
+  sessionExercises,
   exerciseDailySummary,
   exerciseWeeklySummary,
-  exerciseMonthlySummary,
-  viewSessionExerciseMetrics,
+  templateExercises,
+  exerciseLinks,
+  masterExercises,
+  userPreferences,
   exerciseResolutionCache,
 } from "~/server/db/schema";
-// Note: sessionExerciseMetricsView replaced with direct joins
 import {
-  eq,
   desc,
+  eq,
   and,
+  lt,
   gte,
   lte,
-  lt,
-  sql,
   inArray,
+  sql,
   or,
   asc,
 } from "drizzle-orm";
+import { type CacheEntry } from "~/server/api/types";
 import { type db } from "~/server/db";
 import {
   exerciseProgressInputSchema,
@@ -71,7 +71,7 @@ import {
 const sessionExerciseMetricsView = viewSessionExerciseMetrics;
 
 // Simple in-memory cache for expensive calculations
-const calculationCache = new Map<string, { value: any; expires: number }>();
+const calculationCache = new Map<string, CacheEntry>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour TTL
 
 export function getCachedCalculation<T>(key: string): T | null {
@@ -376,7 +376,7 @@ export const progressRouter = createTRPCRouter({
 
         // Query raw session_exercise data directly - this is simpler and more reliable
         // than maintaining separate aggregation tables
-        console.log("getExerciseStrengthProgression: querying raw data", {
+        logger.debug("getExerciseStrengthProgression: querying raw data", {
           userId: ctx.user.id,
           exerciseName: selection.displayName,
           startDate,
@@ -444,7 +444,7 @@ export const progressRouter = createTRPCRouter({
             .orderBy(desc(workoutSessions.workoutDate)),
         ]);
 
-        console.log("getExerciseStrengthProgression: raw data query result", {
+        logger.debug("getExerciseStrengthProgression: raw data query result", {
           userId: ctx.user.id,
           exerciseName: selection.displayName,
           rawDataCount: rawData.length,
@@ -454,7 +454,7 @@ export const progressRouter = createTRPCRouter({
         });
 
         if (prevRawData.length === 0) {
-          console.log(
+          logger.debug(
             "getExerciseStrengthProgression: no previous period data - trends will show as 0 or N/A",
             {
               userId: ctx.user.id,
@@ -613,7 +613,7 @@ export const progressRouter = createTRPCRouter({
             oneRM: day.max_one_rm || 0, // Match the interface property name
           }));
 
-        console.log("getExerciseStrengthProgression: timeline data", {
+        logger.debug("getExerciseStrengthProgression: timeline data", {
           userId: ctx.user.id,
           exerciseName: selection.displayName,
           timelineCount: timeline.length,
@@ -623,7 +623,7 @@ export const progressRouter = createTRPCRouter({
         });
 
         if (timeline.length === 0) {
-          console.error(
+          logger.error(
             "getExerciseStrengthProgression: TIMELINE IS EMPTY despite having rawData!",
             {
               userId: ctx.user.id,
@@ -677,7 +677,7 @@ export const progressRouter = createTRPCRouter({
         setCachedCalculation(cacheKey, result);
         return result;
       } catch (error) {
-        console.error("Error in getExerciseStrengthProgression:", error);
+        logger.error("Error in getExerciseStrengthProgression:", error);
         return {
           currentOneRM: 0,
           oneRMChange: 0,
@@ -785,24 +785,27 @@ export const progressRouter = createTRPCRouter({
 
         // Calculate current period metrics
         const currentVolume = dailyData.reduce(
-          (sum, day) => sum + (day.total_volume || 0),
+          (sum: number, day: { total_volume: number | null }) =>
+            sum + (day.total_volume || 0),
           0,
         );
         const sessionCount = dailyData.reduce(
-          (sum, day) => sum + day.session_count,
+          (sum: number, day: { session_count: number }) =>
+            sum + day.session_count,
           0,
         );
         const averageVolumePerSession =
           sessionCount > 0 ? currentVolume / sessionCount : 0;
         const frequency = calculateFrequency(
-          dailyData.map((d) => d.date),
+          dailyData.map((d) => d.date) as Date[],
           startDate,
           endDate,
         );
 
         // Calculate previous period metrics
         const prevVolume = prevDailyData.reduce(
-          (sum, day) => sum + (day.total_volume || 0),
+          (sum: number, day: { total_volume: number | null }) =>
+            sum + (day.total_volume || 0),
           0,
         );
         const volumeChange = currentVolume - prevVolume;
@@ -828,7 +831,7 @@ export const progressRouter = createTRPCRouter({
           volumeByWeek,
         };
       } catch (error) {
-        console.error("Error in getExerciseVolumeProgression:", error);
+        logger.error("Error in getExerciseVolumeProgression:", error);
         return {
           currentVolume: 0,
           volumeChange: 0,
@@ -943,7 +946,7 @@ export const progressRouter = createTRPCRouter({
           prFrequency: Math.round(prFrequency * 10) / 10,
         };
       } catch (error) {
-        console.error("Error in getExerciseRecentPRs:", error);
+        logger.error("Error in getExerciseRecentPRs:", error);
         return {
           exerciseName: input.exerciseName ?? "Selected exercise",
           recentPRs: [],
@@ -1119,7 +1122,7 @@ export const progressRouter = createTRPCRouter({
           mostRecentHeavy,
         };
       } catch (error) {
-        console.error("Error in getExerciseTopSets:", error);
+        logger.error("Error in getExerciseTopSets:", error);
         const emptySet: TopSet = {
           date: "",
           weight: 0,
@@ -1431,7 +1434,7 @@ export const progressRouter = createTRPCRouter({
           templateExerciseId: input.templateExerciseId ?? null,
         });
 
-        console.log("getStrengthProgression", {
+        logger.debug("getStrengthProgression", {
           userId: ctx.user.id,
           input,
           selection,
@@ -1543,7 +1546,7 @@ export const progressRouter = createTRPCRouter({
           )
           .limit(input.limit + 1); // Get one extra to check for next page
 
-        console.log("getStrengthProgression query result", {
+        logger.debug("getStrengthProgression query result", {
           userId: ctx.user.id,
           selection,
           whereConditionsCount: whereConditions.length,
@@ -1631,7 +1634,7 @@ export const progressRouter = createTRPCRouter({
           nextCursor,
         };
       } catch (error) {
-        console.error("Error in getStrengthProgression:", error);
+        logger.error("Error in getStrengthProgression:", error);
         return {
           data: [],
           nextCursor: undefined,
@@ -1683,7 +1686,7 @@ export const progressRouter = createTRPCRouter({
           })),
         };
       } catch (error) {
-        console.error("Error in getWeeklyStrengthProgression:", error);
+        logger.error("Error in getWeeklyStrengthProgression:", error);
         return { data: [] };
       }
     }),
@@ -1780,7 +1783,7 @@ export const progressRouter = createTRPCRouter({
           mimeType: "text/csv",
         };
       } catch (error) {
-        console.error("Error in exportStrengthProgression:", error);
+        logger.error("Error in exportStrengthProgression:", error);
         throw new Error("Failed to export data");
       }
     }),
@@ -1974,7 +1977,7 @@ export const progressRouter = createTRPCRouter({
           nextCursor,
         };
       } catch (error) {
-        console.error("Error in getVolumeProgression:", error);
+        logger.error("Error in getVolumeProgression:", error);
         return {
           data: [],
           nextCursor: undefined,
@@ -2020,7 +2023,7 @@ export const progressRouter = createTRPCRouter({
 
         return consistency;
       } catch (error) {
-        console.error("Error in getConsistencyStats:", error);
+        logger.error("Error in getConsistencyStats:", error);
         return {
           totalWorkouts: 0,
           frequency: 0,
@@ -2060,7 +2063,7 @@ export const progressRouter = createTRPCRouter({
           (w) => w.workoutDate.toISOString().split("T")[0]!,
         );
       } catch (error) {
-        console.error("Error in getWorkoutDates:", error);
+        logger.error("Error in getWorkoutDates:", error);
         return [];
       }
     }),
@@ -2106,7 +2109,7 @@ export const progressRouter = createTRPCRouter({
 
         return personalRecords;
       } catch (error) {
-        console.error("Error in getPersonalRecords:", error);
+        logger.error("Error in getPersonalRecords:", error);
         return [];
       }
     }),
@@ -2688,7 +2691,7 @@ export const progressRouter = createTRPCRouter({
 
         return comparison;
       } catch (error) {
-        console.error("Error in getComparativeAnalysis:", error);
+        logger.error("Error in getComparativeAnalysis:", error);
         return {
           current: {
             totalVolume: 0,
@@ -2761,7 +2764,7 @@ export const progressRouter = createTRPCRouter({
 
         return volumeByExercise;
       } catch (error) {
-        console.error("Error in getVolumeByExercise:", error);
+        logger.error("Error in getVolumeByExercise:", error);
         return [];
       }
     }),
@@ -2808,7 +2811,7 @@ export const progressRouter = createTRPCRouter({
 
         return distribution;
       } catch (error) {
-        console.error("Error in getSetRepDistribution:", error);
+        logger.error("Error in getSetRepDistribution:", error);
         return {
           setDistribution: [],
           repDistribution: [],
@@ -3635,14 +3638,14 @@ async function getLinkedExerciseSet(
       )
       .limit(1);
 
-    console.log("getLinkedExerciseSet templateRow", {
+    logger.debug("getLinkedExerciseSet templateRow", {
       templateExerciseId,
       userId,
       templateRow,
     });
 
     if (!templateRow) {
-      console.log("getLinkedExerciseSet: no template row found", {
+      logger.debug("getLinkedExerciseSet: no template row found", {
         templateExerciseId,
         userId,
       });
@@ -3680,7 +3683,7 @@ async function getLinkedExerciseSet(
           ),
         );
 
-      console.log("getLinkedExerciseSet linkedRows", {
+      logger.debug("getLinkedExerciseSet linkedRows", {
         templateExerciseId,
         userId,
         masterExerciseId: templateRow.masterExerciseId,
@@ -3703,7 +3706,7 @@ async function getLinkedExerciseSet(
       masterExerciseName: templateRow.masterExerciseName ?? null,
     };
 
-    console.log("getLinkedExerciseSet result", {
+    logger.debug("getLinkedExerciseSet result", {
       templateExerciseId,
       userId,
       result,
@@ -4539,7 +4542,7 @@ export async function getVolumeAndStrengthData(
       workoutCount: Number(result?.workout_count ?? 0),
     };
   } catch (error) {
-    console.error("Error in getVolumeAndStrengthData:", error);
+    logger.error("Error in getVolumeAndStrengthData:", error);
     return {
       totalVolume: 0,
       totalSets: 0,

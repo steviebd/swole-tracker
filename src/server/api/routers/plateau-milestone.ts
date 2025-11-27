@@ -240,8 +240,8 @@ export const plateauMilestoneRouter = createTRPCRouter({
         if (existingLink.length > 0) {
           finalMasterExerciseId = existingLink[0]!.masterExerciseId;
         } else {
-          // Create new master exercise and link
-          // First, get the exercise name to create master exercise
+          // No link exists for this template exercise
+          // First, get the exercise name
           const templateExercise = await db
             .select()
             .from(templateExercises)
@@ -254,27 +254,47 @@ export const plateauMilestoneRouter = createTRPCRouter({
 
           const exerciseName =
             templateExercise[0]!.exerciseName || "Unknown Exercise";
+          const normalizedName = exerciseName.toLowerCase().trim();
 
-          // Create master exercise
-          const newMasterExercise = await db
-            .insert(masterExercises)
-            .values({
-              user_id: userId,
-              name: exerciseName,
-              normalizedName: exerciseName.toLowerCase().trim(),
-            })
-            .returning();
+          // Check if a master exercise with this name already exists
+          const existingMasterExercise = await db
+            .select()
+            .from(masterExercises)
+            .where(
+              and(
+                eq(masterExercises.user_id, userId),
+                eq(masterExercises.normalizedName, normalizedName),
+              ),
+            )
+            .limit(1);
 
-          const newMasterId = newMasterExercise[0]!.id;
+          let targetMasterId: number;
 
-          // Create exercise link
+          if (existingMasterExercise.length > 0) {
+            // Use the existing master exercise
+            targetMasterId = existingMasterExercise[0]!.id;
+          } else {
+            // Create new master exercise
+            const newMasterExercise = await db
+              .insert(masterExercises)
+              .values({
+                user_id: userId,
+                name: exerciseName,
+                normalizedName,
+              })
+              .returning();
+
+            targetMasterId = newMasterExercise[0]!.id;
+          }
+
+          // Create exercise link to the master exercise (new or existing)
           await db.insert(exerciseLinks).values({
             user_id: userId,
             templateExerciseId,
-            masterExerciseId: newMasterId,
+            masterExerciseId: targetMasterId,
           });
 
-          finalMasterExerciseId = newMasterId;
+          finalMasterExerciseId = targetMasterId;
         }
       }
 

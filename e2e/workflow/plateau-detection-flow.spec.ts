@@ -10,6 +10,7 @@ test.describe("Plateau Detection Flow", () => {
     console.log("\n🏔️  Starting Plateau Detection Flow Test\n");
     const templateName = `E2E Plateau Test ${Date.now()}`;
     const exerciseName = "Squat"; // ✅ Already has master exercise link
+    let isKeyLiftAlreadyEnabled = false; // Track if key lift is already enabled
 
     // Phase 1: Template Creation & Initial Setup
     console.log("\n=== Phase 1: Template Creation & Initial Setup ===");
@@ -168,6 +169,7 @@ test.describe("Plateau Detection Flow", () => {
         console.log(
           "✅ Squat is already tracked as key lift - skipping toggle",
         );
+        isKeyLiftAlreadyEnabled = true;
         return; // Skip to Phase 3
       }
 
@@ -179,9 +181,9 @@ test.describe("Plateau Detection Flow", () => {
         "Step 4: Finding Strength Progress card and selecting Squat...",
       );
 
-      // Look for the "Strength Progression" card specifically
+      // Look for the "Strength Progression" section specifically
       const strengthProgressionCard = page
-        .locator('div:has(h2:has-text("Strength Progression"))')
+        .locator('section:has(h2:has-text("Strength Progression"))')
         .first();
 
       // If not found immediately, scroll down gradually and try again
@@ -195,15 +197,16 @@ test.describe("Plateau Detection Flow", () => {
         );
 
         // Scroll down in smaller increments to find the card
-        for (let i = 0; i < 3; i++) {
+        // Increase iterations and scroll distance to ensure we reach the strength section
+        for (let i = 0; i < 8; i++) {
           await page.evaluate(() => {
-            window.scrollBy(0, 500);
+            window.scrollBy(0, 800);
           });
-          await page.waitForTimeout(1000);
+          await page.waitForTimeout(1500); // Increased wait time for lazy loading
 
           if (
             await strengthProgressionCard
-              .isVisible({ timeout: 1000 })
+              .isVisible({ timeout: 2000 })
               .catch(() => false)
           ) {
             console.log(
@@ -214,7 +217,21 @@ test.describe("Plateau Detection Flow", () => {
         }
       }
 
-      await expect(strengthProgressionCard).toBeVisible({ timeout: 5000 });
+      // If still not found after scrolling, try clicking the Strength navigation link
+      if (
+        !(await strengthProgressionCard
+          .isVisible({ timeout: 1000 })
+          .catch(() => false))
+      ) {
+        console.log(
+          "Still not found after scrolling, trying Strength navigation link...",
+        );
+        const strengthNavLink = page.locator('a[href="#volume"]').first();
+        await strengthNavLink.click();
+        await page.waitForTimeout(2000); // Wait for navigation and loading
+      }
+
+      await expect(strengthProgressionCard).toBeVisible({ timeout: 8000 });
       console.log("✓ Found Strength Progression card");
 
       // Since we found the Strength Progression card, we don't need fallback logic
@@ -286,11 +303,18 @@ test.describe("Plateau Detection Flow", () => {
         console.log(
           "✅ Squat is already tracked as key lift - skipping toggle",
         );
+        isKeyLiftAlreadyEnabled = true;
         return; // Skip to Phase 3
       }
     });
 
     await test.step("Locate and click key lift toggle for Squat", async () => {
+      // Skip if key lift is already enabled
+      if (isKeyLiftAlreadyEnabled) {
+        console.log("⏭️  Skipping toggle click - key lift already enabled");
+        return;
+      }
+
       console.log(
         "Step 5: Locating key lift toggle button in Strength Progression card...",
       );
@@ -350,8 +374,11 @@ test.describe("Plateau Detection Flow", () => {
             `Found ${allButtons.length} buttons in Strength Progression card:`,
           );
           for (let i = 0; i < Math.min(allButtons.length, 10); i++) {
-            const buttonText = await allButtons[i].textContent();
-            console.log(`  Button ${i}: "${buttonText}"`);
+            const button = allButtons[i];
+            if (button) {
+              const buttonText = await button.textContent();
+              console.log(`  Button ${i}: "${buttonText}"`);
+            }
           }
 
           throw new Error(
@@ -365,6 +392,12 @@ test.describe("Plateau Detection Flow", () => {
     });
 
     await test.step("Wait for API response and verify toggle state", async () => {
+      // Skip if key lift was already enabled
+      if (isKeyLiftAlreadyEnabled) {
+        console.log("⏭️  Skipping API wait - key lift was already enabled");
+        return;
+      }
+
       console.log("Step 6: Waiting for API response...");
 
       // Wait for API response (be flexible about the endpoint name)
@@ -412,8 +445,10 @@ test.describe("Plateau Detection Flow", () => {
         console.log(`\n--- Workout ${i}/4 ---`);
 
         // 1. Navigate to /templates to find our template
+        console.log(`  Navigating to templates page for workout ${i}...`);
         await page.goto("/templates");
         await page.waitForLoadState("networkidle");
+        console.log(`  ✓ Loaded templates page for workout ${i}`);
 
         // 2. Start workout with template
         // Find the "Start workout" link specifically for OUR template
@@ -470,32 +505,113 @@ test.describe("Plateau Detection Flow", () => {
           .last();
         await expect(startWorkoutButton).toBeVisible({ timeout: 5000 });
         await startWorkoutButton.click();
-        await page.waitForLoadState("networkidle");
-        console.log(`✓ Workout session ${i} started`);
+        console.log(
+          `  Waiting for network idle after starting workout ${i}...`,
+        );
+
+        try {
+          await page.waitForLoadState("networkidle", { timeout: 10000 });
+          console.log(`✓ Workout session ${i} started (network idle)`);
+        } catch (error) {
+          console.log(`  ⚠️ Network idle timeout, but continuing...`);
+          // Fallback: wait for URL to change to workout session
+          await page.waitForTimeout(3000);
+          const currentUrl = page.url();
+          if (currentUrl.includes("/workout/session/")) {
+            console.log(`✓ Workout session ${i} started (URL check)`);
+          } else {
+            throw new Error(
+              `Failed to start workout session ${i}, URL: ${currentUrl}`,
+            );
+          }
+        }
+
+        // Take a screenshot to see the workout session page
+        await page.screenshot({
+          path: `test-screenshots/03-workout-${i}-session-started.png`,
+          fullPage: true,
+        });
 
         // Fill in workout data with same weight/reps for plateau detection
         console.log(`  Filling workout data for workout ${i}...`);
 
         // Wait for workout form to load
-        await page.waitForTimeout(2000);
+        console.log(`  Waiting for workout form to load...`);
+        await page.waitForTimeout(1000);
+        console.log(`  ✓ Waited 1 second for form to load`);
+
+        await page.waitForTimeout(1000);
+        console.log(`  ✓ Waited 2 seconds for form to load`);
+
+        await page.waitForTimeout(1000);
+        console.log(`  ✓ Waited 3 seconds for form to load`);
+
+        // Check current URL and page title
+        const currentUrl = page.url();
+        const pageTitle = await page.title();
+        console.log(`  Current URL: ${currentUrl}`);
+        console.log(`  Page title: ${pageTitle}`);
 
         // Try to find and fill weight/reps inputs (using debug test approach)
+        console.log(`  Looking for weight input...`);
+
+        // First check if there are any dialogs or overlays
+        const dialogs = page.locator('[role="dialog"], .modal, .overlay');
+        const dialogCount = await dialogs.count();
+        console.log(`  Found ${dialogCount} dialogs/overlays on page`);
+
         const weightInput = page.locator('input[type="number"]').first();
-        await expect(weightInput).toBeVisible({ timeout: 5000 });
+        const initialInputCount = await page
+          .locator('input[type="number"]')
+          .count();
+        console.log(
+          `  Found ${initialInputCount} number inputs before waiting for visibility`,
+        );
+
+        console.log(`  Waiting for weight input to be visible...`);
+        try {
+          await expect(weightInput).toBeVisible({ timeout: 10000 });
+          console.log(`  ✓ Weight input is visible`);
+        } catch (error) {
+          console.log(
+            `  ⚠️ Weight input not visible after 10 seconds, taking screenshot...`,
+          );
+          await page.screenshot({
+            path: `test-screenshots/03-workout-${i}-input-not-visible.png`,
+            fullPage: true,
+          });
+          throw error;
+        }
+
         await weightInput.fill("100");
         console.log(`  ✓ Set weight to 100kg`);
 
+        console.log(`  Looking for all number inputs...`);
         const allInputs = page.locator('input[type="number"]');
         const inputCount = await allInputs.count();
         console.log(`  Found ${inputCount} number inputs`);
 
         if (inputCount >= 2) {
+          console.log(`  Setting reps to 5...`);
           await allInputs.nth(1).fill("5");
           console.log(`  ✓ Set reps to 5`);
         } else {
           console.log(
             `  ⚠️ Only found ${inputCount} number inputs, expected at least 2`,
           );
+          // Try alternative approach - look for any input that might be reps
+          const allInputTypes = await page.locator("input").all();
+          console.log(`  Found ${allInputTypes.length} total inputs`);
+          for (let j = 0; j < Math.min(allInputTypes.length, 5); j++) {
+            const input = allInputTypes[j];
+            if (input) {
+              const placeholder = await input.getAttribute("placeholder");
+              const type = await input.getAttribute("type");
+              console.log(
+                `    Input ${j}: type="${type}", placeholder="${placeholder}"`,
+              );
+            }
+          }
         }
 
         // Wait a moment for data to register
@@ -527,9 +643,15 @@ test.describe("Plateau Detection Flow", () => {
         console.log(`✓ Workout ${i} completed with 100kg × 5 reps`);
 
         // Should redirect to homepage
-        await expect(page).toHaveURL(/^\/$|\/$/, { timeout: 10000 });
+        console.log(`  Waiting for redirect to homepage after workout ${i}...`);
+        await expect(page).toHaveURL(/^\/$|\/$/, { timeout: 15000 });
+        console.log(`  ✓ Successfully redirected to homepage`);
+
+        // Wait a bit longer to ensure any modals or overlays are cleared
+        await page.waitForTimeout(2000);
 
         // 6. Screenshot
+        console.log(`  Taking screenshot after workout ${i} completion...`);
         await page.screenshot({
           path: `test-screenshots/03-workout-${i}-completed.png`,
           fullPage: true,
@@ -619,12 +741,22 @@ test.describe("Plateau Detection Flow", () => {
 
       const plateauCard = page.locator('[class*="PlateauMilestone"]').first();
 
+      // Wait a moment for the card to fully render with data
+      await page.waitForTimeout(2000);
+
+      // Debug: log the card's HTML content to see what we're working with
+      const cardHTML = await plateauCard
+        .innerHTML()
+        .catch(() => "Could not get HTML");
+      console.log("Card HTML preview:", cardHTML.substring(0, 500));
+
       // 1. Card exists and is visible - already verified above
 
       // 2. Header shows "Training Insights" or similar
       const header = plateauCard.locator("h3, h2").first();
       await expect(header).toContainText(
         /Training Insights|Key Lift Tracking/i,
+        { timeout: 10000 },
       );
       console.log("✅ Card header verified");
 
