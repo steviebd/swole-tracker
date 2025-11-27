@@ -1,5 +1,5 @@
-import { type DrizzleDb } from "~/server/db";
-import { sessionExercises } from "~/server/db/schema";
+import type { DrizzleDb } from "~/server/db";
+import { type sessionExercises } from "~/server/db/schema";
 
 // Re-export database type for convenience
 export type { DrizzleDb as Database };

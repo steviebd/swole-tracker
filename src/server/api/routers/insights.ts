@@ -221,7 +221,9 @@ export const insightsRouter = createTRPCRouter({
             }
 
             const seenExerciseIds = new Set<number>(
-              (existing.exercises ?? []).map((exercise: any) => exercise.id),
+              (existing.exercises ?? []).map(
+                (exercise: any) => exercise.id as number,
+              ),
             );
             for (const exercise of session.exercises ?? []) {
               if (!seenExerciseIds.has(exercise.id)) {

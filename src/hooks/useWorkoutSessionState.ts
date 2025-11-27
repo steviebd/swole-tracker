@@ -8,6 +8,22 @@ import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
 import { toast } from "~/hooks/use-toast";
+import { type sessionExercises } from "~/server/db/schema";
+
+type OptimisticSessionExercise = Partial<
+  typeof sessionExercises.$inferSelect
+> & {
+  id: number;
+  exerciseName: string;
+  setOrder: number;
+  weight: number | null;
+  reps: number | null;
+  sets: number | null;
+  unit: string;
+  templateExerciseId: number | null;
+  one_rm_estimate: number | null;
+  volume_load: number | null;
+};
 
 type WorkoutSaveResponse = {
   success: boolean;
@@ -436,19 +452,21 @@ export function useWorkoutSessionState({
       template: sessionTemplate ?? null, // null for playbook workouts
       playbook: null, // Will be filled in by actual save response
       exercises: newWorkout.exercises.flatMap(
-        (exercise: any, exerciseIndex: number) =>
-          exercise.sets.map((set: any, setIndex: number) => ({
-            id: -(exerciseIndex * 100 + setIndex),
-            exerciseName: exercise.exerciseName,
-            setOrder: setIndex,
-            weight: set.weight ?? null,
-            reps: set.reps ?? null,
-            sets: set.sets ?? null,
-            unit: set.unit as string,
-            templateExerciseId: exercise.templateExerciseId ?? null,
-            one_rm_estimate: null,
-            volume_load: null,
-          })),
+        (exercise: any, exerciseIndex: number): OptimisticSessionExercise[] =>
+          (exercise.sets as any[]).map(
+            (set: any, setIndex: number): OptimisticSessionExercise => ({
+              id: -(exerciseIndex * 100 + setIndex),
+              exerciseName: exercise.exerciseName,
+              setOrder: setIndex,
+              weight: set.weight ?? null,
+              reps: set.reps ?? null,
+              sets: set.sets ?? null,
+              unit: set.unit as string,
+              templateExerciseId: exercise.templateExerciseId ?? null,
+              one_rm_estimate: null,
+              volume_load: null,
+            }),
+          ),
       ),
     };
   };
