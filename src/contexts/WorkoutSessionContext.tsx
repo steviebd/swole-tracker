@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react";
 
 import { type SetData } from "~/app/_components/set-input";
+import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type WorkoutSessionState } from "~/hooks/useWorkoutSessionState";
 
 export interface LocalSuggestion {
@@ -25,7 +26,7 @@ export const WorkoutSessionContext = createContext<{
     field: keyof SetData,
     value: string | number | undefined,
   ) => void;
-  exercises: any[];
+  exercises: ExerciseData[];
   handleAcceptSuggestion: (params: AcceptSuggestionPayload) => void;
   sessionState: WorkoutSessionState;
 } | null>(null);

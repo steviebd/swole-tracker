@@ -213,18 +213,19 @@ export const insightsRouter = createTRPCRouter({
               sessionsById.set(session.id, {
                 ...session,
                 exercises: [...(session.exercises ?? [])],
-              });
+                date: session.workoutDate ?? new Date(),
+                volume: 0,
+                est1RM: 0,
+              } as SessionData);
               continue;
             }
 
             const seenExerciseIds = new Set<number>(
-              (existing.exercises ?? []).map(
-                (exercise: SessionExercise) => exercise.id,
-              ),
+              (existing.exercises ?? []).map((exercise: any) => exercise.id),
             );
             for (const exercise of session.exercises ?? []) {
               if (!seenExerciseIds.has(exercise.id)) {
-                existing.exercises.push(exercise);
+                existing.exercises?.push(exercise);
                 seenExerciseIds.add(exercise.id);
               }
             }
@@ -283,7 +284,7 @@ export const insightsRouter = createTRPCRouter({
 
             const flatSet: FlatSet = {
               sessionId: s.id,
-              workoutDate: s.workoutDate,
+              workoutDate: s.workoutDate ?? new Date(),
               reps: ex.reps,
               sets: ex.sets,
               unit: (ex.unit as Unit) ?? "kg",
@@ -322,12 +323,16 @@ export const insightsRouter = createTRPCRouter({
           const prev = bySession.get(fs.sessionId);
           // Use computed one_rm_estimate if available, otherwise calculate
           const est =
-            fs.oneRMEstimate ?? estimate1RM(weightTarget, fs.reps ?? undefined);
+            fs.oneRMEstimate ??
+            estimate1RM(weightTarget, fs.reps ?? undefined) ??
+            0;
           if (!prev) {
             const sessionData: SessionData = {
-              date: fs.workoutDate,
+              id: fs.sessionId,
+              date: fs.workoutDate ?? new Date(),
               volume: vol,
               est1RM: est,
+              workoutDate: fs.workoutDate,
             };
             if (weightTarget !== undefined) {
               sessionData.bestWeight = weightTarget;

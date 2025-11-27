@@ -48,6 +48,71 @@ Swole Tracker is a modern fitness tracking application built with Next.js, React
 - Whoop sync, analytics, and debrief generation rely on paging data in manageable slices.
 - This design trades a few extra DB round trips for guaranteed success under D1 constraints.
 
+### 6. Server-Side Caching
+
+**Location**: `src/server/cache/`
+
+Swole Tracker uses a unified server-side cache manager for expensive calculations and API responses. The cache system provides automatic TTL expiration, LRU eviction, and built-in metrics.
+
+#### Quick Usage
+
+```typescript
+import { cacheManager, cachePresets } from "~/server/cache/server-cache-manager";
+
+const cache = cacheManager.getCache("my-cache", cachePresets.calculations);
+
+// Cache expensive calculation
+const key = `progression:${userId}:${exerciseId}`;
+const cached = cache.get(key);
+if (cached) return cached;
+
+const result = await expensiveCalculation();
+cache.set(key, result);
+return result;
+```
+
+#### Cache Types
+
+- **calculations** (`cachePresets.calculations`): 1 hour TTL, for expensive progress calculations
+- **search** (`cachePresets.search`): 5 minute TTL, for API search results
+- **session** (`cachePresets.session`): 30 minute TTL, for user session data
+- **aggregation** (`cachePresets.aggregation`): 15 minute TTL, for pre-computed statistics
+
+#### Current Cache Usage
+
+- `progress-calculations`: Progress router calculations (strength trends, volume, etc.)
+- `exercise-search`: Exercise search results with pagination
+
+#### Monitoring
+
+Cache health is automatically tracked with metrics:
+
+```typescript
+import { cacheManager } from "~/server/cache/server-cache-manager";
+
+// Get metrics for a specific cache
+const cache = cacheManager.getCache("progress-calculations");
+const metrics = cache.getMetrics();
+console.log(metrics); // { hits, misses, evictions, size }
+console.log(cache.getHitRate()); // 0.0 - 1.0
+
+// Get metrics for all caches
+const allMetrics = cacheManager.getAllMetrics();
+```
+
+#### Best Practices
+
+1. **Use presets** for consistent TTL and size limits
+2. **Namespace keys** by user ID to prevent data leaks: `${cacheType}:${userId}:${identifier}`
+3. **Invalidate caches** when data changes: `cache.clear()` or `cache.delete(key)`
+4. **Monitor hit rates** - target >70% for optimal performance
+5. **Check cache limits** - caches automatically evict LRU entries when full
+
+#### Documentation
+
+See `src/server/cache/README.md` for complete API documentation.
+
+
 ## Pre-Commit Checklist
 
 - [ ] Run `bun check` (lint + typecheck)

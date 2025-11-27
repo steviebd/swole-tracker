@@ -7,6 +7,7 @@ import {
   exerciseLinks,
   playbookSessions,
 } from "~/server/db/schema";
+import { type DrizzleDb } from "~/server/db";
 import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
@@ -42,7 +43,7 @@ export interface WorkoutSaveInput {
 }
 
 export interface WorkoutSaveContext {
-  db: any;
+  db: DrizzleDb;
   userId: string;
   requestId: string;
   headers: Headers;
@@ -73,7 +74,7 @@ export interface WorkoutSaveResult {
  * Verify session ownership and return session data
  */
 export async function verifyWorkoutSession(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
 ) {
@@ -86,14 +87,14 @@ export async function verifyWorkoutSession(
     throw new Error("Workout session not found");
   }
 
-  return session as any;
+  return session;
 }
 
 /**
  * Delete existing exercises and trigger aggregation for cleanup
  */
 export async function deleteExistingExercises(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
 ) {
@@ -110,7 +111,7 @@ export async function deleteExistingExercises(
 
   // Trigger incremental aggregation for deleted exercises
   if (exercisesToDelete.length > 0) {
-    const deletedExerciseIds = exercisesToDelete.map((ex: any) => ex.id);
+    const deletedExerciseIds = exercisesToDelete.map((ex) => ex.id);
     try {
       await triggerExerciseAggregation(db, userId, deletedExerciseIds);
     } catch (error) {
@@ -224,10 +225,10 @@ export function transformExercisesToSessionRows(
  * Insert session exercises in chunks
  */
 export async function insertSessionExercises(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
-  setsToInsert: any[],
+  setsToInsert: (typeof sessionExercises.$inferInsert)[],
   invalidTemplateExerciseIds: Set<number>,
 ) {
   if (setsToInsert.length === 0) return [];
@@ -254,14 +255,14 @@ export async function insertSessionExercises(
   }
 
   // Return inserted exercise IDs for aggregation (simplified - in real implementation would get actual IDs)
-  return setsToInsert.map((_, index) => sessionId + index) as any;
+  return setsToInsert.map((_, index) => sessionId + index);
 }
 
 /**
  * Trigger async debrief generation
  */
 export function triggerDebriefGeneration(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
   requestId: string,
@@ -296,14 +297,14 @@ export function triggerDebriefGeneration(
  * Check and update playbook session completion
  */
 export async function updatePlaybookSessionCompletion(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
   exercises: WorkoutSaveInput["exercises"],
 ): Promise<number | null> {
   try {
     const linkedPlaybookSession = await db.query.playbookSessions.findFirst({
-      where: (sessions: any, { eq, and }: any) =>
+      where: (sessions, { eq, and }) =>
         and(
           eq(sessions.actualWorkoutId, sessionId),
           eq(sessions.isCompleted, false),
@@ -378,11 +379,14 @@ export async function updatePlaybookSessionCompletion(
  * Trigger async plateau detection and storage
  */
 export function triggerPlateauDetection(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
   exercises: WorkoutSaveInput["exercises"],
-  resolvedNameLookup: Map<number, any>,
+  resolvedNameLookup: Map<
+    number,
+    { name: string; masterExerciseId: number | null }
+  >,
 ) {
   void (async () => {
     try {
@@ -441,11 +445,14 @@ export function triggerPlateauDetection(
  * Generate notifications for plateaus and milestones
  */
 export async function generateNotifications(
-  db: any,
+  db: DrizzleDb,
   userId: string,
   sessionId: number,
   exercises: WorkoutSaveInput["exercises"],
-  resolvedNameLookup: Map<number, any>,
+  resolvedNameLookup: Map<
+    number,
+    { name: string; masterExerciseId: number | null }
+  >,
 ) {
   const plateauNotifications: Array<{
     type: "plateau_detected";
@@ -482,7 +489,7 @@ export async function generateNotifications(
 
   const masterExerciseIds = Array.from(
     new Set(
-      exerciseLinkResults.map((el: any) => el.masterExerciseId).filter(Boolean),
+      exerciseLinkResults.map((el) => el.masterExerciseId).filter(Boolean),
     ),
   ) as number[];
 

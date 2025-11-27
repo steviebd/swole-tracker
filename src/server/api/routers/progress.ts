@@ -25,8 +25,8 @@ import {
   or,
   asc,
 } from "drizzle-orm";
-import { type CacheEntry } from "~/server/api/types";
 import { type db } from "~/server/db";
+import { cacheManager, cachePresets } from "~/server/cache/server-cache-manager";
 import {
   exerciseProgressInputSchema,
   topExercisesInputSchema,
@@ -70,26 +70,26 @@ import {
 // Alias for backward compatibility
 const sessionExerciseMetricsView = viewSessionExerciseMetrics;
 
-// Simple in-memory cache for expensive calculations
-const calculationCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour TTL
+// Unified calculation cache with 1 hour TTL
+const calculationCache = cacheManager.getCache(
+  "progress-calculations",
+  cachePresets.calculations,
+);
 
 export function getCachedCalculation<T>(key: string): T | null {
-  const cached = calculationCache.get(key);
-  if (cached && cached.expires > Date.now()) {
-    return cached.value as T;
-  }
-  if (cached) {
-    calculationCache.delete(key); // Remove expired entry
-  }
-  return null;
+  return calculationCache.get(key) as T | null;
 }
 
 export function setCachedCalculation<T>(key: string, value: T): void {
-  calculationCache.set(key, {
-    value,
-    expires: Date.now() + CACHE_TTL,
-  });
+  calculationCache.set(key, value);
+}
+
+// Optional: Get cache metrics for monitoring
+export function getCalculationCacheMetrics() {
+  return {
+    ...calculationCache.getMetrics(),
+    hitRate: calculationCache.getHitRate(),
+  };
 }
 
 // Legacy input schema for backward compatibility

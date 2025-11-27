@@ -9,6 +9,24 @@ import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
 import { toast } from "~/hooks/use-toast";
 
+type WorkoutSaveResponse = {
+  success: boolean;
+  playbookSessionId?: number | null;
+  notifications?: {
+    plateaus?: Array<{
+      type: "plateau_detected";
+      exerciseName: string;
+      stalledWeight: number;
+      stalledReps: number;
+    }>;
+    milestones?: Array<{
+      exerciseName: string;
+      achievedValue: number;
+      targetValue: number;
+    }>;
+  };
+};
+
 import {
   applyOptimisticWorkoutDate,
   applyOptimisticVolumeMetrics,
@@ -406,7 +424,7 @@ export function useWorkoutSessionState({
     },
   );
 
-  const createOptimisticWorkout = (newWorkout: any): any => {
+  const createOptimisticWorkout = (newWorkout: any) => {
     // Support both template workouts and playbook workouts (which have no sessionTemplate)
     if (!session) return null;
 
@@ -416,9 +434,9 @@ export function useWorkoutSessionState({
       workoutDate: session.workoutDate,
       createdAt: new Date(),
       template: sessionTemplate ?? null, // null for playbook workouts
+      playbook: null, // Will be filled in by actual save response
       exercises: newWorkout.exercises.flatMap(
         (exercise: any, exerciseIndex: number) =>
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
           exercise.sets.map((set: any, setIndex: number) => ({
             id: -(exerciseIndex * 100 + setIndex),
             exerciseName: exercise.exerciseName,
@@ -455,7 +473,7 @@ export function useWorkoutSessionState({
     });
   };
 
-  const applyOptimisticWorkoutUpdateFromPayload = (payload: any) => {
+  const applyOptimisticWorkoutUpdateFromPayload = (payload: unknown) => {
     const optimisticWorkout = createOptimisticWorkout(payload);
     if (optimisticWorkout) {
       applyOptimisticWorkoutUpdate(optimisticWorkout);
@@ -493,9 +511,12 @@ export function useWorkoutSessionState({
         restoreRecentQueries(mutationContext.previousQueries);
       }
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: WorkoutSaveResponse | undefined) => {
       // Handle plateau notifications
-      if (data?.notifications?.plateaus?.length > 0) {
+      if (
+        data?.notifications?.plateaus &&
+        data.notifications.plateaus.length > 0
+      ) {
         for (const plateau of data.notifications.plateaus) {
           toast({
             title: "Plateau Detected",
@@ -506,7 +527,10 @@ export function useWorkoutSessionState({
       }
 
       // Handle milestone notifications
-      if (data?.notifications?.milestones?.length > 0) {
+      if (
+        data?.notifications?.milestones &&
+        data.notifications.milestones.length > 0
+      ) {
         for (const milestone of data.notifications.milestones) {
           toast({
             title: "Milestone Achieved! 🎉",

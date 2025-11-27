@@ -8,37 +8,17 @@ import { logger } from "~/lib/logger";
 import { normalizeExerciseName } from "~/lib/exercise-utils";
 import { SQLITE_VARIABLE_LIMIT, whereInChunks } from "~/server/db/chunk-utils";
 import { type ExerciseSearchResult } from "~/server/api/types";
+import { cacheManager, cachePresets } from "~/server/cache/server-cache-manager";
 
-// Simple in-memory cache with TTL for searchMaster API
-class SimpleCache {
-  private cache = new Map<string, { value: unknown; expires: number }>();
+// Unified search cache with 5 minute TTL
+const searchCache = cacheManager.getCache(
+  "exercise-search",
+  cachePresets.search,
+);
 
-  get(key: string): unknown {
-    const entry = this.cache.get(key);
-    if (entry && Date.now() < entry.expires) {
-      return entry.value;
-    }
-    this.cache.delete(key);
-    return undefined;
-  }
-
-  set(key: string, value: unknown, ttlMs: number) {
-    this.cache.set(key, { value, expires: Date.now() + ttlMs });
-  }
-
-  clear() {
-    this.cache.clear();
-  }
-}
-
-const searchCache = new SimpleCache();
-
-// Cache metrics for monitoring
-let cacheHits = 0;
-let cacheMisses = 0;
-
+// Cache metrics now built-in!
 function getCacheMetrics() {
-  return { hits: cacheHits, misses: cacheMisses };
+  return searchCache.getMetrics();
 }
 
 // Cursor encoding/decoding for pagination with fuzzy score support
@@ -498,11 +478,8 @@ export const exercisesRouter = createTRPCRouter({
       // Check cache first
       const cachedResult = searchCache.get(cacheKey);
       if (cachedResult) {
-        cacheHits++;
         return cachedResult;
       }
-
-      cacheMisses++;
 
       // Decode cursor for pagination
       const decodedCursor = input.cursor ? decodeCursor(input.cursor) : null;
@@ -977,8 +954,8 @@ export const exercisesRouter = createTRPCRouter({
 
       const result = { items, nextCursor };
 
-      // Cache the result for 5 minutes (300,000 ms)
-      searchCache.set(cacheKey, result, 300000);
+      // Cache the result (5 minute TTL from preset)
+      searchCache.set(cacheKey, result);
 
       return result;
     }),
