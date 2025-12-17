@@ -63,10 +63,10 @@ const ProgressChart = React.forwardRef<HTMLDivElement, ProgressChartProps>(
     const padding = (maxValue - minValue) * 0.1 || 10;
 
     const palette = {
-      primary: "var(--chart-1, #1f78b4)",
-      success: "var(--chart-3, #33a02c)",
-      warning: "var(--chart-2, #ff7f0e)",
-      info: "var(--chart-4, #6a3d9a)",
+      primary: "var(--chart-1, var(--md-sys-color-primary))",
+      success: "var(--chart-3, var(--md-sys-color-tertiary))",
+      warning: "var(--chart-2, var(--md-sys-color-secondary))",
+      info: "var(--chart-4, var(--md-sys-color-secondary-container))",
     } as const;
 
     const strokeColor = palette[theme] ?? palette.primary;

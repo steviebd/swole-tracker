@@ -205,7 +205,11 @@ export const colors = {
   },
   danger: {
     500: lightTheme.schemes.light["error"]!,
-    600: mixColors(lightTheme.schemes.light["error"]!, "#8b1a1a", 0.35),
+    600: mixColors(
+      lightTheme.schemes.light["error"]!,
+      lightTheme.schemes.light["surface"]!,
+      0.35,
+    ),
     dark: materialSchemes.dark.dark["error"]!,
   },
 } as const;
@@ -330,6 +334,25 @@ export const stateLayerOpacity = {
   pressed: 0.12,
   dragged: 0.16,
 } as const;
+
+/**
+ * Get theme-aware shadow for interactive elements
+ * @param intensity - Shadow intensity level
+ * @returns CSS box-shadow value
+ */
+export function getInteractiveShadow(
+  intensity: "hover" | "active" | "rest" = "rest",
+): string {
+  const shadows = {
+    rest: "0 1px 2px 0 color-mix(in srgb, var(--md-sys-color-shadow, #000) 10%, transparent 90%)",
+    hover:
+      "0 20px 40px -10px color-mix(in srgb, var(--md-sys-color-primary) 15%, transparent 85%)",
+    active:
+      "0 10px 25px -5px color-mix(in srgb, var(--md-sys-color-primary) 10%, transparent 90%)",
+  };
+
+  return shadows[intensity];
+}
 
 export const themeMeta = {
   defaultScheme: DEFAULT_SCHEME,

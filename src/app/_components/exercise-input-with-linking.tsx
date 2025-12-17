@@ -81,9 +81,8 @@ export function ExerciseInputWithLinking({
             onClick={() => setPickerOpen(true)}
             className="shrink-0 rounded px-2 py-1 text-xs transition-colors"
             style={{
-              backgroundColor: "var(--color-primary)",
-              border: "1px solid var(--color-primary)",
-              color: "var(--btn-primary-fg)",
+              backgroundColor:
+                "color-mix(in srgb, var(--foreground) 50%, transparent 50%)",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor =
@@ -246,12 +245,7 @@ function InlineSearchFallback({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center p-4"
-      style={{
-        backgroundColor: "hsl(var(--foreground) / 0.5)",
-      }}
-    >
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/20 p-4 dark:bg-white/20">
       <div
         className="w-full max-w-lg rounded-lg shadow-xl"
         style={{

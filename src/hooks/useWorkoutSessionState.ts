@@ -7,6 +7,41 @@ import { useOfflineSaveQueue } from "~/hooks/use-offline-save-queue";
 import { api, type RouterOutputs } from "~/trpc/react";
 import { type ExerciseData } from "~/app/_components/exercise-card";
 import { type SetData } from "~/app/_components/set-input";
+import { toast } from "~/hooks/use-toast";
+import { type sessionExercises } from "~/server/db/schema";
+
+type OptimisticSessionExercise = Partial<
+  typeof sessionExercises.$inferSelect
+> & {
+  id: number;
+  exerciseName: string;
+  setOrder: number;
+  weight: number | null;
+  reps: number | null;
+  sets: number | null;
+  unit: string;
+  templateExerciseId: number | null;
+  one_rm_estimate: number | null;
+  volume_load: number | null;
+};
+
+type WorkoutSaveResponse = {
+  success: boolean;
+  playbookSessionId?: number | null;
+  notifications?: {
+    plateaus?: Array<{
+      type: "plateau_detected";
+      exerciseName: string;
+      stalledWeight: number;
+      stalledReps: number;
+    }>;
+    milestones?: Array<{
+      exerciseName: string;
+      achievedValue: number;
+      targetValue: number;
+    }>;
+  };
+};
 
 import {
   applyOptimisticWorkoutDate,
@@ -405,7 +440,7 @@ export function useWorkoutSessionState({
     },
   );
 
-  const createOptimisticWorkout = (newWorkout: any): any => {
+  const createOptimisticWorkout = (newWorkout: any) => {
     // Support both template workouts and playbook workouts (which have no sessionTemplate)
     if (!session) return null;
 
@@ -415,21 +450,23 @@ export function useWorkoutSessionState({
       workoutDate: session.workoutDate,
       createdAt: new Date(),
       template: sessionTemplate ?? null, // null for playbook workouts
+      playbook: null, // Will be filled in by actual save response
       exercises: newWorkout.exercises.flatMap(
-        (exercise: any, exerciseIndex: number) =>
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-          exercise.sets.map((set: any, setIndex: number) => ({
-            id: -(exerciseIndex * 100 + setIndex),
-            exerciseName: exercise.exerciseName,
-            setOrder: setIndex,
-            weight: set.weight ?? null,
-            reps: set.reps ?? null,
-            sets: set.sets ?? null,
-            unit: set.unit as string,
-            templateExerciseId: exercise.templateExerciseId ?? null,
-            one_rm_estimate: null,
-            volume_load: null,
-          })),
+        (exercise: any, exerciseIndex: number): OptimisticSessionExercise[] =>
+          (exercise.sets as any[]).map(
+            (set: any, setIndex: number): OptimisticSessionExercise => ({
+              id: -(exerciseIndex * 100 + setIndex),
+              exerciseName: exercise.exerciseName,
+              setOrder: setIndex,
+              weight: set.weight ?? null,
+              reps: set.reps ?? null,
+              sets: set.sets ?? null,
+              unit: set.unit as string,
+              templateExerciseId: exercise.templateExerciseId ?? null,
+              one_rm_estimate: null,
+              volume_load: null,
+            }),
+          ),
       ),
     };
   };
@@ -454,7 +491,7 @@ export function useWorkoutSessionState({
     });
   };
 
-  const applyOptimisticWorkoutUpdateFromPayload = (payload: any) => {
+  const applyOptimisticWorkoutUpdateFromPayload = (payload: unknown) => {
     const optimisticWorkout = createOptimisticWorkout(payload);
     if (optimisticWorkout) {
       applyOptimisticWorkoutUpdate(optimisticWorkout);
@@ -490,6 +527,35 @@ export function useWorkoutSessionState({
       const mutationContext = context as RecentMutationContext | undefined;
       if (mutationContext?.previousQueries) {
         restoreRecentQueries(mutationContext.previousQueries);
+      }
+    },
+    onSuccess: (data: WorkoutSaveResponse | undefined) => {
+      // Handle plateau notifications
+      if (
+        data?.notifications?.plateaus &&
+        data.notifications.plateaus.length > 0
+      ) {
+        for (const plateau of data.notifications.plateaus) {
+          toast({
+            title: "Plateau Detected",
+            description: `${plateau.exerciseName} has stalled at ${plateau.stalledWeight}kg × ${plateau.stalledReps}`,
+            duration: 8000,
+          });
+        }
+      }
+
+      // Handle milestone notifications
+      if (
+        data?.notifications?.milestones &&
+        data.notifications.milestones.length > 0
+      ) {
+        for (const milestone of data.notifications.milestones) {
+          toast({
+            title: "Milestone Achieved! 🎉",
+            description: `${milestone.exerciseName}: ${milestone.achievedValue}kg (target: ${milestone.targetValue}kg)`,
+            duration: 8000,
+          });
+        }
       }
     },
     onSettled: () => {

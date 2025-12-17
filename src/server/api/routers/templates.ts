@@ -10,21 +10,15 @@ import {
 } from "~/server/db/schema";
 import { eq, desc, and, inArray, sql, asc, max, count } from "drizzle-orm";
 import { chunkedBatch, whereInChunks } from "~/server/db/chunk-utils";
-
-// Utility function to normalize exercise names for fuzzy matching
-function normalizeExerciseName(name: string): string {
-  if (!name || typeof name !== "string") {
-    return "";
-  }
-  return name.toLowerCase().trim().replace(/\s+/g, " ");
-}
+import { logger } from "~/lib/logger";
+import { normalizeExerciseName } from "~/lib/exercise-utils";
 
 /* DEBUG LOGGING ENABLED FOR TESTS */
 const debugEnabled =
   Boolean(process.env["VITEST"]) || process.env.NODE_ENV === "test";
-function debugLog(...args: unknown[]) {
+function debugLog(message: string, context?: Record<string, unknown>) {
   if (debugEnabled) {
-    console.log("[templatesRouter]", ...args);
+    logger.debug(message, context);
   }
 }
 
@@ -75,7 +69,7 @@ async function createAndLinkMasterExercise(
       }
     | undefined;
 
-  debugLog("createAndLinkMasterExercise: lookup existing", existing);
+  debugLog("createAndLinkMasterExercise: lookup existing", { count: existing.length });
   if (existing.length > 0) {
     masterExercise = existing[0];
   } else {

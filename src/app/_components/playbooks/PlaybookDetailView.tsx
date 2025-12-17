@@ -284,7 +284,11 @@ export function PlaybookDetailView({ playbookId }: { playbookId: number }) {
   const prefersReducedMotion = useReducedMotion();
   const [showAddAiPrompt, setShowAddAiPrompt] = useState(false);
 
-  const { data: playbook, isLoading } = api.playbooks.getById.useQuery({
+  const {
+    data: playbook,
+    isLoading,
+    error,
+  } = api.playbooks.getById.useQuery({
     id: playbookId,
   });
 
@@ -293,6 +297,9 @@ export function PlaybookDetailView({ playbookId }: { playbookId: number }) {
   const { data: adherenceMetrics } = api.playbooks.getAdherenceMetrics.useQuery(
     {
       playbookId,
+    },
+    {
+      enabled: !!playbook && !error, // Only run adherence query if playbook exists and no error
     },
   );
 
@@ -358,11 +365,11 @@ export function PlaybookDetailView({ playbookId }: { playbookId: number }) {
     );
   }
 
-  if (!playbook) {
+  if (error || !playbook) {
     return (
       <PageShell title="Not Found">
         <Alert variant="destructive">
-          <p>Playbook not found</p>
+          <p>{error?.message || "Playbook not found"}</p>
         </Alert>
       </PageShell>
     );

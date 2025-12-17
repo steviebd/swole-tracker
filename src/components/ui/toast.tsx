@@ -77,32 +77,38 @@ export function Toast({
   > = {
     success: {
       background: "var(--gradient-universal-success)",
-      border: "rgba(54, 211, 153, 0.4)",
+      border:
+        "color-mix(in srgb, var(--md-sys-color-tertiary) 40%, transparent 60%)",
       icon: "✅",
     },
     error: {
       background: "var(--gradient-universal-stats-orange)",
-      border: "rgba(248, 113, 113, 0.45)",
+      border:
+        "color-mix(in srgb, var(--md-sys-color-error) 45%, transparent 55%)",
       icon: "❌",
     },
     destructive: {
       background: "var(--gradient-universal-stats-orange)",
-      border: "rgba(248, 113, 113, 0.45)",
+      border:
+        "color-mix(in srgb, var(--md-sys-color-error) 45%, transparent 55%)",
       icon: "❌",
     },
     warning: {
       background: "var(--gradient-universal-action-primary)",
-      border: "rgba(250, 204, 21, 0.5)",
+      border:
+        "color-mix(in srgb, var(--md-sys-color-secondary) 50%, transparent 50%)",
       icon: "⚠️",
     },
     info: {
       background: "var(--gradient-universal-stats-orange)",
-      border: "rgba(125, 211, 252, 0.45)",
+      border:
+        "color-mix(in srgb, var(--md-sys-color-primary) 45%, transparent 55%)",
       icon: "ℹ️",
     },
     default: {
       background: "var(--gradient-universal-stats-orange)",
-      border: "rgba(125, 211, 252, 0.45)",
+      border:
+        "color-mix(in srgb, var(--md-sys-color-primary) 45%, transparent 55%)",
       icon: "ℹ️",
     },
   };

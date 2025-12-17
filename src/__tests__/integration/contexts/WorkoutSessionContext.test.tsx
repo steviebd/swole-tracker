@@ -33,7 +33,7 @@ describe("WorkoutSessionContext", () => {
   const mockHandleAcceptSuggestion = vi.fn();
   const mockExercises = [
     {
-      id: 1,
+      templateExerciseId: 1,
       exerciseName: "Bench Press",
       unit: "lbs" as const,
       sets: [
@@ -42,7 +42,7 @@ describe("WorkoutSessionContext", () => {
       ],
     },
     {
-      id: 2,
+      templateExerciseId: 2,
       exerciseName: "Squat",
       unit: "lbs" as const,
       sets: [
@@ -213,8 +213,8 @@ describe("WorkoutSessionContext", () => {
 
       expect(result.current.exercises).toEqual(mockExercises);
       expect(result.current.exercises).toHaveLength(2);
-      expect(result.current.exercises[0].exerciseName).toBe("Bench Press");
-      expect(result.current.exercises[1].exerciseName).toBe("Squat");
+      expect(result.current.exercises[0]!.exerciseName).toBe("Bench Press");
+      expect(result.current.exercises[1]!.exerciseName).toBe("Squat");
     });
 
     it("should provide access to session state", () => {

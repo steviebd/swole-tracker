@@ -104,6 +104,26 @@ export default tseslint.config(
           message:
             "Use theme tokens instead: bg-foreground/bg-background, text-foreground/text-background",
         },
+        {
+          selector: "Literal[value=/^#[0-9a-fA-F]{3,6}$/]",
+          message:
+            "Avoid hardcoded hex colors. Use CSS variables from theme system.",
+        },
+        {
+          selector: "Literal[value=/^rgb\\(/]",
+          message:
+            "Avoid hardcoded RGB colors. Use CSS variables from theme system.",
+        },
+        {
+          selector: "Literal[value=/^rgba\\(/]",
+          message:
+            "Avoid hardcoded RGBA colors. Use color-mix() with CSS variables.",
+        },
+        {
+          selector: "Literal[value=/^hsl\\(/]",
+          message:
+            "Avoid hardcoded HSL colors. Use CSS variables from theme system.",
+        },
       ],
     },
   },

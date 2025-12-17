@@ -10,11 +10,17 @@ import {
   masterExercises,
   userPreferences,
   playbookSessions,
+  milestones,
+  milestoneAchievements,
 } from "~/server/db/schema";
 import {
   loadResolvedExerciseNameMap,
   resolveExerciseNameWithLookup,
 } from "~/server/db/utils";
+import {
+  normalizeExerciseName,
+  ensureMasterExerciseLinks,
+} from "~/lib/exercise-utils";
 import {
   detectPlateau,
   storePlateau,
@@ -60,116 +66,32 @@ import {
 } from "~/server/db/incremental-aggregation";
 import { invalidateQueries } from "~/trpc/cache-config";
 
-/**
- * Simple exercise name normalization
- */
-function normalizeExerciseName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, " ");
-}
-
-/**
- * Ensure master exercise links exist for template exercises
- * Creates master exercises and links if they don't exist
- */
-async function ensureMasterExerciseLinks(
-  db: any, // typeof ctx.db - using any to avoid type issues
-  userId: string,
-  templateExerciseIds: number[],
-): Promise<void> {
-  if (templateExerciseIds.length === 0) return;
-
-  // Find which template exercises already have master exercise links
-  const existingLinks = await db
-    .select()
-    .from(exerciseLinks)
-    .where(
-      and(
-        eq(exerciseLinks.user_id, userId),
-        inArray(exerciseLinks.templateExerciseId, templateExerciseIds),
-      ),
-    );
-
-  const existingTemplateIds = new Set(
-    existingLinks.map(
-      (link: { templateExerciseId: number }) => link.templateExerciseId,
-    ),
-  );
-
-  // Find template exercises that need master exercise links
-  const missingTemplateIds = templateExerciseIds.filter(
-    (id) => !existingTemplateIds.has(id),
-  );
-
-  if (missingTemplateIds.length === 0) return;
-
-  logger.info("Creating master exercise links", {
-    userId,
-    missingTemplateIds,
-    count: missingTemplateIds.length,
-  });
-
-  // Get template exercise details
-  const templateExercisesData = await db
-    .select()
-    .from(templateExercises)
-    .where(
-      and(
-        eq(templateExercises.user_id, userId),
-        inArray(templateExercises.id, missingTemplateIds),
-      ),
-    );
-
-  // Create master exercises and links for missing ones
-  for (const templateExercise of templateExercisesData) {
-    const exerciseName = normalizeExerciseName(
-      templateExercise.exerciseName || "Unknown Exercise",
-    );
-
-    // Check if master exercise already exists with this name
-    const existingMaster = await db
-      .select()
-      .from(masterExercises)
-      .where(
-        and(
-          eq(masterExercises.user_id, userId),
-          eq(masterExercises.normalizedName, exerciseName),
-        ),
-      )
-      .limit(1);
-
-    let masterExerciseId: number;
-
-    if (existingMaster.length > 0) {
-      // Use existing master exercise
-      masterExerciseId = existingMaster[0]!.id;
-    } else {
-      // Create new master exercise
-      const newMaster = await db
-        .insert(masterExercises)
-        .values({
-          user_id: userId,
-          name: templateExercise.exerciseName || "Unknown Exercise",
-          normalizedName: exerciseName,
-          muscleGroup: templateExercise.muscleGroup || null,
-          tags: templateExercise.tags || null,
-        })
-        .returning({ id: masterExercises.id });
-
-      masterExerciseId = newMaster[0]!.id;
-    }
-
-    // Create exercise link
-    await db.insert(exerciseLinks).values({
-      user_id: userId,
-      templateExerciseId: templateExercise.id,
-      masterExerciseId,
-    });
-  }
-
-  logger.info("Master exercise links created successfully", {
-    userId,
-    count: templateExercisesData.length,
-  });
+// Type for playbook session query result with nested week data
+interface PlaybookSessionWithWeek {
+  id: number;
+  playbookWeekId: number;
+  sessionNumber: number;
+  sessionDate: Date | null;
+  prescribedWorkoutJson: string;
+  actualWorkoutId: number | null;
+  adherenceScore: number | null;
+  rpe: number | null;
+  rpeNotes: string | null;
+  deviation: string | null;
+  activePlanType: "ai" | "algorithmic";
+  isCompleted: boolean;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date | null;
+  week: {
+    id: number;
+    playbookId: number;
+    weekNumber: number;
+    weekType: string;
+    playbook: {
+      name: string;
+    };
+  };
 }
 
 export const workoutsRouter = createTRPCRouter({
@@ -369,7 +291,7 @@ export const workoutsRouter = createTRPCRouter({
 
       // 2. Fetch playbook sessions for these workouts
       const sessionIds = sessions.map((s) => s.id);
-      let playbookSessionData: any[] = [];
+      let playbookSessionData: PlaybookSessionWithWeek[] = [];
       if (sessionIds.length > 0 && ctx.db.query?.playbookSessions?.findMany) {
         try {
           playbookSessionData = await ctx.db.query.playbookSessions.findMany({
@@ -387,7 +309,10 @@ export const workoutsRouter = createTRPCRouter({
             },
           });
         } catch (error) {
-          console.warn("Failed to fetch playbook sessions:", error);
+          logger.warn("Failed to fetch playbook sessions", {
+            sessionIds,
+            error: error instanceof Error ? error.message : "unknown",
+          });
           playbookSessionData = [];
         }
       }
@@ -514,10 +439,10 @@ export const workoutsRouter = createTRPCRouter({
       }
 
       // Fetch playbook session data if linked
-      let playbookSessionData: any = null;
+      let playbookSessionData: PlaybookSessionWithWeek | null = null;
       if (ctx.db.query?.playbookSessions?.findFirst) {
         try {
-          playbookSessionData = await ctx.db.query.playbookSessions.findFirst({
+          const result = await ctx.db.query.playbookSessions.findFirst({
             where: eq(playbookSessions.actualWorkoutId, input.id),
             with: {
               week: {
@@ -531,8 +456,12 @@ export const workoutsRouter = createTRPCRouter({
               },
             },
           });
+          playbookSessionData = result || null;
         } catch (error) {
-          console.warn("Failed to fetch playbook session:", error);
+          logger.warn("Failed to fetch playbook session", {
+            sessionId: input.id,
+            error: error instanceof Error ? error.message : "unknown",
+          });
           playbookSessionData = null;
         }
       }
@@ -670,11 +599,16 @@ export const workoutsRouter = createTRPCRouter({
         undefined,
       );
 
-      console.log("getLastExerciseData: returning", {
+      logger.debug("getLastExerciseData: returning", {
         exerciseName: input.exerciseName,
         setsCount: sets.length,
-        sets,
-        best: bestSet,
+        bestSet: bestSet
+          ? {
+              weight: bestSet.weight,
+              reps: bestSet.reps,
+              unit: bestSet.unit,
+            }
+          : null,
       });
 
       return {
@@ -960,13 +894,14 @@ export const workoutsRouter = createTRPCRouter({
         };
         logger.debug("Start workout complete", { sessionId: result.sessionId });
         return result;
-      } catch (err: any) {
+      } catch (err: unknown) {
         const { TRPCError } = await import("@trpc/server");
-        const message = err?.message ?? "workouts.start failed";
+        const message =
+          err instanceof Error ? err.message : "workouts.start failed";
         const meta = {
-          name: err?.name,
-          cause: err?.cause,
-          stack: err?.stack,
+          name: err instanceof Error ? err.name : undefined,
+          cause: err instanceof Error ? err.cause : undefined,
+          stack: err instanceof Error ? err.stack : undefined,
           err,
         };
         logger.error("Start workout error", new Error(message), meta);
@@ -1260,6 +1195,10 @@ export const workoutsRouter = createTRPCRouter({
           // Trigger plateau detection for key lifts (run after workout is saved)
           void (async () => {
             try {
+              logger.debug("Starting plateau detection", {
+                exerciseCount: input.exercises.length,
+                sessionId: input.sessionId,
+              });
               // Get master exercise IDs from the saved exercises
               const masterExerciseIds = Array.from(
                 new Set(
@@ -1316,18 +1255,288 @@ export const workoutsRouter = createTRPCRouter({
             }
           })();
 
+          // Collect plateau and milestone information for client notifications
+          const plateauNotifications = [];
+          const milestoneNotifications = [];
+
+          // Get master exercise IDs via exerciseLinks lookup
+          const templateExerciseIds = Array.from(
+            new Set(
+              input.exercises
+                .map((e) => e.templateExerciseId)
+                .filter((id): id is number => id !== undefined),
+            ),
+          );
+
+          const exerciseLinkResults =
+            templateExerciseIds.length > 0
+              ? await ctx.db
+                  .select({
+                    templateExerciseId: exerciseLinks.templateExerciseId,
+                    masterExerciseId: exerciseLinks.masterExerciseId,
+                  })
+                  .from(exerciseLinks)
+                  .where(
+                    and(
+                      eq(exerciseLinks.user_id, ctx.user.id),
+                      inArray(
+                        exerciseLinks.templateExerciseId,
+                        templateExerciseIds,
+                      ),
+                    ),
+                  )
+              : [];
+
+          const masterExerciseIds = Array.from(
+            new Set(exerciseLinkResults.map((el) => el.masterExerciseId)),
+          );
+
+          for (const masterExerciseId of masterExerciseIds) {
+            // Check for plateaus
+            const plateauResult = await detectPlateau(
+              ctx.db,
+              ctx.user.id,
+              masterExerciseId,
+            );
+
+            if (plateauResult.plateauDetected && plateauResult.plateau) {
+              const exerciseName =
+                resolvedNameLookup.get(
+                  Array.from(resolvedNameLookup.keys()).find(
+                    (key) =>
+                      resolvedNameLookup.get(key)?.masterExerciseId ===
+                      masterExerciseId,
+                  ) || 0,
+                )?.name || "Unknown exercise";
+
+              plateauNotifications.push({
+                type: "plateau_detected" as const,
+                exerciseName,
+                stalledWeight: plateauResult.plateau.stalledWeight,
+                stalledReps: plateauResult.plateau.stalledReps,
+              });
+            }
+
+            // Check for new milestone achievements
+            const activeMilestones = await ctx.db
+              .select()
+              .from(milestones)
+              .where(
+                and(
+                  eq(milestones.userId, ctx.user.id),
+                  eq(milestones.masterExerciseId, masterExerciseId),
+                ),
+              );
+
+            for (const milestone of activeMilestones) {
+              // Get current best 1RM for this exercise from recent sessions
+              const currentPerformance = await ctx.db
+                .select({
+                  oneRMEstimate: sessionExercises.one_rm_estimate,
+                })
+                .from(sessionExercises)
+                .innerJoin(
+                  exerciseLinks,
+                  and(
+                    eq(
+                      exerciseLinks.templateExerciseId,
+                      sessionExercises.templateExerciseId,
+                    ),
+                    eq(exerciseLinks.user_id, ctx.user.id),
+                  ),
+                )
+                .innerJoin(
+                  workoutSessions,
+                  eq(workoutSessions.id, sessionExercises.sessionId),
+                )
+                .where(
+                  and(
+                    eq(sessionExercises.user_id, ctx.user.id),
+                    eq(exerciseLinks.masterExerciseId, masterExerciseId),
+                    gte(
+                      workoutSessions.workoutDate,
+                      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                    ), // Last 30 days
+                  ),
+                )
+                .orderBy(desc(sessionExercises.one_rm_estimate))
+                .limit(1);
+
+              if (currentPerformance.length > 0) {
+                const currentOneRM = currentPerformance[0]!.oneRMEstimate ?? 0;
+
+                // Check if milestone is achieved
+                let isAchieved = false;
+                if (
+                  milestone.type === "absolute_weight" &&
+                  currentOneRM >= (milestone.targetValue ?? 0)
+                ) {
+                  isAchieved = true;
+                } else if (
+                  milestone.type === "bodyweight_multiplier" &&
+                  currentOneRM >= (milestone.targetValue ?? 0)
+                ) {
+                  isAchieved = true;
+                } else if (milestone.type === "volume") {
+                  // Check volume milestone (sum of all sets in recent session)
+                  const volumeResult = await ctx.db
+                    .select({
+                      totalVolume:
+                        sql<number>`SUM(${sessionExercises.weight} * ${sessionExercises.reps} * ${sessionExercises.sets})`.as(
+                          "totalVolume",
+                        ),
+                    })
+                    .from(sessionExercises)
+                    .innerJoin(
+                      exerciseLinks,
+                      and(
+                        eq(
+                          exerciseLinks.templateExerciseId,
+                          sessionExercises.templateExerciseId,
+                        ),
+                        eq(exerciseLinks.user_id, ctx.user.id),
+                      ),
+                    )
+                    .innerJoin(
+                      workoutSessions,
+                      eq(workoutSessions.id, sessionExercises.sessionId),
+                    )
+                    .where(
+                      and(
+                        eq(sessionExercises.user_id, ctx.user.id),
+                        eq(exerciseLinks.masterExerciseId, masterExerciseId),
+                        gte(
+                          workoutSessions.workoutDate,
+                          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                        ), // Last 7 days
+                      ),
+                    )
+                    .limit(1);
+
+                  if (
+                    volumeResult.length > 0 &&
+                    volumeResult[0]!.totalVolume >= (milestone.targetValue ?? 0)
+                  ) {
+                    isAchieved = true;
+                  }
+                } else if (milestone.type === "reps") {
+                  // Check rep milestone (max reps at target weight)
+                  const repResult = await ctx.db
+                    .select({
+                      maxReps: sql<number>`MAX(${sessionExercises.reps})`.as(
+                        "maxReps",
+                      ),
+                    })
+                    .from(sessionExercises)
+                    .innerJoin(
+                      exerciseLinks,
+                      and(
+                        eq(
+                          exerciseLinks.templateExerciseId,
+                          sessionExercises.templateExerciseId,
+                        ),
+                        eq(exerciseLinks.user_id, ctx.user.id),
+                      ),
+                    )
+                    .innerJoin(
+                      workoutSessions,
+                      eq(workoutSessions.id, sessionExercises.sessionId),
+                    )
+                    .where(
+                      and(
+                        eq(sessionExercises.user_id, ctx.user.id),
+                        eq(exerciseLinks.masterExerciseId, masterExerciseId),
+                        gte(
+                          sessionExercises.weight,
+                          (milestone.targetValue ?? 0) * 0.9,
+                        ), // Within 10% of target weight
+                        gte(
+                          workoutSessions.workoutDate,
+                          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                        ), // Last 30 days
+                      ),
+                    )
+                    .limit(1);
+
+                  if (
+                    repResult.length > 0 &&
+                    repResult[0]!.maxReps >= (milestone.targetValue ?? 0)
+                  ) {
+                    isAchieved = true;
+                  }
+                }
+
+                if (isAchieved) {
+                  // Check if this achievement was already recorded
+                  const recentAchievement = await ctx.db
+                    .select()
+                    .from(milestoneAchievements)
+                    .where(
+                      and(
+                        eq(milestoneAchievements.userId, ctx.user.id),
+                        eq(milestoneAchievements.milestoneId, milestone.id),
+                        gte(
+                          milestoneAchievements.achievedAt,
+                          new Date(Date.now() - 24 * 60 * 60 * 1000),
+                        ), // Last 24 hours
+                      ),
+                    )
+                    .limit(1);
+
+                  if (recentAchievement.length === 0) {
+                    const exerciseName =
+                      resolvedNameLookup.get(
+                        Array.from(resolvedNameLookup.keys()).find(
+                          (key) =>
+                            resolvedNameLookup.get(key)?.masterExerciseId ===
+                            masterExerciseId,
+                        ) || 0,
+                      )?.name || "Unknown exercise";
+
+                    // Record the achievement
+                    await ctx.db.insert(milestoneAchievements).values({
+                      userId: ctx.user.id,
+                      milestoneId: milestone.id,
+                      workoutId: input.sessionId,
+                      achievedAt: new Date(),
+                      achievedValue: currentOneRM,
+                      metadata: JSON.stringify({
+                        trigger: "workout_completion",
+                        masterExerciseId,
+                      }),
+                    });
+
+                    milestoneNotifications.push({
+                      type: "milestone_achieved" as const,
+                      exerciseName,
+                      milestoneType: milestone.type,
+                      achievedValue: currentOneRM,
+                      targetValue: milestone.targetValue,
+                      achievedDate: new Date().toISOString(),
+                    });
+                  }
+                }
+              }
+            }
+          }
+
           return {
             success: true,
             playbookSessionId, // If not null, client should show RPE modal
+            notifications: {
+              plateaus: plateauNotifications,
+              milestones: milestoneNotifications,
+            },
           };
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         const { TRPCError } = await import("@trpc/server");
-        const message = err?.message ?? "workouts.save failed";
+        const message =
+          err instanceof Error ? err.message : "workouts.save failed";
         const meta = {
-          name: err?.name,
-          cause: err?.cause,
-          stack: err?.stack,
+          name: err instanceof Error ? err.name : undefined,
+          cause: err instanceof Error ? err.cause : undefined,
+          stack: err instanceof Error ? err.stack : undefined,
           err,
         };
         logger.error("workouts.save.error", new Error(message), {

@@ -68,9 +68,9 @@ const GoalProgress = React.forwardRef<HTMLDivElement, GoalProgressProps>(
     };
 
     const palette = {
-      primary: "var(--chart-1, #1f78b4)",
-      success: "var(--chart-3, #33a02c)",
-      warning: "var(--chart-2, #ff7f0e)",
+      primary: "var(--chart-1, var(--md-sys-color-primary))",
+      success: "var(--chart-3, var(--md-sys-color-tertiary))",
+      warning: "var(--chart-2, var(--md-sys-color-secondary))",
     } as const;
 
     const strokeColor = palette[theme] ?? palette.primary;

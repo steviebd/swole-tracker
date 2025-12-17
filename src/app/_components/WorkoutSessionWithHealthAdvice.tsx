@@ -95,7 +95,7 @@ export function WorkoutSessionWithHealthAdvice({
 
       if (byTemplateIndex !== -1) {
         return {
-          exercise: exercises[byTemplateIndex] as ExerciseData,
+          exercise: exercises[byTemplateIndex]!,
           index: byTemplateIndex,
         };
       }
@@ -105,10 +105,7 @@ export function WorkoutSessionWithHealthAdvice({
       );
 
       return {
-        exercise:
-          byNameIndex !== -1
-            ? (exercises[byNameIndex] as ExerciseData)
-            : undefined,
+        exercise: byNameIndex !== -1 ? exercises[byNameIndex]! : undefined,
         index: byNameIndex,
       };
     },

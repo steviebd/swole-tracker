@@ -5,38 +5,20 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { apiCallRateLimit } from "~/lib/rate-limit-middleware";
 import { logger } from "~/lib/logger";
+import { normalizeExerciseName } from "~/lib/exercise-utils";
 import { SQLITE_VARIABLE_LIMIT, whereInChunks } from "~/server/db/chunk-utils";
+import { type ExerciseSearchResult } from "~/server/api/types";
+import { cacheManager, cachePresets } from "~/server/cache/server-cache-manager";
 
-// Simple in-memory cache with TTL for searchMaster API
-class SimpleCache {
-  private cache = new Map<string, { value: unknown; expires: number }>();
+// Unified search cache with 5 minute TTL
+const searchCache = cacheManager.getCache(
+  "exercise-search",
+  cachePresets.search,
+);
 
-  get(key: string): unknown {
-    const entry = this.cache.get(key);
-    if (entry && Date.now() < entry.expires) {
-      return entry.value;
-    }
-    this.cache.delete(key);
-    return undefined;
-  }
-
-  set(key: string, value: unknown, ttlMs: number) {
-    this.cache.set(key, { value, expires: Date.now() + ttlMs });
-  }
-
-  clear() {
-    this.cache.clear();
-  }
-}
-
-const searchCache = new SimpleCache();
-
-// Cache metrics for monitoring
-let cacheHits = 0;
-let cacheMisses = 0;
-
+// Cache metrics now built-in!
 function getCacheMetrics() {
-  return { hits: cacheHits, misses: cacheMisses };
+  return searchCache.getMetrics();
 }
 
 // Cursor encoding/decoding for pagination with fuzzy score support
@@ -100,7 +82,9 @@ async function invalidateMasterExercisesCache(userId: string) {
     const request = createCacheRequest(userId);
     await cache.delete(request);
   } catch (error) {
-    console.warn("Cache invalidation failed:", error);
+    logger.warn("Cache invalidation failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -241,10 +225,6 @@ async function createAndLinkMasterExercise(
 }
 
 // Utility function to normalize exercise names for fuzzy matching
-function normalizeExerciseName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, " ");
-}
-
 // Exercise variations dictionary for common exercise names
 const EXERCISE_VARIATIONS = {
   bench: [
@@ -498,11 +478,8 @@ export const exercisesRouter = createTRPCRouter({
       // Check cache first
       const cachedResult = searchCache.get(cacheKey);
       if (cachedResult) {
-        cacheHits++;
         return cachedResult;
       }
-
-      cacheMisses++;
 
       // Decode cursor for pagination
       const decodedCursor = input.cursor ? decodeCursor(input.cursor) : null;
@@ -592,7 +569,7 @@ export const exercisesRouter = createTRPCRouter({
         LIMIT ${input.limit}
       `;
 
-      let results: any[] = [];
+      let results: ExerciseSearchResult[] = [];
       try {
         // For test environment, fall back to the original sequential queries
         if (
@@ -835,12 +812,13 @@ export const exercisesRouter = createTRPCRouter({
               }
             }
 
-            return { ...row, fuzzy_score: fuzzyScore } as unknown;
+            return { ...row, fuzzy_score: fuzzyScore } as ExerciseSearchResult;
           });
 
           // Sort by fuzzy score for test environment
           results.sort(
-            (a: any, b: any) => (b.fuzzy_score || 0) - (a.fuzzy_score || 0),
+            (a: ExerciseSearchResult, b: ExerciseSearchResult) =>
+              (b.fuzzy_score || 0) - (a.fuzzy_score || 0),
           );
         }
 
@@ -936,386 +914,10 @@ export const exercisesRouter = createTRPCRouter({
             },
           ];
         }
-
-        // For test environment, ensure we have results when expected for any query (duplicate for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (triple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (quadruple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (quintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (sextuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (septuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (octuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (nonuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (decuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (undecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (duodecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (tredecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (quattuordecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (quindecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (sexdecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (septendecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (octodecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (novemdecuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (vigintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (trigintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (quadragintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (quinquagintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (sexagintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (septuagintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (octogintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (nonagintuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
-
-        // For test environment, ensure we have results when expected for any query (centuple for safety)
-        if (process.env.NODE_ENV === "test" && results.length === 0) {
-          results = [
-            {
-              id: 1,
-              name: "Test Exercise",
-              normalizedName: normalizeExerciseName(input.q),
-              createdAt: new Date("2024-01-01T12:00:00Z"),
-              source: "master",
-              fuzzy_score: 100,
-            },
-          ];
-        }
       } catch (error) {
-        console.log("searchMaster: query failed", error);
+        logger.debug("searchMaster: query failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         results = [];
       }
 
@@ -1352,8 +954,8 @@ export const exercisesRouter = createTRPCRouter({
 
       const result = { items, nextCursor };
 
-      // Cache the result for 5 minutes (300,000 ms)
-      searchCache.set(cacheKey, result, 300000);
+      // Cache the result (5 minute TTL from preset)
+      searchCache.set(cacheKey, result);
 
       return result;
     }),
@@ -1409,7 +1011,9 @@ export const exercisesRouter = createTRPCRouter({
         }
       } catch (cacheError) {
         // Cache miss or error, continue to fetch from DB
-        console.warn("Cache read failed for master exercises:", cacheError);
+        logger.warn("Cache read failed for master exercises", {
+          error: cacheError instanceof Error ? cacheError.message : String(cacheError),
+        });
       }
 
       try {
@@ -1449,10 +1053,9 @@ export const exercisesRouter = createTRPCRouter({
           }
         } catch (cacheWriteError) {
           // Cache write failed, but don't fail the request
-          console.warn(
-            "Cache write failed for master exercises:",
-            cacheWriteError,
-          );
+          logger.warn("Cache write failed for master exercises", {
+            error: cacheWriteError instanceof Error ? cacheWriteError.message : String(cacheWriteError),
+          });
         }
 
         return result;

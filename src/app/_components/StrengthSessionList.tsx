@@ -1,6 +1,7 @@
 "use client";
 
 import { VirtualizedSessionTable } from "~/components/tables/VirtualizedSessionTable";
+import { getStatusStyles } from "~/lib/status-colors";
 
 type SortKey = "date" | "weight" | "oneRm" | "volume";
 
@@ -63,20 +64,7 @@ function SessionTags({
         <span
           key={tag.label}
           className="rounded-full px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase"
-          style={{
-            backgroundColor:
-              tag.tone === "success"
-                ? "rgb(16 185 129 / 0.15)"
-                : tag.tone === "warning"
-                  ? "rgb(245 158 11 / 0.15)"
-                  : "rgb(14 165 233 / 0.15)",
-            color:
-              tag.tone === "success"
-                ? "#059669"
-                : tag.tone === "warning"
-                  ? "#d97706"
-                  : "#0284c7",
-          }}
+          style={getStatusStyles(tag.tone)}
         >
           {tag.label}
         </span>

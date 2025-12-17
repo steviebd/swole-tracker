@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { aiSuggestionHistory } from "~/server/db/schema";
+import { logger } from "~/lib/logger";
 
 export const suggestionsRouter = createTRPCRouter({
   // Track user interaction with AI suggestions
@@ -59,7 +60,7 @@ export const suggestionsRouter = createTRPCRouter({
 
         return { success: true };
       } catch (error) {
-        console.error("Failed to track suggestion interaction:", error);
+        logger.error("Failed to track suggestion interaction:", error);
         throw new Error("Failed to track suggestion interaction");
       }
     }),
