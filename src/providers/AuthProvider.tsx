@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@tanstack/react-router";
 import { logger } from "~/lib/logger";
 
 // WorkOS user type (matching WorkOS API response)
@@ -57,7 +57,7 @@ async function fetchSession(): Promise<{ user: WorkOSUser | null }> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<WorkOSUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+  const navigate = useNavigate({ from: "/" });
 
   useEffect(() => {
     // Get initial session
@@ -88,9 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       logger.error("Error during sign out", error);
     } finally {
-      router.push("/");
+      navigate({ to: "/" });
     }
-  }, [router]);
+  }, [navigate]);
 
   const onAuthFailure = useCallback(() => {
     logger.warn(

@@ -15,9 +15,9 @@ export default defineConfig({
 
   use: {
     baseURL: "http://localhost:8787",
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
     actionTimeout: 10000,
     navigationTimeout: 30000,
     // Slow down actions for interactive testing (comment out for faster CI runs)
@@ -38,8 +38,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command:
-      "NODE_ENV=test E2E_TESTING=true infisical run --env dev -- bun run dev:worker",
+    command: "NODE_ENV=test E2E_TESTING=true bun run dev",
     url: "http://localhost:8787",
     reuseExistingServer: !process.env["CI"],
     timeout: 120000,

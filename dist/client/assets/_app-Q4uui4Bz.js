@@ -1,0 +1,1 @@
+import{j as t,O as o}from"./main-C5Hyb5XY.js";import"cloudflare:workers";import"node:async_hooks";function e(){return t.jsx("div",{className:"bg-background min-h-screen",children:t.jsx(o,{})})}export{e as component};

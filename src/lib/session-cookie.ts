@@ -1,16 +1,24 @@
-import { env } from "~/env";
-import { db } from "~/server/db";
+const cfEnv = process.env as unknown as {
+  NODE_ENV: string;
+  WORKER_SESSION_SECRET: string;
+};
+import { getDb, type Db } from "~/server/db";
 import { sessions } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
-let sessionDb = db;
+let sessionDb: Db | null = null;
 
-export function setSessionCookieDbForTesting(mockDb: typeof db) {
+export function setSessionCookieDbForTesting(mockDb: Db) {
   sessionDb = mockDb;
 }
 
 export function resetSessionCookieDbForTesting() {
-  sessionDb = db;
+  sessionDb = null;
+}
+
+function getSessionDb(): Db {
+  if (sessionDb) return sessionDb;
+  return getDb();
 }
 
 export interface WorkOSSession {
@@ -37,16 +45,12 @@ const SESSION_COOKIE_NAME = "workos_session";
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds
 const SESSION_COOKIE_PATH = "/";
 const SESSION_COOKIE_HTTP_ONLY = true;
-const SESSION_COOKIE_SECURE = env.NODE_ENV === "production";
 const SESSION_COOKIE_SAME_SITE = "lax" as const;
+const SESSION_COOKIE_SECURE = cfEnv.NODE_ENV === "production";
 
 function getSecret(): string {
-  const secret = env.WORKER_SESSION_SECRET;
-  // In test environment, allow shorter secrets for testing
-  if (env.NODE_ENV === "test" && secret && secret.length >= 10) {
-    return secret;
-  }
-  if (!secret || secret.length < 32) {
+  const secret = cfEnv.WORKER_SESSION_SECRET;
+  if (!secret) {
     throw new Error(
       "WORKER_SESSION_SECRET must be at least 32 characters long",
     );
@@ -112,7 +116,7 @@ export class SessionCookie {
     }
 
     // Store session data in database
-    await sessionDb.insert(sessions).values({
+    await getSessionDb().insert(sessions).values({
       id: sessionId,
       userId: session.userId,
       organizationId: session.organizationId,
@@ -178,7 +182,7 @@ export class SessionCookie {
       if (!isValid) return null;
 
       // Fetch session data from database
-      const [sessionData] = await sessionDb
+      const [sessionData] = await getSessionDb()
         .select()
         .from(sessions)
         .where(eq(sessions.id, sessionId))
@@ -240,7 +244,7 @@ export class SessionCookie {
 
             if (await verify(sessionId, signature)) {
               // Delete session from database
-              await sessionDb
+              await getSessionDb()
                 .delete(sessions)
                 .where(eq(sessions.id, sessionId));
             }
@@ -315,7 +319,7 @@ export class SessionCookie {
       const sessionExpiresAt = session.sessionExpiresAt ?? accessTokenExpiresAt;
 
       // Update session data in database
-      await sessionDb
+      await getSessionDb()
         .update(sessions)
         .set({
           accessToken: session.accessToken,

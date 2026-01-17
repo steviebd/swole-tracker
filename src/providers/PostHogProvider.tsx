@@ -4,7 +4,7 @@ import React from "react";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect, useMemo, useRef } from "react";
-import { env } from "~/env";
+import { clientEnv } from "~/env";
 import { useAuth } from "~/providers/AuthProvider";
 
 interface PostHogProviderProps {
@@ -16,8 +16,8 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
   const lastIdentifiedUser = useRef<string | null>(null);
 
   const posthogConfig = useMemo(() => {
-    const key = env.NEXT_PUBLIC_POSTHOG_KEY;
-    const host = env.NEXT_PUBLIC_POSTHOG_HOST;
+    const key = clientEnv.POSTHOG_KEY;
+    const host = clientEnv.POSTHOG_HOST;
 
     const isPlaceholderKey = !key || key === "phc_test_dummy";
     const isLocalhost =
