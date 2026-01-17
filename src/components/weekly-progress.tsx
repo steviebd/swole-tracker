@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "~/trpc/react";
+import { useDashboardData } from "~/lib/queries/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Progress } from "~/components/ui/progress";
 import { Badge } from "~/components/ui/badge";
@@ -13,23 +13,12 @@ export function WeeklyProgress() {
     "week",
   );
 
-  // Get real data from tRPC API
-  const { data: consistencyData, isLoading: consistencyLoading } =
-    api.progress.getConsistencyStats.useQuery({
-      timeRange: selectedPeriod,
-    });
+  const { data: dashboardData, isLoading } = useDashboardData(selectedPeriod);
 
-  const { data: volumeData, isLoading: volumeLoading } =
-    api.progress.getVolumeProgression.useQuery({
-      timeRange: selectedPeriod,
-    });
-
-  const isLoading = consistencyLoading || volumeLoading;
-
-  // Calculate progress data from real API data
+  // Calculate progress data from dashboard data
   const calculateGoals = () => {
     const targetWorkouts = selectedPeriod === "week" ? 3 : 12;
-    const totalWorkouts = consistencyData?.totalWorkouts || 0;
+    const totalWorkouts = dashboardData?.workoutCount || 0;
     const workoutProgress = Math.min(
       100,
       (totalWorkouts / targetWorkouts) * 100,
@@ -41,13 +30,8 @@ export function WeeklyProgress() {
           ? "perfect"
           : "in_progress";
 
-    // Calculate total volume from volume data
-    const totalVolume =
-      volumeData?.data?.reduce(
-        (sum: number, session) => sum + session.totalVolume,
-        0,
-      ) || 0;
-    const targetVolume = selectedPeriod === "week" ? 15000 : 60000; // 15k per week, 60k per month
+    const totalVolume = dashboardData?.totalVolume || 0;
+    const targetVolume = selectedPeriod === "week" ? 15000 : 60000;
     const volumeProgress = Math.min(100, (totalVolume / targetVolume) * 100);
     const volumeStatus =
       totalVolume > targetVolume
@@ -56,7 +40,10 @@ export function WeeklyProgress() {
           ? "perfect"
           : "in_progress";
 
-    const consistencyScore = consistencyData?.consistencyScore || 0;
+    const consistencyScore = Math.min(
+      100,
+      (totalWorkouts / targetWorkouts) * 100,
+    );
     const consistencyStatus =
       consistencyScore === 100
         ? "perfect"

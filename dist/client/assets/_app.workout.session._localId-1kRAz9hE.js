@@ -1,0 +1,1 @@
+import{g as e,j as s}from"./main-CfL8IPcB.js";function n(){const{localId:o}=e.useParams();return s.jsxs("div",{className:"p-4",children:[s.jsx("h1",{className:"text-2xl font-bold",children:"Workout Session"}),s.jsxs("p",{className:"text-muted-foreground mt-2",children:["Session ID: ",o]})]})}export{n as component};

@@ -4,6 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { envInjection } from "./scripts/vite-env-injection";
 
 export default defineConfig({
   plugins: [
@@ -12,14 +13,18 @@ export default defineConfig({
     cloudflare({ viteEnvironment: { name: "ssr" } }),
     viteReact(),
     tsconfigPaths(),
+    envInjection(),
   ],
-  ssr: {
-    noExternal: ["@tanstack/start**", "@tanstack/react-start**"],
-    external: ["@workos-inc/node", "buffer", "events", "stream", "crypto"],
-  },
   resolve: {
     alias: {
-      "cloudflare:workers": "node_modules/@cloudflare/workers-types/index.d.ts",
+      "buffer/index.js": "node:buffer",
+      buffer: "node:buffer",
+    },
+  },
+  ssr: {
+    noExternal: ["@tanstack/start**", "@tanstack/react-start**"],
+    resolve: {
+      conditions: ["workerd", "edge-light", "worker", "browser"],
     },
   },
 });

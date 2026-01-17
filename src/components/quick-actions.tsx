@@ -1,8 +1,14 @@
 "use client";
 
-import Link from "next/link";
+import { Link, useRouter } from "@tanstack/react-router";
 import { memo, useCallback, useEffect, useState } from "react";
-import { BarChart3, Dumbbell, Flame, Play } from "lucide-react";
+import {
+  BarChart3,
+  Dumbbell,
+  Flame,
+  Play,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -21,25 +27,31 @@ const ACTIONS = [
     description: "Begin a new workout session",
     icon: Play,
     gradient: "from-primary to-accent",
-    href: "/workout/start",
+    href: "/_app/workout.start",
   },
   {
     title: "View Progress",
     description: "Track your strength gains and consistency",
     icon: BarChart3,
     gradient: "from-chart-2 to-chart-1",
-    href: "/progress",
+    href: "/_app/progress",
   },
   {
     title: "Manage Templates",
     description: "Create and edit workout templates",
     icon: Dumbbell,
     gradient: "from-chart-3 to-chart-4",
-    href: "/templates",
+    href: "/_app/templates",
   },
 ] as const;
 
-type QuickAction = (typeof ACTIONS)[number];
+type QuickAction = {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  gradient: string;
+  href: string;
+};
 
 function ContinueSessionCard({
   draft,
@@ -48,6 +60,7 @@ function ContinueSessionCard({
   draft: WorkoutDraftRecord;
   onDiscard: () => void;
 }) {
+  const router = useRouter();
   const exerciseCount = draft.exercises.length;
   const setCount = draft.exercises.reduce(
     (total, exercise) => total + exercise.sets.length,
@@ -77,8 +90,11 @@ function ContinueSessionCard({
           {exerciseCount} exercises · {setCount} sets saved locally
         </div>
         <div className="mt-auto flex flex-col gap-3 sm:flex-row">
-          <Button className="flex-1" asChild>
-            <Link href={sessionHref}>Resume workout</Link>
+          <Button
+            className="flex-1"
+            onClick={() => router.navigate({ to: sessionHref })}
+          >
+            Resume workout
           </Button>
           <Button
             variant="ghost"
@@ -95,12 +111,13 @@ function ContinueSessionCard({
 }
 
 function QuickActionCard({ action }: { action: QuickAction }) {
+  const router = useRouter();
   const Icon = action.icon;
 
   return (
-    <Link
-      href={action.href}
+    <div
       className="group focus-visible:ring-0 focus-visible:outline-none"
+      onClick={() => router.navigate({ to: action.href })}
     >
       <Card
         className={cn(
@@ -142,7 +159,7 @@ function QuickActionCard({ action }: { action: QuickAction }) {
           </Button>
         </CardContent>
       </Card>
-    </Link>
+    </div>
   );
 }
 

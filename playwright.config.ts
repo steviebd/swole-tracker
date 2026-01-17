@@ -1,4 +1,23 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+
+// Load .env.local if it exists
+const envLocalPath = join(process.cwd(), ".env.local");
+if (existsSync(envLocalPath)) {
+  const envContent = readFileSync(envLocalPath, "utf-8");
+  envContent.split("\n").forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#")) {
+      const eqIndex = trimmed.indexOf("=");
+      if (eqIndex > 0) {
+        const key = trimmed.slice(0, eqIndex);
+        const value = trimmed.slice(eqIndex + 1);
+        process.env[key] = value;
+      }
+    }
+  });
+}
 
 export default defineConfig({
   testDir: "./e2e",

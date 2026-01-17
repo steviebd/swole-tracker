@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { withAuth } from "./middleware";
 import {
   workoutTemplates,
   templateExercises,
@@ -7,15 +8,6 @@ import {
 } from "~/server/db/schema";
 import { eq, and, desc, asc, max, count, inArray, sql } from "drizzle-orm";
 import { chunkedBatch, whereInChunks } from "~/server/db/chunk-utils";
-import { checkAuth } from "./auth";
-
-async function requireAuth() {
-  const { isAuthenticated, user } = await checkAuth();
-  if (!isAuthenticated || !user) {
-    throw new Error("UNAUTHORIZED");
-  }
-  return user;
-}
 
 export const getTemplates = createServerFn({ method: "GET" })
   .inputValidator(
@@ -28,10 +20,10 @@ export const getTemplates = createServerFn({ method: "GET" })
       })
       .optional(),
   )
-  .handler(async ({ data }) => {
-    const user = await requireAuth();
-    const db = (await import("~/server/db")).getDb();
-    const input = data ?? {};
+  .middleware([withAuth])
+  .handler(async ({ context, data }) => {
+    const { db, user } = context;
+    const input = data ?? { search: undefined, sort: "recent" as const };
     const searchTerm = input.search?.trim();
     const sort = input.sort ?? "recent";
 
@@ -106,9 +98,9 @@ export const getTemplates = createServerFn({ method: "GET" })
 
 export const getTemplate = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.number() }))
-  .handler(async ({ data }) => {
-    const user = await requireAuth();
-    const db = (await import("~/server/db")).getDb();
+  .middleware([withAuth])
+  .handler(async ({ context, data }) => {
+    const { db, user } = context;
 
     const template = await db.query.workoutTemplates.findFirst({
       where: and(
@@ -138,9 +130,9 @@ export const createTemplate = createServerFn({ method: "POST" })
       warmupConfig: z.record(z.string(), z.any()).optional(),
     }),
   )
-  .handler(async ({ data }) => {
-    const user = await requireAuth();
-    const db = (await import("~/server/db")).getDb();
+  .middleware([withAuth])
+  .handler(async ({ context, data }) => {
+    const { db, user } = context;
 
     const [created] = await db
       .insert(workoutTemplates)
@@ -190,9 +182,9 @@ export const updateTemplate = createServerFn({ method: "POST" })
       warmupConfig: z.record(z.string(), z.any()).optional(),
     }),
   )
-  .handler(async ({ data }) => {
-    const user = await requireAuth();
-    const db = (await import("~/server/db")).getDb();
+  .middleware([withAuth])
+  .handler(async ({ context, data }) => {
+    const { db, user } = context;
 
     const existing = await db.query.workoutTemplates.findFirst({
       where: eq(workoutTemplates.id, data.id),
@@ -235,9 +227,9 @@ export const updateTemplate = createServerFn({ method: "POST" })
 
 export const deleteTemplate = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.number() }))
-  .handler(async ({ data }) => {
-    const user = await requireAuth();
-    const db = (await import("~/server/db")).getDb();
+  .middleware([withAuth])
+  .handler(async ({ context, data }) => {
+    const { db, user } = context;
 
     const existing = await db.query.workoutTemplates.findFirst({
       where: eq(workoutTemplates.id, data.id),
@@ -259,9 +251,9 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       name: z.string().min(1).max(256).optional(),
     }),
   )
-  .handler(async ({ data }) => {
-    const user = await requireAuth();
-    const db = (await import("~/server/db")).getDb();
+  .middleware([withAuth])
+  .handler(async ({ context, data }) => {
+    const { db, user } = context;
 
     const original = await db.query.workoutTemplates.findFirst({
       where: eq(workoutTemplates.id, data.id),

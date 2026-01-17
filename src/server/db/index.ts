@@ -1,43 +1,138 @@
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "./schema";
+import type { D1Database } from "@cloudflare/workers-types";
 
-function getDbFromEnv(): any {
-  // In Cloudflare production, use the DB binding
-  if (typeof process !== "undefined" && process.env.CF_PAGES === "1") {
-    // @ts-ignore - DB binding is only available in Cloudflare
-    return { DB: process.env.DB };
+function getDbFromEnv(): { DB: D1Database } | null {
+  if (typeof process !== "undefined") {
+    const binding = (process.env as unknown as { DB?: D1Database }).DB;
+    if (binding) {
+      return { DB: binding };
+    }
   }
 
-  // In local development via wrangler, use the DB binding from wrangler
-  // The DB binding is injected by wrangler into the process.env
-  // @ts-ignore - DB binding is injected by wrangler
-  const binding = process.env.DB;
-  if (binding) {
-    return { DB: binding };
+  const cfEnv = (
+    globalThis as unknown as { __cloudflare?: { env?: { DB?: D1Database } } }
+  ).__cloudflare?.env;
+  if (cfEnv?.DB) {
+    return { DB: cfEnv.DB };
   }
 
-  // Fallback: try to use D1 from wrangler's local mode
-  // @ts-ignore
-  if (typeof __env__ !== "undefined" && __env__.DB) {
-    // @ts-ignore
-    return { DB: __env__.DB };
+  const cfEnv2 = (
+    globalThis as unknown as { __env__?: Record<string, unknown> }
+  ).__env__;
+  if (cfEnv2?.DB) {
+    return { DB: cfEnv2.DB as D1Database };
   }
 
   return null;
 }
 
-export function getDb() {
-  const env = getDbFromEnv();
-  if (!env || !env.DB) {
-    throw new Error(
-      "D1 database binding not available. Make sure wrangler dev is running with D1 bindings.",
-    );
-  }
-  return drizzle(env.DB, { schema });
+interface D1QueryResult {
+  results?: Array<{ value: unknown }>;
+  success: boolean;
 }
 
-export type Db = ReturnType<typeof getDb>;
+async function getRemoteDb() {
+  const cfEnv = (globalThis as unknown as { __env__?: Record<string, string> })
+    .__env__;
+  const accountId =
+    cfEnv?.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID;
+  const databaseId = cfEnv?.D1_DB_ID || process.env.D1_DB_ID;
+  const token = cfEnv?.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
 
-// Re-export schema and utilities
+  if (!accountId || !databaseId || !token) {
+    throw new Error(
+      "D1 remote database credentials not available. Ensure CLOUDFLARE_ACCOUNT_ID, D1_DB_ID, and CLOUDFLARE_API_TOKEN are set.",
+    );
+  }
+
+  const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}`;
+
+  const fetchDb = async (
+    query: string,
+    params?: unknown[],
+  ): Promise<D1QueryResult> => {
+    const response = await fetch(`${baseUrl}/query`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql: query,
+        params: params || [],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`D1 query failed: ${response.statusText} - ${error}`);
+    }
+
+    return response.json();
+  };
+
+  const client = {
+    prepare: (query: string) => ({
+      bind: (...params: unknown[]) => ({
+        first: async <T = unknown>(): Promise<T | null> => {
+          const result = await fetchDb(query, params);
+          return (result.results?.[0]?.value as T) || null;
+        },
+        run: async () => {
+          await fetchDb(query, params);
+        },
+        all: async <T = unknown>(): Promise<T[]> => {
+          const result = await fetchDb(query, params);
+          return (result.results?.map((r) => r.value) as T[]) || [];
+        },
+        raw: async (): Promise<unknown[][]> => {
+          const result = await fetchDb(query, params);
+          return result.results?.map((r) => r.value as unknown[]) || [];
+        },
+      }),
+    }),
+    exec: async (query: string) => {
+      const response = await fetch(`${baseUrl}/query`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sql: query }),
+      });
+      if (!response.ok) {
+        throw new Error(`D1 exec failed: ${response.statusText}`);
+      }
+    },
+    batch: async (queries: Array<{ sql: string }>) => {
+      const response = await fetch(`${baseUrl}/query`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ queries }),
+      });
+      if (!response.ok) {
+        throw new Error(`D1 batch failed: ${response.statusText}`);
+      }
+    },
+  } as unknown as D1Database;
+
+  return drizzle(client, { schema });
+}
+
+export async function getDb() {
+  const binding = getDbFromEnv();
+  if (binding?.DB) {
+    return drizzle(binding.DB, { schema });
+  }
+
+  return getRemoteDb();
+}
+
+export type Db = Awaited<ReturnType<typeof getDb>>;
+
 export * from "./schema";
 export * from "./chunk-utils";

@@ -1,6 +1,16 @@
-const cfEnv = process.env as unknown as {
+const cfEnvBase = process.env as unknown as {
   NODE_ENV: string;
   WORKER_SESSION_SECRET: string;
+};
+const cfEnvInjection = (
+  globalThis as unknown as { __env__?: Record<string, string> }
+).__env__;
+const cfEnv = {
+  NODE_ENV: cfEnvInjection?.NODE_ENV || cfEnvBase.NODE_ENV || "development",
+  WORKER_SESSION_SECRET:
+    cfEnvInjection?.WORKER_SESSION_SECRET ||
+    cfEnvBase.WORKER_SESSION_SECRET ||
+    "",
 };
 import { getDb, type Db } from "~/server/db";
 import { sessions } from "~/server/db/schema";
@@ -16,7 +26,7 @@ export function resetSessionCookieDbForTesting() {
   sessionDb = null;
 }
 
-function getSessionDb(): Db {
+async function getSessionDb(): Promise<Db> {
   if (sessionDb) return sessionDb;
   return getDb();
 }
@@ -123,7 +133,8 @@ export class SessionCookie {
     }
 
     // Store session data in database
-    await getSessionDb().insert(sessions).values({
+    const db = await getSessionDb();
+    await db.insert(sessions).values({
       id: sessionId,
       userId: session.userId,
       organizationId: session.organizationId,
@@ -213,7 +224,8 @@ export class SessionCookie {
       if (!isValid) return null;
 
       // Fetch session data from database
-      const [sessionData] = await getSessionDb()
+      const db = await getSessionDb();
+      const [sessionData] = await db
         .select()
         .from(sessions)
         .where(eq(sessions.id, sessionId))
@@ -319,9 +331,8 @@ export class SessionCookie {
 
             if (await verify(sessionId, signature)) {
               // Delete session from database
-              await getSessionDb()
-                .delete(sessions)
-                .where(eq(sessions.id, sessionId));
+              const db = await getSessionDb();
+              await db.delete(sessions).where(eq(sessions.id, sessionId));
             }
           }
         }
@@ -394,7 +405,8 @@ export class SessionCookie {
       const sessionExpiresAt = session.sessionExpiresAt ?? accessTokenExpiresAt;
 
       // Update session data in database
-      await getSessionDb()
+      const db = await getSessionDb();
+      await db
         .update(sessions)
         .set({
           accessToken: session.accessToken,

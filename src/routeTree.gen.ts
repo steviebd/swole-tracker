@@ -11,11 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppWorkoutsRouteImport } from './routes/_app.workouts'
+import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
 import { Route as AppIndexRouteImport } from './routes/_app._index'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
+import { Route as AppWorkoutsWorkoutIdRouteImport } from './routes/_app.workouts.$workoutId'
+import { Route as AppWorkoutStartRouteImport } from './routes/_app.workout.start'
+import { Route as AppTemplatesNewRouteImport } from './routes/_app.templates.new'
+import { Route as AppWorkoutSessionLocalIdRouteImport } from './routes/_app.workout.session.$localId'
+import { Route as AppTemplatesIdEditRouteImport } from './routes/_app.templates.$id.edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -25,6 +32,16 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppWorkoutsRoute = AppWorkoutsRouteImport.update({
+  id: '/workouts',
+  path: '/workouts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/_index',
@@ -50,55 +67,123 @@ const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
   path: '/api/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppWorkoutsWorkoutIdRoute = AppWorkoutsWorkoutIdRouteImport.update({
+  id: '/$workoutId',
+  path: '/$workoutId',
+  getParentRoute: () => AppWorkoutsRoute,
+} as any)
+const AppWorkoutStartRoute = AppWorkoutStartRouteImport.update({
+  id: '/workout/start',
+  path: '/workout/start',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesNewRoute = AppTemplatesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppTemplatesRoute,
+} as any)
+const AppWorkoutSessionLocalIdRoute =
+  AppWorkoutSessionLocalIdRouteImport.update({
+    id: '/workout/session/$localId',
+    path: '/workout/session/$localId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppTemplatesIdEditRoute = AppTemplatesIdEditRouteImport.update({
+  id: '/$id/edit',
+  path: '/$id/edit',
+  getParentRoute: () => AppTemplatesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/templates': typeof AppTemplatesRouteWithChildren
+  '/workouts': typeof AppWorkoutsRouteWithChildren
+  '/templates/new': typeof AppTemplatesNewRoute
+  '/workout/start': typeof AppWorkoutStartRoute
+  '/workouts/$workoutId': typeof AppWorkoutsWorkoutIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/templates/$id/edit': typeof AppTemplatesIdEditRoute
+  '/workout/session/$localId': typeof AppWorkoutSessionLocalIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/templates': typeof AppTemplatesRouteWithChildren
+  '/workouts': typeof AppWorkoutsRouteWithChildren
+  '/templates/new': typeof AppTemplatesNewRoute
+  '/workout/start': typeof AppWorkoutStartRoute
+  '/workouts/$workoutId': typeof AppWorkoutsWorkoutIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/templates/$id/edit': typeof AppTemplatesIdEditRoute
+  '/workout/session/$localId': typeof AppWorkoutSessionLocalIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/_index': typeof AppIndexRoute
+  '/_app/templates': typeof AppTemplatesRouteWithChildren
+  '/_app/workouts': typeof AppWorkoutsRouteWithChildren
+  '/_app/templates/new': typeof AppTemplatesNewRoute
+  '/_app/workout/start': typeof AppWorkoutStartRoute
+  '/_app/workouts/$workoutId': typeof AppWorkoutsWorkoutIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/_app/templates/$id/edit': typeof AppTemplatesIdEditRoute
+  '/_app/workout/session/$localId': typeof AppWorkoutSessionLocalIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/templates'
+    | '/workouts'
+    | '/templates/new'
+    | '/workout/start'
+    | '/workouts/$workoutId'
     | '/api/auth/callback'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/templates/$id/edit'
+    | '/workout/session/$localId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/templates'
+    | '/workouts'
+    | '/templates/new'
+    | '/workout/start'
+    | '/workouts/$workoutId'
     | '/api/auth/callback'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/templates/$id/edit'
+    | '/workout/session/$localId'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/_app/_index'
+    | '/_app/templates'
+    | '/_app/workouts'
+    | '/_app/templates/new'
+    | '/_app/workout/start'
+    | '/_app/workouts/$workoutId'
     | '/api/auth/callback'
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/session'
+    | '/_app/templates/$id/edit'
+    | '/_app/workout/session/$localId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -125,6 +210,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/workouts': {
+      id: '/_app/workouts'
+      path: '/workouts'
+      fullPath: '/workouts'
+      preLoaderRoute: typeof AppWorkoutsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates': {
+      id: '/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/_index': {
       id: '/_app/_index'
@@ -161,15 +260,84 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/workouts/$workoutId': {
+      id: '/_app/workouts/$workoutId'
+      path: '/$workoutId'
+      fullPath: '/workouts/$workoutId'
+      preLoaderRoute: typeof AppWorkoutsWorkoutIdRouteImport
+      parentRoute: typeof AppWorkoutsRoute
+    }
+    '/_app/workout/start': {
+      id: '/_app/workout/start'
+      path: '/workout/start'
+      fullPath: '/workout/start'
+      preLoaderRoute: typeof AppWorkoutStartRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates/new': {
+      id: '/_app/templates/new'
+      path: '/new'
+      fullPath: '/templates/new'
+      preLoaderRoute: typeof AppTemplatesNewRouteImport
+      parentRoute: typeof AppTemplatesRoute
+    }
+    '/_app/workout/session/$localId': {
+      id: '/_app/workout/session/$localId'
+      path: '/workout/session/$localId'
+      fullPath: '/workout/session/$localId'
+      preLoaderRoute: typeof AppWorkoutSessionLocalIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates/$id/edit': {
+      id: '/_app/templates/$id/edit'
+      path: '/$id/edit'
+      fullPath: '/templates/$id/edit'
+      preLoaderRoute: typeof AppTemplatesIdEditRouteImport
+      parentRoute: typeof AppTemplatesRoute
+    }
   }
 }
 
+interface AppTemplatesRouteChildren {
+  AppTemplatesNewRoute: typeof AppTemplatesNewRoute
+  AppTemplatesIdEditRoute: typeof AppTemplatesIdEditRoute
+}
+
+const AppTemplatesRouteChildren: AppTemplatesRouteChildren = {
+  AppTemplatesNewRoute: AppTemplatesNewRoute,
+  AppTemplatesIdEditRoute: AppTemplatesIdEditRoute,
+}
+
+const AppTemplatesRouteWithChildren = AppTemplatesRoute._addFileChildren(
+  AppTemplatesRouteChildren,
+)
+
+interface AppWorkoutsRouteChildren {
+  AppWorkoutsWorkoutIdRoute: typeof AppWorkoutsWorkoutIdRoute
+}
+
+const AppWorkoutsRouteChildren: AppWorkoutsRouteChildren = {
+  AppWorkoutsWorkoutIdRoute: AppWorkoutsWorkoutIdRoute,
+}
+
+const AppWorkoutsRouteWithChildren = AppWorkoutsRoute._addFileChildren(
+  AppWorkoutsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppTemplatesRoute: typeof AppTemplatesRouteWithChildren
+  AppWorkoutsRoute: typeof AppWorkoutsRouteWithChildren
+  AppWorkoutStartRoute: typeof AppWorkoutStartRoute
+  AppWorkoutSessionLocalIdRoute: typeof AppWorkoutSessionLocalIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppTemplatesRoute: AppTemplatesRouteWithChildren,
+  AppWorkoutsRoute: AppWorkoutsRouteWithChildren,
+  AppWorkoutStartRoute: AppWorkoutStartRoute,
+  AppWorkoutSessionLocalIdRoute: AppWorkoutSessionLocalIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

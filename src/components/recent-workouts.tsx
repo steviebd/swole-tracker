@@ -1,15 +1,14 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 
-import { api } from "~/trpc/react";
+import { useRecentWorkouts } from "~/lib/queries/workouts";
 import { analytics } from "~/lib/analytics";
 import { cn } from "~/lib/utils";
-import ClientPreferencesTrigger from "~/app/preferences-trigger";
+import ClientPreferencesTrigger from "~/components/preferences-trigger";
 import {
   buildWorkoutSummary,
   isWorkoutWithinHours,
@@ -54,7 +53,6 @@ interface DashboardViewProps extends BaseViewProps {
 
 const toIsoString = (value: Date | string | null | undefined): string => {
   if (!value) {
-    // Use a consistent value for SSR to avoid hydration mismatches
     return typeof window !== "undefined"
       ? new Date().toISOString()
       : new Date(0).toISOString();
@@ -66,7 +64,6 @@ const toIsoString = (value: Date | string | null | undefined): string => {
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    // Use a consistent value for SSR to avoid hydration mismatches
     return typeof window !== "undefined"
       ? new Date().toISOString()
       : new Date(0).toISOString();
@@ -79,7 +76,6 @@ const resolveTemplateName = (
   workout: RecentWorkout,
   fallback: string,
 ): string => {
-  // Check for playbook first - format as "Playbook Name - Week X - Session Y"
   const playbook = (workout as { playbook?: unknown }).playbook;
   if (playbook && typeof playbook === "object" && !Array.isArray(playbook)) {
     const pb = playbook as {
@@ -99,7 +95,6 @@ const resolveTemplateName = (
     }
   }
 
-  // Fall back to template name
   const template = (workout as { template?: unknown }).template;
   if (
     template &&
@@ -117,7 +112,6 @@ const resolveTemplateName = (
 };
 
 const resolveWorkoutSource = (workout: RecentWorkout): WorkoutSource => {
-  // Check for playbook first (takes precedence)
   const playbook = (workout as { playbook?: unknown }).playbook;
   if (
     playbook &&
@@ -131,7 +125,6 @@ const resolveWorkoutSource = (workout: RecentWorkout): WorkoutSource => {
     };
   }
 
-  // Check for template
   const template = (workout as { template?: unknown }).template;
   if (
     template &&
@@ -157,7 +150,7 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
       data: recentWorkouts,
       isLoading,
       error,
-    } = api.workouts.getRecent.useQuery({ limit: resolvedLimit });
+    } = useRecentWorkouts(resolvedLimit);
 
     const handleRepeatWorkout = React.useCallback(
       (workout: RecentWorkout) => {
@@ -171,20 +164,26 @@ const RecentWorkouts = React.forwardRef<HTMLDivElement, RecentWorkoutsProps>(
           workoutId: workout.id,
         });
 
-        router.push(`/workout/start?templateId=${workout.templateId}`);
+        router.navigate({
+          to: "/workout/start",
+          search: { templateId: workout.templateId },
+        });
       },
       [router],
     );
 
     const handleViewDetails = React.useCallback(
       (workoutId: number | string) => {
-        router.push(`/workout/session/${workoutId}`);
+        router.navigate({
+          to: "/workout/session/$localId",
+          params: { localId: String(workoutId) },
+        });
       },
       [router],
     );
 
     const handleStartNewWorkout = React.useCallback(() => {
-      router.push("/workout/start");
+      router.navigate({ to: "/workout/start" });
     }, [router]);
 
     if (variant === "dashboard") {
@@ -328,7 +327,7 @@ const DashboardRecentWorkoutsView = ({
           "Build your go-to heavy day blueprint with the lifts you rely on.",
         action: (
           <Button asChild variant="secondary" size="sm" className="text-xs">
-            <Link href="/templates/new">Create template</Link>
+            <Link to="/templates/new">Create template</Link>
           </Button>
         ),
       },
@@ -339,7 +338,7 @@ const DashboardRecentWorkoutsView = ({
           "Run through a heavy day and capture your top sets to unlock insights.",
         action: (
           <Button asChild size="sm" className="text-xs">
-            <Link href="/workout/start">Start session</Link>
+            <Link to="/workout/start">Start session</Link>
           </Button>
         ),
       },
@@ -347,7 +346,7 @@ const DashboardRecentWorkoutsView = ({
         id: "set-weekly-goal",
         title: "Set your weekly strength goal",
         description:
-          "Tell us how many heavy sessions you’re targeting so we can pace progression.",
+          "Tell us how many heavy sessions you're targeting so we can pace progression.",
         action: <ClientPreferencesTrigger inline label="Open preferences" />,
       },
     ] as const;
@@ -462,7 +461,7 @@ const DashboardRecentWorkoutsView = ({
           {workouts.length >= limit && (
             <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.97 }}>
               <Link
-                href="/workouts"
+                to="/workouts"
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5",
                   "text-primary text-xs font-semibold tracking-wide uppercase",
@@ -525,7 +524,10 @@ const DashboardRecentWorkoutsView = ({
                         "Dashboard Debrief button clicked for workout:",
                         workout.id,
                       );
-                      router.push(`/workouts/${workout.id}`);
+                      router.navigate({
+                        to: "/workouts/$workoutId",
+                        params: { workoutId: String(workout.id) },
+                      });
                     }}
                     onViewDetails={() => onViewDetails(workout.id)}
                   />
@@ -549,6 +551,7 @@ const CardRecentWorkoutsView = ({
   repeatingWorkoutId,
   workouts,
 }: BaseViewProps) => {
+  const router = useRouter();
   console.log(
     "CardRecentWorkoutsView: Using custom card implementation without Debrief button",
   );
@@ -586,7 +589,7 @@ const CardRecentWorkoutsView = ({
               <CardTitle className="font-serif text-2xl font-black">
                 Recent Workouts
               </CardTitle>
-              <Link href="/workouts">
+              <Link to="/workouts">
                 <Button variant="outline" size="sm">
                   View All
                 </Button>
@@ -595,7 +598,7 @@ const CardRecentWorkoutsView = ({
           </CardHeader>
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">No recent workouts found.</p>
-            <Link href="/templates">
+            <Link to="/templates">
               <Button className="mt-4" variant="outline">
                 Start Your First Workout
               </Button>
@@ -614,7 +617,7 @@ const CardRecentWorkoutsView = ({
             <CardTitle className="font-serif text-2xl font-black">
               Recent Workouts
             </CardTitle>
-            <Link href="/workouts">
+            <Link to="/workouts">
               <Button variant="outline" size="sm">
                 View All
               </Button>
@@ -638,8 +641,10 @@ const CardRecentWorkoutsView = ({
             };
 
             const handleViewDetails = () => {
-              // Navigate to workout details page
-              window.location.href = `/workout/session/${workout.id}`;
+              router.navigate({
+                to: "/workout/session/$localId",
+                params: { localId: String(workout.id) },
+              });
             };
 
             const handleDebrief = () => {
@@ -647,8 +652,10 @@ const CardRecentWorkoutsView = ({
                 "Card Debrief button clicked for workout:",
                 workout.id,
               );
-              // Navigate to debrief page
-              window.location.href = `/workouts/${workout.id}`;
+              router.navigate({
+                to: "/workouts/$workoutId",
+                params: { workoutId: String(workout.id) },
+              });
             };
 
             return (

@@ -1,7 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { WorkOS } from "@workos-inc/node";
 
-const cfEnv = process.env as Record<string, string | undefined>;
+function getEnv(name: string): string | undefined {
+  if (
+    typeof process !== "undefined" &&
+    process.env &&
+    (process.env as Record<string, unknown>)[name]
+  ) {
+    return (process.env as Record<string, string>)[name];
+  }
+  if (
+    typeof globalThis !== "undefined" &&
+    (globalThis as unknown as Record<string, unknown>).__env__ !== undefined
+  ) {
+    return ((globalThis as unknown as Record<string, Record<string, string>>)
+      .__env__ || {})[name];
+  }
+  return undefined;
+}
 
 export const Route = createFileRoute("/api/auth/login")({
   server: {
@@ -11,9 +27,10 @@ export const Route = createFileRoute("/api/auth/login")({
         const provider = url.searchParams.get("provider") || "authkit";
         const redirectTo = url.searchParams.get("redirectTo") || "/";
 
-        const workosClientId = cfEnv.WORKOS_CLIENT_ID;
-        const workosApiKey = cfEnv.WORKOS_API_KEY;
-        const siteUrl = cfEnv.SITE_URL || "http://localhost:8787";
+        const workosClientId = getEnv("WORKOS_CLIENT_ID");
+        const workosApiKey = getEnv("WORKOS_API_KEY");
+        const siteUrl =
+          getEnv("NEXT_PUBLIC_SITE_URL") || "http://localhost:8787";
 
         if (!workosClientId) {
           return new Response("WorkOS client ID not configured", {

@@ -1,7 +1,6 @@
 import { getDb, type Db } from "~/server/db";
 import { SessionCookie, type WorkOSSession } from "~/lib/session-cookie";
 import { getRequest } from "@tanstack/react-start/server";
-import { env as cfEnv } from "cloudflare:workers";
 
 export interface ServerContext {
   db: Db;
@@ -10,22 +9,34 @@ export interface ServerContext {
   requestId: string;
 }
 
+function getEnv(name: string): string | undefined {
+  if (
+    typeof process !== "undefined" &&
+    process.env &&
+    (process.env as Record<string, unknown>)[name]
+  ) {
+    return (process.env as Record<string, string>)[name];
+  }
+  const env = (globalThis as unknown as { __env?: Record<string, string> })
+    .__env;
+  if (env) {
+    return env[name];
+  }
+  return undefined;
+}
+
 export async function getServerContext(): Promise<ServerContext> {
   const request = getRequest();
   const requestId = crypto.randomUUID();
 
-  const db = getDb();
+  const db = await getDb();
 
   let user: { id: string } | null = null;
   let session: WorkOSSession | null = null;
 
-  const cfEnvVars = cfEnv as unknown as Record<string, string | undefined>;
+  const e2eTesting = getEnv("E2E_TESTING") === "true";
 
-  const isE2ETest =
-    cfEnvVars.E2E_TESTING === "true" ||
-    request?.headers.get("x-e2e-test") === "true";
-
-  if (isE2ETest) {
+  if (e2eTesting || request?.headers.get("x-e2e-test") === "true") {
     session = {
       userId: "e2e-test-user",
       accessToken: "e2e-test-token",

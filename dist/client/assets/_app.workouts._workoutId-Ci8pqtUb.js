@@ -1,0 +1,1 @@
+import{f as s,j as t}from"./main-CfL8IPcB.js";function r(){const{workoutId:o}=s.useParams();return t.jsxs("div",{className:"p-4",children:[t.jsx("h1",{className:"text-2xl font-bold",children:"Workout Details"}),t.jsxs("p",{className:"text-muted-foreground mt-2",children:["Workout ID: ",o]})]})}export{r as component};

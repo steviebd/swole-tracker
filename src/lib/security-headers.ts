@@ -1,5 +1,3 @@
-import type { NextResponse } from "next/server";
-
 const POSTHOG_DOMAINS = [
   "https://us.i.posthog.com",
   "https://us-assets.i.posthog.com",
@@ -99,25 +97,20 @@ interface ApplyHeadersOptions {
 }
 
 export function applySecurityHeaders(
-  response: NextResponse,
+  headers: Headers,
   { nonce, isApiRoute }: ApplyHeadersOptions,
-): NextResponse {
-  response.headers.set(
-    "Content-Security-Policy",
-    buildContentSecurityPolicy(nonce),
-  );
+): void {
+  headers.set("Content-Security-Policy", buildContentSecurityPolicy(nonce));
 
   for (const [key, value] of Object.entries(SECURITY_HEADER_VALUES)) {
-    response.headers.set(key, value);
+    headers.set(key, value);
   }
 
   if (isApiRoute) {
-    response.headers.set("X-Robots-Tag", API_ROBOTS_VALUE);
+    headers.set("X-Robots-Tag", API_ROBOTS_VALUE);
   }
 
-  response.headers.set(NONCE_HEADER_KEY, nonce);
-
-  return response;
+  headers.set(NONCE_HEADER_KEY, nonce);
 }
 
 export function withNonceHeader(headers: Headers, nonce: string): Headers {

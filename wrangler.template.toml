@@ -1,7 +1,7 @@
 name = "swole-tracker"
+main = "@tanstack/react-start/server-entry"
 compatibility_date = "2025-01-15"
 compatibility_flags = ["nodejs_compat"]
-main = "@tanstack/react-start/server-entry"
 
 [observability]
 enabled = true
@@ -10,14 +10,12 @@ enabled = true
 binding = "DB"
 database_name = "swole-tracker-dev"
 database_id = "{{ D1_DB_ID }}"
+remote = true
 
-[vars]
-NODE_ENV = "production"
+[env.dev]
+name = "swole-tracker-dev"
 
-[env]
-dev.name = "swole-tracker-dev"
-
-  [env.vars]
+  [env.dev.vars]
   WORKOS_CLIENT_ID = ""
   WORKOS_API_KEY = ""
   WORKER_SESSION_SECRET = ""

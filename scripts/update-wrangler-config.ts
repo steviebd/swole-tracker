@@ -133,24 +133,6 @@ async function main() {
     );
   }
 
-  // Ensure the build command is set to use the TypeScript script
-  const buildCommandPattern = /\[build\]\s*\n\s*command\s*=\s*"[^"]*"/;
-  if (buildCommandPattern.test(content)) {
-    content = content.replace(
-      buildCommandPattern,
-      '[build]\ncommand = "bun scripts/opennext-build.ts"',
-    );
-  } else {
-    // If no build command section exists, add it after the compatibility_flags line
-    const compatFlagsPattern = /(compatibility_flags\s*=\s*\[.*?\])/;
-    if (compatFlagsPattern.test(content)) {
-      content = content.replace(
-        compatFlagsPattern,
-        '$1\n\n[build]\ncommand = "bun scripts/opennext-build.ts"',
-      );
-    }
-  }
-
   const varNames = [
     "WORKOS_API_KEY",
     "WORKOS_CLIENT_ID",
@@ -176,6 +158,10 @@ async function main() {
     "RATE_LIMIT_WORKOUT_OPERATIONS_PER_HOUR",
     "RATE_LIMIT_API_CALLS_PER_MINUTE",
     "RATE_LIMIT_ENABLED",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_API_TOKEN",
+    "E2E_TEST_USERNAME",
+    "E2E_TEST_PASSWORD",
   ];
 
   const varsHeader = `  [env.${TARGET_ENV}.vars]`;
@@ -205,6 +191,8 @@ async function main() {
       `⚠️  Warning: Could not find existing [env.${TARGET_ENV}.vars] section, skipping vars update`,
     );
   }
+
+  // No longer needed - main is set in template to @tanstack/react-start/server-entry
 
   writeFileSync(CONFIG_FILE, content);
   console.log(`DEBUG: Updated ${CONFIG_FILE} with new configuration`);

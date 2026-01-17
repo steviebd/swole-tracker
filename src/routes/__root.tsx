@@ -5,7 +5,17 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
+import { Suspense, lazy } from "react";
+import { ThemeProvider } from "~/providers/ThemeProvider";
+import { AuthProvider } from "~/providers/AuthProvider";
+import { Toaster } from "~/components/ui/toaster";
 import "~/styles/globals.css";
+
+const PostHogProvider = lazy(() =>
+  import("~/providers/PostHogProvider").then((m) => ({
+    default: m.PostHogProvider,
+  })),
+);
 
 interface RouterContext {
   queryClient: QueryClient;
@@ -30,7 +40,16 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body>
-        <Outlet />
+        <AuthProvider>
+          <Suspense fallback={null}>
+            <PostHogProvider>
+              <ThemeProvider initialTheme="system" initialResolvedTheme="dark">
+                <Outlet />
+                <Toaster />
+              </ThemeProvider>
+            </PostHogProvider>
+          </Suspense>
+        </AuthProvider>
         <Scripts />
       </body>
     </html>

@@ -1,0 +1,1 @@
+import{j as t}from"./main-CfL8IPcB.js";function s(){return t.jsxs("div",{className:"p-4",children:[t.jsx("h1",{className:"text-2xl font-bold",children:"Workouts"}),t.jsx("p",{className:"text-muted-foreground mt-2",children:"Workout list page"})]})}export{s as component};

@@ -1,8 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-
-const cfEnv = process.env as Record<string, string | undefined>;
 import { WorkOS } from "@workos-inc/node";
 import { SessionCookie } from "~/lib/session-cookie";
+
+function getEnv(name: string): string | undefined {
+  if (
+    typeof process !== "undefined" &&
+    process.env &&
+    (process.env as Record<string, unknown>)[name]
+  ) {
+    return (process.env as Record<string, string>)[name];
+  }
+  if (
+    typeof globalThis !== "undefined" &&
+    (globalThis as unknown as Record<string, unknown>).__env__ !== undefined
+  ) {
+    return ((globalThis as unknown as Record<string, Record<string, string>>)
+      .__env__ || {})[name];
+  }
+  return undefined;
+}
 
 export const Route = createFileRoute("/api/auth/callback")({
   server: {
@@ -26,9 +42,10 @@ export const Route = createFileRoute("/api/auth/callback")({
           return new Response("Missing authorization code", { status: 400 });
         }
 
-        const workosApiKey = cfEnv.WORKOS_API_KEY;
-        const workosClientId = cfEnv.WORKOS_CLIENT_ID;
-        const siteUrl = cfEnv.SITE_URL || "http://localhost:8787";
+        const workosApiKey = getEnv("WORKOS_API_KEY");
+        const workosClientId = getEnv("WORKOS_CLIENT_ID");
+        const siteUrl =
+          getEnv("NEXT_PUBLIC_SITE_URL") || "http://localhost:8787";
 
         if (!workosApiKey || !workosClientId) {
           return new Response("WorkOS not configured", { status: 500 });

@@ -14,8 +14,8 @@
     "db:push:prod": "infisical run --env prod -- drizzle-kit push --force",
     "db:push:all": "bun run db:push:dev && bun run db:push:staging && bun run db:push:prod",
     "db:studio": "drizzle-kit studio",
-    "dev": "(fuser -k 8787/tcp 2>/dev/null || lsof -ti :8787 | xargs kill -9 2>/dev/null || true) && infisical run --env dev -- bun scripts/update-wrangler-config.ts dev && infisical run --env dev -- vite dev --port 8787",
-    "dev:secrets": "bun scripts/update-wrangler-config.ts dev",
+    "dev": "(fuser -k 8787/tcp 2>/dev/null || lsof -ti :8787 | xargs kill -9 2>/dev/null || true) && rm -rf node_modules/.vite && infisical run --env dev -- bun scripts/generate-env-local.ts dev && infisical run --env dev -- bun scripts/update-wrangler-config.ts dev && infisical run --env dev -- bunx vite dev --port 8787",
+    "dev:secrets": "infisical run --env dev -- bun scripts/update-wrangler-config.ts dev",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -90,7 +90,7 @@
     "@ai-sdk/provider": "2.0.0",
     "@ai-sdk/provider-utils": "3.0.12",
     "@cloudflare/vite-plugin": "^1.21.0",
-    "@cloudflare/workers-types": "^4.20251011.0",
+    "@cloudflare/workers-types": "^4.20260117.0",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.1.14",
@@ -133,5 +133,8 @@
   "packageManager": "bun@1.2.21",
   "volta": {
     "node": "24.3.0"
+  },
+  "overrides": {
+    "iron-webcrypto": "^2.0.0"
   }
 }

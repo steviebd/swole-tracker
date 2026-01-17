@@ -13,13 +13,18 @@ import {
   duplicateTemplate,
 } from "~/server/functions/templates";
 
+type TemplateSortOption = "recent" | "lastUsed" | "mostUsed" | "name";
+
 export const templatesQueryOptions = (params?: {
   search?: string;
-  sort?: string;
+  sort?: TemplateSortOption;
 }) =>
   queryOptions({
     queryKey: ["templates", params],
-    queryFn: () => getTemplates({ data: params }),
+    queryFn: () =>
+      getTemplates({
+        data: params ? { search: params.search, sort: params.sort } : undefined,
+      }),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -29,7 +34,10 @@ export const templateQueryOptions = (id: number) =>
     queryFn: () => getTemplate({ data: { id } }),
   });
 
-export function useTemplates(params?: { search?: string; sort?: string }) {
+export function useTemplates(params?: {
+  search?: string;
+  sort?: TemplateSortOption;
+}) {
   return useSuspenseQuery(templatesQueryOptions(params));
 }
 

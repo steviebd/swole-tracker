@@ -53,7 +53,7 @@
         "@ai-sdk/provider": "2.0.0",
         "@ai-sdk/provider-utils": "3.0.12",
         "@cloudflare/vite-plugin": "^1.21.0",
-        "@cloudflare/workers-types": "^4.20251011.0",
+        "@cloudflare/workers-types": "^4.20260117.0",
         "@eslint/eslintrc": "^3.3.1",
         "@playwright/test": "^1.56.1",
         "@tailwindcss/postcss": "^4.1.14",
@@ -94,6 +94,9 @@
         "vitest": "^3.2.4",
       },
     },
+  },
+  "overrides": {
+    "iron-webcrypto": "^2.0.0",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
@@ -176,7 +179,7 @@
 
     "@cloudflare/workerd-windows-64": ["@cloudflare/workerd-windows-64@1.20260114.0", "", { "os": "win32", "cpu": "x64" }, "sha512-MJnKgm6i1jZGyt2ZHQYCnRlpFTEZcK2rv9y7asS3KdVEXaDgGF8kOns5u6YL6/+eMogfZuHRjfDS+UqRTUYIFA=="],
 
-    "@cloudflare/workers-types": ["@cloudflare/workers-types@4.20251011.0", "", {}, "sha512-gQpih+pbq3sP4uXltUeCSbPgZxTNp2gQd8639SaIbQMwgA6oJNHLhIART1fWy6DQACngiRzDVULA2x0ohmkGTQ=="],
+    "@cloudflare/workers-types": ["@cloudflare/workers-types@4.20260117.0", "", {}, "sha512-hAoNGDHRv+BaMJEFx5Zl5B2nzDW0+fa9aocIjUxhBGAZlXpGXhogK2lxtzJ7G8GzrgfXv8VRMA0n+H3OTgsiHQ=="],
 
     "@cspotcode/source-map-support": ["@cspotcode/source-map-support@0.8.1", "", { "dependencies": { "@jridgewell/trace-mapping": "0.3.9" } }, "sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw=="],
 
@@ -1302,7 +1305,7 @@
 
     "iron-session": ["iron-session@6.3.1", "", { "dependencies": { "@peculiar/webcrypto": "^1.4.0", "@types/cookie": "^0.5.1", "@types/express": "^4.17.13", "@types/koa": "^2.13.5", "@types/node": "^17.0.41", "cookie": "^0.5.0", "iron-webcrypto": "^0.2.5" }, "peerDependencies": { "express": ">=4", "koa": ">=2", "next": ">=10" }, "optionalPeers": ["express", "koa", "next"] }, "sha512-3UJ7y2vk/WomAtEySmPgM6qtYF1cZ3tXuWX5GsVX4PJXAcs5y/sV9HuSfpjKS6HkTL/OhZcTDWJNLZ7w+Erx3A=="],
 
-    "iron-webcrypto": ["iron-webcrypto@0.2.8", "", { "dependencies": { "buffer": "^6" } }, "sha512-YPdCvjFMOBjXaYuDj5tiHst5CEk6Xw84Jo8Y2+jzhMceclAnb3+vNPP/CTtb5fO2ZEuXEaO4N+w62Vfko757KA=="],
+    "iron-webcrypto": ["iron-webcrypto@2.0.0", "", { "dependencies": { "uint8array-extras": "^1.5.0" } }, "sha512-rtffZKDUHciZElM8mjFCufBC7nVhCxHYyWHESqs89OioEDz4parOofd8/uhrejh/INhQFfYQfByS22LlezR9sQ=="],
 
     "is-array-buffer": ["is-array-buffer@3.0.5", "", { "dependencies": { "call-bind": "^1.0.8", "call-bound": "^1.0.3", "get-intrinsic": "^1.2.6" } }, "sha512-DDfANUiiG2wC1qawP66qlTugJeL5HyzMpfr8lLK+jMQirGzNod0B12cFB/9q838Ru27sBwfw78/rdoU7RERz6A=="],
 
@@ -1881,6 +1884,8 @@
     "typescript-eslint": ["typescript-eslint@8.46.1", "", { "dependencies": { "@typescript-eslint/eslint-plugin": "8.46.1", "@typescript-eslint/parser": "8.46.1", "@typescript-eslint/typescript-estree": "8.46.1", "@typescript-eslint/utils": "8.46.1" }, "peerDependencies": { "eslint": "^8.57.0 || ^9.0.0", "typescript": ">=4.8.4 <6.0.0" } }, "sha512-VHgijW803JafdSsDO8I761r3SHrgk4T00IdyQ+/UsthtgPRsBWQLqoSxOolxTpxRKi1kGXK0bSz4CoAc9ObqJA=="],
 
     "ufo": ["ufo@1.6.3", "", {}, "sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q=="],
+
+    "uint8array-extras": ["uint8array-extras@1.5.0", "", {}, "sha512-rvKSBiC5zqCCiDZ9kAOszZcDvdAHwwIKJG33Ykj43OKcWsnmcBRL09YTU4nOeHZ8Y2a7l1MgTd08SBe9A8Qj6A=="],
 
     "unbox-primitive": ["unbox-primitive@1.1.0", "", { "dependencies": { "call-bound": "^1.0.3", "has-bigints": "^1.0.2", "has-symbols": "^1.1.0", "which-boxed-primitive": "^1.1.1" } }, "sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw=="],
 
