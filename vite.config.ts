@@ -22,7 +22,4 @@ export default defineConfig({
       "cloudflare:workers": "node_modules/@cloudflare/workers-types/index.d.ts",
     },
   },
-  define: {
-    "process.env": {},
-  },
 });

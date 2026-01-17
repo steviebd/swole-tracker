@@ -14,7 +14,7 @@
     "db:push:prod": "infisical run --env prod -- drizzle-kit push --force",
     "db:push:all": "bun run db:push:dev && bun run db:push:staging && bun run db:push:prod",
     "db:studio": "drizzle-kit studio",
-    "dev": "infisical run --env dev -- bun scripts/update-wrangler-config.ts dev && vite dev --port 8787",
+    "dev": "(fuser -k 8787/tcp 2>/dev/null || lsof -ti :8787 | xargs kill -9 2>/dev/null || true) && infisical run --env dev -- bun scripts/update-wrangler-config.ts dev && infisical run --env dev -- vite dev --port 8787",
     "dev:secrets": "bun scripts/update-wrangler-config.ts dev",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",

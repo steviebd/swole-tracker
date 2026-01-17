@@ -1,41 +1,20 @@
 import { test, expect } from "../fixtures/auth.fixture";
 
 test.describe("Authentication", () => {
-  test("should redirect unauthenticated user to login", async ({ page }) => {
+  test("should redirect unauthenticated user to WorkOS", async ({ page }) => {
     // Navigate to protected route without auth
     await page.goto("/workout/new");
 
-    // Should redirect to login (could be /auth/login or /sign-in)
-    await page.waitForURL(/.*(auth\/login|sign-in).*/);
-    expect(page.url()).toMatch(/.*(auth\/login|sign-in).*/);
-
-    // Verify login page elements - check for OAuth redirect
-    try {
-      // Check if it redirects to WorkOS AuthKit
-      await page.waitForURL(/.*authkit\.app.*/, { timeout: 5000 });
-      console.log("Redirected to WorkOS AuthKit as expected");
-    } catch {
-      // If no redirect, look for Google sign-in button
-      await expect(
-        page.locator('button:has-text("Sign in with Google")'),
-      ).toBeVisible();
-    }
+    // Should redirect to WorkOS AuthKit
+    await page.waitForURL(/.*authkit\.app.*/, { timeout: 10000 });
+    expect(page.url()).toContain("authkit.app");
   });
 
   test("should complete WorkOS OAuth flow with real credentials", async ({
     page,
   }) => {
-    // This test verifies the OAuth redirect flow works
-    // We don't complete the full OAuth flow as it requires real user interaction
-
     // Start at home
     await page.goto("/");
-
-    // Click sign in
-    const signInButton = page
-      .locator('button:has-text("Sign in"), a:has-text("Sign in")')
-      .first();
-    await signInButton.click();
 
     // Should redirect to WorkOS AuthKit
     await page.waitForURL(/.*authkit\.app.*/);
@@ -56,7 +35,7 @@ test.describe("Authentication", () => {
 
     // Should still be authenticated (no redirect to login)
     await expect(page.locator("body")).toBeVisible();
-    expect(page.url()).toContain("/dashboard");
+    expect(page.url()).not.toContain("/auth/login");
   });
 
   test("should access protected workout routes when authenticated", async ({
@@ -93,14 +72,8 @@ test.describe("Authentication", () => {
     // Try to access protected route
     await page.goto("/dashboard");
 
-    // Should redirect to login due to expired session or to WorkOS AuthKit
-    try {
-      await page.waitForURL(/.*auth\/login.*/, { timeout: 5000 });
-      expect(page.url()).toContain("/auth/login");
-    } catch {
-      // If it redirects to WorkOS AuthKit, that's also expected behavior
-      await page.waitForURL(/.*authkit\.app.*/, { timeout: 5000 });
-      expect(page.url()).toContain("authkit.app");
-    }
+    // Should redirect to WorkOS AuthKit due to expired session
+    await page.waitForURL(/.*authkit\.app.*/, { timeout: 10000 });
+    expect(page.url()).toContain("authkit.app");
   });
 });

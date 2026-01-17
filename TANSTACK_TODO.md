@@ -1,5 +1,34 @@
 # TanStack Start Migration Plan (Updated)
 
+## Decisions & Recommendations (Jan 17, 2026)
+
+### Session Management
+
+- **Decision**: Rely on WorkOS session management for now (no automatic token refresh)
+- **Rationale**: Keep it simple; WorkOS handles session expiry gracefully
+- **Impact**: Users may need to re-authenticate after token expiry (30 days)
+
+### Environment Variables
+
+- **Decision**: Use `VITE_` prefix going forward (Vite standard)
+- **Action Required**: Update `.env.example` and `README.md`
+- **Migration**: Existing `NEXT_PUBLIC_*` vars will need to be renamed
+
+### Database Access
+
+- **Decision**: Clean break - use `env.DB` from `cloudflare:workers` directly
+- **Previous Pattern**: `process.env.DB` (legacy Next.js/Cloudflare Pages pattern)
+- **New Pattern**: `import { env } from "cloudflare:workers"; env.DB`
+- **Impact**: Test files will need updates for mock DB access
+
+### Phase 1 Scope
+
+- **Decision**: Auth + Templates ONLY
+- **Rationale**: Complete working feature with minimal surface area for review
+- **Excluded from Phase 1**: Workouts, WHOOP, Progress, Playbooks, and all other features (Phase 2+)
+
+---
+
 ## Overview
 
 Migrate Swole Tracker from Next.js 15 to TanStack Start with a **complete rewrite** strategy. This plan uses **Server Functions with direct Drizzle calls** for data fetching/mutations, **TanStack Query** for client-side caching, and **Server Routes** for webhooks and external API endpoints.
@@ -127,28 +156,9 @@ export default defineConfig({
 });
 ```
 
-**Task 0.2.2: Create wrangler.jsonc**
+**Task 0.2.2: Create wrangler.toml**
 
-```jsonc
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "swole-tracker",
-  "compatibility_date": "2025-01-15",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
-  "observability": { "enabled": true },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "swole-tracker-dev",
-      "database_id": "${D1_DATABASE_ID}",
-    },
-  ],
-  "vars": {
-    "NODE_ENV": "production",
-  },
-}
-```
+````
 
 **Task 0.2.3: Create src/router.tsx**
 
@@ -192,7 +202,7 @@ declare module "@tanstack/react-router" {
     router: ReturnType<typeof getRouter>;
   }
 }
-```
+````
 
 **Task 0.2.4: Create src/env.ts**
 
@@ -201,7 +211,7 @@ declare module "@tanstack/react-router" {
 import { z } from "zod";
 
 const envSchema = z.object({
-  // Cloudflare D1
+  // Cloudflare D1 - accessed via cloudflare:workers env binding
   DB: z.any().optional(),
 
   // WorkOS
@@ -241,10 +251,10 @@ const envSchema = z.object({
   SITE_URL: z.string().url().default("http://localhost:8787"),
 });
 
-// Access via Cloudflare's env binding in server functions
+// Server-side access (Cloudflare Workers env binding)
 export type Env = z.infer<typeof envSchema>;
 
-// Client-side env (via Vite's import.meta.env)
+// Client-side env (via Vite's import.meta.env - VITE_ prefix)
 export const clientEnv = {
   SITE_URL: import.meta.env.VITE_SITE_URL ?? "http://localhost:8787",
   POSTHOG_KEY: import.meta.env.VITE_POSTHOG_KEY ?? "",
@@ -389,6 +399,9 @@ export * from "./schema";
 export * from "./chunk-utils";
 ```
 
+**Note**: This is a clean break from the previous `process.env.DB` pattern.
+Test files will need to be updated to mock the Cloudflare workers env binding.
+
 **Task 0.4.2: Create src/server/context.ts**
 
 ```typescript
@@ -462,9 +475,27 @@ export async function requireAuth(): Promise<
 - [x] Next.js and tRPC dependencies fully removed
 - [x] Playwright configured for new server port
 
+**Phase 0 Status**: ✅ COMPLETE (Jan 17, 2026)
+
 ---
 
 ## Phase 1: Server Functions & Auth
+
+### Phase 1 Scope
+
+**Focus**: Auth + Templates (complete working feature)
+
+This phase delivers:
+
+- Full authentication flow (WorkOS OAuth → callback → session)
+- Protected routes with redirect to sign-in
+- Dashboard after authentication
+- Complete template CRUD (create, read, update, delete, duplicate)
+
+**Not included in Phase 1**:
+
+- Workouts, WHOOP, Progress, Exercises, Playbooks, Wellness, etc.
+- These are Phase 2+
 
 ### 1.1 Create Server Function Infrastructure
 
@@ -482,18 +513,14 @@ export const withContext = createMiddleware().server(async ({ next }) => {
 });
 
 // Middleware that requires authentication
-// TODO: Port session refresh logic from old middleware
+// Note: Session refresh handled by WorkOS; no automatic token refresh in this phase
 export const withAuth = createMiddleware().server(async ({ next }) => {
   const ctx = await requireAuth();
-
-  // Note: Session refresh logic should happen here or in global middleware
-  // to ensure tokens stay fresh during user activity.
-
   return next({ context: ctx });
 });
 
-// Rate limiting middleware
-// TODO: Port logic from src/lib/rate-limit-middleware.ts
+// Rate limiting middleware - Phase 2
+// TODO: Port logic from src/lib/rate-limit-middleware.ts in Phase 2
 export const withRateLimit = (limit: number, windowMs: number) =>
   createMiddleware().server(async ({ next }) => {
     // Implement rate limiting logic using RateLimitService
@@ -1111,11 +1138,13 @@ function Dashboard() {
 
 **Acceptance Criteria for Phase 1:**
 
-- [ ] Auth flow works (sign in → callback → session)
-- [ ] Protected routes redirect to sign-in
-- [ ] Dashboard loads after authentication
-- [ ] Templates server functions work
-- [ ] Query hooks fetch data correctly
+- [x] Auth flow works (WorkOS manages UI, redirects handled correctly)
+- [x] Protected routes redirect to WorkOS
+- [x] Dashboard loads after authentication
+- [x] Templates server functions work
+- [x] Query hooks fetch data correctly
+
+**Phase 1 Status**: ✅ COMPLETE (Jan 17, 2026)
 
 ---
 

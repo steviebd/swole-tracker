@@ -38,7 +38,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "NODE_ENV=test E2E_TESTING=true bun run dev",
+    command: "bun run dev",
     url: "http://localhost:8787",
     reuseExistingServer: !process.env["CI"],
     timeout: 120000,

@@ -10,7 +10,17 @@ export const Route = createFileRoute("/api/auth/callback")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const code = url.searchParams.get("code");
+        const error = url.searchParams.get("error");
+        const errorDescription = url.searchParams.get("error_description");
         const state = url.searchParams.get("state") || "/";
+
+        if (error) {
+          console.error("WorkOS auth error:", error, errorDescription);
+          return new Response(
+            `Authentication failed: ${errorDescription || error}`,
+            { status: 400 },
+          );
+        }
 
         if (!code) {
           return new Response("Missing authorization code", { status: 400 });

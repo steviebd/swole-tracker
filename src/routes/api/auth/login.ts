@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { WorkOS } from "@workos-inc/node";
 
 const cfEnv = process.env as Record<string, string | undefined>;
 
@@ -7,10 +8,11 @@ export const Route = createFileRoute("/api/auth/login")({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const provider = url.searchParams.get("provider") || "GoogleOAuth";
+        const provider = url.searchParams.get("provider") || "authkit";
         const redirectTo = url.searchParams.get("redirectTo") || "/";
 
         const workosClientId = cfEnv.WORKOS_CLIENT_ID;
+        const workosApiKey = cfEnv.WORKOS_API_KEY;
         const siteUrl = cfEnv.SITE_URL || "http://localhost:8787";
 
         if (!workosClientId) {
@@ -19,16 +21,20 @@ export const Route = createFileRoute("/api/auth/login")({
           });
         }
 
-        const authUrl = new URL(
-          "https://api.workos.com/user_management/authentication/start",
-        );
-        authUrl.searchParams.set("client_id", workosClientId);
-        authUrl.searchParams.set(
-          "redirect_uri",
-          `${siteUrl}/api/auth/callback`,
-        );
-        authUrl.searchParams.set("provider", provider);
-        authUrl.searchParams.set("state", redirectTo);
+        if (!workosApiKey) {
+          return new Response("WorkOS API key not configured", {
+            status: 500,
+          });
+        }
+
+        const workos = new WorkOS(workosApiKey);
+
+        const authUrl = workos.userManagement.getAuthorizationUrl({
+          provider: provider === "GoogleOAuth" ? "google" : provider,
+          clientId: workosClientId,
+          redirectUri: `${siteUrl}/api/auth/callback`,
+          state: redirectTo,
+        });
 
         return new Response(null, {
           status: 302,

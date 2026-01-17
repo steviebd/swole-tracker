@@ -25,6 +25,10 @@ export const test = base.extend<AuthFixtures>({
       TEST_CREDENTIALS.email!,
     );
 
+    // Clear existing session to start fresh
+    await page.context().clearCookies();
+    await page.goto("/", { waitUntil: "networkidle" });
+
     // Navigate to the app home page which will redirect to login
     await page.goto("/");
 

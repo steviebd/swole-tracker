@@ -5,7 +5,10 @@ export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     const { isAuthenticated } = await checkAuth();
     if (!isAuthenticated) {
-      throw redirect({ to: "/sign-in" });
+      throw redirect({
+        to: "/api/auth/login",
+        search: { redirectTo: "/" },
+      });
     }
   },
   component: AppLayout,

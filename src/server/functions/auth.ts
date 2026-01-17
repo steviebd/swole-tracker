@@ -12,14 +12,6 @@ function getEnvVar(name: string): string | undefined {
 export const checkAuth = createServerFn({ method: "GET" }).handler(async () => {
   const request = getRequest();
 
-  const isE2ETest =
-    getEnvVar("E2E_TESTING") === "true" ||
-    request?.headers.get("x-e2e-test") === "true";
-
-  if (isE2ETest) {
-    return { user: { id: "e2e-test-user" }, isAuthenticated: true };
-  }
-
   if (!request) {
     return { user: null, isAuthenticated: false };
   }

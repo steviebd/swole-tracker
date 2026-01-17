@@ -9,8 +9,8 @@ test.describe("Login Verification", () => {
     // Should be on home page after successful login
     await expect(page.url()).toContain("localhost:8787/");
 
-    // Verify home page elements are visible - look for QuickActions component
-    await expect(page.locator('[aria-label="Quick actions"]')).toBeVisible({
+    // Verify user is on dashboard/authenticated page
+    await expect(page.locator("h1")).toContainText("Dashboard", {
       timeout: 10000,
     });
 

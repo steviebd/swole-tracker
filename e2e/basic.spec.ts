@@ -13,24 +13,14 @@ test("basic - homepage loads", async ({ page }) => {
   await page.screenshot({ path: "homepage.png" });
 });
 
-test("basic - login page loads", async ({ page }) => {
-  await page.goto("/auth/login");
+test("basic - unauthenticated user redirects to WorkOS", async ({ page }) => {
+  // Navigate to protected route
+  await page.goto("/dashboard");
 
-  // Check that login page loads
-  await expect(page).toHaveTitle(/Swole Tracker/);
-
-  // Look for OAuth redirect or Google sign-in button
-  try {
-    // Check if it redirects to WorkOS AuthKit
-    await page.waitForURL(/.*authkit\.app.*/, { timeout: 5000 });
-    console.log("Redirected to WorkOS AuthKit as expected");
-  } catch {
-    // If no redirect, look for Google sign-in button
-    await expect(
-      page.locator('button:has-text("Sign in with Google")'),
-    ).toBeVisible();
-  }
+  // Should redirect to WorkOS AuthKit
+  await page.waitForURL(/.*authkit\.app.*/, { timeout: 10000 });
+  expect(page.url()).toContain("authkit.app");
 
   // Take a screenshot for debugging
-  await page.screenshot({ path: "login-page.png" });
+  await page.screenshot({ path: "workos-redirect.png" });
 });

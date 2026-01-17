@@ -101,6 +101,13 @@ async function verify(data: string, signature: string): Promise<boolean> {
 
 export class SessionCookie {
   static async create(session: WorkOSSession): Promise<string> {
+    const isDev = cfEnv.NODE_ENV === "development";
+
+    if (isDev) {
+      // In development without D1, create a simplified cookie
+      return this.createDevSessionCookie(session);
+    }
+
     // Generate opaque session ID
     const sessionId = crypto.randomUUID();
 
@@ -144,19 +151,37 @@ export class SessionCookie {
     return cookieParts.join("; ");
   }
 
-  static async get(request: Request): Promise<WorkOSSession | null> {
-    // E2E testing bypass - check for environment variable or special cookie
-    if (process.env["E2E_TESTING"] === "true") {
-      return {
-        userId: "e2e-test-user",
-        accessToken: "e2e-test-token",
-        refreshToken: null,
-        accessTokenExpiresAt: Math.floor(Date.now() / 1000) + 3600,
-        sessionExpiresAt: Math.floor(Date.now() / 1000) + 3600,
-        expiresAt: Math.floor(Date.now() / 1000) + 3600,
-      };
-    }
+  private static async createDevSessionCookie(
+    session: WorkOSSession,
+  ): Promise<string> {
+    // In dev without D1, embed session data directly in cookie (not for production!)
+    const sessionData = JSON.stringify({
+      userId: session.userId,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      accessTokenExpiresAt: session.accessTokenExpiresAt,
+      sessionExpiresAt: session.sessionExpiresAt,
+      expiresAt: session.expiresAt,
+      organizationId: session.organizationId,
+      _dev: true,
+    });
 
+    const signature = await sign(sessionData);
+    const signedData = `dev_${Buffer.from(sessionData).toString("base64")}.${signature}`;
+
+    const cookieParts = [
+      `${SESSION_COOKIE_NAME}=${encodeURIComponent(signedData)}`,
+      `Max-Age=${SESSION_COOKIE_MAX_AGE}`,
+      `Path=${SESSION_COOKIE_PATH}`,
+      "HttpOnly",
+      SESSION_COOKIE_SECURE ? "Secure" : "",
+      `SameSite=${SESSION_COOKIE_SAME_SITE}`,
+    ].filter(Boolean);
+
+    return cookieParts.join("; ");
+  }
+
+  static async get(request: Request): Promise<WorkOSSession | null> {
     const cookies = request.headers.get("cookie");
     if (!cookies) return null;
 
@@ -165,6 +190,12 @@ export class SessionCookie {
 
     try {
       const decodedCookieValue = decodeURIComponent(cookieValue);
+
+      // Handle dev mode cookie format (embedded session data)
+      if (decodedCookieValue.startsWith("dev_")) {
+        return await this.parseDevSessionCookie(decodedCookieValue);
+      }
+
       // Split from the end to get session ID and signature
       const separatorIndex = decodedCookieValue.lastIndexOf(".");
 
@@ -219,6 +250,50 @@ export class SessionCookie {
     } catch (_error) {
       // Invalid cookie format or database error
       return null;
+    }
+  }
+
+  private static parseDevSessionCookie(
+    cookieValue: string,
+  ): Promise<WorkOSSession | null> {
+    try {
+      // Format: dev_<base64_json>.<signature>
+      const lastDotIndex = cookieValue.lastIndexOf(".");
+      if (lastDotIndex <= 0) return Promise.resolve(null);
+
+      const encodedData = cookieValue.slice(4, lastDotIndex);
+      const signature = cookieValue.slice(lastDotIndex + 1);
+
+      const jsonData = Buffer.from(encodedData, "base64").toString("utf-8");
+      const data = JSON.parse(jsonData);
+
+      // Verify signature
+      return verify(jsonData, signature).then((isValid) => {
+        if (!isValid) return null;
+
+        // Check expiry
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const sessionExpiresAt = data.sessionExpiresAt ?? data.expiresAt;
+
+        if (
+          typeof sessionExpiresAt !== "number" ||
+          sessionExpiresAt <= nowSeconds
+        ) {
+          return null;
+        }
+
+        return {
+          userId: data.userId,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          accessTokenExpiresAt: data.accessTokenExpiresAt,
+          sessionExpiresAt: data.sessionExpiresAt,
+          expiresAt: data.expiresAt,
+          organizationId: data.organizationId,
+        };
+      });
+    } catch {
+      return Promise.resolve(null);
     }
   }
 
