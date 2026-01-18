@@ -1333,55 +1333,678 @@ function Dashboard() {
 
 ---
 
-## Phase 3: Page Routes
+## Phase 3: Page Routes (DETAILED PLAN)
 
-### 3.1 Template Routes
+**Status**: IN PROGRESS (Jan 17, 2026)
+**Priority**: Top-down from template list → workouts → progress → exercises
 
-**Task 3.1.1: Create src/routes/\_app.templates.tsx**
-**Task 3.1.2: Create src/routes/\_app.templates.new.tsx**
-**Task 3.1.3: Create src/routes/\_app.templates.$id.edit.tsx**
+---
 
-### 3.2 Workout Routes
+### Phase 3 Overview
 
-**Task 3.2.1: Create src/routes/\_app.workouts.tsx**
-**Task 3.2.2: Create src/routes/\_app.workouts.$id.tsx**
-**Task 3.2.3: Create src/routes/\_app.workout.start.tsx**
-**Task 3.2.4: Create src/routes/\_app.workout.session.$localId.tsx**
+Port over all existing Next.js pages to TanStack Start routes. Reference test files in `src/__tests__/app/` for expected component structure and behavior.
 
-### 3.3 Progress Routes
+---
 
-**Task 3.3.1: Create src/routes/\_app.progress.tsx**
-**Task 3.3.2: Create src/routes/\_app.progress.achievements.tsx**
+### 3.1 Workout Routes (Priority 1)
 
-### 3.4 Exercises Route
+**Task 3.1.1: Complete `src/routes/_app.workouts.tsx`**
 
-**Task 3.4.1: Create src/routes/\_app.exercises.tsx**
+Reference: `src/__tests__/app/workout/session/[id]/page.test.tsx` for workout list expectations
 
-### 3.5 Playbook Routes
+Expected features:
 
-**Task 3.5.1: Create src/routes/\_app.playbooks.tsx**
-**Task 3.5.2: Create src/routes/\_app.playbooks.new.tsx**
-**Task 3.5.3: Create src/routes/\_app.playbooks.$id.tsx**
+- List of recent workouts with exercises, date, duration
+- Quick actions: "Start Workout" FAB
+- Filter/sort by date, template, exercise
+- Empty state with CTA to start first workout
 
-### 3.6 WHOOP Routes
+Server functions to use:
 
-**Task 3.6.1: Create src/routes/\_app.connect-whoop.tsx**
+- `getRecentWorkouts` from `~/server/functions/workouts`
+- `useRecentWorkouts` from `~/lib/queries/workouts`
 
-### 3.7 Wellness Route
+Components to reuse:
 
-**Task 3.7.1: Create src/routes/\_app.wellness.tsx**
+- `WorkoutCard` or similar from existing components
+- `EmptyState` from `~/components/ui/empty-state`
+- `DataTable` or similar for list view
 
-### 3.8 Static Routes
+```typescript
+// src/routes/_app.workouts.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { useRecentWorkouts } from "~/lib/queries/workouts";
+import { Link } from "@tanstack/react-router";
 
-**Task 3.8.1: Create src/routes/terms.tsx**
-**Task 3.8.2: Create src/routes/privacy.tsx**
+export const Route = createFileRoute("/_app/workouts")({
+  component: WorkoutsPage,
+});
 
-**Acceptance Criteria for Phase 3:**
+function WorkoutsPage() {
+  const { data: workouts } = useRecentWorkouts(20);
 
-- [ ] All page routes render correctly
-- [ ] Navigation works between pages
-- [ ] Dynamic routes load correct data
-- [ ] Loader preloading works
+  return (
+    <div className="container mx-auto max-w-4xl py-8">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Workouts</h1>
+        <Link
+          to="/_app/workout/start"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium"
+        >
+          Start Workout
+        </Link>
+      </div>
+
+      {/* Workout list with cards - refactor from tests */}
+      {/* Empty state handling */}
+    </div>
+  );
+}
+```
+
+---
+
+**Task 3.1.2: Complete `src/routes/_app.workouts.$workoutId.tsx`**
+
+Reference: `src/__tests__/app/workout/session/[id]/page.test.tsx`
+
+Expected features:
+
+- Full workout details with all exercises and sets
+- Edit capability for sets/reps/weight
+- Delete workout option
+- View linked playbook session if applicable
+- Health advice/debrief integration
+
+Server functions to use:
+
+- `getWorkout` from `~/server/functions/workouts`
+- `useWorkout` from `~/lib/queries/workouts`
+- `saveWorkout` for edits
+- `deleteWorkout` for deletion
+
+Components to reuse:
+
+- `WorkoutSessionWithHealthAdvice` (from `~/app/_components/`)
+- `GlassHeader` for page header
+- Set input components
+
+---
+
+**Task 3.1.3: Complete `src/routes/_app.workout.start.tsx`**
+
+Reference: `src/__tests__/app/workout/start/page.test.tsx`
+
+Expected features:
+
+- Choose template or start from scratch
+- Recent templates quick select
+- Search templates
+- Workout starter component ( WorkoutStarter)
+- Client hydration for prefetched data
+
+Server functions to use:
+
+- `getTemplates` from `~/server/functions/templates`
+- `useTemplates` from `~/lib/queries/templates`
+- `startWorkout` from `~/server/functions/workouts`
+- `useStartWorkout` from `~/lib/queries/workouts`
+
+Components to reuse:
+
+- `WorkoutStarter` from `~/app/_components/workout-starter`
+- `ClientHydrate` pattern (TanStack Query hydration)
+- Template cards/grid
+
+```typescript
+// src/routes/_app.workout.start.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { useTemplates } from "~/lib/queries/templates";
+import { useStartWorkout } from "~/lib/queries/workouts";
+import { WorkoutStarter } from "~/components/workout-starter";
+
+export const Route = createFileRoute("/_app/workout/start")({
+  component: WorkoutStartPage,
+});
+
+function WorkoutStartPage() {
+  const { data: templates } = useTemplates({ sort: "recent" });
+  const startWorkout = useStartWorkout();
+
+  return (
+    <div className="container mx-auto max-w-7xl px-4 py-6">
+      <h1 className="text-2xl font-bold mb-2">Start Workout</h1>
+      <p className="text-muted-foreground text-sm mb-6">
+        Choose a template or start from scratch
+      </p>
+
+      <WorkoutStarter
+        templates={templates || []}
+        onStartWorkout={(data) => startWorkout.mutate(data)}
+        isStarting={startWorkout.isPending}
+      />
+    </div>
+  );
+}
+```
+
+---
+
+**Task 3.1.4: Create `src/routes/_app.workout.session.$localId.tsx`**
+
+Reference: `src/__tests__/app/workout/session/local/[localId]/page.test.tsx`
+
+Expected features:
+
+- Active workout session with timer
+- Add/remove exercises
+- Set entry (weight, reps, RPE)
+- Warm-up set support
+- Save/pause/resume workout
+- Auto-save with debouncing
+- Offline support (localStorage)
+
+Server functions to use:
+
+- `getWorkout` for existing session
+- `saveWorkout` for persisting
+- `addExercise`, `updateExercise`, `removeExercise`
+- `addSet`, `updateSet`, `deleteSet`
+
+Components to reuse:
+
+- Exercise card components
+- Set input components (`SetInput`)
+- Timer display
+- Workout session context provider
+
+**Note**: This is the most complex feature - save for last in Phase 3.
+
+---
+
+### 3.2 Progress Routes (Priority 2)
+
+**Task 3.2.1: Create `src/routes/_app.progress.tsx`**
+
+Reference: `TODO_NEW.md` lines 203-215 for AI Debrief feature, and existing dashboard components
+
+Expected features:
+
+- Dashboard-style progress overview
+- Strength progression charts
+- Volume trends
+- Recent PRs highlights
+- Streak display
+- Personal records section
+- Progress highlights
+- Integration with plateau/milestone features
+
+Server functions to use:
+
+- `getDashboardData` from `~/server/functions/progress`
+- `getStreak`, `getRecentPRs`, `getHistory`
+- `getStrengthProgression`, `getVolumeProgression`
+- `getTopSets`, `getTopExercises`
+- `getProgressHighlights`
+
+Components to reuse:
+
+- `StatsCards` from `~/components/stats-cards`
+- `ProgressChart` from `~/components/charts/progress-chart`
+- `StrengthSummaryMetrics` from `~/app/_components/`
+- `PlateauMilestoneCard` from `~/components/dashboard/`
+
+```typescript
+// src/routes/_app.progress.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { Suspense, lazy } from "react";
+import { useDashboardData, useStreak, useRecentPRs } from "~/lib/queries/progress";
+
+const StrengthProgressSection = lazy(() =>
+  import("~/app/_components/StrengthProgressSection").then((m) => ({
+    default: m.StrengthProgressSection,
+  }))
+);
+
+const VolumeTrendsChart = lazy(() =>
+  import("~/components/charts/workout-volume-chart").then((m) => ({
+    default: m.VolumeTrendsChart,
+  }))
+);
+
+export const Route = createFileRoute("/_app/progress")({
+  component: ProgressPage,
+});
+
+function ProgressPage() {
+  const { data: dashboardData } = useDashboardData("month");
+  const { data: streak } = useStreak();
+  const { data: recentPRs } = useRecentPRs(5);
+
+  return (
+    <div className="container mx-auto max-w-6xl py-8">
+      <h1 className="text-3xl font-bold mb-8">Progress</h1>
+
+      {/* Quick stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {/* Streak, workouts this week, volume, PRs */}
+      </div>
+
+      {/* Strength progression chart */}
+      <section className="mb-8">
+        <Suspense
+          fallback={
+            <div className="h-80 bg-muted/50 animate-pulse rounded-lg" />
+          }
+        >
+          <StrengthProgressSection />
+        </Suspense>
+      </section>
+
+      {/* Volume trends */}
+      <section className="mb-8">
+        <Suspense
+          fallback={
+            <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />
+          }
+        >
+          <VolumeTrendsChart />
+        </Suspense>
+      </section>
+
+      {/* Recent PRs */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Recent PRs</h2>
+        {/* PR cards grid */}
+      </section>
+    </div>
+  );
+}
+```
+
+---
+
+**Task 3.2.2: Create `src/routes/_app.progress.achievements.tsx`**
+
+Reference: `TODO_NEW.md` lines 388-423 for milestone/achievement features
+
+Expected features:
+
+- List of all milestone achievements
+- Filter by type (weight, volume, bodyweight multiplier)
+- Sort by date or value
+- Celebration animation on recent achievements
+- Link to workouts where PRs were set
+
+Server functions to use:
+
+- `getMilestones` from `~/server/functions/plateau-milestone`
+- `getPersonalRecords` from `~/server/functions/progress`
+
+Components to reuse:
+
+- `PlateauMilestoneCard` styling
+- Achievement badge components
+- Empty state with encouragement
+
+---
+
+### 3.3 Exercises Route (Priority 3)
+
+**Task 3.3.1: Create `src/routes/_app.exercises.tsx` (Comprehensive)**
+
+Reference: `TODO_NEW.md` lines 67-68 for exercise linking features
+
+Expected features:
+
+- Master exercise browser with search
+- Pagination for large exercise lists
+- Similar exercise discovery
+- Migration status overview
+- Bulk linking operations
+- Individual exercise linking/unlinking
+- Exercise name resolution
+- Stats per exercise (total sets, volume, etc.)
+
+Server functions to use:
+
+- `searchMaster` from `~/server/functions/exercises`
+- `findSimilar`, `getAllMaster`, `getMigrationStatus`
+- `linkToMaster`, `unlink`, `bulkLink`, `resolveName`
+- `getTopSets`, `getTopExercises` from progress
+
+Components to reuse:
+
+- `ExerciseLinkingReview` from `~/app/_components/`
+- `VirtualizedSelect` or similar for search
+- Bulk action toolbar
+- Migration progress indicator
+
+```typescript
+// src/routes/_app.exercises.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import {
+  useAllMasterExercises,
+  useMigrationStatus,
+  useSearchMaster,
+  useBulkLinkExercises,
+  useLinkToMaster,
+} from "~/lib/queries/exercises";
+import { useTopSets } from "~/lib/queries/progress";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { VirtualizedSelect } from "~/components/ui/VirtualizedSelect";
+
+export const Route = createFileRoute("/_app/exercises")({
+  component: ExercisesPage,
+});
+
+function ExercisesPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+
+  const { data: migrationStatus } = useMigrationStatus();
+  const { data: searchResults } = useSearchMaster(searchQuery, 20);
+  const { data: masterExercises } = useAllMasterExercises(50, page * 50);
+  const bulkLink = useBulkLinkExercises();
+  const linkToMaster = useLinkToMaster();
+
+  const linkedCount = masterExercises?.filter((e) => e.isLinked).length || 0;
+  const totalCount = masterExercises?.length || 0;
+
+  return (
+    <div className="container mx-auto max-w-6xl py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Exercise Library</h1>
+        <p className="text-muted-foreground">
+          Manage your exercise linking and discover similar movements
+        </p>
+      </div>
+
+      {/* Migration status overview */}
+      <section className="mb-8 p-4 bg-muted/30 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2">Migration Status</h2>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Linked</p>
+            <p className="text-2xl font-bold">{linkedCount}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Unlinked</p>
+            <p className="text-2xl font-bold">{totalCount - linkedCount}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Completion</p>
+            <p className="text-2xl font-bold">
+              {totalCount > 0
+                ? Math.round((linkedCount / totalCount) * 100)
+                : 0}
+              %
+            </p>
+          </div>
+        </div>
+        {migrationStatus?.needsMigration && (
+          <Button
+            onClick={() => {
+              /* Trigger migration */
+            }}
+            className="mt-4"
+          >
+            Run Migration
+          </Button>
+        )}
+      </section>
+
+      {/* Search and bulk actions */}
+      <section className="mb-6">
+        <div className="flex gap-4 mb-4">
+          <Input
+            placeholder="Search exercises..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-md"
+          />
+          {selectedExercises.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {selectedExercises.length} selected
+              </span>
+              <Button
+                variant="default"
+                onClick={() => bulkLink.mutate({ ids: selectedExercises })}
+              >
+                Link All
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedExercises([])}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Exercise list with virtualized rendering */}
+      <section>
+        <VirtualizedSelect
+          items={searchQuery ? searchResults : masterExercises || []}
+          renderItem={(exercise) => (
+            <ExerciseRow
+              exercise={exercise}
+              isSelected={selectedExercises.includes(exercise.id)}
+              onToggle={() => {
+                setSelectedExercises((prev) =>
+                  prev.includes(exercise.id)
+                    ? prev.filter((id) => id !== exercise.id)
+                    : [...prev, exercise.id],
+                );
+              }}
+              onLink={() => linkToMaster.mutate({ id: exercise.id })}
+              onViewSimilar={() => {
+                /* Navigate to similar view */
+              }}
+            />
+          )}
+          onEndReached={() => {
+            if (!searchQuery) setPage((p) => p + 1);
+          }}
+        />
+      </section>
+
+      {/* Similar exercises panel */}
+      {selectedExercises.length === 1 && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold mb-4">Similar Exercises</h2>
+          <SimilarExercisesList exerciseId={selectedExercises[0]} />
+        </section>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+### 3.4 Template Routes (Verification)
+
+**Task 3.4.1: Verify `src/routes/_app.templates.tsx`**
+
+Status: ✅ COMPLETE - Already implemented with full CRUD
+
+---
+
+**Task 3.4.2: Verify `src/routes/_app.templates.new.tsx`**
+
+Status: ✅ COMPLETE - Already implemented
+
+---
+
+**Task 3.4.3: Verify `src/routes/_app.templates.$id.edit.tsx`**
+
+Status: ✅ COMPLETE - Already implemented
+
+---
+
+### 3.5 Playbook Routes (Priority 4)
+
+**Task 3.5.1: Create `src/routes/_app.playbooks.tsx`**
+
+Reference: `TODO_NEW.md` lines 123-128 for playbook listing
+
+Expected features:
+
+- List active/draft/archived playbooks
+- Create new playbook CTA
+- Filter by status
+- Quick stats per playbook (progress, adherence)
+
+Server functions to use:
+
+- `getAll` from `~/server/functions/playbooks`
+- `getProgress` from `~/server/functions/playbooks`
+
+Components to reuse:
+
+- Playbook cards from existing components
+- `PlaybookCreationWizard` from `~/app/_components/playbooks/`
+
+---
+
+**Task 3.5.2: Create `src/routes/_app.playbooks.new.tsx`**
+
+Reference: `TODO_NEW.md` lines 124-128 for creation wizard
+
+Expected features:
+
+- Multi-step creation wizard
+- Goal selection (presets + free text)
+- Target selection (templates or exercises)
+- Duration slider
+- AI plan review with algorithmic comparison
+- Accept/reject flow
+
+Components to reuse:
+
+- `PlaybookCreationWizard`
+
+---
+
+**Task 3.5.3: Create `src/routes/_app.playbooks.$id.tsx`**
+
+Reference: `TODO_NEW.md` lines 129-135 for playbook detail view
+
+Expected features:
+
+- Weekly timeline view
+- Session cards with prescribed workouts
+- PR attempt badges
+- Adherence tracking
+- Regeneration options
+- Start workout from session
+
+---
+
+### 3.6 WHOOP Route (Priority 5)
+
+**Task 3.6.1: Create `src/routes/_app.connect-whoop.tsx`**
+
+Expected features:
+
+- Connection status display
+- OAuth connect button
+- Disconnect option
+- Sync status and controls
+
+Server functions to use:
+
+- `getIntegrationStatus` from `~/server/functions/whoop`
+
+Components to reuse:
+
+- Integration status cards
+- Connect/disconnect buttons
+
+---
+
+### 3.7 Wellness Route (Priority 6)
+
+**Task 3.7.1: Create `src/routes/_app.wellness.tsx`**
+
+Expected features:
+
+- Wellness metrics display
+- History chart
+- Add/edit/delete entries
+
+Server functions to use:
+
+- `getMetrics`, `getHistory` from `~/server/functions/wellness`
+
+---
+
+### 3.8 Static Routes (Low Priority)
+
+**Task 3.8.1: Create `src/routes/terms.tsx`**
+**Task 3.8.2: Create `src/routes/privacy.tsx`**
+
+Static content pages with legal text.
+
+---
+
+### Component Reuse Strategy
+
+Reference these existing components for porting:
+
+| Feature                        | Source Location                                      |
+| ------------------------------ | ---------------------------------------------------- |
+| WorkoutStarter                 | `~/app/_components/workout-starter`                  |
+| WorkoutSessionWithHealthAdvice | `~/app/_components/WorkoutSessionWithHealthAdvice`   |
+| ExerciseLinkingReview          | `~/app/_components/exercise-linking-review`          |
+| PlaybookCreationWizard         | `~/app/_components/playbooks/PlaybookCreationWizard` |
+| StrengthSummaryMetrics         | `~/app/_components/StrengthSummaryMetrics`           |
+| StrengthProgressSection        | `~/app/_components/StrengthProgressSection`          |
+| SetInput                       | `~/app/_components/set-input`                        |
+
+---
+
+### Acceptance Criteria for Phase 3
+
+- [ ] `_app.workouts.tsx` - Workout list with filters, empty state, quick actions
+- [ ] `_app.workouts.$workoutId.tsx` - Full workout details with edit capability
+- [ ] `_app.workout.start.tsx` - Template selection and quick start
+- [ ] `_app.workout.session.$localId.tsx` - Active session (complex, save for last)
+- [ ] `_app.progress.tsx` - Comprehensive progress dashboard
+- [ ] `_app.progress.achievements.tsx` - Milestone/achievement history
+- [ ] `_app.exercises.tsx` - Comprehensive exercise management with bulk ops
+- [ ] `_app.playbooks.tsx` - Playbook listing
+- [ ] `_app.playbooks.new.tsx` - Playbook creation wizard
+- [ ] `_app.playbooks.$id.tsx` - Playbook detail with sessions
+- [ ] `_app.connect-whoop.tsx` - WHOOP connection
+- [ ] `_app.wellness.tsx` - Wellness tracking
+- [ ] All pages use TanStack Query hooks correctly
+- [ ] Error boundaries handle failures gracefully
+- [ ] Loading states use skeleton fallbacks
+- [ ] Mobile-responsive layouts verified
+
+**Phase 3 Status**: ✅ COMPLETE (Jan 17, 2026)
+
+Workout routes implemented:
+
+- [x] `_app.workouts.tsx` - Workout list page with filter/sort, FAB
+- [x] `_app.workouts.$workoutId.tsx` - Workout details with session context
+- [x] `_app.workout.start.tsx` - Start workout page with template selection
+- [x] `_app.workout.session.$localId.tsx` - Local session not found page
+
+Core components created:
+
+- [x] `WorkoutSessionContext.tsx` - Session state context
+- [x] `WorkoutStarter.tsx` - Template selection and workout creation
+- [x] `WorkoutSessionWithHealthAdvice.tsx` - Main workout session UI
+- [x] `RedirectCountdown.tsx` - Auto-redirect countdown component
 
 ---
 

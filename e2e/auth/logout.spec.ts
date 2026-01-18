@@ -6,8 +6,8 @@ test.describe("User Logout", () => {
   }) => {
     const page = authenticatedPage;
 
-    // Navigate to dashboard to ensure we're on a page with the header
-    await page.goto("/dashboard");
+    // Navigate to workout start page (protected route) first
+    await page.goto("/workout/start");
 
     // Open user menu by clicking avatar
     const avatarButton = page.locator('button[aria-label="Account menu"]');
@@ -33,8 +33,8 @@ test.describe("User Logout", () => {
   }) => {
     const page = authenticatedPage;
 
-    // Navigate to dashboard
-    await page.goto("/dashboard");
+    // Navigate to workout start page first
+    await page.goto("/workout/start");
 
     // Open user menu and logout
     const avatarButton = page.locator('button[aria-label="Account menu"]');
@@ -46,7 +46,7 @@ test.describe("User Logout", () => {
     await page.waitForLoadState("networkidle");
 
     // Try to access a protected route
-    await page.goto("/dashboard");
+    await page.goto("/workout/start");
 
     // Should redirect to login due to cleared session
     try {

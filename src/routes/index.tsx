@@ -15,7 +15,7 @@ function Index() {
           </p>
         </div>
         <a
-          href="/api/auth/login?provider=GoogleOAuth&redirectTo=/_app/_index"
+          href="/api/auth/login?provider=GoogleOAuth&redirectTo=/workout/start"
           className="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none"
         >
           Sign in with Google

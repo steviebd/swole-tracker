@@ -30,6 +30,11 @@ export const Route = createFileRoute("/api/auth/callback")({
         const errorDescription = url.searchParams.get("error_description");
         const state = url.searchParams.get("state") || "/";
 
+        console.log("[auth-callback] Full URL:", request.url);
+        console.log("[auth-callback] Search params:", url.search);
+        console.log("[auth-callback] state param:", url.searchParams.get("state"));
+        console.log("[auth-callback] Using state:", state);
+
         if (error) {
           console.error("WorkOS auth error:", error, errorDescription);
           return new Response(

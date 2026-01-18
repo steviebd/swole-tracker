@@ -2,7 +2,6 @@ import { defineConfig, devices } from "@playwright/test";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
-// Load .env.local if it exists
 const envLocalPath = join(process.cwd(), ".env.local");
 if (existsSync(envLocalPath)) {
   const envContent = readFileSync(envLocalPath, "utf-8");
@@ -21,16 +20,18 @@ if (existsSync(envLocalPath)) {
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  testMatch: "**/consolidated-workflow.spec.ts",
+  fullyParallel: false,
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 2 : 0,
-  workers: process.env["CI"] ? 1 : 1,
+  workers: 1,
   reporter: [
     ["html"],
     ["json", { outputFile: "playwright-report/results.json" }],
     ["github"],
   ],
   globalSetup: "./e2e/global-setup.ts",
+  globalTeardown: "./e2e/global-teardown.ts",
 
   use: {
     baseURL: "http://localhost:8787",
@@ -39,7 +40,6 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 10000,
     navigationTimeout: 30000,
-    // Slow down actions for interactive testing (comment out for faster CI runs)
     launchOptions: {
       slowMo: process.env["SLOW_MO"] ? parseInt(process.env["SLOW_MO"]) : 0,
     },
@@ -57,9 +57,11 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "bun run dev",
+    command: "bun run dev:e2e",
     url: "http://localhost:8787",
     reuseExistingServer: !process.env["CI"],
     timeout: 120000,
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });

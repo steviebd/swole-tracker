@@ -5,141 +5,99 @@ test.describe("Template Creation with Exercise Linking", () => {
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
+    const templateName = `Linking Test ${Date.now()}`;
 
-    // Navigate to new template
     await page.goto("/templates/new");
-    await expect(page.locator("h1")).toContainText("New Template");
 
-    // Fill template name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Upper Body Day",
-    );
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
 
-    // Move to exercises step
-    await page.click('button:has-text("Exercises")');
-
-    // Add exercises that should have auto-linking suggestions
     const exercises = ["Bench Press", "Squat", "Deadlift"];
 
     for (const exercise of exercises) {
-      await page.fill(
-        'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-        exercise,
-      );
-      await page.waitForTimeout(500);
-
-      const option = page
-        .locator(
-          `[role="option"]:has-text("${exercise}"), [data-option]:has-text("${exercise}")`,
-        )
-        .first();
-      if (await option.isVisible()) {
-        await option.click();
-      }
+      await page.fill('input[placeholder*="Add an exercise"]', exercise);
+      await page.click("button:has-text('Add')");
     }
 
-    // Move to linking review step
-    await page.click('button:has-text("Preview")');
+    await expect(page.locator("text=Bench Press")).toBeVisible();
+    await expect(page.locator("text=Squat")).toBeVisible();
+    await expect(page.locator("text=Deadlift")).toBeVisible();
 
-    // Should show linking review interface
+    await page.click("button:has-text('Continue')");
+
     await expect(page.locator("text=Smart Linking Results")).toBeVisible({
       timeout: 5000,
     });
-    await expect(page.locator("text=Exercise Review")).toBeVisible();
+    await expect(page.locator("text=Total Exercises")).toBeVisible();
 
-    // Should show linking summary with counts
-    await expect(page.locator("text=Auto-linked")).toBeVisible();
+    await expect(page.locator("text=Total Exercises")).toBeVisible();
+    await expect(page.locator("text=Auto-Linked")).toBeVisible();
     await expect(page.locator("text=Need Review")).toBeVisible();
-    await expect(page.locator("text=Create New")).toBeVisible();
+    await expect(page.locator("text=Creating New")).toBeVisible();
 
-    // Should show all exercises in review
-    for (const exercise of exercises) {
-      await expect(page.locator(`text=${exercise}`)).toBeVisible();
-    }
+    await page.click("button:has-text('Accept All Auto-Links')");
 
-    // Accept default linking decisions
-    await page.click('button:has-text("Create Template")');
+    await page.click("button:has-text('Create Template')");
 
-    // Should redirect to templates list
     await page.waitForURL("/templates");
     await expect(page.locator("h1")).toContainText("Your Workout Arsenal");
 
-    // Verify template appears
     await page.waitForTimeout(2000);
-    await expect(page.locator("text=Upper Body Day")).toBeVisible({
+    await expect(page.locator(`text=${templateName}`)).toBeVisible({
       timeout: 10000,
     });
   });
 
-  test("should handle manual linking decisions in step 3", async ({
+  test("should handle manual linking decisions", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
+    const templateName = `Manual Linking ${Date.now()}`;
 
     await page.goto("/templates/new");
 
-    // Fill template name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Custom Workout",
-    );
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
 
-    // Move to exercises step
-    await page.click('button:has-text("Exercises")');
-
-    // Add an exercise that might need manual review
     await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
+      'input[placeholder*="Add an exercise"]',
       "Custom Exercise Name",
     );
-    await page.waitForTimeout(500);
+    await page.click("button:has-text('Add')");
 
-    // Add the exercise (might not find in search, so just press Enter)
-    await page.keyboard.press("Enter");
+    await page.click("button:has-text('Continue')");
 
-    // Move to linking review step
-    await page.click('button:has-text("Preview")');
-
-    // Should show linking review interface
     await expect(page.locator("text=Smart Linking Results")).toBeVisible({
       timeout: 5000,
     });
 
-    // Should show the custom exercise
     await expect(page.locator("text=Custom Exercise Name")).toBeVisible();
 
-    // Should have option to create new exercise
-    await expect(page.locator('button:has-text("Create New")')).toBeVisible();
+    await expect(
+      page.locator("button:has-text('Create New Instead')"),
+    ).toBeVisible();
 
-    // Click create new for the custom exercise
-    await page.click('button:has-text("Create New")');
+    await page.click("button:has-text('Create New Instead')");
 
-    // Create template
-    await page.click('button:has-text("Create Template")');
+    await expect(page.locator("text=No similar exercises found")).toBeVisible();
 
-    // Should redirect to templates list
+    await page.click("button:has-text('Create Template')");
+
     await page.waitForURL("/templates");
-    await expect(page.locator("text=Custom Workout")).toBeVisible({
+    await expect(page.locator(`text=${templateName}`)).toBeVisible({
       timeout: 10000,
     });
   });
 
   test("should use bulk linking actions", async ({ authenticatedPage }) => {
     const page = authenticatedPage;
+    const templateName = `Bulk Test ${Date.now()}`;
 
     await page.goto("/templates/new");
 
-    // Fill template name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Bulk Test Workout",
-    );
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
 
-    // Move to exercises step
-    await page.click('button:has-text("Exercises")');
-
-    // Add multiple exercises
     const exercises = [
       "Bench Press",
       "Squat",
@@ -149,53 +107,30 @@ test.describe("Template Creation with Exercise Linking", () => {
     ];
 
     for (const exercise of exercises) {
-      await page.fill(
-        'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-        exercise,
-      );
-      await page.waitForTimeout(500);
-
-      const option = page
-        .locator(
-          `[role="option"]:has-text("${exercise}"), [data-option]:has-text("${exercise}")`,
-        )
-        .first();
-      if (await option.isVisible()) {
-        await option.click();
-      }
+      await page.fill('input[placeholder*="Add an exercise"]', exercise);
+      await page.click("button:has-text('Add')");
     }
 
-    // Move to linking review step
-    await page.click('button:has-text("Preview")');
+    await page.click("button:has-text('Continue')");
 
-    // Should show linking review interface
     await expect(page.locator("text=Smart Linking Results")).toBeVisible({
       timeout: 5000,
     });
 
-    // Should show bulk actions
     await expect(
-      page.locator('button:has-text("Accept All Auto-Links")'),
+      page.locator("button:has-text('Accept All Auto-Links')"),
     ).toBeVisible();
     await expect(
-      page.locator('button:has-text("Create New for Unmatched")'),
+      page.locator("button:has-text('Create New for Unmatched')"),
     ).toBeVisible();
 
-    // Try bulk action if available
-    const acceptAllButton = page.locator(
-      'button:has-text("Accept All Auto-Links")',
-    );
-    if (await acceptAllButton.isVisible()) {
-      await acceptAllButton.click();
-      await page.waitForTimeout(500); // Wait for UI to update
-    }
+    await page.click("button:has-text('Accept All Auto-Links')");
+    await page.waitForTimeout(500);
 
-    // Create template
-    await page.click('button:has-text("Create Template")');
+    await page.click("button:has-text('Create Template')");
 
-    // Should redirect to templates list
     await page.waitForURL("/templates");
-    await expect(page.locator("text=Bulk Test Workout")).toBeVisible({
+    await expect(page.locator(`text=${templateName}`)).toBeVisible({
       timeout: 10000,
     });
   });
@@ -204,57 +139,34 @@ test.describe("Template Creation with Exercise Linking", () => {
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
+    const templateName = `No Link Test ${Date.now()}`;
 
     await page.goto("/templates/new");
 
-    // Fill template name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "No Link Workout",
-    );
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
 
-    // Move to exercises step
-    await page.click('button:has-text("Exercises")');
+    await page.fill('input[placeholder*="Add an exercise"]', "Bench Press");
+    await page.click("button:has-text('Add')");
 
-    // Add an exercise
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Bench Press",
-    );
-    await page.waitForTimeout(500);
+    await page.click("button:has-text('Continue')");
 
-    const option = page
-      .locator(
-        '[role="option"]:has-text("Bench Press"), [data-option]:has-text("Bench Press")',
-      )
-      .first();
-    if (await option.isVisible()) {
-      await option.click();
-    }
-
-    // Move to linking review step
-    await page.click('button:has-text("Preview")');
-
-    // Should show linking review interface
     await expect(page.locator("text=Smart Linking Results")).toBeVisible({
       timeout: 5000,
     });
 
-    // Look for reject/don't link option
-    const rejectButton = page.locator(
-      'button:has-text("Don\'t Link"), button:has-text("Reject")',
+    const createNewButton = page.locator(
+      "button:has-text('Create New Instead')",
     );
-    if (await rejectButton.isVisible()) {
-      await rejectButton.click();
-      await page.waitForTimeout(500); // Wait for UI to update
+    if (await createNewButton.isVisible()) {
+      await createNewButton.click();
+      await page.waitForTimeout(500);
     }
 
-    // Create template
-    await page.click('button:has-text("Create Template")');
+    await page.click("button:has-text('Create Template')");
 
-    // Should redirect to templates list
     await page.waitForURL("/templates");
-    await expect(page.locator("text=No Link Workout")).toBeVisible({
+    await expect(page.locator(`text=${templateName}`)).toBeVisible({
       timeout: 10000,
     });
   });
@@ -263,87 +175,95 @@ test.describe("Template Creation with Exercise Linking", () => {
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
+    const templateName = `Empty Template ${Date.now()}`;
 
     await page.goto("/templates/new");
 
-    // Fill template name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Empty Template",
-    );
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
 
-    // Move directly to linking review without adding exercises
-    await page.click('button:has-text("Preview")');
+    await page.click("button:has-text('Continue')");
 
-    // Should show linking review interface
     await expect(page.locator("text=Smart Linking Results")).toBeVisible({
       timeout: 5000,
     });
 
-    // Should show empty state or minimal content
-    await expect(page.locator("text=Exercise Review")).toBeVisible();
+    await expect(page.locator("text=Total Exercises")).toBeVisible();
+    await expect(page.locator("text=0")).toBeVisible();
 
-    // Should still be able to create template
-    await page.click('button:has-text("Create Template")');
+    await page.click("button:has-text('Create Template')");
 
-    // Should redirect to templates list
     await page.waitForURL("/templates");
-    await expect(page.locator("text=Empty Template")).toBeVisible({
+    await expect(page.locator(`text=${templateName}`)).toBeVisible({
       timeout: 10000,
     });
   });
 
-  test("should navigate back from linking review to exercises", async ({
+  test("should navigate back from review to exercises", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
 
     await page.goto("/templates/new");
 
-    // Fill template name
+    await page.fill('input[placeholder*="e.g., Push Day"]', "Navigation Test");
+    await page.click("button:has-text('Continue')");
+
+    await page.fill('input[placeholder*="Add an exercise"]', "Test Exercise");
+    await page.click("button:has-text('Add')");
+
+    await expect(page.locator("text=Test Exercise")).toBeVisible();
+
+    await page.click("button:has-text('Continue')");
+
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible();
+
+    await page.click("button:has-text('Back')");
+
+    await expect(page.locator("text=Step 2 of 3")).toBeVisible();
+    await expect(page.locator("text=Test Exercise")).toBeVisible();
+
     await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Navigation Test",
+      'input[placeholder*="Add an exercise"]',
+      "Another Exercise",
     );
+    await page.click("button:has-text('Add')");
 
-    // Move to exercises step
-    await page.click('button:has-text("Exercises")');
+    await expect(page.locator("text=Test Exercise")).toBeVisible();
+    await expect(page.locator("text=Another Exercise")).toBeVisible();
+  });
 
-    // Add an exercise
+  test("should show linking stats correctly", async ({ authenticatedPage }) => {
+    const page = authenticatedPage;
+    const templateName = `Stats Test ${Date.now()}`;
+
+    await page.goto("/templates/new");
+
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
+
+    await page.fill('input[placeholder*="Add an exercise"]', "Bench Press");
+    await page.click("button:has-text('Add')");
+
     await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Test Exercise",
+      'input[placeholder*="Add an exercise"]',
+      "Unknown Exercise XYZ",
     );
-    await page.waitForTimeout(500);
-    await page.keyboard.press("Enter");
+    await page.click("button:has-text('Add')");
 
-    // Move to linking review step
-    await page.click('button:has-text("Preview")');
+    await page.click("button:has-text('Continue')");
 
-    // Should show linking review interface
     await expect(page.locator("text=Smart Linking Results")).toBeVisible({
       timeout: 5000,
     });
 
-    // Click back button
-    await page.click('button:has-text("Back")');
+    await expect(page.locator("text=Total Exercises")).toBeVisible();
+    await expect(page.locator("text=2")).toBeVisible();
 
-    // Should return to exercises step
-    await expect(page.locator('button:has-text("Exercises")')).toHaveClass(
-      /bg-primary/,
-    );
-    await expect(page.locator("text=Test Exercise")).toBeVisible();
+    const autoLinked = page.locator("text=Auto-Linked");
+    const creatingNew = page.locator("text=Creating New");
 
-    // Should be able to add more exercises
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Another Exercise",
-    );
-    await page.waitForTimeout(500);
-    await page.keyboard.press("Enter");
-
-    // Should show both exercises
-    await expect(page.locator("text=Test Exercise")).toBeVisible();
-    await expect(page.locator("text=Another Exercise")).toBeVisible();
+    await expect(autoLinked.first()).toBeVisible();
+    await expect(creatingNew.first()).toBeVisible();
   });
 });

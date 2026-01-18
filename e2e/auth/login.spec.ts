@@ -3,7 +3,7 @@ import { test, expect } from "../fixtures/auth.fixture";
 test.describe("Authentication", () => {
   test("should redirect unauthenticated user to WorkOS", async ({ page }) => {
     // Navigate to protected route without auth
-    await page.goto("/workout/new");
+    await page.goto("/workout/start");
 
     // Should redirect to WorkOS AuthKit
     await page.waitForURL(/.*authkit\.app.*/, { timeout: 10000 });
@@ -27,7 +27,7 @@ test.describe("Authentication", () => {
     const page = authenticatedPage;
 
     // Navigate to a protected route
-    await page.goto("/dashboard");
+    await page.goto("/workout/start");
     await expect(page.locator("body")).toBeVisible();
 
     // Reload page
@@ -45,8 +45,8 @@ test.describe("Authentication", () => {
 
     // Test various protected routes
     const protectedRoutes = [
-      "/workout/new",
       "/workout/start",
+      "/workouts",
       "/templates",
       "/progress",
     ];
@@ -70,7 +70,7 @@ test.describe("Authentication", () => {
     });
 
     // Try to access protected route
-    await page.goto("/dashboard");
+    await page.goto("/workout/start");
 
     // Should redirect to WorkOS AuthKit due to expired session
     await page.waitForURL(/.*authkit\.app.*/, { timeout: 10000 });

@@ -3,9 +3,16 @@ import { chromium, type FullConfig } from "@playwright/test";
 async function globalSetup(config: FullConfig) {
   console.log("Running global E2E setup...");
 
-  // Verify dev server is responding
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await context.clearCookies();
+  try {
+    await page.evaluate(() => localStorage.clear());
+  } catch {
+    // localStorage may not be available in some contexts
+  }
 
   try {
     await page.goto(
@@ -17,6 +24,7 @@ async function globalSetup(config: FullConfig) {
     throw error;
   } finally {
     await page.close();
+    await context.close();
     await browser.close();
   }
 

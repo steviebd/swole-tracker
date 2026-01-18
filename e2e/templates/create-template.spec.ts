@@ -1,253 +1,160 @@
 import { test, expect } from "../fixtures/auth.fixture";
 
 test.describe("Template Creation", () => {
-  test("should create a new template with exercise linking review", async ({
+  test("should navigate to new template page", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
 
-    // Navigate to templates page
     await page.goto("/templates");
-    await expect(page.locator("text=Your Workout Arsenal")).toBeVisible();
+    await expect(
+      page.locator("h1:has-text('Your Workout Arsenal')"),
+    ).toBeVisible();
 
-    // Click create new template
     await page.click('a:has-text("Create Template")');
 
-    // Should be on new template page
-    await expect(page.locator("text=New Template")).toBeVisible();
+    await expect(page.locator("h1:has-text('Create Template')")).toBeVisible();
+    await expect(page.locator("text=Step 1 of 3")).toBeVisible();
+  });
 
-    // Fill template name in basics step
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Push Day Test",
-    );
+  test("should show multi-step wizard with form elements", async ({
+    authenticatedPage,
+  }) => {
+    const page = authenticatedPage;
 
-    // Move to exercises step (should be enabled now)
-    await page.click('button:has-text("Exercises")');
+    await page.goto("/templates/new");
 
-    // Add at least one exercise to proceed
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Bench Press",
-    );
+    await expect(page.locator("form")).toBeVisible();
 
-    // Wait for search results and select first option
-    await page.waitForTimeout(500); // Wait for debounced search
-    const firstOption = page.locator('[role="option"], [data-option]').first();
-    if (await firstOption.isVisible()) {
-      await firstOption.click();
-    }
+    await expect(
+      page.locator('input[placeholder*="e.g., Push Day"]'),
+    ).toBeVisible();
 
-    // Move to preview/linking step (step 3)
-    await page.click('button:has-text("Preview")');
+    await expect(page.locator("text=Template Name")).toBeVisible();
 
-    // Should show linking review interface
-    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
-      timeout: 5000,
-    });
-    await expect(page.locator("text=Exercise Review")).toBeVisible();
+    await expect(page.locator("button:has-text('Continue')")).toBeVisible();
+  });
 
-    // Accept the default linking decisions (auto-link or create new)
-    await page.click('button:has-text("Create Template")');
+  test("should require template name before proceeding", async ({
+    authenticatedPage,
+  }) => {
+    const page = authenticatedPage;
 
-    // Should redirect to templates list
+    await page.goto("/templates/new");
+
+    const continueButton = page.locator("button:has-text('Continue')");
+    await expect(continueButton).toBeDisabled();
+
+    await page.fill('input[placeholder*="e.g., Push Day"]', "Test Template");
+
+    await expect(continueButton).toBeEnabled();
+  });
+
+  test("should complete full template creation flow", async ({
+    authenticatedPage,
+  }) => {
+    const page = authenticatedPage;
+    const templateName = `Test Template ${Date.now()}`;
+
+    await page.goto("/templates/new");
+
+    await expect(page.locator("h1")).toContainText("Create Template");
+    await expect(page.locator("text=Step 1 of 3")).toBeVisible();
+
+    await page.fill('input[placeholder*="e.g., Push Day"]', templateName);
+    await page.click("button:has-text('Continue')");
+
+    await expect(page.locator("text=Step 2 of 3")).toBeVisible();
+    await expect(page.locator("text=Add Exercises")).toBeVisible();
+
+    await page.fill('input[placeholder*="Add an exercise"]', "Bench Press");
+    await page.click("button:has-text('Add')");
+
+    await page.fill('input[placeholder*="Add an exercise"]', "Squat");
+    await page.click("button:has-text('Add')");
+
+    await expect(page.locator("text=Bench Press")).toBeVisible();
+    await expect(page.locator("text=Squat")).toBeVisible();
+
+    await page.click("button:has-text('Continue')");
+
+    await expect(page.locator("text=Step 3 of 3")).toBeVisible();
+    await expect(page.locator("text=Review")).toBeVisible();
+
+    await expect(page.locator("text=Smart Linking Results")).toBeVisible();
+    await expect(page.locator("text=Total Exercises")).toBeVisible();
+
+    await page.click("button:has-text('Create Template')");
+
     await page.waitForURL("/templates");
     await expect(page.locator("h1")).toContainText("Your Workout Arsenal");
 
-    // Verify template appears in list (may need to wait for update)
     await page.waitForTimeout(2000);
-    const templateList = page.locator("text=Push Day Test");
-    await expect(templateList).toBeVisible({ timeout: 10000 });
-  });
 
-  test("should add exercises to template with linking review", async ({
-    authenticatedPage,
-  }) => {
-    const page = authenticatedPage;
-
-    // Navigate to new template
-    await page.goto("/templates/new");
-    await expect(page.locator("h1")).toContainText("New Template");
-
-    // Fill template name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Leg Day",
-    );
-
-    // Move to exercises step
-    await page.click('button:has-text("Exercises")');
-
-    // Add first exercise
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Squat",
-    );
-    await page.waitForTimeout(500);
-
-    const squatOption = page
-      .locator(
-        '[role="option"]:has-text("Squat"), [data-option]:has-text("Squat")',
-      )
-      .first();
-    if (await squatOption.isVisible()) {
-      await squatOption.click();
-    }
-
-    // Add second exercise
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Leg Press",
-    );
-    await page.waitForTimeout(500);
-
-    const legPressOption = page
-      .locator(
-        '[role="option"]:has-text("Leg Press"), [data-option]:has-text("Leg Press")',
-      )
-      .first();
-    if (await legPressOption.isVisible()) {
-      await legPressOption.click();
-    }
-
-    // Verify both exercises are added
-    await expect(page.locator("text=Squat")).toBeVisible();
-    await expect(page.locator("text=Leg Press")).toBeVisible();
-
-    // Move to preview/linking step (step 3)
-    await page.click('button:has-text("Preview")');
-
-    // Should show linking review interface
-    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
-      timeout: 5000,
+    await expect(page.locator(`text=${templateName}`)).toBeVisible({
+      timeout: 10000,
     });
-    await expect(page.locator("text=Exercise Review")).toBeVisible();
-
-    // Should show both exercises in the review
-    await expect(page.locator("text=Squat")).toBeVisible();
-    await expect(page.locator("text=Leg Press")).toBeVisible();
-
-    // Accept the default linking decisions
-    await page.click('button:has-text("Create Template")');
-
-    // Should redirect to templates list
-    await page.waitForURL("/templates");
-
-    // Verify template appears
-    await page.waitForTimeout(2000);
-    await expect(page.locator("text=Leg Day")).toBeVisible({ timeout: 10000 });
   });
 
-  test("should navigate between template form steps including linking review", async ({
+  test("should handle back navigation between steps", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
 
     await page.goto("/templates/new");
 
-    // Should start on basics step
-    await expect(page.locator('button:has-text("Basics")')).toHaveClass(
-      /bg-primary/,
-    );
-    await expect(page.locator('input[placeholder*="Push Day"]')).toBeVisible();
+    await page.fill('input[placeholder*="e.g., Push Day"]', "Back Test");
+    await page.click("button:has-text('Continue')");
 
-    // Try to go to exercises without name (should be disabled)
-    const exercisesButton = page.locator('button:has-text("Exercises")');
-    await exercisesButton.click();
+    await expect(page.locator("text=Step 2 of 3")).toBeVisible();
 
-    // Should stay on basics step if name is empty
-    await expect(page.locator('button:has-text("Basics")')).toHaveClass(
-      /bg-primary/,
-    );
+    await page.fill('input[placeholder*="Add an exercise"]', "Deadlift");
+    await page.click("button:has-text('Add')");
+    await expect(page.locator("text=Deadlift")).toBeVisible();
 
-    // Fill name and proceed
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Test Template",
-    );
-    await exercisesButton.click();
+    await page.click("button:has-text('Back')");
 
-    // Should now be on exercises step
-    await expect(page.locator('button:has-text("Exercises")')).toHaveClass(
-      /bg-primary/,
-    );
+    await expect(page.locator("text=Step 1 of 3")).toBeVisible();
+
     await expect(
-      page.locator('input[placeholder*="Search exercises"]'),
-    ).toBeVisible();
-
-    // Go to preview/linking step without exercises (should work)
-    await page.click('button:has-text("Preview")');
-    await expect(page.locator('button:has-text("Preview")')).toHaveClass(
-      /bg-primary/,
-    );
-
-    // Should show linking review interface even with no exercises
-    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
-      timeout: 5000,
-    });
-
-    // Go back to exercises
-    await page.click('button:has-text("Exercises")');
-    await expect(page.locator('button:has-text("Exercises")')).toHaveClass(
-      /bg-primary/,
-    );
-
-    // Go back to basics
-    await page.click('button:has-text("Basics")');
-    await expect(page.locator('button:has-text("Basics")')).toHaveClass(
-      /bg-primary/,
-    );
+      page.locator('input[placeholder*="e.g., Push Day"]'),
+    ).toHaveValue("Back Test");
   });
 
-  test("should show validation errors for invalid template data", async ({
+  test("should remove exercises correctly", async ({ authenticatedPage }) => {
+    const page = authenticatedPage;
+
+    await page.goto("/templates/new");
+
+    await page.fill('input[placeholder*="e.g., Push Day"]', "Remove Test");
+    await page.click("button:has-text('Continue')");
+
+    await page.fill('input[placeholder*="Add an exercise"]', "Row");
+    await page.click("button:has-text('Add')");
+
+    await expect(page.locator("text=Row")).toBeVisible();
+
+    await page.click('button:has-text("Remove")');
+
+    await expect(page.locator("text=Row")).not.toBeVisible();
+  });
+
+  test("should validate exercises required on step 2", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
 
     await page.goto("/templates/new");
 
-    // Try to submit without name
-    await page.click('button:has-text("Preview")');
+    await page.fill('input[placeholder*="e.g., Push Day"]', "Validation Test");
+    await page.click("button:has-text('Continue')");
 
-    // Should show validation error or prevent navigation
-    await expect(page.locator('button:has-text("Basics")')).toHaveClass(
-      /bg-primary/,
-    );
+    await expect(page.locator("button:has-text('Continue')")).toBeDisabled();
 
-    // Fill name with only spaces
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "   ",
-    );
-    await page.click('button:has-text("Exercises")');
+    await page.fill('input[placeholder*="Add an exercise"]', "Curl");
+    await page.click("button:has-text('Add')");
 
-    // Should still be on basics step due to validation
-    await expect(page.locator('button:has-text("Basics")')).toHaveClass(
-      /bg-primary/,
-    );
-
-    // Fill valid name
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Valid Template",
-    );
-    await page.click('button:has-text("Exercises")');
-
-    // Should proceed to exercises step
-    await expect(page.locator('button:has-text("Exercises")')).toHaveClass(
-      /bg-primary/,
-    );
-
-    // Try to go to preview/linking step without exercises
-    await page.click('button:has-text("Preview")');
-
-    // Should allow proceeding to linking review (empty exercises are valid)
-    await expect(page.locator('button:has-text("Preview")')).toHaveClass(
-      /bg-primary/,
-    );
-    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
-      timeout: 5000,
-    });
+    await expect(page.locator("button:has-text('Continue')")).toBeEnabled();
   });
 
   test("should cancel template creation and return to list", async ({
@@ -257,60 +164,14 @@ test.describe("Template Creation", () => {
 
     await page.goto("/templates/new");
 
-    // Fill some data
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Unsaved Template",
-    );
-    await page.click('button:has-text("Exercises")');
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Test Exercise",
-    );
+    await page.fill('input[placeholder*="e.g., Push Day"]', "Cancel Test");
+    await page.click("button:has-text('Continue')");
 
-    // Click back button
-    await page.click('a:has-text("Back"), button:has-text("Back")');
+    await page.fill('input[placeholder*="Add an exercise"]', "Fly");
+    await page.click("button:has-text('Add')");
 
-    // Should return to templates list
-    await page.waitForURL("/templates");
+    await page.goto("/templates");
+
     await expect(page.locator("h1")).toContainText("Your Workout Arsenal");
-
-    // Verify unsaved template is not in list
-    await expect(page.locator("text=Unsaved Template")).not.toBeVisible();
-  });
-
-  test("should cancel template creation from linking review step", async ({
-    authenticatedPage,
-  }) => {
-    const page = authenticatedPage;
-
-    await page.goto("/templates/new");
-
-    // Fill some data
-    await page.fill(
-      'input[placeholder*="Push Day"], input[placeholder*="e.g., Push Day"]',
-      "Unsaved Template",
-    );
-    await page.click('button:has-text("Exercises")');
-    await page.fill(
-      'input[placeholder*="Search exercises"], input[placeholder*="Add exercise"]',
-      "Test Exercise",
-    );
-
-    // Move to linking review step
-    await page.click('button:has-text("Preview")');
-    await expect(page.locator("text=Smart Linking Results")).toBeVisible({
-      timeout: 5000,
-    });
-
-    // Click back button from linking review
-    await page.click('button:has-text("Back")');
-
-    // Should return to templates list
-    await page.waitForURL("/templates");
-    await expect(page.locator("h1")).toContainText("Your Workout Arsenal");
-
-    // Verify unsaved template is not in list
-    await expect(page.locator("text=Unsaved Template")).not.toBeVisible();
   });
 });

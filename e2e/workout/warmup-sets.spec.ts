@@ -10,7 +10,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("user can configure warm-up preferences", async ({ authenticatedPage: page }) => {
+  test("user can configure warm-up preferences", async ({
+    authenticatedPage: page,
+  }) => {
     console.log("\n Setting up warm-up preferences test\n");
 
     // Navigate to settings/preferences
@@ -19,7 +21,7 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     await page.waitForLoadState("networkidle");
 
     // Look for warm-up preferences section
-    const warmupSection = page.locator('text=/warm-up|warmup/i').first();
+    const warmupSection = page.locator("text=/warm-up|warmup/i").first();
 
     // If preferences exist, verify they can be modified
     if (await warmupSection.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -33,13 +35,17 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
       console.log("Warm-up preferences section found and accessible");
     } else {
-      console.log("Warm-up preferences section not found - may be in different location");
+      console.log(
+        "Warm-up preferences section not found - may be in different location",
+      );
     }
 
     console.log("Warm-up preferences test completed");
   });
 
-  test("user can see warm-up section during workout", async ({ authenticatedPage: page }) => {
+  test("user can see warm-up section during workout", async ({
+    authenticatedPage: page,
+  }) => {
     console.log("\n Starting warm-up section visibility test\n");
 
     // Step 1: Navigate to templates
@@ -58,10 +64,16 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
       await page.waitForLoadState("networkidle");
 
       // Wait for redirect to workout start page
-      await page.waitForURL(/\/workout\/start\?templateId=\d+/, { timeout: 10000 });
+      await page.waitForURL(/\/workout\/start\?templateId=\d+/, {
+        timeout: 10000,
+      });
 
       // Click the second "Start workout" button
-      const startButton = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+      const startButton = page
+        .locator(
+          'button:has-text("Start workout"), a:has-text("Start workout")',
+        )
+        .last();
       if (await startButton.isVisible({ timeout: 5000 }).catch(() => false)) {
         await startButton.click();
         await page.waitForLoadState("networkidle");
@@ -75,7 +87,7 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
       console.log("Step 3: Looking for warm-up section...");
 
       // The warm-up section should be collapsible and show "Warm-up Sets"
-      const warmupSection = page.locator('text=/Warm-up Sets/i').first();
+      const warmupSection = page.locator("text=/Warm-up Sets/i").first();
 
       await page.screenshot({
         path: "test-screenshots/warmup-02-workout-session.png",
@@ -86,8 +98,14 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
         console.log("Found warm-up section in workout");
 
         // Click to expand warm-up section
-        const expandButton = page.locator('button[aria-controls*="warmup"], button:has-text("Warm-up Sets")').first();
-        if (await expandButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+        const expandButton = page
+          .locator(
+            'button[aria-controls*="warmup"], button:has-text("Warm-up Sets")',
+          )
+          .first();
+        if (
+          await expandButton.isVisible({ timeout: 3000 }).catch(() => false)
+        ) {
           await expandButton.click();
           await page.waitForTimeout(500);
           console.log("Expanded warm-up section");
@@ -98,7 +116,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
           });
         }
       } else {
-        console.log("Warm-up section not visible - checking if feature is enabled");
+        console.log(
+          "Warm-up section not visible - checking if feature is enabled",
+        );
       }
 
       // Complete or cancel the workout
@@ -112,7 +132,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     }
   });
 
-  test("user can use Auto Fill for warm-up suggestions", async ({ authenticatedPage: page }) => {
+  test("user can use Auto Fill for warm-up suggestions", async ({
+    authenticatedPage: page,
+  }) => {
     console.log("\n Testing Auto Fill warm-up suggestions\n");
 
     // Navigate to templates and start a workout
@@ -129,9 +151,13 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
     await templateLink.click();
     await page.waitForLoadState("networkidle");
-    await page.waitForURL(/\/workout\/start\?templateId=\d+/, { timeout: 10000 });
+    await page.waitForURL(/\/workout\/start\?templateId=\d+/, {
+      timeout: 10000,
+    });
 
-    const startButton = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+    const startButton = page
+      .locator('button:has-text("Start workout"), a:has-text("Start workout")')
+      .last();
     if (await startButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await startButton.click();
       await page.waitForLoadState("networkidle");
@@ -144,7 +170,11 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     console.log("Step 2: Looking for Auto Fill button...");
 
     // First try to find and expand warm-up section
-    const warmupToggle = page.locator('button[aria-controls*="warmup"], button:has-text("Warm-up Sets")').first();
+    const warmupToggle = page
+      .locator(
+        'button[aria-controls*="warmup"], button:has-text("Warm-up Sets")',
+      )
+      .first();
     if (await warmupToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
       await warmupToggle.click();
       await page.waitForTimeout(500);
@@ -174,11 +204,15 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
       // Verify warm-up sets were generated
       const warmupSetInputs = page.locator('input[aria-label*="Warm-up set"]');
       const count = await warmupSetInputs.count();
-      console.log(`Auto Fill generated ${count / 2} warm-up sets (weight/reps inputs)`);
+      console.log(
+        `Auto Fill generated ${count / 2} warm-up sets (weight/reps inputs)`,
+      );
 
       expect(count).toBeGreaterThan(0);
     } else {
-      console.log("Auto Fill button not visible - feature may need exercise data first");
+      console.log(
+        "Auto Fill button not visible - feature may need exercise data first",
+      );
     }
 
     // Cleanup
@@ -187,7 +221,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     console.log("Auto Fill test completed");
   });
 
-  test("user can manually adjust warm-up sets", async ({ authenticatedPage: page }) => {
+  test("user can manually adjust warm-up sets", async ({
+    authenticatedPage: page,
+  }) => {
     console.log("\n Testing manual warm-up set adjustment\n");
 
     // Start a workout
@@ -204,9 +240,13 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
     await templateLink.click();
     await page.waitForLoadState("networkidle");
-    await page.waitForURL(/\/workout\/start\?templateId=\d+/, { timeout: 10000 });
+    await page.waitForURL(/\/workout\/start\?templateId=\d+/, {
+      timeout: 10000,
+    });
 
-    const startButton = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+    const startButton = page
+      .locator('button:has-text("Start workout"), a:has-text("Start workout")')
+      .last();
     if (await startButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await startButton.click();
       await page.waitForLoadState("networkidle");
@@ -218,7 +258,11 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     console.log("Step 2: Adding warm-up sets manually...");
 
     // Expand warm-up section
-    const warmupToggle = page.locator('button[aria-controls*="warmup"], button:has-text("Warm-up Sets")').first();
+    const warmupToggle = page
+      .locator(
+        'button[aria-controls*="warmup"], button:has-text("Warm-up Sets")',
+      )
+      .first();
     if (await warmupToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
       await warmupToggle.click();
       await page.waitForTimeout(500);
@@ -236,14 +280,18 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
       console.log("Added first warm-up set");
 
       // Look for weight input and fill it
-      const weightInput = page.locator('input[aria-label*="Warm-up set 1 weight"]').first();
+      const weightInput = page
+        .locator('input[aria-label*="Warm-up set 1 weight"]')
+        .first();
       if (await weightInput.isVisible({ timeout: 3000 }).catch(() => false)) {
         await weightInput.fill("40");
         console.log("Entered weight: 40");
       }
 
       // Look for reps input and fill it
-      const repsInput = page.locator('input[aria-label*="Warm-up set 1 reps"]').first();
+      const repsInput = page
+        .locator('input[aria-label*="Warm-up set 1 reps"]')
+        .first();
       if (await repsInput.isVisible({ timeout: 3000 }).catch(() => false)) {
         await repsInput.fill("10");
         console.log("Entered reps: 10");
@@ -260,12 +308,16 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
       console.log("Added second warm-up set");
 
       // Fill second set
-      const weightInput2 = page.locator('input[aria-label*="Warm-up set 2 weight"]').first();
+      const weightInput2 = page
+        .locator('input[aria-label*="Warm-up set 2 weight"]')
+        .first();
       if (await weightInput2.isVisible({ timeout: 3000 }).catch(() => false)) {
         await weightInput2.fill("60");
       }
 
-      const repsInput2 = page.locator('input[aria-label*="Warm-up set 2 reps"]').first();
+      const repsInput2 = page
+        .locator('input[aria-label*="Warm-up set 2 reps"]')
+        .first();
       if (await repsInput2.isVisible({ timeout: 3000 }).catch(() => false)) {
         await repsInput2.fill("8");
       }
@@ -285,7 +337,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("user can save workout with warm-up sets", async ({ authenticatedPage: page }) => {
+  test("user can save workout with warm-up sets", async ({
+    authenticatedPage: page,
+  }) => {
     console.log("\n Testing saving workout with warm-up sets\n");
     const templateName = `E2E Warmup Test ${Date.now()}`;
 
@@ -327,13 +381,19 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     // Step 2: Start workout with the template
     console.log("Step 2: Starting workout...");
 
-    const ourTemplateLink = page.locator(`a[aria-label="Start workout with ${templateName}"]`);
+    const ourTemplateLink = page.locator(
+      `a[aria-label="Start workout with ${templateName}"]`,
+    );
     await expect(ourTemplateLink).toBeVisible({ timeout: 5000 });
     await ourTemplateLink.click();
 
-    await page.waitForURL(/\/workout\/start\?templateId=\d+/, { timeout: 10000 });
+    await page.waitForURL(/\/workout\/start\?templateId=\d+/, {
+      timeout: 10000,
+    });
 
-    const startWorkoutButton = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+    const startWorkoutButton = page
+      .locator('button:has-text("Start workout"), a:has-text("Start workout")')
+      .last();
     await expect(startWorkoutButton).toBeVisible({ timeout: 5000 });
     await startWorkoutButton.click();
 
@@ -344,7 +404,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     console.log("Step 3: Adding warm-up sets...");
 
     // Expand warm-up section
-    const warmupToggle = page.locator('button:has-text("Warm-up Sets")').first();
+    const warmupToggle = page
+      .locator('button:has-text("Warm-up Sets")')
+      .first();
     if (await warmupToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
       await warmupToggle.click();
       await page.waitForTimeout(500);
@@ -356,12 +418,16 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
         await page.waitForTimeout(500);
 
         // Fill weight and reps
-        const weightInput = page.locator('input[aria-label*="Warm-up set 1 weight"]').first();
+        const weightInput = page
+          .locator('input[aria-label*="Warm-up set 1 weight"]')
+          .first();
         if (await weightInput.isVisible({ timeout: 3000 }).catch(() => false)) {
           await weightInput.fill("40");
         }
 
-        const repsInput = page.locator('input[aria-label*="Warm-up set 1 reps"]').first();
+        const repsInput = page
+          .locator('input[aria-label*="Warm-up set 1 reps"]')
+          .first();
         if (await repsInput.isVisible({ timeout: 3000 }).catch(() => false)) {
           await repsInput.fill("10");
         }
@@ -372,13 +438,19 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
     // Fill working set data
     console.log("Step 4: Filling working set data...");
-    const workingWeightInput = page.locator('input[placeholder="Weight"]').first();
-    if (await workingWeightInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const workingWeightInput = page
+      .locator('input[placeholder="Weight"]')
+      .first();
+    if (
+      await workingWeightInput.isVisible({ timeout: 3000 }).catch(() => false)
+    ) {
       await workingWeightInput.fill("100");
     }
 
     const workingRepsInput = page.locator('input[placeholder="Reps"]').first();
-    if (await workingRepsInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (
+      await workingRepsInput.isVisible({ timeout: 3000 }).catch(() => false)
+    ) {
       await workingRepsInput.fill("5");
     }
 
@@ -389,13 +461,18 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
     // Step 5: Complete workout
     console.log("Step 5: Completing workout...");
-    const completeButton = page.getByRole('button', { name: 'Complete', exact: true });
+    const completeButton = page.getByRole("button", {
+      name: "Complete",
+      exact: true,
+    });
     await expect(completeButton).toBeVisible({ timeout: 5000 });
     await completeButton.click();
     await page.waitForTimeout(1000);
 
     // Confirm completion
-    const confirmButton = page.getByRole('button', { name: 'Complete Workout' }).last();
+    const confirmButton = page
+      .getByRole("button", { name: "Complete Workout" })
+      .last();
     await expect(confirmButton).toBeVisible({ timeout: 5000 });
     await confirmButton.click();
 
@@ -414,8 +491,12 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     await page.waitForLoadState("networkidle");
 
     // Look for the template name or bench press
-    const workoutInHistory = page.locator(`text=/Bench Press|${templateName}/i`).first();
-    const isVisible = await workoutInHistory.isVisible({ timeout: 5000 }).catch(() => false);
+    const workoutInHistory = page
+      .locator(`text=/Bench Press|${templateName}/i`)
+      .first();
+    const isVisible = await workoutInHistory
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
     if (isVisible) {
       console.log("Workout found in history");
@@ -438,14 +519,16 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
       await templateText.click();
       await page.waitForTimeout(500);
 
-      const deleteButton = page.getByRole('button', { name: 'Delete' }).first();
+      const deleteButton = page.getByRole("button", { name: "Delete" }).first();
       if (await deleteButton.isVisible({ timeout: 3000 }).catch(() => false)) {
         await deleteButton.click();
         await page.waitForTimeout(500);
 
         // Confirm delete
         const confirmDelete = page.locator('button:has-text("Delete")').last();
-        if (await confirmDelete.isVisible({ timeout: 2000 }).catch(() => false)) {
+        if (
+          await confirmDelete.isVisible({ timeout: 2000 }).catch(() => false)
+        ) {
           await confirmDelete.click();
           console.log("Template deleted");
         }
@@ -455,7 +538,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     console.log("\nWorkout save with warm-up sets test completed");
   });
 
-  test("smart suggestions appear based on user history", async ({ authenticatedPage: page }) => {
+  test("smart suggestions appear based on user history", async ({
+    authenticatedPage: page,
+  }) => {
     console.log("\n Testing smart suggestions for warm-up sets\n");
 
     // Start a workout
@@ -471,9 +556,13 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
     await templateLink.click();
     await page.waitForLoadState("networkidle");
-    await page.waitForURL(/\/workout\/start\?templateId=\d+/, { timeout: 10000 });
+    await page.waitForURL(/\/workout\/start\?templateId=\d+/, {
+      timeout: 10000,
+    });
 
-    const startButton = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+    const startButton = page
+      .locator('button:has-text("Start workout"), a:has-text("Start workout")')
+      .last();
     if (await startButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await startButton.click();
       await page.waitForLoadState("networkidle");
@@ -482,15 +571,21 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     await page.waitForURL(/\/workout\/session\//, { timeout: 10000 });
 
     // Expand warm-up section
-    const warmupToggle = page.locator('button:has-text("Warm-up Sets")').first();
+    const warmupToggle = page
+      .locator('button:has-text("Warm-up Sets")')
+      .first();
     if (await warmupToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
       await warmupToggle.click();
       await page.waitForTimeout(1000);
 
       // Look for smart suggestion banner
-      const suggestionBanner = page.locator('text=/Smart Suggestion|based on your history/i').first();
+      const suggestionBanner = page
+        .locator("text=/Smart Suggestion|based on your history/i")
+        .first();
 
-      if (await suggestionBanner.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (
+        await suggestionBanner.isVisible({ timeout: 3000 }).catch(() => false)
+      ) {
         console.log("Found smart suggestion banner");
 
         await page.screenshot({
@@ -510,7 +605,9 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
           });
         }
       } else {
-        console.log("No smart suggestion available - user may not have enough history");
+        console.log(
+          "No smart suggestion available - user may not have enough history",
+        );
       }
     }
 
@@ -536,9 +633,13 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
 
     await templateLink.click();
     await page.waitForLoadState("networkidle");
-    await page.waitForURL(/\/workout\/start\?templateId=\d+/, { timeout: 10000 });
+    await page.waitForURL(/\/workout\/start\?templateId=\d+/, {
+      timeout: 10000,
+    });
 
-    const startButton = page.locator('button:has-text("Start workout"), a:has-text("Start workout")').last();
+    const startButton = page
+      .locator('button:has-text("Start workout"), a:has-text("Start workout")')
+      .last();
     if (await startButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await startButton.click();
       await page.waitForLoadState("networkidle");
@@ -550,7 +651,7 @@ test.describe("Warm-Up Sets Feature - E2E Tests", () => {
     console.log("Checking ARIA attributes...");
 
     // Check for aria-expanded on toggle button
-    const warmupToggle = page.locator('button[aria-expanded]').first();
+    const warmupToggle = page.locator("button[aria-expanded]").first();
     if (await warmupToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
       const expanded = await warmupToggle.getAttribute("aria-expanded");
       console.log(`aria-expanded attribute present: ${expanded}`);

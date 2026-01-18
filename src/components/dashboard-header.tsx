@@ -1,26 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  Activity,
-  Bell,
-  Dumbbell,
-  LayoutDashboard,
-  Layers,
-  LineChart,
-  Menu,
-  Moon,
-  Settings,
-  Sun,
-  Target,
-  type LucideIcon,
-} from "lucide-react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { Dumbbell, Layers, LineChart, Menu, Moon, Sun } from "lucide-react";
 
-import { PreferencesModal } from "~/app/_components/PreferencesModal";
 import { GlobalStatusTray } from "~/components/global-status-tray";
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
+import { Avatar, AvatarFallback } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "~/components/ui/sheet";
 import { cn } from "~/lib/utils";
@@ -29,27 +14,29 @@ import { useTheme } from "~/providers/ThemeProvider";
 
 interface PrimaryNavItem {
   label: string;
-  href: string;
-  icon: LucideIcon;
+  to: string;
+  icon: typeof Dumbbell;
   requiresAuth?: boolean;
 }
 
 const PRIMARY_NAV: PrimaryNavItem[] = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard, requiresAuth: true },
-  { label: "Workouts", href: "/workouts", icon: Dumbbell, requiresAuth: true },
-  { label: "Progress", href: "/progress", icon: LineChart, requiresAuth: true },
-  { label: "Playbooks", href: "/playbooks", icon: Target, requiresAuth: true },
-  { label: "Templates", href: "/templates", icon: Layers, requiresAuth: true },
-  { label: "Whoop", href: "/connect-whoop", icon: Activity, requiresAuth: true },
+  {
+    label: "Dashboard",
+    to: "/workout/start",
+    icon: Dumbbell,
+    requiresAuth: true,
+  },
+  { label: "Workouts", to: "/workouts", icon: Layers, requiresAuth: true },
+  { label: "Progress", to: "/progress", icon: LineChart, requiresAuth: true },
+  { label: "Templates", to: "/templates", icon: Layers, requiresAuth: true },
 ];
 
 export function DashboardHeader() {
-  const pathname = usePathname();
+  const location = useLocation();
   const { toggle: toggleTheme, resolvedTheme } = useTheme();
-  const { user, isLoading, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   const [hasMounted, setHasMounted] = useState(false);
-  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -60,7 +47,7 @@ export function DashboardHeader() {
   useEffect(() => {
     setUserMenuOpen(false);
     setMobileNavOpen(false);
-  }, [pathname]);
+  }, [location.pathname]);
 
   const navItems = useMemo(() => {
     if (!user) return [];
@@ -69,68 +56,47 @@ export function DashboardHeader() {
 
   const showNav = navItems.length > 0;
 
-  const displayName = useMemo(() => {
-    if (!user) return "";
-
-    const firstName = user.user_metadata?.first_name;
-    if (typeof firstName === "string" && firstName.trim().length > 0) {
-      return firstName.trim();
-    }
-
-    const display = user.user_metadata?.display_name;
-    if (typeof display === "string" && display.trim().length > 0) {
-      return display.trim();
-    }
-
+  const initials = useMemo(() => {
+    if (!user) return "U";
     const emailPrefix = user.email?.split("@")[0];
-    if (emailPrefix && emailPrefix.length > 0) {
-      return emailPrefix;
-    }
-
-    return "Athlete";
+    const matches = (emailPrefix || "U").match(/\b\w/g) ?? [];
+    return matches.slice(0, 2).join("").toUpperCase() || "U";
   }, [user]);
 
-  const initials = useMemo(() => {
-    if (!user) return "";
-    const nameSource = displayName || user.email || "";
-    const matches = nameSource.match(/\b\w/g) ?? [];
-    const letters = matches.slice(0, 2).join("");
-    return letters.toUpperCase() || "S";
-  }, [displayName, user]);
-
-  const avatarSrc = user?.profile_picture_url ?? undefined;
-
-  const isActive = (href: string) => {
-    if (!pathname) return false;
-    if (href === "/") {
-      return pathname === "/";
+  const isActive = (to: string) => {
+    if (!location.pathname) return false;
+    if (to === "/") {
+      return location.pathname === "/";
     }
-    return pathname.startsWith(href);
+    return location.pathname.startsWith(to);
   };
 
-  const themeIcon = hasMounted ? (resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />) : (
+  const themeIcon = hasMounted ? (
+    resolvedTheme === "dark" ? (
+      <Sun className="h-5 w-5" />
+    ) : (
+      <Moon className="h-5 w-5" />
+    )
+  ) : (
     <Moon className="h-5 w-5 opacity-0" />
   );
 
   const renderNavLink = (item: PrimaryNavItem) => {
     const Icon = item.icon;
-    const active = isActive(item.href);
+    const active = isActive(item.to);
     return (
       <Link
-        key={item.href}
-        href={item.href}
+        key={item.to}
+        to={item.to}
         className={cn(
           "group flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-all",
           active
-            ? "bg-gradient-to-r from-primary/20 to-accent/20 text-foreground shadow-sm"
+            ? "from-primary/20 to-accent/20 text-foreground bg-gradient-to-r shadow-sm"
             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
         )}
       >
-        <Icon className={cn("h-4 w-4", active && "text-primary")}
-          aria-hidden
-        />
-        <span className="hidden lg:inline">{item.label}</span>
-        <span className="lg:hidden">{item.label}</span>
+        <Icon className={cn("h-4 w-4", active && "text-primary")} aria-hidden />
+        <span>{item.label}</span>
       </Link>
     );
   };
@@ -140,26 +106,8 @@ export function DashboardHeader() {
     setUserMenuOpen(false);
   };
 
-  const HeaderBrand = (
-    <Link href="/" className="flex items-center gap-2" aria-label="Swole Tracker home">
-      <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-primary via-primary/60 to-accent text-lg font-black text-primary-foreground shadow-sm">
-        S
-      </span>
-      <div className="flex flex-col">
-        <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-lg font-semibold text-transparent">
-          Swole Tracker
-        </span>
-        {user && (
-          <span className="text-xs text-muted-foreground">
-            Welcome back, {displayName}
-          </span>
-        )}
-      </div>
-    </Link>
-  );
-
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/75 backdrop-blur-xl">
+    <header className="border-border/60 bg-background/75 sticky top-0 z-50 border-b backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           {showNav ? (
@@ -174,18 +122,28 @@ export function DashboardHeader() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-full max-w-xs border-r border-border/40 bg-background/95 px-5 py-6">
+              <SheetContent
+                side="left"
+                className="border-border/40 bg-background/95 w-full max-w-xs border-r px-5 py-6"
+              >
                 <div className="flex flex-col gap-6">
-                  <div>{HeaderBrand}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="from-primary via-primary/60 to-accent text-primary-foreground flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-black shadow-sm">
+                      S
+                    </span>
+                    <span className="from-primary to-accent bg-gradient-to-r bg-clip-text text-lg font-semibold text-transparent">
+                      Swole Tracker
+                    </span>
+                  </div>
                   <nav className="space-y-1" aria-label="Primary">
                     {navItems.map((item) => (
                       <Link
-                        key={item.href}
-                        href={item.href}
+                        key={item.to}
+                        to={item.to}
                         onClick={() => setMobileNavOpen(false)}
                         className={cn(
                           "flex items-center justify-between rounded-xl border border-transparent px-3 py-3 text-sm font-medium transition-colors",
-                          isActive(item.href)
+                          isActive(item.to)
                             ? "border-primary/40 bg-primary/10 text-foreground"
                             : "text-muted-foreground hover:border-border/50 hover:bg-muted/50 hover:text-foreground",
                         )}
@@ -194,25 +152,14 @@ export function DashboardHeader() {
                           <item.icon className="h-4 w-4" aria-hidden />
                           {item.label}
                         </span>
-                        {isActive(item.href) && <span className="text-xs text-primary">Active</span>}
                       </Link>
                     ))}
                   </nav>
-
-                  <div className="space-y-3 border-t border-border/40 pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-                      Quick controls
-                    </p>
-                    <div onClick={() => setMobileNavOpen(false)}>
-                      <GlobalStatusTray />
-                    </div>
+                  <div className="border-border/40 space-y-3 border-t pt-4">
                     <Button
                       variant="outline"
-                      className="justify-start gap-3"
-                      onClick={() => {
-                        toggleTheme();
-                        setMobileNavOpen(false);
-                      }}
+                      className="w-full justify-start gap-3"
+                      onClick={() => toggleTheme()}
                     >
                       {hasMounted && resolvedTheme === "dark" ? (
                         <Sun className="h-4 w-4" aria-hidden />
@@ -221,16 +168,6 @@ export function DashboardHeader() {
                       )}
                       Toggle theme
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="justify-start gap-3"
-                      onClick={() => {
-                        setPreferencesOpen(true);
-                        setMobileNavOpen(false);
-                      }}
-                    >
-                      <Settings className="h-4 w-4" aria-hidden /> Preferences
-                    </Button>
                   </div>
                 </div>
               </SheetContent>
@@ -238,9 +175,25 @@ export function DashboardHeader() {
           ) : null}
 
           <div className="flex items-center gap-4">
-            {HeaderBrand}
+            <Link
+              to="/"
+              className="flex items-center gap-2"
+              aria-label="Swole Tracker home"
+            >
+              <span className="from-primary via-primary/60 to-accent text-primary-foreground flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-black shadow-sm">
+                S
+              </span>
+              {user && (
+                <span className="text-muted-foreground text-xs">
+                  Welcome back
+                </span>
+              )}
+            </Link>
             {showNav && (
-              <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
+              <nav
+                className="hidden items-center gap-1 md:flex"
+                aria-label="Primary"
+              >
                 {navItems.map(renderNavLink)}
               </nav>
             )}
@@ -260,85 +213,41 @@ export function DashboardHeader() {
             {themeIcon}
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Notifications"
-            className="hidden sm:inline-flex"
-          >
-            <Bell className="h-5 w-5" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Open preferences"
-            onClick={() => setPreferencesOpen(true)}
-            className="hidden sm:inline-flex"
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-
           {user ? (
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setUserMenuOpen((open) => !open)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-card/80 transition-colors hover:border-primary/40"
+                className="border-border/60 bg-card/80 hover:border-primary/40 flex h-9 w-9 items-center justify-center rounded-full border transition-colors"
                 aria-label="Account menu"
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen}
               >
                 <Avatar className="h-8 w-8">
-                  {avatarSrc ? (
-                    <AvatarImage src={avatarSrc} alt={`${displayName}'s avatar`} />
-                  ) : null}
-                  <AvatarFallback className="bg-primary/20 text-sm font-semibold text-primary">
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm font-semibold">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-52 overflow-hidden rounded-2xl border border-border/60 bg-card/95 shadow-xl backdrop-blur">
-                  <div className="border-b border-border/50 px-4 py-3 text-sm text-muted-foreground">
+                <div className="border-border/60 bg-card/95 absolute right-0 mt-2 w-52 overflow-hidden rounded-2xl border shadow-xl backdrop-blur">
+                  <div className="border-border/50 text-muted-foreground border-b px-4 py-3 text-sm">
                     {user.email}
                   </div>
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/60"
+                    className="text-foreground hover:bg-muted/60 flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition-colors"
                   >
                     Sign out
-                    <span className="text-xs text-muted-foreground">↩</span>
+                    <span className="text-muted-foreground text-xs">↩</span>
                   </button>
                 </div>
               )}
             </div>
-          ) : (
-            !isLoading && (
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/auth/login"
-                  className="rounded-full border border-border/60 px-4 py-2 text-sm font-medium text-foreground transition hover:border-primary/50 hover:bg-primary/10"
-                >
-                  Sign in
-                </Link>
-                <Button
-                  className="rounded-full bg-gradient-to-r from-primary to-accent px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90"
-                  asChild
-                >
-                  <Link href="/auth/register">Create account</Link>
-                </Button>
-              </div>
-            )
-          )}
+          ) : null}
         </div>
       </div>
-
-      <PreferencesModal
-        open={preferencesOpen}
-        onClose={() => setPreferencesOpen(false)}
-      />
     </header>
   );
 }

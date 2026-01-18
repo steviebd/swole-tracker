@@ -1,15 +1,17 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { checkAuth } from "~/server/functions/auth";
+import { getServerContext } from "~/server/context";
+import { DashboardHeader } from "~/components/dashboard-header";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
-    const { isAuthenticated } = await checkAuth();
-    if (!isAuthenticated) {
+    const { user } = await getServerContext();
+    if (!user) {
       throw redirect({
         to: "/api/auth/login",
         search: { redirectTo: "/" },
       });
     }
+    return { user };
   },
   component: AppLayout,
 });
@@ -17,6 +19,7 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   return (
     <div className="bg-background min-h-screen">
+      <DashboardHeader />
       <Outlet />
     </div>
   );
